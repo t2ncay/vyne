@@ -31,7 +31,7 @@ jobs:
 
       - name: Compile Vyne
         run: |
-          g++ -std=c++17 ${{ matrix.flags }} \
+          g++ -std=c++23 ${{ matrix.flags }} \
               $(find . -name "*.cpp") \
               -o vyne_run -Wall -Wextra -Wpedantic
 
