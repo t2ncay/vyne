@@ -11,7 +11,7 @@ else
     EXTRA_FLAGS="-O3"
 fi
 
-CXXFLAGS="-std=c++17 $EXTRA_FLAGS -Wall -Wextra -Wpedantic"
+CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic"
 
 SRC_FILES="main.cpp \
 vyne/vm/vm.cpp \

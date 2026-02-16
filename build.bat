@@ -3,7 +3,7 @@ setlocal
 
 set CXX=g++
 
-set CXXFLAGS=-std=c++17 -O3 -Wall -Wextra
+set CXXFLAGS=-std=c++23 -O3 -Wall -Wextra
 set OUT=vyne.exe
 
 set SRC_FILES=main.cpp ^
