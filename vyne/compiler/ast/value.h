@@ -113,13 +113,25 @@ class StringPool {
     std::vector<std::string> idToStr;
     std::unordered_map<std::string, uint32_t> strToId;
 
+    StringPool() {
+        idToStr.reserve(4096); 
+        strToId.reserve(4096); 
+        
+        // OPTIONAL: Intern an empty string at ID 0 as a 'null' state
+        // This is a common compiler trick for default values.
+        // idToStr.emplace_back("");
+        // strToId[""] = 0;
+    }
+
 public:
     static StringPool& instance() {
-        static StringPool pool;
+        static StringPool pool; 
         return pool;
     }
     
     static uint32_t intern(const std::string& s);
 
-    const std::string& get(uint32_t id) { return idToStr[id]; }
+    const std::string& get(uint32_t id) const { 
+        return idToStr.at(id); 
+    }
 };
