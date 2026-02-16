@@ -21,10 +21,10 @@ vyne/compiler/lexer/lexer.cpp \
 vyne/compiler/parser/parser.cpp \
 vyne/compiler/ast/ast.cpp \
 vyne/compiler/ast/value.cpp \
-vyne/modules/vcore/vcore.cpp \
-vyne/modules/vglib/vglib.cpp \
-vyne/modules/vmem/vmem.cpp \
-vyne/modules/vmath/vmath.cpp \
+vyne/modules/common/vcore/vcore.cpp \
+vyne/modules/common/vglib/vglib.cpp \
+vyne/modules/common/vmem/vmem.cpp \
+vyne/modules/common/vmath/vmath.cpp \
 cli/file_handler.cpp \
 cli/repl.cpp"
 
