@@ -142,14 +142,16 @@ bool Value::equals(const Value& other) const {
 std::string Value::toString() const {
     switch(data.index()) {
         case 1: {
-            std::string s = std::to_string(std::get<double>(data));
-            s.erase(s.find_last_not_of('0') + 1, std::string::npos);
-            if(s.back() == '.') s.pop_back();
-            return s;
+            char buffer[64];
+            auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), std::get<double>(data));
+            if (ec == std::errc()) {
+                return std::string(buffer, ptr - buffer);
+            }
+            return "0";
         }
         case 2:
             return *std::get<std::shared_ptr<std::string>>(data);
-        case 0: 
+        case 0:
             return "null";
         default: {
             std::stringstream ss;
