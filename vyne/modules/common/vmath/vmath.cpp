@@ -5,6 +5,18 @@
  */
 
 namespace VMathNative {
+    /**
+     * @brief Constrains a numeric value between a minimum and maximum range.
+     * * This native function takes three arguments: the value to clamp, the lower bound,
+     * and the upper bound. If the value is less than the minimum, the minimum is returned.
+     * If the value is greater than the maximum, the maximum is returned.
+     * * @param args A vector containing:
+     * - args[0]: The input value (Number)
+     * - args[1]: The lower bound (Number)
+     * - args[2]: The upper bound (Number)
+     * * @throw std::runtime_error If the number of arguments is not exactly 3.
+     * @return Value The clamped numeric result.
+     */
     Value clamp(std::vector<Value>& args) {
         if (args.size() != 3) {
             throw std::runtime_error("Argument Error: vmath.clamp() expects 3 arguments (val, min, max), but got " + std::to_string(args.size()) + ".");
@@ -20,6 +32,17 @@ namespace VMathNative {
         if (val > max) return Value(max);
         
         return Value(val);
+    }
+    
+    Value random(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("Argument Error : vcore.random() expects 2 arguments (min, max)");
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(
+            static_cast<int>(args[0].asNumber()), 
+            static_cast<int>(args[1].asNumber())
+        );
+        return Value(static_cast<double>(dist(gen)));
     }
 
     Value sqrt(std::vector<Value>& args) {
@@ -442,6 +465,7 @@ void setupVMath(SymbolContainer& env, StringPool& pool) {
 
     // VMath methods
     vmath[pool.intern("clamp")]    = Value(VMathNative::clamp);
+    vmath[pool.intern("random")]   = Value(VMathNative::random);
     vmath[pool.intern("sqrt")]     = Value(VMathNative::sqrt);
     vmath[pool.intern("abs")]      = Value(VMathNative::abs);
     vmath[pool.intern("sinh")]     = Value(VMathNative::sinh);
