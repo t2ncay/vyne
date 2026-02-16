@@ -64,6 +64,12 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     int line = peekToken().line;
     consume(VTokenType::Use);
 
+    bool isExtern = false;
+    if (peekToken().type == VTokenType::Extern) {
+        consume(VTokenType::Extern);
+        isExtern = true;
+    }
+
     Token pathTok = consume(VTokenType::String);
     std::string filePath = pathTok.name;
 
@@ -75,7 +81,7 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
 
     consumeSemicolon();
 
-    auto node = std::make_unique<ImportNode>(filePath, alias);
+    auto node = std::make_unique<ImportNode>(filePath, isExtern, alias);
     node->lineNumber = line;
     return node;
 }

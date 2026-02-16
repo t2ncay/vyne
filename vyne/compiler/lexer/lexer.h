@@ -22,6 +22,7 @@ enum class VTokenType {
     Use,                // Multiple file importing
     Deploy,             // Module deployment
     As,                 // Alias declaration
+    Extern,             // External lib modifier
 
     // --- KEYWORDS: CONTROL FLOW ---
     If,

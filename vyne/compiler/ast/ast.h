@@ -469,9 +469,10 @@ public:
 class ImportNode : public ASTNode {
     std::string filePath;
     std::string alias;
+    bool isExtern;
 public:
-    ImportNode(std::string path, std::string al = "") 
-        : ASTNode(NodeType::IMPORT), filePath(std::move(path)), alias(std::move(al)) {}
+   ImportNode(std::string path, bool ie, std::string al = "")
+    : ASTNode(NodeType::IMPORT), filePath(std::move(path)), alias(std::move(al)), isExtern(ie) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

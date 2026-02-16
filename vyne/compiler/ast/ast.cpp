@@ -1,9 +1,9 @@
 #include "ast.h"
 
-#include "../../modules/vcore/vcore.h"
-#include "../../modules/vglib/vglib.h"
-#include "../../modules/vmem/vmem.h"
-#include "../../modules/vmath/vmath.h"
+#include "../../modules/common/vcore/vcore.h"
+#include "../../modules/common/vglib/vglib.h"
+#include "../../modules/common/vmem/vmem.h"
+#include "../../modules/common/vmath/vmath.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -728,17 +728,32 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 }
 
 Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::filesystem::path base(env.getSourceDir());
-    std::filesystem::path relative(filePath);
-    std::string absolutePath = (base / relative).string();
+    std::filesystem::path finalPath;
 
-    const std::string& source = FileUtils::readFile(absolutePath);
+    if (isExtern) {
+        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" / "modules" / "external" / filePath;
+    } else {
+        finalPath = std::filesystem::path(env.getSourceDir()) / filePath;
+    }
+
+    finalPath = std::filesystem::weakly_canonical(finalPath);
+
+    if (!std::filesystem::exists(finalPath)) {
+        if (!std::filesystem::exists(finalPath)) {
+            std::stringstream ss;
+            ss << (isExtern ? "Extern Module" : "File") 
+            << " not found: " << finalPath.string();
+            throw std::runtime_error(ss.str());
+        }
+    }
+
+    const std::string& source = FileUtils::readFile(finalPath.string());
     auto tokens = tokenize(source);
     Parser parser(std::move(tokens));
     auto externalAst = parser.parseProgram();
 
     SymbolContainer externalEnv;
-    externalEnv.setSourceDir(absolutePath);
+    externalEnv.setSourceDir(finalPath.parent_path().string());
 
     try {
         externalAst->evaluate(externalEnv, "global");

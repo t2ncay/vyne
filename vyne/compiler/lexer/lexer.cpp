@@ -100,6 +100,7 @@ std::vector<Token> tokenize(const std::string& input) {
             else if (buffer == "use") tokens.emplace_back(VTokenType::Use, currentLine, 0, buffer);
             else if (buffer == "deploy") tokens.emplace_back(VTokenType::Deploy, currentLine, 0, buffer);
             else if (buffer == "as") tokens.emplace_back(VTokenType::As, currentLine, 0, buffer);
+            else if (buffer == "extern") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
             else tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
             continue;
         }

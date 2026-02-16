@@ -1,7 +1,9 @@
 #include "cli/repl.h"
 #include "cli/file_handler.h"
+#include "vyne/utils/file_utils.h"
 
 int main(int argc, char* argv[]) {
+    FileUtils::setExeDir(argv[0]);
     SymbolContainer env;
     env["global"] = {};
 
