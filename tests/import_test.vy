@@ -1,3 +1,3 @@
-use "./deploy_test.vy";
+use extern "vtest.vy";
 
-out(math.add(2,5));
+vtest.logger("hi");
