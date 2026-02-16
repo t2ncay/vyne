@@ -1,3 +1,3 @@
-use "./tests/deploy_test.vy";
+use "./deploy_test.vy";
 
 out(math.add(2,5));

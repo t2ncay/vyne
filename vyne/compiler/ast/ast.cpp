@@ -728,12 +728,17 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 }
 
 Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    const std::string& source = FileUtils::readFile(filePath);
+    std::filesystem::path base(env.getSourceDir());
+    std::filesystem::path relative(filePath);
+    std::string absolutePath = (base / relative).string();
+
+    const std::string& source = FileUtils::readFile(absolutePath);
     auto tokens = tokenize(source);
     Parser parser(std::move(tokens));
     auto externalAst = parser.parseProgram();
 
     SymbolContainer externalEnv;
+    externalEnv.setSourceDir(absolutePath);
 
     try {
         externalAst->evaluate(externalEnv, "global");

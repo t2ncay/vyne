@@ -12,6 +12,7 @@
 #include <functional>
 #include <cstdint>
 #include <cmath>
+#include <filesystem>
 
 #include "../lexer/lexer.h"
 #include "../types.h"
@@ -25,8 +26,8 @@ class ASTNode;
 using SymbolTable = std::unordered_map<uint32_t, Value>;
 class SymbolContainer {
     std::unordered_map<std::string, SymbolTable> table;
-    
     std::vector<std::string> deployedModules;
+    std::string currentSourceDir = ".";
 
 public:
     SymbolTable& operator[](const std::string& key) { return table[key]; }
@@ -67,6 +68,11 @@ public:
     size_t size() const { return table.size(); }
     
     bool empty() const { return table.empty(); }
+
+    void setSourceDir(const std::string& path) {
+        currentSourceDir = std::filesystem::path(path).parent_path().string();
+    }
+    std::string getSourceDir() const { return currentSourceDir; }
 };
 
 // exception signals

@@ -27,6 +27,7 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             std::cout << GREEN << "Executing via AST Interpreter...\n" << RESET;
             auto start = std::chrono::high_resolution_clock::now();
 
+            env.setSourceDir(filename);
             rootShared->evaluate(env); 
             
             auto end = std::chrono::high_resolution_clock::now();
