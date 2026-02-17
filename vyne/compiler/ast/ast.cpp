@@ -451,8 +451,11 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     uint32_t methodId = StringPool::instance().intern(methodName);
 
     if (receiverVal.getType() == Value::MODULE) {
-        std::string modName = receiverVal.asModule();
-        std::string modPath = "global." + modName; 
+        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+    
+        auto mod = static_cast<ModuleData*>(obj.get());
+        std::string modName = mod->name;
+        std::string modPath = "global." + modName;
 
         if (env.count(modPath) && env[modPath].count(methodId)) {
             Value& funcVal = env[modPath][methodId];

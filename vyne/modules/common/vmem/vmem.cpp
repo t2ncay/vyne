@@ -22,16 +22,15 @@ namespace VMemNative {
                 actualPtr = &val.data; 
                 break;
             case Value::STRING:
-                actualPtr = std::get<std::shared_ptr<std::string>>(val.data).get();
+                actualPtr = &StringPool::instance().get(std::get<uint32_t>(val.data));
                 break;
             case Value::ARRAY:
-                actualPtr = std::get<std::shared_ptr<std::vector<Value>>>(val.data).get();
-                break;
             case Value::FUNCTION:
-                actualPtr = val.asFunction().get();
+            case Value::MODULE:
+                actualPtr = std::get<std::shared_ptr<VyneObject>>(val.data).get();
                 break;
             default:
-                actualPtr = &val.data;
+                actualPtr = nullptr;
         }
 
         std::stringstream ss;

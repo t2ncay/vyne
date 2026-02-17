@@ -23,7 +23,7 @@ InterpretResult VM::run() {
                 Value b = pop();
                 Value a = pop();
 
-                double result = std::get<double>(a.data) + std::get<double>(b.data);
+                double result = a.asNumber() + b.asNumber();
                 push(Value(result));
                 break;
             }
@@ -31,7 +31,7 @@ InterpretResult VM::run() {
                 Value b = pop();
                 Value a = pop();
 
-                double result = std::get<double>(a.data) - std::get<double>(b.data);
+                double result = a.asNumber() - b.asNumber();
                 push(Value(result));
                 break;
             }
@@ -39,7 +39,7 @@ InterpretResult VM::run() {
                 Value b = pop();
                 Value a = pop();
 
-                double result = std::get<double>(a.data) * std::get<double>(b.data);
+                double result = a.asNumber() * b.asNumber();
                 push(Value(result));
                 break;
             }
@@ -47,43 +47,40 @@ InterpretResult VM::run() {
                 Value b = pop();
                 Value a = pop();
 
-                if (std::get<double>(b.data) == 0) {
+                if (b.asNumber() == 0) {
                     std::cerr << "Runtime Error: Division by zero." << std::endl;
                     return INTERPRET_RUNTIME_ERROR;
                 }
 
-                double result = std::get<double>(a.data) / std::get<double>(b.data);
+                double result = a.asNumber() / b.asNumber();
                 push(Value(result));
                 break;
             }
 
-            case OP_DEFINE_GLOBAL : {
+            case OP_DEFINE_GLOBAL: {
                 Value nameValue = READ_CONSTANT();
-                std::string name = *std::get<std::shared_ptr<std::string>>(nameValue.data);
-
+                uint32_t nameId = std::get<uint32_t>(nameValue.data); 
                 Value val = pop();
-
-                this->globals[this->currentGroup][StringPool::intern(name)] = val;
-
+                this->globals[this->currentGroup][nameId] = val;
                 break;
             }
             case OP_GET_GLOBAL: {
-                Value nameValue = READ_CONSTANT();
-                std::string name = *std::get<std::shared_ptr<std::string>>(nameValue.data);
+            Value nameValue = READ_CONSTANT();
+            
+            uint32_t nameId = std::get<uint32_t>(nameValue.data); 
 
-                uint32_t nameId = StringPool::intern(name);
+            auto& table = globals[currentGroup];
+            auto it = table.find(nameId);
 
-                auto& table = globals[currentGroup];
-                auto it = table.find(nameId);
-
-                if (it != table.end()) {
-                    push(it->second);
-                } else {
-                    std::cerr << "Runtime Error: Undefined variable '" << name << "'.\n";
-                    return INTERPRET_RUNTIME_ERROR;
-                }
-                break;
+            if (it != table.end()) {
+                push(it->second);
+            } else {
+                std::string name = nameValue.asString(); 
+                std::cerr << "Runtime Error: Undefined variable '" << name << "'.\n";
+                return INTERPRET_RUNTIME_ERROR;
             }
+            break;
+        }
             case OP_JUMP_IF_FALSE : {
                 uint16_t offset = static_cast<uint16_t>((ip[0] << 8) | ip[1]);
                 ip += 2;
