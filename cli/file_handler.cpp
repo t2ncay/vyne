@@ -1,3 +1,10 @@
+#ifdef VYNE_JIT_ENABLED
+// LLVM headers must be included before file_handler.h to avoid
+// macro collisions (RED, GREEN, etc. clash with LLVM's Colors enum).
+#include "../vyne/jit/jit_compiler.h"
+#include "../vyne/jit/jit_engine.h"
+#endif
+
 #include "file_handler.h"
 
 int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode){
@@ -28,12 +35,33 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             auto start = std::chrono::high_resolution_clock::now();
 
             env.setSourceDir(filename);
-            rootShared->evaluate(env); 
-            
+            rootShared->evaluate(env);
+
             auto end = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
             return 0;
+#ifdef VYNE_JIT_ENABLED
+        } else if (mode == "jit") {
+            std::cout << GREEN << "Compiling via LLVM JIT...\n" << RESET;
+
+            JITCompiler compiler;
+            auto module = compiler.compile(rootShared.get());
+            auto ctx = compiler.takeContext();
+
+            JITEngine engine;
+            engine.initialize();
+            engine.registerRuntimeSymbols();
+            engine.addModule(std::move(module), std::move(ctx));
+
+            auto start = std::chrono::high_resolution_clock::now();
+            engine.run("__vyne_main");
+            auto end = std::chrono::high_resolution_clock::now();
+
+            std::chrono::duration<double, std::milli> ms = end - start;
+            std::cout << GREEN << "\nJIT Execution finished in: " << ms.count() << "ms" << RESET;
+            return 0;
+#endif
         } else {
             std::cout << GREEN << "Compiling to Bytecode..." << RESET << "\n";
     

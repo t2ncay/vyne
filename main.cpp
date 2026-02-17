@@ -15,6 +15,10 @@ int main(int argc, char* argv[]) {
             runFile(filename, env, "ast");
         } else if (flag == "--bytecode") {
             runFile(filename, env, "bytecode");
+#ifdef VYNE_JIT_ENABLED
+        } else if (flag == "--jit") {
+            runFile(filename, env, "jit");
+#endif
         } else {
             std::cerr << "Unknown flag: " << flag << "\n";
             return 1;
