@@ -21,6 +21,7 @@
 
 class Emitter;
 class Parser;
+class JITCompiler;
 struct Value;
 class ASTNode;
 using SymbolTable = std::unordered_map<uint32_t, Value>;
@@ -161,6 +162,7 @@ public:
 };
 
 class NumberNode : public ASTNode {
+    friend class JITCompiler;
     double value;
 public:
     NumberNode(double val) : ASTNode(NodeType::NUMBER), value(val) {}
@@ -170,8 +172,9 @@ public:
 };
 
 class VariableNode : public ASTNode {
+    friend class JITCompiler;
     uint32_t nameId;
-    std::string originalName; 
+    std::string originalName;
     std::vector<std::string> specificGroup;
     VType explicitType;
 
@@ -193,6 +196,7 @@ public:
 };
 
 class AssignmentNode : public ASTNode {
+    friend class JITCompiler;
     uint32_t identifierId;
     std::string originalName;
     std::unique_ptr<ASTNode> rhs;
@@ -223,6 +227,7 @@ public:
 };
 
 class BinOpNode : public ASTNode {
+    friend class JITCompiler;
     VTokenType op;
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
@@ -256,6 +261,7 @@ public:
 };
 
 class PostFixNode : public ASTNode {
+    friend class JITCompiler;
     VTokenType op;
     std::unique_ptr<ASTNode> left;
 public:
@@ -268,10 +274,11 @@ public:
 };
 
 class UnaryNode : public ASTNode {
+    friend class JITCompiler;
     VTokenType op;
     std::unique_ptr<ASTNode> right;
 
-public: 
+public:
     UnaryNode(VTokenType op, std::unique_ptr<ASTNode> rhs)
         : ASTNode(NodeType::UNARY), op(op), right(std::move(rhs)) {}
     
@@ -281,6 +288,7 @@ public:
 };   
 
 class BuiltInCallNode : public ASTNode {
+    friend class JITCompiler;
     std::string funcName;
     std::vector<std::unique_ptr<ASTNode>> arguments;
 public:
@@ -306,8 +314,9 @@ public:
 };
 
 class BooleanNode : public ASTNode {
+    friend class JITCompiler;
     bool condition;
-public :
+public:
     BooleanNode(bool c) : ASTNode(NodeType::BOOLEAN), condition(c) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override {
@@ -355,6 +364,7 @@ public :
 };
 
 class FunctionNode : public ASTNode {
+    friend class JITCompiler;
     std::string targetModule;
     uint32_t funcNameId;
     std::string originalName;
@@ -372,6 +382,7 @@ public:
 };
 
 class FunctionCallNode : public ASTNode {
+    friend class JITCompiler;
     uint32_t funcNameId;
     std::string originalName;
     std::vector<std::unique_ptr<ASTNode>> arguments;
@@ -385,6 +396,7 @@ public:
 };
 
 class ReturnNode : public ASTNode {
+    friend class JITCompiler;
     std::unique_ptr<ASTNode> expression;
 public:
     ReturnNode(std::unique_ptr<ASTNode> expr) : ASTNode(NodeType::RETURN), expression(std::move(expr)) {}
@@ -409,6 +421,7 @@ public:
 };
 
 class WhileNode : public ASTNode {
+    friend class JITCompiler;
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<ASTNode> body;
 

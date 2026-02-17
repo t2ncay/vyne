@@ -12,6 +12,7 @@ else
 fi
 
 CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic"
+LDFLAGS=""
 
 SRC_FILES="main.cpp \
 vyne/vm/vm.cpp \
@@ -28,12 +29,27 @@ vyne/modules/common/vmath/vmath.cpp \
 cli/file_handler.cpp \
 cli/repl.cpp"
 
+if [[ "$*" == *"--jit"* ]]; then
+    echo "Building with LLVM JIT support..."
+    LLVM_CXXFLAGS=$(llvm-config --cxxflags | sed 's/-fno-exceptions//g' | sed 's/-std=c++[0-9]*//g')
+    LLVM_LDFLAGS=$(llvm-config --ldflags)
+    LLVM_LIBS="-lLLVM-$(llvm-config --version | cut -d. -f1)"
+
+    CXXFLAGS="$CXXFLAGS $LLVM_CXXFLAGS -DVYNE_JIT_ENABLED"
+    LDFLAGS="$LLVM_LDFLAGS $LLVM_LIBS"
+
+    SRC_FILES="$SRC_FILES \
+vyne/jit/jit_compiler.cpp \
+vyne/jit/jit_engine.cpp \
+vyne/jit/jit_runtime.cpp"
+fi
+
 echo "---------------------------------------"
 echo "Building Vyne Interpreter (Unix-like)..."
 echo "Mode: ${EXTRA_FLAGS}"
 echo "---------------------------------------"
 
-$CXX $CXXFLAGS $SRC_FILES -o $OUT
+$CXX $CXXFLAGS $SRC_FILES -o $OUT $LDFLAGS
 
 echo "Build Successful: $OUT created."
 
