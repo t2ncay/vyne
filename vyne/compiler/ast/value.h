@@ -144,7 +144,7 @@ struct Value {
 
     bool operator==(const Value& other) const;
     bool operator!=(const Value& other) const;
-    bool operator<(const Value& other) const;
+    bool operator<(const Value& other)  const;
 };
 
 // TODO ADD POOL CLEARING FEATURE WHEN THE DISMISS IS TRIGGERED
