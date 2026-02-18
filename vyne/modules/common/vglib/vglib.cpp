@@ -57,7 +57,7 @@ namespace VGLibNative {
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
-    std::string path = "global.vglib";
+    const std::string& path = "global.vglib";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

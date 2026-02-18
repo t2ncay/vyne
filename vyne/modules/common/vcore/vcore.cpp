@@ -109,7 +109,7 @@ namespace VCoreNative {
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
-    std::string path = "global.vcore";
+    const std::string& path = "global.vcore";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

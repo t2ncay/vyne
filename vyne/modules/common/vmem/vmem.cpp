@@ -65,7 +65,7 @@ namespace VMemNative {
 
 void setupVMem(SymbolContainer& env, StringPool& pool) {
     VMemNative::setEnv(env);
-    std::string path = "global.vmem";
+    const std::string& path = "global.vmem";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

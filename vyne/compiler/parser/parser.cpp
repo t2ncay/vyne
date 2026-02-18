@@ -436,7 +436,9 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     Token tok = consume(VTokenType::Identifier);
     int line = tok.line;
 
-    if (tok.name == "return" || tok.name == "sub" || tok.name == "log") {
+    if (tok.type == VTokenType::Return   || 
+        tok.type == VTokenType::Function || 
+        tok.type == VTokenType::BuiltIn) {
         throw std::runtime_error("Syntax Error: Unexpected keyword '" + tok.name + "'");
     }   
 
