@@ -45,8 +45,23 @@ namespace VMemNative {
         const std::string& addrStr = StringPool::instance().get(stringId);
 
         uintptr_t addr = std::stoull(addrStr, nullptr, 16);
-        uint32_t* ptr = reinterpret_cast<uint32_t*>(addr);
+        double* ptr = reinterpret_cast<double*>(addr);
         return Value((double)*ptr);
+    }
+
+    Value poke(std::vector<Value>& args){
+        if (args.empty()) return Value(0.0);
+        double newVal = std::get<double>(args[1].data);
+
+        uint32_t stringId = std::get<uint32_t>(args[0].data);
+        const std::string& addrStr = StringPool::instance().get(stringId);
+
+        uintptr_t addr = std::stoull(addrStr, nullptr, 16);
+        double* ptr = reinterpret_cast<double*>(addr);
+
+        *ptr = newVal;;
+
+        return Value(true);
     }
 
     Value usage(std::vector<Value>& args){
@@ -88,6 +103,7 @@ void setupVMem(SymbolContainer& env, StringPool& pool) {
     vmem[pool.intern("address")] = Value(VMemNative::address);
     vmem[pool.intern("usage")]   = Value(VMemNative::usage);
     vmem[pool.intern("peek")]    = Value(VMemNative::peek);
+    vmem[pool.intern("poke")]    = Value(VMemNative::poke);
 
     // vmem properties
 }
