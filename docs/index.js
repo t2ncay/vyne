@@ -157,40 +157,38 @@ function highlightCodeBlocks() {
   const codeBlocks = document.querySelectorAll("code");
 
   codeBlocks.forEach((block) => {
-    if (block.classList.contains("language-bash")) {
+    // 1. Skip if already highlighted or if it's bash
+    if (
+      block.classList.contains("language-bash") ||
+      block.getAttribute("data-highlighted")
+    ) {
       return;
     }
-    // 1. Always get the raw text first to avoid re-processing tags
+
     let code = block.textContent;
 
-    // 2. Comments first
-    code = code.replace(/\/\/.*$/gm, '<span class="token comment">$&</span>');
-
-    // 3. Strings
+    // 2. Process the string (The order matters!)
+    // Strings
     code = code.replace(
       /(["'])(?:(?=(\\?))\2.)*?\1/g,
       '<span class="token string">$&</span>',
     );
 
-    // 4. ONE-PASS KEYWORDS (This fixes the "token keyword"> ghosting)
-    // Add sub, group, module, and out to match your Vyne syntax
+    // Keywords - using strict word boundaries
+
     const kwRegex =
       /\b(sub|group|module|if|else|through|as|return|var|const|while|out|use|extern|)\b/g;
     code = code.replace(kwRegex, '<span class="token keyword">$1</span>');
 
-    // 5. Numbers
+    // Numbers
     code = code.replace(/\b\d+\b/g, '<span class="token number">$&</span>');
 
-    // 6. Functions
-    code = code.replace(
-      /\b(print|range|len|now|sleep|input)\b/g,
-      '<span class="token function">$1</span>',
-    );
-
-    // 7. The $ Operator (For your vmem features)
+    // $ Operator
     code = code.replace(/(\$)/g, '<span class="token operator">$1</span>');
 
+    // 3. Set the HTML and mark it so it doesn't run again
     block.innerHTML = code;
+    block.setAttribute("data-highlighted", "true");
   });
 }
 
