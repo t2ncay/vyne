@@ -11,33 +11,6 @@ namespace VMemNative {
         g_env = &env;
     }
 
-    Value address(std::vector<Value>& args) {
-        if (args.empty()) return Value("0x0");
-
-        const Value& val = args[0];
-        const void* actualPtr = nullptr;
-
-        switch (val.getType()) {
-            case Value::NUMBER:
-                actualPtr = &val.data; 
-                break;
-            case Value::STRING:
-                actualPtr = &StringPool::instance().get(std::get<uint32_t>(val.data));
-                break;
-            case Value::ARRAY:
-            case Value::FUNCTION:
-            case Value::MODULE:
-                actualPtr = std::get<std::shared_ptr<VyneObject>>(val.data).get();
-                break;
-            default:
-                actualPtr = nullptr;
-        }
-
-        std::stringstream ss;
-        ss << "0x" << std::hex << reinterpret_cast<uintptr_t>(actualPtr);
-        return Value(ss.str());
-    }
-
     Value peek(std::vector<Value>& args){
         if (args.empty()) return Value(0.0);
 
@@ -100,7 +73,6 @@ void setupVMem(SymbolContainer& env, StringPool& pool) {
     auto& vmem = env[path];
 
     // vmem methods
-    vmem[pool.intern("address")] = Value(VMemNative::address);
     vmem[pool.intern("usage")]   = Value(VMemNative::usage);
     vmem[pool.intern("peek")]    = Value(VMemNative::peek);
     vmem[pool.intern("poke")]    = Value(VMemNative::poke);
