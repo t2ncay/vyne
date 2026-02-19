@@ -40,7 +40,7 @@ namespace VMemNative {
     Value usage(std::vector<Value>& args){
         size_t totalBytes = 0;
 
-        if(args.size() > 1) throw std::runtime_error("Argument Error : vmem.usage() takes 1 or 0 arguments, but got " + std::to_string(args.size()));
+        if(args.size() > 1) throw std::runtime_error("Argument Error : vmem.usage() takes 1 or non-argument, but got " + std::to_string(args.size()));
 
         if (!g_env) return Value(0.0);
 
