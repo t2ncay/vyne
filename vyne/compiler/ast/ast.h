@@ -39,6 +39,7 @@ public:
     auto end() { return table.end(); }
     auto end() const { return table.end(); }
 
+
     void deploy(const std::string& moduleName) {
         SymbolTable& globalScope = table["global"];
     
@@ -71,6 +72,23 @@ public:
 
     void setSourceDir(const std::string& path) {
         currentSourceDir = std::filesystem::path(path).parent_path().string();
+    }
+
+    Value* getInternalPointer(const std::string& moduleName, uint32_t varId) {
+        auto moduleIt = table.find(moduleName);
+        
+        if (moduleIt == table.end()) {
+            throw std::runtime_error("Module '" + moduleName + "' not found.");
+        }
+
+        SymbolTable& scope = moduleIt->second;
+        auto varIt = scope.find(varId);
+
+        if (varIt == scope.end()) {
+            throw std::runtime_error("Variable ID '" + std::to_string(varId) + "' not found.");
+        }
+
+        return &(varIt->second);
     }
     std::string getSourceDir() const { return currentSourceDir; }
 };

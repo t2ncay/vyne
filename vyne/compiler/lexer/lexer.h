@@ -45,6 +45,7 @@ enum class VTokenType {
     Modulo,             // %
     Power,
     Exclamatory,        // !
+    Addresser,          // $
 
     // --- OPERATORS: LOGIC & RELATIONAL ---
     And, Or,            // &&, ||

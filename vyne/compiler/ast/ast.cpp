@@ -275,6 +275,20 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
         case VTokenType::Substract : {
             return Value(-val.asNumber());
         }
+        
+        case VTokenType::Addresser : {
+            auto varNode = dynamic_cast<VariableNode*>(right.get());
+            if (!varNode) {
+                throw std::runtime_error("Cannot take address of a non-variable.");
+            }
+
+            Value* internalPtr = env.getInternalPointer(currentGroup, varNode->getNameId()); 
+
+    
+            std::stringstream ss;
+            ss << "0x" << std::hex << reinterpret_cast<uintptr_t>(internalPtr);
+            return Value(ss.str());
+        }
     }
 }
 

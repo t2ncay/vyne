@@ -115,6 +115,7 @@ std::vector<Token> tokenize(const std::string& input) {
             case ',': tokens.emplace_back(VTokenType::Comma, currentLine, 0, ","); break;
             case ';': tokens.emplace_back(VTokenType::Semicolon, currentLine, 0, ";"); break;
             case '%': tokens.emplace_back(VTokenType::Modulo, currentLine, 0, "%"); break;
+            case '$': tokens.emplace_back(VTokenType::Addresser, currentLine, 0, "$"); break;
             case '/': {
                 if (i + 1 < input.length() && input[i + 1] == '/') {
                     tokens.emplace_back(VTokenType::Floor_Divide, currentLine, 0, "//");
