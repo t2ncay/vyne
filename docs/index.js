@@ -157,6 +157,9 @@ function highlightCodeBlocks() {
   const codeBlocks = document.querySelectorAll("code");
 
   codeBlocks.forEach((block) => {
+    if (block.classList.contains("language-bash")) {
+      return;
+    }
     // 1. Always get the raw text first to avoid re-processing tags
     let code = block.textContent;
 
