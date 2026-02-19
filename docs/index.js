@@ -157,48 +157,35 @@ function highlightCodeBlocks() {
   const codeBlocks = document.querySelectorAll("code");
 
   codeBlocks.forEach((block) => {
+    // 1. Always get the raw text first to avoid re-processing tags
     let code = block.textContent;
 
-    // Simple keyword highlighting
-    const keywords = [
-      "func",
-      "if",
-      "else",
-      "for",
-      "in",
-      "return",
-      "var",
-      "const",
-      "try",
-      "catch",
-      "match",
-      "case",
-    ];
-    keywords.forEach((keyword) => {
-      const regex = new RegExp(`\\b${keyword}\\b`, "g");
-      code = code.replace(
-        regex,
-        `<span class="token keyword">${keyword}</span>`,
-      );
-    });
+    // 2. Comments first
+    code = code.replace(/\/\/.*$/gm, '<span class="token comment">$&</span>');
 
-    // String highlighting
+    // 3. Strings
     code = code.replace(
       /(["'])(?:(?=(\\?))\2.)*?\1/g,
       '<span class="token string">$&</span>',
     );
 
-    // Comment highlighting
-    code = code.replace(/\/\/.*$/gm, '<span class="token comment">$&</span>');
+    // 4. ONE-PASS KEYWORDS (This fixes the "token keyword"> ghosting)
+    // Add sub, group, module, and out to match your Vyne syntax
+    const kwRegex =
+      /\b(sub|group|module|if|else|through|as|return|var|const|while|out|use|extern|)\b/g;
+    code = code.replace(kwRegex, '<span class="token keyword">$1</span>');
 
-    // Number highlighting
+    // 5. Numbers
     code = code.replace(/\b\d+\b/g, '<span class="token number">$&</span>');
 
-    // Function highlighting
+    // 6. Functions
     code = code.replace(
-      /\b(print|range|len)\b/g,
+      /\b(print|range|len|now|sleep|input)\b/g,
       '<span class="token function">$1</span>',
     );
+
+    // 7. The $ Operator (For your vmem features)
+    code = code.replace(/(\$)/g, '<span class="token operator">$1</span>');
 
     block.innerHTML = code;
   });
