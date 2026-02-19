@@ -477,14 +477,20 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (funcVal.getType() == Value::FUNCTION) {
                 auto func = funcVal.asFunction();
 
+                if (arguments.empty() && func->isNative) {
+                    static std::vector<Value> emptyArgs; 
+                    return func->nativeFn(emptyArgs);
+                }
+
                 std::vector<Value> argValues;
+                argValues.reserve(arguments.size());
                 for (auto& arg : arguments) {
                     argValues.emplace_back(arg->evaluate(env, currentGroup));
                 }
 
                 if (func->isNative) {
                     return func->nativeFn(argValues); 
-                } 
+                }
 
                 const std::string& localCallScope = modPath + ".call_" + std::to_string(rand());
 
