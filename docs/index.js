@@ -159,25 +159,11 @@ function highlightCodeBlocks() {
   codeBlocks.forEach((block) => {
     let code = block.textContent;
 
-    code = code
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-
-    code = code.replace(/\/\/.*$/gm, '<span class="token comment">$&</span>');
-
-    code = code.replace(
-      /(["'])(?:(?=(\\?))\2.)*?\1/g,
-      '<span class="token string">$&</span>',
-    );
-
+    // Simple keyword highlighting
     const keywords = [
-      "sub",
-      "group",
-      "module",
+      "func",
       "if",
       "else",
-      "while",
       "for",
       "in",
       "return",
@@ -187,9 +173,7 @@ function highlightCodeBlocks() {
       "catch",
       "match",
       "case",
-      "out",
     ];
-
     keywords.forEach((keyword) => {
       const regex = new RegExp(`\\b${keyword}\\b`, "g");
       code = code.replace(
@@ -198,19 +182,22 @@ function highlightCodeBlocks() {
       );
     });
 
+    // String highlighting
     code = code.replace(
-      /\b\d+(\.\d+)?\b/g,
-      '<span class="token number">$&</span>',
+      /(["'])(?:(?=(\\?))\2.)*?\1/g,
+      '<span class="token string">$&</span>',
     );
 
+    // Comment highlighting
+    code = code.replace(/\/\/.*$/gm, '<span class="token comment">$&</span>');
+
+    // Number highlighting
+    code = code.replace(/\b\d+\b/g, '<span class="token number">$&</span>');
+
+    // Function highlighting
     code = code.replace(
-      /\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\()/g,
+      /\b(print|range|len)\b/g,
       '<span class="token function">$1</span>',
-    );
-
-    code = code.replace(
-      /(\+|-|\*|\/|==|!=|<=|>=|=|\$|&|\||\^|~)/g,
-      '<span class="token operator">$1</span>',
     );
 
     block.innerHTML = code;
