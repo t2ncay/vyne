@@ -31,17 +31,18 @@ Vyne employs a hybrid type system that supports both **Explicit Declaration** an
 
 #### 1. Assignment Modes
 
-| Mode         | Syntax Example       | Description                                                                 |
-| :----------- | :------------------- | :-------------------------------------------------------------------------- |
-| **Inferred** | `score = 95`         | Type is determined at runtime based on the assigned value.                  |
-| **Explicit** | `age :: Number = 30` | The variable is "locked" to a specific type; future assignments must match. |
-| **Constant** | `const PI = 3.14`    | Immutable binding. Reassignment attempts will trigger a Runtime Error.      |
+| Mode         | Syntax Example               | Description                                                                 |
+| :----------- | :--------------------------- | :-------------------------------------------------------------------------- |
+| **Inferred** | `score = 95`                 | Type is determined at runtime based on the assigned value.                  |
+| **Explicit** | `age :: Int64 = 30`          | The variable is "locked" to a specific type; future assignments must match. |
+| **Constant** | `const PI :: Float64 = 3.14` | Immutable binding. Reassignment attempts will trigger a Runtime Error.      |
 
 #### 2. Built-in Primitive Types
 
 Vyne recognizes the following core types during explicit declaration:
 
-- **`Number`**: 64-bit floating point (handles both integers and decimals).
+- **`Int64`**: Signed 64-bit integer. Used for indexing, pointers, and discrete counts.
+- **`Float64`**: 64-bit double-precision floating point. Used for ML, DSP, and physics.
 - **`String`**: UTF-8 encoded character sequences.
 - **`Boolean`**: Logical `true` or `false`.
 - **`Array`**: Dynamic list of `Value` objects.
@@ -51,7 +52,7 @@ Vyne recognizes the following core types during explicit declaration:
 To ensure engine stability, the following rules are enforced:
 
 > [ Note: Type Mismatch ]
-> If a variable is declared as `val :: Number`, assigning a `String` to it later will result in a `Type Error`.
+> If a variable is declared as `val :: Int64`, assigning a `String` to it later will result in a `Type Error`.
 
 > [ Note: Constant Protection ]
 > Constants must be initialized at the moment of declaration. Once set, they are read-only for the duration of the program execution.
@@ -75,7 +76,7 @@ Vyne leverages native C++ modules to handle high-performance tasks that the inte
 
 ```bash
 out(x)         # Print to terminal
-type(x)        # Returns "number", "string", "array", or "function"
+type(x)        # Returns "Float64", "String", "Array", or "Function"
 sizeof(x)      # Get length of strings or count of array elements
 string(x)      # Convert any data type to string
 number(x)      # Convert any data type to number
