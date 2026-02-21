@@ -1,6 +1,6 @@
 module vtest;
 
-sub :: vtest logger(message){
+fn :: vtest logger(message){
     out(message);
 }
 
