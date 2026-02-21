@@ -4,7 +4,7 @@ module vmatrix;
 # This module helps with matrix operations
 # I will also add matrix multiplication when I have time
 
-sub :: vmatrix matrix_add(a, b) {
+fn :: vmatrix add(a, b) {
 
     result :: Array = [];
 
@@ -36,7 +36,7 @@ sub :: vmatrix matrix_add(a, b) {
     return result;
 }
 
-sub :: vmatrix matrix_subtract(a, b) {
+fn :: vmatrix subtract(a, b) {
     
     result :: Array = [];
 
