@@ -79,7 +79,8 @@ out(x)         # Print to terminal
 type(x)        # Returns "Float64", "String", "Array", or "Function"
 sizeof(x)      # Get length of strings or count of array elements
 string(x)      # Convert any data type to string
-number(x)      # Convert any data type to number
+int64(x)       # Convert any data type to Int64
+float64(x)     # Convert any data type to Float64
 sequence(x, y) # Generates a sequence ( array ) in given range of numbers
 ```
 
