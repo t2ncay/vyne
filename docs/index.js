@@ -177,7 +177,7 @@ function highlightCodeBlocks() {
     // Keywords - using strict word boundaries
 
     const kwRegex =
-      /\b(sub|group|module|if|else|through|as|return|var|const|while|out|use|extern|)\b/g;
+      /\b(fn|group|module|if|else|through|as|return|var|const|while|out|use|extern|)\b/g;
     code = code.replace(kwRegex, '<span class="token keyword">$1</span>');
 
     // Numbers
