@@ -229,6 +229,9 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
                 return Value(lv / rv);
             case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(l == r);
+            case VTokenType::Smaller_Or_Equal: return Value(lv <= rv);
+            case VTokenType::Greater:       return Value(lv > rv);
+            case VTokenType::Greater_Or_Equal: return Value(lv >= rv);
             default: break;
         }
     } else if (lType == Value::INT64 && rType == Value::INT64) {
@@ -246,6 +249,9 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
                 return Value(lv % rv);
             case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(lv == rv);
+            case VTokenType::Smaller_Or_Equal: return Value(lv <= rv);
+            case VTokenType::Greater:       return Value(lv > rv);
+            case VTokenType::Greater_Or_Equal: return Value(lv >= rv);
             default: break;
         }
     }
