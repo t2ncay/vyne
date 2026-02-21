@@ -2,7 +2,7 @@ x = 5;
 y = 6;
 z = 7;
 
-sub do(){
+fn do(){
     out(x);
 }
 

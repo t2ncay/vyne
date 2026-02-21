@@ -3,7 +3,7 @@ n = numbers.size();
 
 i = 0;
 
-sub checkSorted(arr, size) {
+fn checkSorted(arr, size) {
     sortedStatus = 1;
     row = 0;
     while row < size {

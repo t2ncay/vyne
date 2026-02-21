@@ -2,7 +2,7 @@ module vcore;
 module vmem;
 module CustomModule;
 
-sub::CustomModule call(){
+fn::CustomModule call(){
     out("hi");
 }
 

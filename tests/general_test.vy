@@ -1,4 +1,4 @@
-sub unique_arr(arr) {
+fn unique_arr(arr) {
     result = [];
     i = 0;
     size = arr.size();

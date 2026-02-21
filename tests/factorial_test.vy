@@ -1,7 +1,7 @@
 module vcore;
 module vmem;
 
-sub factorial(n) {
+fn factorial(n) {
     if n <= 1 {
         return 1;
     }

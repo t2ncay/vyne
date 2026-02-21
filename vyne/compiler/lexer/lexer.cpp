@@ -93,7 +93,7 @@ std::vector<Token> tokenize(const std::string& input) {
             else if (buffer == "true") tokens.emplace_back(VTokenType::True, currentLine, 1, "");
             else if (buffer == "false") tokens.emplace_back(VTokenType::False, currentLine, 0, "");
             else if (buffer == "null") tokens.emplace_back(VTokenType::Null, currentLine, 0, "");
-            else if (buffer == "sub") tokens.emplace_back(VTokenType::Function, currentLine, 0, buffer);
+            else if (buffer == "fn") tokens.emplace_back(VTokenType::Function, currentLine, 0, buffer);
             else if (buffer == "return") tokens.emplace_back(VTokenType::Return, currentLine, 0, buffer);
             else if (buffer == "while") tokens.emplace_back(VTokenType::While, currentLine, 0, buffer);
             else if (buffer == "through") tokens.emplace_back(VTokenType::Through, currentLine, 0, buffer);
