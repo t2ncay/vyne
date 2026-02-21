@@ -59,23 +59,20 @@ Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& curr
     Value val = rhs->evaluate(env, currentGroup);
 
     if (expectedType != VType::Unknown) {
-    const std::string& expectedName = VTypeToString(expectedType);
-    const std::string& actualName = val.getTypeName(); 
-
-    if (expectedName != actualName) {
-        if (expectedType == VType::Int64 && val.getType() == Value::FLOAT64) {
-            val = Value(val.asInt());
-        } 
-        else if (expectedType == VType::Float64 && val.getType() == Value::INT64) {
-            val = Value(val.asFloat());
-        } 
-        else {
-            throw std::runtime_error("Type Error: Explicit type mismatch. Expected " + 
-                expectedName + ", but got " + actualName + 
-                " [ line " + std::to_string(lineNumber) + " ]");
+        int actualType = val.getType(); 
+        
+        if (static_cast<int>(expectedType) != actualType) {
+            
+            if (expectedType == VType::Float64 && actualType == Value::INT64) {
+                val = Value(val.asFloat()); // preserving safe promotion Int64 -> Float64
+            } 
+            else {
+                throw std::runtime_error("Type Error: Type-Strict mismatch. Expected " + 
+                    VTypeToString(expectedType) + ", but got " + val.getTypeName() + 
+                    " [ line " + std::to_string(lineNumber) + " ]");
+            }
         }
     }
-}
 
     if (isConstant) {
         val.setReadOnly();
