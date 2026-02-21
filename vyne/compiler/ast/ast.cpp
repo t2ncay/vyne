@@ -55,16 +55,15 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
  * * @return Value The value being assigned (allows for chained assignments like a = b = 1).
  */
 
-Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& currentGroup) const {
+Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value val = rhs->evaluate(env, currentGroup);
 
     if (expectedType != VType::Unknown) {
         int actualType = val.getType(); 
         
         if (static_cast<int>(expectedType) != actualType) {
-            
             if (expectedType == VType::Float64 && actualType == Value::INT64) {
-                val = Value(val.asFloat()); // preserving safe promotion Int64 -> Float64
+                val = Value(val.asFloat()); 
             } 
             else {
                 throw std::runtime_error("Type Error: Type-Strict mismatch. Expected " + 
@@ -80,39 +79,48 @@ Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& curr
 
     std::string targetGroup = resolvePath(scopePath, currentGroup);
     auto& table = env[targetGroup];
-
     auto it_existing = table.find(identifierId); 
 
     if (it_existing != table.end()) {
+        if (it_existing->second.isReadOnly) {
+            throw std::runtime_error("Runtime Error: Cannot reassign read-only '" + originalName + 
+                "' [ line " + std::to_string(lineNumber) + " ]");
+        }
+
         int existingType = it_existing->second.getType();
         int newType = val.getType();
 
         if (existingType != 0 && existingType != newType) {
-            throw std::runtime_error("Type Error: Cannot assign type " + val.getTypeName() + 
-                                    " to variable '" + originalName + 
-                                    "' defined as " + it_existing->second.getTypeName() + 
-                                    " [ line " + std::to_string(lineNumber) + " ]");
+            if (existingType == Value::FLOAT64 && newType == Value::INT64) {
+                val = Value(val.asFloat());
+            } 
+            else {
+                throw std::runtime_error("Type Error: Cannot assign type " + val.getTypeName() + 
+                    " to variable '" + originalName + "' defined as " + 
+                    it_existing->second.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
+            }
         }
     }
 
     if (indexExpr) {
-        auto it = table.find(identifierId);
-        if (it == table.end()) {
-            throw std::runtime_error("Runtime Error: Array '" + originalName + "' not found [ line " + std::to_string(lineNumber) + " ]");
+        if (it_existing == table.end()) {
+            throw std::runtime_error("Runtime Error: Array '" + originalName + 
+                "' not found [ line " + std::to_string(lineNumber) + " ]");
         }
 
-        Value& arrayVal = it->second; 
+        Value& arrayVal = it_existing->second; 
         
         if (arrayVal.getType() != Value::ARRAY) {
-            throw std::runtime_error("Runtime Error: Cannot index into non-array '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
+            throw std::runtime_error("Runtime Error: Cannot index into non-array '" + originalName + 
+                "' [ line " + std::to_string(lineNumber) + " ]");
         }
 
         Value idxValue = indexExpr->evaluate(env, currentGroup);
-        
         int64_t rawIdx = idxValue.asInt();
 
         if (rawIdx < 0) {
-            throw std::runtime_error("Runtime Error: Negative array index " + std::to_string(rawIdx) + " [ line " + std::to_string(lineNumber) + " ]");
+            throw std::runtime_error("Runtime Error: Negative array index " + std::to_string(rawIdx) + 
+                " [ line " + std::to_string(lineNumber) + " ]");
         }
 
         size_t idx = static_cast<size_t>(rawIdx);
@@ -121,15 +129,11 @@ Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& curr
         if (idx < vec.size()) {
             vec[idx] = val;
         } else {
-            throw std::runtime_error("Runtime Error: Index " + std::to_string(idx) + " out of bounds (size " + std::to_string(vec.size()) + ") [ line " + std::to_string(lineNumber) + " ]");
+            throw std::runtime_error("Runtime Error: Index " + std::to_string(idx) + 
+                " out of bounds (size " + std::to_string(vec.size()) + ") [ line " + std::to_string(lineNumber) + " ]");
         }
         
         return val;
-    }
-
-    auto it = table.find(identifierId);
-    if (it != table.end() && it->second.isReadOnly) {
-        throw std::runtime_error("Runtime Error: Cannot reassign read-only '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
 
     table[identifierId] = val; 

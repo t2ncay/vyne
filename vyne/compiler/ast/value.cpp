@@ -80,11 +80,14 @@ void Value::print(std::ostream& os) const {
         case 0: os << "null"; break;
         case 1: {
             double val = std::get<double>(data);
-            std::string s = std::to_string(val);
+            std::ostringstream oss;
             
-            s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+            oss << val;
+            std::string s = oss.str();
             
-            if (s.back() == '.') s += '0';
+            if (s.find('.') == std::string::npos && s.find('e') == std::string::npos) {
+                s += ".0";
+            }
             
             os << s;
             break;

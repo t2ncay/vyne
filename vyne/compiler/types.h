@@ -3,13 +3,13 @@
 #include <string>
 
 enum class VType { 
-    Unknown, 
-    Int64, 
-    Float64, 
-    String, 
-    Array, 
-    Function, 
-    Module 
+    Unknown = 0, 
+    Float64 = 1,
+    Int64 = 2,
+    String = 3, 
+    Array = 4, 
+    Function = 5, 
+    Module = 6 
 };
 
 inline VType stringToVType(std::string_view name) {
