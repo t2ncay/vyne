@@ -1,211 +1,272 @@
 <!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Vyne Documentation</title>
-    <link rel="icon" type="image/x-icon" href="assets/vyneLogo.png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-
-</head>
-<body>
+    <link rel="icon" type="image/x-icon" href="assets/vyneLogo.png" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <img src="assets/sidebarVyneLogo.png" alt="" width="80" height="80" style="margin-bottom: 5px;" id="vyneLogo">
-                    <h2><span style="color: #40BFA9;">Vyn</span><span style="color: #A0D54D;">e</span></h2>
-                </div>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search documentation...">
-                </div>
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="logo">
+            <img
+              src="assets/sidebarVyneLogo.png"
+              alt=""
+              width="80"
+              height="80"
+              style="margin-bottom: 5px"
+              id="vyneLogo"
+            />
+            <h2>
+              <span style="color: #40bfa9">Vyn</span
+              ><span style="color: #a0d54d">e</span>
+            </h2>
+          </div>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Search documentation..."
+            />
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <div class="nav-section">
+            <h4 class="nav-section-title">Getting Started</h4>
+            <ul class="nav-links">
+              <li>
+                <a href="index.html#introduction" class="active"
+                  >Introduction</a
+                >
+              </li>
+              <li><a href="index.html#installation">Installation</a></li>
+              <li>
+                <a href="index.html#project-structure">Project structure</a>
+              </li>
+              <li><a href="index.html#syntax">Syntax</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-section">
+            <h4 class="nav-section-title">Core Concepts</h4>
+            <ul class="nav-links">
+              <li>
+                <a href="#variables-data-types">Variables & Data Types</a>
+              </li>
+              <li><a href="#numbers">Numbers</a></li>
+              <li><a href="#arithmetic">Arithmetic</a></li>
+              <li><a href="#modules">Modules & Packages</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-section">
+            <h4 class="nav-section-title">Advanced Topics</h4>
+            <ul class="nav-links">
+              <li><a href="#error-handling">Error Handling</a></li>
+              <li><a href="#concurrency">Concurrency</a></li>
+              <li><a href="#metaprogramming">Metaprogramming</a></li>
+              <li><a href="#performance">Performance Tips</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-section">
+            <h4 class="nav-section-title">API Reference</h4>
+            <ul class="nav-links">
+              <li><a href="#standard-library">Standard Library</a></li>
+              <li><a href="#builtin-functions">Built-in Functions</a></li>
+              <li><a href="#decorators">Decorators</a></li>
+              <li><a href="#interfaces">Interfaces</a></li>
+            </ul>
+          </div>
+        </nav>
+
+        <div style="margin-top: 10px">
+          <a
+            href="https://github.com/tuncaygafarli/vyne"
+            class="btn btn-outline"
+          >
+            <i class="fab fa-github"></i> GitHub
+          </a>
+        </div>
+
+        <div style="margin-top: 10px">
+          <a
+            href="https://github.com/tuncaygafarli/vyne"
+            class="btn btn-primary"
+          >
+            <i class="fas fa-download"></i> Download
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+          <div>
+            <button class="mobile-menu-btn" id="mobileMenuBtn">
+              <i class="fas fa-bars"></i>
+            </button>
+          </div>
+          <div class="theme-toggle" id="themeToggle">
+            <i class="fas fa-sun"></i>
+          </div>
+          <div class="header-title">
+            <h1>Vyne Documentation</h1>
+            <div class="header-subtitle">
+              Version 1.5.2 | Last updated: June 2023
             </div>
-            
-            <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Getting Started</h4>
-                    <ul class="nav-links">
-                        <li><a href="index.html#introduction" class="active">Introduction</a></li>
-                        <li><a href="index.html#installation">Installation</a></li>
-                        <li><a href="index.html#project-structure">Project structure</a></li>
-                        <li><a href="index.html#syntax">Syntax</a></li>
-                    </ul>
-                </div>
-                
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Core Concepts</h4>
-                    <ul class="nav-links">
-                        <li><a href="#variables-data-types">Variables & Data Types</a></li>
-                        <li><a href="#numbers">Numbers</a></li>
-                        <li><a href="#arithmetic">Arithmetic</a></li>
-                        <li><a href="#modules">Modules & Packages</a></li>
-                    </ul>
-                </div>
-                
-                <div class="nav-section">
-                    <h4 class="nav-section-title">Advanced Topics</h4>
-                    <ul class="nav-links">
-                        <li><a href="#error-handling">Error Handling</a></li>
-                        <li><a href="#concurrency">Concurrency</a></li>
-                        <li><a href="#metaprogramming">Metaprogramming</a></li>
-                        <li><a href="#performance">Performance Tips</a></li>
-                    </ul>
-                </div>
-                
-                <div class="nav-section">
-                    <h4 class="nav-section-title">API Reference</h4>
-                    <ul class="nav-links">
-                        <li><a href="#standard-library">Standard Library</a></li>
-                        <li><a href="#builtin-functions">Built-in Functions</a></li>
-                        <li><a href="#decorators">Decorators</a></li>
-                        <li><a href="#interfaces">Interfaces</a></li>
-                    </ul>
-                </div>
-            </nav>
-            
-                <div style="margin-top: 10px;">
-                    <a href="https://github.com/tuncaygafarli/vyne" class="btn btn-outline">
-                        <i class="fab fa-github"></i> GitHub
-                    </a>
-                </div>
-                
-                <div style="margin-top: 10px;"><a href="https://github.com/tuncaygafarli/vyne" class="btn btn-primary">
-                        <i class="fas fa-download"></i> Download
-                </a></div>
-                    
-        </aside>
-        
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Header -->
-            <header class="header">
-                <div>
-                    <button class="mobile-menu-btn" id="mobileMenuBtn">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                </div>
-                <div class="theme-toggle" id="themeToggle">
-                    <i class="fas fa-sun"></i>
-                </div>
-                <div class="header-title">
-                    <h1>Vyne Documentation</h1>
-                    <div class="header-subtitle">Version 1.5.2 | Last updated: June 2023</div>
-                </div>
-                
-            </header>
-            
-            <!-- Documentation Content -->
-            <section id="variables-data-types">
-                <h2>Variables & Data types</h2>
-                <p>These are the data types supported by Vyne.</p>
-                <table>
-        <thead>
-            <tr>
+          </div>
+        </header>
+
+        <!-- Documentation Content -->
+        <section id="variables-data-types">
+          <h2>Variables & Data types</h2>
+          <p>These are the data types supported by Vyne.</p>
+          <table>
+            <thead>
+              <tr>
                 <th>Type</th>
                 <th>Description</th>
                 <th>Example</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><strong>Number</strong></td>
-                <td>Any integer and floating number.</td>
-                <td>age = 30 ; score = 87.4 etc.</td>
-            </tr>
-            <tr>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Int64</strong></td>
+                <td>
+                  64-bit signed integer. Strict type checking; does not
+                  auto-convert to Float64 without explicit cast.
+                </td>
+                <td>
+                  age :: Int64 = 20; <br />
+                  buffer_size = 1024;
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Float64</strong></td>
+                <td>
+                  64-bit double-precision float. Supports "Safe Promotion" from
+                  Int64 during declaration.
+                </td>
+                <td>
+                  sample_rate :: Float64 = 44100; <br />
+                  gain = 0.75;
+                </td>
+              </tr>
+              <tr>
                 <td><strong>String</strong></td>
                 <td>Character sequence</td>
                 <td>"Hello World!" etc.</td>
-            </tr>
-            <tr>
+              </tr>
+              <tr>
                 <td><strong>Boolean</strong></td>
                 <td>Logical variables</td>
                 <td>true ; false</td>
-            </tr>
-            <tr>
+              </tr>
+              <tr>
                 <td><strong>Array</strong></td>
                 <td>Dynamic list</td>
                 <td>scores = ["AA", "CD", "BA", 3.3]</td>
-            </tr>
-        </tbody>
-    </table>
-    <div class="note">
-                    <div class="note-title">
-                        <i class="fas fa-exclamation-circle"></i>
-                        Note
-                    </div>
-                    <p>Arrays can hold any data type.</p>
-                </div>
-            </section>
+              </tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <div class="note-title">
+              <i class="fas fa-exclamation-circle"></i>
+              Note
+            </div>
+            <p>Arrays can hold any data type.</p>
+          </div>
+        </section>
 
-            <!--Numbers-->
-           <section id="numbers">
-                <h2>Numbers</h2>
-                <p>Numbers in Vyne contain both decimal digits and integers. You can declare a number variable with this syntax.</p>
-                <div class="example">
-                    <div class="example-title">
-                        <i class="fas fa-code"></i>
-                        Simple Example
-                    </div>
-                    <div class="code">
-                        <div class="code-header">
-                            <div class="code-title">
-                                <i class="fas fa-file-code"></i>
-                                main.vy
-                            </div>
-                            <button class="copy-btn" onclick="copyCode(this)">
-                            <i class="fa-regular fa-clipboard"></i>
-                            Copy</button>
-                        </div>
-                        <pre><code>
+        <!--Numbers-->
+        <section id="numbers">
+          <h2>Numbers</h2>
+          <p>
+            Numbers in Vyne contain both decimal digits and integers. You can
+            declare a number variable with this syntax.
+          </p>
+          <div class="example">
+            <div class="example-title">
+              <i class="fas fa-code"></i>
+              Simple Example
+            </div>
+            <div class="code">
+              <div class="code-header">
+                <div class="code-title">
+                  <i class="fas fa-file-code"></i>
+                  main.vy
+                </div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <i class="fa-regular fa-clipboard"></i>
+                  Copy
+                </button>
+              </div>
+              <pre><code>
 // variableName :: Type = value
 
 age :: Number = 30   //integer
 GPA :: Number = 3.42 //floating number
                         </code></pre>
-                    </div>
+            </div>
+          </div>
+          <div class="note">
+            <div class="note-title">
+              <i class="fas fa-exclamation-circle"></i>
+              Note
+            </div>
+            <p>
+              There is another way called inferred declaration to declare any
+              variable with the same syntax. With that, you don't need to tell
+              code the variable type, Vyne automatically sets it for you.
+            </p>
+          </div>
+          <div class="example">
+            <div class="example-title">
+              <i class="fas fa-code"></i>
+              Simple Example
+            </div>
+            <div class="code">
+              <div class="code-header">
+                <div class="code-title">
+                  <i class="fas fa-file-code"></i>
+                  main.vy
                 </div>
-                <div class="note">
-                    <div class="note-title">
-                        <i class="fas fa-exclamation-circle"></i>
-                        Note
-                    </div>
-                    <p>There is another way called inferred declaration to declare any variable with the same syntax. With that, you don't need to tell code the variable type, Vyne automatically sets it for you.</p>
-                </div>
-                <div class="example">
-                    <div class="example-title">
-                        <i class="fas fa-code"></i>
-                        Simple Example
-                    </div>
-                    <div class="code">
-                        <div class="code-header">
-                            <div class="code-title">
-                                <i class="fas fa-file-code"></i>
-                                main.vy
-                            </div>
-                            <button class="copy-btn" onclick="copyCode(this)">
-                            <i class="fa-regular fa-clipboard"></i>
-                            Copy</button>
-                        </div>
-                        <pre><code>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <i class="fa-regular fa-clipboard"></i>
+                  Copy
+                </button>
+              </div>
+              <pre><code>
 // variableName = value
 
 age = 30   //integer
 GPA = 3.42 //floating number
                         </code></pre>
-                    </div>
-                </div>
-           </section>
+            </div>
+          </div>
+        </section>
 
-           <!--Arithmetic sections-->
-           <section id="arithmetic">
-            <h2>Arithmetic</h2>
-            <p>Vyne supports following arithmetic operations for numbers.</p>
-            <div class="table-container">
+        <!--Arithmetic sections-->
+        <section id="arithmetic">
+          <h2>Arithmetic</h2>
+          <p>Vyne supports following arithmetic operations for numbers.</p>
+          <div class="table-container">
             <table>
               <thead>
                 <tr>
@@ -216,56 +277,72 @@ GPA = 3.42 //floating number
               </thead>
               <tbody>
                 <tr>
-                  <td><strong><code>+</code></strong></td>
+                  <td>
+                    <strong><code>+</code></strong>
+                  </td>
                   <td>Sums values</td>
                   <td><code>total :: Number = 23.14 + 2.86</code></td>
                 </tr>
                 <tr>
-                  <td><strong><code>-</code></strong></td>
+                  <td>
+                    <strong><code>-</code></strong>
+                  </td>
                   <td>Subtracts vaues</td>
-                  <td><code>change  :: Number = 50 - 26</code></td>
+                  <td><code>change :: Number = 50 - 26</code></td>
                 </tr>
                 <tr>
-                  <td><strong><code>*</code></strong></td>
+                  <td>
+                    <strong><code>*</code></strong>
+                  </td>
                   <td>Multiplies values</td>
                   <td><code>fiveBucks :: Number = 5 * 1000</code></td>
                 </tr>
                 <tr>
-                  <td><strong><code>/</code></strong></td>
+                  <td>
+                    <strong><code>/</code></strong>
+                  </td>
                   <td>Divides values</td>
                   <td><code>average :: Number = 48 / 6</code></td>
                 </tr>
                 <tr>
-                  <td><strong><code>&lt; / &gt; / == </code></strong></td>
+                  <td>
+                    <strong><code>&lt; / &gt; / == </code></strong>
+                  </td>
                   <td>Checks if one value is less, more or equal</td>
                   <td><code>lessThan :: Bool = 5 < 10</code></td>
                 </tr>
               </tbody>
             </table>
           </div>
-           </section>
-            
-            
-            
-            <!-- Page Navigation -->
-            <div class="page-nav">
-                <a href="index.html" class="btn btn-outline">
-                    <i class="fas fa-arrow-left"></i> Previous: Getting Started
-                </a>
-                <a href="#" class="btn btn-outline">
-                    Next: Core Concepts <i class="fas fa-arrow-right"></i>
-                </a>
-            </div>
-            
-            <!-- Footer -->
-            <footer class="footer">
-                <p>Vyne Documentation &copy; 2025. All rights reserved.</p>
-                <p>Found an issue? <a href="https://github.com/tuncaygafarli/vyne/issues">Edit this page on GitHub</a> or <a href="https://github.com/tuncaygafarli/vyne/issues">report a problem</a>.</p>
-            </footer>
-        </main>
+        </section>
+
+        <!-- Page Navigation -->
+        <div class="page-nav">
+          <a href="index.html" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Previous: Getting Started
+          </a>
+          <a href="#" class="btn btn-outline">
+            Next: Core Concepts <i class="fas fa-arrow-right"></i>
+          </a>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+          <p>Vyne Documentation &copy; 2025. All rights reserved.</p>
+          <p>
+            Found an issue?
+            <a href="https://github.com/tuncaygafarli/vyne/issues"
+              >Edit this page on GitHub</a
+            >
+            or
+            <a href="https://github.com/tuncaygafarli/vyne/issues"
+              >report a problem</a
+            >.
+          </p>
+        </footer>
+      </main>
     </div>
 
-    <script src="index.js">
-      
-    </script>
-</body>
+    <script src="index.js"></script>
+  </body>
+</html>
