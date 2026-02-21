@@ -3,8 +3,8 @@ module vcore;
 # Greatest Common Divisor (GCD) Test
 
 while true {
-    input_1 = number(vcore.input("Enter number 1 : "));
-    input_2 = number(vcore.input("Enter number 2 : "));
+    input_1 = int64(vcore.input("Enter number 1 : "));
+    input_2 = int64(vcore.input("Enter number 2 : "));
 
     a = input_1;
     b = input_2;
