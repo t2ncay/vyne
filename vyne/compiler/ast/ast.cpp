@@ -341,22 +341,42 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
     if (funcName == "type") return argValues[0].getTypeName();
 
     if (funcName == "string") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error: string() expects 1 arg.");
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error : string() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
         return Value(argValues[0].toString());
     }
 
     if (funcName == "int64") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error: int64() expects 1 arg.");
+        if (argValues.size() != 1) 
+            throw std::runtime_error("Argument Error : int64() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
         
-        int64_t result = std::stoll(argValues[0].asString());
-        return Value(result); 
+        if (argValues[0].getType() == Value::FLOAT64) {
+            return Value(static_cast<int64_t>(argValues[0].asFloat()));
+        }
+        else if (argValues[0].getType() == Value::STRING) {
+            return Value(std::stoll(argValues[0].asString()));
+        }
+        else if (argValues[0].getType() == Value::INT64) {
+            return argValues[0];
+        }
+
+        throw std::runtime_error("Type Error: Cannot convert " + argValues[0].getTypeName() + " to int64 [ line " + std::to_string(lineNumber) + " ]");
     }
 
     if (funcName == "float64") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error: float64() expects 1 arg.");
+        if (argValues.size() != 1) 
+            throw std::runtime_error("Argument Error : float64() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
         
-        double result = std::stod(argValues[0].asString());
-        return Value(result);
+        if (argValues[0].getType() == Value::INT64) {
+            return Value(static_cast<double>(argValues[0].asInt()));
+        }
+        else if (argValues[0].getType() == Value::STRING) {
+            return Value(std::stod(argValues[0].asString()));
+        }
+        else if (argValues[0].getType() == Value::FLOAT64) {
+            return argValues[0]; // No-op
+        }
+        
+        throw std::runtime_error("Type Error: Cannot convert " + argValues[0].getTypeName() + " to float64 [ line " + std::to_string(lineNumber) + " ]");
     }
 
     if (funcName == "sizeof") {
