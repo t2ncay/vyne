@@ -9,3 +9,4 @@ vyne-docs/*
 .vscode/*
 vendor/*
 vyne_bin
+*.o
