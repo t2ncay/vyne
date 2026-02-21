@@ -168,10 +168,15 @@ public:
 
 class GroupNode : public ASTNode {
     const std::string groupName;
+    const std::string targetModule;
     std::vector<std::unique_ptr<ASTNode>> statements;
+
 public:
-    GroupNode(std::string name, std::vector<std::unique_ptr<ASTNode>> stmts)
-        : ASTNode(NodeType::GROUP), groupName(name), statements(std::move(stmts)) {
+    GroupNode(std::string name, std::vector<std::unique_ptr<ASTNode>> stmts, std::string targetMod = "")
+        : ASTNode(NodeType::GROUP), 
+          groupName(name), 
+          targetModule(targetMod), 
+          statements(std::move(stmts)) {
     }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;

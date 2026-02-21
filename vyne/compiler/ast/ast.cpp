@@ -141,7 +141,13 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
 }
 
 Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string nextGroup = currentGroup + "." + groupName;
+    std::string nextGroup;
+    if (!targetModule.empty()) {
+        nextGroup = targetModule + "." + groupName;
+    } else {
+        nextGroup = currentGroup + "." + groupName;
+    }
+
     for (const auto& stmt : statements) {
         stmt->evaluate(env, nextGroup);
     }

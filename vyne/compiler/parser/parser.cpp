@@ -655,13 +655,38 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);
     
-    std::string treeName = consume(VTokenType::Identifier).name;
-    consume(VTokenType::Left_CB);
+    std::string targetModule = "";
+    std::string groupName;
+
+    if (peekToken().type == VTokenType::Extends) { 
+        consume(VTokenType::Extends);
+        targetModule = consume(VTokenType::Identifier).name;
+        groupName = consume(VTokenType::Identifier).name;
+    } 
+    else {
+        Token first = consume(VTokenType::Identifier);
+        
+        if (peekToken().type == VTokenType::Extends) {
+            consume(peekToken().type);
+            targetModule = first.name;
+            groupName = consume(VTokenType::Identifier).name;
+        } else {
+            groupName = first.name;
+        }
+    }
     
+    if(targetModule == "vcore" || targetModule == "vglib"){
+        throw std::runtime_error("Permission Error: Cannot inject group to " + targetModule);
+    }
+
+    consume(VTokenType::Left_CB);
+
     std::vector<std::unique_ptr<ASTNode>> statements;
+
     while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
         if (peekToken().type == VTokenType::Function) {
-            throw std::runtime_error("Syntax Error: Cannot define a function inside group '" + treeName + "' at line " + std::to_string(peekToken().line));
+            throw std::runtime_error("Syntax Error: Cannot define a function inside group '" + 
+                groupName + "' at line " + std::to_string(peekToken().line));
         }
         statements.emplace_back(parseStatement());
     }
@@ -669,7 +694,7 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     consume(VTokenType::Right_CB);
     consumeSemicolon();
 
-    auto node = std::make_unique<GroupNode>(treeName, std::move(statements));
+    auto node = std::make_unique<GroupNode>(groupName, std::move(statements), targetModule);
     node->lineNumber = line;
     return node;
 }
