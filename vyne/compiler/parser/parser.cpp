@@ -676,7 +676,7 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     }
     
     if(targetModule == "vcore" || targetModule == "vglib"){
-        throw std::runtime_error("Permission Error: Cannot inject group to " + targetModule);
+        throw std::runtime_error("Permission Error: Cannot inject group to " + targetModule + " [ line " + std::to_string(line) + " ]");
     }
 
     consume(VTokenType::Left_CB);
