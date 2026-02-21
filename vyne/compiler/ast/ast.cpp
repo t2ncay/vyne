@@ -342,10 +342,19 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
         return Value(argValues[0].toString());
     } 
 
-    if (funcName == "number") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error: number() expects 1 arg.");
-        return Value(std::stod(argValues[0].asString()));
-    } 
+    if (funcName == "int64") {
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error: int64() expects 1 arg.");
+        
+        int64_t result = std::stoll(argValues[0].asString());
+        return Value(result); 
+    }
+
+    if (funcName == "float64") {
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error: float64() expects 1 arg.");
+        
+        double result = std::stod(argValues[0].asString());
+        return Value(result);
+    }
 
     if (funcName == "sizeof") {
         if (argValues.size() != 1) throw std::runtime_error("Argument Error: sizeof() expects 1 arg.");
