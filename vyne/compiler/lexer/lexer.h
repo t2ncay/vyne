@@ -78,7 +78,7 @@ enum class VTokenType {
 
 struct Token {
     std::string name;
-    double value;
+    double value; // TODO fix this shit because we implemented Int64 and Float64
     VTokenType type;
     int line;
 

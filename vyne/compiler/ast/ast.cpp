@@ -189,12 +189,12 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     Value l = left->evaluate(env, currentGroup);
 
     if (op == VTokenType::And) {
-        if (!l.isTruthy()) return Value(0LL);
-        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1LL : 0LL);
+        if (!l.isTruthy()) return Value(static_cast<int64_t>(0));
+        return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
     }
     if (op == VTokenType::Or) {
-        if (l.isTruthy()) return Value(1LL); // Return Int64 1
-        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1LL : 0LL);
+        if (!l.isTruthy()) return Value(static_cast<int64_t>(1));
+        return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
     }
 
     Value r = right->evaluate(env, currentGroup);
@@ -340,7 +340,7 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
     if (funcName == "string") {
         if (argValues.size() != 1) throw std::runtime_error("Argument Error: string() expects 1 arg.");
         return Value(argValues[0].toString());
-    } 
+    }
 
     if (funcName == "int64") {
         if (argValues.size() != 1) throw std::runtime_error("Argument Error: int64() expects 1 arg.");
