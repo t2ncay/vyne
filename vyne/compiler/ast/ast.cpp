@@ -357,7 +357,7 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
             return Value(static_cast<int64_t>(argValues[0].asFloat()));
         }
         else if (argValues[0].getType() == Value::STRING) {
-            return Value(std::stoll(argValues[0].asString()));
+            return Value(static_cast<int64_t>(std::stoll(argValues[0].asString())));
         }
         else if (argValues[0].getType() == Value::INT64) {
             return argValues[0];
