@@ -14,10 +14,6 @@ Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     return lastValue; 
 }
 
-Value NumberNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    return Value(value);
-}
-
 /**
  * @brief Retrieves a variable's value from the SymbolContainer.
  * * @details Performs a scoped lookup:
@@ -63,15 +59,23 @@ Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& curr
     Value val = rhs->evaluate(env, currentGroup);
 
     if (expectedType != VType::Unknown) {
-        const std::string& expectedName = VTypeToString(expectedType);
-        const std::string& actualName = val.getTypeName(); 
+    const std::string& expectedName = VTypeToString(expectedType);
+    const std::string& actualName = val.getTypeName(); 
 
-        if (expectedName != actualName) {
+    if (expectedName != actualName) {
+        if (expectedType == VType::Int64 && val.getType() == Value::FLOAT64) {
+            val = Value(val.asInt());
+        } 
+        else if (expectedType == VType::Float64 && val.getType() == Value::INT64) {
+            val = Value(val.asFloat());
+        } 
+        else {
             throw std::runtime_error("Type Error: Explicit type mismatch. Expected " + 
                 expectedName + ", but got " + actualName + 
                 " [ line " + std::to_string(lineNumber) + " ]");
         }
     }
+}
 
     if (isConstant) {
         val.setReadOnly();
@@ -107,13 +111,20 @@ Value AssignmentNode::evaluate(SymbolContainer& env,     const std::string& curr
         }
 
         Value idxValue = indexExpr->evaluate(env, currentGroup);
-        size_t idx = static_cast<size_t>(idxValue.asNumber());
+        
+        int64_t rawIdx = idxValue.asInt();
 
+        if (rawIdx < 0) {
+            throw std::runtime_error("Runtime Error: Negative array index " + std::to_string(rawIdx) + " [ line " + std::to_string(lineNumber) + " ]");
+        }
+
+        size_t idx = static_cast<size_t>(rawIdx);
         auto& vec = arrayVal.asList();
+        
         if (idx < vec.size()) {
             vec[idx] = val;
         } else {
-            throw std::runtime_error("Runtime Error: Index out of bounds [ line " + std::to_string(lineNumber) + " ]");
+            throw std::runtime_error("Runtime Error: Index " + std::to_string(idx) + " out of bounds (size " + std::to_string(vec.size()) + ") [ line " + std::to_string(lineNumber) + " ]");
         }
         
         return val;
@@ -178,16 +189,17 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     Value l = left->evaluate(env, currentGroup);
 
     if (op == VTokenType::And) {
-        if (!l.isTruthy()) return Value(0.0);
-        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1.0 : 0.0);
+        if (!l.isTruthy()) return Value(0LL);
+        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1LL : 0LL);
     }
-    
     if (op == VTokenType::Or) {
-        if (l.isTruthy()) return Value(1.0);
-        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1.0 : 0.0);
+        if (l.isTruthy()) return Value(1LL); // Return Int64 1
+        return Value(right->evaluate(env, currentGroup).isTruthy() ? 1LL : 0LL);
     }
 
     Value r = right->evaluate(env, currentGroup);
+    int lType = l.getType();
+    int rType = r.getType();
 
     if ((op == VTokenType::Add) && (l.getType() == Value::STRING && r.getType() == Value::STRING)) {
         return Value(l.toString() + r.toString()); 
@@ -203,36 +215,38 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
         }
     }
 
-    if(l.getType() == Value::NUMBER && r.getType() == Value::NUMBER){
+    bool isFloatMath = (lType == Value::FLOAT64 || rType == Value::FLOAT64);
+
+    if (isFloatMath) {
+        double lv = l.asFloat();
+        double rv = r.asFloat();
         switch (op) {
-            case VTokenType::Add: return Value(l.asNumber() + r.asNumber());
-            case VTokenType::Substract: return Value(l.asNumber() - r.asNumber());
-            case VTokenType::Multiply: return Value(l.asNumber() * r.asNumber());
+            case VTokenType::Add:      return Value(lv + rv);
+            case VTokenType::Substract: return Value(lv - rv);
+            case VTokenType::Multiply:  return Value(lv * rv);
             case VTokenType::Division:
-                if (r.asNumber() == 0) throw std::runtime_error("Division by zero! [ line " + std::to_string(lineNumber) + " ]");
-                return Value(l.asNumber() / r.asNumber());
-            case VTokenType::Smaller: return Value(l.asNumber() < r.asNumber());
-            case VTokenType::Smaller_Or_Equal: return Value(l.asNumber() <= r.asNumber());
-            case VTokenType::Greater: return Value(l.asNumber() > r.asNumber());
-            case VTokenType::Greater_Or_Equal: return Value(l.asNumber() >= r.asNumber());
-            case VTokenType::Power: return Value(std::pow(l.asNumber(), r.asNumber()));
-            case VTokenType::Floor_Divide: {
-                if (r.asNumber() == 0) {
-                    throw std::runtime_error("Division by zero in floor division (//) [ line " + std::to_string(lineNumber) + " ]");
-                }
-
-                return Value(std::floor(l.asNumber() / r.asNumber()));
-            }
-            case VTokenType::Modulo : {
-                if (r.asNumber() == 0) {
-                    throw std::runtime_error("Runtime Error: Modulo by zero is undefined [ line " + std::to_string(lineNumber) + " ]");
-                }
-
-                return Value(std::fmod(l.asNumber(), r.asNumber()));
-            }
+                if (rv == 0) throw std::runtime_error("Division by zero!");
+                return Value(lv / rv);
+            case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(l == r);
-            case VTokenType::Not_Equal: return Value(l != r);
-            default: throw std::runtime_error("Type Error: Invalid operation " + VTokenTypeToString(op) + " between " + l.getTypeName() + " and " + r.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
+            default: break;
+        }
+    } else if (lType == Value::INT64 && rType == Value::INT64) {
+        int64_t lv = l.asInt();
+        int64_t rv = r.asInt();
+        switch (op) {
+            case VTokenType::Add:       return Value(lv + rv);
+            case VTokenType::Substract: return Value(lv - rv);
+            case VTokenType::Multiply:  return Value(lv * rv);
+            case VTokenType::Division:
+                if (rv == 0) throw std::runtime_error("Division by zero!");
+                return Value(lv / rv); 
+            case VTokenType::Modulo:
+                if (rv == 0) throw std::runtime_error("Modulo by zero!");
+                return Value(lv % rv);
+            case VTokenType::Smaller:   return Value(lv < rv);
+            case VTokenType::Double_Equals: return Value(lv == rv);
+            default: break;
         }
     }
 
@@ -250,17 +264,17 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     auto* varNode = static_cast<VariableNode*>(left.get());
 
     Value oldValue = left->evaluate(env, currentGroup);
-
-    double rawNum = oldValue.asNumber();
     Value newVal;
 
-    switch(op){
-        case VTokenType::Double_Increment : newVal = Value(rawNum + 1); break;
-        case VTokenType::Double_Decrement : newVal = Value(rawNum - 1); break;
+    if (oldValue.getType() == Value::INT64) {
+        int64_t raw = oldValue.asInt();
+        newVal = Value(op == VTokenType::Double_Increment ? raw + 1 : raw - 1);
+    } else {
+        double raw = oldValue.asFloat();
+        newVal = Value(op == VTokenType::Double_Increment ? raw + 1.0 : raw - 1.0);
     }
 
     env[currentGroup][varNode->getNameId()] = newVal;
-
     return newVal;
 }
 
@@ -268,27 +282,22 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     Value val = right->evaluate(env, currentGroup);
 
     switch(op){
-        case VTokenType::Exclamatory : {
+        case VTokenType::Exclamatory : 
             return Value(!val.isTruthy());
-        }
         
-        case VTokenType::Substract : {
-            return Value(-val.asNumber());
-        }
+        case VTokenType::Substract : 
+            if (val.getType() == Value::INT64) return Value(-val.asInt());
+            return Value(-val.asFloat());
         
         case VTokenType::Addresser : {
             auto varNode = dynamic_cast<VariableNode*>(right.get());
-            if (!varNode) {
-                throw std::runtime_error("Cannot take address of a non-variable.");
-            }
+            if (!varNode) throw std::runtime_error("Cannot take address of a non-variable.");
 
             Value* internalPtr = env.getInternalPointer(currentGroup, varNode->getNameId()); 
-
-    
-            std::stringstream ss;
-            ss << "0x" << std::hex << reinterpret_cast<uintptr_t>(internalPtr);
-            return Value(ss.str());
+            
+            return Value(reinterpret_cast<int64_t>(internalPtr)); // remember here
         }
+        default: return Value();
     }
 }
 
@@ -299,13 +308,21 @@ Value ArrayNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 }
 
 Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    double start = left->evaluate(env, currentGroup).asNumber();
-    double end = right->evaluate(env, currentGroup).asNumber();
+    Value startVal = left->evaluate(env, currentGroup);
+    Value endVal = right->evaluate(env, currentGroup);
     
     std::vector<Value> rangeArray;
-    for (double i = start; i <= end; ++i) {
-        rangeArray.emplace_back(Value(i));
+
+    if (startVal.getType() == Value::INT64 && endVal.getType() == Value::INT64) {
+        int64_t start = startVal.asInt();
+        int64_t end = endVal.asInt();
+        for (int64_t i = start; i <= end; ++i) rangeArray.emplace_back(i);
+    } else {
+        double start = startVal.asFloat();
+        double end = endVal.asFloat();
+        for (double i = start; i <= end; ++i) rangeArray.emplace_back(i);
     }
+    
     return Value(rangeArray);
 }
 
@@ -317,63 +334,73 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
         if (!argValues.empty()) { argValues[0].print(std::cout); std::cout << std::endl; }
         return Value();
     }
-    if (funcName == "type") {
-        return argValues[0].getTypeName();
-    }
 
-    if(funcName == "string"){
-        if(argValues.size() != 1) throw std::runtime_error("Argument Error : string() expects 1 arguments, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-        if(argValues[0].getType() != Value::NUMBER) throw std::runtime_error("Argument Error : string() only takes Number type as argument [ line " + std::to_string(lineNumber) + " ]");
+    if (funcName == "type") return argValues[0].getTypeName();
 
+    if (funcName == "string") {
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error: string() expects 1 arg.");
         return Value(argValues[0].toString());
     } 
 
-    if(funcName == "number"){
-        if(argValues.size() != 1) throw std::runtime_error("Argument Error : number() expects 1 arguments, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-        if(argValues[0].getType() != Value::STRING) throw std::runtime_error("Argument Error : number() only takes String type as argument [ line " + std::to_string(lineNumber) + " ]");
-
-        return Value(argValues[0].toNumber());
+    if (funcName == "number") {
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error: number() expects 1 arg.");
+        return Value(std::stod(argValues[0].asString()));
     } 
 
-    if(funcName == "sizeof"){
-        if(argValues.size() != 1) throw std::runtime_error("Argument Error : sizeof() expects 1 arguments, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-
-        return Value(argValues[0].getShallowBytes());
+    if (funcName == "sizeof") {
+        if (argValues.size() != 1) throw std::runtime_error("Argument Error: sizeof() expects 1 arg.");
+        return Value(static_cast<int64_t>(argValues[0].getShallowBytes()));
     }
 
-    if(funcName == "sequence"){
+    if (funcName == "sequence") {
+        if (argValues.size() != 2) throw std::runtime_error("Argument Error: sequence() expects 2 args.");
+        
         std::vector<Value> sequence;
-        double start = argValues[0].asNumber(), end = argValues[1].asNumber();
-
-        if(argValues.size() != 2) throw std::runtime_error("Argument Error : sequence() expects 2 arguments, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-
-        for(double i = start; i < end; i++){
-            sequence.emplace_back(i);
+        if (argValues[0].getType() == Value::INT64 && argValues[1].getType() == Value::INT64) {
+            for (int64_t i = argValues[0].asInt(); i < argValues[1].asInt(); ++i) 
+                sequence.emplace_back(i);
+        } else {
+            for (double i = argValues[0].asFloat(); i < argValues[1].asFloat(); ++i) 
+                sequence.emplace_back(i);
         }
-
         return Value(sequence);
     } 
 
-    throw std::runtime_error("Unknown built-in: " + funcName + " [ line " + std::to_string(lineNumber) + " ]");
+    throw std::runtime_error("Unknown built-in: " + funcName);
 }
 
 Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     std::string targetGroup = resolvePath(scope, currentGroup);
     
-    if (env.count(targetGroup) && env[targetGroup].count(nameId)) {
-        Value& arrayVal = env[targetGroup][nameId];
-        Value idxVal = index->evaluate(env, currentGroup);
-        return arrayVal.asList().at(static_cast<size_t>(idxVal.asNumber()));
+    auto getFromTable = [&](const std::string& group) -> Value* {
+        if (env.count(group) && env[group].count(nameId)) {
+            return &env[group][nameId];
+        }
+        return nullptr;
+    };
+
+    Value* arrayValPtr = getFromTable(targetGroup);
+    if (!arrayValPtr && targetGroup != "global") {
+        arrayValPtr = getFromTable("global");
     }
 
-    if (targetGroup != "global" && env["global"].count(nameId)) {
-        Value& arrayVal = env["global"][nameId];
+    if (arrayValPtr) {
+        if (arrayValPtr->getType() != Value::ARRAY) {
+            throw std::runtime_error("Type Error: '" + originalName + "' is not an array [ line " + std::to_string(lineNumber) + " ]");
+        }
+
         Value idxVal = index->evaluate(env, currentGroup);
-        return arrayVal.asList().at(static_cast<size_t>(idxVal.asNumber()));
+        size_t idx = static_cast<size_t>(idxVal.asInt());
+        auto& vec = arrayValPtr->asList();
+
+        if (idx >= vec.size()) {
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
+        }
+        return vec[idx];
     }
 
     throw std::runtime_error("Runtime Error: Array '" + originalName + "' not found [ line " + std::to_string(lineNumber) + " ]");
-}   
+}
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value funcValue(parameterIds, body);
@@ -577,7 +604,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error: sort() called on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (!arguments.empty()) throw std::runtime_error("Argument Error: sort() expects 0 arguments [ line " + std::to_string(lineNumber) + " ]");
             for (auto& el : target->asList()) {
-                if (el.getType() != Value::NUMBER) throw std::runtime_error("Value Error: Cannot sort string values [ line " + std::to_string(lineNumber) + " ]");
+                if (el.getType() != Value::INT64 && el.getType() != Value::FLOAT64) throw std::runtime_error("Value Error: Cannot sort non-numeric values [ line " + std::to_string(lineNumber) + " ]");
             }
             std::sort(target->asList().begin(), target->asList().end());
             return Value(*target); 
@@ -587,16 +614,23 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (target->getType() != Value::ARRAY) 
                 throw std::runtime_error("Type Error: place_all() called on non-array [ line " + std::to_string(lineNumber) + " ]");
 
+            if (arguments.size() < 2)
+                throw std::runtime_error("Argument Error: place_all(element, count) expects 2 arguments [ line " + std::to_string(lineNumber) + " ]");
+
             Value element = arguments[0]->evaluate(env, currentGroup);
             Value countVal = arguments[1]->evaluate(env, currentGroup);
-            int count = static_cast<int>(countVal.asNumber());
+            
+            int64_t count = countVal.asInt();
+            if (count < 0) {
+                throw std::runtime_error("Runtime Error: Cannot resize array to a negative count [ line " + std::to_string(lineNumber) + " ]");
+            }
 
             auto& targetVec = target->asList();
             
             targetVec.clear(); 
-            targetVec.reserve(count);
+            targetVec.reserve(static_cast<size_t>(count));
             
-            for (int i = 0; i < count; i++) {
+            for (int64_t i = 0; i < count; i++) {
                 targetVec.emplace_back(element);
             }
 
@@ -668,7 +702,7 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
                     resultList.emplace_back(currentResult);
                     break;
                 case ForMode::FILTER:
-                    if (currentResult.asNumber() != 0) resultList.emplace_back(element);
+                    if (currentResult.isTruthy()) resultList.emplace_back(element);
                     break;
                 case ForMode::LOOP: 
                     lastVal = currentResult;

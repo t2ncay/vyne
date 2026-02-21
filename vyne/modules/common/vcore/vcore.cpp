@@ -54,7 +54,7 @@ namespace VCoreNative {
 
     Value sleep(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("vcore.sleep() expects 1 argument (ms)");
-        long long ms = static_cast<long long>(args[0].asNumber());
+        long long ms = static_cast<long long>(args[0].asInt());
         std::this_thread::sleep_for(std::chrono::milliseconds(ms));
         return Value(true);
     }

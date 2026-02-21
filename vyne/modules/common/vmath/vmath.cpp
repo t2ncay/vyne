@@ -1,30 +1,28 @@
 #include "vmath.h"
+#include <cmath>
+#include <random>
+#include <algorithm>
+#include <stdexcept>
 
 /**
  * VMathNative Native Method Implementations
  */
 
 namespace VMathNative {
-    /**
-     * @brief Constrains a numeric value between a minimum and maximum range.
-     * * This native function takes three arguments: the value to clamp, the lower bound,
-     * and the upper bound. If the value is less than the minimum, the minimum is returned.
-     * If the value is greater than the maximum, the maximum is returned.
-     * * @param args A vector containing:
-     * - args[0]: The input value (Number)
-     * - args[1]: The lower bound (Number)
-     * - args[2]: The upper bound (Number)
-     * * @throw std::runtime_error If the number of arguments is not exactly 3.
-     * @return Value The clamped numeric result.
-     */
+
+    bool isNumeric(const Value& v) {
+        int type = v.getType();
+        return type == Value::FLOAT64 || type == Value::INT64;
+    }
+
     Value clamp(std::vector<Value>& args) {
         if (args.size() != 3) {
             throw std::runtime_error("Argument Error: vmath.clamp() expects 3 arguments (val, min, max), but got " + std::to_string(args.size()) + ".");
         }
 
-        double val = args[0].asNumber();
-        double min = args[1].asNumber();
-        double max = args[2].asNumber();
+        double val = args[0].asFloat();
+        double min = args[1].asFloat();
+        double max = args[2].asFloat();
 
         if (min > max) std::swap(min, max);
 
@@ -36,421 +34,198 @@ namespace VMathNative {
     
     Value random(std::vector<Value>& args) {
         if (args.size() < 2) throw std::runtime_error("Argument Error : vcore.random() expects 2 arguments (min, max)");
+        
         static std::random_device rd;
         static std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(
-            static_cast<int>(args[0].asNumber()), 
-            static_cast<int>(args[1].asNumber())
+        
+        // Use asInt() for discrete distribution
+        std::uniform_int_distribution<long long> dist(
+            args[0].asInt(), 
+            args[1].asInt()
         );
-        return Value(static_cast<double>(dist(gen)));
+        return Value(static_cast<int64_t>(dist(gen)));
     }
 
     Value sqrt(std::vector<Value>& args) {
         if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.sqrt() expects 1 argument, but got " + std::to_string(args.size()) + ".");
+            throw std::runtime_error("Argument Error: vmath.sqrt() expects 1 argument.");
         }
 
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.sqrt() excepts only Number type as argument, but got " + args[0].getTypeName());
+        if (!isNumeric(args[0])) {
+            throw std::runtime_error("Argument Error: vmath.sqrt() expects a Number, but got " + args[0].getTypeName());
         }
 
-        double val = args[0].asNumber();
-
+        double val = args[0].asFloat();
         if (val < 0) {
-            throw std::runtime_error("Runtime Error: Square root of negative number is not supported in vmath.sqrt().");
+            throw std::runtime_error("Runtime Error: Square root of negative number is not supported.");
         }
 
-        double returnVal = std::sqrt(val);
-
-        return Value(returnVal);
+        return Value(std::sqrt(val));
     }
 
     Value abs(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.abs() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
+        if (args.size() != 1) throw std::runtime_error("vmath.abs() expects 1 argument.");
+        if (!isNumeric(args[0])) throw std::runtime_error("vmath.abs() expects a Number.");
 
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.abs() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        
-        double returnVal = std::abs(val);
-
-        return Value(returnVal);
+        double val = args[0].asFloat();
+        return Value(std::abs(val));
     }
 
     Value sinh(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.sinh() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.sinh() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::sinh(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.sinh() invalid arguments.");
+        return Value(std::sinh(args[0].asFloat()));
     }
 
     Value cosh(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.cosh() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.cosh() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::cosh(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.cosh() invalid arguments.");
+        return Value(std::cosh(args[0].asFloat()));
     }
 
     Value tanh(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.tanh() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.tanh() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::tanh(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.tanh() invalid arguments.");
+        return Value(std::tanh(args[0].asFloat()));
     }
 
     Value degrees(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.degrees() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.degrees() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(val * 180.0 / 3.141592653589793);
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.degrees() invalid arguments.");
+        return Value(args[0].asFloat() * 180.0 / 3.141592653589793);
     }
 
     Value radians(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.radians() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.radians() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(val * 3.141592653589793 / 180.0);
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.radians() invalid arguments.");
+        return Value(args[0].asFloat() * 3.141592653589793 / 180.0);
     }
 
     Value fmod(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.fmod() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.fmod() expects 2 Numbers.");
 
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.fmod() expects only Number types as arguments.");
-        }
-
-        double a = args[0].asNumber();
-        double b = args[1].asNumber();
-        if (b == 0) {
-            throw std::runtime_error("Runtime Error: Division by zero in fmod.");
-        }
+        double a = args[0].asFloat();
+        double b = args[1].asFloat();
+        if (b == 0) throw std::runtime_error("Runtime Error: Division by zero in fmod.");
         return Value(std::fmod(a, b));
     }
 
     Value hypot(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.hypot() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.hypot() expects only Number types as arguments.");
-        }
-
-        double a = args[0].asNumber();
-        double b = args[1].asNumber();
-        return Value(std::hypot(a, b));
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.hypot() expects 2 Numbers.");
+        return Value(std::hypot(args[0].asFloat(), args[1].asFloat()));
     }
 
     Value sin(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.sin() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        } // My trigonometry is so ahh lmao
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.sin() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::sin(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.sin() invalid arguments.");
+        return Value(std::sin(args[0].asFloat()));
     }
 
     Value cos(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.cos() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.cos() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::cos(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.cos() invalid arguments.");
+        return Value(std::cos(args[0].asFloat()));
     }
 
     Value tan(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.tan() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.tan() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::tan(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.tan() invalid arguments.");
+        return Value(std::tan(args[0].asFloat()));
     }
 
     Value asin(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.asin() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.asin() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        if (val < -1.0 || val > 1.0) {
-            throw std::runtime_error("Runtime Error: asin argument must be between -1 and 1.");
-        }
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.asin() invalid arguments.");
+        double val = args[0].asFloat();
+        if (val < -1.0 || val > 1.0) throw std::runtime_error("asin range error.");
         return Value(std::asin(val));
     }
 
     Value acos(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.acos() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.acos() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        if (val < -1.0 || val > 1.0) { // I'm suprised that this even works
-            throw std::runtime_error("Runtime Error: acos argument must be between -1 and 1.");
-        }
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.acos() invalid arguments.");
+        double val = args[0].asFloat();
+        if (val < -1.0 || val > 1.0) throw std::runtime_error("acos range error.");
         return Value(std::acos(val));
     }
 
     Value atan(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.atan() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.atan() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::atan(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.atan() invalid arguments.");
+        return Value(std::atan(args[0].asFloat()));
     }
 
     Value atan2(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.atan2() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.atan2() expects only Number types as arguments.");
-        }
-
-        double y = args[0].asNumber();
-        double x = args[1].asNumber();
-        return Value(std::atan2(y, x));
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.atan2() invalid arguments.");
+        return Value(std::atan2(args[0].asFloat(), args[1].asFloat()));
     }
 
     Value log(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.log() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.log() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        if (val <= 0) {
-            throw std::runtime_error("Runtime Error: log argument must be positive.");
-        }
-        return Value(std::log(val)); // The GOAT
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.log() invalid arguments.");
+        double val = args[0].asFloat();
+        if (val <= 0) throw std::runtime_error("log must be positive.");
+        return Value(std::log(val));
     }
 
     Value log10(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.log10() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.log10() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        if (val <= 0) {
-            throw std::runtime_error("Runtime Error: log10 argument must be positive.");
-        }
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.log10() invalid arguments.");
+        double val = args[0].asFloat();
+        if (val <= 0) throw std::runtime_error("log10 must be positive.");
         return Value(std::log10(val));
     }
 
     Value exp(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.exp() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.exp() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::exp(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.exp() invalid arguments.");
+        return Value(std::exp(args[0].asFloat()));
     }
 
     Value pow(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.pow() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.pow() expects only Number types as arguments.");
-        }
-
-        double base = args[0].asNumber();
-        double exponent = args[1].asNumber();
-        return Value(std::pow(base, exponent));
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.pow() expects 2 Numbers.");
+        return Value(std::pow(args[0].asFloat(), args[1].asFloat()));
     }
 
     Value floor(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.floor() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.floor() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::floor(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.floor() invalid arguments.");
+        return Value(std::floor(args[0].asFloat()));
     }
 
     Value ceil(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.ceil() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.ceil() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::ceil(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.ceil() invalid arguments.");
+        return Value(std::ceil(args[0].asFloat()));
     }
 
     Value round(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.round() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.round() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::round(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.round() invalid arguments.");
+        return Value(std::round(args[0].asFloat()));
     }
 
     Value min(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.min() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.min() expects only Number types as arguments.");
-        }
-
-        double a = args[0].asNumber();
-        double b = args[1].asNumber();
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.min() invalid arguments.");
+        double a = args[0].asFloat();
+        double b = args[1].asFloat();
         return Value(a < b ? a : b);
     }
 
     Value max(std::vector<Value>& args) {
-        if (args.size() != 2) {
-            throw std::runtime_error("Argument Error: vmath.max() expects 2 arguments, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER || args[1].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.max() expects only Number types as arguments.");
-        }
-
-        double a = args[0].asNumber();
-        double b = args[1].asNumber();
+        if (args.size() != 2 || !isNumeric(args[0]) || !isNumeric(args[1])) 
+            throw std::runtime_error("vmath.max() invalid arguments.");
+        double a = args[0].asFloat();
+        double b = args[1].asFloat();
         return Value(a > b ? a : b);
-    } // Some boring stuff
+    }
 
     Value erf(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.erf() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.erf() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::erf(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.erf() invalid arguments.");
+        return Value(std::erf(args[0].asFloat()));
     }
 
     Value erfc(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.erfc() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.erfc() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::erfc(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.erfc() invalid arguments.");
+        return Value(std::erfc(args[0].asFloat()));
     }
 
     Value tgamma(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.tgamma() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.tgamma() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::tgamma(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.tgamma() invalid arguments.");
+        return Value(std::tgamma(args[0].asFloat()));
     }
 
     Value lgamma(std::vector<Value>& args) {
-        if (args.size() != 1) {
-            throw std::runtime_error("Argument Error: vmath.lgamma() expects 1 argument, but got " + std::to_string(args.size()) + ".");
-        }
-
-        if (args[0].getType() != Value::NUMBER) {
-            throw std::runtime_error("Argument Error: vmath.lgamma() expects only Number type as argument, but got " + args[0].getTypeName());
-        }
-
-        double val = args[0].asNumber();
-        return Value(std::lgamma(val));
+        if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.lgamma() invalid arguments.");
+        return Value(std::lgamma(args[0].asFloat()));
     }
 }
 
@@ -497,21 +272,13 @@ void setupVMath(SymbolContainer& env, StringPool& pool) {
     vmath[pool.intern("lgamma")]   = Value(VMathNative::lgamma);
 
     // VMath constants
-    vmath[pool.intern("pi")]       = Value(3.141592653589793).setReadOnly();
-    vmath[pool.intern("e")]        = Value(2.718281828459045).setReadOnly();
-    vmath[pool.intern("tau")]      = Value(6.283185307179586).setReadOnly();
-    vmath[pool.intern("phi")]      = Value(1.618033988749895).setReadOnly();
-    vmath[pool.intern("sqrt2")]    = Value(1.414213562373095).setReadOnly();
-    vmath[pool.intern("pi_half")]  = Value(1.5707963267948966).setReadOnly();
-    vmath[pool.intern("pi_quarter")] = Value(0.7853981633974483).setReadOnly();
-    vmath[pool.intern("sqrt3")]    = Value(1.732050807568877).setReadOnly();
-    vmath[pool.intern("sqrt5")]    = Value(2.23606797749979).setReadOnly();
-    vmath[pool.intern("ln2")]      = Value(0.6931471805599453).setReadOnly();
-    vmath[pool.intern("ln10")]     = Value(2.302585092994046).setReadOnly();
-    vmath[pool.intern("euler_gamma")] = Value(0.5772156649015329).setReadOnly();
-    vmath[pool.intern("inf")]      = Value(INFINITY).setReadOnly();
-    vmath[pool.intern("nan")]      = Value(NAN).setReadOnly();
+    vmath[pool.intern("pi")]         = Value(3.141592653589793).setReadOnly();
+    vmath[pool.intern("e")]          = Value(2.718281828459045).setReadOnly();
+    vmath[pool.intern("tau")]        = Value(6.283185307179586).setReadOnly();
+    vmath[pool.intern("phi")]        = Value(1.618033988749895).setReadOnly();
+    vmath[pool.intern("sqrt2")]      = Value(1.414213562373095).setReadOnly();
+    vmath[pool.intern("inf")]        = Value(INFINITY).setReadOnly();
+    vmath[pool.intern("nan")]        = Value(NAN).setReadOnly();
 
-    // VMath properties
     vmath[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
 }

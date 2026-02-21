@@ -10,8 +10,8 @@ namespace VGLibNative {
 
         std::printf("\x1b[H\x1b[?25l\x1b[J");
 
-        float A = static_cast<float>(args[0].asNumber());
-        float B = static_cast<float>(args[1].asNumber());
+        float A = static_cast<float>(args[0].asFloat());
+        float B = static_cast<float>(args[1].asFloat());
 
         float z[1760];
         char b[1760];

@@ -7,7 +7,8 @@
 enum class VTokenType {
     // --- LITERALS & IDENTIFIERS ---
     Identifier,         // Variable and function names
-    Number,             // 42, 3.14
+    Int64,              // 42
+    Float64,            // 3.14
     String,             // String
     True, False, Null,  // Keywords as literals
 
@@ -95,7 +96,8 @@ inline std::string VTokenTypeToString(VTokenType type) {
     switch (type) {
         // --- LITERALS & IDENTIFIERS ---
         case VTokenType::Identifier:       return "Identifier";
-        case VTokenType::Number:           return "Number";
+        case VTokenType::Int64:            return "Int64";
+        case VTokenType::Float64:          return "Float64";
         case VTokenType::String:           return "String";
         case VTokenType::True:             return "'true'";
         case VTokenType::False:            return "'false'";

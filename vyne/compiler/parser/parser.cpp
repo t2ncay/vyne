@@ -277,7 +277,8 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
     Token current = peekToken(); 
     switch (current.type) {
         case VTokenType::String:                  return parseStringLiteral();
-        case VTokenType::Number:                  return parseNumberLiteral();
+        case VTokenType::Int64:                   return parseNumberLiteral();
+        case VTokenType::Float64:                 return parseNumberLiteral();
         case VTokenType::True:
         case VTokenType::False:                   return parseBooleanLiteral();
         case VTokenType::Identifier:              return parseIdentifierExpr();
@@ -302,14 +303,25 @@ std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
     return node;
 }
 
-std::unique_ptr<ASTNode> Parser::parseNumberLiteral(){
+std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
     Token current = peekToken(); 
     int line = current.line;
 
-    consume(VTokenType::Number);
-    auto node = std::make_unique<NumberNode>(current.value);
-    node->lineNumber = line;
-    return node;
+    if (current.type == VTokenType::Int64) {
+        consume(VTokenType::Int64);
+        int64_t intVal = static_cast<int64_t>(current.value); 
+        auto node = std::make_unique<NumberNode>(Value(intVal)); 
+        node->lineNumber = line;
+        return node;
+    } 
+    else if (current.type == VTokenType::Float64) {
+        consume(VTokenType::Float64);
+        auto node = std::make_unique<NumberNode>(Value(current.value));
+        node->lineNumber = line;
+        return node;
+    }
+
+    throw std::runtime_error("Expected numeric literal at line " + std::to_string(line));
 }
 
 std::unique_ptr<ASTNode> Parser::parseBooleanLiteral() {

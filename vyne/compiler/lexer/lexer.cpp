@@ -50,6 +50,8 @@ std::vector<Token> tokenize(const std::string& input) {
 
         if (std::isdigit(character)) {
             std::string buffer;
+            bool isFloatingPoint = false;
+
             while (i < input.length()) {
                 if (std::isdigit(input[i])) {
                     buffer += input[i++];
@@ -57,14 +59,23 @@ std::vector<Token> tokenize(const std::string& input) {
                     if (i + 1 < input.length() && input[i + 1] == '.') {
                         break;
                     }
+                    if (isFloatingPoint) break; 
+                    
+                    isFloatingPoint = true;
                     buffer += input[i++];
                 } else {
                     break;
                 }
             }
-            tokens.emplace_back(VTokenType::Number, currentLine, std::stod(buffer), "");
+
+            if (isFloatingPoint) {
+                tokens.emplace_back(VTokenType::Float64, currentLine, std::stod(buffer), "");
+            } else {
+                tokens.emplace_back(VTokenType::Int64, currentLine, static_cast<double>(std::stoll(buffer)), "");
+            }
             continue;
         }
+
         if (std::isalpha(character) || character == '_') {
             std::string buffer;
             while (i < input.length() && (std::isalnum(input[i]) || input[i] == '_')) {

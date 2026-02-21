@@ -179,12 +179,20 @@ public:
 };
 
 class NumberNode : public ASTNode {
-    double value;
+    // Storing as a Value allows the parser to decide if it's 
+    // an INT64 or a FLOAT64 immediately upon creation.
+    Value value; 
 public:
-    NumberNode(double val) : ASTNode(NodeType::NUMBER), value(val) {}
-    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    NumberNode(Value val) : ASTNode(NodeType::NUMBER), value(std::move(val)) {}
+    
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override {
+        return value;
+    }
+    
     void compile(Emitter& e) const override;
-    VType getStaticType() const override { return VType::Number; }
+    VType getStaticType() const override { 
+        return (value.getType() == Value::INT64) ? VType::Int64 : VType::Float64; 
+    }
 };
 
 class VariableNode : public ASTNode {
@@ -258,15 +266,16 @@ public:
             case VTokenType::Substract:
             case VTokenType::Multiply:
             case VTokenType::Division:
+                return VType::Float64;
             case VTokenType::Floor_Divide:
             case VTokenType::Modulo:
-                return VType::Number;
+                return VType::Int64;
             case VTokenType::And:
             case VTokenType::Or:
             case VTokenType::Double_Equals:
             case VTokenType::Greater:
             case VTokenType::Smaller:
-                return VType::Number;
+                return VType::Int64;
             default:
                 return VType::Unknown;
         }
@@ -282,7 +291,9 @@ public:
     
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
-    VType getStaticType() const override { return VType::Number; }
+    VType getStaticType() const override { 
+        return left->getStaticType(); 
+    }
 };
 
 class UnaryNode : public ASTNode {
@@ -295,7 +306,13 @@ public:
     
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
-    VType getStaticType() const override { return VType::Number; }
+    VType getStaticType() const override { 
+        if (op == VTokenType::Addresser) {
+            return VType::Int64;
+        }
+        
+        return right->getStaticType(); 
+    }
 };   
 
 class BuiltInCallNode : public ASTNode {
@@ -332,7 +349,7 @@ public :
         return Value(condition);
     };
     void compile(Emitter& e) const override;
-    VType getStaticType() const override { return VType::Number; }
+    VType getStaticType() const override { return VType::Int64; }
 };
 
 class ArrayNode : public ASTNode {

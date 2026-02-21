@@ -1,5 +1,6 @@
 #include "vm.h"
 #include <iostream>
+#include <algorithm>
 
 InterpretResult VM::interpret(Chunk& c) {
     this->chunk = &c;
@@ -23,37 +24,45 @@ InterpretResult VM::run() {
                 Value b = pop();
                 Value a = pop();
 
-                double result = a.asNumber() + b.asNumber();
-                push(Value(result));
+                if (a.getType() == Value::FLOAT64 || b.getType() == Value::FLOAT64) {
+                    push(Value(a.asFloat() + b.asFloat()));
+                } else {
+                    push(Value(a.asInt() + b.asInt()));
+                }
                 break;
             }
             case OP_SUBTRACT : {
                 Value b = pop();
                 Value a = pop();
 
-                double result = a.asNumber() - b.asNumber();
-                push(Value(result));
+                if (a.getType() == Value::FLOAT64 || b.getType() == Value::FLOAT64) {
+                    push(Value(a.asFloat() - b.asFloat()));
+                } else {
+                    push(Value(a.asInt() - b.asInt()));
+                }
                 break;
             }
             case OP_MULTIPLY : {
                 Value b = pop();
                 Value a = pop();
 
-                double result = a.asNumber() * b.asNumber();
-                push(Value(result));
+                if (a.getType() == Value::FLOAT64 || b.getType() == Value::FLOAT64) {
+                    push(Value(a.asFloat() * b.asFloat()));
+                } else {
+                    push(Value(a.asInt() * b.asInt()));
+                }
                 break;
             }
             case OP_DIVIDE : {
                 Value b = pop();
                 Value a = pop();
 
-                if (b.asNumber() == 0) {
+                if (b.asFloat() == 0) {
                     std::cerr << "Runtime Error: Division by zero." << std::endl;
                     return INTERPRET_RUNTIME_ERROR;
                 }
 
-                double result = a.asNumber() / b.asNumber();
-                push(Value(result));
+                push(Value(a.asFloat() / b.asFloat()));
                 break;
             }
 
@@ -65,22 +74,20 @@ InterpretResult VM::run() {
                 break;
             }
             case OP_GET_GLOBAL: {
-            Value nameValue = READ_CONSTANT();
-            
-            uint32_t nameId = std::get<uint32_t>(nameValue.data); 
+                Value nameValue = READ_CONSTANT();
+                uint32_t nameId = std::get<uint32_t>(nameValue.data); 
 
-            auto& table = globals[currentGroup];
-            auto it = table.find(nameId);
+                auto& table = globals[currentGroup];
+                auto it = table.find(nameId);
 
-            if (it != table.end()) {
-                push(it->second);
-            } else {
-                std::string name = nameValue.asString(); 
-                std::cerr << "Runtime Error: Undefined variable '" << name << "'.\n";
-                return INTERPRET_RUNTIME_ERROR;
+                if (it != table.end()) {
+                    push(it->second);
+                } else {
+                    std::cerr << "Runtime Error: Undefined variable '" << nameValue.asString() << "'.\n";
+                    return INTERPRET_RUNTIME_ERROR;
+                }
+                break;
             }
-            break;
-        }
             case OP_JUMP_IF_FALSE : {
                 uint16_t offset = static_cast<uint16_t>((ip[0] << 8) | ip[1]);
                 ip += 2;
@@ -100,13 +107,13 @@ InterpretResult VM::run() {
             case OP_GREATER : {
                 Value b = pop();
                 Value a = pop();
-                push(Value(std::get<double>(a.data) > std::get<double>(b.data)));
+                push(Value(a.asFloat() > b.asFloat()));
                 break;
             }
             case OP_SMALLER : {
                 Value b = pop();
                 Value a = pop();
-                push(Value(std::get<double>(a.data) < std::get<double>(b.data)));
+                push(Value(a.asFloat() < b.asFloat()));
                 break;
             }
             case OP_POP : {
@@ -127,7 +134,6 @@ InterpretResult VM::run() {
             case OP_ARRAY : {
                 uint8_t count = READ_BYTE();
                 std::vector<Value> arrayElements;
-
                 arrayElements.reserve(count);
 
                 for (int i = 0; i < count; i++) {
@@ -135,7 +141,6 @@ InterpretResult VM::run() {
                 }
 
                 std::reverse(arrayElements.begin(), arrayElements.end());
-
                 push(Value(arrayElements));
                 break;
             }

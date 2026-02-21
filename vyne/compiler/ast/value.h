@@ -44,6 +44,7 @@ struct ModuleData : public VyneObject {
 using ValueData = std::variant<
     std::monostate,
     double,
+    int64_t,
     uint32_t,
     std::shared_ptr<VyneObject>
 >;
@@ -78,19 +79,24 @@ public:
 struct Value {
     enum TypeIndex { 
         NONE = 0, 
-        NUMBER = 1, 
-        STRING = 2, 
-        ARRAY = 3, 
-        FUNCTION = 4, 
-        MODULE = 5 
+        FLOAT64 = 1, 
+        INT64 = 2,
+        STRING = 3, 
+        ARRAY = 4, 
+        FUNCTION = 5, 
+        MODULE = 6
     };
 
     ValueData data;
     bool isReadOnly = false;
 
-    // constructor
+    // constructors
     Value() : data(std::monostate{}) {}
     Value(double n) : data(n) {}
+    Value(int64_t n) : data(n) {}
+    Value(int n) : data(static_cast<int64_t>(n)) {}
+    Value(unsigned int n) : data(static_cast<int64_t>(n)) {}
+    Value(size_t n) : data(static_cast<int64_t>(n)) {}
     Value(std::string s) {
         data = StringPool::intern(s);
     }
@@ -120,7 +126,8 @@ struct Value {
     int getType() const;
     std::string getTypeName() const;
 
-    double asNumber() const;
+    double  asFloat() const;
+    int64_t asInt()   const;
 
     const std::string& asString() const;
 
@@ -134,6 +141,7 @@ struct Value {
 
     // core value functions
     Value& setReadOnly();
+    long getRefCount() const;
     bool isTruthy()                 const;
     void print(std::ostream& os)    const;
     size_t getDeepBytes()           const;

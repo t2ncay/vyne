@@ -3,9 +3,10 @@
 int Value::getType() const { 
     size_t idx = data.index();
     if (idx == 0) return NONE;
-    if (idx == 1) return NUMBER;
-    if (idx == 2) return STRING;
-    if (idx == 3) {
+    if (idx == 1) return FLOAT64;
+    if (idx == 2) return INT64;
+    if (idx == 3) return STRING; 
+    if (idx == 4) {
         auto obj = std::get<std::shared_ptr<VyneObject>>(data);
         if (!obj) return NONE;
         if (obj->objType == VyneObject::ObjType::Array) return ARRAY;
@@ -16,19 +17,27 @@ int Value::getType() const {
 }
 
 std::string Value::getTypeName() const { 
-    int type = getType();
-    switch(type) {
-        case Value::NUMBER:   return "Number";
+    switch(getType()) {
+        case Value::FLOAT64:  return "Float64";
+        case Value::INT64:    return "Int64";
         case Value::STRING:   return "String";
         case Value::ARRAY:    return "Array";
         case Value::FUNCTION: return "Function";
         case Value::MODULE:   return "Module";
-        default:              return "Unknown";
+        default:              return "null";
     }
 }
 
-double Value::asNumber() const { 
-    return std::get<double>(this->data); 
+double Value::asFloat() const { 
+    if (data.index() == 1) return std::get<double>(data);
+    if (data.index() == 2) return static_cast<double>(std::get<int64_t>(data));
+    return 0.0;
+}
+
+int64_t Value::asInt() const { 
+    if (data.index() == 2) return std::get<int64_t>(data);
+    if (data.index() == 1) return static_cast<int64_t>(std::get<double>(data));
+    return 0;
 }
 
 const std::string& Value::asString() const { 
@@ -59,27 +68,32 @@ Value& Value::setReadOnly(){
     return *this;
 }
 
+long Value::getRefCount() const {
+    if (data.index() == 4) {
+        return std::get<std::shared_ptr<VyneObject>>(data).use_count();
+    }
+    return 0; 
+}
+
 void Value::print(std::ostream& os) const {
     switch (data.index()) {
-        case 0:
-            os << "null";
+        case 0: os << "null"; break;
+        case 1: {
+            double val = std::get<double>(data);
+            std::string s = std::to_string(val);
+            
+            s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+            
+            if (s.back() == '.') s += '0';
+            
+            os << s;
             break;
-
-        case 1:
-            os << std::get<double>(data);
-            break;
-
-        case 2:
-            os << "\"" << asString() << "\"";
-            break;
-
-        case 3: {
+        }
+        case 2: os << std::get<int64_t>(data); break;
+        case 3: os << asString(); break;
+        case 4: {
             auto obj = std::get<std::shared_ptr<VyneObject>>(data);
-            if (!obj) {
-                os << "null";
-                break;
-            }
-
+            if (!obj) { os << "null"; break; }
             switch (obj->objType) {
                 case VyneObject::ObjType::Array: {
                     const auto& list = static_cast<VyneArray*>(obj.get())->elements;
@@ -93,61 +107,34 @@ void Value::print(std::ostream& os) const {
                 }
                 case VyneObject::ObjType::Function: {
                     auto func = static_cast<FunctionData*>(obj.get());
-                    if (func->isNative) os << "<native function>";
-                    else os << "<function>";
+                    os << (func->isNative ? "<native sub>" : "<sub>");
                     break;
                 }
                 case VyneObject::ObjType::Module: {
-                    auto mod = static_cast<ModuleData*>(obj.get());
-                    os << "<module '" << mod->name << "'>";
+                    os << "<module '" << static_cast<ModuleData*>(obj.get())->name << "'>";
                     break;
                 }
             }
             break;
         }
-        default:
-            os << "<unknown>";
-            break;
     }
 }
 
 size_t Value::getDeepBytes() const {
     switch(data.index()) {
-        case 1:
-            return sizeof(double);
-
-        case 2:
-            return sizeof(uint32_t);
-
-        case 3: { // HEAP OBJECTS
+        case 1: return sizeof(double);
+        case 2: return sizeof(int64_t);
+        case 3: return sizeof(uint32_t);
+        case 4: {
             auto obj = std::get<std::shared_ptr<VyneObject>>(data);
             if (!obj) return 0;
-
-            size_t total = 16; 
-
-            switch(obj->objType) {
-                case VyneObject::ObjType::Array: {
-                    auto arr = static_cast<VyneArray*>(obj.get());
-                    total += sizeof(VyneArray);
-                    total += arr->elements.capacity() * sizeof(Value);
-                    for (const auto& item : arr->elements) {
-                        total += item.getDeepBytes();
-                    }
-                    break;
-                }
-                case VyneObject::ObjType::Function: {
-                    auto func = static_cast<FunctionData*>(obj.get());
-                    total += sizeof(FunctionData);
-                    total += func->params.capacity() * sizeof(uint32_t);
-                    total += func->body.capacity() * sizeof(std::shared_ptr<ASTNode>);
-                    break;
-                }
-                case VyneObject::ObjType::Module: {
-                    auto mod = static_cast<ModuleData*>(obj.get());
-                    total += sizeof(ModuleData);
-                    total += mod->name.capacity();
-                    break;
-                }
+            size_t total = 16;
+            if (obj->objType == VyneObject::ObjType::Array) {
+                auto arr = static_cast<VyneArray*>(obj.get());
+                total += sizeof(VyneArray) + (arr->elements.capacity() * sizeof(Value));
+                for (const auto& item : arr->elements) total += item.getDeepBytes();
+            } else if (obj->objType == VyneObject::ObjType::Module) {
+                total += sizeof(ModuleData) + static_cast<ModuleData*>(obj.get())->name.capacity();
             }
             return total;
         }
@@ -157,18 +144,15 @@ size_t Value::getDeepBytes() const {
 
 size_t Value::getShallowBytes() const {
     switch(data.index()) {
-        case 1:
-            return sizeof(double);
-
-        case 2:
-            return sizeof(uint32_t);
-
-        case 3: {
+        case 0: return 0;
+        case 1: return sizeof(double);
+        case 2: return sizeof(int64_t);
+        case 3: return sizeof(uint32_t);
+        case 4: {
             auto obj = std::get<std::shared_ptr<VyneObject>>(data);
             if (!obj) return 0;
 
             size_t baseSize = sizeof(std::shared_ptr<VyneObject>);
-
             switch(obj->objType) {
                 case VyneObject::ObjType::Array:
                     return baseSize + sizeof(VyneArray);
@@ -179,20 +163,12 @@ size_t Value::getShallowBytes() const {
             }
             return baseSize;
         }
-        default:
-            return 0;
+        default: return 0;
     }
 }
 
 bool Value::equals(const Value& other) const {
-    if (getType() != other.getType()) return false;
-
-    switch(getType()) {
-        case 0: return true;
-        case 1: return asNumber() == other.asNumber();
-        case 2: return asString() == other.asString();
-        default: return false;
-    }
+    return *this == other;
 }
 
 std::string Value::toString() const {
@@ -200,17 +176,11 @@ std::string Value::toString() const {
         case 1: {
             char buffer[64];
             auto [ptr, ec] = std::to_chars(buffer, buffer + sizeof(buffer), std::get<double>(data));
-            if (ec == std::errc()) {
-                return std::string(buffer, ptr - buffer);
-            }
-            return "0";
+            return (ec == std::errc()) ? std::string(buffer, ptr - buffer) : "0";
         }
-        case 2:
-            return StringPool::instance().get(std::get<uint32_t>(data));
-
-        case 0:
-            return "null";
-
+        case 2: return std::to_string(std::get<int64_t>(data));
+        case 3: return asString();
+        case 0: return "null";
         default: {
             std::stringstream ss;
             this->print(ss);
@@ -223,64 +193,56 @@ int Value::toNumber() const {
     switch(data.index()){
         case 0: return 0;
         case 1: return static_cast<int>(std::get<double>(data));
-        case 2: {
+        case 2: return static_cast<int>(std::get<int64_t>(data));
+        case 3: {
             try {
-                const std::string& s = StringPool::instance().get(std::get<uint32_t>(data));
-                return static_cast<int>(std::stod(s));
-            } catch (...) {
-                return 0; 
-            }
+                return static_cast<int>(std::stod(asString()));
+            } catch (...) { return 0; }
         }
         default: return 0;
     }
 }
 
 bool Value::isTruthy() const {
-    switch(getType()) {
-        case Value::NUMBER:  return asNumber() != 0;
-        case Value::STRING:  return !asString().empty();
-        case Value::ARRAY:   return !asList().empty();
-        default:             return false;
+    switch(data.index()) {
+        case 1: return std::get<double>(data) != 0;
+        case 2: return std::get<int64_t>(data) != 0;
+        case 3: return !asString().empty();
+        case 4: return true;
+        default: return false;
     }
 }
 
-
 bool Value::operator==(const Value& other) const {
-    int type = getType();
-    if (type != other.getType()) return false;
-
-    switch (type) {
-        case NUMBER: return asNumber() == other.asNumber();
-        case STRING: return std::get<uint32_t>(data) == std::get<uint32_t>(other.data); // Fast ID comparison!
-        case ARRAY:  return asList() == other.asList();
-        default:     return false; 
+    if (data.index() != other.data.index()) return false;
+    switch (data.index()) {
+        case 0: return true; // null == null
+        case 1: return std::get<double>(data) == std::get<double>(other.data);
+        case 2: return std::get<int64_t>(data) == std::get<int64_t>(other.data);
+        case 3: return std::get<uint32_t>(data) == std::get<uint32_t>(other.data);
+        case 4: return std::get<std::shared_ptr<VyneObject>>(data) == std::get<std::shared_ptr<VyneObject>>(other.data);
+        default: return true;
     }
 }
 
 bool Value::operator!=(const Value& other) const {
-    if (this->data.index() != other.data.index()) return true;
-
-    switch (this->data.index()) {
-        case 0: return false;
-        case 1: return asNumber() != other.asNumber();
-        case 2: return std::get<uint32_t>(data) != std::get<uint32_t>(other.data);
-        case 3: return asList() != other.asList();
-        default: return true; 
-    }
+    return !(*this == other);
 }
 
 bool Value::operator<(const Value& other) const {
     if (data.index() != other.data.index()) {
         return data.index() < other.data.index();
     }
-
+    
     switch (data.index()) {
-        case 1:
-            return std::get<double>(data) < std::get<double>(other.data);
-        case 2:
-            return std::get<uint32_t>(data) < std::get<uint32_t>(other.data);
-        default:
-            return false;
+        case 0: return false;
+        case 1: return std::get<double>(data) < std::get<double>(other.data);
+        case 2: return std::get<int64_t>(data) < std::get<int64_t>(other.data);
+        case 3: return std::get<uint32_t>(data) < std::get<uint32_t>(other.data); // Interned string ID comparison
+        case 4: {
+            return std::get<std::shared_ptr<VyneObject>>(data) < std::get<std::shared_ptr<VyneObject>>(other.data);
+        }
+        default: return false;
     }
 }
 
