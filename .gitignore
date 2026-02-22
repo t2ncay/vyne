@@ -11,5 +11,5 @@ vendor/*
 vyne_bin
 lsp/bin/*
 *.o
-lsp/node_modules/*
-lsp/*.vsix
+editors/vscode/lsp/node_modules/*
+editors/vscode/lsp/*.vsix
