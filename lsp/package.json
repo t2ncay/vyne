@@ -3,18 +3,23 @@
   "displayName": "Vyne Language Support",
   "description": "Language Support for Vyne",
   "publisher": "Tuncay",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "author": "Tuncay",
   "license": "MIT",
+  "icon": "vyneLogo.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/t2ncay/vyne-extension.git"
+    "url": "https://github.com/t2ncay/vyne.git"
   },
   "engines": {
-    "vscode": "^1.108.1"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Programming Languages"
+  ],
+  "main": "./client/src/extension.js",
+  "activationEvents": [
+    "onLanguage:vyne"
   ],
   "contributes": {
     "languages": [
@@ -28,19 +33,21 @@
           ".vy",
           ".vyne"
         ],
-        "configuration": "./language-configuration.json"
+        "configuration": "./client/language-configuration.json"
       }
     ],
     "grammars": [
       {
         "language": "vyne",
         "scopeName": "source.vyne",
-        "path": "./syntaxes/vyne.tmLanguage.json"
+        "path": "./client/syntaxes/vyne.tmLanguage.json"
       }
     ]
   },
   "scripts": {
-    "postinstall": "cd client && npm install && cd ../server && npm install",
-    "build-backend": "cd backend && mkdir -p build && cd build && cmake .. && make"
+    "postinstall": "cd client && npm install"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
   }
 }
