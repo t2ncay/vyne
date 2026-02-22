@@ -1,11 +1,46 @@
 {
-  "name": "vyne-lsp",
-  "version": "1.0.0",
-  "description": "Vyne Language Server",
+  "name": "vyne-language-support",
+  "displayName": "Vyne Language Support",
+  "description": "Language Support for Vyne",
+  "publisher": "Tuncay",
+  "version": "0.1.5",
+  "author": "Tuncay",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t2ncay/vyne-extension.git"
+  },
+  "engines": {
+    "vscode": "^1.108.1"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vyne",
+        "aliases": [
+          "Vyne",
+          "vyne"
+        ],
+        "extensions": [
+          ".vy",
+          ".vyne"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vyne",
+        "scopeName": "source.vyne",
+        "path": "./syntaxes/vyne.tmLanguage.json"
+      }
+    ]
+  },
   "scripts": {
     "postinstall": "cd client && npm install && cd ../server && npm install",
     "build-backend": "cd backend && mkdir -p build && cd build && cmake .. && make"
-  },
-  "author": "",
-  "license": "MIT"
-}   
+  }
+}
