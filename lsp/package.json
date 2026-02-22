@@ -3,7 +3,7 @@
   "displayName": "Vyne Language Support",
   "description": "Language Support for Vyne",
   "publisher": "Tuncay",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "author": "Tuncay",
   "license": "MIT",
   "icon": "vyneLogo.png",
@@ -33,7 +33,11 @@
           ".vy",
           ".vyne"
         ],
-        "configuration": "./client/language-configuration.json"
+        "configuration": "./client/language-configuration.json",
+        "icon": {
+          "light": "./vyneLogo.png",
+          "dark": "./vyneLogo.png"
+        }
       }
     ],
     "grammars": [
