@@ -144,17 +144,14 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
                     }
                 }
 
-                if (lookAhead(checkPos).type == VTokenType::Extends) {
-                    checkPos += 2;
-                }
-
-                if (lookAhead(checkPos).type == VTokenType::Equals) {
+                VTokenType next = lookAhead(checkPos).type;
+                if (next == VTokenType::Extends || next == VTokenType::Equals) {
                     return parseAssignment();
                 }
             }
 
             if (hasConst) {
-                throw std::runtime_error("Syntax Error: 'const' can only be used in assignments at line " + std::to_string(current.line));
+                throw std::runtime_error("Syntax Error: 'const' can only be used in assignments at line " + std::to_string(peekToken().line));
             }
 
             auto expr = parseExpression();
@@ -617,38 +614,39 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         isConst = true;
     }
 
-    auto lhsNode = parseIdentifierExpr(); 
+    Token nameTok = consume(VTokenType::Identifier);
+    uint32_t varId = StringPool::instance().intern(nameTok.name);
+    std::string originalName = nameTok.name;
     
-    consume(VTokenType::Equals);
-    auto rhs = parseExpression();
-    consumeSemicolon();
-
-    if (lhsNode->type() == NodeType::VARIABLE) {
-        auto* var = static_cast<VariableNode*>(lhsNode.get());
-        uint32_t varId = var->getNameId();
-        
-        VType varType = var->getStaticType(); 
-        
-        if (var->getScope().empty()) {
-            defineSymbol(varId, varType, varType != VType::Unknown);
-        } else {
-            defineScopedSymbol(var->getScope(), varId, varType, varType != VType::Unknown);
-        }
-
-        auto node = std::make_unique<AssignmentNode>(
-            varId, 
-            var->getOriginalName(), 
-            std::move(rhs), 
-            isConst,
-            varType,
-            var->getScope()
-        );
-        node->lineNumber = line;
-        return node;
+    VType varType = VType::Unknown;
+    if (peekToken().type == VTokenType::Extends) {
+        consume(VTokenType::Extends);
+        varType = stringToVType(consume(VTokenType::Identifier).name);
     }
 
+    std::unique_ptr<ASTNode> rhs = nullptr;
+    if (peekToken().type == VTokenType::Equals) {
+        consume(VTokenType::Equals);
+        rhs = parseExpression();
+    } else {
+        switch (varType) {
+            case VType::String:  rhs = std::make_unique<StringNode>(""); break;
+            case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
+            case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
+            case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
+            default:             rhs = std::make_unique<NumberNode>(0); break; 
+        }
+    }
 
-    throw std::runtime_error("Syntax Error: Invalid assignment target.");
+    consumeSemicolon();
+
+    defineSymbol(varId, varType, varType != VType::Unknown);
+
+    auto node = std::make_unique<AssignmentNode>(
+        varId, originalName, std::move(rhs), isConst, varType, std::vector<std::string>{}
+    );
+    node->lineNumber = line;
+    return node;
 }
 
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
