@@ -32,7 +32,7 @@ jobs:
       - name: Compile Vyne
         run: |
           g++ -std=c++23 ${{ matrix.flags }} \
-              -I./lsp/backend/include \
+              -I./editors/vscode/lsp/backend/include \
               $(find . -name "*.cpp") \
               -o vyne_run -Wall -Wextra -Wpedantic
 
