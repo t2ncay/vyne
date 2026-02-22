@@ -1,7 +1,7 @@
 #include "cli/repl.h"
 #include "cli/file_handler.h"
 #include "vyne/utils/file_utils.h"
-#include "lsp/backend/src/lsp_server.h"
+#include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include <cstring>
 
 // Forward declaration of LSP server runner

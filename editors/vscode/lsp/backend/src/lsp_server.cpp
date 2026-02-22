@@ -1,20 +1,15 @@
 #include "lsp_server.h"
 
-// Parse the document and collect diagnostics
 bool DocumentState::parse() {
     try {
-        // Tokenize the source code
         tokens = tokenize(text);
         
-        // Parse into AST
         Parser parser(std::move(tokens));
         ast = parser.parseProgram();
         
-        // Clear old diagnostics on success
         diagnostics.clear();
         return true;
     } catch (const std::exception& e) {
-        // Create a diagnostic from the error
         json diag;
         diag["message"] = e.what();
         diag["severity"] = 1; // 1 = Error
@@ -27,25 +22,20 @@ bool DocumentState::parse() {
     }
 }
 
-// Main server loop - reads from stdin, writes to stdout
 void LspServer::run() {
     std::string line;
     while (std::getline(std::cin, line)) {
         if (line.empty()) continue;
         
         try {
-            // Parse the JSON request
             json req = json::parse(line);
             
-            // Handle the request
             json resp = handleRequest(req);
             
-            // Send response if not empty
             if (!resp.empty()) {
                 std::cout << resp.dump() << std::endl;
             }
         } catch (const std::exception& e) {
-            // Send error response
             json error;
             error["jsonrpc"] = "2.0";
             error["id"] = nullptr;
@@ -55,7 +45,6 @@ void LspServer::run() {
     }
 }
 
-// Route requests to appropriate handlers
 json LspServer::handleRequest(const json& req) {
     std::string method = req["method"];
     json params = req.contains("params") ? req["params"] : json::object();
@@ -71,7 +60,7 @@ json LspServer::handleRequest(const json& req) {
     }
     else if (method == "textDocument/didOpen") {
         handleDidOpen(params);
-        return json::object(); // No response for notifications
+        return json::object();
     }
     else if (method == "textDocument/didChange") {
         handleDidChange(params);
@@ -97,11 +86,10 @@ json LspServer::handleRequest(const json& req) {
     return resp;
 }
 
-// Initialize the server
 json LspServer::handleInitialize(const json& params) {
     return {
         {"capabilities", {
-            {"textDocumentSync", 1}, // Full content sync
+            {"textDocumentSync", 1},
             {"completionProvider", {
                 {"resolveProvider", false},
                 {"triggerCharacters", {".", ":", " "}}
@@ -113,12 +101,10 @@ json LspServer::handleInitialize(const json& params) {
     };
 }
 
-// Shutdown
 json LspServer::handleShutdown() {
     return nullptr;
 }
 
-// Document opened
 void LspServer::handleDidOpen(const json& params) {
     std::string uri = params["textDocument"]["uri"];
     std::string text = params["textDocument"]["text"];
@@ -130,24 +116,20 @@ void LspServer::handleDidOpen(const json& params) {
     publishDiagnostics(uri);
 }
 
-// Document changed
 void LspServer::handleDidChange(const json& params) {
     std::string uri = params["textDocument"]["uri"];
     
     auto it = documents.find(uri);
     if (it != documents.end()) {
-        // Update content (simplified - full content sync)
         for (const auto& change : params["contentChanges"]) {
             it->second->text = change["text"];
         }
         
-        // Reparse
         it->second->parse();
         publishDiagnostics(uri);
     }
 }
 
-// Document closed
 void LspServer::handleDidClose(const json& params) {
     std::string uri = params["textDocument"]["uri"];
     documents.erase(uri);
