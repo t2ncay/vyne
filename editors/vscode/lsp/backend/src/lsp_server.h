@@ -7,10 +7,10 @@
 #include <vector>
 #include <memory>
 #include <optional>
-#include <nlohmann/json.hpp>
-#include "../../../vyne/compiler/lexer/lexer.h"    // Path to your lexer
-#include "../../../vyne/compiler/parser/parser.h"   // Path to your parser
-#include "../../../vyne/compiler/ast/ast.h"      // Path to your ast
+#include "../include/nlohmann/json.hpp"
+#include "../../../../../vyne/compiler/lexer/lexer.h"    // Path to your lexer
+#include "../../../../../vyne/compiler/parser/parser.h"   // Path to your parser
+#include "../../../../../vyne/compiler/ast/ast.h"      // Path to your ast
 
 using json = nlohmann::json;
 

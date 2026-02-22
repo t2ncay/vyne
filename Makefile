@@ -5,9 +5,7 @@ BUILD_DIR = build
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
-    # Use mconsole for only windows
     LDFLAGS = -mconsole
-    # Use the logic you confirmed works on your PowerShell setup
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
@@ -29,7 +27,7 @@ SRCS = $(wildcard *.cpp) \
        $(wildcard vyne/*/*.cpp) \
        $(wildcard vyne/*/*/*.cpp) \
        $(wildcard vyne/*/*/*/*.cpp) \
-       $(wildcard lsp/backend/src/*.cpp) 
+       $(wildcard editors/vscode/lsp/backend/src/*.cpp) 
 
 OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:.cpp=.o))
 

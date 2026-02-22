@@ -4,7 +4,6 @@
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include <cstring>
 
-// Forward declaration of LSP server runner
 int runLspServer();
 
 int main(int argc, char* argv[]) {
@@ -12,9 +11,7 @@ int main(int argc, char* argv[]) {
     SymbolContainer env;
     env["global"] = {};
 
-    // Check for LSP mode first
     if (argc > 1 && strcmp(argv[1], "--lsp") == 0) {
-        // Run LSP server
         return runLspServer();
     }
 
