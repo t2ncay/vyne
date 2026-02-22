@@ -1,3 +1,5 @@
-use extern "vtest.vy";
+use extern "vplot.vy";
 
-vtest.logger("hi");
+a = [ 1,2,3,4,5,6 ];
+
+vplot.bar_chart(a, 8);

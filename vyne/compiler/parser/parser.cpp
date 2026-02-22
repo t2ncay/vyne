@@ -453,7 +453,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         tok.type == VTokenType::Function || 
         tok.type == VTokenType::BuiltIn) {
         throw std::runtime_error("Syntax Error: Unexpected keyword '" + tok.name + "'");
-    }   
+    }
 
     std::string lastName = tok.name;
     uint32_t currentId = StringPool::instance().intern(lastName);
