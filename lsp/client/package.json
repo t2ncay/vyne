@@ -1,0 +1,41 @@
+{
+  "name": "vyne-vscode",
+  "displayName": "Vyne",
+  "description": "Vyne language support",
+  "version": "1.0.0",
+  "icon": "images/logo.png",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:vyne"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "vyne",
+        "aliases": ["Vyne", "vyne"],
+        "extensions": [".vy", ".vyne", ".v"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "../vyneLogo.png",
+          "dark": "../vyneLogo.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vyne",
+        "scopeName": "source.vyne",
+        "path": "./syntaxes/vyne.tmLanguage.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.0.0"
+  }
+}

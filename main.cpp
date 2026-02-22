@@ -1,11 +1,22 @@
 #include "cli/repl.h"
 #include "cli/file_handler.h"
 #include "vyne/utils/file_utils.h"
+#include "lsp/backend/src/lsp_server.h"
+#include <cstring>
+
+// Forward declaration of LSP server runner
+int runLspServer();
 
 int main(int argc, char* argv[]) {
     FileUtils::setExeDir(argv[0]);
     SymbolContainer env;
     env["global"] = {};
+
+    // Check for LSP mode first
+    if (argc > 1 && strcmp(argv[1], "--lsp") == 0) {
+        // Run LSP server
+        return runLspServer();
+    }
 
     if (argc == 3) {
         std::string flag = argv[1];

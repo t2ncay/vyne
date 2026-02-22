@@ -1,0 +1,11 @@
+{
+  "name": "vyne-lsp",
+  "version": "1.0.0",
+  "description": "Vyne Language Server",
+  "scripts": {
+    "postinstall": "cd client && npm install && cd ../server && npm install",
+    "build-backend": "cd backend && mkdir -p build && cd build && cmake .. && make"
+  },
+  "author": "",
+  "license": "MIT"
+}   
