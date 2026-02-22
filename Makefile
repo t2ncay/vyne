@@ -3,7 +3,6 @@ CXXFLAGS = -std=c++23 -O3 -Wall -I. -I./lsp/backend/src -I./lsp/backend/include
 TARGET_BASE = vyne_bin
 BUILD_DIR = build
 
-# 1. OS DETECTION & COMMAND SETUP
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
     # Use mconsole for only windows
@@ -12,7 +11,6 @@ ifeq ($(OS),Windows_NT)
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
-    # Force CMD to prevent the /usr/bin/bash conflict you had
     SHELL := cmd.exe
     
 else
@@ -25,7 +23,6 @@ else
     
 endif
 
-# 2. SOURCE SEARCH
 SRCS = $(wildcard *.cpp) \
        $(wildcard cli/*.cpp) \
        $(wildcard vyne/*.cpp) \
@@ -41,7 +38,6 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
-# 3. COMPILATION RULE
 $(BUILD_DIR)/%.o: %.cpp
 	@$(call MKDIR_P,$(dir $@))
 	$(CXX) $(CXXFLAGS) -c $< -o $@
