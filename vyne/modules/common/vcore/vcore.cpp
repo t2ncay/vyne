@@ -34,6 +34,31 @@ double getPhysicalMemoryUsage() {
     return 0.0;
 }
 
+struct ParsedURL {
+    std::string scheme;
+    std::string host;
+    std::string path;
+    int port;
+};
+
+ParsedURL parseURL(const std::string& url)
+{
+    ParsedURL result;
+
+    size_t scheme_end = url.find("://"); // Ts the first time I'm coding a parser lol
+    result.scheme = url.substr(0, scheme_end);
+
+    size_t host_start = scheme_end + 3;
+    size_t path_start = url.find('/', host_start);
+
+    result.host = url.substr(host_start, path_start - host_start);
+    result.path = path_start == std::string::npos ? "/" : url.substr(path_start);
+
+    result.port = result.scheme == "https" ? 443 : 80; // Fancy HTTPS vs chill HTTP fr
+
+    return result;
+}
+
 /**
  * VCore Native Method Implementations
  */
@@ -106,6 +131,36 @@ namespace VCoreNative {
 
         return Value();
     }
+
+    /*
+    The networking module is currently synchronous but I will add async soon
+    I will continue working on this until it's working reliably
+    */
+
+    Value http_get(std::vector<Value>& args) // Supports HTTPS if CPPHTTPLIB_OPENSSL_SUPPORT is defined
+    {
+        if (args.empty())
+            throw std::runtime_error("vcore.http_get(url) expects 1 argument");
+
+        std::string url = args[0].asString();
+        ParsedURL u = parseURL(url);
+
+        #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+            httplib::SSLClient cli(u.host.c_str(), u.port);
+        #else
+            httplib::Client cli(u.host.c_str(), u.port);
+        #endif
+
+        auto res = cli.Get(u.path.c_str());
+        if (!res) {
+            // This made my life so much easier
+            std::cerr << "[vcore.http_get] Failed to GET " << url 
+                      << " (host: " << u.host << ", path: " << u.path << ")" << std::endl;
+            return Value();
+        }
+
+        return Value(res->body);
+    }
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
@@ -122,6 +177,7 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("sleep")]           = Value(VCoreNative::sleep);
     vcore[pool.intern("platform")]        = Value(VCoreNative::platform);
     vcore[pool.intern("input")]           = Value(VCoreNative::input);
+    vcore[pool.intern("http_get")]        = Value(VCoreNative::http_get); // Our shiny new network function
 
     // VCore properties
     vcore[pool.intern("version")]         = Value("v0.0.1-alpha").setReadOnly();
