@@ -1,17 +1,18 @@
 # 📦 Vyne Modules
+
 ## ⚙️ Module System Overview
 
 ---
 
 ## 📑 Table of Contents
 
-1. Introduction  
-2. Module Categories  
-3. Common Modules  
-4. External Modules  
-5. Using Deployed Modules  
-6. Empty Modules  
-7. Examples  
+1. Introduction
+2. Module Categories
+3. Common Modules
+4. External Modules
+5. Using Deployed Modules
+6. Empty Modules
+7. Examples
 
 ---
 
@@ -21,8 +22,8 @@ In Vyne, modules are used to organize code, encapsulate functionality, and enabl
 
 Modules are divided into two main categories:
 
-- 🧩 Common modules  
-- 🌍 External modules  
+- 🧩 Common modules
+- 🌍 External modules
 
 ---
 
@@ -41,13 +42,13 @@ They are invoked inside Vyne source code using the `module` keyword.
 
 ### 🌍 2. External Modules
 
-External modules are written directly in Vyne.  
+External modules are written directly in Vyne.
 
 They are usually defined as empty modules initially. During development, the following elements are added:
 
-- 🔹 Functions  
-- 🔹 Variables  
-- 🔹 Data types  
+- 🔹 Functions
+- 🔹 Variables
+- 🔹 Data types
 
 Finally, they are **deployed** for use in other files.
 
@@ -79,9 +80,9 @@ use extern "vmath.vy";
 vmath.add(3.5);
 ```
 
-| Keyword | Description |
-|---------|-------------|
-| `use` | Imports the module into the current file |
+| Keyword  | Description                                                    |
+| -------- | -------------------------------------------------------------- |
+| `use`    | Imports the module into the current file                       |
 | `extern` | Specifies that the module is in the external modules directory |
 
 > 🔎 Note:  
@@ -93,11 +94,11 @@ vmath.add(3.5);
 
 Vyne has four built-in modules:
 
-| Module | Functionality |
-|--------|---------------|
-| `vcore` | System-level utilities |
-| `vmem` | Memory management |
-| `vglib` | Graphics & buffer management |
+| Module  | Functionality                   |
+| ------- | ------------------------------- |
+| `vcore` | System-level utilities          |
+| `vmem`  | Memory management               |
+| `vglib` | Graphics & buffer management    |
 | `vmath` | Built-in mathematical functions |
 
 If you define a module using one of these names, built-in functionality is automatically loaded.
@@ -107,11 +108,13 @@ If you define a module using one of these names, built-in functionality is autom
 ```vyne
 module vmath;
 ```
+
 ✔ Loads built-in mathematical functions automatically
 
 ```vyne
 module customModule;
 ```
+
 ✔ Creates an empty module
 
 > ⚠️ Note:  
@@ -121,8 +124,15 @@ module customModule;
 
 ## 🔍 Summary
 
-- Modules help organize and reuse code  
-- Common modules are compiled C++ extensions  
-- External modules are written in Vyne and deployed  
-- Built-in modules provide core functionality automatically  
-- Empty modules can be created for custom functionality  
+- Modules help organize and reuse code
+- Common modules are compiled C++ extensions
+- External modules are written in Vyne and deployed
+- Built-in modules provide core functionality automatically
+- Empty modules can be created for custom functionality
+
+## 🛠️ Document Metadata
+
+| Attribute         | Details         |
+| :---------------- | :-------------- |
+| **Maintained By** | Aydan Ahmadzada |
+| **Last Revision** | February 2026   |
