@@ -17,7 +17,7 @@ Vyne is currently in its early stages but already supports a robust set of core 
 | :------------- | :------------------------ | :--------------------------------------------------------- |
 | **Arithmetic** | `(+, -, *, /, <, >, ==)`  | Standard mathematical and comparison operators.            |
 | **Bitwise**    | `(&&, \|\|)`              | Low-level bit manipulation for flags and binary data.      |
-| **Functions**  | `fn calculate(x) { ... }` | Defined using the `sub` keyword with scoped arguments.     |
+| **Functions**  | `fn calculate(x) { ... }` | Defined using the `fn` keyword with scoped arguments.      |
 | **Logic Flow** | `if cond { ... }`         | Standard conditional branching.                            |
 | **Loops**      | `while cond { ... }`      | Standard iteration for repeated execution logic.           |
 | **Scoping**    | `group Graphics { ... }`  | Encapsulate logic and variables into named namespaces.     |

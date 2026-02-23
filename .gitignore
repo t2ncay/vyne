@@ -7,6 +7,8 @@ x64/*
 .vs/*
 vyne-docs/*
 .vscode/*
-vendor/*
 vyne_bin
+lsp/bin/*
 *.o
+editors/vscode/lsp/node_modules/*
+editors/vscode/lsp/*.vsix

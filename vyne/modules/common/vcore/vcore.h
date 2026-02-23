@@ -18,6 +18,8 @@
     #include <mach/mach.h>
 #endif
 
+#include "httplib.h"
+
 #include "../../../compiler/ast/ast.h"
 #include "../../../compiler/ast/value.h"
 

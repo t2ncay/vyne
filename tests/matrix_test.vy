@@ -10,4 +10,4 @@ matrix_2 :: Array = [
     [4,5,6]
 ];
 
-out(vmatrix.matrix_add(matrix_1, matrix_2));
+out(vmatrix.add(matrix_1, matrix_2));
