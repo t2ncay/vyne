@@ -19,6 +19,7 @@ vyne/modules/common/vglib/vglib.cpp ^
 vyne/modules/common/vmem/vmem.cpp ^
 vyne/modules/common/vmath/vmath.cpp ^
 cli/repl.cpp ^
+editors/vscode/lsp/backend/src/lsp_server.cpp ^
 cli/file_handler.cpp
 
 echo ---------------------------------------
