@@ -17,36 +17,39 @@ std::vector<Token> tokenize(const std::string& input) {
         }
 
         if (character == '"') {
-            i++;
-            std::string strBuffer;
+    i++;
+    std::string strBuffer;
 
-            while (i < input.length() && input[i] != '"') {
-                if (input[i] == '\n') currentLine++;
-                if (input[i] == '\\' && i + 1 < input.length()) {
-                    if (input[i+1] == 'n') {
-                        strBuffer += '\n';
-                        i += 2;
-                        continue;
-                    } else if (input[i+1] == 't') {
-                        strBuffer += '\t';
-                        i += 2;
-                        continue;
-                    } else if (input[i+1] == '\"') {
-                        strBuffer += '\"';
-                        i += 2;
-                        continue;
-                    }
+    while (i < input.length() && input[i] != '"') {
+        if (input[i] == '\n') currentLine++;
+
+        if (input[i] == '\\' && i + 1 < input.length()) {
+            char next = input[i+1];
+            if (next == 'n') {
+                strBuffer += '\n'; i += 2; continue;
+            } else if (next == 't') {
+                strBuffer += '\t'; i += 2; continue;
+            } else if (next == '\"') {
+                strBuffer += '\"'; i += 2; continue;
+            } else if (next == '0') {
+                if (i + 3 < input.length() && std::isdigit(input[i+2]) && std::isdigit(input[i+3])) {
+                    std::string octal = input.substr(i + 1, 3);
+                    strBuffer += (char)std::stoi(octal, nullptr, 8);
+                    i += 4;
+                    continue;
                 }
-                strBuffer += input[i];
-                i++;
             }
-
-            if (i < input.length()) {
-                i++;
-            }
-            tokens.emplace_back(Token(VTokenType::String, currentLine, 0, strBuffer));
-            continue;
         }
+        strBuffer += input[i];
+        i++;
+    }
+
+    if (i < input.length()) { // Skip the closing quote
+        i++;
+    }
+    tokens.emplace_back(Token(VTokenType::String, currentLine, 0, strBuffer));
+    continue;
+}
 
         if (std::isdigit(character)) {
             std::string buffer;
