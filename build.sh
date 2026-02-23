@@ -11,7 +11,7 @@ else
     EXTRA_FLAGS="-O3"
 fi
 
-CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic"
+CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic -DCPPHTTPLIB_OPENSSL_SUPPORT"
 
 SRC_FILES="main.cpp \
 vyne/vm/vm.cpp \
@@ -33,7 +33,7 @@ echo "Building Vyne Interpreter (Unix-like)..."
 echo "Mode: ${EXTRA_FLAGS}"
 echo "---------------------------------------"
 
-$CXX $CXXFLAGS $SRC_FILES -o $OUT
+$CXX $CXXFLAGS $SRC_FILES -o $OUT -lssl -lcrypto -pthread
 
 echo "Build Successful: $OUT created."
 
