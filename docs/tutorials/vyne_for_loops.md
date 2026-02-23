@@ -283,3 +283,10 @@ The `through` loop mechanism in Vyne provides:
 - Clean and expressive syntax
 
 Vyne’s iteration model merges traditional control flow with modern declarative programming concepts, offering both power and simplicity.
+
+## 🛠️ Document Metadata
+
+| Attribute         | Details         |
+| :---------------- | :-------------- |
+| **Maintained By** | Aydan Ahmadzada |
+| **Last Revision** | February 2026   |

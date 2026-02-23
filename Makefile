@@ -1,11 +1,15 @@
+OPENSSL_INC = ./vendor
 CXX = g++
-CXXFLAGS = -std=c++23 -O3 -Wall -I. -I./lsp/backend/src -I./lsp/backend/include -DCPPHTTPLIB_OPENSSL_SUPPORT
+CXXFLAGS = -std=c++23 -O3 -Wall -I. \
+           -I./lsp/backend/src -I./lsp/backend/include \
+           -I$(OPENSSL_INC) \
+           -DCPPHTTPLIB_OPENSSL_SUPPORT
 TARGET_BASE = vyne_bin
 BUILD_DIR = build
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
-    LDFLAGS = -mconsole -lssl -lcrypto -lws2_32 -pthread
+    LDFLAGS = -L./vendor/openssl -mconsole -lssl -lcrypto -lcrypt32 -lgdi32 -lws2_32 -pthread
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
