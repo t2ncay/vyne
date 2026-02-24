@@ -2,6 +2,8 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <string_view>
+#include <charconv>
 #include <cctype>
 
 enum class VTokenType {
@@ -24,6 +26,7 @@ enum class VTokenType {
     Deploy,             // Module deployment
     As,                 // Alias declaration
     Extern,             // External lib modifier
+    Interface,
 
     // --- KEYWORDS: CONTROL FLOW ---
     If,
@@ -82,14 +85,14 @@ struct Token {
     VTokenType type;
     int line;
 
-    Token(VTokenType t, int cl, double v = 0.0, const std::string& n = "")
-        : type(t), value(v), name(n), line(cl) {
+    Token(VTokenType t, int cl, double v = 0.0, std::string_view n = "")
+        : name(n), value(v), type(t), line(cl) {
     }
 
-    Token() : type(VTokenType::End), value(0.0), name(""), line(0) {}
+    Token() : name(""), value(0.0), type(VTokenType::End), line(0) {}
 };
 
-std::vector<Token> tokenize(const std::string& input);
+std::vector<Token> tokenize(std::string_view input);
 char advance();
 
 inline std::string VTokenTypeToString(VTokenType type) {

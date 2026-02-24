@@ -1,6 +1,6 @@
 #include "lexer.h"
 
-std::vector<Token> tokenize(const std::string& input) {
+std::vector<Token> tokenize(std::string_view input) {
     std::vector<Token> tokens;
     size_t i = 0;
     int currentLine = 1;
@@ -33,7 +33,7 @@ std::vector<Token> tokenize(const std::string& input) {
                         strBuffer += '\"'; i += 2; continue;
                     } else if (next == '0') {
                         if (i + 3 < input.length() && std::isdigit(input[i+2]) && std::isdigit(input[i+3])) {
-                            std::string octal = input.substr(i + 1, 3);
+                            std::string octal{ input.substr(i + 1, 3) };
                             strBuffer += (char)std::stoi(octal, nullptr, 8);
                             i += 4;
                             continue;
@@ -80,10 +80,13 @@ std::vector<Token> tokenize(const std::string& input) {
         }
 
         if (std::isalpha(character) || character == '_') {
-            std::string buffer;
+            size_t start = i;
+
             while (i < input.length() && (std::isalnum(input[i]) || input[i] == '_')) {
-                buffer += input[i++];
+                i++;
             }
+
+            std::string_view buffer = input.substr(start, i - start);
 
             if (buffer == "out") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
             else if (buffer == "sizeof") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
@@ -116,6 +119,7 @@ std::vector<Token> tokenize(const std::string& input) {
             else if (buffer == "deploy") tokens.emplace_back(VTokenType::Deploy, currentLine, 0, buffer);
             else if (buffer == "as") tokens.emplace_back(VTokenType::As, currentLine, 0, buffer);
             else if (buffer == "extern") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
+            else if (buffer == "interface") tokens.emplace_back(VTokenType::Interface, currentLine, 0, buffer);
             else tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
             continue;
         }
