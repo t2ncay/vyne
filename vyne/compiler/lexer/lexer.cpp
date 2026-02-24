@@ -71,11 +71,40 @@ std::vector<Token> tokenize(std::string_view input) {
                 }
             }
 
-            if (isFloatingPoint) {
-                tokens.emplace_back(VTokenType::Float64, currentLine, std::stod(buffer), "");
-            } else {
-                tokens.emplace_back(VTokenType::Int64, currentLine, static_cast<double>(std::stoll(buffer)), "");
-            }
+             if (isFloatingPoint) {
+
+				double val;
+
+
+				auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
+
+				if (ec == std::errc{}) {
+
+				tokens.emplace_back(VTokenType::Float64, currentLine, val, "");
+
+			} else {
+
+				std::cerr << "Float conversion error on line " << currentLine << std::endl;
+
+			}
+
+			} else {
+
+				long long val;
+
+				auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
+
+				if (ec == std::errc{}) {
+
+				tokens.emplace_back(VTokenType::Int64, currentLine, static_cast<double>(val), "");
+
+			} else {
+
+				std::cerr << "Integer conversion error on line " << currentLine << std::endl;
+
+			}
+
+		} 
             continue;
         }
 

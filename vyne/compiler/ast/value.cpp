@@ -40,8 +40,14 @@ int64_t Value::asInt() const {
     return 0;
 }
 
-const std::string& Value::asString() const { 
-    return StringPool::instance().get(std::get<uint32_t>(this->data)); 
+const std::string& Value::asString() const {
+    if (auto* id = std::get_if<uint32_t>(&data)) {
+        return StringPool::instance().get(*id);
+    }
+    if (auto* id64 = std::get_if<int64_t>(&data)) {
+        return StringPool::instance().get(static_cast<uint32_t>(*id64));
+    }
+    throw std::runtime_error("Type Error: Expected String, found " + getTypeName());
 }
 
 std::vector<Value>& Value::asList() { 

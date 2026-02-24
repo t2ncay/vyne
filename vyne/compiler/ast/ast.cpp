@@ -585,9 +585,13 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     // --- ARRAY METHODS ---
-    if (receiverVal.getType() == Value::ARRAY) {
-        if (methodName == "size") {
-            return Value(static_cast<double>(receiverVal.asList().size()));
+    if (receiverVal.getType() == Value::ARRAY || receiverVal.getType() == Value::STRING) {
+        if (methodName == "length" || methodName == "size") {
+            if (receiverVal.getType() == Value::STRING) {
+                return Value(static_cast<uint64_t>(receiverVal.asString().size()));
+            } else {
+                return Value(static_cast<uint64_t>(receiverVal.asList().size()));
+            }
         }
 
         Value* target = nullptr;

@@ -12,7 +12,7 @@ out(label + value);
 score = 85;
 if score >= 70 {
    out(vcolors.green("Passed: " + string(score)));
- }else {
+} else {
    out(vcolors.red("Failed: " + string(score)));
 }
 

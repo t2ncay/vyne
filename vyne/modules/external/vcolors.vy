@@ -302,7 +302,7 @@ fn :: vcolors rainbow(text) {
 # TODO: MAKE ACCESING STRING'S ELEMENT POSSIBLE
 
 fn :: vcolors box(text) {
-    len = 32;
+    len = text.length();
     line = "";
     i = 0;
     while i < len + 4 {
