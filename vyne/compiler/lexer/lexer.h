@@ -109,11 +109,16 @@ inline std::string VTokenTypeToString(VTokenType type) {
         // --- KEYWORDS: STRUCTURE ---
         case VTokenType::Group:            return "'group'";
         case VTokenType::Function:         return "'sub'";
-        case VTokenType::Extends:          return "'::'";
+        case VTokenType::Extends:          return "'::' or 'extends'";
         case VTokenType::Module:           return "'module'";
         case VTokenType::Dismiss:          return "'dismiss'";
         case VTokenType::Arrow:            return "'->'";
         case VTokenType::Const:            return "'const'";
+        case VTokenType::Use:              return "'use'";
+        case VTokenType::Deploy:           return "'deploy'";
+        case VTokenType::As:               return "'as'";
+        case VTokenType::Extern:           return "'extern'";
+        case VTokenType::Interface:        return "'interface'";
 
         // --- KEYWORDS: CONTROL FLOW ---
         case VTokenType::If:               return "'if'";
@@ -134,13 +139,15 @@ inline std::string VTokenTypeToString(VTokenType type) {
         case VTokenType::Double_Decrement: return "'--'";
         case VTokenType::Floor_Divide:     return "'//'";
         case VTokenType::Modulo:           return "'%'";
+        case VTokenType::Power:            return "'**' or '^'";
         case VTokenType::Exclamatory:      return "'!'";
+        case VTokenType::Addresser:        return "'$'";
 
         // --- OPERATORS: LOGIC & RELATIONAL ---
         case VTokenType::And:              return "'&&'";
         case VTokenType::Or:               return "'||'";
         case VTokenType::Equals:           return "'='";
-        case VTokenType::Double_Equals:    return "'=='";
+        case VTokenType::Double_Equals:    return "'== '";
         case VTokenType::Not_Equal:        return "'!='";
         case VTokenType::Greater:          return "'>'";
         case VTokenType::Smaller:          return "'<'";
