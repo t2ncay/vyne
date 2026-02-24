@@ -856,7 +856,7 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 
     try {
         externalAst->evaluate(externalEnv, "global");
-        std::cout << "[DEBUG] External file '" << filePath << "' evaluated successfully.\n";
+        // std::cout << "[DEBUG] External file '" << filePath << "' evaluated successfully.\n";
     } catch (const std::runtime_error& e) {
         throw std::runtime_error("In " + filePath + ": " + e.what());
     }
