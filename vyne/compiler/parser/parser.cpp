@@ -294,7 +294,9 @@ std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
 
     consume(VTokenType::String);
 
-    auto node = std::make_unique<StringNode>(current.name);
+    std::string strVal = std::get<std::string>(current.literal);
+    
+    auto node = std::make_unique<StringNode>(strVal);
     node->lineNumber = line;
 
     return node;
