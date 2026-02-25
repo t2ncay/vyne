@@ -20,4 +20,5 @@ void setupVFs(SymbolContainer& env, StringPool& pool) {
     // vfs methods
 
     // vfs properties
+    vfs[pool.intern("cwd")]             = Value(std::filesystem::current_path().string()).setReadOnly();
 }
