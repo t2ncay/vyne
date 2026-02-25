@@ -4,6 +4,7 @@
 #include "../../modules/common/vglib/vglib.h"
 #include "../../modules/common/vmem/vmem.h"
 #include "../../modules/common/vmath/vmath.h"
+#include "../../modules/common/vfs/vfs.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -822,6 +823,10 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 
     if (originalName == "vmath") {
         setupVMath(env, StringPool::instance());
+    }
+
+    if (originalName == "vfs") {
+        setupVFs(env, StringPool::instance());
     }
     
     // TODO this shit clashes with group names

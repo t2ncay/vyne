@@ -25,6 +25,7 @@ vyne/modules/common/vcore/vcore.cpp \
 vyne/modules/common/vglib/vglib.cpp \
 vyne/modules/common/vmem/vmem.cpp \
 vyne/modules/common/vmath/vmath.cpp \
+vyne/modules/common/vfs/vfs.cpp \
 cli/file_handler.cpp \
 editors/vscode/lsp/backend/src/lsp_server.cpp \
 cli/repl.cpp"
