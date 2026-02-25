@@ -47,7 +47,7 @@ std::vector<Token> tokenize(std::string_view input) {
     if (i < input.length()) { // Skip the closing quote
         i++;
     }
-    tokens.emplace_back(Token(VTokenType::String, currentLine, 0, strBuffer));
+    tokens.emplace_back(VTokenType::String, currentLine, strBuffer, "");
     continue;
 }
 
@@ -71,40 +71,19 @@ std::vector<Token> tokenize(std::string_view input) {
                 }
             }
 
-             if (isFloatingPoint) {
-
-				double val;
-
-
-				auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
-
-				if (ec == std::errc{}) {
-
-				tokens.emplace_back(VTokenType::Float64, currentLine, val, "");
-
-			} else {
-
-				std::cerr << "Float conversion error on line " << currentLine << std::endl;
-
-			}
-
-			} else {
-
-				long long val;
-
-				auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
-
-				if (ec == std::errc{}) {
-
-				tokens.emplace_back(VTokenType::Int64, currentLine, static_cast<double>(val), "");
-
-			} else {
-
-				std::cerr << "Integer conversion error on line " << currentLine << std::endl;
-
-			}
-
-		} 
+            if (isFloatingPoint) {
+                double val;
+                auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
+                if (ec == std::errc{}) {
+                    tokens.emplace_back(VTokenType::Float64, currentLine, val, "");
+                }
+            } else {
+                long long val;
+                auto [ptr, ec] = std::from_chars(buffer.data(), buffer.data() + buffer.size(), val);
+                if (ec == std::errc{}) {
+                    tokens.emplace_back(VTokenType::Int64, currentLine, static_cast<int64_t>(val), "");
+                }
+            }
             continue;
         }
 

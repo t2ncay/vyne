@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <charconv>
 #include <cctype>
 
@@ -79,17 +80,24 @@ enum class VTokenType {
     End                 // End of File (EOF)
 };
 
+using TokenData = std::variant<std::monostate, double, int64_t, std::string>;
+
 struct Token {
     std::string name;
-    double value; // TODO fix this shit because we implemented Int64 and Float64
+    TokenData literal; 
     VTokenType type;
     int line;
 
-    Token(VTokenType t, int cl, double v = 0.0, std::string_view n = "")
-        : name(n), value(v), type(t), line(cl) {
+    Token(VTokenType t, int cl, TokenData lit = std::monostate{}, std::string_view n = "")
+        : name(n), literal(std::move(lit)), type(t), line(cl) {}
+
+    double value_legacy() const {
+        if (std::holds_alternative<double>(literal)) return std::get<double>(literal);
+        if (std::holds_alternative<int64_t>(literal)) return static_cast<double>(std::get<int64_t>(literal));
+        return 0.0;
     }
 
-    Token() : name(""), value(0.0), type(VTokenType::End), line(0) {}
+    Token() : name(""), literal(std::monostate{}), type(VTokenType::End), line(0) {}
 };
 
 std::vector<Token> tokenize(std::string_view input);
