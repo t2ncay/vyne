@@ -294,7 +294,9 @@ std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
 
     consume(VTokenType::String);
 
-    auto node = std::make_unique<StringNode>(current.name);
+    std::string strVal = std::get<std::string>(current.literal);
+    
+    auto node = std::make_unique<StringNode>(strVal);
     node->lineNumber = line;
 
     return node;
@@ -306,14 +308,15 @@ std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
 
     if (current.type == VTokenType::Int64) {
         consume(VTokenType::Int64);
-        int64_t intVal = static_cast<int64_t>(current.value); 
+        int64_t intVal = std::get<int64_t>(current.literal);
         auto node = std::make_unique<NumberNode>(Value(intVal)); 
         node->lineNumber = line;
         return node;
     } 
     else if (current.type == VTokenType::Float64) {
         consume(VTokenType::Float64);
-        auto node = std::make_unique<NumberNode>(Value(current.value));
+        double val = std::get<double>(current.literal);
+        auto node = std::make_unique<NumberNode>(Value(val));
         node->lineNumber = line;
         return node;
     }
