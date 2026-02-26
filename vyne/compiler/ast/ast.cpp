@@ -422,27 +422,40 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
         return nullptr;
     };
 
-    Value* arrayValPtr = getFromTable(targetGroup);
-    if (!arrayValPtr && targetGroup != "global") {
-        arrayValPtr = getFromTable("global");
+    Value* valPtr = getFromTable(targetGroup);
+    if (!valPtr && targetGroup != "global") {
+        valPtr = getFromTable("global");
     }
 
-    if (arrayValPtr) {
-        if (arrayValPtr->getType() != Value::ARRAY) {
-            throw std::runtime_error("Type Error: '" + originalName + "' is not an array [ line " + std::to_string(lineNumber) + " ]");
-        }
+    if (!valPtr) {
+        throw std::runtime_error("Runtime Error: Identifier '" + originalName + "' not found [ line " + std::to_string(lineNumber) + " ]");
+    }
 
-        Value idxVal = index->evaluate(env, currentGroup);
-        size_t idx = static_cast<size_t>(idxVal.asInt());
-        auto& vec = arrayValPtr->asList();
+    Value idxVal = index->evaluate(env, currentGroup);
+    int64_t rawIdx = idxVal.asInt();
+    
+    if (rawIdx < 0) {
+        throw std::runtime_error("Index Error: Negative index (" + std::to_string(rawIdx) + ") [ line " + std::to_string(lineNumber) + " ]");
+    }
+    size_t idx = static_cast<size_t>(rawIdx);
 
+    if (valPtr->getType() == Value::ARRAY) {
+        auto& vec = valPtr->asList();
         if (idx >= vec.size()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array '" + originalName + "'");
         }
         return vec[idx];
+    } 
+    
+    else if (valPtr->getType() == Value::STRING) {
+        const std::string& str = valPtr->asString();
+        if (idx >= str.length()) {
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on string '" + originalName + "'");
+        }
+        return Value(std::string(1, str[idx]));
     }
 
-    throw std::runtime_error("Runtime Error: Array '" + originalName + "' not found [ line " + std::to_string(lineNumber) + " ]");
+    throw std::runtime_error("Type Error: '" + originalName + "' is not indexable [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
@@ -740,6 +753,23 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (arguments.size() > 0) throw std::runtime_error("Argument Error: clear() expects 0 arguments, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
             target->asList().clear();
             return Value(*target);
+        }
+    }
+
+    if(receiverVal.getType() == Value::STRUCT){
+        if (methodName == "fields") {
+
+            // TODO ADD asStruct() HERE LATER
+            auto baseObj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+            
+            auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
+            
+            std::vector<Value> fieldNames;
+            for (auto const& [id, val] : structPtr->fields) {
+                fieldNames.emplace_back(StringPool::instance().get(id));
+            }
+            
+            return Value(fieldNames);
         }
     }
     

@@ -31,3 +31,4 @@ box = Container(hydrogen);
 
 out("Direct access: " + hydrogen.symbol);
 out("Nested access: " + string(box.inner.valency));
+out(hydrogen.fields());
