@@ -33,7 +33,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.vyne",
-          "match": "\\b(true|false)\\b"
+          "match": "\\b(true|false|const)\\b"
         }
       ]
     },
