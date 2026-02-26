@@ -482,8 +482,8 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 
     if (peekToken().type == VTokenType::Arrow) {
         consume(VTokenType::Arrow);
-        typeName = consume(VTokenType::Identifier).name;
-        retType = stringToVType(std::move(typeName));
+        Token typeTok = consume(VTokenType::Identifier);
+        retType = resolveType(typeTok.name);
     }
 
     consume(VTokenType::Left_CB);
