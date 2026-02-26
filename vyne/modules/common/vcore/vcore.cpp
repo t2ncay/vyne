@@ -183,7 +183,6 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("version")]         = Value("v0.0.1-alpha").setReadOnly();
     vcore[pool.intern("engine")]          = Value("Vyne Native").setReadOnly();
     vcore[pool.intern("build")]           = Value(std::string(__DATE__) + " " + std::string(__TIME__)).setReadOnly();
-    vcore[pool.intern("cwd")]             = Value(std::filesystem::current_path().string()).setReadOnly();
     vcore[pool.intern("processor_count")] = Value(std::thread::hardware_concurrency());
     vcore[pool.intern("pid")]             = Value(static_cast<double>(getpid()));
     vcore[pool.intern("memory_usage")]    = Value(getPhysicalMemoryUsage()).setReadOnly();

@@ -1,5 +1,5 @@
-use extern "vnetwork.vy";
+module vcore;
 
 url = "https://httpbin.org/get/";
-response = vnetwork.get(url);
+response = vcore.http_get(url);
 out(response);
