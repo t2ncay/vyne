@@ -1,6 +1,3 @@
-module vcore;
-module vmem;
-
 interface Element {
     symbol :: String,
     atomic_mass :: Float64,
@@ -9,5 +6,5 @@ interface Element {
 
 hydrogen = Element("H", 1.008, 1); 
 
-out(hydrogen.atomic_mass);
+out(hydrogen);
 out(type(hydrogen));

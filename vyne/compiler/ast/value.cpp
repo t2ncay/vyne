@@ -130,14 +130,22 @@ void Value::print(std::ostream& os) const {
                     break;
                 }
                 case VyneObject::ObjType::Struct: {
-                    auto strct = static_cast<VyneStruct*>(obj.get());
-                    os << strct->typeName << " { ";
-                    for (auto const& [key, val] : strct->fields) {
-                        os << key << ": ";
-                        val.print(os);
-                        os << ", ";
+                    auto structPtr = std::static_pointer_cast<VyneStruct>(obj);
+                    
+                    os << structPtr->typeName << " { ";
+                    
+                    auto it = structPtr->fields.begin();
+                    while (it != structPtr->fields.end()) {
+                        std::string fieldName = StringPool::instance().get(it->first);
+                        os << fieldName << ": ";
+                        it->second.print(os);
+                        
+                        if (++it != structPtr->fields.end()) {
+                            os << ", ";
+                        }
                     }
-                    os << "}";
+                    
+                    os << " }";
                     break;
                 }
             }
