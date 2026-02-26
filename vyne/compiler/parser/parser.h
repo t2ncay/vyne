@@ -75,6 +75,7 @@ public:
     Token lookAhead(int distance);
     Token consume(VTokenType expected);
     void  consumeSemicolon();
+	bool isAtEnd();
 
 	Parser(std::vector<Token>&& t) : tokens(std::move(t)) {};
 
@@ -93,5 +94,6 @@ public:
 	std::unique_ptr<ASTNode>     parseExpression();
 	std::unique_ptr<ASTNode>     parseImportModule();
 	std::unique_ptr<ASTNode>     parseDeployModule();
+	std::unique_ptr<ASTNode>     parseInterfaceDefinition();
 	std::unique_ptr<ProgramNode> parseProgram();
 };

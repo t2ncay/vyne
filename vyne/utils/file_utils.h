@@ -18,6 +18,10 @@ namespace FileUtils {
     }
 
     static std::string readFile(const std::string& path) {
+        if (std::filesystem::is_directory(path)) {
+            throw std::runtime_error("IO Error: Targeted path is a DIRECTORY, not a file. Path: '" + path + "'");
+        }
+
         std::ifstream file(path);
         if (!file.is_open()) {
             throw std::runtime_error("IO Error: Could not open file at '" + path + "'");

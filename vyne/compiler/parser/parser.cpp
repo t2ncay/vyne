@@ -46,6 +46,10 @@ Token Parser::consume(VTokenType expected) {
         VTokenTypeToString(peekToken().type) + " instead [ line " + std::to_string(t.line) + " ]");
 }
 
+bool Parser::isAtEnd() {
+    return peekToken().type == VTokenType::End;
+}
+
 std::unique_ptr<ASTNode> Parser::parseDeployModule() {
     int line = peekToken().line;
     consume(VTokenType::Deploy);
@@ -71,7 +75,7 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     }
 
     Token pathTok = consume(VTokenType::String);
-    std::string filePath = pathTok.name;
+    std::string filePath = std::get<std::string>(pathTok.literal);
 
     std::string alias = "";
     if (peekToken().type == VTokenType::As) {
@@ -82,6 +86,43 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     consumeSemicolon();
 
     auto node = std::make_unique<ImportNode>(filePath, isExtern, alias);
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
+    int line = peekToken().line;
+    consume(VTokenType::Interface);
+
+    Token interfaceIdentifier = consume(VTokenType::Identifier);
+    std::string interfaceName = interfaceIdentifier.name;
+
+    consume(VTokenType::Left_CB);
+
+    std::vector<InterfaceMember> members;
+
+    while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
+        Token memberName = consume(VTokenType::Identifier);
+        consume(VTokenType::Extends);
+        
+        Token typeTok = consume(VTokenType::Identifier); 
+        VType memberType = stringToVType(typeTok.name);
+
+        if (memberType == VType::Unknown) {
+            throw std::runtime_error("Type Error: Unknown type '" + typeTok.name + 
+                                     "' in interface '" + interfaceName + "'");
+        }
+
+        members.emplace_back(memberName.name, memberType, 0);
+
+        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+            consume(peekToken().type);
+        }
+    }
+
+    consume(VTokenType::Right_CB);
+
+    auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members));
     node->lineNumber = line;
     return node;
 }
@@ -121,6 +162,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Dismiss:    return parseDismissStatement();
         case VTokenType::Use:        return parseImportModule();
         case VTokenType::Deploy:     return parseDeployModule();
+        case VTokenType::Interface:  return parseInterfaceDefinition();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -490,27 +532,27 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 
     while (peekToken().type == VTokenType::Dot || peekToken().type == VTokenType::Left_Bracket) {
         if (peekToken().type == VTokenType::Dot) {
-            consume(VTokenType::Dot);
-            Token member = consume(VTokenType::Identifier);
+        consume(VTokenType::Dot);
+        Token member = consume(VTokenType::Identifier);
 
-            if (peekToken().type == VTokenType::Left_Parenthese) {
-                consume(VTokenType::Left_Parenthese);
-                std::vector<std::unique_ptr<ASTNode>> args;
-                if (peekToken().type != VTokenType::Right_Parenthese) {
-                    do {
-                        if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
-                        args.emplace_back(parseExpression());
-                    } while (peekToken().type == VTokenType::Comma);
-                }
-                consume(VTokenType::Right_Parenthese);
-                node = std::make_unique<MethodCallNode>(std::move(node), member.name, std::move(args));
-            } else {
-                scope.emplace_back(lastName);
-                lastName = member.name;
-                uint32_t memberId = StringPool::instance().intern(member.name);
-                node = std::make_unique<VariableNode>(memberId, lastName, explicitType, scope);
+        if (peekToken().type == VTokenType::Left_Parenthese) {
+            consume(VTokenType::Left_Parenthese);
+            std::vector<std::unique_ptr<ASTNode>> args;
+            if (peekToken().type != VTokenType::Right_Parenthese) {
+                do {
+                    if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
+                    args.emplace_back(parseExpression());
+                } while (peekToken().type == VTokenType::Comma);
             }
+            consume(VTokenType::Right_Parenthese);
+            node = std::make_unique<MethodCallNode>(std::move(node), member.name, std::move(args));
         } 
+        else {
+            auto memberNode = std::make_unique<MemberAccessNode>(std::move(node), member.name);
+            memberNode->lineNumber = member.line;
+            node = std::move(memberNode);
+        }
+    }
         else if (peekToken().type == VTokenType::Left_Bracket) {
             consume(VTokenType::Left_Bracket);
             auto indexExpr = parseExpression();

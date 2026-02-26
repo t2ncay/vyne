@@ -27,7 +27,7 @@ enum class VTokenType {
     Deploy,             // Module deployment
     As,                 // Alias declaration
     Extern,             // External lib modifier
-    Interface,
+    Interface,          // Struct definers
 
     // --- KEYWORDS: CONTROL FLOW ---
     If,
@@ -71,6 +71,7 @@ enum class VTokenType {
     Left_Bracket,       // [
     Right_Bracket,      // ]
     Comma,              // ,
+    DoubleColon,        //
     Semicolon,          // ;
     Dot,                // .
     Double_Dot,         // ..

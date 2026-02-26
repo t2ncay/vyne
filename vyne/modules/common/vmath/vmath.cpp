@@ -230,7 +230,7 @@ namespace VMathNative {
 }
 
 void setupVMath(SymbolContainer& env, StringPool& pool) {
-    const std::string& path = "global.vmath";
+    const std::string& path = "vmath";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

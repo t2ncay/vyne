@@ -39,7 +39,7 @@ struct ParsedURL {
     std::string host;
     std::string path;
     int port;
-};
+};  
 
 ParsedURL parseURL(const std::string& url)
 {
@@ -164,7 +164,7 @@ namespace VCoreNative {
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
-    const std::string& path = "global.vcore";
+    const std::string& path = "vcore";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

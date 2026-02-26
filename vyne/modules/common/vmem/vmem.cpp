@@ -11,28 +11,23 @@ namespace VMemNative {
         g_env = &env;
     }
 
-    Value peek(std::vector<Value>& args){
-        if (args.empty()) return Value(0.0);
+    Value peek(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("vmem.peek requires an address");
 
-        uint32_t stringId = std::get<uint32_t>(args[0].data);
-        const std::string& addrStr = StringPool::instance().get(stringId);
+        uintptr_t addr = static_cast<uintptr_t>(std::get<int64_t>(args[0].data));
+        
+        Value* target = reinterpret_cast<Value*>(addr);
 
-        uintptr_t addr = std::stoull(addrStr, nullptr, 16);
-        double* ptr = reinterpret_cast<double*>(addr);
-        return Value((double)*ptr);
+        return *target; 
     }
 
-    Value poke(std::vector<Value>& args){
-        if (args.empty()) return Value(0.0);
-        double newVal = std::get<double>(args[1].data);
+    Value poke(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("vmem.poke requires address and value");
 
-        uint32_t stringId = std::get<uint32_t>(args[0].data);
-        const std::string& addrStr = StringPool::instance().get(stringId);
+        uintptr_t addr = static_cast<uintptr_t>(std::get<int64_t>(args[0].data));
+        Value* target = reinterpret_cast<Value*>(addr);
 
-        uintptr_t addr = std::stoull(addrStr, nullptr, 16);
-        double* ptr = reinterpret_cast<double*>(addr);
-
-        *ptr = newVal;;
+        *target = args[1]; 
 
         return Value(true);
     }
@@ -64,7 +59,7 @@ namespace VMemNative {
 
 void setupVMem(SymbolContainer& env, StringPool& pool) {
     VMemNative::setEnv(env);
-    const std::string& path = "global.vmem";
+    const std::string& path = "vmem";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();
