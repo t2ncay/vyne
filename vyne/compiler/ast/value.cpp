@@ -1,20 +1,18 @@
 #include "value.h"
 
-int Value::getType() const { 
-    size_t idx = data.index();
-    if (idx == 0) return NONE;
-    if (idx == 1) return FLOAT64;
-    if (idx == 2) return INT64;
-    if (idx == 3) return STRING; 
-    if (idx == 4) {
+int Value::getType() const {
+    if (std::holds_alternative<double>(data)) return FLOAT64;
+    if (std::holds_alternative<int64_t>(data)) return INT64;
+    if (std::holds_alternative<uint32_t>(data)) return STRING;
+    if (std::holds_alternative<std::shared_ptr<VyneObject>>(data)) {
         auto obj = std::get<std::shared_ptr<VyneObject>>(data);
         if (!obj) return NONE;
-        
-        if (obj->objType == VyneObject::ObjType::Struct)   return STRUCT; 
-        
-        if (obj->objType == VyneObject::ObjType::Array)    return ARRAY;
-        if (obj->objType == VyneObject::ObjType::Function) return FUNCTION;
-        if (obj->objType == VyneObject::ObjType::Module)   return MODULE;
+        switch (obj->objType) {
+            case VyneObject::ObjType::Array:    return ARRAY;
+            case VyneObject::ObjType::Function: return FUNCTION;
+            case VyneObject::ObjType::Module:   return MODULE;
+            case VyneObject::ObjType::Struct:   return STRUCT;
+        }
     }
     return NONE;
 }
@@ -27,7 +25,12 @@ std::string Value::getTypeName() const {
         case Value::ARRAY:    return "Array";
         case Value::FUNCTION: return "Function";
         case Value::MODULE:   return "Module";
-        default:              return "null";
+        case Value::STRUCT: {
+            auto obj = std::get<std::shared_ptr<VyneObject>>(data);
+            auto structPtr = std::static_pointer_cast<VyneStruct>(obj);
+            return structPtr->typeName;
+        }
+        default: return "null";
     }
 }
 

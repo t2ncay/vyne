@@ -7,26 +7,26 @@ module vjson;
 # ----- Data Structures -----
 
 # Represents a JSON value (can be null, boolean, number, string, array, object)
-group JsonValue {
-    type: string;          # "null", "boolean", "number", "string", "array", "object", "error"
-    bool_value: bool;
-    num_value: float64;
-    str_value: string;
+interface JsonValue {
+    type: String;           # "null", "boolean", "number", "string", "array", "object", "error"
+    bool_value: Bool;
+    num_value: Float64;
+    str_value: String;
     array_value: sequence;  # sequence of JsonValue
     obj_value: sequence;    # sequence of JsonPair
 }
 
 # Key-value pair for JSON objects
-group JsonPair {
-    key: string;
+interface JsonPair {
+    key: String;
     value: JsonValue;
 }
 
 # Internal parser state
-group JsonParser {
-    input: string;
-    pos: int64;
-    len: int64;
+interface JsonParser {
+    input: String;
+    pos: Int64;
+    len: Int64;
 }
 
 # ----- Factory Functions for JsonValue -----
