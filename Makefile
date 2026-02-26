@@ -4,7 +4,7 @@ CXXFLAGS = -std=c++23 -O3 -Wall -I. \
            -I./lsp/backend/src -I./lsp/backend/include \
            -I$(OPENSSL_INC) \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
-TARGET_BASE = vyne_bin
+TARGET_BASE = vynec
 BUILD_DIR = build
 
 ifeq ($(OS),Windows_NT)
