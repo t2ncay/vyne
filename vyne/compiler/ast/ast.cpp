@@ -693,6 +693,15 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return Value(true);
         }
 
+        if (methodName == "back") {
+            if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method back() on non-array [ line " + std::to_string(lineNumber) + " ]");
+            if (target->asList().empty()) throw std::runtime_error("Index Error: back() from empty array [ line " + std::to_string(lineNumber) + " ]");
+            if (!arguments.empty()) throw std::runtime_error("Argument Error: back() expects 0 arguments, but got " + std::to_string(arguments.size()) + " [ line " + std::to_string(lineNumber) + " ]");
+
+            target->asList().back();
+            return Value(true);
+        }
+
         if (methodName == "delete") {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method delete() on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() != 1) throw std::runtime_error("Argument Error: delete() expects exactly 1 argument, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
