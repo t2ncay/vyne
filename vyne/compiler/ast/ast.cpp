@@ -698,8 +698,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (target->asList().empty()) throw std::runtime_error("Index Error: back() from empty array [ line " + std::to_string(lineNumber) + " ]");
             if (!arguments.empty()) throw std::runtime_error("Argument Error: back() expects 0 arguments, but got " + std::to_string(arguments.size()) + " [ line " + std::to_string(lineNumber) + " ]");
 
-            target->asList().back();
-            return Value(true);
+            return Value(target->asList().back());
         }
 
         if (methodName == "delete") {
