@@ -132,6 +132,8 @@ void IfNode::compile(Emitter& e) const {
 
     e.patchJump(jumpAddress);
 }
+void InterfaceNode::compile(Emitter& e) const {}
+void MemberAccessNode::compile(Emitter& e) const {}
 void BreakNode::compile(Emitter& e) const {}
 void ContinueNode::compile(Emitter& e) const {}
 

@@ -15,8 +15,13 @@
 class ASTNode;
 struct Value;
 
+struct StructInstance {
+    std::string typeName;
+    std::unordered_map<std::string, Value> fields;
+};
+
 struct VyneObject {
-    enum class ObjType { Array, Function, Module };
+    enum class ObjType { Array, Function, Module, Struct };
     ObjType objType;
     virtual ~VyneObject() = default;
     VyneObject(ObjType t) : objType(t) {}
@@ -28,6 +33,7 @@ struct VyneArray : public VyneObject {
 };
 
 struct FunctionData : public VyneObject {
+    int arity = 0;
     std::vector<uint32_t> params;
     std::vector<std::shared_ptr<ASTNode>> body; 
     std::function<Value(std::vector<Value>&)> nativeFn;
@@ -39,6 +45,14 @@ struct ModuleData : public VyneObject {
     uint32_t moduleId;
     std::string name;
     ModuleData(uint32_t id, std::string nId) : VyneObject(ObjType::Module), moduleId(id), name(std::move(nId)) {}
+};
+
+struct VyneStruct : public VyneObject {
+    std::string typeName;
+    std::unordered_map<uint32_t, Value> fields;
+    
+    VyneStruct(std::string name) 
+        : VyneObject(ObjType::Struct), typeName(std::move(name)) {}
 };
 
 using ValueData = std::variant<
@@ -84,7 +98,8 @@ struct Value {
         STRING = 3, 
         ARRAY = 4, 
         FUNCTION = 5, 
-        MODULE = 6
+        MODULE = 6,
+        STRUCT = 7
     };
 
     ValueData data;
@@ -120,6 +135,7 @@ struct Value {
         func->isNative = true;
         data = std::move(func);
     }
+    Value(std::shared_ptr<VyneStruct> s) : data(std::move(s)) {}
     Value(const Value&) = default;
 
     // safe getters

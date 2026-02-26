@@ -9,9 +9,12 @@ int Value::getType() const {
     if (idx == 4) {
         auto obj = std::get<std::shared_ptr<VyneObject>>(data);
         if (!obj) return NONE;
-        if (obj->objType == VyneObject::ObjType::Array) return ARRAY;
+        
+        if (obj->objType == VyneObject::ObjType::Struct)   return STRUCT; 
+        
+        if (obj->objType == VyneObject::ObjType::Array)    return ARRAY;
         if (obj->objType == VyneObject::ObjType::Function) return FUNCTION;
-        if (obj->objType == VyneObject::ObjType::Module) return MODULE;
+        if (obj->objType == VyneObject::ObjType::Module)   return MODULE;
     }
     return NONE;
 }
@@ -121,6 +124,17 @@ void Value::print(std::ostream& os) const {
                 }
                 case VyneObject::ObjType::Module: {
                     os << "<module '" << static_cast<ModuleData*>(obj.get())->name << "'>";
+                    break;
+                }
+                case VyneObject::ObjType::Struct: {
+                    auto strct = static_cast<VyneStruct*>(obj.get());
+                    os << strct->typeName << " { ";
+                    for (auto const& [key, val] : strct->fields) {
+                        os << key << ": ";
+                        val.print(os);
+                        os << ", ";
+                    }
+                    os << "}";
                     break;
                 }
             }
