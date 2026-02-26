@@ -1,4 +1,9 @@
 #pragma once
+#ifdef _WIN32
+  #ifndef _WIN32_WINNT
+    #define _WIN32_WINNT 0x0A00
+  #endif
+#endif
 #include <winsock2.h>
 #include <ctime>
 #include <chrono>
@@ -17,11 +22,6 @@
     #include <fstream>
 #elif __APPLE__
     #include <mach/mach.h>
-#endif
-#ifdef _WIN32
-  #ifndef _WIN32_WINNT
-    #define _WIN32_WINNT 0x0A00
-  #endif
 #endif
 
 #include "httplib.h"
