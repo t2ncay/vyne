@@ -453,6 +453,15 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         }
     }
     consume(VTokenType::Right_Parenthese);
+    
+    VType retType = VType::Unknown;
+    std::string typeName = "null";
+
+    if (peekToken().type == VTokenType::Arrow) {
+        consume(VTokenType::Arrow);
+        typeName = consume(VTokenType::Identifier).name;
+        retType = stringToVType(std::move(typeName));
+    }
 
     consume(VTokenType::Left_CB);
     std::vector<std::shared_ptr<ASTNode>> body;
@@ -461,7 +470,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
     }
     consume(VTokenType::Right_CB);
 
-    auto node = std::make_unique<FunctionNode>(targetModule, funcId, funcName, std::move(params), std::move(body));
+    auto node = std::make_unique<FunctionNode>(targetModule, funcId, funcName, std::move(params), std::move(body), retType);
     node->lineNumber = line;
     return node;
 }

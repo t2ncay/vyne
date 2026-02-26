@@ -38,8 +38,11 @@ struct FunctionData : public VyneObject {
     std::vector<std::shared_ptr<ASTNode>> body; 
     std::function<Value(std::vector<Value>&)> nativeFn;
     bool isNative = false;
+    std::string expectedReturnType = "null";
     FunctionData() : VyneObject(ObjType::Function) {}
 };
+
+// TODO PERFORMANCE ALIGNMENTS
 
 struct ModuleData : public VyneObject { 
     uint32_t moduleId;
@@ -119,12 +122,13 @@ struct Value {
         data = std::make_shared<VyneArray>(std::move(l));
     }
     Value(std::shared_ptr<FunctionData> f) : data(std::move(f)) {}
-    Value(std::vector<uint32_t> p, std::vector<std::shared_ptr<ASTNode>> b) {
+    Value(std::vector<uint32_t> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) {
         auto func = std::make_shared<FunctionData>();
         func->params = std::move(p);
         func->body = std::move(b);
+        func->expectedReturnType = std::move(rt); 
         
-        data = std::move(func); 
+        this->data = std::move(func);
     }
     Value(uint32_t mId, std::string moduleName, bool isModule) {
         data = std::make_shared<ModuleData>(mId, std::move(moduleName));

@@ -446,11 +446,14 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
 }
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value funcValue(parameterIds, body);
+    Value funcValue(
+        parameterIds, 
+        std::move(body),
+        VTypeToString(returnType)
+    );
 
-    std::string destination = targetModule.empty() ? currentGroup : "global." + targetModule;
-
-    env[destination][funcNameId] = funcValue; 
+    std::string destination = targetModule.empty() ? currentGroup : targetModule;
+    env[destination][funcNameId] = funcValue;
 
     return funcValue;
 }
@@ -515,6 +518,16 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     if (env.find(localScope) != env.end()) {
         env[localScope].clear();
         env.erase(localScope);
+    }
+
+    if (funcData->expectedReturnType != "null") {
+        std::string actualType = result.getTypeName();
+        
+        if (actualType != funcData->expectedReturnType) {
+            throw std::runtime_error("Type Mismatch: Sub '" + originalName + 
+                "' expected to return " + funcData->expectedReturnType + 
+                ", but got " + actualType);
+        }
     }
 
     return result;

@@ -406,17 +406,24 @@ class FunctionNode : public ASTNode {
     std::string originalName;
     std::vector<uint32_t> parameterIds;
     std::vector<std::shared_ptr<ASTNode>> body;
+    VType returnType;
 
 public:
-    FunctionNode(std::string tm, uint32_t n,std::string on, std::vector<uint32_t> pid, 
-                 std::vector<std::shared_ptr<ASTNode>> body)
-        : ASTNode(NodeType::FUNCTION), targetModule(tm), funcNameId(n), originalName(std::move(on)), parameterIds(std::move(pid)), body(std::move(body)) {}
+    FunctionNode(std::string tm, uint32_t n, std::string on, std::vector<uint32_t> pid, 
+                 std::vector<std::shared_ptr<ASTNode>> body_vec, VType retType)
+        : 
+        ASTNode(NodeType::FUNCTION), 
+        targetModule(std::move(tm)), 
+        funcNameId(n), 
+        originalName(std::move(on)), 
+        parameterIds(std::move(pid)), 
+        body(std::move(body_vec)), 
+        returnType(retType) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
     void compile(Emitter& e) const override;
     VType getStaticType() const override { return VType::Function; }
 };
-
 class FunctionCallNode : public ASTNode {
     uint32_t funcNameId;
     std::string originalName;
@@ -424,7 +431,12 @@ class FunctionCallNode : public ASTNode {
 
 public:
     FunctionCallNode(uint32_t fn, std::string name, std::vector<std::unique_ptr<ASTNode>> args)
-        : ASTNode(NodeType::FUNCTION_CALL), funcNameId(fn), originalName(std::move(name)), arguments(std::move(args)) {}
+        : 
+        ASTNode(NodeType::FUNCTION_CALL), 
+        funcNameId(fn), 
+        originalName(std::move(name)), 
+        arguments(std::move(args))
+    {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

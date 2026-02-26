@@ -6,10 +6,10 @@ enum class VType {
     Unknown = 0, 
     Float64 = 1,
     Int64 = 2,
-    String = 3, 
-    Array = 4, 
+    String = 3,
+    Array = 4,
     Function = 5, 
-    Module = 6 
+    Module = 6
 };
 
 inline VType stringToVType(std::string_view name) {

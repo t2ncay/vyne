@@ -1,13 +1,16 @@
 #include "value.h"
 
 int Value::getType() const {
-    if (std::holds_alternative<double>(data)) return FLOAT64;
-    if (std::holds_alternative<int64_t>(data)) return INT64;
-    if (std::holds_alternative<uint32_t>(data)) return STRING;
+    if (std::holds_alternative<std::monostate>(data)) return NONE;
+    if (std::holds_alternative<double>(data))         return FLOAT64;
+    if (std::holds_alternative<int64_t>(data))        return INT64;
+    if (std::holds_alternative<uint32_t>(data))       return STRING; // Interned ID
+
     if (std::holds_alternative<std::shared_ptr<VyneObject>>(data)) {
-        auto obj = std::get<std::shared_ptr<VyneObject>>(data);
-        if (!obj) return NONE;
-        switch (obj->objType) {
+        auto ptr = std::get<std::shared_ptr<VyneObject>>(data);
+        if (!ptr) return NONE;
+        
+        switch (ptr->objType) {
             case VyneObject::ObjType::Array:    return ARRAY;
             case VyneObject::ObjType::Function: return FUNCTION;
             case VyneObject::ObjType::Module:   return MODULE;
