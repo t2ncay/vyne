@@ -142,16 +142,16 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
 }
 
 Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string nextGroup;
-    if (!targetModule.empty()) {
-        nextGroup = targetModule + "." + groupName;
-    } else {
-        nextGroup = currentGroup + "." + groupName;
-    }
+    std::string fullName = currentGroup.empty() ? groupName : currentGroup + "." + groupName;
+
+    uint32_t groupNameId = StringPool::instance().intern(groupName);
+    
+    env[currentGroup][groupNameId] = Value(groupNameId, fullName, true); 
 
     for (const auto& stmt : statements) {
-        stmt->evaluate(env, nextGroup);
+        stmt->evaluate(env, fullName);
     }
+    
     return Value();
 }
 

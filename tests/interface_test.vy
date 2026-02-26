@@ -1,15 +1,33 @@
 interface Element {
-    symbol :: String,
+    symbol      :: String,
     atomic_mass :: Float64,
-    valency :: Int64
+    valency     :: Int64
 }
 
-interface Something {
-    e :: Element
+interface Chemical {
+    symbol      :: String,
+    atomic_mass :: Float64,
+    valency     :: Int64,
 }
 
-hydrogen = Element("H", 1.008, 1); 
-tester = Something(hydrogen);
+fn inspect(item :: Element) {
+    out("--- Element Report ---");
+    out("Symbol: " + item.symbol);
+    out("Mass:   " + item.atomic_mass);
+    out("Valency: " + item.valency);
+}
 
-out(tester);
-out(type(hydrogen));
+hydrogen = Chemical(
+    "H", 
+    1.008, 
+    1
+);
+
+interface Container {
+    inner :: Element
+}
+
+box = Container(hydrogen);
+
+out("Direct access: " + hydrogen.symbol);
+out("Nested access: " + string(box.inner.valency));
