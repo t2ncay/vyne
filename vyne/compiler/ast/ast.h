@@ -17,6 +17,7 @@
 #include "../lexer/lexer.h"
 #include "../types.h"
 #include "../../utils/file_utils.h"
+#include "../types.h"
 #include "value.h"
 
 class Emitter;
@@ -31,65 +32,68 @@ class SymbolContainer {
 
 public:
     SymbolTable& operator[](const std::string& key) { return table[key]; }
-
     auto find(const std::string& key) { return table.find(key); }
     auto begin() { return table.begin(); } 
     auto begin() const { return table.begin(); }
-    
     auto end() { return table.end(); }
     auto end() const { return table.end(); }
 
+    bool hasGroup(const std::string& name) const {
+        return table.find(name) != table.end();
+    }
+
+    bool hasModule(const std::string& name) const {
+        return table.find(name) != table.end();
+    }
+
+    Value getGroupMember(const std::string& groupName, const std::string& memberName) {
+        auto moduleIt = table.find(groupName);
+        if (moduleIt == table.end()) {
+            throw std::runtime_error("Runtime Error: Group/Namespace '" + groupName + "' not found.");
+        }
+
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        SymbolTable& scope = moduleIt->second;
+        auto varIt = scope.find(memberId);
+
+        if (varIt == scope.end()) {
+            throw std::runtime_error("Runtime Error: '" + groupName + "' has no member '" + memberName + "'");
+        }
+
+        return varIt->second;
+    }
+
+    Value getModuleMember(const std::string& moduleName, const std::string& memberName) {
+        return getGroupMember(moduleName, memberName);
+    }
 
     void deploy(const std::string& moduleName) {
-        SymbolTable& globalScope = table["global"];
-    
         deployedModules.emplace_back(moduleName);
-    }
-
-    size_t count(const std::string& key) const {
-        return table.count(key);
-    }
-
-    bool contains(const std::string& key) const {
-        return table.find(key) != table.end();
-    }
-
-    const std::vector<std::string>& getDeployedList() const {
-        return deployedModules;
-    }
-
-    size_t erase(const std::string& key) {
-        return table.erase(key);
-    }
-
-    const SymbolTable& at(const std::string& key) const {
-        return table.at(key);
-    }
-
-    size_t size() const { return table.size(); }
-    
-    bool empty() const { return table.empty(); }
-
-    void setSourceDir(const std::string& path) {
-        currentSourceDir = std::filesystem::path(path).parent_path().string();
+        if (table.find(moduleName) == table.end()) {
+            table[moduleName] = SymbolTable();
+        }
     }
 
     Value* getInternalPointer(const std::string& moduleName, uint32_t varId) {
         auto moduleIt = table.find(moduleName);
-        
-        if (moduleIt == table.end()) {
-            throw std::runtime_error("Module '" + moduleName + "' not found.");
-        }
+        if (moduleIt == table.end()) throw std::runtime_error("Module '" + moduleName + "' not found.");
 
         SymbolTable& scope = moduleIt->second;
         auto varIt = scope.find(varId);
-
-        if (varIt == scope.end()) {
-            throw std::runtime_error("Variable ID '" + std::to_string(varId) + "' not found.");
-        }
+        if (varIt == scope.end()) throw std::runtime_error("Variable ID '" + std::to_string(varId) + "' not found.");
 
         return &(varIt->second);
     }
+
+    size_t count(const std::string& key) const { return table.count(key); }
+    bool contains(const std::string& key) const { return table.find(key) != table.end(); }
+    const std::vector<std::string>& getDeployedList() const { return deployedModules; }
+    size_t erase(const std::string& key) { return table.erase(key); }
+    const SymbolTable& at(const std::string& key) const { return table.at(key); }
+    size_t size() const { return table.size(); }
+    bool empty() const { return table.empty(); }
+    void setSourceDir(const std::string& path) { currentSourceDir = std::filesystem::path(path).parent_path().string(); }
     std::string getSourceDir() const { return currentSourceDir; }
 };
 
@@ -123,6 +127,7 @@ enum class NodeType {
     FUNCTION_CALL,
     BUILTIN_CALL,
     METHOD_CALL,
+    MEMBER_ACCESS,
     RETURN,
 
     WHILE,
@@ -134,6 +139,7 @@ enum class NodeType {
     DISMISS,
     DEPLOY,
     IMPORT,
+    INTERFACE,
 
     BREAK,
     CONTINUE
@@ -202,7 +208,7 @@ public:
 
 class VariableNode : public ASTNode {
     uint32_t nameId;
-    std::string originalName; 
+    std::string originalName;
     std::vector<std::string> specificGroup;
     VType explicitType;
 
@@ -547,6 +553,35 @@ public:
 
     IfNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> b, std::unique_ptr<ASTNode> eb = nullptr) : 
     ASTNode(NodeType::IF), condition(std::move(c)), body(std::move(b)), elseBody(std::move(eb)) {}
+
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    void compile(Emitter& e) const override;
+};
+
+struct InterfaceMember {
+    std::string name;
+    VType type;
+    size_t offset;
+};
+
+class InterfaceNode : public ASTNode {
+    std::string interfaceName;
+    std::vector<InterfaceMember> members;
+public:
+
+    InterfaceNode(std::string in, std::vector<InterfaceMember> m) : 
+    ASTNode(NodeType::INTERFACE), interfaceName(std::move(in)), members(std::move(m)) {}
+
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    void compile(Emitter& e) const override;
+};
+
+class MemberAccessNode : public ASTNode {
+    std::unique_ptr<ASTNode> receiver;
+    std::string memberName;
+public:
+    MemberAccessNode(std::unique_ptr<ASTNode> rec, std::string mem) : 
+        ASTNode(NodeType::MEMBER_ACCESS), receiver(std::move(rec)), memberName(std::move(mem)) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

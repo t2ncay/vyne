@@ -9,7 +9,7 @@ namespace VFsNative {
 }
 
 void setupVFs(SymbolContainer& env, StringPool& pool) {
-    const std::string& path = "global.vfs";
+    const std::string& path = "vfs";
     
     if (env.find(path) == env.end()) {
         env[path] = SymbolTable();

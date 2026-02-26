@@ -459,43 +459,59 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     auto it = env["global"].find(funcNameId);
     
     if (it == env["global"].end()) {
-        throw std::runtime_error("Runtime Error: " + originalName + " is not defined in global scope [ line " + std::to_string(lineNumber) + " ]");
+        throw std::runtime_error("Runtime Error: " + originalName + 
+            " is not defined in global scope [ line " + std::to_string(lineNumber) + " ]");
     }
 
     Value funcVal = it->second;
 
     if (funcVal.getType() != Value::FUNCTION) {
-        throw std::runtime_error("Type Error: " + originalName + " is not a function [ line " + std::to_string(lineNumber) + " ]");
+        throw std::runtime_error("Type Error: " + originalName + 
+            " is not a function [ line " + std::to_string(lineNumber) + " ]");
     }
+
+    auto funcData = funcVal.asFunction();
 
     std::vector<Value> evaluatedArgs;
     evaluatedArgs.reserve(arguments.size());
-
     for (const auto& arg : arguments) {
         evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
     }
 
-    std::string localScope = "call_" + originalName + "_" + std::to_string(rand());
+    if (funcData->isNative) {
+        if (funcData->arity != (int)evaluatedArgs.size()) {
+            throw std::runtime_error("Argument Error: " + originalName + " expects " + 
+                std::to_string(funcData->arity) + " arguments, but got " + 
+                std::to_string(evaluatedArgs.size()) + " [ line " + std::to_string(lineNumber) + " ]");
+        }
 
-    auto& params = funcVal.asFunction()->params;
+        return funcData->nativeFn(evaluatedArgs);
+    }
+
+    auto& params = funcData->params;
 
     if (params.size() != evaluatedArgs.size()) {
-        throw std::runtime_error("Argument Error: Argument count mismatch on function call " + originalName + " [ line " + std::to_string(lineNumber) + " ]");
+        throw std::runtime_error("Argument Error: Argument count mismatch on function call " + 
+            originalName + " [ line " + std::to_string(lineNumber) + " ]");
     }
-    
+
+    static uint64_t callCount = 0;
+    std::string localScope = "call_" + originalName + "_" + std::to_string(callCount++);
+
     for (size_t i = 0; i < params.size(); ++i) {
         env[localScope][params[i]] = std::move(evaluatedArgs[i]);
     }
 
     Value result;
     try {
-        for (const auto& bodyNode : funcVal.asFunction()->body) {
+        for (const auto& bodyNode : funcData->body) {
             result = bodyNode->evaluate(env, localScope);
         }
     } catch (const ReturnException& e) {
         result = e.value; 
     }
 
+    // Cleanup local scope
     if (env.find(localScope) != env.end()) {
         env[localScope].clear();
         env.erase(localScope);
@@ -539,10 +555,9 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     
         auto mod = static_cast<ModuleData*>(obj.get());
         std::string modName = mod->name;
-        std::string modPath = "global." + modName;
 
-        if (env.count(modPath) && env[modPath].count(methodId)) {
-            Value& funcVal = env[modPath][methodId];
+        if (env.count(modName) && env[modName].count(methodId)) {
+            Value& funcVal = env[modName][methodId];
 
             if (funcVal.getType() == Value::FUNCTION) {
                 auto func = funcVal.asFunction();
@@ -562,7 +577,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                     return func->nativeFn(argValues); 
                 }
 
-                const std::string& localCallScope = modPath + ".call_" + std::to_string(rand());
+                const std::string& localCallScope = modName + ".call_" + std::to_string(rand());
 
                 for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
                     env[localCallScope][func->params[i]] = std::move(argValues[i]);
@@ -793,6 +808,86 @@ Value IfNode::evaluate(SymbolContainer& env, const std::string& currentGroup) co
     return Value();
 }
 
+Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    size_t currentOffset = 0;
+    for (const auto& member : members) {
+        currentOffset += 8; 
+    }
+
+    auto funcData = std::make_shared<FunctionData>();
+    funcData->isNative = true;
+    funcData->arity = static_cast<int>(this->members.size()); // THIS FIXES THE ERROR
+
+    auto name = this->interfaceName;
+    auto localMembers = this->members; 
+
+    funcData->nativeFn = [name, localMembers](std::vector<Value>& args) -> Value {
+        auto instance = std::make_shared<VyneStruct>(name);
+        
+        for (size_t i = 0; i < args.size() && i < localMembers.size(); ++i) {
+            uint32_t fieldId = StringPool::intern(localMembers[i].name);
+            instance->fields[fieldId] = args[i];
+        }
+        return Value(instance);
+    };
+
+    uint32_t id = StringPool::intern(interfaceName);
+    env[currentGroup][id] = Value(funcData);
+
+    return Value();
+}
+
+Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    Value receiverVal;
+    bool evaluationFailed = false;
+
+    try {
+        receiverVal = receiver->evaluate(env, currentGroup);
+    } catch (...) {
+        evaluationFailed = true;
+    }
+
+    if (evaluationFailed || receiverVal.getType() == Value::NONE) {
+        if (auto varNode = dynamic_cast<VariableNode*>(receiver.get())) {
+            std::string name = varNode->getOriginalName();
+
+            if (env.hasGroup(name)) {
+                return env.getGroupMember(name, memberName);
+            }
+            
+            if (env.hasModule(name)) {
+                return env.getModuleMember(name, memberName);
+            }
+        }
+        
+        throw std::runtime_error("Runtime Error: Cannot access '" + memberName + 
+            "' on undefined/null [ line " + std::to_string(lineNumber) + " ]");
+    }
+
+    auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+
+    switch (obj->objType) {
+        case VyneObject::ObjType::Struct: {
+            auto strct = static_cast<VyneStruct*>(obj.get());
+            uint32_t fieldId = StringPool::instance().intern(memberName);
+            
+            auto it = strct->fields.find(fieldId);
+            if (it != strct->fields.end()) return it->second;
+            
+            throw std::runtime_error("Runtime Error: Struct '" + strct->typeName + 
+                "' has no member '" + memberName + "'");
+        }
+
+        case VyneObject::ObjType::Module: {
+            auto mod = static_cast<ModuleData*>(obj.get());
+            return env.getModuleMember(mod->name, memberName);
+        }
+
+        default:
+            throw std::runtime_error("Type Error: Member access not supported for this type.");
+    }
+}
+
 Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value lastValue;
     for (const auto& statement : statements) lastValue = statement->evaluate(env, currentGroup);
@@ -809,52 +904,47 @@ Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
  */
 
 Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    if (originalName == "vcore") {
-        setupVCore(env, StringPool::instance());
+    if (originalName == "vcore") setupVCore(env, StringPool::instance());
+    if (originalName == "vglib") setupVGLib(env, StringPool::instance());
+    if (originalName == "vmem")  setupVMem(env, StringPool::instance());
+    if (originalName == "vmath") setupVMath(env, StringPool::instance());
+    if (originalName == "vfs")   setupVFs(env, StringPool::instance());
+
+    auto& groupTable = env[currentGroup]; 
+
+    groupTable[moduleId] = Value(moduleId, originalName, true); 
+
+    if (env.find(originalName) == env.end()) {
+        env[originalName] = {}; 
     }
 
-    if (originalName == "vglib") {
-        setupVGLib(env, StringPool::instance());
-    }
-
-    if (originalName == "vmem") {
-        setupVMem(env, StringPool::instance());
-    }
-
-    if (originalName == "vmath") {
-        setupVMath(env, StringPool::instance());
-    }
-
-    if (originalName == "vfs") {
-        setupVFs(env, StringPool::instance());
-    }
-    
-    // TODO this shit clashes with group names
-    env[currentGroup][moduleId] = Value(moduleId, originalName, true); 
-    
-    return env[currentGroup][moduleId];
+    return groupTable[moduleId];
 }
 
 Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     std::filesystem::path finalPath;
+    
+    std::string cleanPath = filePath;
+    if (!cleanPath.empty() && (cleanPath[0] == '/' || cleanPath[0] == '\\')) {
+        cleanPath.erase(0, 1);
+    }
 
     if (isExtern) {
-        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" / "modules" / "external" / filePath;
+        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" / "modules" / "external" / cleanPath;
     } else {
-        finalPath = std::filesystem::path(env.getSourceDir()) / filePath;
+        finalPath = std::filesystem::path(env.getSourceDir()) / cleanPath;
     }
 
     finalPath = std::filesystem::weakly_canonical(finalPath);
 
-    if (!std::filesystem::exists(finalPath)) {
-        if (!std::filesystem::exists(finalPath)) {
-            std::stringstream ss;
-            ss << (isExtern ? "Extern Module" : "File") 
-            << " not found: " << finalPath.string();
-            throw std::runtime_error(ss.str());
-        }
+    if (!std::filesystem::exists(finalPath) || std::filesystem::is_directory(finalPath)) {
+        std::stringstream ss;
+        ss << "Vyne Error: " << (isExtern ? "Extern Module " : "File ") 
+           << "'" << cleanPath << "' not found at: " << finalPath.string();
+        throw std::runtime_error(ss.str());
     }
 
+    // --- RE-SYNCED SYMBOL TRANSFER FOR YOUR NESTED TABLES ---
     const std::string& source = FileUtils::readFile(finalPath.string());
     auto tokens = tokenize(source);
     Parser parser(std::move(tokens));
@@ -865,50 +955,33 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 
     try {
         externalAst->evaluate(externalEnv, "global");
-        // std::cout << "[DEBUG] External file '" << filePath << "' evaluated successfully.\n";
     } catch (const std::runtime_error& e) {
-        throw std::runtime_error("In " + filePath + ": " + e.what());
+        throw std::runtime_error("In " + cleanPath + ": " + e.what());
     }
 
-    for (auto const& [id, val] : externalEnv["global"]) {
-        env["global"][id] = val;
-    }
-
-    for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
-        const std::string& scopeName = it->first;
-
-        if (scopeName == "global") continue;
-
-        std::string finalScopeName;
-        if (alias.empty()) {
-            finalScopeName = scopeName;
-        } else {
-            if (scopeName.rfind("global.", 0) == 0) {
-                finalScopeName = "global." + alias + "." + scopeName.substr(7);
+    if (alias.empty()) {
+        for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
+            if (it->first == "global") {
+                for (auto const& [id, val] : it->second) env["global"][id] = val;
             } else {
-                finalScopeName = alias + "." + scopeName;
+                env[it->first] = std::move(it->second);
             }
         }
-
-        std::cout << "[DEBUG] Transferring Scope: " << scopeName << " -> " << finalScopeName 
-                  << " (" << it->second.size() << " symbols)\n";
-
-        env[finalScopeName] = std::move(it->second);
-    }
-
-    for (const auto& modName : externalEnv.getDeployedList()) {
-        const std::string& targetMod = alias.empty() ? modName : alias + "." + modName;
-        env.deploy(targetMod);
+    } else {
+        env[alias] = std::move(externalEnv["global"]);
+        for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
+            if (it->first == "global") continue;
+            env[alias + "." + it->first] = std::move(it->second);
+        }
     }
 
     return Value(true);
 }
 
 Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    uint32_t modId = StringPool::instance().intern(moduleName); 
-
-    if (env["global"].find(modId) == env["global"].end()) {
-        throw std::runtime_error("Runtime Error: Module '" + moduleName + "' not found [ line " + std::to_string(lineNumber) + " ]");
+    if (!env.contains(moduleName)) {
+        throw std::runtime_error("Runtime Error: Module '" + moduleName + 
+            "' not found in environment [ line " + std::to_string(lineNumber) + " ]");
     }
 
     env.deploy(moduleName); 
