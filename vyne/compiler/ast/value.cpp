@@ -125,7 +125,7 @@ void Value::print(std::ostream& os) const {
                 }
                 case VyneObject::ObjType::Function: {
                     auto func = static_cast<FunctionData*>(obj.get());
-                    os << (func->isNative ? "<native sub>" : "<sub>");
+                    os << (func->isNative ? "<native function>" : "<function>");
                     break;
                 }
                 case VyneObject::ObjType::Module: {
