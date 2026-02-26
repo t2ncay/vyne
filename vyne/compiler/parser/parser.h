@@ -5,6 +5,7 @@
 #include <cctype>
 #include <memory>
 #include <map>
+#include <unordered_set>
 
 #include "../lexer/lexer.h"
 #include "../ast/ast.h"
@@ -20,6 +21,7 @@ private:
 	std::vector<Token> tokens;
 	size_t pos = 0;
 	std::vector<std::unordered_map<uint32_t, SymbolInfo>> scopeStack;
+	std::unordered_set<std::string> declaredTypes;
 
 	void pushScope() { scopeStack.push_back({}); }
 	void popScope()  { scopeStack.pop_back(); }
@@ -46,6 +48,10 @@ private:
 		}
 		return nullptr;
 	}
+
+	bool isDeclaredAsStruct(const std::string& name) const {
+        return declaredTypes.find(name) != declaredTypes.end();
+    }
 
 	// --- Literal Workers ---
 	std::unique_ptr<ASTNode> parseStringLiteral();
@@ -76,6 +82,7 @@ public:
     Token consume(VTokenType expected);
     void  consumeSemicolon();
 	bool isAtEnd();
+	VType resolveType(std::string_view typeName);
 
 	Parser(std::vector<Token>&& t) : tokens(std::move(t)) {};
 

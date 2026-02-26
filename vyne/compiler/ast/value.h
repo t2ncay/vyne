@@ -12,8 +12,19 @@
 #include <cstdint>
 #include <charconv>
 
+#include "../types.h"
+
 class ASTNode;
 struct Value;
+
+struct Parameter {
+    uint32_t id;
+    std::string name;
+    VType type;
+
+    Parameter(uint32_t i, std::string n, VType t) 
+        : id(i), name(std::move(n)), type(t) {}
+};
 
 struct StructInstance {
     std::string typeName;
@@ -34,7 +45,7 @@ struct VyneArray : public VyneObject {
 
 struct FunctionData : public VyneObject {
     int arity = 0;
-    std::vector<uint32_t> params;
+    std::vector<Parameter> params;
     std::vector<std::shared_ptr<ASTNode>> body; 
     std::function<Value(std::vector<Value>&)> nativeFn;
     bool isNative = false;
@@ -122,8 +133,9 @@ struct Value {
         data = std::make_shared<VyneArray>(std::move(l));
     }
     Value(std::shared_ptr<FunctionData> f) : data(std::move(f)) {}
-    Value(std::vector<uint32_t> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) {
+    Value(std::vector<Parameter> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) {
         auto func = std::make_shared<FunctionData>();
+        func->arity = static_cast<int>(p.size());
         func->params = std::move(p);
         func->body = std::move(b);
         func->expectedReturnType = std::move(rt); 

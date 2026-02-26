@@ -4,7 +4,12 @@ interface Element {
     valency :: Int64
 }
 
-hydrogen = Element("H", 1.008, 1); 
+interface Something {
+    e :: Element
+}
 
-out(hydrogen);
+hydrogen = Element("H", 1.008, 1); 
+tester = Something(hydrogen);
+
+out(tester);
 out(type(hydrogen));

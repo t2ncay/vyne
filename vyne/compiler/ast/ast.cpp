@@ -447,7 +447,7 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value funcValue(
-        parameterIds, 
+        parameters, 
         std::move(body),
         VTypeToString(returnType)
     );
@@ -502,7 +502,9 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::string localScope = "call_" + originalName + "_" + std::to_string(callCount++);
 
     for (size_t i = 0; i < params.size(); ++i) {
-        env[localScope][params[i]] = std::move(evaluatedArgs[i]);
+        uint32_t paramId = params[i].id; 
+        
+        env[localScope][paramId] = std::move(evaluatedArgs[i]);
     }
 
     Value result;
@@ -593,7 +595,21 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 const std::string& localCallScope = modName + ".call_" + std::to_string(rand());
 
                 for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
-                    env[localCallScope][func->params[i]] = std::move(argValues[i]);
+                    const Parameter& param = func->params[i];
+                    Value& providedArg = argValues[i];
+
+                    if (param.type != VType::Unknown) {
+                        if (static_cast<VType>(providedArg.getType()) != param.type) {
+                            throw std::runtime_error(
+                                "Type Mismatch: Parameter '" + param.name + 
+                                "' expects " + VTypeToString(param.type) + 
+                                " but got " + providedArg.getTypeName() + 
+                                " at line " + std::to_string(lineNumber)
+                            );
+                        }
+                    }
+
+                    env[localCallScope][param.id] = std::move(providedArg);
                 }
 
                 Value result(0.0); 

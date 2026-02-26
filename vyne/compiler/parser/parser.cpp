@@ -50,6 +50,17 @@ bool Parser::isAtEnd() {
     return peekToken().type == VTokenType::End;
 }
 
+VType Parser::resolveType(std::string_view typeName) {
+    VType primitive = stringToVType(typeName);
+    if (primitive != VType::Unknown) return primitive;
+
+    if (isDeclaredAsStruct(std::string(typeName))) {
+        return VType::Struct;
+    }
+
+    throw std::runtime_error("Type Error: '" + std::string(typeName) + "' is not a defined type.");
+}
+
 std::unique_ptr<ASTNode> Parser::parseDeployModule() {
     int line = peekToken().line;
     consume(VTokenType::Deploy);
@@ -96,6 +107,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 
     Token interfaceIdentifier = consume(VTokenType::Identifier);
     std::string interfaceName = interfaceIdentifier.name;
+    declaredTypes.insert(interfaceName);
 
     consume(VTokenType::Left_CB);
 
@@ -444,13 +456,24 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
     funcId = StringPool::instance().intern(funcName);
 
     consume(VTokenType::Left_Parenthese);
-    std::vector<uint32_t> params;
+    std::vector<Parameter> params; // Use the new struct type
+
     if (peekToken().type != VTokenType::Right_Parenthese) {
-        params.emplace_back(StringPool::instance().intern(consume(VTokenType::Identifier).name));
-        while (peekToken().type == VTokenType::Comma) {
-            consume(VTokenType::Comma);
-            params.emplace_back(StringPool::instance().intern(consume(VTokenType::Identifier).name));
-        }
+        do {
+            if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
+            
+            Token paramTok = consume(VTokenType::Identifier);
+            uint32_t pId = StringPool::instance().intern(paramTok.name);
+            VType pType = VType::Unknown;
+
+            if (peekToken().type == VTokenType::Extends) {
+                consume(peekToken().type);
+                pType = resolveType(consume(VTokenType::Identifier).name);
+            }
+
+            params.emplace_back(pId, paramTok.name, pType);
+
+        } while (peekToken().type == VTokenType::Comma);
     }
     consume(VTokenType::Right_Parenthese);
     
@@ -514,7 +537,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         consume(VTokenType::Extends);
         Token typeTok = consume(VTokenType::Identifier);
 
-        explicitType = stringToVType(typeTok.name);
+        explicitType = resolveType(typeTok.name);
         if (explicitType == VType::Unknown) {
             throw std::runtime_error("Type Error : Unexpected type " + std::string(typeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
@@ -675,7 +698,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     VType varType = VType::Unknown;
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
-        varType = stringToVType(consume(VTokenType::Identifier).name);
+        varType = resolveType(consume(VTokenType::Identifier).name);
     }
 
     std::unique_ptr<ASTNode> rhs = nullptr;

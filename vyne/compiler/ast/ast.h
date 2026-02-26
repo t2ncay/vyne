@@ -404,19 +404,19 @@ class FunctionNode : public ASTNode {
     std::string targetModule;
     uint32_t funcNameId;
     std::string originalName;
-    std::vector<uint32_t> parameterIds;
+    std::vector<Parameter> parameters;
     std::vector<std::shared_ptr<ASTNode>> body;
     VType returnType;
 
 public:
-    FunctionNode(std::string tm, uint32_t n, std::string on, std::vector<uint32_t> pid, 
+    FunctionNode(std::string tm, uint32_t n, std::string on, std::vector<Parameter> pid, 
                  std::vector<std::shared_ptr<ASTNode>> body_vec, VType retType)
         : 
         ASTNode(NodeType::FUNCTION), 
         targetModule(std::move(tm)), 
         funcNameId(n), 
         originalName(std::move(on)), 
-        parameterIds(std::move(pid)), 
+        parameters(std::move(pid)), 
         body(std::move(body_vec)), 
         returnType(retType) {}
 
