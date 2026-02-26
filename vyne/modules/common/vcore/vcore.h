@@ -1,5 +1,4 @@
 #pragma once
-#include <winsock2.h>
 #include <ctime>
 #include <chrono>
 #include <thread>
@@ -9,6 +8,7 @@
 
 #ifdef _WIN32
     #include <process.h>
+    #include <winsock2.h>
     #include <windows.h>
     #include <psapi.h>
     #define getpid _getpid
