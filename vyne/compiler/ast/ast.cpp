@@ -1042,16 +1042,54 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
 
 Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value newValue = rhs->evaluate(env, currentGroup);
-
     Value recVal = receiver->evaluate(env, currentGroup);
-
-    auto structPtr = recVal.asStruct();
     
-    uint32_t memberId = StringPool::instance().intern(memberName);
-    
-    structPtr->fields[memberId] = newValue;
-
-    return newValue;
+    if (recVal.getType() == Value::STRUCT) {
+        auto structPtr = recVal.asStruct();
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        structPtr->fields[memberId] = newValue;
+        return newValue;
+    }
+    else if (recVal.getType() == Value::MODULE) {
+        std::string moduleName;
+        if (auto obj = std::get_if<std::shared_ptr<VyneObject>>(&recVal.data)) {
+            if (auto mod = dynamic_cast<ModuleData*>(obj->get())) {
+                moduleName = mod->name;
+            }
+        }
+        
+        if (moduleName.empty()) {
+            throw std::runtime_error("Runtime Error: Cannot assign to member of unknown module/group [ line " + 
+                                    std::to_string(lineNumber) + " ]");
+        }
+        
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        if (!env.hasGroup(moduleName)) {
+            throw std::runtime_error("Runtime Error: Module/group '" + moduleName + 
+                                    "' not found [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        auto& moduleTable = env[moduleName];
+        auto it = moduleTable.find(memberId);
+        
+        if (it == moduleTable.end()) {
+            throw std::runtime_error("Runtime Error: '" + moduleName + "' has no member '" + 
+                                    memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        if (it->second.isReadOnly) {
+            throw std::runtime_error("Runtime Error: Cannot assign to read-only member '" + 
+                                    memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        moduleTable[memberId] = newValue;
+        return newValue;
+    }
+    else {
+        throw std::runtime_error("Type Error: Cannot assign to member of non-struct, non-module type [ line " + 
+                                std::to_string(lineNumber) + " ]");
+    }
 }
 
 Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
