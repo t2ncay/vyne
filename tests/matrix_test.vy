@@ -1,13 +1,16 @@
-use extern "vmatrix.vy";
+use extern "vlinalg.vy";
 
-matrix_1 :: Array = [
-    [1,2,3],
-    [4,5,6]
-];
+m1 :: vlinalg.Matrix = vlinalg.Matrix(2, 3, [
+    [1, 2, 3],
+    [4, 5, 6]
+]);
 
-matrix_2 :: Array = [
-    [1,2,3],
-    [4,5,6]
-];
+m2 :: vlinalg.Matrix = vlinalg.Matrix(2, 3, [
+    [1, 2, 3],
+    [4, 5, 6]
+]);
 
-out(vmatrix.add(matrix_1, matrix_2));
+result = vlinalg.add(m1, m2);
+
+out("Resulting Matrix:");
+out(result);

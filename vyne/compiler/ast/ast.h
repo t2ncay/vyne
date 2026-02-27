@@ -419,14 +419,17 @@ public:
 };
 
 class IndexAccessNode : public ASTNode {
-    uint32_t nameId;
-    std::string originalName;
-    std::vector<std::string> scope;
+    std::unique_ptr<ASTNode> base;
     std::unique_ptr<ASTNode> index;
 
-public :
+public:
+    IndexAccessNode(std::unique_ptr<ASTNode> b, std::unique_ptr<ASTNode> idx)
+        : ASTNode(NodeType::INDEX_ACCESS), base(std::move(b)), index(std::move(idx)) {}
+
     IndexAccessNode(uint32_t n, std::string on, std::vector<std::string> s, std::unique_ptr<ASTNode> idx)
-        : ASTNode(NodeType::INDEX_ACCESS), nameId(n), originalName(std::move(on)), scope(std::move(s)), index(std::move(idx)) {}
+        : ASTNode(NodeType::INDEX_ACCESS), index(std::move(idx)) {
+        base = std::make_unique<VariableNode>(n, std::move(on), VType::Unknown, std::move(s), false);
+    }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
     void compile(Emitter& e) const override;
@@ -611,6 +614,7 @@ struct InterfaceMember {
 class InterfaceNode : public ASTNode {
     std::string interfaceName;
     std::vector<InterfaceMember> members;
+    std::string moduleName;
 public:
 
     InterfaceNode(std::string in, std::vector<InterfaceMember> m) : 
@@ -618,6 +622,7 @@ public:
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
+    void setModuleName(const std::string& name) { moduleName = name; }
 };
 
 class MemberAccessNode : public ASTNode {

@@ -435,22 +435,10 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
 }
 
 Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string targetGroup = resolvePath(scope, currentGroup);
+    Value baseVal = base->evaluate(env, currentGroup);
     
-    auto getFromTable = [&](const std::string& group) -> Value* {
-        if (env.count(group) && env[group].count(nameId)) {
-            return &env[group][nameId];
-        }
-        return nullptr;
-    };
-
-    Value* valPtr = getFromTable(targetGroup);
-    if (!valPtr && targetGroup != "global") {
-        valPtr = getFromTable("global");
-    }
-
-    if (!valPtr) {
-        throw std::runtime_error("Runtime Error: Identifier '" + originalName + "' not found [ line " + std::to_string(lineNumber) + " ]");
+    if (baseVal.getType() != Value::ARRAY) {
+        throw std::runtime_error("Type Error: Cannot index non-array type [ line " + std::to_string(lineNumber) + " ]");
     }
 
     Value idxVal = index->evaluate(env, currentGroup);
@@ -461,23 +449,12 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
     }
     size_t idx = static_cast<size_t>(rawIdx);
 
-    if (valPtr->getType() == Value::ARRAY) {
-        auto& vec = valPtr->asList();
-        if (idx >= vec.size()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array '" + originalName + "'");
-        }
-        return vec[idx];
-    } 
-    
-    else if (valPtr->getType() == Value::STRING) {
-        const std::string& str = valPtr->asString();
-        if (idx >= str.length()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on string '" + originalName + "'");
-        }
-        return Value(std::string(1, str[idx]));
+    auto& vec = baseVal.asList();
+    if (idx >= vec.size()) {
+        throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    throw std::runtime_error("Type Error: '" + originalName + "' is not indexable [ line " + std::to_string(lineNumber) + " ]");
+    return vec[idx];
 }
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
@@ -913,8 +890,8 @@ Value IfNode::evaluate(SymbolContainer& env, const std::string& currentGroup) co
 Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     auto funcData = std::make_shared<FunctionData>();
     funcData->isNative = true;
-    
     funcData->arity = -1; 
+    funcData->params = {};
 
     auto name = this->interfaceName;
     auto localMembers = this->members; 
@@ -933,7 +910,7 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
                         instance->fields[fieldId] = Value("");
                         break;
                     case VType::Int64:   
-                        instance->fields[fieldId] = Value(0); 
+                        instance->fields[fieldId] = Value(static_cast<int64_t>(0)); 
                         break;
                     case VType::Float64: 
                         instance->fields[fieldId] = Value(0.0); 
@@ -951,7 +928,15 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     };
 
     uint32_t id = StringPool::instance().intern(interfaceName);
+    
     env[currentGroup][id] = Value(funcData);
+    
+    if (!moduleName.empty()) {
+        if (env.find(moduleName) == env.end()) {
+            env[moduleName] = SymbolTable();
+        }
+        env[moduleName][id] = Value(funcData);
+    }
 
     return Value();
 }
@@ -1097,13 +1082,22 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     if (alias.empty()) {
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             if (it->first == "global") {
-                for (auto const& [id, val] : it->second) env["global"][id] = val;
+                for (auto const& [id, val] : it->second) {
+                    env["global"][id] = val;
+                }
             } else {
                 env[it->first] = std::move(it->second);
             }
         }
     } else {
-        env[alias] = std::move(externalEnv["global"]);
+        env[alias] = {};
+        
+        if (externalEnv.count("global")) {
+            for (auto const& [id, val] : externalEnv["global"]) {
+                env[alias][id] = val;
+            }
+        }
+        
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             if (it->first == "global") continue;
             env[alias + "." + it->first] = std::move(it->second);
