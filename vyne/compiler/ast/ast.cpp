@@ -96,7 +96,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
                 val = Value(val.asFloat());
             } else {
                 throw std::runtime_error("Type Error: Expected " + VTypeToString(expectedType) + 
-                    ", got " + val.getTypeName());
+                    ", got " + val.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
             }
         }
     }
