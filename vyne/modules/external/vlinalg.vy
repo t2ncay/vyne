@@ -1,10 +1,7 @@
 use extern "vcolors.vy";
 module vlinalg;
 
-# Matrix module for vyne
-# Standardizes matrix operations using the Matrix interface
-
-interface Matrix :: vlinalg {
+interface Matrix {
     row :: Int64,
     col :: Int64,
     data :: Array
@@ -32,7 +29,7 @@ fn :: vlinalg add(a :: Matrix, b :: Matrix) -> Matrix {
         result_data.push(new_row);
     };
 
-    return result_data;
+    return Matrix(a.row, a.col, result_data);
 }
 
 fn :: vlinalg subtract(a :: Matrix, b :: Matrix) -> Matrix {
@@ -56,7 +53,7 @@ fn :: vlinalg subtract(a :: Matrix, b :: Matrix) -> Matrix {
         result_data.push(new_row);
     };
 
-    return result_data;
+    return Matrix(a.row, a.col, result_data);
 }
 
 deploy vlinalg;
