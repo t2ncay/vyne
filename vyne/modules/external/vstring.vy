@@ -183,161 +183,56 @@ fn :: vstring swapCase(s) {
     return result;
 }
 
-# Convert to camelCase (first word lowercase, rest capitalized)
-fn :: vstring toCamelCase(s) {
-    # First convert to lowercase and split into words
-    lowerStr = vstring.lower(s);
-    words = [];
+# ===Main string methods===
+
+# Split string into array by delimiter
+fn :: vstring split(s, delimiter) {
+    result = [];
+    
+    if s.length() == 0 {
+        return result;
+    }
+    
     current = "";
     i = 0;
     
-    # Split into words
-    while i < lowerStr.length() {
-        ch = lowerStr[i];
-        if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") {
-            current = current + ch;
-        } else {
+    while i < s.length() {
+        ch = s[i];
+        
+        # Check if current character matches delimiter
+        if ch == delimiter {
+            # End of word - add to result if not empty
             if current != "" {
-                words = words + [current];
+                result = result + [current];
                 current = "";
             }
-        }
-        i = i + 1;
-    }
-    if current != "" {
-        words = words + [current];
-    }
-    
-    # Build camelCase
-    if words.length() == 0 {
-        return "";
-    }
-    
-    result = words[0];  # First word lowercase
-    
-    i = 1;
-    while i < words.length() {
-        word = words[i];
-        if word.length() > 0 {
-            # Capitalize first letter of remaining words
-            first = word[0];
-            rest = word[1 .. word.length()];
-            
-            # Capitalize first letter
-            j = 0;
-            while j < lowercase.length() {
-                if first == lowercase[j] {
-                    first = uppercase[j];
-                    break;
-                }
-                j = j + 1;
-            }
-            result = result + first + rest;
-        }
-        i = i + 1;
-    }
-    
-    return result;
-}
-
-# Convert to PascalCase (each word capitalized)
-fn :: vstring toPascalCase(s) {
-    # First convert to lowercase and split into words
-    lowerStr = vstring.lower(s);
-    words = [];
-    current = "";
-    i = 0;
-    
-    # Split into words
-    while i < lowerStr.length() {
-        ch = lowerStr[i];
-        if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") {
-            current = current + ch;
         } else {
-            if current != "" {
-                words = words + [current];
-                current = "";
-            }
+            # Add character to current word
+            current = current + ch;
         }
+        
         i = i + 1;
     }
+    
+    # Add last word if not empty
     if current != "" {
-        words = words + [current];
-    }
-    
-    # Build PascalCase
-    result = "";
-    i = 0;
-    while i < words.length() {
-        word = words[i];
-        if word.length() > 0 {
-            # Capitalize first letter
-            first = word[0];
-            rest = word[1 .. word.length()];
-            
-            j = 0;
-            while j < lowercase.length() {
-                if first == lowercase[j] {
-                    first = uppercase[j];
-                    break;
-                }
-                j = j + 1;
-            }
-            result = result + first + rest;
-        }
-        i = i + 1;
+        result = result + [current];
     }
     
     return result;
 }
 
-# Convert to snake_case (lowercase with underscores)
-fn :: vstring toSnakeCase(s) {
-    lowerStr = vstring.lower(s);
+# Join array of strings with separator
+fn :: vstring join(arr, separator) {
     result = "";
     i = 0;
     
-    while i < lowerStr.length() {
-        ch = lowerStr[i];
-        if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") {
-            result = result + ch;
-        } else if ch == " " or ch == "-" or ch == "_" {
-            if result.length() > 0 and result[result.length()-1] != "_" {
-                result = result + "_";
-            }
+    while i < arr.length() {
+        if i > 0 {
+            result = result + separator;
         }
+        result = result + arr[i];
         i = i + 1;
-    }
-    
-    # Remove trailing underscore
-    if result.length() > 0 and result[result.length()-1] == "_" {
-        result = result[0 .. result.length()-1];
-    }
-    
-    return result;
-}
-
-# Convert to kebab-case (lowercase with hyphens)
-fn :: vstring toKebabCase(s) {
-    lowerStr = vstring.lower(s);
-    result = "";
-    i = 0;
-    
-    while i < lowerStr.length() {
-        ch = lowerStr[i];
-        if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9") {
-            result = result + ch;
-        } else if ch == " " or ch == "-" or ch == "_" {
-            if result.length() > 0 and result[result.length()-1] != "-" {
-                result = result + "-";
-            }
-        }
-        i = i + 1;
-    }
-    
-    # Remove trailing hyphen
-    if result.length() > 0 and result[result.length()-1] == "-" {
-        result = result[0 .. result.length()-1];
     }
     
     return result;
