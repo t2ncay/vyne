@@ -329,7 +329,7 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 Value ArrayNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     std::vector<Value> results;
     for (const auto& node : elements) results.emplace_back(node->evaluate(env, currentGroup));
-    return Value(results);
+    return Value(std::move(results));
 }
 
 Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
