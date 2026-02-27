@@ -52,8 +52,24 @@ bool Parser::isAtEnd() {
 
 VType Parser::resolveType(std::string_view typeName) {
     std::string name(typeName);
+    
     VType primitive = stringToVType(name);
     if (primitive != VType::Unknown) return primitive;
+
+    size_t dotPos = name.find('.');
+    if (dotPos != std::string::npos) {
+        std::string modulePart = name.substr(0, dotPos);
+        std::string typePart = name.substr(dotPos + 1);
+        
+        std::string fullName = modulePart + "." + typePart;
+        if (declaredTypes.count(fullName)) return VType::Struct;
+        
+        while ((dotPos = typePart.find('.')) != std::string::npos) {
+            typePart = typePart.substr(dotPos + 1);
+            fullName = modulePart + "." + typePart;
+            if (declaredTypes.count(fullName)) return VType::Struct;
+        }
+    }
 
     if (declaredTypes.count(name)) return VType::Struct;
 
