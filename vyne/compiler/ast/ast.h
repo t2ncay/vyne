@@ -211,14 +211,22 @@ class VariableNode : public ASTNode {
     std::string originalName;
     std::vector<std::string> specificGroup;
     VType explicitType;
+    bool isReference;
 
 public:
-    VariableNode(uint32_t id, std::string name, VType et = VType::Unknown, std::vector<std::string> group = {})
-        : ASTNode(NodeType::VARIABLE), 
+    VariableNode(
+        uint32_t id, 
+        std::string name, 
+        VType et = VType::Unknown, 
+        std::vector<std::string> group = {},
+        bool isRef = false)
+        : 
+        ASTNode(NodeType::VARIABLE), 
         nameId(id), 
         originalName(std::move(name)), 
         explicitType(std::move(et)),
-        specificGroup(std::move(group)) {}
+        specificGroup(std::move(group)),
+        isReference(isRef) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
@@ -236,6 +244,7 @@ class AssignmentNode : public ASTNode {
     std::unique_ptr<ASTNode> indexExpr;
     std::vector<std::string> scopePath;
     bool isConstant;
+    bool isReference;
     VType expectedType;
 
 public:
@@ -243,6 +252,7 @@ public:
                    std::string on, 
                    std::unique_ptr<ASTNode> rhs_ptr, 
                    bool ic,
+                   bool ir,
                    VType vt,
                    std::vector<std::string> path = {},
                    std::unique_ptr<ASTNode> idx_ptr = nullptr)
@@ -253,6 +263,7 @@ public:
           indexExpr(std::move(idx_ptr)),
           scopePath(std::move(path)),
           isConstant(ic),
+          isReference(ir),
           expectedType(std::move(vt)) {}
 
     void compile(Emitter& e) const override;

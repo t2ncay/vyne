@@ -78,6 +78,14 @@ const std::string& Value::asModule() const {
     return static_cast<ModuleData*>(obj.get())->name;
 }
 
+bool Value::isReference() const {
+        return std::holds_alternative<Value*>(data);
+    }
+
+Value* Value::getPointer() const {
+    return std::get<Value*>(data);
+}
+
 Value& Value::setReadOnly(){
     isReadOnly = true;
     return *this;

@@ -74,7 +74,8 @@ using ValueData = std::variant<
     double,
     int64_t,
     uint32_t,
-    std::shared_ptr<VyneObject>
+    std::shared_ptr<VyneObject>,
+    Value*
 >;
 
 class StringPool {
@@ -113,7 +114,8 @@ struct Value {
         ARRAY = 4, 
         FUNCTION = 5, 
         MODULE = 6,
-        STRUCT = 7
+        STRUCT = 7,
+        REFERENCE = 8
     };
 
     ValueData data;
@@ -152,6 +154,7 @@ struct Value {
         data = std::move(func);
     }
     Value(std::shared_ptr<VyneStruct> s) : data(std::move(s)) {}
+    Value(Value* refTarget) : data(refTarget) {}
     Value(const Value&) = default;
 
     // safe getters
@@ -170,6 +173,10 @@ struct Value {
     std::shared_ptr<FunctionData> asFunction() const;
 
     const std::string& asModule() const;
+
+    bool isReference() const;
+
+    Value* getPointer() const;
 
     // core value functions
     Value& setReadOnly();
