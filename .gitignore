@@ -3,6 +3,7 @@ x64/*
 *.filters
 *.vcxproj
 *.exe
+vynec.exe
 **/open.bat
 .vs/*
 vyne-docs/*
