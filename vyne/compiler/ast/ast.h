@@ -188,7 +188,7 @@ public:
           statements(std::move(stmts)) {
     }
 
-    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
     void compile(Emitter& e) const override;
 };
 
@@ -632,6 +632,14 @@ public:
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
+    std::string getPath() const {
+        if (auto var = dynamic_cast<VariableNode*>(receiver.get())) {
+            return var->getOriginalName() + "." + memberName;
+        } else if (auto mem = dynamic_cast<MemberAccessNode*>(receiver.get())) {
+            return mem->getPath() + "." + memberName;
+        }
+        return memberName; 
+    }
 };
 
 class NullNode : public ASTNode {

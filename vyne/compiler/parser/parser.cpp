@@ -55,13 +55,17 @@ VType Parser::resolveType(std::string_view typeName) {
     VType primitive = stringToVType(name);
     if (primitive != VType::Unknown) return primitive;
 
+    if (declaredTypes.find(name) != declaredTypes.end()) {
+        return VType::Struct;
+    }
+
+    if (declaredTypes.find("global." + name) != declaredTypes.end()) {
+        return VType::Struct;
+    }
+
     if (peekToken().type == VTokenType::Referencer) {
         consume(VTokenType::Referencer);
         return VType::Reference;
-    }
-
-    if (isDeclaredAsStruct(name)) {
-        return VType::Struct;
     }
 
     throw std::runtime_error("Type Error: '" + name + "' is not a defined type.");
@@ -123,14 +127,17 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     Token interfaceIdentifier = consume(VTokenType::Identifier);
     std::string interfaceName = interfaceIdentifier.name;
 
-    std::string fullName = currentGroupName.empty() ? 
-                           interfaceName : 
-                           currentGroupName + "." + interfaceName;
+    std::string fullName = "";
+    if (!currentModuleName.empty()) fullName += currentModuleName + ".";
+    if (!currentGroupName.empty())  fullName += currentGroupName + ".";
+    fullName += interfaceName;
     
     declaredTypes.insert(fullName); 
-
-    // also inserting short name to use it inside groups
-    if (!currentGroupName.empty()) declaredTypes.insert(interfaceName);
+    
+    declaredTypes.insert(interfaceName);
+    if (!currentGroupName.empty()) {
+         declaredTypes.insert(currentGroupName + "." + interfaceName);
+    }
 
     consume(VTokenType::Left_CB);
 
@@ -806,11 +813,12 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     else {
         Token first = consume(VTokenType::Identifier);
         
-        if (peekToken().type == VTokenType::Extends) {
-            consume(peekToken().type);
-            targetModule = first.name;
-            groupName = consume(VTokenType::Identifier).name;
-        } else {
+        if (peekToken().type == VTokenType::Extends) { 
+            consume(VTokenType::Extends);
+            targetModule = consume(VTokenType::Identifier).name;
+            groupName = first.name;
+        } 
+        else {
             groupName = first.name;
         }
     }
@@ -875,6 +883,7 @@ std::unique_ptr<ASTNode> Parser::parseModuleStatement() {
     consume(VTokenType::Module);
     
     Token nameToken = consume(VTokenType::Identifier);
+    currentModuleName = nameToken.name;
     uint32_t mId = StringPool::instance().intern(nameToken.name);
     consumeSemicolon();
     

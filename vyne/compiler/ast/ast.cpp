@@ -153,16 +153,15 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
 }
 
 Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string fullName = currentGroup.empty() ? groupName : currentGroup + "." + groupName;
-
+    std::string parentScope = targetModule.empty() ? currentGroup : targetModule;
+    std::string fullName = parentScope + "." + groupName;
     uint32_t groupNameId = StringPool::instance().intern(groupName);
-    
-    env[currentGroup][groupNameId] = Value(groupNameId, fullName, true); 
+
+    env[parentScope][groupNameId] = Value(groupNameId, fullName, true); 
 
     for (const auto& stmt : statements) {
         stmt->evaluate(env, fullName);
     }
-    
     return Value();
 }
 
@@ -484,18 +483,40 @@ Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGro
 }
 
 Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    auto it = env["global"].find(funcNameId);
+    std::string targetGroupName = "global";
+    uint32_t targetNameId = funcNameId;
+
+    if (originalName.find('.') != std::string::npos) {
+        size_t lastDot = originalName.find_last_of('.');
+        targetGroupName = originalName.substr(0, lastDot);
+        std::string rawName = originalName.substr(lastDot + 1);
+        targetNameId = StringPool::instance().intern(rawName);
+    }
+
+    if (env.find(targetGroupName) == env.end()) {
+         throw std::runtime_error("Runtime Error: Group '" + targetGroupName + 
+            "' not found for call '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
+    }
+
+    auto& groupMap = env[targetGroupName];
+    auto it = groupMap.find(targetNameId);
     
-    if (it == env["global"].end()) {
-        throw std::runtime_error("Runtime Error: " + originalName + 
-            " is not defined in global scope [ line " + std::to_string(lineNumber) + " ]");
+    if (it == groupMap.end()) {
+        if (targetGroupName != "global") {
+            it = env["global"].find(targetNameId);
+        }
+        
+        if (it == env["global"].end()) {
+            throw std::runtime_error("Runtime Error: '" + originalName + 
+                "' is not defined [ line " + std::to_string(lineNumber) + " ]");
+        }
     }
 
     Value funcVal = it->second;
 
     if (funcVal.getType() != Value::FUNCTION) {
-        throw std::runtime_error("Type Error: " + originalName + 
-            " is not a function [ line " + std::to_string(lineNumber) + " ]");
+        throw std::runtime_error("Type Error: '" + originalName + 
+            "' is not a callable function or constructor [ line " + std::to_string(lineNumber) + " ]");
     }
 
     auto funcData = funcVal.asFunction();
@@ -503,21 +524,20 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::vector<Value> evaluatedArgs;
     evaluatedArgs.reserve(arguments.size());
     for (const auto& arg : arguments) {
-        evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
+        if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
     }
 
     if (funcData->isNative) {
-        if (funcData->arity != (int)evaluatedArgs.size()) {
+        if (funcData->arity != -1 && funcData->arity != (int)evaluatedArgs.size()) {
             throw std::runtime_error("Argument Error: " + originalName + " expects " + 
                 std::to_string(funcData->arity) + " arguments, but got " + 
-                std::to_string(evaluatedArgs.size()) + " [ line " + std::to_string(lineNumber) + " ]");
+                std::to_string(evaluatedArgs.size()));
         }
 
         return funcData->nativeFn(evaluatedArgs);
     }
 
     auto& params = funcData->params;
-
     if (params.size() != evaluatedArgs.size()) {
         throw std::runtime_error("Argument Error: Argument count mismatch on function call " + 
             originalName + " [ line " + std::to_string(lineNumber) + " ]");
@@ -527,33 +547,25 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::string localScope = "call_" + originalName + "_" + std::to_string(callCount++);
 
     for (size_t i = 0; i < params.size(); ++i) {
-        uint32_t paramId = params[i].id; 
-        
-        env[localScope][paramId] = std::move(evaluatedArgs[i]);
+        env[localScope][params[i].id] = std::move(evaluatedArgs[i]);
     }
 
     Value result;
     try {
         for (const auto& bodyNode : funcData->body) {
-            result = bodyNode->evaluate(env, localScope);
+            if (bodyNode) result = bodyNode->evaluate(env, localScope);
         }
     } catch (const ReturnException& e) {
         result = e.value; 
     }
 
-    // Cleanup local scope
-    if (env.find(localScope) != env.end()) {
-        env[localScope].clear();
-        env.erase(localScope);
-    }
+    env.erase(localScope);
 
-    if (funcData->expectedReturnType != "null") {
-        std::string actualType = result.getTypeName();
-        
-        if (actualType != funcData->expectedReturnType) {
-            throw std::runtime_error("Type Mismatch: Sub '" + originalName + 
-                "' expected to return " + funcData->expectedReturnType + 
-                ", but got " + actualType);
+    if (funcData->expectedReturnType != "null" && funcData->expectedReturnType != "Unknown") {
+        if (result.getTypeName() != funcData->expectedReturnType) {
+            throw std::runtime_error("Type Mismatch: '" + originalName + 
+                "' expected " + funcData->expectedReturnType + 
+                ", but returned " + result.getTypeName());
         }
     }
 
@@ -655,6 +667,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     // --- ARRAY METHODS ---
+    // TODO USE STRING_VIEW TO COMPARE INPUT METHOD WITH AVAILABLE METHOD OPTIONS
     if (receiverVal.getType() == Value::ARRAY || receiverVal.getType() == Value::STRING) {
         if (methodName == "length" || methodName == "size") {
             if (receiverVal.getType() == Value::STRING) {
@@ -674,7 +687,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             } else if (targetGroup != "global" && env["global"].count(var->getNameId())) {
                 target = &env["global"][var->getNameId()];
             }
-        } 
+        }
         else if (receiver->type() == NodeType::INDEX_ACCESS) {
             target = &receiverVal;
         }
@@ -751,7 +764,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
 
             auto& targetVec = target->asList();
             
-            targetVec.clear(); 
+            targetVec.clear();
             targetVec.reserve(static_cast<size_t>(count));
             
             for (int64_t i = 0; i < count; i++) {
@@ -779,8 +792,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     if(receiverVal.getType() == Value::STRUCT){
         if (methodName == "fields") {
 
-            // TODO ADD asStruct() HERE LATER
-            auto baseObj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+            auto baseObj = receiverVal.asStruct();
             
             auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
             
@@ -934,54 +946,57 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
 }
 
 Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value receiverVal;
-    bool evaluationFailed = false;
-
-    try {
-        receiverVal = receiver->evaluate(env, currentGroup);
-    } catch (...) {
-        evaluationFailed = true;
+    std::string receiverPath = "";
+    if (auto varNode = dynamic_cast<VariableNode*>(receiver.get())) {
+        receiverPath = varNode->getOriginalName();
+    } else if (auto memNode = dynamic_cast<MemberAccessNode*>(receiver.get())) {
+        receiverPath = memNode->getPath();
     }
 
-    if (evaluationFailed || receiverVal.getType() == Value::NONE) {
-        if (auto varNode = dynamic_cast<VariableNode*>(receiver.get())) {
-            std::string name = varNode->getOriginalName();
+    if (!receiverPath.empty()) {
+        if (env.contains(receiverPath)) {
+            return env.getModuleMember(receiverPath, memberName);
+        }
 
-            if (env.hasGroup(name)) {
-                return env.getGroupMember(name, memberName);
-            }
-            
-            if (env.hasModule(name)) {
-                return env.getModuleMember(name, memberName);
+        if (!currentGroup.empty()) {
+            std::string contextPath = currentGroup + "." + receiverPath;
+            if (env.contains(contextPath)) {
+                return env.getModuleMember(contextPath, memberName);
             }
         }
-        
-        throw std::runtime_error("Runtime Error: Cannot access '" + memberName + 
+
+        std::string globalPath = "global." + receiverPath;
+        if (env.contains(globalPath)) {
+            return env.getModuleMember(globalPath, memberName);
+        }
+    }
+
+    Value receiverVal = receiver->evaluate(env, currentGroup);
+    
+    if (receiverVal.getType() == Value::NONE) {
+        throw std::runtime_error("Runtime Error: Cannot access member '" + memberName + 
             "' on undefined/null [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+    if (std::holds_alternative<std::shared_ptr<VyneObject>>(receiverVal.data)) {
+        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
 
-    switch (obj->objType) {
-        case VyneObject::ObjType::Struct: {
+        if (obj && obj->objType == VyneObject::ObjType::Struct) {
             auto strct = static_cast<VyneStruct*>(obj.get());
             uint32_t fieldId = StringPool::instance().intern(memberName);
             
             auto it = strct->fields.find(fieldId);
-            if (it != strct->fields.end()) return it->second;
+            if (it != strct->fields.end()) {
+                return it->second;
+            }
             
             throw std::runtime_error("Runtime Error: Struct '" + strct->typeName + 
-                "' has no member '" + memberName + "'");
+                "' has no member '" + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
         }
-
-        case VyneObject::ObjType::Module: {
-            auto mod = static_cast<ModuleData*>(obj.get());
-            return env.getModuleMember(mod->name, memberName);
-        }
-
-        default:
-            throw std::runtime_error("Type Error: Member access not supported for this type.");
     }
+
+    throw std::runtime_error("Type Error: Member access '" + memberName + 
+        "' not supported for this type [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
@@ -1054,7 +1069,6 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
         throw std::runtime_error(ss.str());
     }
 
-    // --- RE-SYNCED SYMBOL TRANSFER FOR YOUR NESTED TABLES ---
     const std::string& source = FileUtils::readFile(finalPath.string());
     auto tokens = tokenize(source);
     Parser parser(std::move(tokens));
@@ -1095,7 +1109,6 @@ Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     }
 
     env.deploy(moduleName); 
-    
     return Value(true); 
 }
 

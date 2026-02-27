@@ -4,6 +4,13 @@ module vmatrix;
 # This module helps with matrix operations
 # I will also add matrix multiplication when I have time
 
+group c :: vmatrix {
+    interface Matrix {
+        row :: Int64,
+        column :: Int64
+    }
+};
+
 fn :: vmatrix add(a, b) {
 
     result :: Array = [];

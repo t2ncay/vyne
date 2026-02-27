@@ -1,5 +1,13 @@
-use extern "vplot.vy";
+module physics;
 
-a = [ 1,2,3,4,5,6 ];
+group Constants {
+    pi = 3.1415;
+    e = 2.718;
+};
 
-vplot.bar_chart(a, 8);
+group Math :: physics {
+    radius = 10;
+};
+
+out(Constants.pi);
+out(physics.Math.radius);
