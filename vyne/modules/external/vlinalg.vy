@@ -2,11 +2,6 @@ use extern "vcolors.vy";
 module vlinalg;
 
 # Matrix module for vyne
-# This module helps with matrix operations
-# I will also add matrix multiplication when I have time
-
-
-# Matrix module for vyne
 # Standardizes matrix operations using the Matrix interface
 
 interface Matrix :: vlinalg {
@@ -23,11 +18,11 @@ fn :: vlinalg add(a :: Matrix, b :: Matrix) -> Matrix {
 
     result_data = [];
 
-    through 0..a.row -> loop {
+    through 0..a.row-1 -> loop {
         r = _;
         new_row = [];
 
-        through 0..a.col -> loop {
+        through 0..a.col-1 -> loop {
             c = _;
             
             sum = a.data[r][c] + b.data[r][c];
@@ -37,23 +32,22 @@ fn :: vlinalg add(a :: Matrix, b :: Matrix) -> Matrix {
         result_data.push(new_row);
     };
 
-    # 4. In a future update, we can return a Struct instance here. 
     return result_data;
 }
 
 fn :: vlinalg subtract(a :: Matrix, b :: Matrix) -> Matrix {
     if (a.row != b.row) || (a.col != b.col) {
-        out(vcolors.red("Matrix Error: Dimensions must match for addition."));
+        out(vcolors.red("Matrix Error: Dimensions must match for subtraction."));
         return [];
     }
 
     result_data = [];
 
-    through 0..a.row -> loop {
+    through 0..a.row-1 -> loop {
         r = _;
         new_row = [];
 
-        through 0..a.col -> loop {
+        through 0..a.col-1 -> loop {
             c = _;
             diff = a.data[r][c] - b.data[r][c];
             new_row.push(diff);
