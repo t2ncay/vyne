@@ -437,10 +437,6 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
 Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value baseVal = base->evaluate(env, currentGroup);
     
-    if (baseVal.getType() != Value::ARRAY) {
-        throw std::runtime_error("Type Error: Cannot index non-array type [ line " + std::to_string(lineNumber) + " ]");
-    }
-
     Value idxVal = index->evaluate(env, currentGroup);
     int64_t rawIdx = idxVal.asInt();
     
@@ -449,12 +445,23 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
     }
     size_t idx = static_cast<size_t>(rawIdx);
 
-    auto& vec = baseVal.asList();
-    if (idx >= vec.size()) {
-        throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array [ line " + std::to_string(lineNumber) + " ]");
+    if (baseVal.getType() == Value::ARRAY) {
+        auto& vec = baseVal.asList();
+        if (idx >= vec.size()) {
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array [ line " + std::to_string(lineNumber) + " ]");
+        }
+        return vec[idx];
     }
-
-    return vec[idx];
+    
+    else if (baseVal.getType() == Value::STRING) {
+        const std::string& str = baseVal.asString();
+        if (idx >= str.length()) {
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on string [ line " + std::to_string(lineNumber) + " ]");
+        }
+        return Value(std::string(1, str[idx]));
+    }
+    
+    throw std::runtime_error("Type Error: Cannot index non-array, non-string type [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
