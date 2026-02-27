@@ -5,6 +5,7 @@ group Master {
     }
 };
 
-hydrogen :: Master.Element = Master.Element(1.008, "H");
+hydrogen :: Master.Element = Master.Element();
 hydrogen.name = "E";
+out(hydrogen.atomic_mass);
 out(hydrogen);

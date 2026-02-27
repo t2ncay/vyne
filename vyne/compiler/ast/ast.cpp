@@ -888,14 +888,10 @@ Value IfNode::evaluate(SymbolContainer& env, const std::string& currentGroup) co
 }
 
 Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    size_t currentOffset = 0;
-    for (const auto& member : members) {
-        currentOffset += 8; 
-    }
-
     auto funcData = std::make_shared<FunctionData>();
     funcData->isNative = true;
-    funcData->arity = static_cast<int>(this->members.size()); // THIS FIXES THE ERROR
+    
+    funcData->arity = -1; 
 
     auto name = this->interfaceName;
     auto localMembers = this->members; 
@@ -903,14 +899,35 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     funcData->nativeFn = [name, localMembers](std::vector<Value>& args) -> Value {
         auto instance = std::make_shared<VyneStruct>(name);
         
-        for (size_t i = 0; i < args.size() && i < localMembers.size(); ++i) {
-            uint32_t fieldId = StringPool::intern(localMembers[i].name);
-            instance->fields[fieldId] = args[i];
+        for (size_t i = 0; i < localMembers.size(); ++i) {
+            uint32_t fieldId = StringPool::instance().intern(localMembers[i].name);
+            
+            if (i < args.size()) {
+                instance->fields[fieldId] = args[i];
+            } else {
+                switch (localMembers[i].type) {
+                    case VType::String:  
+                        instance->fields[fieldId] = Value("");
+                        break;
+                    case VType::Int64:   
+                        instance->fields[fieldId] = Value(0); 
+                        break;
+                    case VType::Float64: 
+                        instance->fields[fieldId] = Value(0.0); 
+                        break;
+                    case VType::Array:   
+                        instance->fields[fieldId] = Value(std::vector<Value>{}); 
+                        break;
+                    default:             
+                        instance->fields[fieldId] = Value();
+                        break;
+                }
+            }
         }
         return Value(instance);
     };
 
-    uint32_t id = StringPool::intern(interfaceName);
+    uint32_t id = StringPool::instance().intern(interfaceName);
     env[currentGroup][id] = Value(funcData);
 
     return Value();
