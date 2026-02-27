@@ -211,8 +211,9 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
         if (!l.isTruthy()) return Value(static_cast<int64_t>(0));
         return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
     }
+
     if (op == VTokenType::Or) {
-        if (!l.isTruthy()) return Value(static_cast<int64_t>(1));
+        if (l.isTruthy()) return Value(static_cast<int64_t>(1));
         return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
     }
 
