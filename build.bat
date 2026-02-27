@@ -3,7 +3,7 @@ setlocal
 
 set CXX=g++
 
-set CXXFLAGS=-std=c++23 -O3 -Wall -Wextra -DCPPHTTPLIB_OPENSSL_SUPPORT
+set CXXFLAGS=-std=c++23 -O3 -Wall -Wextra
 set OUT=vyne.exe
 
 set SRC_FILES=main.cpp ^
@@ -27,7 +27,7 @@ echo ---------------------------------------
 echo Building Vyne Interpreter (Windows) with GLFW...
 echo ---------------------------------------
 
-%CXX% %CXXFLAGS% %SRC_FILES% -o %OUT% -lssl -lcrypto -lws2_32 -pthread
+%CXX% %CXXFLAGS% %SRC_FILES% -o %OUT%
 
 if %ERRORLEVEL% EQU 0 (
     echo Build Successful: %OUT% created.
