@@ -135,7 +135,7 @@ namespace VCoreNative {
     /*
     The networking module is currently synchronous but I will add async soon
     I will continue working on this until it's working reliably
-    */
+ 
 
     Value http_get(std::vector<Value>& args) // Supports HTTPS if CPPHTTPLIB_OPENSSL_SUPPORT is defined
     {
@@ -161,6 +161,7 @@ namespace VCoreNative {
 
         return Value(res->body);
     }
+    */
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
@@ -177,7 +178,6 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("sleep")]           = Value(VCoreNative::sleep);
     vcore[pool.intern("platform")]        = Value(VCoreNative::platform);
     vcore[pool.intern("input")]           = Value(VCoreNative::input);
-    vcore[pool.intern("http_get")]        = Value(VCoreNative::http_get); // Our shiny new network function
 
     // VCore properties
     vcore[pool.intern("version")]         = Value("v0.0.1-alpha").setReadOnly();
