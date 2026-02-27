@@ -1087,6 +1087,10 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     throw std::runtime_error("Module Error: Could not dismiss '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
 }
 
+Value NullNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    return Value();
+}
+
 std::string resolvePath(std::vector<std::string> scope, const std::string& currentGroup) {
     if (scope.empty()) {
         return currentGroup;

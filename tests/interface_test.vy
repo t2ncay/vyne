@@ -1,7 +1,9 @@
-interface Element {
-    atomic_mass :: Int64,
-    name :: String
-}
+group Master {
+    interface Element {
+        atomic_mass :: Int64,
+        name :: String
+    }
+};
 
-hydrogen :: Element = Element(1.008, "H");
+hydrogen :: Master.Element = Master.Element(1.008, "H");
 out(hydrogen);

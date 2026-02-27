@@ -22,6 +22,7 @@ private:
 	size_t pos = 0;
 	std::vector<std::unordered_map<uint32_t, SymbolInfo>> scopeStack;
 	std::unordered_set<std::string> declaredTypes;
+	std::string currentGroupName{};
 
 	void pushScope() { scopeStack.push_back({}); }
 	void popScope()  { scopeStack.pop_back(); }
@@ -83,6 +84,7 @@ public:
     void  consumeSemicolon();
 	bool isAtEnd();
 	VType resolveType(std::string_view typeName);
+	std::string parseTypePath();
 
 	Parser(std::vector<Token>&& t) : tokens(std::move(t)) {};
 

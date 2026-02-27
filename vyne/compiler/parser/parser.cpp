@@ -51,7 +51,8 @@ bool Parser::isAtEnd() {
 }
 
 VType Parser::resolveType(std::string_view typeName) {
-    VType primitive = stringToVType(typeName);
+    std::string name(typeName);
+    VType primitive = stringToVType(name);
     if (primitive != VType::Unknown) return primitive;
 
     if (peekToken().type == VTokenType::Referencer) {
@@ -59,11 +60,20 @@ VType Parser::resolveType(std::string_view typeName) {
         return VType::Reference;
     }
 
-    if (isDeclaredAsStruct(std::string(typeName))) {
+    if (isDeclaredAsStruct(name)) {
         return VType::Struct;
     }
 
-    throw std::runtime_error("Type Error: '" + std::string(typeName) + "' is not a defined type.");
+    throw std::runtime_error("Type Error: '" + name + "' is not a defined type.");
+}
+
+std::string Parser::parseTypePath() {
+    std::string path = consume(VTokenType::Identifier).name;
+    while (peekToken().type == VTokenType::Dot) {
+        consume(VTokenType::Dot);
+        path += "." + consume(VTokenType::Identifier).name;
+    }
+    return path;
 }
 
 std::unique_ptr<ASTNode> Parser::parseDeployModule() {
@@ -112,7 +122,16 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 
     Token interfaceIdentifier = consume(VTokenType::Identifier);
     std::string interfaceName = interfaceIdentifier.name;
-    declaredTypes.insert(interfaceName);
+
+    std::string fullName = currentGroupName.empty() ? 
+                           interfaceName : 
+                           currentGroupName + "." + interfaceName;
+    
+    declaredTypes.insert(fullName); 
+
+    // also inserting short name to use it inside groups
+    
+    if (!currentGroupName.empty()) declaredTypes.insert(interfaceName);
 
     consume(VTokenType::Left_CB);
 
@@ -541,8 +560,8 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     VType explicitType = VType::Unknown;
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
-        Token typeTok = consume(VTokenType::Identifier);
-        explicitType = resolveType(typeTok.name);
+        Token startTypeTok = peekToken();
+        explicitType = resolveType(parseTypePath());
 
         if (peekToken().type == VTokenType::Referencer || explicitType == VType::Reference) {
             if (peekToken().type == VTokenType::Addresser) consume(VTokenType::Addresser);
@@ -551,7 +570,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         }
 
         if (explicitType == VType::Unknown) {
-            throw std::runtime_error("Type Error : Unexpected type " + std::string(typeTok.name) + " [ line " + std::to_string(line) + " ]");
+            throw std::runtime_error("Type Error : Unexpected type " + std::string(startTypeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
 
         defineSymbol(currentId, explicitType, true);
@@ -697,7 +716,6 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
 std::unique_ptr<ASTNode> Parser::parseAssignment() {
     int line = peekToken().line;
     bool isConst = false;
-    bool isReference = false;
 
     if (peekToken().type == VTokenType::Const) {
         consume(VTokenType::Const);
@@ -705,13 +723,17 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     }
 
     Token nameTok = consume(VTokenType::Identifier);
-    uint32_t varId = StringPool::instance().intern(nameTok.name);
     std::string originalName = nameTok.name;
-    
+    uint32_t varId = StringPool::instance().intern(originalName);
+
     VType varType = VType::Unknown;
+    bool isReference = false;
+    std::string customTypeName = "";
+
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
-        varType = resolveType(consume(VTokenType::Identifier).name);
+        customTypeName = parseTypePath();
+        varType = resolveType(customTypeName);
 
         if (peekToken().type == VTokenType::Referencer) {
             consume(VTokenType::Referencer);
@@ -724,12 +746,17 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         consume(VTokenType::Equals);
         rhs = parseExpression();
     } else {
-        switch (varType) {
-            case VType::String:  rhs = std::make_unique<StringNode>(""); break;
-            case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
-            case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
-            case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
-            default:             rhs = std::make_unique<NumberNode>(0); break; 
+        if (isReference) {
+            rhs = std::make_unique<NullNode>();
+        } else {
+            switch (varType) {
+                case VType::String:  rhs = std::make_unique<StringNode>(""); break;
+                case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
+                case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
+                case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
+                case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
+                default:             rhs = std::make_unique<NullNode>(); break; 
+            }
         }
     }
 
@@ -744,12 +771,11 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         isConst, 
         isReference,
         varType, 
-        std::vector<std::string>{}
+        std::vector<std::string>{} 
     );
     node->lineNumber = line;
     return node;
 }
-
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);
@@ -778,6 +804,8 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
         throw std::runtime_error("Permission Error: Cannot inject group to " + targetModule + " [ line " + std::to_string(line) + " ]");
     }
 
+    std::string oldGroup = currentGroupName;
+    currentGroupName = groupName;
     consume(VTokenType::Left_CB);
 
     std::vector<std::unique_ptr<ASTNode>> statements;
@@ -792,6 +820,8 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     
     consume(VTokenType::Right_CB);
     consumeSemicolon();
+
+    currentGroupName = oldGroup;
 
     auto node = std::make_unique<GroupNode>(groupName, std::move(statements), targetModule);
     node->lineNumber = line;

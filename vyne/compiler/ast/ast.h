@@ -141,6 +141,8 @@ enum class NodeType {
     IMPORT,
     INTERFACE,
 
+    NULLTYPE,
+
     BREAK,
     CONTINUE
 };
@@ -605,6 +607,18 @@ class MemberAccessNode : public ASTNode {
 public:
     MemberAccessNode(std::unique_ptr<ASTNode> rec, std::string mem) : 
         ASTNode(NodeType::MEMBER_ACCESS), receiver(std::move(rec)), memberName(std::move(mem)) {}
+
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    void compile(Emitter& e) const override;
+};
+
+class NullNode : public ASTNode {
+    std::string typeName;
+public:
+    NullNode() : 
+            ASTNode(NodeType::NULLTYPE) {}
+    NullNode(std::string tn) : 
+        ASTNode(NodeType::NULLTYPE), typeName(std::move(tn)) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

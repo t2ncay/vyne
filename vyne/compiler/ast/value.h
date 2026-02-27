@@ -119,23 +119,25 @@ struct Value {
     };
 
     ValueData data;
+    VType type;
     bool isReadOnly = false;
 
     // constructors
-    Value() : data(std::monostate{}) {}
-    Value(double n) : data(n) {}
-    Value(int64_t n) : data(n) {}
-    Value(int n) : data(static_cast<int64_t>(n)) {}
-    Value(unsigned int n) : data(static_cast<int64_t>(n)) {}
-    Value(size_t n) : data(static_cast<int64_t>(n)) {}
-    Value(std::string s) {
+    Value() : type(VType::Null), data(std::monostate{}) {}
+    Value(double n) : type(VType::Float64), data(n) {}
+    Value(int64_t n) : type(VType::Int64), data(n) {}
+    Value(int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
+    Value(unsigned int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
+    Value(size_t n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
+    Value(std::string s) : type(VType::String) {
         data = StringPool::intern(s);
     }
-    Value(std::vector<Value> l) {
+    Value(std::vector<Value> l) : type(VType::Array) {
         data = std::make_shared<VyneArray>(std::move(l));
     }
-    Value(std::shared_ptr<FunctionData> f) : data(std::move(f)) {}
-    Value(std::vector<Parameter> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) {
+    Value(std::shared_ptr<FunctionData> f) : type(VType::Function), data(std::move(f)) {}
+    Value(std::vector<Parameter> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) 
+        : type(VType::Function)  {
         auto func = std::make_shared<FunctionData>();
         func->arity = static_cast<int>(p.size());
         func->params = std::move(p);
@@ -144,7 +146,7 @@ struct Value {
         
         this->data = std::move(func);
     }
-    Value(uint32_t mId, std::string moduleName, bool isModule) {
+    Value(uint32_t mId, std::string moduleName, bool isModule) : type(VType::Module) {
         data = std::make_shared<ModuleData>(mId, std::move(moduleName));
     }
     Value(std::function<Value(std::vector<Value>&)> native) {
@@ -154,7 +156,7 @@ struct Value {
         data = std::move(func);
     }
     Value(std::shared_ptr<VyneStruct> s) : data(std::move(s)) {}
-    Value(Value* refTarget) : data(refTarget) {}
+    Value(Value* refTarget) : type(VType::Reference), data(refTarget) {}
     Value(const Value&) = default;
 
     // safe getters
