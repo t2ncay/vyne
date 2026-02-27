@@ -282,25 +282,36 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 }
 
 Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    if (left->type() != NodeType::VARIABLE) {
-        throw std::runtime_error("Type Error: Cannot increment a non-variable [ line " + std::to_string(lineNumber) + " ]");
-    }
-
-    auto* varNode = static_cast<VariableNode*>(left.get());
-
     Value oldValue = left->evaluate(env, currentGroup);
     Value newVal;
 
     if (oldValue.getType() == Value::INT64) {
         int64_t raw = oldValue.asInt();
         newVal = Value(op == VTokenType::Double_Increment ? raw + 1 : raw - 1);
-    } else {
+    } else if (oldValue.getType() == Value::FLOAT64) {
         double raw = oldValue.asFloat();
         newVal = Value(op == VTokenType::Double_Increment ? raw + 1.0 : raw - 1.0);
+    } else {
+        throw std::runtime_error("Type Error: Cannot increment/decrement non-numeric type [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    env[currentGroup][varNode->getNameId()] = newVal;
-    return newVal;
+    if (auto* memNode = dynamic_cast<MemberAccessNode*>(left.get())) {
+        std::string containerPath = memNode->getReceiverPath(); 
+        uint32_t memberId = StringPool::instance().intern(memNode->getMemberName());
+        
+        Value* internalVal = env.getInternalPointer(containerPath, memberId);
+        *internalVal = newVal;
+    } 
+    else if (auto* varNode = dynamic_cast<VariableNode*>(left.get())) {
+        std::string targetScope = currentGroup.empty() ? "global" : currentGroup;
+        Value* internalVal = env.getInternalPointer(targetScope, varNode->getNameId());
+        *internalVal = newVal;
+    } 
+    else {
+        throw std::runtime_error("Type Error: L-value required as increment operand [ line " + std::to_string(lineNumber) + " ]");
+    }
+
+    return oldValue; 
 }
 
 Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {

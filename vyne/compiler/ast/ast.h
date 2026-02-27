@@ -640,6 +640,15 @@ public:
         }
         return memberName; 
     }
+
+    std::string getReceiverPath() const {
+        if (auto var = dynamic_cast<VariableNode*>(receiver.get())) {
+            return var->getOriginalName();
+        } else if (auto mem = dynamic_cast<MemberAccessNode*>(receiver.get())) {
+            return mem->getPath();
+        }
+        return "";
+    }
 };
 
 class NullNode : public ASTNode {
