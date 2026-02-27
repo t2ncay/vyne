@@ -10,7 +10,8 @@ enum class VType {
     Array = 4,
     Function = 5, 
     Module = 6,
-    Struct = 7
+    Struct = 7,
+    Reference = 8
 };
 
 inline VType stringToVType(std::string_view name) {
@@ -18,7 +19,7 @@ inline VType stringToVType(std::string_view name) {
     if (name == "Float64")  return VType::Float64;
     if (name == "Array")  return VType::Array;
     if (name == "String") return VType::String;
-    return VType::Struct;
+    return VType::Unknown;
 }
 
 inline std::string VTypeToString(VType type) {
@@ -29,6 +30,7 @@ inline std::string VTypeToString(VType type) {
         case VType::String:   return "String";
         case VType::Function: return "Function";
         case VType::Module:   return "Module";
+        case VType::Reference: return "Reference";
         default:              return "Unknown";
     }
 }

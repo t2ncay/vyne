@@ -235,9 +235,12 @@ std::vector<Token> tokenize(std::string_view input) {
             case '&' : {
                 if(i + 1 < input.length() && input[i + 1] == '&'){
                     tokens.emplace_back(VTokenType::And, currentLine, 0, "&&");
+                    i += 2;
+                } else {
+                    tokens.emplace_back(VTokenType::Referencer, currentLine, 0, "&");
                     i++;
                 }
-                break;
+                continue;
             }
             case '|' : {
                 if(i + 1 < input.length() && input[i + 1] == '|'){

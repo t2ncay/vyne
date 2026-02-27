@@ -54,6 +54,11 @@ VType Parser::resolveType(std::string_view typeName) {
     VType primitive = stringToVType(typeName);
     if (primitive != VType::Unknown) return primitive;
 
+    if (peekToken().type == VTokenType::Referencer) {
+        consume(VTokenType::Referencer);
+        return VType::Reference;
+    }
+
     if (isDeclaredAsStruct(std::string(typeName))) {
         return VType::Struct;
     }
@@ -522,6 +527,7 @@ std::unique_ptr<ASTNode> Parser::parseBuiltInCall() {
 std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     Token tok = consume(VTokenType::Identifier);
     int line = tok.line;
+    bool isRefVar = false;
 
     if (tok.type == VTokenType::Return   || 
         tok.type == VTokenType::Function || 
@@ -536,8 +542,14 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
         Token typeTok = consume(VTokenType::Identifier);
-
         explicitType = resolveType(typeTok.name);
+
+        if (peekToken().type == VTokenType::Referencer || explicitType == VType::Reference) {
+            if (peekToken().type == VTokenType::Addresser) consume(VTokenType::Addresser);
+            isRefVar = true;
+            explicitType = VType::Reference;
+        }
+
         if (explicitType == VType::Unknown) {
             throw std::runtime_error("Type Error : Unexpected type " + std::string(typeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
@@ -559,7 +571,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         consume(VTokenType::Right_Parenthese);
         node = std::make_unique<FunctionCallNode>(currentId, lastName, std::move(args));
     } else {
-        node = std::make_unique<VariableNode>(currentId, tok.name, explicitType);
+        node = std::make_unique<VariableNode>(currentId, tok.name, explicitType, std::vector<std::string>{}, isRefVar);
     }
 
     while (peekToken().type == VTokenType::Dot || peekToken().type == VTokenType::Left_Bracket) {
@@ -685,6 +697,7 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
 std::unique_ptr<ASTNode> Parser::parseAssignment() {
     int line = peekToken().line;
     bool isConst = false;
+    bool isReference = false;
 
     if (peekToken().type == VTokenType::Const) {
         consume(VTokenType::Const);
@@ -699,6 +712,11 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
         varType = resolveType(consume(VTokenType::Identifier).name);
+
+        if (peekToken().type == VTokenType::Referencer) {
+            consume(VTokenType::Referencer);
+            isReference = true;
+        }
     }
 
     std::unique_ptr<ASTNode> rhs = nullptr;
@@ -720,7 +738,13 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     defineSymbol(varId, varType, varType != VType::Unknown);
 
     auto node = std::make_unique<AssignmentNode>(
-        varId, originalName, std::move(rhs), isConst, varType, std::vector<std::string>{}
+        varId, 
+        originalName, 
+        std::move(rhs), 
+        isConst, 
+        isReference,
+        varType, 
+        std::vector<std::string>{}
     );
     node->lineNumber = line;
     return node;
