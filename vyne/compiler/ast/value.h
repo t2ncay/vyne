@@ -176,6 +176,8 @@ struct Value {
 
     const std::string& asModule() const;
 
+    std::shared_ptr<VyneStruct> asStruct() const;
+
     bool isReference() const;
 
     Value* getPointer() const;

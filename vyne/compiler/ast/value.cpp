@@ -78,6 +78,13 @@ const std::string& Value::asModule() const {
     return static_cast<ModuleData*>(obj.get())->name;
 }
 
+std::shared_ptr<VyneStruct> Value::asStruct() const {
+    if (auto obj = std::get_if<std::shared_ptr<VyneObject>>(&data)) {
+        return std::static_pointer_cast<VyneStruct>(*obj);
+    }
+    throw std::runtime_error("Type Error: Value is not a Struct");
+}
+
 bool Value::isReference() const {
         return std::holds_alternative<Value*>(data);
     }

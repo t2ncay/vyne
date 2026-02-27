@@ -967,6 +967,20 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
     }
 }
 
+Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    Value newValue = rhs->evaluate(env, currentGroup);
+
+    Value recVal = receiver->evaluate(env, currentGroup);
+
+    auto structPtr = recVal.asStruct();
+    
+    uint32_t memberId = StringPool::instance().intern(memberName);
+    
+    structPtr->fields[memberId] = newValue;
+
+    return newValue;
+}
+
 Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value lastValue;
     for (const auto& statement : statements) lastValue = statement->evaluate(env, currentGroup);

@@ -130,7 +130,6 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     declaredTypes.insert(fullName); 
 
     // also inserting short name to use it inside groups
-    
     if (!currentGroupName.empty()) declaredTypes.insert(interfaceName);
 
     consume(VTokenType::Left_CB);
@@ -722,60 +721,76 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         isConst = true;
     }
 
-    Token nameTok = consume(VTokenType::Identifier);
-    std::string originalName = nameTok.name;
-    uint32_t varId = StringPool::instance().intern(originalName);
+    auto lhs = parsePostfix();
 
-    VType varType = VType::Unknown;
-    bool isReference = false;
-    std::string customTypeName = "";
+    if (peekToken().type == VTokenType::Equals) {
+        if (auto* mem = dynamic_cast<MemberAccessNode*>(lhs.get())) {
+            consume(VTokenType::Equals);
+            auto rhs = parseExpression();
+            consumeSemicolon();
 
-    if (peekToken().type == VTokenType::Extends) {
-        consume(VTokenType::Extends);
-        customTypeName = parseTypePath();
-        varType = resolveType(customTypeName);
-
-        if (peekToken().type == VTokenType::Referencer) {
-            consume(VTokenType::Referencer);
-            isReference = true;
+            auto node = std::make_unique<MemberAssignmentNode>(
+                std::move(mem->getReceiver()), 
+                mem->getMemberName(),
+                std::move(rhs)
+            );
+            node->lineNumber = line;
+            return node;
         }
     }
 
-    std::unique_ptr<ASTNode> rhs = nullptr;
-    if (peekToken().type == VTokenType::Equals) {
-        consume(VTokenType::Equals);
-        rhs = parseExpression();
-    } else {
-        if (isReference) {
-            rhs = std::make_unique<NullNode>();
-        } else {
-            switch (varType) {
-                case VType::String:  rhs = std::make_unique<StringNode>(""); break;
-                case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
-                case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
-                case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
-                case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
-                default:             rhs = std::make_unique<NullNode>(); break; 
+    if (auto* var = dynamic_cast<VariableNode*>(lhs.get())) {
+        uint32_t varId = var->getNameId();
+        std::string originalName = var->getOriginalName();
+        VType varType = VType::Unknown;
+        bool isReference = var->isRefVar();
+        std::string customTypeName = "";
+
+        if (peekToken().type == VTokenType::Extends) {
+            consume(VTokenType::Extends);
+            customTypeName = parseTypePath();
+            varType = resolveType(customTypeName);
+
+            if (peekToken().type == VTokenType::Referencer) {
+                consume(VTokenType::Referencer);
+                isReference = true;
             }
         }
+
+        std::unique_ptr<ASTNode> rhs = nullptr;
+        if (peekToken().type == VTokenType::Equals) {
+            consume(VTokenType::Equals);
+            rhs = parseExpression();
+        } else {
+            if (isReference) {
+                rhs = std::make_unique<NullNode>();
+            } else {
+                switch (varType) {
+                    case VType::String:  rhs = std::make_unique<StringNode>(""); break;
+                    case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
+                    case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
+                    case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
+                    case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
+                    default:             rhs = std::make_unique<NullNode>(); break; 
+                }
+            }
+        }
+
+        consumeSemicolon();
+        defineSymbol(varId, varType, varType != VType::Unknown);
+
+        auto node = std::make_unique<AssignmentNode>(
+            varId, originalName, std::move(rhs), 
+            isConst, isReference, varType, std::vector<std::string>{}
+        );
+        node->lineNumber = line;
+        return node;
     }
 
     consumeSemicolon();
-
-    defineSymbol(varId, varType, varType != VType::Unknown);
-
-    auto node = std::make_unique<AssignmentNode>(
-        varId, 
-        originalName, 
-        std::move(rhs), 
-        isConst, 
-        isReference,
-        varType, 
-        std::vector<std::string>{} 
-    );
-    node->lineNumber = line;
-    return node;
+    return lhs;
 }
+
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);

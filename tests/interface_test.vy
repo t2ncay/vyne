@@ -6,4 +6,5 @@ group Master {
 };
 
 hydrogen :: Master.Element = Master.Element(1.008, "H");
+hydrogen.name = "E";
 out(hydrogen);

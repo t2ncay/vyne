@@ -142,6 +142,7 @@ enum class NodeType {
     INTERFACE,
 
     NULLTYPE,
+    MEMBER_ASSIGNMENT,
 
     BREAK,
     CONTINUE
@@ -236,6 +237,7 @@ public:
     const std::vector<std::string>& getScope() const { return specificGroup; }
     uint32_t getNameId() const { return nameId; }
     const std::string& getOriginalName() const { return originalName; }
+    bool isRefVar() const { return isReference; }
     VType getStaticType() const override { return explicitType; }
 };
 
@@ -270,6 +272,23 @@ public:
 
     void compile(Emitter& e) const override;
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+};
+
+class MemberAssignmentNode : public ASTNode {
+    std::unique_ptr<ASTNode> receiver;
+    std::string memberName;
+    std::unique_ptr<ASTNode> rhs;
+
+public:
+    MemberAssignmentNode(std::unique_ptr<ASTNode> rec, std::string mem, std::unique_ptr<ASTNode> r)
+        : ASTNode(NodeType::MEMBER_ASSIGNMENT), 
+          receiver(std::move(rec)), 
+          memberName(std::move(mem)), 
+          rhs(std::move(r)) {}
+
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
+
+    void compile(Emitter& e) const override;
 };
 
 class BinOpNode : public ASTNode {
@@ -607,6 +626,9 @@ class MemberAccessNode : public ASTNode {
 public:
     MemberAccessNode(std::unique_ptr<ASTNode> rec, std::string mem) : 
         ASTNode(NodeType::MEMBER_ACCESS), receiver(std::move(rec)), memberName(std::move(mem)) {}
+
+    std::unique_ptr<ASTNode> getReceiver() { return std::move(receiver); }
+    const std::string& getMemberName() const { return memberName; }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
