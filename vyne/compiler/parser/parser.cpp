@@ -789,6 +789,24 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             node->lineNumber = line;
             return node;
         }
+        
+        if (auto* idx = dynamic_cast<IndexAccessNode*>(lhs.get())) {
+            consume(VTokenType::Equals);
+            auto rhs = parseExpression();
+            consumeSemicolon();
+            
+            auto base = idx->takeBase();
+            auto index = idx->takeIndex();
+            
+            auto node = std::make_unique<IndexAssignmentNode>(
+                std::move(base),
+                std::move(index),
+                std::move(rhs),
+                isConst
+            );
+            node->lineNumber = line;
+            return node;
+        }
     }
 
     if (auto* var = dynamic_cast<VariableNode*>(lhs.get())) {
@@ -814,6 +832,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             consume(VTokenType::Equals);
             rhs = parseExpression();
         } else {
+            // Default initialization
             if (isReference) {
                 rhs = std::make_unique<NullNode>();
             } else {

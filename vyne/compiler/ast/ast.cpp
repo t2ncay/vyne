@@ -464,6 +464,44 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
     throw std::runtime_error("Type Error: Cannot index non-array, non-string type [ line " + std::to_string(lineNumber) + " ]");
 }
 
+Value IndexAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    Value baseVal = base->evaluate(env, currentGroup);
+    
+    Value idxVal = index->evaluate(env, currentGroup);
+    int64_t rawIdx = idxVal.asInt();
+    
+    if (rawIdx < 0) {
+        throw std::runtime_error("Index Error: Negative index (" + std::to_string(rawIdx) + 
+                                ") [ line " + std::to_string(lineNumber) + " ]");
+    }
+    size_t idx = static_cast<size_t>(rawIdx);
+    
+    Value val = rhs->evaluate(env, currentGroup);
+    
+    if (baseVal.getType() == Value::ARRAY) {
+        auto& vec = baseVal.asList();
+        if (idx >= vec.size()) {
+            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + 
+                                    ") on array [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        if(baseVal.isReadOnly)
+            throw std::runtime_error("Const Error: Cannot modify element of const array '" + arrayName + 
+                        "' [ line " + std::to_string(lineNumber) + " ]");
+
+        vec[idx] = val;
+        return val;
+    }
+    
+    else if (baseVal.getType() == Value::STRING) {
+        throw std::runtime_error("Runtime Error: Strings are immutable, cannot assign to index [ line " + 
+                                std::to_string(lineNumber) + " ]");
+    }
+    
+    throw std::runtime_error("Type Error: Cannot assign to index of non-array type [ line " + 
+                            std::to_string(lineNumber) + " ]");
+}
+
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value funcValue(
         parameters, 

@@ -114,6 +114,7 @@ enum class NodeType {
     BOOLEAN,
     VARIABLE,
     ASSIGNMENT,
+    INDEX_ASSIGNMENT,
 
     BINARY_OP,
     POSTFIX,
@@ -432,6 +433,38 @@ public:
     }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
+    void compile(Emitter& e) const override;
+    std::unique_ptr<ASTNode> takeBase() { return std::move(base); }
+    std::unique_ptr<ASTNode> takeIndex() { return std::move(index); }
+};
+
+class IndexAssignmentNode : public ASTNode {
+    std::unique_ptr<ASTNode> base;
+    std::unique_ptr<ASTNode> index;
+    std::unique_ptr<ASTNode> rhs;
+     std::string arrayName;
+    bool isConstant;
+
+public:
+    IndexAssignmentNode(std::unique_ptr<ASTNode> b, 
+                        std::unique_ptr<ASTNode> idx, 
+                        std::unique_ptr<ASTNode> r,
+                        bool ic)
+        : ASTNode(NodeType::INDEX_ASSIGNMENT), 
+          base(std::move(b)), 
+          index(std::move(idx)), 
+          rhs(std::move(r)),
+          isConstant(ic) 
+        {
+            if (auto* var = dynamic_cast<VariableNode*>(base.get())) {
+                arrayName = var->getOriginalName();
+            } else {
+                arrayName = "anonymous";
+            }
+        }
+
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
+    
     void compile(Emitter& e) const override;
 };
 

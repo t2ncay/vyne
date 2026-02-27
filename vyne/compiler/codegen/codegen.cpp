@@ -138,7 +138,7 @@ void BreakNode::compile(Emitter& e) const {}
 void ContinueNode::compile(Emitter& e) const {}
 void NullNode::compile(Emitter& e) const {}
 void MemberAssignmentNode::compile(Emitter& e) const {}
-
+void IndexAssignmentNode::compile(Emitter& e) const {}
 
 void ReturnNode::compile(Emitter& e) const {
     if (expression) expression->compile(e);
