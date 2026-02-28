@@ -5,14 +5,17 @@ group Master :: custom {
         atomic_mass :: Int64,
         name :: String,
 
-        getName(x) {
-            return self.name;
+        getName() {
+            if self.name == "" {
+                return "Empty";
+            } else {
+                return self.name;
+            }
         }
     }
 };
 
 hydrogen :: custom.Master.Element = custom.Master.Element();
-hydrogen.name = "E";
 out(hydrogen.atomic_mass);
 out(hydrogen);
 out(hydrogen.getName());
