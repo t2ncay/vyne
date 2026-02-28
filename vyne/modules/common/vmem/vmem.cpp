@@ -40,11 +40,17 @@ namespace VMemNative {
         if (!g_env) return Value(0.0);
 
         if(args.empty()){
-            for (auto const& [groupName, table] : *g_env) {
+            for (auto const& [groupId, table] : *g_env) {
+                std::string groupName = StringPool::instance().get(groupId);
                 totalBytes += groupName.capacity();
-
+                
+                totalBytes += sizeof(table);
+                
                 for (auto const& [id, val] : table) {
-                    totalBytes += sizeof(uint32_t); 
+                    std::string symName = StringPool::instance().get(id);
+                    totalBytes += symName.capacity();
+                    
+                    // Value storage
                     totalBytes += sizeof(Value);
                     totalBytes += val.getDeepBytes();
                 }

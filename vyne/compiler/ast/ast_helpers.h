@@ -8,8 +8,8 @@
 // Symbol Lookup Helpers
 // ============================================================================
 
-inline Value* lookupSymbol(SymbolContainer& env, const std::string& group, uint32_t id) {
-    auto gIt = env.find(group);
+inline Value* lookupSymbol(SymbolContainer& env, uint32_t groupId, uint32_t id) {
+    auto gIt = env.find(groupId);
     if (gIt != env.end()) {
         auto vIt = gIt->second.find(id);
         if (vIt != gIt->second.end()) return &vIt->second;
@@ -18,16 +18,24 @@ inline Value* lookupSymbol(SymbolContainer& env, const std::string& group, uint3
 }
 
 inline Value* lookupSymbolWithFallback(SymbolContainer& env, 
-                                       const std::string& targetGroup, 
+                                       uint32_t targetGroupId, 
                                        uint32_t id,
-                                       const std::string& fallbackGroup = "global") {
-    Value* valPtr = lookupSymbol(env, targetGroup, id);
-    if (!valPtr && targetGroup != fallbackGroup) {
-        valPtr = lookupSymbol(env, fallbackGroup, id);
+                                       uint32_t fallbackGroupId) {
+    Value* valPtr = lookupSymbol(env, targetGroupId, id);
+    if (!valPtr && targetGroupId != fallbackGroupId) {
+        valPtr = lookupSymbol(env, fallbackGroupId, id);
     }
     return valPtr;
 }
 
+inline uint32_t getGlobalId() {
+    static uint32_t globalId = StringPool::instance().intern("global");
+    return globalId;
+}
+
+inline uint32_t getGroupId(const std::string& groupName) {
+    return StringPool::instance().intern(groupName);
+}
 // ============================================================================
 // Type Checking Helpers
 // ============================================================================
@@ -109,6 +117,22 @@ inline std::string createLocalScope(const std::string& prefix, const std::string
     return prefix + "_" + name + "_" + std::to_string(callCount++);
 }
 
+inline Value* findVariableInScope(SymbolContainer& env, 
+                                  const std::string& currentScope,
+                                  uint32_t varId) {
+    uint32_t scopeId = StringPool::instance().intern(currentScope);
+    auto scopeIt = env.find(scopeId);
+    
+    if (scopeIt != env.end()) {
+        auto varIt = scopeIt->second.find(varId);
+        if (varIt != scopeIt->second.end()) {
+            return &varIt->second;
+        }
+    }
+        
+    return nullptr;
+}
+
 // ============================================================================
 // Scope Management Helpers
 // ============================================================================
@@ -116,9 +140,15 @@ inline std::string createLocalScope(const std::string& prefix, const std::string
 class ScopedEnvironment {
     SymbolContainer& env;
     std::string scopeName;
+    std::string parentScope;
 public:
     ScopedEnvironment(SymbolContainer& e, std::string name) 
         : env(e), scopeName(std::move(name)) {
+        env[scopeName] = SymbolTable();
+    }
+
+    ScopedEnvironment(SymbolContainer& e, std::string name, const std::string& parent = "") 
+        : env(e), scopeName(std::move(name)), parentScope(parent) {
         env[scopeName] = SymbolTable();
     }
     
@@ -133,6 +163,22 @@ public:
     
     void bind(uint32_t id, Value val) {
         env[scopeName][id] = std::move(val);
+    }
+
+    Value* lookup(uint32_t id) {
+        auto it = env[scopeName].find(id);
+        if (it != env[scopeName].end()) return &it->second;
+        
+        if (!parentScope.empty()) {
+            uint32_t parentId = StringPool::instance().intern(parentScope);
+            auto parentIt = env.find(parentId);
+            if (parentIt != env.end()) {
+                auto varIt = parentIt->second.find(id);
+                if (varIt != parentIt->second.end()) return &varIt->second;
+            }
+        }
+        
+        return nullptr;
     }
     
     const std::string& name() const { return scopeName; }

@@ -26,33 +26,78 @@ struct Value;
 class ASTNode;
 using SymbolTable = std::unordered_map<uint32_t, Value>;
 class SymbolContainer {
-    std::unordered_map<std::string, SymbolTable> table;
+    std::unordered_map<uint32_t, SymbolTable> table;
     std::vector<std::string> deployedModules;
     std::string currentSourceDir = ".";
 
+    // Helper to intern strings to uint32_t
+    uint32_t intern(const std::string& s) const {
+        return StringPool::instance().intern(s);
+    }
+
 public:
-    SymbolTable& operator[](const std::string& key) { return table[key]; }
-    auto find(const std::string& key) { return table.find(key); }
+    // Key operations - now using uint32_t
+    SymbolTable& operator[](uint32_t id) { return table[id]; }
+    auto find(uint32_t id) { return table.find(id); }
+    auto find(uint32_t id) const { return table.find(id); }
+    bool contains(uint32_t id) const { return table.find(id) != table.end(); }
+    size_t count(uint32_t id) const { return table.count(id); }
+    size_t erase(uint32_t id) { return table.erase(id); }
+    const SymbolTable& at(uint32_t id) const { return table.at(id); }
+
+    // Convenience methods that accept strings (they intern automatically)
+    SymbolTable& operator[](const std::string& key) { 
+        return table[intern(key)]; 
+    }
+    
+    auto find(const std::string& key) { 
+        return table.find(intern(key)); 
+    }
+    
+    auto find(const std::string& key) const { 
+        return table.find(intern(key)); 
+    }
+    
+    bool contains(const std::string& key) const { 
+        return table.find(intern(key)) != table.end(); 
+    }
+    
+    size_t count(const std::string& key) const { 
+        return table.count(intern(key)); 
+    }
+    
+    size_t erase(const std::string& key) { 
+        return table.erase(intern(key)); 
+    }
+    
+    const SymbolTable& at(const std::string& key) const { 
+        return table.at(intern(key)); 
+    }
+
+    // Iterator support
     auto begin() { return table.begin(); } 
     auto begin() const { return table.begin(); }
     auto end() { return table.end(); }
     auto end() const { return table.end(); }
 
+    // Group/Module checks
     bool hasGroup(const std::string& name) const {
-        return table.find(name) != table.end();
+        return contains(name);
     }
 
     bool hasModule(const std::string& name) const {
-        return table.find(name) != table.end();
+        return contains(name);
     }
 
+    // Member access
     Value getGroupMember(const std::string& groupName, const std::string& memberName) {
-        auto moduleIt = table.find(groupName);
+        uint32_t groupId = intern(groupName);
+        auto moduleIt = table.find(groupId);
         if (moduleIt == table.end()) {
             throw std::runtime_error("Runtime Error: Group/Namespace '" + groupName + "' not found.");
         }
 
-        uint32_t memberId = StringPool::instance().intern(memberName);
+        uint32_t memberId = intern(memberName);
         
         SymbolTable& scope = moduleIt->second;
         auto varIt = scope.find(memberId);
@@ -64,37 +109,71 @@ public:
         return varIt->second;
     }
 
-    Value getModuleMember(const std::string& moduleName, const std::string& memberName) {
-        return getGroupMember(moduleName, memberName);
+    Value getModuleMember(uint32_t moduleId, const std::string& memberName) {
+        auto moduleIt = table.find(moduleId);
+        if (moduleIt == table.end()) {
+            std::string moduleName = StringPool::instance().get(moduleId);
+            throw std::runtime_error("Runtime Error: Module '" + moduleName + "' not found.");
+        }
+
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        SymbolTable& scope = moduleIt->second;
+        auto varIt = scope.find(memberId);
+
+        if (varIt == scope.end()) {
+            std::string moduleName = StringPool::instance().get(moduleId);
+            throw std::runtime_error("Runtime Error: '" + moduleName + "' has no member '" + memberName + "'");
+        }
+
+        return varIt->second;
+    }
+
+    Value* getInternalPointer(uint32_t moduleId, uint32_t varId) {
+        auto moduleIt = table.find(moduleId);
+        if (moduleIt == table.end()) {
+            std::string moduleName = StringPool::instance().get(moduleId);
+            throw std::runtime_error("Module '" + moduleName + "' not found.");
+        }
+
+        SymbolTable& scope = moduleIt->second;
+        auto varIt = scope.find(varId);
+        if (varIt == scope.end()) {
+            throw std::runtime_error("Variable ID '" + std::to_string(varId) + "' not found.");
+        }
+
+        return &(varIt->second);
+    }
+    
+    // Keep old version for backward compatibility
+    Value* getInternalPointer(const std::string& moduleName, uint32_t varId) {
+        uint32_t moduleId = StringPool::instance().intern(moduleName);
+        return getInternalPointer(moduleId, varId);
     }
 
     void deploy(const std::string& moduleName) {
         deployedModules.emplace_back(moduleName);
-        if (table.find(moduleName) == table.end()) {
-            table[moduleName] = SymbolTable();
+        uint32_t moduleId = intern(moduleName);
+        if (table.find(moduleId) == table.end()) {
+            table[moduleId] = SymbolTable();
         }
     }
 
-    Value* getInternalPointer(const std::string& moduleName, uint32_t varId) {
-        auto moduleIt = table.find(moduleName);
-        if (moduleIt == table.end()) throw std::runtime_error("Module '" + moduleName + "' not found.");
-
-        SymbolTable& scope = moduleIt->second;
-        auto varIt = scope.find(varId);
-        if (varIt == scope.end()) throw std::runtime_error("Variable ID '" + std::to_string(varId) + "' not found.");
-
-        return &(varIt->second);
+    const std::vector<std::string>& getDeployedList() const { 
+        return deployedModules; 
     }
 
-    size_t count(const std::string& key) const { return table.count(key); }
-    bool contains(const std::string& key) const { return table.find(key) != table.end(); }
-    const std::vector<std::string>& getDeployedList() const { return deployedModules; }
-    size_t erase(const std::string& key) { return table.erase(key); }
-    const SymbolTable& at(const std::string& key) const { return table.at(key); }
+    void setSourceDir(const std::string& path) { 
+        currentSourceDir = std::filesystem::path(path).parent_path().string(); 
+    }
+    
+    std::string getSourceDir() const { 
+        return currentSourceDir; 
+    }
+
+    // Utility
     size_t size() const { return table.size(); }
     bool empty() const { return table.empty(); }
-    void setSourceDir(const std::string& path) { currentSourceDir = std::filesystem::path(path).parent_path().string(); }
-    std::string getSourceDir() const { return currentSourceDir; }
 };
 
 // exception signals
