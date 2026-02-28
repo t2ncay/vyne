@@ -768,96 +768,73 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
         
         auto structPtr = receiverVal.asStruct();
+        CallContext ctx{env, currentGroup, lineNumber, methodName};
 
         auto methodNodeIt = structPtr->methodNodes.find(methodId);
         if (methodNodeIt != structPtr->methodNodes.end()) {
             FunctionNode* funcNode = methodNodeIt->second;
             Value funcVal = funcNode->evaluate(env, currentGroup);
-            
             structPtr->methods[methodId] = funcVal;
             
             auto funcData = funcVal.asFunction();
-            
-            std::vector<Value> allArgs;
-            allArgs.emplace_back(receiverVal);  // self
-            
+            std::vector<Value> allArgs = { receiverVal };
             for (auto& arg : arguments) {
-                allArgs.emplace_back(arg->evaluate(env, currentGroup));
+                allArgs.push_back(arg->evaluate(env, currentGroup));
             }
             
             if (funcData->isNative) {
+                if (funcData->arity != -1) {
+                    checkArgumentCount(funcData->arity, allArgs.size() - 1, ctx);
+                }
                 return funcData->nativeFn(allArgs);
-            } else {
-                static uint64_t callCount = 0;
-                std::string localScope = "method_" + methodName + "_" + std::to_string(callCount++);
-                
-                env[localScope][StringPool::instance().intern("self")] = receiverVal;
-                
-                for (size_t i = 1; i < allArgs.size(); ++i) {
-                    if (i-1 < funcData->params.size()) {
-                        env[localScope][funcData->params[i-1].id] = allArgs[i];
-                    }
-                }
-                
-                Value result;
-                try {
-                    for (const auto& stmt : funcData->body) {
-                        result = stmt->evaluate(env, localScope);
-                    }
-                } catch (const ReturnException& e) {
-                    result = e.value;
-                }
-                
-                env.erase(localScope);
-                return result;
             }
+            
+            checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
+            
+            std::string localScope = createLocalScope("method", methodName);
+            ScopedEnvironment scope(env, localScope);
+            scope.bind("self", receiverVal);
+            
+            for (size_t i = 1; i < allArgs.size(); ++i) {
+                if (i-1 < funcData->params.size()) {
+                    scope.bind(funcData->params[i-1].id, allArgs[i]);
+                }
+            }
+            
+            return executeFunction(funcData, allArgs, env, localScope, lineNumber);
         }
         
         auto methodIt = structPtr->methods.find(methodId);
         if (methodIt != structPtr->methods.end()) {
             Value funcVal = methodIt->second;
-            
-            if (funcVal.getType() != Value::FUNCTION) {
-                throw std::runtime_error("Type Error: '" + methodName + 
-                    "' is not a callable method [ line " + std::to_string(lineNumber) + " ]");
-            }
+            checkCallableType(funcVal, ctx);
             
             auto funcData = funcVal.asFunction();
-            
-            std::vector<Value> allArgs;
-            allArgs.emplace_back(receiverVal);
-            
+            std::vector<Value> allArgs = { receiverVal };
             for (auto& arg : arguments) {
-                allArgs.emplace_back(arg->evaluate(env, currentGroup));
+                allArgs.push_back(arg->evaluate(env, currentGroup));
             }
             
             if (funcData->isNative) {
+                if (funcData->arity != -1) {
+                    checkArgumentCount(funcData->arity, allArgs.size() - 1, ctx);
+                }
                 return funcData->nativeFn(allArgs);
-            } else {
-                static uint64_t callCount = 0;
-                std::string localScope = "method_" + methodName + "_" + std::to_string(callCount++);
-                
-                env[localScope][StringPool::instance().intern("self")] = receiverVal;
-                
-                // Bind other parameters
-                for (size_t i = 1; i < allArgs.size(); ++i) {
-                    if (i-1 < funcData->params.size()) {
-                        env[localScope][funcData->params[i-1].id] = allArgs[i];
-                    }
-                }
-                
-                Value result;
-                try {
-                    for (const auto& stmt : funcData->body) {
-                        result = stmt->evaluate(env, localScope);
-                    }
-                } catch (const ReturnException& e) {
-                    result = e.value;
-                }
-                
-                env.erase(localScope);
-                return result;
             }
+            
+            checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
+            
+            std::string localScope = createLocalScope("method", methodName);
+            ScopedEnvironment scope(env, localScope);
+            scope.bind("self", receiverVal);
+            
+            for (size_t i = 1; i < allArgs.size(); ++i) {
+                if (i-1 < funcData->params.size()) {
+                    scope.bind(funcData->params[i-1].id, allArgs[i]);
+                }
+            }
+            
+            return executeFunction(funcData, allArgs, env, localScope, lineNumber);
         }
         
         auto fieldIt = structPtr->fields.find(methodId);
@@ -1137,8 +1114,13 @@ Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& cu
 }
 
 Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    std::string blockScope = createLocalScope("block", "scope");
+    ScopedEnvironment scope(env, blockScope);
+    
     Value lastValue;
-    for (const auto& statement : statements) lastValue = statement->evaluate(env, currentGroup);
+    for (const auto& statement : statements) {
+        lastValue = statement->evaluate(env, blockScope);  // Use block scope
+    }
     return lastValue; 
 }
 
