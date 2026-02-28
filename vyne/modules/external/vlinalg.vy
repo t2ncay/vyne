@@ -1,16 +1,21 @@
 use extern "vcolors.vy";
 module vlinalg;
+module vmath;
 
 group Types :: vlinalg {
     interface Matrix {
-        row :: Int64,
-        col :: Int64,
+        row  :: Int64,
+        col  :: Int64,
         data :: Array
     }
 
     interface Vector {
         x :: Int64,
         y :: Int64,
+
+        magnitude(){
+            return vmath.sqrt(self.x * self.x + self.y * self.y);
+        }
 
         slope(){
             return self.y / self.x;
@@ -68,3 +73,4 @@ fn :: vlinalg subtract(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
 }
 
 deploy vlinalg;
+deploy vmath;

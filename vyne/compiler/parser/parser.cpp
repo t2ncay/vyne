@@ -57,10 +57,9 @@ VType Parser::resolveType(std::string_view typeName) {
         name != "Int64" && name != "Float64" && name != "String" && 
         name != "Array" && name != "Bool" && name != "null") {
         
-        // Check if this might be a group name by looking at declaredTypes
         bool isGroupName = false;
         for (const auto& t : declaredTypes) {
-            if (t.find(name + ".") == 0) {  // If any type starts with "name."
+            if (t.find(name + ".") == 0) {
                 isGroupName = true;
                 break;
             }
@@ -71,18 +70,13 @@ VType Parser::resolveType(std::string_view typeName) {
         }
     }
         
-    std::cout << "resolveType called with: '" << name << "'" << std::endl;
     
-    // Check primitive types first
     VType primitive = stringToVType(name);
     if (primitive != VType::Unknown) {
-        std::cout << "  -> primitive type" << std::endl;
         return primitive;
     }
 
-    // FIRST: Check if the FULL path exists in declaredTypes
     if (declaredTypes.count(name)) {
-        std::cout << "  -> found full path: " << name << std::endl;
         return VType::Struct;
     }
 
@@ -93,22 +87,17 @@ VType Parser::resolveType(std::string_view typeName) {
         if (!currentModuleName.empty()) {
             std::string withModule = currentModuleName + "." + name;
             if (declaredTypes.count(withModule)) {
-                std::cout << "  -> found with module: " << withModule << std::endl;
                 return VType::Struct;
             }
         }
         
-        // Try to find the type part (last part after last dot)
         std::string lastPart = name.substr(name.find_last_of('.') + 1);
         if (declaredTypes.count(lastPart)) {
-            std::cout << "  -> found last part: " << lastPart << std::endl;
             return VType::Struct;
         }
     }
 
-    // Direct type name lookup
     if (declaredTypes.count(name)) {
-        std::cout << "  -> found direct: " << name << std::endl;
         return VType::Struct;
     }
 
@@ -116,16 +105,12 @@ VType Parser::resolveType(std::string_view typeName) {
     if (!currentModuleName.empty()) {
         std::string contextualName = currentModuleName + "." + name;
         if (declaredTypes.count(contextualName)) {
-            std::cout << "  -> found contextual: " << contextualName << std::endl;
             return VType::Struct;
         }
     }
 
     // If we get here, type wasn't found
-    std::cout << "Failed to resolve: '" << name << "'" << std::endl;
-    std::cout << "Known types:" << std::endl;
     for (const auto& t : declaredTypes) {
-        std::cout << "  - " << t << std::endl;
     }
 
     throw std::runtime_error("Type Error: '" + name + "' is not a defined type.");
@@ -222,7 +207,6 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
         namespacePart = consume(VTokenType::Identifier).name;
     } 
     else if (!groupPath.empty()) {
-        // Build the full group path
         for (size_t i = 0; i < groupPath.size(); ++i) {
             if (i > 0) namespacePart += ".";
             namespacePart += groupPath[i];
@@ -232,38 +216,27 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
         namespacePart = currentModuleName;
     }
 
-    // Register ALL possible paths that might be used
     if (!namespacePart.empty()) {
-        // Full path: vlinalg.Types.Matrix
         std::string fullPath = namespacePart + "." + interfaceName;
         declaredTypes.insert(fullPath);
-        std::cout << "Registered type: " << fullPath << std::endl;
         
-        // Module-relative path: vlinalg.Matrix
         if (!currentModuleName.empty()) {
             std::string modulePath = currentModuleName + "." + interfaceName;
             declaredTypes.insert(modulePath);
-            std::cout << "Registered type: " << modulePath << std::endl;
         }
         
-        // Group-relative path: Types.Matrix (this is what you're using in function signatures!)
         if (!groupPath.empty()) {
             std::string groupRelativePath = groupPath.back() + "." + interfaceName;
             declaredTypes.insert(groupRelativePath);
-            std::cout << "Registered type: " << groupRelativePath << std::endl;
         }
         
-        // Also try to register module.group.type path
         if (!currentModuleName.empty() && !groupPath.empty()) {
             std::string moduleGroupPath = currentModuleName + "." + groupPath.back() + "." + interfaceName;
             declaredTypes.insert(moduleGroupPath);
-            std::cout << "Registered type: " << moduleGroupPath << std::endl;
         }
     }
     
-    // Simple name: Matrix
     declaredTypes.insert(interfaceName);
-    std::cout << "Registered type: " << interfaceName << std::endl;
 
     consume(VTokenType::Left_CB);
     std::vector<InterfaceMember> members;

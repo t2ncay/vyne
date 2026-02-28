@@ -13,3 +13,4 @@ m2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 3, [
 vector :: vlinalg.Types.Vector = vlinalg.Types.Vector(2,3);
 out(vector);
 out(vector.slope());
+out(vector.magnitude());
