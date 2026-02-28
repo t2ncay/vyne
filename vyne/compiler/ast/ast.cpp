@@ -1,4 +1,5 @@
 #include "ast.h"
+#include "ast_helpers.h"
 
 #include "../../modules/common/vcore/vcore.h"
 #include "../../modules/common/vglib/vglib.h"
@@ -67,23 +68,18 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
 
 Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value val = rhs->evaluate(env, currentGroup);
-
     std::string targetGroup = resolvePath(scopePath, currentGroup);
     auto& table = env[targetGroup];
     auto it_existing = table.find(identifierId);
 
     if (it_existing != table.end() && it_existing->second.isReference()) {
-        if (it_existing->second.isReadOnly) {
-            throw std::runtime_error("Runtime Error: Cannot reassign read-only reference '" + originalName + "'");
-        }
-
+        checkReadOnly(it_existing->second, originalName, lineNumber);
         Value* targetPtr = it_existing->second.getPointer();
         
-        if (targetPtr->getType() == Value::FLOAT64 && val.getType() == Value::INT64) {
-            val = Value(val.asFloat());
-        } else if (targetPtr->getType() != Value::NONE && targetPtr->getType() != val.getType()) {
-             throw std::runtime_error("Type Error: Reference target mismatch. Cannot assign " + 
-                val.getTypeName() + " to " + targetPtr->getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
+        val = convertIfNeeded(val, targetPtr->getType(), lineNumber);
+        
+        if (targetPtr->getType() != Value::NONE && targetPtr->getType() != val.getType()) {
+            throw std::runtime_error("Type Error: Reference target mismatch...");
         }
 
         *targetPtr = val;
@@ -91,26 +87,18 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     if (expectedType != VType::Unknown) {
+        val = convertIfNeeded(val, static_cast<int>(expectedType), lineNumber);
         if (static_cast<int>(expectedType) != val.getType()) {
-            if (expectedType == VType::Float64 && val.getType() == Value::INT64) {
-                val = Value(val.asFloat());
-            } else {
-                throw std::runtime_error("Type Error: Expected " + VTypeToString(expectedType) + 
-                    ", got " + val.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
-            }
+            throw std::runtime_error("Type Error: Expected " + VTypeToString(expectedType) + "...");
         }
     }
 
     if (it_existing != table.end()) {
-        if (it_existing->second.isReadOnly) {
-            throw std::runtime_error("Runtime Error: Cannot reassign read-only '" + originalName + "'");
-        }
-        if (it_existing->second.getType() != Value::NONE && it_existing->second.getType() != val.getType()) {
-            if (it_existing->second.getType() == Value::FLOAT64 && val.getType() == Value::INT64) {
-                val = Value(val.asFloat());
-            } else {
-                throw std::runtime_error("Type Error: Cannot assign " + val.getTypeName() + " to " + it_existing->second.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
-            }
+        checkReadOnly(it_existing->second, originalName, lineNumber);
+        val = convertIfNeeded(val, it_existing->second.getType(), lineNumber);
+        if (it_existing->second.getType() != Value::NONE && 
+            it_existing->second.getType() != val.getType()) {
+            throw std::runtime_error("Type Error: Cannot assign...");
         }
     }
 
@@ -119,18 +107,11 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
             throw std::runtime_error("Runtime Error: Array '" + originalName + "' not found");
 
         Value& arrayVal = it_existing->second;
-        if (arrayVal.getType() != Value::ARRAY) 
-            throw std::runtime_error("Type Error: '" + originalName + "' is not an array");
-
+        auto& vec = getArrayRef(arrayVal, originalName, lineNumber);
         Value idxValue = indexExpr->evaluate(env, currentGroup);
-        size_t idx = static_cast<size_t>(idxValue.asInt());
-        auto& vec = arrayVal.asList();
-
-        if (idx < vec.size()) {
-            vec[idx] = val;
-        } else {
-            throw std::runtime_error("Index Error: Out of bounds");
-        }
+        size_t idx = validateIndex(idxValue, vec.size(), lineNumber);
+        
+        vec[idx] = val;
         return val;
     }
 
@@ -436,70 +417,43 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
 
 Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value baseVal = base->evaluate(env, currentGroup);
+    Value idxVal  = index->evaluate(env, currentGroup);
     
-    Value idxVal = index->evaluate(env, currentGroup);
-    int64_t rawIdx = idxVal.asInt();
-    
-    if (rawIdx < 0) {
-        throw std::runtime_error("Index Error: Negative index (" + std::to_string(rawIdx) + ") [ line " + std::to_string(lineNumber) + " ]");
-    }
-    size_t idx = static_cast<size_t>(rawIdx);
-
     if (baseVal.getType() == Value::ARRAY) {
         auto& vec = baseVal.asList();
-        if (idx >= vec.size()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on array [ line " + std::to_string(lineNumber) + " ]");
-        }
+        size_t idx = validateIndex(idxVal, vec.size(), lineNumber);
         return vec[idx];
     }
     
     else if (baseVal.getType() == Value::STRING) {
         const std::string& str = baseVal.asString();
-        if (idx >= str.length()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + ") on string [ line " + std::to_string(lineNumber) + " ]");
-        }
+        size_t idx = validateIndex(idxVal, str.length(), lineNumber);
         return Value(std::string(1, str[idx]));
     }
     
-    throw std::runtime_error("Type Error: Cannot index non-array, non-string type [ line " + std::to_string(lineNumber) + " ]");
+    throw std::runtime_error("Type Error: Cannot index non-array, non-string type...");
 }
 
 Value IndexAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value baseVal = base->evaluate(env, currentGroup);
-    
     Value idxVal = index->evaluate(env, currentGroup);
-    int64_t rawIdx = idxVal.asInt();
-    
-    if (rawIdx < 0) {
-        throw std::runtime_error("Index Error: Negative index (" + std::to_string(rawIdx) + 
-                                ") [ line " + std::to_string(lineNumber) + " ]");
-    }
-    size_t idx = static_cast<size_t>(rawIdx);
-    
     Value val = rhs->evaluate(env, currentGroup);
     
     if (baseVal.getType() == Value::ARRAY) {
         auto& vec = baseVal.asList();
-        if (idx >= vec.size()) {
-            throw std::runtime_error("Index Error: Out of bounds (" + std::to_string(idx) + 
-                                    ") on array [ line " + std::to_string(lineNumber) + " ]");
-        }
+        size_t idx = validateIndex(idxVal, vec.size(), lineNumber);
         
-        if(baseVal.isReadOnly)
-            throw std::runtime_error("Const Error: Cannot modify element of const array '" + arrayName + 
-                        "' [ line " + std::to_string(lineNumber) + " ]");
-
+        checkReadOnly(baseVal, arrayName, lineNumber);
+        
         vec[idx] = val;
         return val;
     }
     
     else if (baseVal.getType() == Value::STRING) {
-        throw std::runtime_error("Runtime Error: Strings are immutable, cannot assign to index [ line " + 
-                                std::to_string(lineNumber) + " ]");
+        throw std::runtime_error("Runtime Error: Strings are immutable...");
     }
     
-    throw std::runtime_error("Type Error: Cannot assign to index of non-array type [ line " + 
-                            std::to_string(lineNumber) + " ]");
+    throw std::runtime_error("Type Error: Cannot assign to index of non-array type...");
 }
 
 Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
@@ -552,61 +506,35 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
             "' is not a callable function or constructor [ line " + std::to_string(lineNumber) + " ]");
     }
 
+    CallContext ctx{env, currentGroup, lineNumber, originalName};
+    
     auto funcData = funcVal.asFunction();
-
     std::vector<Value> evaluatedArgs;
-    evaluatedArgs.reserve(arguments.size());
     for (const auto& arg : arguments) {
-        if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
+        if (arg) evaluatedArgs.push_back(arg->evaluate(env, currentGroup));
     }
 
     if (funcData->isNative) {
-        if (funcData->arity != -1 && funcData->arity != (int)evaluatedArgs.size()) {
-            throw std::runtime_error("Argument Error: " + originalName + " expects " + 
-                std::to_string(funcData->arity) + " arguments, but got " + 
-                std::to_string(evaluatedArgs.size()));
+        if (funcData->arity != -1) {
+            checkArgumentCount(funcData->arity, evaluatedArgs.size(), ctx);
         }
-
         return funcData->nativeFn(evaluatedArgs);
     }
 
-    auto& params = funcData->params;
-    if (params.size() != evaluatedArgs.size()) {
-        throw std::runtime_error("Argument Error: Argument count mismatch on function call " + 
-            originalName + " [ line " + std::to_string(lineNumber) + " ]");
-    }
+    checkArgumentCount(funcData->params.size(), evaluatedArgs.size(), ctx);
 
-    static uint64_t callCount = 0;
-    std::string localScope = "call_" + originalName + "_" + std::to_string(callCount++);
+    std::string localScope = createLocalScope("call", originalName);
+    ScopedEnvironment scope(env, localScope);
 
-    for (size_t i = 0; i < params.size(); ++i) {
+    for (size_t i = 0; i < funcData->params.size(); ++i) {
         if (evaluatedArgs[i].getType() == Value::ARRAY) {
-            env[localScope][params[i].id] = deepCopyArray(evaluatedArgs[i]);
+            scope.bind(funcData->params[i].id, deepCopyValue(evaluatedArgs[i]));
         } else {
-            env[localScope][params[i].id] = evaluatedArgs[i];
+            scope.bind(funcData->params[i].id, evaluatedArgs[i]);
         }
     }
 
-    Value result;
-    try {
-        for (const auto& bodyNode : funcData->body) {
-            if (bodyNode) result = bodyNode->evaluate(env, localScope);
-        }
-    } catch (const ReturnException& e) {
-        result = e.value; 
-    }
-
-    env.erase(localScope);
-
-    if (funcData->expectedReturnType != "null" && funcData->expectedReturnType != "Unknown") {
-        if (result.getTypeName() != funcData->expectedReturnType) {
-            throw std::runtime_error("Type Mismatch: '" + originalName + 
-                "' expected " + funcData->expectedReturnType + 
-                ", but returned " + result.getTypeName());
-        }
-    }
-
-    return result;
+    return executeFunction(funcData, evaluatedArgs, env, localScope, lineNumber);
 }
 
 Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
