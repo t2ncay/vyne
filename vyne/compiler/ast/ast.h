@@ -509,6 +509,20 @@ public:
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
+    static Value deepCopyArray(const Value& arr) {
+        auto& originalVec = arr.asList();
+        std::vector<Value> copiedVec;
+        
+        for (const auto& element : originalVec) {
+            if (element.getType() == Value::ARRAY) {
+                copiedVec.emplace_back(deepCopyArray(element));
+            } else {
+                copiedVec.emplace_back(element);
+            }
+        }
+        
+        return Value(std::move(copiedVec));
+    }
 };
 
 class ReturnNode : public ASTNode {

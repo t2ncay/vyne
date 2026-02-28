@@ -1,7 +1,8 @@
-module customs;
+arr = [1, 2, 3];
 
-fn :: customs add(a :: Int64, b :: Int64) -> Int64 {
-    return a + b;
+fn modify(a :: Array) -> Array {
+    a.push(99);
 }
 
-out(customs.add(3,5));
+modify(arr);
+out(arr);
