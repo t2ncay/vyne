@@ -22,8 +22,9 @@ private:
 	size_t pos = 0;
 	std::vector<std::unordered_map<uint32_t, SymbolInfo>> scopeStack;
 	std::unordered_set<std::string> declaredTypes;
-	std::string currentGroupName{};
-	std::string currentModuleName{};
+	std::string currentGroupName;
+	std::string currentModuleName;
+	std::vector<std::string> groupPath;
 
 	void pushScope() { scopeStack.push_back({}); }
 	void popScope()  { scopeStack.pop_back(); }

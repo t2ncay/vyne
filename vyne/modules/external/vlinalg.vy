@@ -1,19 +1,20 @@
 use extern "vcolors.vy";
 module vlinalg;
 
-# IMPORTANT NOTE : THIS LIBRARY INCLUDES
-# A SET OF FEATURES THAT VYNE CURRENTLY DOES NOT SUPPORT
-# ALL IMPLEMENTED FEATURES WILL BE RELEASED IN THE FUTURE
+group Types :: vlinalg {
+    interface Matrix {
+        row :: Int64,
+        col :: Int64,
+        data :: Array
+    }
 
-# IN ORDER TO WORK : IMPLEMENT INDEX ASSIGNMENTS
+    interface Vector {
+        x :: Int64,
+        y :: Int64
+    }
+};
 
-interface Matrix {
-    row :: Int64,
-    col :: Int64,
-    data :: Array
-}
-
-fn :: vlinalg add(a :: Matrix, b :: Matrix) -> Matrix {
+fn :: vlinalg add(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
     if (a.row != b.row) || (a.col != b.col) {
         out(vcolors.red("Matrix Error: Dimensions must match for addition."));
         return [];
@@ -35,10 +36,10 @@ fn :: vlinalg add(a :: Matrix, b :: Matrix) -> Matrix {
         result_data.push(new_row);
     };
 
-    return Matrix(a.row, a.col, result_data);
+    return Types.Matrix(a.row, a.col, result_data);
 }
 
-fn :: vlinalg subtract(a :: Matrix, b :: Matrix) -> Matrix {
+fn :: vlinalg subtract(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
     if (a.row != b.row) || (a.col != b.col) {
         out(vcolors.red("Matrix Error: Dimensions must match for subtraction."));
         return [];
@@ -59,66 +60,7 @@ fn :: vlinalg subtract(a :: Matrix, b :: Matrix) -> Matrix {
         result_data.push(new_row);
     };
 
-    return Matrix(a.row, a.col, result_data);
-}
-
-fn :: vlinalg rref(matrix :: Matrix) -> Matrix {
-    m = [];
-    
-    through i :: 0..matrix.row-1 -> loop {
-        new_row = [];
-        through j :: 0..matrix.col-1 -> loop {
-            new_row.push(matrix.data[i][j]);
-        };
-        m.push(new_row);    };
-    
-    lead = 0;
-    rowCount = matrix.row;
-    colCount = matrix.col;
-    
-    through r :: 0..rowCount-1 -> loop {
-        if lead >= colCount {
-            return Matrix(rowCount, colCount, m);
-        }
-        
-        i = r;
-        while m[i][lead] == 0 {
-            i = i + 1;
-            if i == rowCount {
-                i = r;
-                lead = lead + 1;
-                if lead == colCount {
-                    return Matrix(rowCount, colCount, m);
-                }
-            }
-        }
-        
-        if i != r {
-            temp = m[i];
-            m[i] = m[r];
-            m[r] = temp;
-        };
-        
-        val = m[r][lead];
-        if val != 0 {
-            through j :: 0..colCount-1 -> loop {
-                m[r][j] = m[r][j] / val;
-            };
-        };
-        
-        through i :: 0..rowCount-1 -> loop {
-            if i != r {
-                val = m[i][lead];
-                through j :: 0..colCount-1 -> loop {
-                    m[i][j] = m[i][j] - val * m[r][j];
-                };
-            };
-        };
-        
-        lead = lead + 1;
-    };
-    
-    return Matrix(rowCount, colCount, m);
+    return Types.Matrix(a.row, a.col, result_data);
 }
 
 deploy vlinalg;
