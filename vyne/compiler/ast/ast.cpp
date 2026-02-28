@@ -827,6 +827,18 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     if (receiverVal.getType() == Value::STRUCT) {
+        if (methodName == "fields") {
+            auto baseObj = receiverVal.asStruct();
+            auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
+            
+            std::vector<Value> fieldNames;
+            for (auto const& [id, val] : structPtr->fields) {
+                fieldNames.emplace_back(StringPool::instance().get(id));
+            }
+            
+            return Value(fieldNames);
+        }
+        
         auto structPtr = receiverVal.asStruct();
         
         auto methodIt = structPtr->methods.find(methodId);
