@@ -33,7 +33,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.vyne",
-          "match": "\\b(true|false|const)\\b"
+          "match": "\\b(true|false|const|self)\\b"
         }
       ]
     },
@@ -80,7 +80,7 @@
         },
         {
           "name": "support.class.vyne",
-          "match": "\\b(vcore|vglib|vmem|String|Array|Number|Int64|Float64)\\b"
+          "match": "\\b(vcore|vglib|vmem|vmath|String|Array|Number|Int64|Float64)\\b"
         }
       ]
     },
