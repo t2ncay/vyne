@@ -21,7 +21,7 @@ group Types :: vlinalg {
             return self.y / self.x;
         }
 
-        cross_product(other :: Vector) -> Int64 {
+        cross_product(other :: Types.Vector) -> Int64 {
             return self.x * other.y - self.y * other.x;
         }
     }
