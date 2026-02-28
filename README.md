@@ -70,6 +70,69 @@ Vyne leverages native C++ modules to handle high-performance tasks that the inte
 
 ---
 
+### 🏛 Structs & Object-Oriented Interfaces
+
+Vyne uses `interface` definitions to create structured data types. Unlike traditional interfaces, Vyne interfaces act as **Constructors** and can contain **Methods** with access to the instance via the `self` keyword.
+
+#### 1. Interface Anatomy
+
+| Component       | Syntax Example               | Description                                                                 |
+| :-------------- | :--------------------------- | :-------------------------------------------------------------------------- |
+| **Fields**      | `row :: Int64`               | Explicitly typed data members.                                              |
+| **Methods**     | `magnitude() { ... }`        | Functions defined inside the interface scope.                               |
+| **Self-Ref**    | `self.x`                     | Accesses the current instance's fields or other methods.                    |
+| **Namespacing** | `group Types :: mod { ... }` | Interfaces can be nested inside groups for strict organizational hierarchy. |
+
+#### 2. Usage & Implementation
+
+Interfaces are instantiated using the type name as a constructor. Methods are invoked using dot notation.
+
+```vyne
+use extern "vlinalg.vy";
+```
+
+##### 1. Instantiation (Constructor Mode)
+
+Parameters are mapped positionally to the interface fields
+
+```vyne
+pos :: vlinalg.Types.Vector = vlinalg.Types.Vector(10, 20);
+```
+
+##### 2. Method Invocation
+
+Methods have internal access to fields via 'self'
+
+```vyne
+m = pos.magnitude();
+```
+
+##### 3. Type-Safe Method Arguments
+
+Methods can accept other instances as typed parameters
+
+```vyne
+other_pos = vlinalg.Types.Vector(5, 5);
+cp = pos.cross_product(other_pos);
+```
+
+#### 3. Field & Method Introspection
+
+Every struct instance in Vyne supports built-in reflection to assist with debugging and dynamic logic:
+
+- **`obj.fields()`**: Returns an `Array` of strings containing all defined field names.
+- **`out(obj)`**: Native string representation showing the internal state: `Vector { x: 10, y: 20 }`.
+- **Member Assignment**: Supports direct updates to fields, e.g., `pos.x = 50`.
+
+---
+
+### 🏗 Engine Architecture (Technical Memo)
+
+- **Constructor Hook**: When the `FunctionCallNode` identifies a target name residing in the `InterfaceTable` rather than the `FunctionTable`, it triggers an automatic allocation of a `VyneInstance`.
+- **Symbol Mapping**: Arguments passed to the constructor are mapped positionally to the fields defined in the `InterfaceNode`.
+- **`self` Binding**: During a method call, the interpreter injects a `self` symbol into the local `SymbolContainer` scope, pointing back to the caller's memory address.
+- **Recursive Resolution**: The parser and interpreter support deep pathing for types (e.g., `Module.Group.Interface`) to ensure clear encapsulation.
+
 ### 📚 Standard Library & Arrays
 
 #### Global Functions
