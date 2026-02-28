@@ -580,9 +580,18 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::string localScope = "call_" + originalName + "_" + std::to_string(callCount++);
 
     for (size_t i = 0; i < params.size(); ++i) {
-        env[localScope][params[i].id] = std::move(evaluatedArgs[i]);
+        if (evaluatedArgs[i].getType() == Value::ARRAY) {
+            auto& originalVec = evaluatedArgs[i].asList();
+            std::vector<Value> copiedVec;
+            for (const auto& val : originalVec) {
+                copiedVec.push_back(val);
+            }
+            env[localScope][params[i].id] = Value(std::move(copiedVec));
+        } else {
+            env[localScope][params[i].id] = evaluatedArgs[i];
+        }
     }
-
+    
     Value result;
     try {
         for (const auto& bodyNode : funcData->body) {
