@@ -14,6 +14,8 @@
 
 #include "../types.h"
 
+class FunctionNode;
+
 class ASTNode;
 struct Value;
 
@@ -65,6 +67,7 @@ struct VyneStruct : public VyneObject {
     std::string typeName;
     std::unordered_map<uint32_t, Value> fields;
     std::unordered_map<uint32_t, Value> methods;
+    std::unordered_map<uint32_t, FunctionNode*> methodNodes;
     
     VyneStruct(std::string name) 
         : VyneObject(ObjType::Struct), typeName(std::move(name)) {}

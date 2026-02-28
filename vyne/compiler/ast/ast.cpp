@@ -840,6 +840,50 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
         
         auto structPtr = receiverVal.asStruct();
+
+        auto methodNodeIt = structPtr->methodNodes.find(methodId);
+        if (methodNodeIt != structPtr->methodNodes.end()) {
+            FunctionNode* funcNode = methodNodeIt->second;
+            Value funcVal = funcNode->evaluate(env, currentGroup);
+            
+            structPtr->methods[methodId] = funcVal;
+            
+            auto funcData = funcVal.asFunction();
+            
+            std::vector<Value> allArgs;
+            allArgs.emplace_back(receiverVal);  // self
+            
+            for (auto& arg : arguments) {
+                allArgs.emplace_back(arg->evaluate(env, currentGroup));
+            }
+            
+            if (funcData->isNative) {
+                return funcData->nativeFn(allArgs);
+            } else {
+                static uint64_t callCount = 0;
+                std::string localScope = "method_" + methodName + "_" + std::to_string(callCount++);
+                
+                env[localScope][StringPool::instance().intern("self")] = receiverVal;
+                
+                for (size_t i = 1; i < allArgs.size(); ++i) {
+                    if (i-1 < funcData->params.size()) {
+                        env[localScope][funcData->params[i-1].id] = allArgs[i];
+                    }
+                }
+                
+                Value result;
+                try {
+                    for (const auto& stmt : funcData->body) {
+                        result = stmt->evaluate(env, localScope);
+                    }
+                } catch (const ReturnException& e) {
+                    result = e.value;
+                }
+                
+                env.erase(localScope);
+                return result;
+            }
+        }
         
         auto methodIt = structPtr->methods.find(methodId);
         if (methodIt != structPtr->methods.end()) {
@@ -853,10 +897,10 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             auto funcData = funcVal.asFunction();
             
             std::vector<Value> allArgs;
-            allArgs.push_back(receiverVal);
+            allArgs.emplace_back(receiverVal);
             
             for (auto& arg : arguments) {
-                allArgs.push_back(arg->evaluate(env, currentGroup));
+                allArgs.emplace_back(arg->evaluate(env, currentGroup));
             }
             
             if (funcData->isNative) {
@@ -1001,7 +1045,7 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     auto localMembers = this->members; 
     auto localMethods = this->methods;
 
-    funcData->nativeFn = [name, localMembers, localMethods, &env, currentGroup](std::vector<Value>& args) -> Value {
+    funcData->nativeFn = [name, localMembers, localMethods](std::vector<Value>& args) -> Value {
         auto instance = std::make_shared<VyneStruct>(name);
         
         for (size_t i = 0; i < localMembers.size(); ++i) {
@@ -1032,9 +1076,8 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
         
         for (auto& method : localMethods) {
             if (auto* funcNode = dynamic_cast<FunctionNode*>(method.get())) {
-                Value methodVal = funcNode->evaluate(const_cast<SymbolContainer&>(env), currentGroup);
                 uint32_t methodId = StringPool::instance().intern(funcNode->getOriginalName());
-                instance->methods[methodId] = methodVal;
+                instance->methodNodes[methodId] = funcNode;
             }
         }
         
@@ -1042,7 +1085,6 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     };
 
     uint32_t id = StringPool::instance().intern(interfaceName);
-    
     env[currentGroup][id] = Value(funcData);
     
     if (!moduleName.empty()) {
@@ -1052,9 +1094,10 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
         env[moduleName][id] = Value(funcData);
     }
     
-    for (auto& method : methods) {
-        method->evaluate(env, currentGroup);
-    }
+    // methods will be evaluated lazily
+    // for (auto& method : methods) {
+    //     method->evaluate(env, currentGroup);
+    // }
 
     return Value();
 }

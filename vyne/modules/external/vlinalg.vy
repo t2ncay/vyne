@@ -10,7 +10,11 @@ group Types :: vlinalg {
 
     interface Vector {
         x :: Int64,
-        y :: Int64
+        y :: Int64,
+
+        slope(){
+            return self.y / self.x;
+        }
     }
 };
 

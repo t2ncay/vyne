@@ -311,7 +311,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
             consume(VTokenType::Right_CB);
             
             auto methodNode = std::make_shared<FunctionNode>(
-                "", // TODO targetModule (empty means current interface)
+                currentModuleName, // TODO targetModule (empty means current interface)
                 StringPool::instance().intern(methodName.name),
                 methodName.name,
                 std::move(params),
