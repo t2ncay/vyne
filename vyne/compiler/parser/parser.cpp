@@ -189,25 +189,78 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 
     consume(VTokenType::Left_CB);
     std::vector<InterfaceMember> members;
+    std::vector<std::shared_ptr<ASTNode>> methods;
 
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
-        Token memberName = consume(VTokenType::Identifier);
-        consume(VTokenType::Extends);
+        if (lookAhead(1).type == VTokenType::Left_Parenthese) {
+            Token methodName = consume(VTokenType::Identifier);
+            consume(VTokenType::Left_Parenthese);
+            
+            std::vector<Parameter> params;
+            if (peekToken().type != VTokenType::Right_Parenthese) {
+                do {
+                    if (!params.empty() && peekToken().type == VTokenType::Comma) {
+                        consume(VTokenType::Comma);
+                    }
+                    
+                    Token paramTok = consume(VTokenType::Identifier);
+                    uint32_t pId = StringPool::instance().intern(paramTok.name);
+                    VType pType = VType::Unknown;
+                    
+                    if (peekToken().type == VTokenType::Extends) {
+                        consume(VTokenType::Extends);
+                        std::string typePath = parseTypePath();
+                        pType = resolveType(typePath);
+                    }
+                    
+                    params.emplace_back(pId, paramTok.name, pType);
+                } while (peekToken().type == VTokenType::Comma);
+            }
+            consume(VTokenType::Right_Parenthese);
+            
+            VType retType = VType::Unknown;
+            if (peekToken().type == VTokenType::Arrow) {
+                consume(VTokenType::Arrow);
+                Token typeTok = consume(VTokenType::Identifier);
+                retType = resolveType(typeTok.name);
+            }
+            
+            consume(VTokenType::Left_CB);
+            std::vector<std::shared_ptr<ASTNode>> body;
+            while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
+                body.emplace_back(parseStatement());
+            }
+            consume(VTokenType::Right_CB);
+            
+            auto methodNode = std::make_shared<FunctionNode>(
+                "", // TODO targetModule (empty means current interface)
+                StringPool::instance().intern(methodName.name),
+                methodName.name,
+                std::move(params),
+                std::move(body),
+                retType
+            );
+            methods.push_back(methodNode);
+        } else {
+            Token memberName = consume(VTokenType::Identifier);
+            consume(VTokenType::Extends);
+            
+            std::string typePath = parseTypePath();
+            VType memberType = resolveType(typePath);
+            
+            members.emplace_back(memberName.name, memberType, 0);
+        }
         
-        std::string typePath = parseTypePath();
-        VType memberType = resolveType(typePath);
-
-        members.emplace_back(memberName.name, memberType, 0);
-
         if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
             consume(peekToken().type);
         }
     }
 
     consume(VTokenType::Right_CB);
-    auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members));
+    
+    auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
     node->lineNumber = line;
-    node->setModuleName(currentModuleName);  // Store the module name
+    node->setModuleName(currentModuleName);
     return node;
 }
 

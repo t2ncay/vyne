@@ -491,6 +491,7 @@ public:
     Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
     void compile(Emitter& e) const override;
     VType getStaticType() const override { return VType::Function; }
+    const std::string& getOriginalName() const { return originalName; }
 };
 class FunctionCallNode : public ASTNode {
     uint32_t funcNameId;
@@ -647,11 +648,17 @@ struct InterfaceMember {
 class InterfaceNode : public ASTNode {
     std::string interfaceName;
     std::vector<InterfaceMember> members;
+    std::vector<std::shared_ptr<ASTNode>> methods;
     std::string moduleName;
 public:
 
-    InterfaceNode(std::string in, std::vector<InterfaceMember> m) : 
-    ASTNode(NodeType::INTERFACE), interfaceName(std::move(in)), members(std::move(m)) {}
+    InterfaceNode(std::string in, std::vector<InterfaceMember> m, std::vector<std::shared_ptr<ASTNode>> meth) 
+    : 
+    ASTNode(NodeType::INTERFACE), 
+    interfaceName(std::move(in)), 
+    members(std::move(m)),
+    methods(std::move(meth))
+    {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

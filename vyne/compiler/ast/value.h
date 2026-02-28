@@ -64,6 +64,7 @@ struct ModuleData : public VyneObject {
 struct VyneStruct : public VyneObject {
     std::string typeName;
     std::unordered_map<uint32_t, Value> fields;
+    std::unordered_map<uint32_t, Value> methods;
     
     VyneStruct(std::string name) 
         : VyneObject(ObjType::Struct), typeName(std::move(name)) {}

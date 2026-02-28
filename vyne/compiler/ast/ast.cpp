@@ -822,20 +822,63 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
     }
 
-    if(receiverVal.getType() == Value::STRUCT){
-        if (methodName == "fields") {
-
-            auto baseObj = receiverVal.asStruct();
+    if (receiverVal.getType() == Value::STRUCT) {
+        auto structPtr = receiverVal.asStruct();
+        
+        auto methodIt = structPtr->methods.find(methodId);
+        if (methodIt != structPtr->methods.end()) {
+            Value funcVal = methodIt->second;
             
-            auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
-            
-            std::vector<Value> fieldNames;
-            for (auto const& [id, val] : structPtr->fields) {
-                fieldNames.emplace_back(StringPool::instance().get(id));
+            if (funcVal.getType() != Value::FUNCTION) {
+                throw std::runtime_error("Type Error: '" + methodName + 
+                    "' is not a callable method [ line " + std::to_string(lineNumber) + " ]");
             }
             
-            return Value(fieldNames);
+            auto funcData = funcVal.asFunction();
+            
+            std::vector<Value> allArgs;
+            allArgs.push_back(receiverVal);
+            
+            for (auto& arg : arguments) {
+                allArgs.push_back(arg->evaluate(env, currentGroup));
+            }
+            
+            if (funcData->isNative) {
+                return funcData->nativeFn(allArgs);
+            } else {
+                static uint64_t callCount = 0;
+                std::string localScope = "method_" + methodName + "_" + std::to_string(callCount++);
+                
+                env[localScope][StringPool::instance().intern("self")] = receiverVal;
+                
+                // Bind other parameters
+                for (size_t i = 1; i < allArgs.size(); ++i) {
+                    if (i-1 < funcData->params.size()) {
+                        env[localScope][funcData->params[i-1].id] = allArgs[i];
+                    }
+                }
+                
+                Value result;
+                try {
+                    for (const auto& stmt : funcData->body) {
+                        result = stmt->evaluate(env, localScope);
+                    }
+                } catch (const ReturnException& e) {
+                    result = e.value;
+                }
+                
+                env.erase(localScope);
+                return result;
+            }
         }
+        
+        auto fieldIt = structPtr->fields.find(methodId);
+        if (fieldIt != structPtr->fields.end()) {
+            return fieldIt->second;
+        }
+        
+        throw std::runtime_error("Runtime Error: Struct '" + structPtr->typeName + 
+            "' has no member '" + methodName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
     
     throw std::runtime_error("Unknown method: " + methodName + " [ line " + std::to_string(lineNumber) + " ]");
@@ -940,8 +983,9 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
 
     auto name = this->interfaceName;
     auto localMembers = this->members; 
+    auto localMethods = this->methods;
 
-    funcData->nativeFn = [name, localMembers](std::vector<Value>& args) -> Value {
+    funcData->nativeFn = [name, localMembers, localMethods, &env, currentGroup](std::vector<Value>& args) -> Value {
         auto instance = std::make_shared<VyneStruct>(name);
         
         for (size_t i = 0; i < localMembers.size(); ++i) {
@@ -969,6 +1013,15 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
                 }
             }
         }
+        
+        for (auto& method : localMethods) {
+            if (auto* funcNode = dynamic_cast<FunctionNode*>(method.get())) {
+                Value methodVal = funcNode->evaluate(const_cast<SymbolContainer&>(env), currentGroup);
+                uint32_t methodId = StringPool::instance().intern(funcNode->getOriginalName());
+                instance->methods[methodId] = methodVal;
+            }
+        }
+        
         return Value(instance);
     };
 
@@ -981,6 +1034,10 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
             env[moduleName] = SymbolTable();
         }
         env[moduleName][id] = Value(funcData);
+    }
+    
+    for (auto& method : methods) {
+        method->evaluate(env, currentGroup);
     }
 
     return Value();
