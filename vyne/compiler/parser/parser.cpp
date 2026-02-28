@@ -80,10 +80,8 @@ VType Parser::resolveType(std::string_view typeName) {
         return VType::Struct;
     }
 
-    // Handle dotted paths
     size_t dotPos = name.find('.');
     if (dotPos != std::string::npos) {
-        // Try with module prefix
         if (!currentModuleName.empty()) {
             std::string withModule = currentModuleName + "." + name;
             if (declaredTypes.count(withModule)) {
@@ -101,16 +99,11 @@ VType Parser::resolveType(std::string_view typeName) {
         return VType::Struct;
     }
 
-    // Contextual name with current module
     if (!currentModuleName.empty()) {
         std::string contextualName = currentModuleName + "." + name;
         if (declaredTypes.count(contextualName)) {
             return VType::Struct;
         }
-    }
-
-    // If we get here, type wasn't found
-    for (const auto& t : declaredTypes) {
     }
 
     throw std::runtime_error("Type Error: '" + name + "' is not a defined type.");

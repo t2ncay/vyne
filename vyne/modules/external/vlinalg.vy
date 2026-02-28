@@ -20,6 +20,10 @@ group Types :: vlinalg {
         slope(){
             return self.y / self.x;
         }
+
+        cross_product(other :: Vector) -> Int64 {
+            return self.x * other.y - self.y * other.x;
+        }
     }
 };
 

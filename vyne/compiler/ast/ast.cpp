@@ -518,7 +518,7 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     auto funcData = funcVal.asFunction();
     std::vector<Value> evaluatedArgs;
     for (const auto& arg : arguments) {
-        if (arg) evaluatedArgs.push_back(arg->evaluate(env, currentGroup));
+        if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
     }
 
     if (funcData->isNative) {
@@ -761,7 +761,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
     }
 
-    if (receiverVal.getType() == Value::STRUCT) {
+        if (receiverVal.getType() == Value::STRUCT) {
         if (methodName == "fields") {
             auto baseObj = receiverVal.asStruct();
             auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
@@ -780,15 +780,61 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         auto methodNodeIt = structPtr->methodNodes.find(methodId);
         if (methodNodeIt != structPtr->methodNodes.end()) {
             FunctionNode* funcNode = methodNodeIt->second;
+
+            // Step 1: Evaluate all arguments ONCE
+            std::vector<Value> argValues;
+            argValues.reserve(arguments.size());
+            for (auto& arg : arguments) {
+                argValues.emplace_back(arg->evaluate(env, currentGroup));
+            }
+
+            // Step 2: Validate the call using the evaluated arguments
+            if (arguments.size() != funcNode->getParameters().size()) {
+                throw std::runtime_error(
+                    "Type Error: Method '" + methodName + 
+                    "' expects " + std::to_string(funcNode->getParameters().size()) + 
+                    " argument(s), but got " + std::to_string(arguments.size()) + 
+                    " [ line " + std::to_string(lineNumber) + " ]"
+                );
+            }
+            
+            for (size_t i = 0; i < argValues.size(); ++i) {
+                VType expectedType = funcNode->getParameters()[i].type;
+                
+                if (expectedType != VType::Unknown) {
+                    int argType = argValues[i].getType();
+                    bool typeMatch = false;
+                    
+                    if (expectedType == VType::Float64 && argType == Value::INT64) {
+                        typeMatch = true;
+                    }
+                    else if (static_cast<int>(expectedType) == argType) {
+                        typeMatch = true;
+                    }
+                    
+                    if (!typeMatch) {
+                        std::string expectedStr = VTypeToString(expectedType);
+                        throw std::runtime_error(
+                            "Type Error: Argument " + std::to_string(i+1) + 
+                            " of method '" + methodName + "' expects " + expectedStr + 
+                            ", but got " + argValues[i].getTypeName() + 
+                            " [ line " + std::to_string(lineNumber) + " ]"
+                        );
+                    }
+                }
+            }
+
+            // Step 3: Evaluate the method to get its function value
             Value funcVal = funcNode->evaluate(env, currentGroup);
             structPtr->methods[methodId] = funcVal;
             
             auto funcData = funcVal.asFunction();
-            std::vector<Value> allArgs = { receiverVal };
-            for (auto& arg : arguments) {
-                allArgs.push_back(arg->evaluate(env, currentGroup));
-            }
             
+            // Step 4: Build all arguments including self
+            std::vector<Value> allArgs = { receiverVal };
+            allArgs.insert(allArgs.end(), argValues.begin(), argValues.end());
+            
+            // Step 5: Handle native methods
             if (funcData->isNative) {
                 if (funcData->arity != -1) {
                     checkArgumentCount(funcData->arity, allArgs.size() - 1, ctx);
@@ -796,6 +842,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 return funcData->nativeFn(allArgs);
             }
             
+            // Step 6: Handle Vyne-defined methods
             checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
             
             std::string localScope = createLocalScope("method", methodName);
@@ -808,7 +855,24 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
             }
             
-            return executeFunction(funcData, allArgs, env, localScope, lineNumber);
+            Value result = executeFunction(funcData, allArgs, env, localScope, lineNumber);
+            
+            // Step 7: Validate return type
+            if (funcNode->getReturnType() != VType::Unknown) {
+                std::string expectedReturn = VTypeToString(funcNode->getReturnType());
+                if (result.getTypeName() != expectedReturn) {
+                    if (!(funcNode->getReturnType() == VType::Float64 && result.getType() == Value::INT64)) {
+                        throw std::runtime_error(
+                            "Type Error: Method '" + methodName + 
+                            "' should return " + expectedReturn + 
+                            ", but returned " + result.getTypeName() + 
+                            " [ line " + std::to_string(lineNumber) + " ]"
+                        );
+                    }
+                }
+            }
+            
+            return result;
         }
         
         auto methodIt = structPtr->methods.find(methodId);
@@ -817,10 +881,15 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             checkCallableType(funcVal, ctx);
             
             auto funcData = funcVal.asFunction();
-            std::vector<Value> allArgs = { receiverVal };
+            
+            std::vector<Value> argValues;
+            argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
-                allArgs.push_back(arg->evaluate(env, currentGroup));
+                argValues.emplace_back(arg->evaluate(env, currentGroup));
             }
+            
+            std::vector<Value> allArgs = { receiverVal };
+            allArgs.insert(allArgs.end(), argValues.begin(), argValues.end());
             
             if (funcData->isNative) {
                 if (funcData->arity != -1) {

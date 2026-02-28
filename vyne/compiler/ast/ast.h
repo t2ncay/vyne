@@ -571,6 +571,9 @@ public:
     void compile(Emitter& e) const override;
     VType getStaticType() const override { return VType::Function; }
     const std::string& getOriginalName() const { return originalName; }
+
+    const std::vector<Parameter>& getParameters() const { return parameters; }
+    VType getReturnType() const { return returnType; }
 };
 class FunctionCallNode : public ASTNode {
     uint32_t funcNameId;
@@ -739,6 +742,14 @@ struct InterfaceMember {
 };
 
 class InterfaceNode : public ASTNode {
+    struct MethodSignature {
+        std::string name;
+        std::vector<VType> paramTypes;
+        VType returnType;
+        std::vector<std::string> paramNames;
+    };
+    std::vector<MethodSignature> methodSignatures;
+
     std::string interfaceName;
     std::vector<InterfaceMember> members;
     std::vector<std::shared_ptr<ASTNode>> methods;
@@ -751,7 +762,22 @@ public:
     interfaceName(std::move(in)), 
     members(std::move(m)),
     methods(std::move(meth))
-    {}
+    {
+        for (const auto& method : methods) {
+            if (auto* funcNode = dynamic_cast<FunctionNode*>(method.get())) {
+                MethodSignature sig;
+                sig.name = funcNode->getOriginalName();
+                sig.returnType = funcNode->getReturnType();
+                
+                for (const auto& param : funcNode->getParameters()) {
+                    sig.paramTypes.push_back(param.type);
+                    sig.paramNames.push_back(param.name);
+                }
+                
+                methodSignatures.push_back(sig);
+            }
+        }
+    }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

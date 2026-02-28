@@ -250,3 +250,67 @@ inline Value deepCopyValue(const Value& val) {
             return val;
     }
 }
+
+// ============================================================================
+// Interface Method Validators
+// ============================================================================
+
+inline void validateMethodCall(const FunctionNode* funcNode,
+                              const std::vector<std::unique_ptr<ASTNode>>& arguments,
+                              const std::string& methodName,
+                              SymbolContainer& env,
+                              const std::string& currentGroup,
+                              int lineNumber) {
+    // Check argument count
+    if (arguments.size() != funcNode->getParameters().size()) {
+        throw std::runtime_error(
+            "Type Error: Method '" + methodName + 
+            "' expects " + std::to_string(funcNode->getParameters().size()) + 
+            " argument(s), but got " + std::to_string(arguments.size()) + 
+            " [ line " + std::to_string(lineNumber) + " ]"
+        );
+    }
+    
+    // Check argument types
+    for (size_t i = 0; i < arguments.size(); ++i) {
+        Value argVal = arguments[i]->evaluate(env, currentGroup);
+        VType expectedType = funcNode->getParameters()[i].type;
+        
+        if (expectedType != VType::Unknown) {
+            int argType = argVal.getType();
+            bool typeMatch = false;
+            
+            if (expectedType == VType::Float64 && argType == Value::INT64) typeMatch = true;
+            else if (static_cast<int>(expectedType) == argType) typeMatch = true;
+            
+            if (!typeMatch) {
+                std::string expectedStr = VTypeToString(expectedType);
+                throw std::runtime_error(
+                    "Type Error: Argument " + std::to_string(i+1) + 
+                    " of method '" + methodName + "' expects " + expectedStr + 
+                    ", but got " + argVal.getTypeName() + 
+                    " [ line " + std::to_string(lineNumber) + " ]"
+                );
+            }
+        }
+    }
+}
+
+inline void validateReturnType(const FunctionNode* funcNode,
+                              const Value& result,
+                              const std::string& methodName,
+                              int lineNumber) {
+    if (funcNode->getReturnType() != VType::Unknown) {
+        std::string expectedReturn = VTypeToString(funcNode->getReturnType());
+        if (result.getTypeName() != expectedReturn) {
+            if (!(funcNode->getReturnType() == VType::Float64 && result.getType() == Value::INT64)) {
+                throw std::runtime_error(
+                    "Type Error: Method '" + methodName + 
+                    "' should return " + expectedReturn + 
+                    ", but returned " + result.getTypeName() + 
+                    " [ line " + std::to_string(lineNumber) + " ]"
+                );
+            }
+        }
+    }
+}
