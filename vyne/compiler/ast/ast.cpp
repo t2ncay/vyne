@@ -276,7 +276,8 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         throw std::runtime_error("Type Error: Cannot increment/decrement non-numeric type [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    if (auto* memNode = dynamic_cast<MemberAccessNode*>(left.get())) {
+    if (left->type() == NodeType::MEMBER_ACCESS) {
+        auto* memNode = static_cast<MemberAccessNode*>(left.get());
         std::string containerPath = memNode->getReceiverPath(); 
         uint32_t memberId = StringPool::instance().intern(memNode->getMemberName());
         
@@ -284,7 +285,8 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         Value* internalVal = env.getInternalPointer(containerId, memberId);
         *internalVal = newVal;
     } 
-    else if (auto* varNode = dynamic_cast<VariableNode*>(left.get())) {
+    else if (left->type() == NodeType::VARIABLE) [[likely]] {
+        auto* varNode = static_cast<VariableNode*>(left.get());
         std::string targetScope = currentGroup.empty() ? "global" : currentGroup;
         uint32_t scopeId = StringPool::instance().intern(targetScope);
         

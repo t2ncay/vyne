@@ -913,7 +913,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         }
     }
 
-    if (lhs->type() == NodeType::VARIABLE) {
+    if (lhs->type() == NodeType::VARIABLE) [[likely]] {
         auto* var = static_cast<VariableNode*>(lhs.get());
         uint32_t varId = var->getNameId();
         std::string originalName = var->getOriginalName();
