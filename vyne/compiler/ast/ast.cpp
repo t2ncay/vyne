@@ -105,7 +105,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
             
             throw std::runtime_error(
                 "Type Error: Cannot assign " + newTypeName + " value to '" + originalName + 
-                "' which expects " + existingTypeName + 
+                "', which expects " + existingTypeName + 
                 " [ line " + std::to_string(lineNumber) + " ]"
             );
         }
