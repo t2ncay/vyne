@@ -10,10 +10,14 @@
 #include "../lexer/lexer.h"
 #include "../ast/ast.h"
 #include "../types.h"
+#include "../ast/ast_helpers.h"
 
 struct SymbolInfo {
     VType type;
     bool isExplicit; 
+	bool used;
+	int line;
+	std::string name;
 };
 
 class Parser {
@@ -28,9 +32,25 @@ private:
 
 	void pushScope() { scopeStack.push_back({}); }
 	void popScope()  { scopeStack.pop_back(); }
-	void defineSymbol(uint32_t id, VType type, bool explicitType){
-		if(scopeStack.empty()) pushScope();
-		scopeStack.back()[id] = {type, explicitType};
+	void defineSymbol(uint32_t id, VType type, bool explicitType, int line, const std::string& name) {
+		if(scopeStack.empty()) {
+			pushScope();
+		}
+		
+		if (!Vyne::isQuietMode()) {
+			if (scopeStack.back().count(id)) {
+				Vyne::warn("Variable '" + name + "' is already defined in this scope", line);
+			}
+			
+			for (size_t i = 0; i < scopeStack.size() - 1; ++i) {
+				if (scopeStack[i].count(id)) {
+					Vyne::warn("Variable '" + name + "' shadows outer variable", line);
+					break;
+				}
+			}
+		}
+		
+		scopeStack.back()[id] = {type, explicitType, false, line, name};
 	}
 
 	void defineScopedSymbol(const std::vector<std::string>& scope, uint32_t id, VType type, bool explicitType) {
@@ -56,6 +76,18 @@ private:
         return declaredTypes.find(name) != declaredTypes.end();
     }
 
+	void checkUnusedVariables(const SymbolContainer& env) {
+		if (Vyne::isQuietMode()) return;
+		
+		for (const auto& scope : scopeStack) {
+			for (const auto& [id, info] : scope) {
+				if (!env.wasUsed(id)) {
+					Vyne::warn("Unused variable '" + info.name + "'", info.line);
+				}
+			}
+		}
+	}
+
 	// --- Literal Workers ---
 	std::unique_ptr<ASTNode> parseStringLiteral();
     std::unique_ptr<ASTNode> parseNumberLiteral();
@@ -76,6 +108,7 @@ private:
 	std::unique_ptr<ASTNode> parseDismissStatement();
 	std::unique_ptr<ASTNode> parseLoopControl();
 	std::unique_ptr<ASTNode> parseStatement();
+	std::unique_ptr<ASTNode> parseRuleset();
 
 public:
 	// --- Navigation ---
@@ -106,5 +139,5 @@ public:
 	std::unique_ptr<ASTNode>     parseImportModule();
 	std::unique_ptr<ASTNode>     parseDeployModule();
 	std::unique_ptr<ASTNode>     parseInterfaceDefinition();
-	std::unique_ptr<ProgramNode> parseProgram();
+	std::unique_ptr<ProgramNode> parseProgram(SymbolContainer& env);
 };

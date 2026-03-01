@@ -30,6 +30,8 @@ class SymbolContainer {
     std::vector<std::string> deployedModules;
     std::string currentSourceDir = ".";
 
+    mutable std::unordered_map<uint32_t, bool> variableUsage;
+
     // Helper to intern strings to uint32_t
     uint32_t intern(const std::string& s) const {
         return StringPool::instance().intern(s);
@@ -88,6 +90,17 @@ public:
     bool hasModule(const std::string& name) const {
         return contains(name);
     }
+
+    void markUsed(uint32_t varId) const {
+        variableUsage[varId] = true;
+    }
+    
+    bool wasUsed(uint32_t varId) const {
+        auto it = variableUsage.find(varId);
+        return it != variableUsage.end() && it->second;
+    }
+    
+    const auto& getUsageMap() const { return variableUsage; }
 
     // Member access
     Value getGroupMember(const std::string& groupName, const std::string& memberName) {
@@ -222,6 +235,8 @@ enum class NodeType {
 
     NULLTYPE,
     MEMBER_ASSIGNMENT,
+
+    RULESET, 
 
     BREAK,
     CONTINUE
@@ -898,6 +913,19 @@ public:
         ASTNode(NodeType::NULLTYPE), typeName(std::move(tn)) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
+    void compile(Emitter& e) const override;
+};
+
+class RulesetNode : public ASTNode {
+    std::string rulesetType;
+public:
+    RulesetNode(std::string type, int line) 
+        : ASTNode(NodeType::RULESET), rulesetType(std::move(type)) {
+        lineNumber = line;
+    }
+    
+    Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
+    
     void compile(Emitter& e) const override;
 };
 

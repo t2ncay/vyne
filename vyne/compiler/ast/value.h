@@ -23,9 +23,10 @@ struct Parameter {
     uint32_t id;
     std::string name;
     VType type;
+    bool isReference;
 
-    Parameter(uint32_t i, std::string n, VType t) 
-        : id(i), name(std::move(n)), type(t) {}
+    Parameter(uint32_t i, std::string n, VType t, bool ir) 
+        : id(i), name(std::move(n)), type(t), isReference(ir) {}
 };
 
 struct StructInstance {

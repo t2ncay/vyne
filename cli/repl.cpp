@@ -47,7 +47,7 @@ void init_REPL(std::string& input, SymbolContainer& env){
             auto tokens = tokenize(input);
             Parser parser(std::move(tokens));
 
-            auto root = parser.parseProgram();
+            auto root = parser.parseProgram(env);
             if (root) {
                 Value result;
                 try {

@@ -52,6 +52,7 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
     }
     
     Value* valPtr = lookupSymbol(env, targetId, nameId);
+    env.markUsed(nameId);
     
     if (!valPtr && target != "global") {
         valPtr = lookupSymbol(env, globalId, nameId);
@@ -83,6 +84,8 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         Value* targetPtr = it_existing->second.getPointer();
         
         val = convertIfNeeded(val, targetPtr->getType(), lineNumber);
+
+        env.markUsed(identifierId);
         
         if (targetPtr->getType() != Value::NONE && targetPtr->getType() != val.getType()) {
             throw std::runtime_error("Type Error: Reference target mismatch...");
@@ -102,6 +105,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     if (it_existing != table.end()) {
         checkReadOnly(it_existing->second, originalName, lineNumber);
         val = convertIfNeeded(val, it_existing->second.getType(), lineNumber);
+        env.markUsed(identifierId);
         
         if (it_existing->second.getType() != Value::NONE && 
             it_existing->second.getType() != val.getType()) {
@@ -135,6 +139,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         if (!varNode) throw std::runtime_error("Referencer Error: Must bind to a variable (L-Value) [ line " + std::to_string(lineNumber) + " ]");
 
         Value* sourcePtr = env.getInternalPointer(targetGroup, varNode->getNameId());
+        env.markUsed(varNode->getNameId());
         
         Value refValue(sourcePtr);
         if (isConstant) refValue.setReadOnly();
@@ -526,11 +531,41 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::string localScope = createLocalScope("call", originalName);
     ScopedEnvironment scope(env, localScope, currentGroup);
 
-    for (size_t i = 0; i < funcData->params.size(); ++i) {
-        if (evaluatedArgs[i].getType() == Value::ARRAY) {
-            scope.bind(funcData->params[i].id, deepCopyValue(evaluatedArgs[i]));
-        } else {
-            scope.bind(funcData->params[i].id, evaluatedArgs[i]);
+        for (size_t i = 0; i < funcData->params.size(); ++i) {
+        const auto& param = funcData->params[i];
+        
+        if (param.isReference) {
+            Value* sourcePtr = nullptr;
+            
+            if (arguments[i]->type() == NodeType::VARIABLE) {
+                auto* varNode = static_cast<VariableNode*>(arguments[i].get());
+                std::string targetScope = currentGroup.empty() ? "global" : currentGroup;
+                uint32_t scopeId = StringPool::instance().intern(targetScope);
+                sourcePtr = env.getInternalPointer(scopeId, varNode->getNameId());
+                env.markUsed(varNode->getNameId());
+            } 
+            else if (arguments[i]->type() == NodeType::MEMBER_ACCESS) {
+                auto* memNode = static_cast<MemberAccessNode*>(arguments[i].get());
+                Value memberVal = memNode->evaluate(env, currentGroup);
+                if (memberVal.isReference()) {
+                    sourcePtr = memberVal.getPointer();
+                }
+            }
+            
+            if (!sourcePtr) {
+                throw std::runtime_error("Reference Error: Cannot bind to non-variable for reference parameter '" + 
+                                        param.name + "' [ line " + std::to_string(lineNumber) + " ]");
+            }
+            
+            Value refValue(sourcePtr);
+            scope.bind(param.id, refValue);
+        }
+        else {
+            if (evaluatedArgs[i].getType() == Value::ARRAY) {
+                scope.bind(param.id, deepCopyValue(evaluatedArgs[i]));
+            } else {
+                scope.bind(param.id, evaluatedArgs[i]);
+            }
         }
     }
 
@@ -1262,7 +1297,7 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     const std::string& source = FileUtils::readFile(finalPath.string());
     auto tokens = tokenize(source);
     Parser parser(std::move(tokens));
-    auto externalAst = parser.parseProgram();
+    auto externalAst = parser.parseProgram(env);
 
     SymbolContainer externalEnv;
     externalEnv.setSourceDir(finalPath.parent_path().string());
@@ -1346,6 +1381,13 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
 }
 
 Value NullNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    return Value();
+}
+
+Value RulesetNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    if (rulesetType == "warnings") {
+        Vyne::setQuietMode(true);
+    }
     return Value();
 }
 

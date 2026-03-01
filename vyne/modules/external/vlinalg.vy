@@ -5,7 +5,7 @@ module vmath;
 ### TODO FIX RECURSIVE TYPE CHECKING INSIDE INTERFACES
 
 group Types :: vlinalg {
-
+    
     interface Matrix {
         row  :: Int64,
         col  :: Int64,

@@ -255,14 +255,25 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                     Token paramTok = consume(VTokenType::Identifier);
                     uint32_t pId = StringPool::instance().intern(paramTok.name);
                     VType pType = VType::Unknown;
+                    bool isReference = false;
+
+                    if (peekToken().type == VTokenType::Referencer) {
+                        consume(VTokenType::Referencer);
+                        isReference = true;
+                    }
                     
                     if (peekToken().type == VTokenType::Extends) {
                         consume(VTokenType::Extends);
                         std::string typePath = parseTypePath();
                         pType = resolveType(typePath);
+
+                        if (peekToken().type == VTokenType::Referencer) {
+                            consume(VTokenType::Referencer);
+                            isReference = true;
+                        }
                     }
                     
-                    params.emplace_back(pId, paramTok.name, pType);
+                    params.emplace_back(pId, paramTok.name, pType, isReference);
                 } while (peekToken().type == VTokenType::Comma);
             }
             consume(VTokenType::Right_Parenthese);
@@ -324,11 +335,14 @@ void Parser::consumeSemicolon() {
     }
 }
 
-std::unique_ptr<ProgramNode> Parser::parseProgram() {
+std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
     std::vector<std::shared_ptr<ASTNode>> statements;
+
     while (peekToken().type != VTokenType::End) {
         statements.emplace_back(parseStatement());
     }
+
+    checkUnusedVariables(env);
     return std::make_unique<ProgramNode>(std::move(statements));
 }
 
@@ -349,6 +363,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Use:        return parseImportModule();
         case VTokenType::Deploy:     return parseDeployModule();
         case VTokenType::Interface:  return parseInterfaceDefinition();
+        case VTokenType::Ruleset:    return parseRuleset();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -613,6 +628,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         
         if (peekToken().type == VTokenType::Extends) {
             consume(VTokenType::Extends);
+
             targetModule = firstTok.name;
 
             Token actualFuncTok = consume(VTokenType::Identifier);
@@ -629,6 +645,8 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 
     funcId = StringPool::instance().intern(funcName);
 
+    pushScope();
+
     consume(VTokenType::Left_Parenthese);
     std::vector<Parameter> params;
 
@@ -642,13 +660,26 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
             uint32_t pId = StringPool::instance().intern(paramTok.name);
             VType pType = VType::Unknown;
 
-            if (peekToken().type == VTokenType::Extends) {
-                consume(VTokenType::Extends);
-                std::string typePath = parseTypePath();
-                pType = resolveType(typePath);
+            bool isReference = false;
+
+            if (peekToken().type == VTokenType::Referencer) {
+                consume(VTokenType::Referencer);
+                isReference = true;
             }
 
-            params.emplace_back(pId, paramTok.name, pType);
+            if (peekToken().type == VTokenType::Extends) {
+                consume(VTokenType::Extends);
+
+                std::string typePath = parseTypePath();
+                pType = resolveType(typePath);
+                                
+                if (peekToken().type == VTokenType::Referencer) {
+                    consume(VTokenType::Referencer);
+                    isReference = true;
+                }
+            }
+
+            params.emplace_back(pId, paramTok.name, pType, isReference);
 
         } while (peekToken().type == VTokenType::Comma); 
     }
@@ -669,6 +700,8 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         body.emplace_back(parseStatement());
     }
     consume(VTokenType::Right_CB);
+
+    popScope();
 
     auto node = std::make_unique<FunctionNode>(targetModule, funcId, funcName, std::move(params), std::move(body), retType);
     node->lineNumber = line;
@@ -726,7 +759,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
             throw std::runtime_error("Type Error : Unexpected type " + std::string(startTypeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
 
-        defineSymbol(currentId, explicitType, true);
+        defineSymbol(currentId, explicitType, true, line, lastName);
     }
     std::vector<std::string> scope;
     std::unique_ptr<ASTNode> node;
@@ -953,7 +986,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         }
 
         consumeSemicolon();
-        defineSymbol(varId, varType, varType != VType::Unknown);
+        defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
 
         auto node = std::make_unique<AssignmentNode>(
             varId, originalName, std::move(rhs), 
@@ -1076,6 +1109,26 @@ std::unique_ptr<ASTNode> Parser::parseDismissStatement() {
     consumeSemicolon();
     
     auto node = std::make_unique<DismissNode>(mId, nameToken.name);
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseRuleset() {
+    int line = peekToken().line;
+    consume(VTokenType::Ruleset);
+    
+    Token rulesetType = consume(VTokenType::Identifier);
+    std::string type = rulesetType.name;
+    
+    if (peekToken().type == VTokenType::Semicolon) {
+        consume(VTokenType::Semicolon);
+    }
+    
+    if (type == "warnings") {
+        Vyne::setQuietMode(true);
+    }
+    
+    auto node = std::make_unique<RulesetNode>(type, line);
     node->lineNumber = line;
     return node;
 }

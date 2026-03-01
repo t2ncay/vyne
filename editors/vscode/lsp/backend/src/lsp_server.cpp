@@ -1,11 +1,11 @@
 #include "lsp_server.h"
 
-bool DocumentState::parse() {
+bool DocumentState::parse(SymbolContainer& env) {
     try {
         tokens = tokenize(text);
         
         Parser parser(std::move(tokens));
-        ast = parser.parseProgram();
+        ast = parser.parseProgram(env);
         
         diagnostics.clear();
         return true;
@@ -22,7 +22,7 @@ bool DocumentState::parse() {
     }
 }
 
-void LspServer::run() {
+void LspServer::run(SymbolContainer& env) {
     std::string line;
     while (std::getline(std::cin, line)) {
         if (line.empty()) continue;
@@ -30,7 +30,7 @@ void LspServer::run() {
         try {
             json req = json::parse(line);
             
-            json resp = handleRequest(req);
+            json resp = handleRequest(req, env);
             
             if (!resp.empty()) {
                 std::cout << resp.dump() << std::endl;
@@ -45,7 +45,7 @@ void LspServer::run() {
     }
 }
 
-json LspServer::handleRequest(const json& req) {
+json LspServer::handleRequest(const json& req, SymbolContainer& env) {
     std::string method = req["method"];
     json params = req.contains("params") ? req["params"] : json::object();
     json resp;
@@ -59,11 +59,11 @@ json LspServer::handleRequest(const json& req) {
         resp["result"] = handleShutdown();
     }
     else if (method == "textDocument/didOpen") {
-        handleDidOpen(params);
+        handleDidOpen(params, env);
         return json::object();
     }
     else if (method == "textDocument/didChange") {
-        handleDidChange(params);
+        handleDidChange(params, env);
         return json::object();
     }
     else if (method == "textDocument/didClose") {
@@ -105,18 +105,18 @@ json LspServer::handleShutdown() {
     return nullptr;
 }
 
-void LspServer::handleDidOpen(const json& params) {
+void LspServer::handleDidOpen(const json& params, SymbolContainer& env) {
     std::string uri = params["textDocument"]["uri"];
     std::string text = params["textDocument"]["text"];
     
     auto doc = std::make_unique<DocumentState>(uri, text);
-    doc->parse();
+    doc->parse(env);
     documents[uri] = std::move(doc);
     
     publishDiagnostics(uri);
 }
 
-void LspServer::handleDidChange(const json& params) {
+void LspServer::handleDidChange(const json& params, SymbolContainer& env) {
     std::string uri = params["textDocument"]["uri"];
     
     auto it = documents.find(uri);
@@ -125,7 +125,7 @@ void LspServer::handleDidChange(const json& params) {
             it->second->text = change["text"];
         }
         
-        it->second->parse();
+        it->second->parse(env);
         publishDiagnostics(uri);
     }
 }
@@ -203,8 +203,8 @@ json LspServer::handleHover(const json& params) {
 }
 
 // Implementation of runLspServer
-int runLspServer() {
+int runLspServer(SymbolContainer& env) {
     LspServer server;
-    server.run();
+    server.run(env);
     return 0;
 }

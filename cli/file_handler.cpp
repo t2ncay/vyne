@@ -20,11 +20,10 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
     try {
         auto tokens = tokenize(content);
         Parser parser(std::move(tokens));
-        auto programRoot = parser.parseProgram();
+        auto programRoot = parser.parseProgram(env);
         std::shared_ptr<ASTNode> rootShared = std::move(programRoot);
 
         if (mode == "ast") {
-            std::cout << GREEN << "Executing via AST Interpreter...\n\n" << RESET;
             auto start = std::chrono::high_resolution_clock::now();
 
             env.setSourceDir(filename);

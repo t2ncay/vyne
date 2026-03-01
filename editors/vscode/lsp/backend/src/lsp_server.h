@@ -41,7 +41,7 @@ public:
     DocumentState(const std::string& u, const std::string& t) : uri(u), text(t) {}
     
     // Parse the document and generate diagnostics
-    bool parse();
+    bool parse(SymbolContainer& env);
 };
 
 // Main LSP Server class
@@ -52,8 +52,8 @@ private:
     // Handler methods for LSP requests
     json handleInitialize(const json& params);
     json handleShutdown();
-    void handleDidOpen(const json& params);
-    void handleDidChange(const json& params);
+    void handleDidOpen(const json& params, SymbolContainer& env);
+    void handleDidChange(const json& params, SymbolContainer& env);
     void handleDidClose(const json& params);
     json handleCompletion(const json& params);
     json handleDefinition(const json& params);
@@ -63,10 +63,10 @@ private:
     void publishDiagnostics(const std::string& uri);
     
 public:
-    void run();
-    json handleRequest(const json& req);
+    void run(SymbolContainer& env);
+    json handleRequest(const json& req, SymbolContainer& env);
 };
 
-int runLspServer();
+int runLspServer(SymbolContainer& env);
 
 #endif

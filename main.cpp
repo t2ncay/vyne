@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     env["global"] = {};
 
     if (argc > 1 && strcmp(argv[1], "--lsp") == 0) {
-        return runLspServer();
+        return runLspServer(env);
     }
 
     if (argc == 3) {

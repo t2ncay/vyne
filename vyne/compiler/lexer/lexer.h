@@ -79,6 +79,7 @@ enum class VTokenType {
 
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
+    Ruleset,            // Ruleset
     End                 // End of File (EOF)
 };
 
