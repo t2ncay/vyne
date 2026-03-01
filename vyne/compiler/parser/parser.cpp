@@ -1125,7 +1125,7 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
     }
     
     if (type == "warnings") {
-        Vyne::setQuietMode(true);
+        Vyne::setQuietMode(false);
     }
     
     auto node = std::make_unique<RulesetNode>(type, line);

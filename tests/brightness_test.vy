@@ -1,4 +1,4 @@
-use lib "vmatrix.vy";
+use lib "vlinalg.vy";
 module vcore;
 module vmath;
 
