@@ -25,7 +25,7 @@
       "patterns": [
         {
           "name": "keyword.control.vyne",
-          "match": "\\b(if|else|while|return|module|dismiss|group|fn|break|continue|through|loop|collect|every|filter|unique|deploy|as|use|extern|interface)\\b"
+          "match": "\\b(if|else|while|return|dismiss|break|continue|through|as|use|lib)\\b"
         }
       ]
     },
@@ -33,7 +33,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.vyne",
-          "match": "\\b(true|false|const|self)\\b"
+          "match": "\\b(true|false|const|self|interface|group|fn|module|deploy|loop|collect|every|filter|unique|ruleset)\\b"
         }
       ]
     },
@@ -80,7 +80,7 @@
         },
         {
           "name": "support.class.vyne",
-          "match": "\\b(vcore|vglib|vmem|vmath|String|Array|Number|Int64|Float64)\\b"
+          "match": "\\b(vcore|vglib|vmem|vmath|warnings|String|Array|Number|Int64|Float64)\\b"
         }
       ]
     },

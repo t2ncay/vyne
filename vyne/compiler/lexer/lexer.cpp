@@ -127,7 +127,7 @@ std::vector<Token> tokenize(std::string_view input) {
             else if (buffer == "use") tokens.emplace_back(VTokenType::Use, currentLine, 0, buffer);
             else if (buffer == "deploy") tokens.emplace_back(VTokenType::Deploy, currentLine, 0, buffer);
             else if (buffer == "as") tokens.emplace_back(VTokenType::As, currentLine, 0, buffer);
-            else if (buffer == "extern") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
+            else if (buffer == "lib") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
             else if (buffer == "interface") tokens.emplace_back(VTokenType::Interface, currentLine, 0, buffer);
             else if (buffer == "ruleset") tokens.emplace_back(VTokenType::Ruleset, currentLine, 0, buffer);
             else tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
