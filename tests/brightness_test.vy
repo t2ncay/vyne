@@ -1,4 +1,4 @@
-use extern "vmatrix.vy";
+use lib "vmatrix.vy";
 module vcore;
 module vmath;
 

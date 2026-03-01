@@ -1,3 +1,3 @@
-use extern "vconvert.vy";
+use lib "vconvert.vy";
 
 out(vconvert.meterToCm(10));

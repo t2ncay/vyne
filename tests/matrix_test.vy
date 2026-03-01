@@ -1,4 +1,4 @@
-use extern "vlinalg.vy";
+use lib "vlinalg.vy";
 
 m1 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 3, [
     [1, 2, 3],

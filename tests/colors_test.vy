@@ -1,4 +1,4 @@
-use extern "vcolors.vy";
+use lib "vcolors.vy";
 
 out(vcolors.green("Green text"));
 out(vcolors.boldRed("BOLD RED"));

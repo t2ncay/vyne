@@ -2,7 +2,7 @@
 # Vyne Language Comprehensive Test Suite
 #===============================================================================
 
-use extern "vcolors.vy";  # Test external module import
+use lib "vcolors.vy";  # Test external module import
 
 #===============================================================================
 # 1. BASIC TYPES AND OPERATIONS

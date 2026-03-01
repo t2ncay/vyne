@@ -1,4 +1,4 @@
-use extern "vstring.vy";
+use lib "vstring.vy";
 
 me = "abdullah";
 u = "TUNCAY";
