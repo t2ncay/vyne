@@ -684,12 +684,11 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             std::string targetGroup = resolvePath(var->getScope(), currentGroup);
             if (env.count(targetGroup) && env[targetGroup].count(var->getNameId())) {
                 target = &env[targetGroup][var->getNameId()];
+                env.markUsed(var->getNameId());
             } else if (targetGroup != "global" && env[getGlobalId()].count(var->getNameId())) {
                 target = &env["global"][var->getNameId()];
+                env.markUsed(var->getNameId());
             }
-        }
-        else if (receiver->type() == NodeType::INDEX_ACCESS) {
-            target = &receiverVal;
         }
 
         if (!target && (methodName == "push" || methodName == "pop" || methodName == "clear")) {
@@ -699,13 +698,29 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         auto& vec = target ? target->asList() : receiverVal.asList();
 
         if (methodName == "push") {
-            if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method push() on non-array [ line " + std::to_string(lineNumber) + " ]");
-
+            Value* actualTarget = nullptr;
+            
+            if (target->getType() == Value::ARRAY) {
+                actualTarget = target;
+            }
+            else if (target->isReference() && target->getPointer()->getType() == Value::ARRAY) {
+                actualTarget = target->getPointer();
+            }
+            else {
+                throw std::runtime_error("Type Error: Called method push() on non-array [ line " + 
+                                        std::to_string(lineNumber) + " ]");
+            }
+            
+            if (receiver->type() == NodeType::VARIABLE) {
+                auto* var = static_cast<VariableNode*>(receiver.get());
+                env.markUsed(var->getNameId());
+            }
+            
             for(auto& arg : arguments){
                 Value val = arg->evaluate(env, currentGroup);
-                target->asList().emplace_back(val);
+                actualTarget->asList().emplace_back(val);
             }
-
+            
             return receiverVal;
         }
 

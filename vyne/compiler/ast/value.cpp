@@ -60,11 +60,19 @@ const std::string& Value::asString() const {
 }
 
 std::vector<Value>& Value::asList() { 
+    if (isReference()) {
+        return getPointer()->asList();
+    }
+    
     auto obj = std::get<std::shared_ptr<VyneObject>>(this->data);
     return static_cast<VyneArray*>(obj.get())->elements; 
 }
 
 const std::vector<Value>& Value::asList() const { 
+    if (isReference()) {
+        return getPointer()->asList();
+    }
+    
     auto obj = std::get<std::shared_ptr<VyneObject>>(this->data);
     return static_cast<VyneArray*>(obj.get())->elements; 
 }
@@ -90,6 +98,7 @@ bool Value::isReference() const {
     }
 
 Value* Value::getPointer() const {
+    if (!isReference()) return nullptr;
     return std::get<Value*>(data);
 }
 
