@@ -348,80 +348,50 @@ Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 }
 
 Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::vector<Value> argValues;
-    for (auto& arg : arguments) argValues.emplace_back(arg->evaluate(env, currentGroup));
-
-    if (funcName == "out") {
-        if (!argValues.empty()) { argValues[0].print(std::cout); std::cout << "\n"; }
-        return Value();
+std::vector<Value> argValues;
+    for (auto& arg : arguments) {
+        argValues.emplace_back(arg->evaluate(env, currentGroup));
     }
 
-    if (funcName == "exit") {
-        if (!argValues.empty()) { throw std::runtime_error(argValues[0].asString()); }
-        return Value();
+    switch (builtInType) {
+        case BuiltInType::PRINT:
+            if (!argValues.empty()) { 
+                argValues[0].print(std::cout); 
+                std::cout << "\n"; 
+            }
+            return Value();
+            
+        case BuiltInType::EXIT:
+            if (!argValues.empty()) { 
+                throw std::runtime_error(argValues[0].asString()); 
+            }
+            return Value();
+            
+        case BuiltInType::TYPE:
+            return argValues[0].getTypeName();
+            
+        case BuiltInType::STRING:
+            if (argValues.size() != 1) 
+                throw std::runtime_error("Argument Error: string() expects 1 argument...");
+            return Value(argValues[0].toString());
+            
+        case BuiltInType::INT64:
+            return handleInt64(argValues);
+            
+        case BuiltInType::FLOAT64:
+            return handleFloat64(argValues);
+            
+        case BuiltInType::SIZEOF:
+            if (argValues.size() != 1)
+                throw std::runtime_error("Argument Error: sizeof() expects 1 arg.");
+            return Value(static_cast<int64_t>(argValues[0].getShallowBytes()));
+            
+        case BuiltInType::SEQUENCE:
+            return handleSequence(argValues);
+            
+        default:
+            throw std::runtime_error("Syntax Error : Unknown built-in function [ line " + std::to_string(lineNumber) + " ]");
     }
-
-    if (funcName == "type") return argValues[0].getTypeName();
-
-    if (funcName == "string") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error : string() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-        return Value(argValues[0].toString());
-    }
-
-    if (funcName == "int64") {
-        if (argValues.size() != 1) 
-            throw std::runtime_error("Argument Error : int64() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-        
-        if (argValues[0].getType() == Value::FLOAT64) {
-            return Value(static_cast<int64_t>(argValues[0].asFloat()));
-        }
-        else if (argValues[0].getType() == Value::STRING) {
-            return Value(static_cast<int64_t>(std::stoll(argValues[0].asString())));
-        }
-        else if (argValues[0].getType() == Value::INT64) {
-            return argValues[0];
-        }
-
-        throw std::runtime_error("Type Error: Cannot convert " + argValues[0].getTypeName() + " to int64 [ line " + std::to_string(lineNumber) + " ]");
-    }
-
-    if (funcName == "float64") {
-        if (argValues.size() != 1) 
-            throw std::runtime_error("Argument Error : float64() expects 1 argument, but got " + std::to_string(argValues.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
-        
-        if (argValues[0].getType() == Value::INT64) {
-            return Value(static_cast<double>(argValues[0].asInt()));
-        }
-        else if (argValues[0].getType() == Value::STRING) {
-            return Value(std::stod(argValues[0].asString()));
-        }
-        else if (argValues[0].getType() == Value::FLOAT64) {
-            return argValues[0]; // No-op
-        }
-        
-        throw std::runtime_error("Type Error: Cannot convert " + argValues[0].getTypeName() + " to float64 [ line " + std::to_string(lineNumber) + " ]");
-    }
-
-    if (funcName == "sizeof") {
-        if (argValues.size() != 1) throw std::runtime_error("Argument Error: sizeof() expects 1 arg.");
-        return Value(static_cast<int64_t>(argValues[0].getShallowBytes()));
-    }
-
-    if (funcName == "sequence") {
-        if (argValues.size() != 2) throw std::runtime_error("Argument Error: sequence() expects 2 args.");
-        
-        std::vector<Value> sequence;
-        if (argValues[0].getType() == Value::INT64 && argValues[1].getType() == Value::INT64) {
-            for (int64_t i = argValues[0].asInt(); i < argValues[1].asInt(); ++i) 
-                sequence.emplace_back(i);
-        } else {
-            for (double i = argValues[0].asFloat(); i < argValues[1].asFloat(); ++i) 
-                sequence.emplace_back(i);
-        }
-        return Value(sequence);
-    } 
-
-    throw std::runtime_error("Unknown built-in: " + funcName);
 }
 
 Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {

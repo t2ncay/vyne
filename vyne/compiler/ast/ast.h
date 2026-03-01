@@ -439,12 +439,86 @@ public:
 };   
 
 class BuiltInCallNode : public ASTNode {
+    enum class BuiltInType {
+        PRINT, EXIT, TYPE, STRING, INT64, FLOAT64, SIZEOF, SEQUENCE, UNKNOWN
+    };
+
     std::string funcName;
     std::vector<std::unique_ptr<ASTNode>> arguments;
+    BuiltInType builtInType;
+
+    static BuiltInType resolveBuiltIn(const std::string& name) {
+        static const std::unordered_map<std::string, BuiltInType> map = {
+            {"out", BuiltInType::PRINT},
+            {"exit", BuiltInType::EXIT},
+            {"type", BuiltInType::TYPE},
+            {"string", BuiltInType::STRING},
+            {"int64", BuiltInType::INT64},
+            {"float64", BuiltInType::FLOAT64},
+            {"sizeof", BuiltInType::SIZEOF},
+            {"sequence", BuiltInType::SEQUENCE}
+        };
+        
+        auto it = map.find(name);
+        return it != map.end() ? it->second : BuiltInType::UNKNOWN;
+    }
+    
+    Value handleInt64(const std::vector<Value>& args) const {
+        if (args.size() != 1) 
+            throw std::runtime_error("Argument Error: int64() expects 1 argument...");
+        
+        if (args[0].getType() == Value::FLOAT64) {
+            return Value(static_cast<int64_t>(args[0].asFloat()));
+        }
+        else if (args[0].getType() == Value::STRING) {
+            return Value(static_cast<int64_t>(std::stoll(args[0].asString())));
+        }
+        else if (args[0].getType() == Value::INT64) {
+            return args[0];
+        }
+        throw std::runtime_error("Type Error: Cannot convert to int64...");
+    }
+    
+    Value handleFloat64(const std::vector<Value>& args) const {
+        if (args.size() != 1) 
+            throw std::runtime_error("Argument Error: float64() expects 1 argument...");
+        
+        if (args[0].getType() == Value::INT64) {
+            return Value(static_cast<double>(args[0].asInt()));
+        }
+        else if (args[0].getType() == Value::STRING) {
+            return Value(std::stod(args[0].asString()));
+        }
+        else if (args[0].getType() == Value::FLOAT64) {
+            return args[0];
+        }
+        throw std::runtime_error("Type Error: Cannot convert to float64...");
+    }
+    
+    Value handleSequence(const std::vector<Value>& args) const {
+        if (args.size() != 2) 
+            throw std::runtime_error("Argument Error: sequence() expects 2 args.");
+        
+        std::vector<Value> sequence;
+        if (args[0].getType() == Value::INT64 && args[1].getType() == Value::INT64) {
+            for (int64_t i = args[0].asInt(); i < args[1].asInt(); ++i) 
+                sequence.emplace_back(i);
+        } else {
+            for (double i = args[0].asFloat(); i < args[1].asFloat(); ++i) 
+                sequence.emplace_back(i);
+        }
+        return Value(sequence);
+    }
+
 public:
     BuiltInCallNode(std::string name, std::vector<std::unique_ptr<ASTNode>> args) 
-        : ASTNode(NodeType::BUILTIN_CALL), 
-        funcName(std::move(name)), arguments(std::move(args)) {}
+        : 
+        ASTNode(NodeType::BUILTIN_CALL), 
+        builtInType(resolveBuiltIn(name)), 
+        arguments(std::move(args)) 
+        {
+            funcName = std::move(name);
+        }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
     void compile(Emitter& e) const override;

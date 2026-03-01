@@ -14,4 +14,4 @@ vector :: vlinalg.Types.Vector = vlinalg.Types.Vector(2,3);
 vector2 :: vlinalg.Types.Vector = vlinalg.Types.Vector(5,6);
 
 out(vlinalg.add(m1, m2));
-out(m1.insert_row([1,3]));
+out(m1.insert_row([7,8,9]));
