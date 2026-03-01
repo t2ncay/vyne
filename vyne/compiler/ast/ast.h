@@ -145,7 +145,6 @@ public:
         return &(varIt->second);
     }
     
-    // Keep old version for backward compatibility
     Value* getInternalPointer(const std::string& moduleName, uint32_t varId) {
         uint32_t moduleId = StringPool::instance().intern(moduleName);
         return getInternalPointer(moduleId, varId);

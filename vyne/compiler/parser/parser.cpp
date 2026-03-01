@@ -110,10 +110,15 @@ VType Parser::resolveType(std::string_view typeName) {
 }
 
 std::string Parser::parseTypePath() {
-    std::string path = consume(VTokenType::Identifier).name;
+    std::string path;
+    path.reserve(32);
+    
+    path += consume(VTokenType::Identifier).name;
     while (peekToken().type == VTokenType::Dot) {
         consume(VTokenType::Dot);
-        path += "." + consume(VTokenType::Identifier).name;
+        path.reserve(path.size() + 1 + 16);
+        path += '.';
+        path += consume(VTokenType::Identifier).name;
     }
     return path;
 }
@@ -873,7 +878,8 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     auto lhs = parsePostfix();
 
     if (peekToken().type == VTokenType::Equals) {
-        if (auto* mem = dynamic_cast<MemberAccessNode*>(lhs.get())) {
+        if (lhs->type() == NodeType::MEMBER_ACCESS) {
+            auto* mem = static_cast<MemberAccessNode*>(lhs.get());
             consume(VTokenType::Equals);
             auto rhs = parseExpression();
             consumeSemicolon();
@@ -887,7 +893,8 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             return node;
         }
         
-        if (auto* idx = dynamic_cast<IndexAccessNode*>(lhs.get())) {
+        if (lhs->type() == NodeType::INDEX_ACCESS) {
+            auto* idx = static_cast<IndexAccessNode*>(lhs.get());
             consume(VTokenType::Equals);
             auto rhs = parseExpression();
             consumeSemicolon();
@@ -906,7 +913,8 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         }
     }
 
-    if (auto* var = dynamic_cast<VariableNode*>(lhs.get())) {
+    if (lhs->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(lhs.get());
         uint32_t varId = var->getNameId();
         std::string originalName = var->getOriginalName();
         VType varType = VType::Unknown;
