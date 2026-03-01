@@ -716,8 +716,8 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         Token startTypeTok = peekToken();
         explicitType = resolveType(parseTypePath());
 
-        if (peekToken().type == VTokenType::Referencer || explicitType == VType::Reference) {
-            if (peekToken().type == VTokenType::Addresser) consume(VTokenType::Addresser);
+        if (peekToken().type == VTokenType::Referencer) {
+            consume(VTokenType::Referencer);
             isRefVar = true;
             explicitType = VType::Reference;
         }
