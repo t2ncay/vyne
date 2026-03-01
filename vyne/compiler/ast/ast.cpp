@@ -352,7 +352,12 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
     for (auto& arg : arguments) argValues.emplace_back(arg->evaluate(env, currentGroup));
 
     if (funcName == "out") {
-        if (!argValues.empty()) { argValues[0].print(std::cout); std::cout << std::endl; }
+        if (!argValues.empty()) { argValues[0].print(std::cout); std::cout << "\n"; }
+        return Value();
+    }
+
+    if (funcName == "exit") {
+        if (!argValues.empty()) { throw std::runtime_error(argValues[0].asString()); }
         return Value();
     }
 
@@ -1086,22 +1091,25 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
     }
 
     if (!receiverPath.empty()) {
-        uint32_t pathId = StringPool::instance().intern(receiverPath);
-        if (env.contains(pathId)) {
-            return env.getModuleMember(pathId, memberName);
-        }
-
+        std::vector<std::string> pathsToTry;
+        
         if (!currentGroup.empty()) {
-            std::string contextPath = currentGroup + "." + receiverPath;
-            uint32_t contextId = StringPool::instance().intern(contextPath);
-            if (env.contains(contextId)) {
-                return env.getModuleMember(contextId, memberName);
-            }
+            pathsToTry.emplace_back(currentGroup + "." + receiverPath);
         }
-
-        uint32_t globalId = StringPool::instance().intern("global." + receiverPath);
-        if (env.contains(globalId)) {
-            return env.getModuleMember(globalId, memberName);
+        
+        pathsToTry.emplace_back("global." + receiverPath);
+        
+        pathsToTry.emplace_back(receiverPath);
+        
+        for (const auto& path : pathsToTry) {
+            uint32_t pathId = StringPool::instance().intern(path);
+            if (env.contains(pathId)) {
+                try {
+                    return env.getModuleMember(pathId, memberName);
+                } catch (const std::runtime_error&) {
+                    continue;
+                }
+            }
         }
     }
 
@@ -1110,6 +1118,22 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
     if (receiverVal.getType() == Value::NONE) {
         throw std::runtime_error("Runtime Error: Cannot access member '" + memberName + 
             "' on undefined/null [ line " + std::to_string(lineNumber) + " ]");
+    }
+
+    // Handle module type
+    if (receiverVal.getType() == Value::MODULE) {
+        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+        auto mod = static_cast<ModuleData*>(obj.get());
+        
+        uint32_t moduleId = StringPool::instance().intern(mod->name);
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        if (env.contains(moduleId) && env[moduleId].count(memberId)) {
+            return env[moduleId][memberId];
+        }
+        
+        throw std::runtime_error("Runtime Error: Module '" + mod->name + 
+            "' has no member '" + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
 
     if (std::holds_alternative<std::shared_ptr<VyneObject>>(receiverVal.data)) {

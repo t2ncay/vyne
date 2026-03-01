@@ -24,7 +24,7 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
         std::shared_ptr<ASTNode> rootShared = std::move(programRoot);
 
         if (mode == "ast") {
-            std::cout << GREEN << "Executing via AST Interpreter...\n" << RESET;
+            std::cout << GREEN << "Executing via AST Interpreter...\n\n" << RESET;
             auto start = std::chrono::high_resolution_clock::now();
 
             env.setSourceDir(filename);

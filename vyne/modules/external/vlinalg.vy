@@ -2,22 +2,38 @@ use extern "vcolors.vy";
 module vlinalg;
 module vmath;
 
+### TODO FIX RECURSIVE TYPE CHECKING INSIDE INTERFACES
+
 group Types :: vlinalg {
+
     interface Matrix {
         row  :: Int64,
         col  :: Int64,
-        data :: Array
+        data :: Array,
+
+        insert_row(new_row :: Array) {
+            new_row_size :: Int64 = self.row + 1;
+
+            if new_row.size() != self.col {
+                exit("Matrix Error: Inconsistent column size");
+                return [];
+            }
+
+            new_data :: Array = self.data;
+            new_data.push(new_row);
+            return vlinalg.Types.Matrix(new_row_size, self.col, new_data);
+        }
     }
 
     interface Vector {
         x :: Int64,
         y :: Int64,
 
-        magnitude(){
+        magnitude() -> Float64 {
             return vmath.sqrt(self.x * self.x + self.y * self.y);
         }
 
-        slope(){
+        slope() -> Float64 {
             return self.y / self.x;
         }
 
@@ -27,7 +43,7 @@ group Types :: vlinalg {
     }
 };
 
-fn :: vlinalg add(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
+fn :: vlinalg add(a :: vlinalg.Types.Matrix, b :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
     if (a.row != b.row) || (a.col != b.col) {
         out(vcolors.red("Matrix Error: Dimensions must match for addition."));
         return [];
@@ -49,10 +65,10 @@ fn :: vlinalg add(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
         result_data.push(new_row);
     };
 
-    return Types.Matrix(a.row, a.col, result_data);
+    return vlinalg.Types.Matrix(a.row, a.col, result_data);
 }
 
-fn :: vlinalg subtract(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
+fn :: vlinalg subtract(a :: vlinalg.Types.Matrix, b :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
     if (a.row != b.row) || (a.col != b.col) {
         out(vcolors.red("Matrix Error: Dimensions must match for subtraction."));
         return [];
@@ -73,7 +89,7 @@ fn :: vlinalg subtract(a :: Types.Matrix, b :: Types.Matrix) -> Types.Matrix {
         result_data.push(new_row);
     };
 
-    return Types.Matrix(a.row, a.col, result_data);
+    return vlinalg.Types.Matrix(a.row, a.col, result_data);
 }
 
 deploy vlinalg;

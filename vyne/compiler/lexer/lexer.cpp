@@ -103,6 +103,7 @@ std::vector<Token> tokenize(std::string_view input) {
             else if (buffer == "int64") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
             else if (buffer == "float64") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
             else if (buffer == "sequence") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
+            else if (buffer == "exit") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
             else if (buffer == "group") tokens.emplace_back(VTokenType::Group, currentLine, 0, "");
             else if (buffer == "true") tokens.emplace_back(VTokenType::True, currentLine, 1, "");
             else if (buffer == "false") tokens.emplace_back(VTokenType::False, currentLine, 0, "");

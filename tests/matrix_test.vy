@@ -13,7 +13,5 @@ m2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 3, [
 vector :: vlinalg.Types.Vector = vlinalg.Types.Vector(2,3);
 vector2 :: vlinalg.Types.Vector = vlinalg.Types.Vector(5,6);
 
-out(vector);
-out(vector.slope());
-out(vector.magnitude());
-out(vector.cross_product(vector2));
+out(vlinalg.add(m1, m2));
+out(m1.insert_row([1,3]));
