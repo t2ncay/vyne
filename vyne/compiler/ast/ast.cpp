@@ -96,9 +96,18 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     if (it_existing != table.end()) {
         checkReadOnly(it_existing->second, originalName, lineNumber);
         val = convertIfNeeded(val, it_existing->second.getType(), lineNumber);
+        
         if (it_existing->second.getType() != Value::NONE && 
             it_existing->second.getType() != val.getType()) {
-            throw std::runtime_error("Type Error: Cannot assign...");
+            
+            std::string existingTypeName = it_existing->second.getTypeName();
+            std::string newTypeName = val.getTypeName();
+            
+            throw std::runtime_error(
+                "Type Error: Cannot assign " + newTypeName + " value to '" + originalName + 
+                "' which expects " + existingTypeName + 
+                " [ line " + std::to_string(lineNumber) + " ]"
+            );
         }
     }
 
