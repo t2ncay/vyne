@@ -608,7 +608,8 @@ public:
           rhs(std::move(r)),
           isConstant(ic) 
         {
-            if (auto* var = dynamic_cast<VariableNode*>(base.get())) {
+            if (base->type() == NodeType::VARIABLE) {
+                auto* var = static_cast<VariableNode*>(base.get());
                 arrayName = var->getOriginalName();
             } else {
                 arrayName = "anonymous";

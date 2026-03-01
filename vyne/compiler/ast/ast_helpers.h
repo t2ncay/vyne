@@ -8,6 +8,11 @@
 // Symbol Lookup Helpers
 // ============================================================================
 
+inline uint32_t getGlobalId() {
+    static uint32_t globalId = StringPool::instance().intern("global");
+    return globalId;
+}
+
 inline Value* lookupSymbol(SymbolContainer& env, uint32_t groupId, uint32_t id) {
     auto gIt = env.find(groupId);
     if (gIt != env.end()) {
@@ -26,11 +31,6 @@ inline Value* lookupSymbolWithFallback(SymbolContainer& env,
         valPtr = lookupSymbol(env, fallbackGroupId, id);
     }
     return valPtr;
-}
-
-inline uint32_t getGlobalId() {
-    static uint32_t globalId = StringPool::instance().intern("global");
-    return globalId;
 }
 
 inline uint32_t getGroupId(const std::string& groupName) {

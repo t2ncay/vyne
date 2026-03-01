@@ -29,10 +29,17 @@ Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGrou
 
 Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     static thread_local std::unordered_map<std::string, uint32_t> groupIdCache;
+    static uint32_t globalId = getGlobalId();
     
-    std::string target = specificGroup.empty() ? currentGroup : "global";
-    if (!specificGroup.empty()) {
-        for (const auto& g : specificGroup) target += "." + g;
+    std::string target;
+    if (specificGroup.empty()) {
+        target = currentGroup;
+    } else {
+        target = "global";
+        for (const auto& g : specificGroup) {
+            target += '.';  // appending char to prevent re-allocations
+            target += g;
+        }
     }
     
     auto cacheIt = groupIdCache.find(target);
@@ -47,7 +54,6 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
     Value* valPtr = lookupSymbol(env, targetId, nameId);
     
     if (!valPtr && target != "global") {
-        uint32_t globalId = StringPool::instance().intern("global");
         valPtr = lookupSymbol(env, globalId, nameId);
     }
 
@@ -194,7 +200,7 @@ Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
  */
 
 Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value l = left->evaluate(env, currentGroup);
+    const Value& l = left->evaluate(env, currentGroup);
 
     if (op == VTokenType::And) {
         if (!l.isTruthy()) return Value(static_cast<int64_t>(0));
@@ -206,7 +212,7 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
         return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
     }
 
-    Value r = right->evaluate(env, currentGroup);
+    const Value& r = right->evaluate(env, currentGroup);
     int lType = l.getType();
     int rType = r.getType();
 
@@ -460,6 +466,8 @@ Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGro
 }
 
 Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    static uint32_t globalId = getGlobalId();
+
     std::string targetGroupName = "global";
     uint32_t targetNameId = funcNameId;
 
@@ -481,12 +489,11 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
 
     if (it == groupMap.end()) {
         if (targetGroupName != "global") {
-            uint32_t globalId = StringPool::instance().intern("global");
             auto& globalMap = env[globalId];
             it = globalMap.find(targetNameId);
         }
         
-        if (it == env[StringPool::instance().intern("global")].end()) {
+        if (it == env[globalId].end()) {
             throw std::runtime_error("Runtime Error: '" + originalName + 
                 "' is not defined [ line " + std::to_string(lineNumber) + " ]");
         }
@@ -642,7 +649,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             std::string targetGroup = resolvePath(var->getScope(), currentGroup);
             if (env.count(targetGroup) && env[targetGroup].count(var->getNameId())) {
                 target = &env[targetGroup][var->getNameId()];
-            } else if (targetGroup != "global" && env["global"].count(var->getNameId())) {
+            } else if (targetGroup != "global" && env[getGlobalId()].count(var->getNameId())) {
                 target = &env["global"][var->getNameId()];
             }
         }
@@ -945,7 +952,7 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
     if (hadIt) savedIt = scope[itId];
 
     std::vector<Value> resultList;
-    std::set<Value> seen;
+    std::unordered_set<uint32_t> seenIds;
     Value lastVal;
 
     for (const auto& element : elements) {
@@ -961,8 +968,8 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
                     break;
                 case ForMode::LOOP: lastVal = currentResult; break;
                 case ForMode::UNIQUE: {
-                    if(seen.find(element) == seen.end()){
-                        seen.insert(element);
+                    uint32_t elementId = StringPool::instance().intern(element.toString());
+                    if (seenIds.insert(elementId).second) {
                         resultList.emplace_back(element);
                     }
                     break;
@@ -1229,6 +1236,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 }
 
 Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    static uint32_t globalId = getGlobalId();
     std::filesystem::path finalPath;
     
     std::string cleanPath = filePath;
@@ -1272,7 +1280,7 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
             
             if (groupName == "global") {
                 for (auto const& [id, val] : it->second) {
-                    env["global"][id] = val;
+                    env[globalId][id] = val;
                 }
             } else {
                 env[groupName] = std::move(it->second);
@@ -1281,7 +1289,6 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     } else {
         env[alias] = {};
         
-        uint32_t globalId = StringPool::instance().intern("global");
         auto globalIt = externalEnv.find(globalId);
         if (globalIt != externalEnv.end()) {
             for (auto const& [id, val] : globalIt->second) {
@@ -1304,6 +1311,7 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 }
 
 Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    
     if (!env.contains(moduleName)) {
         throw std::runtime_error("Runtime Error: Module '" + moduleName + 
             "' not found in environment [ line " + std::to_string(lineNumber) + " ]");
@@ -1314,6 +1322,8 @@ Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup
 }
 
 Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    static uint32_t globalId = getGlobalId();
+
     bool erasedSomething = false;
     uint32_t nameId = StringPool::instance().intern(originalName);
     
@@ -1325,7 +1335,6 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         if (env[currentGroupId].erase(nameId)) erasedSomething = true;
     }
     
-    uint32_t globalId = StringPool::instance().intern("global");
     if (currentGroup != "global" && env.count(globalId)) {
         if (env[globalId].erase(nameId)) erasedSomething = true;
     }
