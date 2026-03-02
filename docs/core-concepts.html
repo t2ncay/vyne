@@ -69,7 +69,7 @@
               </li>
               <li><a href="#numbers">Numbers</a></li>
               <li><a href="#arithmetic">Arithmetic</a></li>
-              <li><a href="#modules">Modules & Packages</a></li>
+              <li><a href="#strings">Strings</a></li>
             </ul>
           </div>
 
@@ -147,41 +147,38 @@
             </thead>
             <tbody>
               <tr>
-                <td><strong>Int64</strong></td>
+                <td><strong><code>Int64</code></strong></td>
                 <td>
-                  64-bit signed integer. Strict type checking; does not
-                  auto-convert to Float64 without explicit cast.
+                  64-bit signed integer. 
                 </td>
                 <td>
-                  age :: Int64 = 20; <br />
-                  buffer_size = 1024;
+                  <code>age :: Int64 = 20; </code>
                 </td>
               </tr>
               <tr>
-                <td><strong>Float64</strong></td>
+                <td><strong><code>Float64</code></strong></td>
                 <td>
-                  64-bit double-precision float. Supports "Safe Promotion" from
-                  Int64 during declaration.
+                  64-bit double-precision float.
                 </td>
                 <td>
-                  sample_rate :: Float64 = 44100; <br />
-                  gain = 0.75;
+                  <code>sample_rate :: Float64 = 44100; </code>
+                  
                 </td>
               </tr>
               <tr>
-                <td><strong>String</strong></td>
+                <td><strong><code>String</code></strong></td>
                 <td>Character sequence</td>
-                <td>"Hello World!" etc.</td>
+                <td><code>Hello World!</code> etc.</td>
               </tr>
               <tr>
-                <td><strong>Boolean</strong></td>
+                <td><strong><code>Boolean</code></strong></td>
                 <td>Logical variables</td>
-                <td>true ; false</td>
+                <td><code>true</code> ; <code>false</code></td>
               </tr>
               <tr>
-                <td><strong>Array</strong></td>
+                <td><strong><code>Array</code></strong></td>
                 <td>Dynamic list</td>
-                <td>scores = ["AA", "CD", "BA", 3.3]</td>
+                <td><code>scores = [AA, CD, BA, 3.3]</code></td>
               </tr>
             </tbody>
           </table>
@@ -314,6 +311,41 @@ GPA = 3.42 //floating number
               </tbody>
             </table>
           </div>
+        </section>
+
+        <!--String Section-->
+        <section id="strings">
+          <h2>Strings</h2>
+          <p>Strings in vyne are character sequences. Here is an example of how to define a string and string operation.</p>
+
+          <div class="code">
+              <div class="code-header">
+                <div class="code-title">
+                  <i class="fas fa-file-code"></i>
+                  main.vy
+                </div>
+                <button class="copy-btn" onclick="copyCode(this)">
+                  <i class="fa-regular fa-clipboard"></i>
+                  Copy
+                </button>
+              </div>
+              <pre><code>
+// variableName = value
+
+name = vyne
+type = programming language
+
+//Normally you MUST need to put "  before and after a string variable's value.
+
+// You can combine them like this:
+vyne = name + type //Output: vyne programming language
+
+// You can access its element like this:
+firstLetter = name[0] //Output: v 
+                        </code></pre>
+            </div>
+
+            <div class="warning">Normally you MUST need to put "  before and after a string variable's value.</div>
         </section>
 
         <!-- Page Navigation -->
