@@ -36,7 +36,7 @@ echo "Building Vyne Interpreter (Unix-like)..."
 echo "Mode: ${EXTRA_FLAGS}"
 echo "---------------------------------------"
 
-$CXX $CXXFLAGS $SRC_FILES -o $OUT -lssl -lcrypto -pthread
+$CXX $CXXFLAGS $SRC_FILES -o $OUT -lssl -lcrypto -ldl -pthread
 
 echo "Build Successful: $OUT created."
 

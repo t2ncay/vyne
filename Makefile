@@ -16,7 +16,7 @@ ifeq ($(OS),Windows_NT)
 else
 
     TARGET = $(TARGET_BASE)
-    LDFLAGS = -lssl -lcrypto -pthread
+    LDFLAGS = -lssl -lcrypto -ldl -pthread
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
     DEL = rm -f $(TARGET)
