@@ -1,4 +1,5 @@
 # Copyright f3rhd (C) 2026-2026
+ruleset warnings;
 module vmem;
 
 const SUCCESSFULL_LEX   :: Int64 = 1;

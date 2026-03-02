@@ -1,4 +1,4 @@
-use extern "vcolors.vy";
+use lib "vcolors.vy";
 module vlinalg;
 module vmath;
 

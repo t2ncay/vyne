@@ -1,3 +1,5 @@
+ruleset warnings;
+
 use lib "vlinalg.vy";
 module vcore;
 module vmath;

@@ -370,8 +370,9 @@ Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 }
 
 Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-std::vector<Value> argValues;
-    for (auto& arg : arguments) {
+    std::vector<Value> argValues;
+    
+    for(auto& arg : arguments){
         argValues.emplace_back(arg->evaluate(env, currentGroup));
     }
 
@@ -381,6 +382,7 @@ std::vector<Value> argValues;
                 argValues[0].print(std::cout); 
                 std::cout << "\n"; 
             }
+            
             return Value();
             
         case BuiltInType::EXIT:

@@ -6,7 +6,7 @@
 
 namespace Vyne {
     inline bool quietMode = true;
-
+ 
     inline void setQuietMode(bool quiet) { quietMode = quiet; }
     inline bool isQuietMode() { return quietMode; }
 
@@ -18,9 +18,7 @@ namespace Vyne {
     }
     
     inline void error(const std::string& message, int line = 0) {
-        std::cerr << "\033[31m [ Error ] " << message;  // Red color
-        if (line > 0) std::cerr << " [line " << line << "]";
-        std::cerr << "\033[0m\n";
+        throw std::runtime_error("\033[31m [ Error ] " + message + " [line " + std::to_string(line) +  " ]\033[0m\n");
     }
 }
 
