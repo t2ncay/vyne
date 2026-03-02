@@ -1,8 +1,5 @@
 module vurage;
 
-# set this in shell if urage isn't on default loader paths.
-# export VURAGE_LIB=/absolute/path/to/liburage.so
-
 db = vurage.open("tests/vurage_db");
 vurage.put(db, 1, "Hero"); # Fuck yea
 vurage.put_str(db, "player:hp", "100");
