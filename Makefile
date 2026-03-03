@@ -1,25 +1,39 @@
 CXX = g++
+CC = gcc
 CXXFLAGS = -std=c++23 -O3 -Wall -I. \
            -I./lsp/backend/src -I./lsp/backend/include \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
 TARGET_BASE = vynec
 BUILD_DIR = build
+URAGE_INCLUDES = -I./third_party/urage/core/include -I./third_party/urage/core/src
+URAGE_SRCS = ./third_party/urage/core/src/database_api.c \
+             ./third_party/urage/core/src/database.c \
+             ./third_party/urage/core/src/btree.c \
+             ./third_party/urage/core/src/storage.c \
+             ./third_party/urage/core/src/pager.c \
+             ./third_party/urage/core/src/type.c
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
+    URAGE_LIB = urage.dll
+    URAGE_CFLAGS = -shared
     LDFLAGS = -mconsole -pthread
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
+    DEL_URAGE = if exist $(URAGE_LIB) del /f /q $(URAGE_LIB)
     SHELL := cmd.exe
     
 else
 
     TARGET = $(TARGET_BASE)
-    LDFLAGS = -lssl -lcrypto -pthread
+    URAGE_LIB = liburage.so
+    URAGE_CFLAGS = -shared -fPIC
+    LDFLAGS = -lssl -lcrypto -ldl -pthread
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
     DEL = rm -f $(TARGET)
+    DEL_URAGE = rm -f $(URAGE_LIB)
     
 endif
 
@@ -33,9 +47,12 @@ SRCS = $(wildcard *.cpp) \
 
 OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:.cpp=.o))
 
-all: $(TARGET)
+all: $(URAGE_LIB) $(TARGET)
 
-$(TARGET): $(OBJS)
+$(URAGE_LIB): $(URAGE_SRCS)
+	$(CC) $(URAGE_CFLAGS) $(URAGE_INCLUDES) $(URAGE_SRCS) -o $(URAGE_LIB)
+
+$(TARGET): $(OBJS) $(URAGE_LIB)
 	$(CXX) $(OBJS) -o $(TARGET) $(LDFLAGS)
 
 $(BUILD_DIR)/%.o: %.cpp
@@ -46,5 +63,6 @@ clean:
 	@echo Cleaning...
 	@$(RM)
 	@$(DEL)
+	@$(DEL_URAGE)
 
 .PHONY: all clean

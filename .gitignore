@@ -9,6 +9,10 @@ vynec.exe
 vyne-docs/*
 .vscode/*
 vyne_bin
+liburage.so
+urage.dll
+*.idx
+*.dat
 lsp/bin/*
 *.o
 editors/vscode/lsp/node_modules/*

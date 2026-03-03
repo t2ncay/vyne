@@ -6,6 +6,7 @@
 #include "../../modules/common/vmem/vmem.h"
 #include "../../modules/common/vmath/vmath.h"
 #include "../../modules/common/vfs/vfs.h"
+#include "../../modules/common/vurage/vurage.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -1275,6 +1276,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     if (originalName == "vmem")  setupVMem(env, StringPool::instance());
     if (originalName == "vmath") setupVMath(env, StringPool::instance());
     if (originalName == "vfs")   setupVFs(env, StringPool::instance());
+    if (originalName == "vurage")   setupVurage(env, StringPool::instance());
 
     auto& groupTable = env[currentGroup]; 
 
