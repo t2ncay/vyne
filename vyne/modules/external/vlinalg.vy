@@ -12,7 +12,8 @@ group Types :: vlinalg {
         data :: Array,
 
         insert_row(new_row :: Array) {
-            new_row_size :: Int64 = self.row + 1;
+            self.row = self.row + 1;
+            # fix postfix node self variable resolution in scope
 
             if new_row.size() != self.col {
                 exit("Matrix Error: Inconsistent column size");
@@ -21,7 +22,7 @@ group Types :: vlinalg {
 
             new_data :: Array = self.data;
             new_data.push(new_row);
-            return vlinalg.Types.Matrix(new_row_size, self.col, new_data);
+            return vlinalg.Types.Matrix(self.row, self.col, new_data);
         }
     }
 
