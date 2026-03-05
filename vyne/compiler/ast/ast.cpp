@@ -297,15 +297,24 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         throw std::runtime_error("Type Error: Cannot increment/decrement non-numeric type [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    if (left->type() == NodeType::MEMBER_ACCESS) {
+     if (left->type() == NodeType::MEMBER_ACCESS) {
         auto* memNode = static_cast<MemberAccessNode*>(left.get());
-        std::string containerPath = memNode->getReceiverPath(); 
+        std::string receiverPath = memNode->getReceiverPath();
         uint32_t memberId = StringPool::instance().intern(memNode->getMemberName());
-        
-        uint32_t containerId = StringPool::instance().intern(containerPath);
-        Value* internalVal = env.getInternalPointer(containerId, memberId);
-        *internalVal = newVal;
-    } 
+
+        uint32_t scopeId = StringPool::instance().intern(currentGroup.empty() ? "global" : currentGroup);
+        uint32_t receiverId = StringPool::instance().intern(receiverPath);
+        Value* receiverPtr = lookupSymbol(env, scopeId, receiverId);
+
+        if (receiverPtr && receiverPtr->getType() == Value::STRUCT) {
+            auto structPtr = receiverPtr->asStruct();
+            structPtr->fields[memberId] = newVal;
+        } else {
+            uint32_t containerId = StringPool::instance().intern(receiverPath);
+            Value* internalVal = env.getInternalPointer(containerId, memberId);
+            *internalVal = newVal;
+        }
+    }
     else if (left->type() == NodeType::VARIABLE) [[likely]] {
         auto* varNode = static_cast<VariableNode*>(left.get());
         std::string targetScope = currentGroup.empty() ? "global" : currentGroup;

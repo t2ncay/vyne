@@ -16,7 +16,7 @@ URAGE_SRCS = ./third_party/urage/core/src/database_api.c \
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
     URAGE_LIB = urage.dll
-    URAGE_CFLAGS = -shared
+    URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
     LDFLAGS = -mconsole -pthread
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)

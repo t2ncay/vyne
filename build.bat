@@ -38,7 +38,7 @@ echo Building Vyne Interpreter (Windows) with GLFW...
 echo ---------------------------------------
 
 echo Building bundled URAGE shared library...
-%CC% -shared -Ithird_party/urage/core/include -Ithird_party/urage/core/src %URAGE_SRC_FILES% -o %URAGE_OUT%
+%CC% -shared -DURAGE_BUILD_SHARED -Ithird_party/urage/core/include -Ithird_party/urage/core/src %URAGE_SRC_FILES% -o %URAGE_OUT%
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

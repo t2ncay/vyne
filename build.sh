@@ -14,7 +14,7 @@ else
 fi
 
 CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic -DCPPHTTPLIB_OPENSSL_SUPPORT"
-URAGE_CFLAGS="-shared -fPIC"
+URAGE_CFLAGS="-shared -DURAGE_BUILD_SHARED -fPIC"
 
 URAGE_SRC_FILES="third_party/urage/core/src/database_api.c \
 third_party/urage/core/src/database.c \

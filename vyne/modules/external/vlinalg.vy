@@ -2,8 +2,6 @@ use lib "vcolors.vy";
 module vlinalg;
 module vmath;
 
-### TODO FIX RECURSIVE TYPE CHECKING INSIDE INTERFACES
-
 group Types :: vlinalg {
     
     interface Matrix {
@@ -12,8 +10,7 @@ group Types :: vlinalg {
         data :: Array,
 
         insert_row(new_row :: Array) {
-            self.row = self.row + 1;
-            # fix postfix node self variable resolution in scope
+            self.row++;
 
             if new_row.size() != self.col {
                 exit("Matrix Error: Inconsistent column size");
@@ -36,7 +33,7 @@ group Types :: vlinalg {
 
         slope() -> Float64 {
             return self.y / self.x;
-        }
+        }   
 
         cross_product(other :: Types.Vector) -> Int64 {
             return self.x * other.y - self.y * other.x;
