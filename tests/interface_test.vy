@@ -15,7 +15,16 @@ group Master :: custom {
     }
 };
 
+interface Node {
+    kind :: Int64,
+    data :: Int64, 
+    left :: Node&,
+    right :: Node& 
+}
+
 hydrogen :: custom.Master.Element = custom.Master.Element();
 out(hydrogen.atomic_mass);
 out(hydrogen);
 out(hydrogen.getName());
+
+node :: Node = Node();
