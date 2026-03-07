@@ -12,7 +12,6 @@ class ASTNode;
 class ProgramNode;
 class StringPool;
 
-// TODO ADD DOUBLE INCREMENT SYNTAX
 
 Token Parser::getNextToken() {
     if (pos < tokens.size()) {
@@ -322,7 +321,6 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     }
 
     consume(VTokenType::Right_CB);
-    consumeSemicolon();
     
     auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
     node->lineNumber = line;
@@ -869,7 +867,6 @@ std::unique_ptr<ASTNode> Parser::parseWhileLoop() {
     
     auto body = parseStatement();
 
-    consumeSemicolon();
     auto node = std::make_unique<WhileNode>(std::move(condition), std::move(body));
     node->lineNumber = line;
     return node;
@@ -900,8 +897,7 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
     } else {
         body = std::make_unique<VariableNode>(StringPool::instance().intern(iteratorName), iteratorName);
     }
-
-    consumeSemicolon();
+    
 
     auto node = std::make_unique<ForNode>(std::move(iterable), std::move(body), iteratorName, ForNode::getForMode(modeStr));
     node->lineNumber = line;
@@ -983,7 +979,10 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                     "[ line " + std::to_string(line) + " ]"
                 );
             } else {
-                Vyne::warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+                if (!Vyne::isQuietMode()) {
+                    Vyne::warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+                }
+                varType = VType::Unknown;
             }
         }
 
@@ -1189,7 +1188,6 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     }
     
     consume(VTokenType::Right_CB);
-    consumeSemicolon();
     
     for (const auto& [rule, value] : rules) {
         if (rule == "warnings") {

@@ -1,4 +1,7 @@
-ruleset warnings;
+ruleset {
+    warnings : off,
+    dynamic_casting : on
+}
 
 use lib "vlinalg.vy";
 module vcore;
@@ -29,16 +32,16 @@ brightness_tap :: Array = [
 ];
 
 fn down_brightness(brightness, brightness_tap) { # A function that lowers brightness
-    new_brightness = vmatrix.subtract(brightness, brightness_tap);
+    new_brightness = vlinalg.subtract(brightness, brightness_tap);
     return new_brightness;
 }
 
 fn up_brightness(brightness, brightness_tap) { # A function that lowers brightness
-    new_brightness = vmatrix.add(brightness, brightness_tap);
+    new_brightness = vlinalg.add(brightness, brightness_tap);
     return new_brightness;
 }
 
-while false {
+while true {
     command :: String = vcore.input();
     if command == "down" {
         new_brightness = down_brightness(brightness, brightness_tap);
