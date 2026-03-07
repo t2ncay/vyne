@@ -1448,10 +1448,29 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     bool erasedSomething = false;
     uint32_t nameId = StringPool::instance().intern(originalName);
     
-    uint32_t globalDotNameId = StringPool::instance().intern("global." + originalName);
+    uint32_t moduleGroupId = getGroupId(originalName);
+    if (env.erase(moduleGroupId)) {
+        erasedSomething = true;
+    }
+    
+    std::vector<uint32_t> keysToErase;
+    for (const auto& [groupId, table] : env) {
+        const std::string& groupName = StringPool::instance().get(groupId);
+        
+        if (groupName.find("global." + originalName) == 0) {
+            keysToErase.push_back(groupId);
+        }
+    }
+    
+    for (uint32_t key : keysToErase) {
+        env.erase(key);
+        erasedSomething = true;
+    }
+    
+    uint32_t globalDotNameId = getGroupId("global." + originalName);
     if (env.erase(globalDotNameId)) erasedSomething = true;
     
-    uint32_t currentGroupId = StringPool::instance().intern(currentGroup);
+    uint32_t currentGroupId = getGroupId(currentGroup);
     if (env.count(currentGroupId)) {
         if (env[currentGroupId].erase(nameId)) erasedSomething = true;
     }
@@ -1460,7 +1479,13 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         if (env[globalId].erase(nameId)) erasedSomething = true;
     }
     
-    if (erasedSomething) return Value();
+    // 4. Also remove any entries in the module's own namespace
+    if (env.count(nameId)) {
+        env.erase(nameId);
+        erasedSomething = true;
+    }
+    
+    if (erasedSomething) return Value(true);
     
     throw std::runtime_error("Module Error: Could not dismiss '" + originalName + 
                             "' [ line " + std::to_string(lineNumber) + " ]");
