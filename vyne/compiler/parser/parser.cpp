@@ -958,7 +958,9 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         bool isReference = var->isRefVar();
         std::string customTypeName = "";
 
-        if (peekToken().type == VTokenType::Extends) {
+        bool hasTypeDecl = (peekToken().type == VTokenType::Extends);
+        
+        if (hasTypeDecl) {
             consume(VTokenType::Extends);
             customTypeName = parseTypePath();
             varType = resolveType(customTypeName);
@@ -967,6 +969,17 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                 consume(VTokenType::Referencer);
                 isReference = true;
             }
+        } else {
+            if (Vyne::isTypeStrict()) {
+                throw std::runtime_error(
+                    "Type Error: Variable '" + originalName + 
+                    "' requires explicit type declaration in strict mode. " +
+                    "Use ':: <type>' or enable dynamic typing with 'ruleset dynamic_type_casting;' " +
+                    "[ line " + std::to_string(line) + " ]"
+                );
+            } else {
+                Vyne::warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+            }
         }
 
         std::unique_ptr<ASTNode> rhs = nullptr;
@@ -974,7 +987,6 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             consume(VTokenType::Equals);
             rhs = parseExpression();
         } else {
-            // Default initialization
             if (isReference) {
                 rhs = std::make_unique<NullNode>();
             } else {
@@ -984,13 +996,26 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                     case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
                     case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
                     case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
-                    default:             rhs = std::make_unique<NullNode>(); break; 
+                    default:             
+                        if (!Vyne::isTypeStrict()) {
+                            rhs = std::make_unique<NullNode>(); 
+                        } else {
+                            throw std::runtime_error(
+                                "Type Error: Cannot default initialize '" + originalName + 
+                                "' without type declaration in strict mode [ line " + 
+                                std::to_string(line) + " ]"
+                            );
+                        }
+                        break;
                 }
             }
         }
 
         consumeSemicolon();
-        defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
+        
+        if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
+            defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
+        }
 
         auto node = std::make_unique<AssignmentNode>(
             varId, originalName, std::move(rhs), 
@@ -999,11 +1024,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         node->lineNumber = line;
         return node;
     }
-
-    consumeSemicolon();
-    return lhs;
 }
-
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);
@@ -1121,6 +1142,10 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
     int line = peekToken().line;
     consume(VTokenType::Ruleset);
     
+    if (peekToken().type == VTokenType::Left_CB) {
+        return parseRulesetBlock(line);
+    }
+    
     Token rulesetType = consume(VTokenType::Identifier);
     std::string type = rulesetType.name;
     
@@ -1130,6 +1155,55 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
     
     if (type == "warnings") {
         Vyne::setQuietMode(false);
+    } else if (type == "dynamic_type_casting") {
+        Vyne::setTypeStrictMode(false);
+    }
+    
+    auto node = std::make_unique<NullNode>();
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
+    consume(VTokenType::Left_CB);
+    
+    std::unordered_map<std::string, std::string> rules;
+    
+    while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
+        Token ruleName = consume(VTokenType::Identifier);
+        std::string name = ruleName.name;
+        
+        consume(VTokenType::Colon);
+        
+        Token value = consume(VTokenType::Identifier);
+        rules[name] = value.name;
+        
+        if (peekToken().type == VTokenType::Comma) {
+            consume(VTokenType::Comma);
+        }
+    }
+    
+    consume(VTokenType::Right_CB);
+    consumeSemicolon();
+    
+    for (const auto& [rule, value] : rules) {
+        if (rule == "warnings") {
+            if (value == "on") {
+                Vyne::setQuietMode(false);
+            } else if (value == "off") {
+                Vyne::setQuietMode(true);
+            }
+        }
+        else if (rule == "dynamic_casting") {
+            if (value == "on") {
+                Vyne::setTypeStrictMode(false);
+            } else if (value == "off") {
+                Vyne::setTypeStrictMode(true);
+            }
+        }
+        else {
+            throw std::runtime_error("Unknown ruleset: " + rule + " [line " + std::to_string(line) + "]");
+        }
     }
     
     auto node = std::make_unique<NullNode>();

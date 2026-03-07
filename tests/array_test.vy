@@ -1,4 +1,7 @@
-ruleset warnings;
+ruleset {
+    warnings: on,
+    dynamic_casting: on
+};
 
 x = [];
 a = 5;

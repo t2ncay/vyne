@@ -72,7 +72,7 @@ enum class VTokenType {
     Left_Bracket,       // [
     Right_Bracket,      // ]
     Comma,              // ,
-    DoubleColon,        //
+    Colon,        //
     Semicolon,          // ;
     Dot,                // .
     Double_Dot,         // ..
@@ -176,7 +176,7 @@ inline std::string VTokenTypeToString(VTokenType type) {
         case VTokenType::Left_Bracket:        return "'['";
         case VTokenType::Right_Bracket:       return "']'";
         case VTokenType::Comma:                return "','";
-        case VTokenType::DoubleColon:         return "':'";
+        case VTokenType::Colon:         return "':'";
         case VTokenType::Semicolon:           return "';'";
         case VTokenType::Dot:                  return "'.'";
         case VTokenType::Double_Dot:           return "'..'";

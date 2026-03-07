@@ -6,9 +6,13 @@
 
 namespace Vyne {
     inline bool quietMode = true;
+    inline bool typeStrictMode = true;
  
     inline void setQuietMode(bool quiet) { quietMode = quiet; }
     inline bool isQuietMode() { return quietMode; }
+
+    inline void setTypeStrictMode(bool ts) { typeStrictMode = ts; }
+    inline bool isTypeStrict() { return typeStrictMode; }
 
     inline void warn(const std::string& message, int line = 0) {
         if (quietMode) return;

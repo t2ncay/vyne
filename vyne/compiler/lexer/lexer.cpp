@@ -229,7 +229,7 @@ std::vector<Token> tokenize(std::string_view input) {
                     tokens.emplace_back(VTokenType::Extends, currentLine, 0, "::");
                     i += 2;
                 } else {
-                    tokens.emplace_back(VTokenType::DoubleColon, currentLine, 0, ":");
+                    tokens.emplace_back(VTokenType::Colon, currentLine, 0, ":");
                     i++;
                 }
                 continue;

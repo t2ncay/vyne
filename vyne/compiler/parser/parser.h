@@ -97,6 +97,7 @@ private:
 	std::unique_ptr<ASTNode> parseLoopControl();
 	std::unique_ptr<ASTNode> parseStatement();
 	std::unique_ptr<ASTNode> parseRuleset();
+	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
 
 public:
 	// --- Navigation ---

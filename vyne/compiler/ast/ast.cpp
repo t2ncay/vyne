@@ -80,6 +80,19 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     auto& table = env[targetGroup];
     auto it_existing = table.find(identifierId);
 
+    if (Vyne::isTypeStrict() && it_existing != table.end()) {
+        int existingType = it_existing->second.getType();
+        int newType = val.getType();
+        
+        if (existingType != Value::NONE && existingType != newType) {
+            throw std::runtime_error(
+                "Type Error: Cannot assign " + val.getTypeName() + 
+                " to '" + originalName + "' of type " + it_existing->second.getTypeName() +
+                " in strict mode [ line " + std::to_string(lineNumber) + " ]"
+            );
+        }
+    }
+
     if (it_existing != table.end() && it_existing->second.isReference()) {
         checkReadOnly(it_existing->second, originalName, lineNumber);
         Value* targetPtr = it_existing->second.getPointer();
@@ -550,7 +563,26 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     std::string localScope = createLocalScope("call", originalName);
     ScopedEnvironment scope(env, localScope, currentGroup);
 
+    if (Vyne::isTypeStrict()) {
         for (size_t i = 0; i < funcData->params.size(); ++i) {
+            const auto& param = funcData->params[i];
+            
+            if (param.type != VType::Unknown) {
+                int expectedType = static_cast<int>(param.type);
+                int actualType = evaluatedArgs[i].getType();
+                
+                if (expectedType != actualType) {
+                    throw std::runtime_error(
+                        "Type Error: Parameter '" + param.name + "' expects " +
+                        VTypeToString(param.type) + ", but got " + evaluatedArgs[i].getTypeName() +
+                        " in strict mode [ line " + std::to_string(lineNumber) + " ]"
+                    );
+                }
+            }
+        }
+    }
+
+    for (size_t i = 0; i < funcData->params.size(); ++i) {
         const auto& param = funcData->params[i];
         
         if (param.isReference) {
