@@ -1,5 +1,8 @@
 # Test 1: Basic reference parameter
+ruleset { dynamic_casting : on };
 out("=== TEST 1: Basic reference parameter ===");
+
+sa = null;
 
 fn modify_by_value(x) {
     x = 100;

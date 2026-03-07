@@ -524,6 +524,7 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
         case VTokenType::Float64:                 return parseNumberLiteral();
         case VTokenType::True:
         case VTokenType::False:                   return parseBooleanLiteral();
+        case VTokenType::Null:                    return parseNullLiteral();
         case VTokenType::Identifier:              return parseIdentifierExpr();
         case VTokenType::Left_Bracket:            return parseArrayLiteral();
         case VTokenType::Left_Parenthese:         return parseGroupingExpr();
@@ -600,6 +601,14 @@ std::unique_ptr<ASTNode> Parser::parseArrayLiteral() {
     consume(VTokenType::Right_Bracket);
 
     auto node = std::make_unique<ArrayNode>(std::move(elements));
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseNullLiteral() {
+    int line = peekToken().line;
+    consume(VTokenType::Null);
+    auto node = std::make_unique<NullNode>();
     node->lineNumber = line;
     return node;
 }
@@ -1188,6 +1197,7 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     }
     
     consume(VTokenType::Right_CB);
+    consumeSemicolon();
     
     for (const auto& [rule, value] : rules) {
         if (rule == "warnings") {

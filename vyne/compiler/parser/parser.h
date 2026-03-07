@@ -83,6 +83,7 @@ private:
     std::unique_ptr<ASTNode> parseArrayLiteral();
     std::unique_ptr<ASTNode> parseGroupingExpr();
     std::unique_ptr<ASTNode> parseIdentifierExpr();
+	std::unique_ptr<ASTNode> parseNullLiteral();
 
 	// --- Statement Workers ---
 	std::unique_ptr<ASTNode> parseBlock();
