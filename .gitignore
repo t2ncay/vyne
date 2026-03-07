@@ -15,5 +15,6 @@ urage.dll
 *.dat
 lsp/bin/*
 *.o
+*.dll
 editors/vscode/lsp/node_modules/*
 editors/vscode/lsp/*.vsix

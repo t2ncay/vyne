@@ -293,7 +293,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
             consume(VTokenType::Right_CB);
             
             auto methodNode = std::make_shared<FunctionNode>(
-                currentModuleName, // TODO targetModule (empty means current interface)
+                currentModuleName,
                 StringPool::instance().intern(methodName.name),
                 methodName.name,
                 std::move(params),
@@ -322,6 +322,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     }
 
     consume(VTokenType::Right_CB);
+    consumeSemicolon();
     
     auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
     node->lineNumber = line;
@@ -867,6 +868,8 @@ std::unique_ptr<ASTNode> Parser::parseWhileLoop() {
     auto condition = parseExpression();
     
     auto body = parseStatement();
+
+    consumeSemicolon();
     auto node = std::make_unique<WhileNode>(std::move(condition), std::move(body));
     node->lineNumber = line;
     return node;
@@ -897,6 +900,8 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
     } else {
         body = std::make_unique<VariableNode>(StringPool::instance().intern(iteratorName), iteratorName);
     }
+
+    consumeSemicolon();
 
     auto node = std::make_unique<ForNode>(std::move(iterable), std::move(body), iteratorName, ForNode::getForMode(modeStr));
     node->lineNumber = line;
