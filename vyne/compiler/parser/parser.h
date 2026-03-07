@@ -76,18 +76,6 @@ private:
         return declaredTypes.find(name) != declaredTypes.end();
     }
 
-	void checkUnusedVariables(const SymbolContainer& env) {
-		if (Vyne::isQuietMode()) return;
-		
-		for (const auto& scope : scopeStack) {
-			for (const auto& [id, info] : scope) {
-				if (!env.wasUsed(id)) {
-					Vyne::warn("Unused variable '" + info.name + "'", info.line);
-				}
-			}
-		}
-	}
-
 	// --- Literal Workers ---
 	std::unique_ptr<ASTNode> parseStringLiteral();
     std::unique_ptr<ASTNode> parseNumberLiteral();
@@ -140,4 +128,16 @@ public:
 	std::unique_ptr<ASTNode>     parseDeployModule();
 	std::unique_ptr<ASTNode>     parseInterfaceDefinition();
 	std::unique_ptr<ProgramNode> parseProgram(SymbolContainer& env);
+
+	void checkUnusedVariables(const SymbolContainer& env) {
+		if (Vyne::isQuietMode()) return;
+		
+		for (const auto& scope : scopeStack) {
+			for (const auto& [id, info] : scope) {
+				if (!env.wasUsed(id)) {
+					Vyne::warn("Unused variable '" + info.name + "'", info.line);
+				}
+			}
+		}
+	}
 };

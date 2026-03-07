@@ -30,6 +30,7 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             rootShared->evaluate(env); 
             
             auto end = std::chrono::high_resolution_clock::now();
+            parser.checkUnusedVariables(env);
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
             return 0;

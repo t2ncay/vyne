@@ -342,7 +342,6 @@ std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
         statements.emplace_back(parseStatement());
     }
 
-    checkUnusedVariables(env);
     return std::make_unique<ProgramNode>(std::move(statements));
 }
 

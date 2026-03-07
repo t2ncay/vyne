@@ -381,6 +381,13 @@ Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 
 Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     std::vector<Value> argValues;
+
+    for (auto& arg : arguments) {
+        if (arg->type() == NodeType::VARIABLE) {
+            auto* varNode = static_cast<VariableNode*>(arg.get());
+            env.markUsed(varNode->getNameId());
+        }
+    }
     
     for(auto& arg : arguments){
         argValues.emplace_back(arg->evaluate(env, currentGroup));
@@ -611,6 +618,18 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
  */
 
 Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* varNode = static_cast<VariableNode*>(receiver.get());
+        env.markUsed(varNode->getNameId());
+    }
+
+    for (auto& arg : arguments) {
+        if (arg->type() == NodeType::VARIABLE) {
+            auto* varNode = static_cast<VariableNode*>(arg.get());
+            env.markUsed(varNode->getNameId());
+        }
+    }
+
     Value receiverVal = receiver->evaluate(env, currentGroup);
     uint32_t methodId = StringPool::instance().intern(methodName);
 
@@ -1414,7 +1433,7 @@ Value NullNode::evaluate(SymbolContainer& env, const std::string& currentGroup) 
 
 Value RulesetNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     if (rulesetType == "warnings") {
-        Vyne::setQuietMode(true);
+        Vyne::setQuietMode(false);
     }
     return Value();
 }
