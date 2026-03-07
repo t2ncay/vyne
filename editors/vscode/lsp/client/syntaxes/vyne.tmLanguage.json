@@ -33,7 +33,7 @@
       "patterns": [
         {
           "name": "constant.language.boolean.vyne",
-          "match": "\\b(true|false|const|self|interface|group|fn|module|deploy|loop|collect|every|filter|unique|ruleset)\\b"
+          "match": "\\b(true|false|null|const|self|interface|group|fn|module|deploy|loop|collect|every|filter|unique|ruleset)\\b"
         }
       ]
     },
@@ -80,7 +80,7 @@
         },
         {
           "name": "support.class.vyne",
-          "match": "\\b(vcore|vglib|vmem|vmath|warnings|String|Array|Number|Int64|Float64)\\b"
+          "match": "\\b(vcore|vglib|vmem|vmath|warnings|dynamic_casting|String|Array|Number|Int64|Float64)\\b"
         }
       ]
     },
