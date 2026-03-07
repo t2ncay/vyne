@@ -1,3 +1,7 @@
+ruleset {
+    warnings : off,
+    dynamic_casting : on
+};
 module custom;
 
 group Master :: custom {
@@ -27,4 +31,8 @@ out(hydrogen.atomic_mass);
 out(hydrogen);
 out(hydrogen.getName());
 
-node :: Node = Node();
+node1 :: Node = Node();
+node2 :: Node = Node();
+node3 :: Node = Node(0,0,node1,node2);
+node3.left.data = 123;
+out(node1.data);
