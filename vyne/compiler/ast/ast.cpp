@@ -1438,13 +1438,6 @@ Value NullNode::evaluate(SymbolContainer& env, const std::string& currentGroup) 
     return Value();
 }
 
-Value RulesetNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    if (rulesetType == "warnings") {
-        Vyne::setQuietMode(false);
-    }
-    return Value();
-}
-
 std::string resolvePath(std::vector<std::string> scope, const std::string& currentGroup) {
     if (scope.empty()) {
         return currentGroup;

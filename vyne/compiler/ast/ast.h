@@ -916,19 +916,6 @@ public:
     void compile(Emitter& e) const override;
 };
 
-class RulesetNode : public ASTNode {
-    std::string rulesetType;
-public:
-    RulesetNode(std::string type, int line) 
-        : ASTNode(NodeType::RULESET), rulesetType(std::move(type)) {
-        lineNumber = line;
-    }
-    
-    Value evaluate(SymbolContainer& env, const std::string& currentGroup) const override;
-    
-    void compile(Emitter& e) const override;
-};
-
 // exception structs
 struct BreakNode : public ASTNode {
     BreakNode() : ASTNode(NodeType::BREAK) {}

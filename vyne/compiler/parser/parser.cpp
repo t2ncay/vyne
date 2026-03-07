@@ -1132,7 +1132,7 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
         Vyne::setQuietMode(false);
     }
     
-    auto node = std::make_unique<RulesetNode>(type, line);
+    auto node = std::make_unique<NullNode>();
     node->lineNumber = line;
     return node;
 }
