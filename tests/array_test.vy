@@ -1,6 +1,6 @@
 ruleset {
     warnings: on,
-    dynamic_casting: on
+    dynamic_casting: off
 };
 
 x = [];

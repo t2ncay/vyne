@@ -974,7 +974,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                 throw std::runtime_error(
                     "Type Error: Variable '" + originalName + 
                     "' requires explicit type declaration in strict mode. " +
-                    "Use ':: <type>' or enable dynamic typing with 'ruleset dynamic_type_casting;' " +
+                    "Use ':: <type>' or enable dynamic typing with `ruleset` declarations " +
                     "[ line " + std::to_string(line) + " ]"
                 );
             } else {
