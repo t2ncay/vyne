@@ -1082,7 +1082,14 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
             uint32_t fieldId = StringPool::instance().intern(localMembers[i].name);
             
             if (i < args.size()) {
-                instance->fields[fieldId] = args[i];
+                if (localMembers[i].type == VType::Reference && 
+                    i + 1 < args.size() && 
+                    args[i].getType() == Value::STRUCT) {
+                    
+                    instance->fields[fieldId] = args[i];
+                } else {
+                    instance->fields[fieldId] = args[i];
+                }
             } else {
                 switch (localMembers[i].type) {
                     case VType::String:  
