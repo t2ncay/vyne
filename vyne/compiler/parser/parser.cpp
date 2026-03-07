@@ -307,6 +307,11 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
             
             std::string typePath = parseTypePath();
             VType memberType = resolveType(typePath);
+
+            if (peekToken().type == VTokenType::Referencer) {
+                consume(VTokenType::Referencer);
+                memberType = VType::Reference;
+            }
             
             members.emplace_back(memberName.name, memberType, 0);
         }
