@@ -964,11 +964,12 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         auto* var = static_cast<VariableNode*>(lhs.get());
         uint32_t varId = var->getNameId();
         std::string originalName = var->getOriginalName();
-        VType varType = VType::Unknown;
+        
+        VType varType = var->getStaticType();
         bool isReference = var->isRefVar();
         std::string customTypeName = "";
-
-        bool hasTypeDecl = (peekToken().type == VTokenType::Extends);
+        
+        bool hasTypeDecl = (peekToken().type == VTokenType::Extends) && (varType == VType::Unknown);
         
         if (hasTypeDecl) {
             consume(VTokenType::Extends);
@@ -979,7 +980,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                 consume(VTokenType::Referencer);
                 isReference = true;
             }
-        } else {
+        } else if (varType == VType::Unknown) {
             if (Vyne::isTypeStrict()) {
                 throw std::runtime_error(
                     "Type Error: Variable '" + originalName + 
@@ -991,7 +992,6 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                 if (!Vyne::isQuietMode()) {
                     Vyne::warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
                 }
-                varType = VType::Unknown;
             }
         }
 

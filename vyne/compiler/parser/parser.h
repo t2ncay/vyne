@@ -11,6 +11,7 @@
 #include "../ast/ast.h"
 #include "../types.h"
 #include "../ast/ast_helpers.h"
+#include "../../runtime/diagnostics.h"
 
 struct SymbolInfo {
     VType type;

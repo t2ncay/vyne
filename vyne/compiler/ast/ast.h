@@ -18,6 +18,7 @@
 #include "../types.h"
 #include "../../utils/file_utils.h"
 #include "../types.h"
+#include "../../runtime/diagnostics.h"
 #include "value.h"
 
 class Emitter;
