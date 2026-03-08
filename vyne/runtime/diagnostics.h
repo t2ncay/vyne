@@ -4,7 +4,6 @@
 #include <iostream>
 
 namespace Vyne {
-    // Compiler/VM configuration
     inline bool quietMode = true;
     inline bool typeStrictMode = true;
  
@@ -14,7 +13,6 @@ namespace Vyne {
     inline void setTypeStrictMode(bool ts) { typeStrictMode = ts; }
     inline bool isTypeStrict() { return typeStrictMode; }
 
-    // Diagnostic functions
     inline void warn(const std::string& message, int line = 0) {
         if (quietMode) return;
         std::cerr << "\033[33m[ Warning ] " << message;
