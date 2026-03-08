@@ -1182,16 +1182,13 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
 std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
     
-    std::unordered_map<std::string, std::string> rules;
+    std::vector<std::string> rules;
     
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
         Token ruleName = consume(VTokenType::Identifier);
         std::string name = ruleName.name;
         
-        consume(VTokenType::Colon);
-        
-        Token value = consume(VTokenType::Identifier);
-        rules[name] = value.name;
+        rules.push_back(name);
         
         if (peekToken().type == VTokenType::Comma) {
             consume(VTokenType::Comma);
@@ -1199,22 +1196,17 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     }
     
     consume(VTokenType::Right_CB);
-    consumeSemicolon();
     
-    for (const auto& [rule, value] : rules) {
+    if (peekToken().type == VTokenType::Semicolon) {
+        consume(VTokenType::Semicolon);
+    }
+    
+    for (const auto& rule : rules) {
         if (rule == "warnings") {
-            if (value == "on") {
-                Vyne::setQuietMode(false);
-            } else if (value == "off") {
-                Vyne::setQuietMode(true);
-            }
+            Vyne::setQuietMode(false);
         }
         else if (rule == "dynamic_casting") {
-            if (value == "on") {
-                Vyne::setTypeStrictMode(false);
-            } else if (value == "off") {
-                Vyne::setTypeStrictMode(true);
-            }
+            Vyne::setTypeStrictMode(false);
         }
         else {
             throw std::runtime_error("Unknown ruleset: " + rule + " [line " + std::to_string(line) + "]");
