@@ -1,5 +1,5 @@
 ruleset {
-    warnings : off,
+    warnings : on,
     dynamic_casting : on
 };
 module custom;

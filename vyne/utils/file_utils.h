@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <filesystem>
 
+
 namespace FileUtils {
     inline std::string exeDir = "."; 
 
