@@ -185,7 +185,9 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
         alias = consume(VTokenType::Identifier).name;
     }
 
-    consumeSemicolon();
+    if (peekToken().type == VTokenType::Semicolon) {
+        consume(VTokenType::Semicolon);
+    }
     auto node = std::make_unique<ImportNode>(filePath, isExtern, alias);
     node->lineNumber = line;
     return node;

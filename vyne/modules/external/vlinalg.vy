@@ -1,7 +1,7 @@
 ruleset {
     warnings : off,
     dynamic_casting : on
-}
+};
 
 use lib "vcolors.vy";
 module vlinalg;
