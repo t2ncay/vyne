@@ -18,3 +18,4 @@ lsp/bin/*
 *.dll
 editors/vscode/lsp/node_modules/*
 editors/vscode/lsp/*.vsix
+vynec
