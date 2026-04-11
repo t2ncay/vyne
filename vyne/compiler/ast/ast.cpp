@@ -281,6 +281,7 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
             case VTokenType::Modulo:
                 if (rv == 0) throw std::runtime_error("Modulo by zero!");
                 return Value(lv % rv);
+            case VTokenType::Power : return Value(std::pow(lv, rv));
             case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(lv == rv);
             case VTokenType::Smaller_Or_Equal: return Value(lv <= rv);

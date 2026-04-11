@@ -1,6 +1,6 @@
 ruleset {
-    warnings : on,
-    dynamic_casting : on
+    warnings,
+    dynamic_casting
 };
 module custom;
 
