@@ -16,12 +16,12 @@ fi
 CXXFLAGS="-std=c++23 $EXTRA_FLAGS -Wall -Wextra -Wpedantic -DCPPHTTPLIB_OPENSSL_SUPPORT"
 URAGE_CFLAGS="-shared -DURAGE_BUILD_SHARED -fPIC"
 
-URAGE_SRC_FILES="third_party/urage/core/src/database_api.c \
-third_party/urage/core/src/database.c \
-third_party/urage/core/src/btree.c \
-third_party/urage/core/src/storage.c \
-third_party/urage/core/src/pager.c \
-third_party/urage/core/src/type.c"
+URAGE_SRC_FILES="vendor/urage/core/src/database_api.c \
+vendor/urage/core/src/database.c \
+vendor/urage/core/src/btree.c \
+vendor/urage/core/src/storage.c \
+vendor/urage/core/src/pager.c \
+vendor/urage/core/src/type.c"
 
 SRC_FILES="main.cpp \
 vyne/vm/vm.cpp \
@@ -47,7 +47,7 @@ echo "Mode: ${EXTRA_FLAGS}"
 echo "---------------------------------------"
 
 echo "Building bundled URAGE shared library..."
-$CC $URAGE_CFLAGS -I./third_party/urage/core/include -I./third_party/urage/core/src \
+$CC $URAGE_CFLAGS -I./vendor/urage/core/include -I./vendor/urage/core/src \
     $URAGE_SRC_FILES -o $URAGE_OUT
 
 $CXX $CXXFLAGS $SRC_FILES -o $OUT -lssl -lcrypto -ldl -pthread

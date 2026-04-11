@@ -8,12 +8,12 @@ set CXXFLAGS=-std=c++23 -O3 -Wall -Wextra
 set OUT=vyne.exe
 set URAGE_OUT=urage.dll
 
-set URAGE_SRC_FILES=third_party/urage/core/src/database_api.c ^
-third_party/urage/core/src/database.c ^
-third_party/urage/core/src/btree.c ^
-third_party/urage/core/src/storage.c ^
-third_party/urage/core/src/pager.c ^
-third_party/urage/core/src/type.c
+set URAGE_SRC_FILES=vendor/urage/core/src/database_api.c ^
+vendor/urage/core/src/database.c ^
+vendor/urage/core/src/btree.c ^
+vendor/urage/core/src/storage.c ^
+vendor/urage/core/src/pager.c ^
+vendor/urage/core/src/type.c
 
 set SRC_FILES=main.cpp ^
 vyne/vm/vm.cpp ^
@@ -38,7 +38,7 @@ echo Building Vyne Interpreter (Windows) with GLFW...
 echo ---------------------------------------
 
 echo Building bundled URAGE shared library...
-%CC% -shared -DURAGE_BUILD_SHARED -Ithird_party/urage/core/include -Ithird_party/urage/core/src %URAGE_SRC_FILES% -o %URAGE_OUT%
+%CC% -shared -DURAGE_BUILD_SHARED -Ivendor/urage/core/include -Ivendor/urage/core/src %URAGE_SRC_FILES% -o %URAGE_OUT%
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

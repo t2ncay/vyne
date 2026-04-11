@@ -5,13 +5,13 @@ CXXFLAGS = -std=c++23 -O3 -Wall -I. \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
 TARGET_BASE = vynec
 BUILD_DIR = build
-URAGE_INCLUDES = -I./third_party/urage/core/include -I./third_party/urage/core/src
-URAGE_SRCS = ./third_party/urage/core/src/database_api.c \
-             ./third_party/urage/core/src/database.c \
-             ./third_party/urage/core/src/btree.c \
-             ./third_party/urage/core/src/storage.c \
-             ./third_party/urage/core/src/pager.c \
-             ./third_party/urage/core/src/type.c
+URAGE_INCLUDES = -I./vendor/urage/core/include -I./vendor/urage/core/src
+URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
+             ./vendor/urage/core/src/database.c \
+             ./vendor/urage/core/src/btree.c \
+             ./vendor/urage/core/src/storage.c \
+             ./vendor/urage/core/src/pager.c \
+             ./vendor/urage/core/src/type.c
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
