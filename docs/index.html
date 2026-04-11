@@ -3,44 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vyne Documentation</title>
+    <title>Vyne Documentation | Official Walkthrough</title>
     <link rel="icon" type="image/x-icon" href="assets/vyneLogo.png" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div class="container">
-      <!-- Sidebar Navigation -->
-      <aside class="sidebar" id="sidebar">
+      <aside class="sidebar">
         <div class="sidebar-header">
           <div class="logo">
-            <img
-              src="assets/sidebarVyneLogo.png"
-              alt=""
-              width="80"
-              height="80"
-              style="margin-bottom: 5px"
-              id="vyneLogo"
-            />
-            <h2>
-              <span style="color: #40bfa9">Vyn</span
-              ><span style="color: #a0d54d">e</span>
-            </h2>
-          </div>
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Search documentation..."
-            />
+            <div class="logo-wrapper">
+              <img src="assets/sidebarVyneLogo.png" alt="V" width="22" />
+            </div>
+            <h2>VYNE</h2>
           </div>
         </div>
 
@@ -48,304 +35,432 @@
           <div class="nav-section">
             <h4 class="nav-section-title">Getting Started</h4>
             <ul class="nav-links">
-              <li><a href="#introduction" class="active">Introduction</a></li>
-              <li><a href="#installation">Installation</a></li>
-              <li><a href="#project-structure">Project structure</a></li>
-              <li><a href="#builtin-modules">Built-in Modules</a></li>
-              <li><a href="#syntax">Syntax</a></li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <h4 class="nav-section-title">Core Concepts</h4>
-            <ul class="nav-links">
               <li>
-                <a href="core-concepts.html#variables-data-types"
-                  >Variables & Data Types</a
+                <a href="#intro" class="active"
+                  ><i class="fas fa-flag"></i> Introduction</a
                 >
               </li>
               <li>
-                <a href="core-concepts.html#numbers">Numbers</a>
+                <a href="#ruleset"
+                  ><i class="fas fa-sliders"></i> Engine Rulesets</a
+                >
               </li>
-              <li><a href="core-concepts.html#arithmetic">Arithmetic</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-section">
+            <h4 class="nav-section-title">Syntax Fundamentals</h4>
+            <ul class="nav-links">
               <li>
-                <a href="core-concepts.html#strings">Strings</a>
+                <a href="#types"
+                  ><i class="fas fa-cube"></i> Types & Variables</a
+                >
+              </li>
+              <li>
+                <a href="#control-flow"
+                  ><i class="fas fa-code-branch"></i> Control Flow</a
+                >
+              </li>
+              <li>
+                <a href="#loops"><i class="fas fa-redo"></i> Loops & Through</a>
+              </li>
+              <li>
+                <a href="#functions"
+                  ><i class="fas fa-terminal"></i> Functions</a
+                >
               </li>
             </ul>
           </div>
 
           <div class="nav-section">
-            <h4 class="nav-section-title">Advanced Topics</h4>
+            <h4 class="nav-section-title">Data Architectures</h4>
             <ul class="nav-links">
-              <li><a href="#error-handling">Error Handling</a></li>
-              <li><a href="#concurrency">Concurrency</a></li>
-              <li><a href="#metaprogramming">Metaprogramming</a></li>
-              <li><a href="#performance">Performance Tips</a></li>
+              <li>
+                <a href="#interfaces"
+                  ><i class="fas fa-id-card"></i> Interfaces (OOP)</a
+                >
+              </li>
+              <li>
+                <a href="#modules"
+                  ><i class="fas fa-box"></i> Modules & Groups</a
+                >
+              </li>
+              <li>
+                <a href="#linalg"
+                  ><i class="fas fa-vector-square"></i> Linear Algebra</a
+                >
+              </li>
             </ul>
           </div>
 
           <div class="nav-section">
-            <h4 class="nav-section-title">API Reference</h4>
+            <h4 class="nav-section-title">Standard Library</h4>
             <ul class="nav-links">
-              <li><a href="#standard-library">Standard Library</a></li>
-              <li><a href="#builtin-functions">Built-in Functions</a></li>
-              <li><a href="#decorators">Decorators</a></li>
-              <li><a href="#interfaces">Interfaces</a></li>
+              <li>
+                <a href="#vcore"
+                  ><i class="fas fa-microchip"></i> VCore & VMath</a
+                >
+              </li>
+              <li>
+                <a href="#vmem"
+                  ><i class="fas fa-brain"></i> VMem (Introspection)</a
+                >
+              </li>
+              <li>
+                <a href="#vglib"
+                  ><i class="fas fa-palette"></i> VGLib (Graphics)</a
+                >
+              </li>
             </ul>
           </div>
         </nav>
-
-        <div style="margin-top: 10px">
-          <a href="https://github.com/t2ncay/vyne" class="btn btn-outline">
-            <i class="fab fa-github"></i> GitHub
-          </a>
-        </div>
-
-        <div style="margin-top: 10px">
-          <a href="https://github.com/t2ncay/vyne" class="btn btn-primary">
-            <i class="fas fa-download"></i> Download
-          </a>
-        </div>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content">
-        <!-- Header -->
-        <header class="header">
-          <div>
-            <button class="mobile-menu-btn" id="mobileMenuBtn">
-              <i class="fas fa-bars"></i>
-            </button>
-          </div>
-          <div class="theme-toggle" id="themeToggle">
-            <i class="fas fa-sun"></i>
-          </div>
-          <div class="header-title">
-            <h1>Vyne Documentation</h1>
-            <div class="header-subtitle">
-              Version 0.0.2-alpha | Last updated: February 2026
-            </div>
-          </div>
-        </header>
-
-        <!-- Documentation Content -->
-        <section id="introduction">
-          <h2>Introduction to Vyne</h2>
+        <section id="intro">
+          <div class="badge">v0.0.2-alpha</div>
+          <h2>The Vyne Programming Language</h2>
           <p>
-            Vyne is an interpreted programming language where code is executed
-            line by line by an interpreter at runtime, rather than being
-            compiled into machine code beforehand. This allows developers to run
-            and test programs quickly without a separate compilation step. Vyne
-            is best at educational purposes such as data structures and
-            algorithms, and designed for those who want to improve
-            problem-solving skills without writing heavy codes.
+            Vyne is a hybrid interpreted language engineered for
+            performance-critical algorithm testing and low-level memory control.
+            Designed in Baku, it provides a clean, C-style syntax with advanced
+            functional primitives.
           </p>
-
           <div class="explanation">
-            <div class="explanation-title">
-              <i class="fas fa-lightbulb"></i>
-              Why Vyne?
-            </div>
-            <p>
-              Vyne was created to support multiple data types, to run fast, and
-              to simplify algorithms in a way that helps people understand them
-              easily. Since Vyne has similar syntax with other well-known
-              languages, it is much easier to write programs and execute without
-              any problem.
-            </p>
-          </div>
-
-          <div class="example">
-            <div class="example-title">
-              <i class="fas fa-code"></i>
-              Simple Example
-            </div>
-            <p>Here's what "Hello World!" in Vyne looks like:</p>
-            <div class="code">
-              <div class="code-header">
-                <div class="code-title">
-                  <i class="fas fa-file-code"></i>
-                  main.vy
-                </div>
-                <button class="copy-btn" onclick="copyCode(this)">
-                  <i class="fa-regular fa-clipboard"></i>
-                  Copy
-                </button>
-              </div>
-              <pre><code>
-out("Hello World!")
-                        </code></pre>
-            </div>
-            <p>Output: Hello World!</p>
-          </div>
-
-          <div class="note">
-            <div class="note-title">
-              <i class="fas fa-exclamation-circle"></i>
-              Note
-            </div>
-            <p>
-              Vyne uses a minimalistic syntax that reduces boilerplate while
-              maintaining readability. The language is designed to be easy to
-              learn for programmers familiar with C-style languages.
-            </p>
+            <i class="fas fa-info-circle"></i> Vyne code is executed
+            line-by-line via a high-performance C++ backend, bridging the gap
+            between high-level logic and native execution.
           </div>
         </section>
 
-        <!--Installation-->
-        <section id="installation">
-          <h2>Installation</h2>
+        <section id="ruleset">
+          <h2>Engine Rulesets</h2>
           <p>
-            To build the interpreter from source, clone the repository and
-            compile using your preferred C++ compiler:
+            Vyne allows you to configure engine behavior at runtime using the
+            <code>ruleset</code> block.
           </p>
-          <div class="code">
+          <div class="code-container">
             <div class="code-header">
-              <div class="code-title">bash</div>
-              <button class="copy-btn" onclick="copyCode(this)">
-                <i class="fa-regular fa-clipboard"></i>
-                <span>Copy</span>
-              </button>
+              <span class="code-title">config.vy</span>
             </div>
-            <pre><code class="language-bash">
-git clone https://github.com/t2ncay/vyne.git
-cd vyne
-
-./build.bat # For Windows
-./build.sh  # For Linux
-                        </code></pre>
+            <div class="code-body">
+              <pre><code><span class="token keyword">ruleset</span> {
+    warnings: <span class="token keyword">on</span>,         <span class="token comment"># Enable/Disable semantic warnings</span>
+    dynamic_casting: <span class="token keyword">off</span>  <span class="token comment"># Control strictness of type conversions</span>
+};</code></pre>
+            </div>
           </div>
         </section>
 
-        <!--Built-in Modules-->
-        <section id="builtin-modules">
-          <h2>Built-in Modules</h2>
+        <section id="types">
+          <h2>Types & Variables</h2>
           <p>
-            Vyne leverages native C++ modules to handle high-performance tasks
-            that the interpreter shouldn't do alone.
+            Vyne supports both implicit inference and strict explicit typing
+            using the <code>::</code> operator.
           </p>
           <div class="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Explanation</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>vcore</code></td>
-                  <td>
-                    System-level utilities, sleep timers, and process
-                    management.
-                  </td>
-                </tr>
-                <tr>
-                  <td><code>vglib</code></td>
-                  <td>
-                    The "Vyne Graphics Library" — home to the 3D ASCII donut and
-                    buffer management (in the future).
-                  </td>
-                </tr>
-                <tr>
-                  <td><code>vmem</code></td>
-                  <td>
-                    Memory management and introspection — track heap usage,
-                    inspect raw memory addresses, and monitor variable
-                    footprints.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!--Syntax-->
-        <section id="syntax">
-          <h2>Syntax</h2>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Feature</th>
-                  <th>Syntax Example</th>
+                  <th>Type</th>
+                  <th>Declaration Example</th>
                   <th>Description</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><strong>Arithmetic</strong></td>
-                  <td><code>(+, -, *, /, &lt;, &gt;, ==)</code></td>
-                  <td>Standard mathematical and comparison operators.</td>
+                  <td><code>Int64</code></td>
+                  <td><code>a :: Int64 = 42;</code></td>
+                  <td>64-bit signed integer.</td>
                 </tr>
                 <tr>
-                  <td><strong>Bitwise</strong></td>
-                  <td><code>(&&, ||)</code></td>
-                  <td>Low-level bit manipulation for flags and binary data.</td>
+                  <td><code>Float64</code></td>
+                  <td><code>x :: Float64 = 3.14;</code></td>
+                  <td>Double precision floating point.</td>
                 </tr>
                 <tr>
-                  <td><strong>Functions</strong></td>
-                  <td><code>fn calculate(x) { ... }</code></td>
-                  <td>
-                    Defined using the <code>fn</code> keyword with scoped
-                    arguments.
-                  </td>
+                  <td><code>Array</code></td>
+                  <td><code>list :: Array = [1, 2, 3];</code></td>
+                  <td>Dynamic list with native methods.</td>
                 </tr>
                 <tr>
-                  <td><strong>Logic Flow</strong></td>
-                  <td><code>if cond { ... }</code></td>
-                  <td>Standard conditional branching.</td>
-                </tr>
-                <tr>
-                  <td><strong>Loops</strong></td>
-                  <td><code>while cond { ... }</code></td>
-                  <td>Standard iteration for repeated execution logic.</td>
-                </tr>
-                <tr>
-                  <td><strong>Scoping</strong></td>
-                  <td><code>group Graphics { ... }</code></td>
-                  <td>
-                    Encapsulate logic and variables into named namespaces.
-                  </td>
-                </tr>
-                <tr>
-                  <td><strong>Modules</strong></td>
-                  <td><code>module vcore</code></td>
-                  <td>
-                    Interfaces with native C++ libraries and system resources.
-                  </td>
+                  <td><code>String</code></td>
+                  <td><code>s :: String = "Vyne";</code></td>
+                  <td>UTF-8 compatible strings.</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
 
-        <!-- Page Navigation -->
-        <div class="page-nav">
-          <a href="#introduction" class="btn btn-outline">
-            <i class="fa-solid fa-flag-checkered"></i> Back to start
-          </a>
-          <a href="core-concepts.html" class="btn btn-outline">
-            Next: Core Concepts <i class="fas fa-arrow-right"></i>
-          </a>
-        </div>
-
-        <!-- Footer -->
-        <footer class="footer">
-          <p>Vyne Documentation &copy; 2025. All rights reserved.</p>
+        <section id="control-flow">
+          <h2>Control Flow & Logic</h2>
           <p>
-            Found an issue?
-            <a href="https://github.com/t2ncay/vyne/issues"
-              >Edit this page on GitHub</a
-            >
-            or
-            <a href="https://github.com/t2ncay/vyne/issues">report a problem</a
-            >.
+            Vyne provides standard imperative control structures alongside
+            advanced functional iteration patterns.
+          </p>
+
+          <h3>Conditionals (If/Else)</h3>
+          <p>
+            Vyne uses standard <code>if</code>, <code>else if</code>, and
+            <code>else</code> blocks. Braces are mandatory for clarity.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">logic.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code>score :: <span class="token keyword">Int64</span> = <span class="token number">85</span>;
+
+<span class="token keyword">if</span> score >= <span class="token number">90</span> {
+    <span class="token function">out</span>(<span class="token string">"Grade: A"</span>);
+} <span class="token keyword">else if</span> score >= <span class="token number">80</span> {
+    <span class="token function">out</span>(<span class="token string">"Grade: B"</span>);
+} <span class="token keyword">else</span> {
+    <span class="token function">out</span>(<span class="token string">"Grade: F"</span>);
+}</code></pre>
+            </div>
+          </div>
+
+          <h3>Iterative Loops</h3>
+          <p>
+            Standard <code>while</code> loops are used for condition-based
+            iteration. You can use <code>break</code> to exit early.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">while_loop.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code>i = <span class="token number">0</span>;
+<span class="token keyword">while</span> i < <span class="token number">100</span> {
+    <span class="token keyword">if</span> i == <span class="token number">50</span> { <span class="token keyword">break</span>; }
+    <span class="token function">out</span>(i);
+    i++;
+}</code></pre>
+            </div>
+          </div>
+
+          <h3>Advanced Iteration: <code>through</code></h3>
+          <p>
+            The <code>through</code> operator is Vyne's signature feature for
+            data processing. It transforms or filters collections natively.
+          </p>
+
+          [Image of data flowing through a filter and map process in
+          programming]
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pattern</th>
+                  <th>Keyword</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Mapping</strong></td>
+                  <td><code>collect</code></td>
+                  <td>Transforms every element and returns a new array.</td>
+                </tr>
+                <tr>
+                  <td><strong>Filtering</strong></td>
+                  <td><code>filter</code></td>
+                  <td>Returns only elements that meet a condition.</td>
+                </tr>
+                <tr>
+                  <td><strong>Deduplication</strong></td>
+                  <td><code>unique</code></td>
+                  <td>Removes all duplicate values from the stream.</td>
+                </tr>
+                <tr>
+                  <td><strong>Standard</strong></td>
+                  <td><code>loop</code></td>
+                  <td>
+                    Executes a block for each item without returning a value.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">functional.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token comment"># Unique filter</span>
+raw_data = [<span class="token number">1</span>, <span class="token number">1</span>, <span class="token number">2</span>, <span class="token number">3</span>, <span class="token number">3</span>];
+clean = <span class="token keyword">through</span> item :: raw_data -> <span class="token keyword">unique</span>;
+
+<span class="token comment"># Fibonacci with through loop</span>
+<span class="token keyword">through</span> i :: <span class="token number">0</span>..n -> <span class="token keyword">loop</span> {
+    next = a + b;
+    a = b;
+    b = next;
+};</code></pre>
+            </div>
+          </div>
+
+          <h3>Engine Control: <code>ruleset</code></h3>
+          <p>
+            Unlike other languages, Vyne allows you to toggle engine-level
+            features like <code>warnings</code> or
+            <code>dynamic_casting</code> mid-script.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">engine_config.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">ruleset</span> { 
+    warnings: <span class="token keyword">on</span>, 
+    dynamic_casting: <span class="token keyword">off</span> 
+};</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="loops">
+          <h2>Iteration & Through Loops</h2>
+          <p>
+            While Vyne supports standard <code>while</code> loops, its true
+            power lies in the <code>through</code> operator for functional-style
+            data processing.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">iteration.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token comment"># Standard While</span>
+<span class="token keyword">while</span> i < <span class="token number">10</span> { i++; }
+
+<span class="token comment"># Through: Filter and Unique</span>
+y = [<span class="token number">1</span>, <span class="token number">1</span>, <span class="token number">2</span>, <span class="token number">2</span>, <span class="token number">3</span>];
+uniques = <span class="token keyword">through</span> item :: y -> <span class="token keyword">unique</span>;
+
+<span class="token comment"># Through: Collect (Map)</span>
+doubled = <span class="token keyword">through</span> x :: [<span class="token number">10</span>, <span class="token number">20</span>] -> <span class="token keyword">collect</span> { x * <span class="token number">2</span> };</code></pre>
+            </div>
+          </div>
+          [Image of functional programming map filter unique concepts]
+        </section>
+
+        <section id="interfaces">
+          <h2>Interfaces & Methods</h2>
+          <p>
+            Interfaces in Vyne are more than just structs; they support methods
+            with <code>self</code> reference and pointer-based relationships.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">oop.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">interface</span> <span class="token function">Node</span> {
+    kind :: <span class="token keyword">Int64</span>,
+    data :: <span class="token keyword">Int64</span>, 
+    left :: <span class="token keyword">Node&</span>,  <span class="token comment"># Reference type</span>
+    right :: <span class="token keyword">Node&</span> 
+
+    <span class="token function">isValid</span>() {
+        <span class="token keyword">if</span> <span class="token keyword">self</span>.data == <span class="token number">0</span> { <span class="token keyword">return</span> <span class="token keyword">false</span>; }
+        <span class="token keyword">return</span> <span class="token keyword">true</span>;
+    }
+}</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="modules">
+          <h2>Modular Architecture</h2>
+          <p>
+            Organize large projects using <code>module</code> and
+            <code>group</code>. Use <code>deploy</code> to expose namespaced
+            logic to the global scope.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">modules.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> physics;
+
+<span class="token keyword">group</span> Constants :: physics {
+    pi = <span class="token number">3.1415</span>;
+};
+
+<span class="token keyword">deploy</span> physics;
+<span class="token function">out</span>(Constants.pi);</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="vmem">
+          <h2>vmem (Memory Engine)</h2>
+          <p>
+            Monitor your program's memory footprint in real-time. Extremely
+            useful for recursive depth analysis.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">mem_trace.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> vmem;
+<span class="token function">out</span>(<span class="token string">"Usage: "</span> + <span class="token function">string</span>(<span class="token keyword">vmem</span>.<span class="token function">usage</span>()));</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="vglib">
+          <h2>vglib (Native Graphics)</h2>
+          <p>
+            Native rendering engine support. Renders high-performance ASCII
+            visuals using C++ matrix math.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">graphics.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> vglib;
+<span class="token keyword">vglib</span>.<span class="token function">donut</span>(A, B); <span class="token comment"># Renders 3D spinning donut</span></code></pre>
+            </div>
+          </div>
+        </section>
+
+        <footer class="footer">
+          <p>
+            Vyne Engine Documentation &copy; 2026. Engineered with RISCCORE.
           </p>
         </footer>
       </main>
     </div>
 
-    <script src="index.js"></script>
+    <script>
+      const sections = document.querySelectorAll("section");
+      const navLinks = document.querySelectorAll(".nav-links a");
+
+      window.addEventListener("scroll", () => {
+        let current = "";
+        sections.forEach((section) => {
+          const sectionTop = section.offsetTop;
+          if (pageYOffset >= sectionTop - 150) {
+            current = section.getAttribute("id");
+          }
+        });
+
+        navLinks.forEach((a) => {
+          a.classList.remove("active");
+          if (a.getAttribute("href").includes(current)) {
+            a.classList.add("active");
+          }
+        });
+      });
+    </script>
   </body>
 </html>
