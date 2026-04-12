@@ -1,8 +1,6 @@
 CXX = g++
 CC = gcc
-CXXFLAGS = -std=c++23 -O3 -Wall -I. \
-           -I./lsp/backend/src -I./lsp/backend/include \
-           -DCPPHTTPLIB_OPENSSL_SUPPORT
+
 TARGET_BASE = vynec
 BUILD_DIR = build
 URAGE_INCLUDES = -I./vendor/urage/core/include -I./vendor/urage/core/src
@@ -12,12 +10,23 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
              ./vendor/urage/core/src/storage.c \
              ./vendor/urage/core/src/pager.c \
              ./vendor/urage/core/src/type.c
+OPENCV_DIR = ./vendor/opencv
+OPENCV_INC = -I$(OPENCV_DIR)/include
+OPENCV_LIB_DIR = -L$(OPENCV_DIR)/lib
+OPENCV_LIBS_FLAGS = -lopencv_highgui455 \
+                    -lopencv_imgcodecs455 \
+                    -lopencv_imgproc455 \
+                    -lopencv_core455
+
+CXXFLAGS = -std=c++23 -O3 -Wall -I. \
+           -I./lsp/backend/src -I./lsp/backend/include \
+           -DCPPHTTPLIB_OPENSSL_SUPPORT -DHAS_OPENCV $(OPENCV_INC)
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
     URAGE_LIB = urage.dll
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
-    LDFLAGS = -mconsole -pthread
+    LDFLAGS = -mconsole -pthread $(OPENCV_LIB_DIR) $(OPENCV_LIBS_FLAGS)
     MKDIR_P = mkdir $(subst /,\,$(1)) 2>nul || (exit 0)
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)

@@ -19,3 +19,4 @@ lsp/bin/*
 editors/vscode/lsp/node_modules/*
 editors/vscode/lsp/*.vsix
 vynec
+tests/assets/*
