@@ -59,7 +59,6 @@ out("=== CrediTrack Vyne Engine ===");
 tuncay_acad :: AcademicProfile = AcademicProfile(92.5, 85.0, 0.25);
 tuncay_fin :: FinancialProfile = FinancialProfile(1200.0, 400.0, 90.0, 1.0);
 
-# Prosesi başladırıq
 s_acad = CreditEngine.calc_academic_factor(tuncay_acad);
 r_score = CreditEngine.calc_final_score(s_acad, tuncay_fin);
 
@@ -67,7 +66,7 @@ out("Student: Tuncay");
 out("Academic Factor (S_acad): " + string(s_acad));
 out("Final Credit Score (R_score): " + string(r_score));
 
-# Seqmentasiya testi (Through loop ilə)
+# segmentation
 risk_segments = ["High Risk", "Medium Risk", "Low Risk"];
 status = "";
 

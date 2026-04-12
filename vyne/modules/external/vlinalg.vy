@@ -94,5 +94,52 @@ fn :: vlinalg subtract(a :: vlinalg.Types.Matrix, b :: vlinalg.Types.Matrix) -> 
     return vlinalg.Types.Matrix(a.row, a.col, result_data);
 }
 
+fn :: vlinalg multiply(a :: vlinalg.Types.Matrix, b :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    if a.col != b.row {
+        out(vcolors.red("Matrix Error: Multiplication impossible (a.col != b.row)"));
+        return [];
+    }
+
+    result_data = [];
+
+    through r :: 0..a.row-1 -> loop {
+        new_row = [];
+        through c :: 0..b.col-1 -> loop {
+            sum = 0.0;
+            through k :: 0..a.col-1 -> loop {
+                sum = sum + (a.data[r][k] * b.data[k][c]);
+            };
+            new_row.push(sum);
+        };
+        result_data.push(new_row);
+    };
+
+    return vlinalg.Types.Matrix(a.row, b.col, result_data);
+}
+
+fn :: vlinalg transpose(m :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    new_data = [];
+    
+    through c :: 0..m.col-1 -> loop {
+        new_row = [];
+        through r :: 0..m.row-1 -> loop {
+            new_row.push(m.data[r][c]);
+        };
+        new_data.push(new_row);
+    };
+
+    return vlinalg.Types.Matrix(m.col, m.row, new_data);
+}
+
+fn :: vlinalg apply_sigmoid(m :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    res_data = through row_data :: m.data -> collect {
+        through val :: row_data -> collect {
+            vmath.sigmoid(val)
+        }
+    };
+    # Vyne-da yeni Matrix obyektini belə qaytarırıq
+    return vlinalg.Types.Matrix(m.row, m.col, res_data);
+}
+
 deploy vlinalg;
 deploy vmath;

@@ -227,6 +227,23 @@ namespace VMathNative {
         if (args.size() != 1 || !isNumeric(args[0])) throw std::runtime_error("vmath.lgamma() invalid arguments.");
         return Value(std::lgamma(args[0].asFloat()));
     }
+
+    Value sigmoid(std::vector<Value>& args) {
+        if (args.size() != 1 || !isNumeric(args[0])) {
+            throw std::runtime_error("Argument Error: vmath.sigmoid() expects a Number.");
+        }
+        
+        double x = args[0].asFloat();
+        return Value(1.0 / (1.0 + std::exp(-x)));
+    }
+
+    Value relu(std::vector<Value>& args) {
+        if (args.size() != 1 || !isNumeric(args[0])) {
+            throw std::runtime_error("Argument Error: vmath.sigmoid() expects a Number.");
+        }
+        double x = args[0].asFloat();
+        return Value(x > 0 ? x : 0.0);
+    }
 }
 
 void setupVMath(SymbolContainer& env, StringPool& pool) {
@@ -270,6 +287,7 @@ void setupVMath(SymbolContainer& env, StringPool& pool) {
     vmath[pool.intern("erfc")]     = Value(VMathNative::erfc);
     vmath[pool.intern("tgamma")]   = Value(VMathNative::tgamma);
     vmath[pool.intern("lgamma")]   = Value(VMathNative::lgamma);
+    vmath[pool.intern("sigmoid")] = Value(VMathNative::sigmoid);
 
     // VMath constants
     vmath[pool.intern("pi")]         = Value(3.141592653589793).setReadOnly();
