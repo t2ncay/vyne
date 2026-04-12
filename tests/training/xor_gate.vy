@@ -30,8 +30,8 @@ W2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 1, [
 B1 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(1, 2, [[0.1, 0.1]]);
 B2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(1, 1, [[0.1]]);
 
-learning_rate = 0.8;
-epochs = 2000;
+learning_rate = 0.5;
+epochs = 3000;
 
 #===============================================================================
 # 2. TRAINING SESSION (Xətasız Versiya)
@@ -81,8 +81,22 @@ through epoch :: 1..epochs -> loop {
         };
     };
 
-    if epoch % 1000 == 0 {
-        out(vcolors.green("Epoch " + string(epoch) + " - Memory: " + string(vmem.usage()) + " bytes"));
+    # --- Loss Calculation (MSE) ---
+    # Hər epoch-da səhvlərin kvadratının ortalamasını tapaq
+    current_loss = 0.0;
+    through loss_idx :: 0..error_out.row-1 -> loop {
+        err = error_out.data[loss_idx][0];
+        current_loss = current_loss + (err * err);
+    };
+    avg_loss = current_loss / float64(error_out.row);
+
+    # Log hissəsini belə yenilə:
+    if epoch % 200 == 0 {
+        log_msg = "Epoch " + string(epoch);
+        log_msg = log_msg + " | Loss: " + string(avg_loss);
+        log_msg = log_msg + " | Memory: " + string(vmem.usage()) + " bytes";
+        
+        out(vcolors.green(log_msg));
     }
 };
 
