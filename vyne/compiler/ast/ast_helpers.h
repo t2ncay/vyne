@@ -1,5 +1,6 @@
 #pragma once
 #include "ast.h"
+#include "../../runtime/diagnostics.h"
 #include <string>
 #include <vector>
 #include <memory>

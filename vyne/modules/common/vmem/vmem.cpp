@@ -6,9 +6,19 @@
 
 namespace VMemNative {
     static SymbolContainer* g_env = nullptr;
+    static size_t memory_limit = 0;
 
     void setEnv(SymbolContainer& env) {
         g_env = &env;
+    }
+
+    Value set_limit(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("vmem.set_limit requires a value in bytes");
+        
+        size_t limit = static_cast<size_t>(args[0].asInt());
+        Vyne::setMemoryLimit(limit); // Mərkəzi limit qurulur
+        
+        return Value(true);
     }
 
     Value peek(std::vector<Value>& args) {
@@ -32,6 +42,22 @@ namespace VMemNative {
         return Value(true);
     }
 
+    size_t calculateCurrentUsage() {
+        size_t totalBytes = 0;
+        if (!g_env) return 0;
+        
+        for (auto const& [groupId, table] : *g_env) {
+            totalBytes += StringPool::instance().get(groupId).capacity();
+            totalBytes += sizeof(table);
+            for (auto const& [id, val] : table) {
+                totalBytes += StringPool::instance().get(id).capacity();
+                totalBytes += sizeof(Value);
+                totalBytes += val.getDeepBytes();
+            }
+        }
+        return totalBytes;
+    }
+
     Value usage(std::vector<Value>& args){
         size_t totalBytes = 0;
 
@@ -40,23 +66,7 @@ namespace VMemNative {
         if (!g_env) return Value(0.0);
 
         if(args.empty()){
-            for (auto const& [groupId, table] : *g_env) {
-                std::string groupName = StringPool::instance().get(groupId);
-                totalBytes += groupName.capacity();
-                
-                totalBytes += sizeof(table);
-                
-                for (auto const& [id, val] : table) {
-                    std::string symName = StringPool::instance().get(id);
-                    totalBytes += symName.capacity();
-                    
-                    // Value storage
-                    totalBytes += sizeof(Value);
-                    totalBytes += val.getDeepBytes();
-                }
-            }
-
-            return Value(static_cast<double>(totalBytes));
+            return Value(static_cast<double>(calculateCurrentUsage()));
         } else {
             return Value(args[0].getDeepBytes());
         }
@@ -73,10 +83,13 @@ void setupVMem(SymbolContainer& env, StringPool& pool) {
 
     auto& vmem = env[path];
 
+    Vyne::globalUsageFetcher = VMemNative::calculateCurrentUsage;
+
     // vmem methods
-    vmem[pool.intern("usage")]   = Value(VMemNative::usage);
-    vmem[pool.intern("peek")]    = Value(VMemNative::peek);
-    vmem[pool.intern("poke")]    = Value(VMemNative::poke);
+    vmem[pool.intern("set_limit")] = Value(VMemNative::set_limit);
+    vmem[pool.intern("usage")]     = Value(VMemNative::usage);
+    vmem[pool.intern("peek")]      = Value(VMemNative::peek);
+    vmem[pool.intern("poke")]      = Value(VMemNative::poke);
 
     // vmem properties
 }

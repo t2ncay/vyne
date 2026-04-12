@@ -13,7 +13,9 @@
 
 Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value lastValue;
-    for (const auto& statement : statements) lastValue = statement->evaluate(env, currentGroup);
+    for (const auto& statement : statements) {
+        lastValue = statement->evaluate(env, currentGroup);
+    }
     return lastValue; 
 }
 
@@ -163,6 +165,9 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     if (isConstant) val.setReadOnly();
+
+    if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
+
     table[identifierId] = val;
     return val;
 }
@@ -371,6 +376,9 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
 Value ArrayNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     std::vector<Value> results;
     for (const auto& node : elements) results.emplace_back(node->evaluate(env, currentGroup));
+
+    if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
+
     return Value(std::move(results));
 }
 
@@ -784,6 +792,8 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 Value val = arg->evaluate(env, currentGroup);
                 actualTarget->asList().emplace_back(val);
             }
+
+            if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
             
             return receiverVal;
         }
@@ -1076,7 +1086,10 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
             Value currentResult = body->evaluate(env, currentGroup);
 
             switch(mode) {
-                case ForMode::COLLECT: resultList.emplace_back(currentResult); break;
+                case ForMode::COLLECT: 
+                    resultList.emplace_back(currentResult); 
+                    if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage(); 
+                    break;
                 case ForMode::FILTER:
                     if (currentResult.isTruthy()) resultList.emplace_back(element);
                     break;

@@ -1172,6 +1172,8 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
         Vyne::setQuietMode(false);
     } else if (type == "dynamic_type_casting") {
         Vyne::setTypeStrictMode(false);
+    } else if (type == "memory_limit") {
+        Vyne::setMemoryLimitEnabled(true);
     }
     
     auto node = std::make_unique<NullNode>();
@@ -1207,6 +1209,9 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
         }
         else if (rule == "dynamic_casting") {
             Vyne::setTypeStrictMode(false);
+        }
+        else if (rule == "memory_limit") {
+            Vyne::setMemoryLimitEnabled(true);
         }
         else {
             throw std::runtime_error("Unknown ruleset: " + rule + " [line " + std::to_string(line) + "]");
