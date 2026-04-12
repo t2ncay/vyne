@@ -4,22 +4,21 @@
 
 namespace VCVNative {
     Value show(std::vector<Value>& args) {
-        if (args.empty()) throw std::runtime_error("vcv.show() requires an image path");
+        std::cout << "[DEBUG] vcv.show funksiyasına girildi!" << std::endl;
+        if (args.empty()) return Value(false);
 
         std::string path = args[0].asString();
-        
-        cv::Mat image = cv::imread(path);
+        std::cout << "[DEBUG] Oxunacaq fayl: " << path << std::endl;
 
+        cv::Mat image = cv::imread(path);
         if (image.empty()) {
-            throw std::runtime_error("Runtime Error: Could not open or find the image at " + path);
+            std::cout << "[DEBUG] Şəkil tapılmadı və ya oxunmadı!" << std::endl;
+            return Value(false);
         }
 
-        cv::imshow("Vyne Vision - " + path, image);
-        
+        cv::imshow("Vyne Vision", image);
+        std::cout << "[DEBUG] imshow çağırıldı, waitKey gözləyir..." << std::endl;
         cv::waitKey(0); 
-        
-        cv::destroyAllWindows();
-
         return Value(true);
     }
 }
@@ -27,9 +26,14 @@ namespace VCVNative {
 
 void setupVCV(SymbolContainer& env, StringPool& pool) {
     auto& vcv = env["vcv"];
+
 #ifdef HAS_OPENCV
+    std::cout << "[DEBUG] VCV Modulu HAS_OPENCV ilə yüklənir..." << std::endl;
     vcv[pool.intern("show")] = Value(VCVNative::show);
 #else
-    throw std::runtime_error("Library Error : OPEN_CV is not installed.");
+    std::cout << "[DEBUG] VCV Modulu OpenCV OLMADAN yüklənir!" << std::endl;
+    vcv[pool.intern("show")] = Value([](std::vector<Value>& args) -> Value {
+        throw std::runtime_error("Vyne Error: vcv.show() is disabled. OpenCV not found during build.");
+    });
 #endif
 }
