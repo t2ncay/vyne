@@ -6,7 +6,7 @@ module vmath;
 module vmem;
 
 #===============================================================================
-# 1. DATA VƏ PARAMETRLƏR
+# DATA AND PARAMETERS
 #===============================================================================
 X :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(4, 2, [
     [0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]
@@ -34,7 +34,7 @@ learning_rate = 0.5;
 epochs = 3000;
 
 #===============================================================================
-# 2. TRAINING SESSION (Xətasız Versiya)
+# TRAINING SESSION
 #===============================================================================
 through epoch :: 1..epochs -> loop {
     # --- Forward Pass ---
@@ -54,7 +54,7 @@ through epoch :: 1..epochs -> loop {
     };
     A2 = vlinalg.apply_sigmoid(Z2); 
     
-    # --- Backpropagation ---
+    # --- Backpropagation with vanishing gradient ---
     error_out = vlinalg.subtract(Y, A2);
     
     through row_idx :: 0..A1.row-1 -> loop {
@@ -82,7 +82,7 @@ through epoch :: 1..epochs -> loop {
     };
 
     # --- Loss Calculation (MSE) ---
-    # Hər epoch-da səhvlərin kvadratının ortalamasını tapaq
+    # calculating the variety of every epoch's miscalculation
     current_loss = 0.0;
     through loss_idx :: 0..error_out.row-1 -> loop {
         err = error_out.data[loss_idx][0];
@@ -90,7 +90,6 @@ through epoch :: 1..epochs -> loop {
     };
     avg_loss = current_loss / float64(error_out.row);
 
-    # Log hissəsini belə yenilə:
     if epoch % 200 == 0 {
         log_msg = "Epoch " + string(epoch);
         log_msg = log_msg + " | Loss: " + string(avg_loss);
@@ -101,7 +100,7 @@ through epoch :: 1..epochs -> loop {
 };
 
 #===============================================================================
-# 3. NƏTİCƏ
+# RESULT
 #===============================================================================
 out(vcolors.success("Training complete. Analyzing XOR logic..."));
 

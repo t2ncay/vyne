@@ -9,7 +9,7 @@ module vmath;
 module vmem;
 
 #===============================================================================
-# 1. DATA VƏ PARAMETRLƏRİN AYARLANMASI (OR GATE)
+# DATA AND PARAMETERS (OR GATE)
 #===============================================================================
 
 out(vcolors.boldYellow(" --- Vyne Brain: Training Session --- "));
@@ -30,7 +30,7 @@ Y :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(4, 1, [
     [1.0]
 ]);
 
-# Weights - W :: vlinalg.Types.Matrix olaraq təyin edildi
+# Weights - W :: vlinalg.Types.Matrix
 W :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 1, [
     [vmath.random(0, 10) / 10.0],
     [vmath.random(0, 10) / 10.0]
@@ -40,7 +40,7 @@ learning_rate = 0.1;
 epochs = 200;
 
 #===============================================================================
-# 2. TRAINING LOOP (GRADIENT DESCENT)
+# TRAINING LOOP (GRADIENT DESCENT)
 #===============================================================================
 
 through epoch :: 1..epochs -> loop {
@@ -73,7 +73,7 @@ through epoch :: 1..epochs -> loop {
 out(vcolors.success("Vyne has successfully learned the OR Gate!"));
 
 #===============================================================================
-# 3. TESTING & MEMORY ANALYSIS
+# TESTING & MEMORY ANALYSIS
 #===============================================================================
 
 out("\n" + vcolors.boldGreen("Final Predictions:"));
