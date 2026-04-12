@@ -20,6 +20,7 @@ ifeq ($(OS),Windows_NT)
     URAGE_LIB = urage.dll
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
     LDFLAGS = -mconsole -pthread
+    LDFLAGS += -lshell32
     MKDIR_P = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
