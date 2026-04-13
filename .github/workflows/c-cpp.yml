@@ -34,7 +34,7 @@ jobs:
           g++ -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
               $(find . -name "*.cpp") \
-              -o vyne_run -Wall -Wextra -Wpedantic
+              -o vyne_run -Wall
 
       - name: Run Tests
         run: |
