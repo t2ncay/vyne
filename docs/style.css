@@ -219,6 +219,9 @@ th {
 .token.string {
   color: #ce9178;
 }
+.token.type {
+  color: #2bc6b7;
+}
 .token.function {
   color: #dcdcaa;
 }

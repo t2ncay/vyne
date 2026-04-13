@@ -170,22 +170,41 @@
               <tbody>
                 <tr>
                   <td><code>Int64</code></td>
-                  <td><code>a :: Int64 = 42;</code></td>
+                  <td>
+                    <code>
+                      a :: <span class="token type">Int64</span> = 42;</code
+                    >
+                  </td>
                   <td>64-bit signed integer.</td>
                 </tr>
                 <tr>
                   <td><code>Float64</code></td>
-                  <td><code>x :: Float64 = 3.14;</code></td>
+                  <td>
+                    <code
+                      >x :: <span class="token type">Float64</span> =
+                      3.14;</code
+                    >
+                  </td>
                   <td>Double precision floating point.</td>
                 </tr>
                 <tr>
                   <td><code>Array</code></td>
-                  <td><code>list :: Array = [1, 2, 3];</code></td>
+                  <td>
+                    <code
+                      >list :: <span class="token type">Array</span> = [1, 2,
+                      3];</code
+                    >
+                  </td>
                   <td>Dynamic list with native methods.</td>
                 </tr>
                 <tr>
                   <td><code>String</code></td>
-                  <td><code>s :: String = "Vyne";</code></td>
+                  <td>
+                    <code
+                      >s :: <span class="token type">String</span> =
+                      "Vyne";</code
+                    >
+                  </td>
                   <td>UTF-8 compatible strings.</td>
                 </tr>
               </tbody>
@@ -361,10 +380,10 @@ doubled = <span class="token keyword">through</span> x :: [<span class="token nu
             </div>
             <div class="code-body">
               <pre><code><span class="token keyword">interface</span> <span class="token function">Node</span> {
-    kind :: <span class="token keyword">Int64</span>,
-    data :: <span class="token keyword">Int64</span>, 
-    left :: <span class="token keyword">Node&</span>,  <span class="token comment"># Reference type</span>
-    right :: <span class="token keyword">Node&</span> 
+    kind :: <span class="token type">Int64</span>,
+    data :: <span class="token type">Int64</span>, 
+    left :: <span class="token type">Node&</span>,  <span class="token comment"># Reference type</span>
+    right :: <span class="token type">Node&</span> 
 
     <span class="token function">isValid</span>() {
         <span class="token keyword">if</span> <span class="token keyword">self</span>.data == <span class="token number">0</span> { <span class="token keyword">return</span> <span class="token keyword">false</span>; }
@@ -390,7 +409,7 @@ doubled = <span class="token keyword">through</span> x :: [<span class="token nu
               <pre><code><span class="token keyword">module</span> physics;
 
 <span class="token keyword">group</span> Constants :: physics {
-    pi = <span class="token number">3.1415</span>;
+    pi :: <span class = "token type">Float64</span> = <span class="token number">3.1415</span>;
 };
 
 <span class="token keyword">deploy</span> physics;
