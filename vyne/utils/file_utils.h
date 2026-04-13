@@ -13,7 +13,7 @@ namespace FileUtils {
         exeDir = std::filesystem::absolute(argv0).parent_path().string();
     }
 
-    static std::string getExternPath(const std::string& filePath) {
+    [[maybe_unused]] static std::string getExternPath(const std::string& filePath) {
         std::filesystem::path base(exeDir);
         return (base / "modules" / "external" / filePath).string();
     }
