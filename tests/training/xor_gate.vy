@@ -30,8 +30,8 @@ W2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 1, [
 B1 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(1, 2, [[0.1, 0.1]]);
 B2 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(1, 1, [[0.1]]);
 
-learning_rate = 0.5;
-epochs = 3000;
+learning_rate = 0.05;
+epochs = 5000;
 
 #===============================================================================
 # TRAINING SESSION
