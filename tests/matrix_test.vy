@@ -1,7 +1,7 @@
 use lib "vlinalg.vy";
 
 m1 :: vlinalg.Types.Matrix = vlinalg.Types.Matrix(2, 3, [
-    [1, 2, 3],
+    [16, 42, 31],
     [4, 5, 6]
 ]);
 
@@ -14,4 +14,5 @@ vector :: vlinalg.Types.Vector = vlinalg.Types.Vector(2,3);
 vector2 :: vlinalg.Types.Vector = vlinalg.Types.Vector(5,6);
 
 m1.insert_row([1,2,3]);
+vlinalg.transpose(m1);
 out(m1);

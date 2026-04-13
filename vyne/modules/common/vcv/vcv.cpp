@@ -6,7 +6,7 @@
 #include <cstdint> // intptr_t
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "vendor/stb/stb_image.h"
+#include "../../../vendor/stb/stb_image.h"
 
 #ifdef _WIN32
 #include <windows.h>

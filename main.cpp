@@ -7,7 +7,6 @@
 int runLspServer();
 
 int main(int argc, char* argv[]) {
-    std::cout << "[STEP 1] Engine started..." << std::endl;
     FileUtils::setExeDir(argv[0]);
     SymbolContainer env;
     env["global"] = {};
