@@ -256,3 +256,76 @@ th {
   text-align: center;
   color: #444;
 }
+
+/* RESPONSIVE DESIGN */
+
+/* 1024px-dən kiçik ekranlar (Planşetlər üçün) */
+@media (max-width: 1024px) {
+  :root {
+    --sidebar-width: 240px;
+  }
+  .main-content {
+    padding: 3rem 5%;
+  }
+}
+
+/* 768px-dən kiçik ekranlar (Mobil telefonlar üçün) */
+@media (max-width: 768px) {
+  body {
+    flex-direction: column; /* Sidebar-ı yuxarıya və ya gizli hala gətirmək üçün */
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem;
+  }
+
+  .logo {
+    margin-bottom: 1.5rem;
+    justify-content: center;
+  }
+
+  .sidebar-nav {
+    display: none; /* Mobildə menyunu gizlədirik (Opsional: Hamburger menu əlavə edilə bilər) */
+  }
+
+  /* Əgər mobildə menyunu görmək istəyirsənsə bu hissəni aktiv et: */
+  /* .sidebar-nav { display: flex; overflow-x: auto; gap: 20px; } */
+
+  .main-content {
+    margin-left: 0;
+    padding: 2rem 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.8rem;
+  }
+
+  .code-body {
+    font-size: 0.85rem;
+    padding: 1.2rem;
+  }
+
+  .explanation {
+    padding: 1.2rem;
+  }
+
+  table {
+    font-size: 0.85rem;
+  }
+}
+
+/* Çox kiçik ekranlar üçün əlavə tənzimləmə */
+@media (max-width: 480px) {
+  .logo h2 {
+    font-size: 1.2rem;
+  }
+
+  .badge {
+    font-size: 0.7rem;
+  }
+}
