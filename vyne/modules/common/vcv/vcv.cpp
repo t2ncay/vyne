@@ -1,11 +1,13 @@
 #include "vcv.h"
 #include <iostream>
+#include <vector>
+#include <string>
+#include <cstdlib> // system()
+#include <cstdint> // intptr_t
 
-// STB_IMAGE daxil edirik
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb/stb_image.h"
 
-// Windows üçün lazım olan header-lər
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
@@ -20,15 +22,14 @@ namespace VCVNative {
 
 #ifdef _WIN32
         HINSTANCE res = ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        
-        // Əgər nəticə 32-dən kiçikdirsə, deməli xəta baş verib (məs: fayl tapılmadı)
         if ((intptr_t)res <= 32) {
             std::cerr << "[VCV] Error: Could not open image file at " << path << "\n";
             return Value(false);
         }
-#else
-        std::string cmd = "xdg-open " + path;
-        system(cmd.c_str());
+#elif defined(__linux__)
+        std::string cmd = "xdg-open " + path + " > /dev/null 2>&1";
+        int ret = std::system(cmd.c_str());
+        (void)ret; // Unused warning-i söndürmək üçün
 #endif
         return Value(true);
     }
@@ -42,7 +43,6 @@ namespace VCVNative {
 
         if (data) {
             std::cout << "[VCV] Info: " << width << "x" << height << " (" << channels << " channels)" << std::endl;
-            
             stbi_image_free(data);
 
             std::vector<Value> channelData;
@@ -60,7 +60,6 @@ namespace VCVNative {
 
 void setupVCV(SymbolContainer& env, StringPool& pool) {
     auto& vcv = env["vcv"];
-
     vcv[pool.intern("show")] = Value(VCVNative::show);
     vcv[pool.intern("info")] = Value(VCVNative::info);
 }
