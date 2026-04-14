@@ -77,9 +77,14 @@ enum class VTokenType {
     Dot,                // .
     Double_Dot,         // ..
 
+    // --- RULESETS ---
+    Ruleset,            // Ruleset
+    Warnings,
+    Dynamic_Casting,
+    Memory_Limit,
+
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
-    Ruleset,            // Ruleset
     End                 // End of File (EOF)
 };
 

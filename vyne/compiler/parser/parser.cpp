@@ -1162,17 +1162,16 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
     }
     
     Token rulesetType = consume(VTokenType::Identifier);
-    std::string type = rulesetType.name;
     
     if (peekToken().type == VTokenType::Semicolon) {
         consume(VTokenType::Semicolon);
     }
     
-    if (type == "warnings") {
+    if (rulesetType.type == VTokenType::Warnings) {
         Vyne::setQuietMode(false);
-    } else if (type == "dynamic_type_casting") {
+    } else if (rulesetType.type == VTokenType::Dynamic_Casting) {
         Vyne::setTypeStrictMode(false);
-    } else if (type == "memory_limit") {
+    } else if (rulesetType.type == VTokenType::Memory_Limit) {
         Vyne::setMemoryLimitEnabled(true);
     }
     
@@ -1185,8 +1184,8 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
     
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
-        Token ruleName = consume(VTokenType::Identifier);
-        std::string name = ruleName.name;
+        // İdentifier gözləmirik, çünki bunlar artıq keyword-dür
+        Token ruleName = getNextToken(); 
         
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
@@ -1196,24 +1195,25 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
             double value = 0;
             if (std::holds_alternative<int64_t>(valueToken.literal)) 
                 value = static_cast<double>(std::get<int64_t>(valueToken.literal));
-            else 
+            else if (std::holds_alternative<double>(valueToken.literal))
                 value = std::get<double>(valueToken.literal);
 
-            if (name == "memory_limit") {
+            if (ruleName.type == VTokenType::Memory_Limit) { 
                 Vyne::setMemoryLimitEnabled(true);
                 Vyne::setMemoryLimit(static_cast<size_t>(value));
-                std::cout << "[RULES] Memory limit set to: " << value << " bytes\n";
+                if (!Vyne::isQuietMode())
+                    std::cout << "[RULES] Memory limit set to: " << value << " bytes\n";
             } else {
-                throw std::runtime_error("Rule '" + name + "' requires a value, but is unknown.");
+                throw std::runtime_error("Rule '" + ruleName.name + "' requires a value, but is unknown.");
             }
         } 
         else {
-            if (name == "warnings") {
+            if (ruleName.type == VTokenType::Warnings) {
                 Vyne::setQuietMode(false);
-            } else if (name == "dynamic_casting") {
+            } else if (ruleName.type == VTokenType::Dynamic_Casting) {
                 Vyne::setTypeStrictMode(false);
             } else {
-                throw std::runtime_error("Unknown ruleset flag: " + name);
+                throw std::runtime_error("Unknown ruleset flag: " + ruleName.name);
             }
         }
 
@@ -1223,7 +1223,6 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     }
     
     consume(VTokenType::Right_CB);
-    
     consumeSemicolon();
     
     auto node = std::make_unique<NullNode>();

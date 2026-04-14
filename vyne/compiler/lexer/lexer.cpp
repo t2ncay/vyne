@@ -130,6 +130,9 @@ std::vector<Token> tokenize(std::string_view input) {
             else if (buffer == "lib") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
             else if (buffer == "interface") tokens.emplace_back(VTokenType::Interface, currentLine, 0, buffer);
             else if (buffer == "ruleset") tokens.emplace_back(VTokenType::Ruleset, currentLine, 0, buffer);
+            else if (buffer == "warnings") tokens.emplace_back(VTokenType::Warnings, currentLine, 0, buffer);
+            else if (buffer == "dynamic_casting") tokens.emplace_back(VTokenType::Dynamic_Casting, currentLine, 0, buffer);
+            else if (buffer == "memory_limit") tokens.emplace_back(VTokenType::Memory_Limit, currentLine, 0, buffer);
             else tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
             continue;
         }
