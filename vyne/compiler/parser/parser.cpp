@@ -1190,7 +1190,7 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
         Token ruleName = consume(VTokenType::Identifier);
         std::string name = ruleName.name;
         
-        rules.push_back(name);
+        rules.emplace_back(name);
         
         if (peekToken().type == VTokenType::Comma) {
             consume(VTokenType::Comma);
