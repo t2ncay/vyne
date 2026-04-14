@@ -39,8 +39,8 @@ training_targets = vlinalg.Types.Matrix(8, 1, [
 # METU standartlarına uyğun 0.05 learning rate qoyuruq
 grader_net = vml.create_network(3, 6, 1, 0.05);
 
-# 3. Training Loop (Baku gecələrində Vyne-ı tərlədək)
-epochs = 30000;
+# 3. Training Loop
+epochs = 50000;
 out("Training for " + string(epochs) + " epochs...");
 
 through i :: 1..epochs -> loop {
@@ -52,21 +52,31 @@ through i :: 1..epochs -> loop {
 };
 
 out(vcolors.green("Model trained! Saving to disk..."));
-vml.save_model(grader_net, "metu_grader_v1");
+#vml.save_model(grader_net, "metu_grader_v1");
 
 # 4. Real Ssenari Testi (İnference)
 out("\n" + vcolors.yellow("--- Testing with New Student Data ---"));
 
-# Ssenari: Tələbə MT1-dən 70 (0.7), MT2-dən 65 (0.65) alıb, davamiyyəti 85%-dir (0.85)
-test_student = vlinalg.Types.Matrix(1, 3, [[0.70, 0.65, 0.85]]);
-prediction = vml.predict(grader_net, test_student);
+# Ssenari: Tələbə MT1: 70, MT2: 65, Attendance: 60% (Kəsilməlidir!)
+test_data = [0.58, 0.56, 0.85];
+test_student = vlinalg.Types.Matrix(1, 3, [test_data]);
 
-predicted_grade = prediction.data[0][0] * 100;
+# 70% Qaydası (Hard Logic)
+attendance = test_data[2];
 
-out("Predicted Final Score: " + string(predicted_grade));
-
-if predicted_grade >= 50 {
-    out(vcolors.green("Prediction: Student will PASS (S)"));
+if attendance < 0.70 {
+    out(vcolors.red("Status: NA (Non-Attendance)"));
+    out("Result: Student fails automatically due to 70% rule.");
 } else {
-    out(vcolors.red("Prediction: Student will FAIL (U)"));
+    # Əgər davamiyyət qaydasını keçibsə, onda Neural Network-ə sorğu atırıq
+    prediction = vml.predict(grader_net, test_student);
+    predicted_grade = prediction.data[0][0] * 100;
+    
+    out("Predicted Final Score: " + string(predicted_grade));
+
+    if predicted_grade >= 50 {
+        out(vcolors.green("Prediction: Student will PASS (S)"));
+    } else {
+        out(vcolors.red("Prediction: Student will FAIL (U)"));
+    }
 }
