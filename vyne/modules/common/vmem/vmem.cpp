@@ -12,15 +12,6 @@ namespace VMemNative {
         g_env = &env;
     }
 
-    Value set_limit(std::vector<Value>& args) {
-        if (args.empty()) throw std::runtime_error("vmem.set_limit requires a value in bytes");
-        
-        size_t limit = static_cast<size_t>(args[0].asInt());
-        Vyne::setMemoryLimit(limit); // Mərkəzi limit qurulur
-        
-        return Value(true);
-    }
-
     Value peek(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("vmem.peek requires an address");
 
@@ -86,7 +77,6 @@ void setupVMem(SymbolContainer& env, StringPool& pool) {
     Vyne::globalUsageFetcher = VMemNative::calculateCurrentUsage;
 
     // vmem methods
-    vmem[pool.intern("set_limit")] = Value(VMemNative::set_limit);
     vmem[pool.intern("usage")]     = Value(VMemNative::usage);
     vmem[pool.intern("peek")]      = Value(VMemNative::peek);
     vmem[pool.intern("poke")]      = Value(VMemNative::poke);

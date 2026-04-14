@@ -1184,39 +1184,47 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
 std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
     
-    std::vector<std::string> rules;
-    
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
         Token ruleName = consume(VTokenType::Identifier);
         std::string name = ruleName.name;
         
-        rules.emplace_back(name);
-        
-        if (peekToken().type == VTokenType::Comma) {
-            consume(VTokenType::Comma);
+        if (peekToken().type == VTokenType::Equals) {
+            consume(VTokenType::Equals);
+            
+            Token valueToken = consume(VTokenType::Int64); 
+
+            double value = 0;
+            if (std::holds_alternative<int64_t>(valueToken.literal)) 
+                value = static_cast<double>(std::get<int64_t>(valueToken.literal));
+            else 
+                value = std::get<double>(valueToken.literal);
+
+            if (name == "memory_limit") {
+                Vyne::setMemoryLimitEnabled(true);
+                Vyne::setMemoryLimit(static_cast<size_t>(value));
+                std::cout << "[RULES] Memory limit set to: " << value << " bytes\n";
+            } else {
+                throw std::runtime_error("Rule '" + name + "' requires a value, but is unknown.");
+            }
+        } 
+        else {
+            if (name == "warnings") {
+                Vyne::setQuietMode(false);
+            } else if (name == "dynamic_casting") {
+                Vyne::setTypeStrictMode(false);
+            } else {
+                throw std::runtime_error("Unknown ruleset flag: " + name);
+            }
+        }
+
+        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+            getNextToken();
         }
     }
     
     consume(VTokenType::Right_CB);
     
-    if (peekToken().type == VTokenType::Semicolon) {
-        consume(VTokenType::Semicolon);
-    }
-    
-    for (const auto& rule : rules) {
-        if (rule == "warnings") {
-            Vyne::setQuietMode(false);
-        }
-        else if (rule == "dynamic_casting") {
-            Vyne::setTypeStrictMode(false);
-        }
-        else if (rule == "memory_limit") {
-            Vyne::setMemoryLimitEnabled(true);
-        }
-        else {
-            throw std::runtime_error("Unknown ruleset: " + rule + " [line " + std::to_string(line) + "]");
-        }
-    }
+    consumeSemicolon();
     
     auto node = std::make_unique<NullNode>();
     node->lineNumber = line;

@@ -1,8 +1,4 @@
-ruleset { memory_limit };
-
-module vmem;
-
-vmem.set_limit(800);
+ruleset { memory_limit = 163832 };
 
 a :: String = "dsafsdfasdfdsfds";
 b :: String = "dsafsdfasdfdsfds";
