@@ -5,6 +5,9 @@
 ruleset { dynamic_casting };
 
 module vcore;
+module vfs;
+
+module vnnet;
 
 use lib "vlinalg.vy"
 
@@ -32,6 +35,18 @@ fn predict(net :: NeuralNet, X :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix 
     o_a = vlinalg.apply_sigmoid(o_z_biased);
 
     return o_a;
+}
+
+fn save_model(net :: NeuralNet, model_name :: String) {
+    vfs.mkdir(model_name, true);
+    
+    vfs.write(vfs.join(model_name, "w1.dat"), string(net.hidden.weights.data));
+    vfs.write(vfs.join(model_name, "b1.dat"), string(net.hidden.biases));
+    
+    vfs.write(vfs.join(model_name, "w2.dat"), string(net.output.weights.data));
+    vfs.write(vfs.join(model_name, "b2.dat"), string(net.output.biases));
+    
+    out(vcolors.green("Model saved successfully to: " + model_name));
 }
 
 # --- 1. Initialization ---
@@ -120,6 +135,8 @@ through i :: 1..epochs -> loop {
 };
 
 out(vcolors.green("Training finished. Vyne is officially 'intelligent' now."));
+
+save_model(my_net, "xor_trained_v1");
 
 # --- 4. Testing / Inference ---
 out("\n--- Testing VyneNet Predictions ---");

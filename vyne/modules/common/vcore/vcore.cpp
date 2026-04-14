@@ -59,6 +59,40 @@ ParsedURL parseURL(const std::string& url)
     return result;
 }
 
+Value parseElement(const std::string& str, size_t& pos) {
+        while (pos < str.length() && std::isspace(str[pos])) pos++;
+
+        if (str[pos] == '[') {
+            pos++;
+            std::vector<Value> elements;
+            while (pos < str.length() && str[pos] != ']') {
+                elements.push_back(parseElement(str, pos));
+                
+                while (pos < str.length() && std::isspace(str[pos])) pos++;
+                if (pos < str.length() && str[pos] == ',') {
+                    pos++; // ',' keç
+                }
+            }
+            if (pos < str.length()) pos++;
+            return Value(elements);
+        } else {
+            size_t start = pos;
+            while (pos < str.length() && (std::isdigit(str[pos]) || str[pos] == '.' || str[pos] == '-' || str[pos] == 'e' || str[pos] == '+')) {
+                pos++;
+            }
+            std::string numStr = str.substr(start, pos - start);
+            try {
+                if (numStr.find('.') != std::string::npos || numStr.find('e') != std::string::npos) {
+                    return Value(std::stod(numStr));
+                } else {
+                    return Value(static_cast<int64_t>(std::stoll(numStr)));
+                }
+            } catch (...) {
+                return Value(0.0);
+            }
+        }
+    }
+
 /**
  * VCore Native Method Implementations
  */
@@ -162,6 +196,16 @@ namespace VCoreNative {
         return Value(res->body);
     }
     */
+
+    Value parse_array(std::vector<Value>& args) {
+        if (args.empty() || args[0].getType() != Value::STRING) {
+            throw std::runtime_error("vcore.parse_array() expects 1 String argument.");
+        }
+
+        std::string input = args[0].asString();
+        size_t pos = 0;
+        return parseElement(input, pos);
+    }
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
@@ -178,6 +222,7 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("sleep")]           = Value(VCoreNative::sleep);
     vcore[pool.intern("platform")]        = Value(VCoreNative::platform);
     vcore[pool.intern("input")]           = Value(VCoreNative::input);
+    vcore[pool.intern("parse_array")]     = Value(VCoreNative::parse_array);
 
     // VCore properties
     vcore[pool.intern("version")]         = Value("v0.0.1-alpha").setReadOnly();
