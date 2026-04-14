@@ -12,7 +12,6 @@ vyne_bin
 liburage.so
 urage.dll
 *.idx
-*.dat
 lsp/bin/*
 *.o
 *.dll
