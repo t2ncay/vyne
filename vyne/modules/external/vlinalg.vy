@@ -141,5 +141,53 @@ fn :: vlinalg apply_sigmoid(m :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
     return vlinalg.Types.Matrix(m.row, m.col, res_data);
 }
 
+fn :: vlinalg multiply_scalar(m :: vlinalg.Types.Matrix, scalar :: Float64) -> vlinalg.Types.Matrix {
+    res_data = through row :: m.data -> collect {
+        through val :: row -> collect { val * scalar }
+    };
+    return vlinalg.Types.Matrix(m.row, m.col, res_data);
+}
+
+fn :: vlinalg hadamard(a :: vlinalg.Types.Matrix, b :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    if (a.row != b.row) || (a.col != b.col) {
+        exit("Vlinalg Error: Hadamard dimensions mismatch");
+    }
+
+    res_data = through r :: 0..a.row-1 -> collect {
+        through c :: 0..a.col-1 -> collect {
+            a.data[r][c] * b.data[r][c]
+        }
+    };
+    return vlinalg.Types.Matrix(a.row, a.col, res_data);
+}
+
+fn :: vlinalg sigmoid_prime(m :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    res_data = through row_data :: m.data -> collect {
+        through a :: row_data -> collect {
+            a * (1.0 - a)
+        }
+    };
+    return vlinalg.Types.Matrix(m.row, m.col, res_data);
+}
+
+fn :: vlinalg add_bias(m :: vlinalg.Types.Matrix, b :: Array) -> vlinalg.Types.Matrix {
+    res_data = through row_data :: m.data -> collect {
+        through c :: 0..m.col-1 -> collect {
+            row_data[c] + b[c]
+        }
+    };
+    return vlinalg.Types.Matrix(m.row, m.col, res_data);
+}
+
+fn :: vlinalg random_init(rows :: Int64, cols :: Int64) -> vlinalg.Types.Matrix {
+    res_data = through r :: 0..rows-1 -> collect {
+        through c :: 0..cols-1 -> collect {
+            # 0.0 və 1.0 aralığında random rəqəm alırıq
+            # Sonra onu MLP üçün uyğun olan kiçik aralığa salırıq
+            (vmath.random(0.0, 1.0) - 0.5) * 1.0
+        }
+    };
+    return vlinalg.Types.Matrix(rows, cols, res_data);
+}
 deploy vlinalg;
 deploy vmath;
