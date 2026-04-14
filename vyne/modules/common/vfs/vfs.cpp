@@ -332,6 +332,27 @@ namespace VFsNative {
         fs::path p = ensureStringArg(args, 0, "parent");
         return Value(p.parent_path().string());
     }
+
+    Value parse_csv(const std::vector<Value>& args) {
+        std::string path = args[0].asString();
+        std::ifstream file(path);
+        std::vector<Value> all_rows;
+
+        std::string line;
+        std::getline(file, line); // Header-i keçirik
+
+        while (std::getline(file, line)) {
+            std::vector<Value> row_values;
+            std::stringstream ss(line);
+            std::string cell;
+
+            while (std::getline(ss, cell, ',')) {
+                row_values.emplace_back(cell);
+            }
+            all_rows.emplace_back(std::move(row_values));
+        }
+        return Value(std::move(all_rows));
+    }
 }
 
 void setupVFs(SymbolContainer& env, StringPool& pool) {
@@ -365,6 +386,7 @@ void setupVFs(SymbolContainer& env, StringPool& pool) {
     vfs[pool.intern("stem")]             = Value(VFsNative::stem);
     vfs[pool.intern("extension")]        = Value(VFsNative::extension);
     vfs[pool.intern("parent")]           = Value(VFsNative::parent);
+    vfs[pool.intern("parse_csv")]           = Value(VFsNative::parse_csv);
 
     // vfs properties
     vfs[pool.intern("cwd")]              = Value(std::filesystem::current_path().string()).setReadOnly();

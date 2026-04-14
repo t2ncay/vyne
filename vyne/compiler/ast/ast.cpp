@@ -675,11 +675,38 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     Value receiverVal = receiver->evaluate(env, currentGroup);
     uint32_t methodId = StringPool::instance().intern(methodName);
 
+    if (receiverVal.getType() == Value::STRING) {
+        std::string str = receiverVal.asString();
+
+        if (methodName == "replace") {
+            // Parametrləri götürürük: replace(old, new)
+            if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
+            
+            std::string oldS = arguments[0]->evaluate(env, currentGroup).asString();
+            std::string newS = arguments[1]->evaluate(env, currentGroup).asString();
+
+            // C++ daxilində string əvəzləmə məntiqi
+            size_t pos = 0;
+            while ((pos = str.find(oldS, pos)) != std::string::npos) {
+                str.replace(pos, oldS.length(), newS);
+                pos += newS.length();
+            }
+            return Value(str); // Yeni təmizlənmiş string-i qaytarırıq
+        }
+    }
+
     if (receiverVal.getType() == Value::MODULE) {
-        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
-        auto mod = static_cast<ModuleData*>(obj.get());
-        std::string modName = mod->name;
-        uint32_t modId = StringPool::instance().intern(modName);
+        uint32_t modId;
+        std::string modName;
+
+        if (auto objPtr = std::get_if<std::shared_ptr<VyneObject>>(&receiverVal.data)) {
+            auto mod = static_cast<ModuleData*>(objPtr->get());
+            modName = mod->name;
+            modId = StringPool::instance().intern(modName);
+        } else {
+            modName = receiverVal.asString(); 
+            modId = StringPool::instance().intern(modName);
+        }
 
         if (env.contains(modId) && env[modId].count(methodId)) {
             Value& funcVal = env[modId][methodId];
@@ -732,10 +759,10 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
 
                 env.erase(localCallScope);
-
                 return result;
             }
         }
+        
         throw std::runtime_error("Module Error: Method '" + methodName + "' not found in module " + modName + " [ line " + std::to_string(lineNumber) + " ]");
     }
 
@@ -749,6 +776,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 return Value(static_cast<uint64_t>(receiverVal.asList().size()));
             }
         }
+
 
         Value* target = nullptr;
 
