@@ -1,5 +1,5 @@
 #===============================================================================
-# VYNENET CRYPTO INFERENCE (STABLE VERSION)
+# VYNENET DEEP INFERENCE (3 -> 8 -> 4 -> 1 Architecture)
 #===============================================================================
 
 ruleset { dynamic_casting };
@@ -11,9 +11,8 @@ use lib "vlinalg.vy";
 module vcore;
 module vfs;
 
-out(vcolors.cyan("=== VyneNet Rapid Inference: Crypto Analysis ==="));
+out(vcolors.cyan("=== VyneNet Deep Inference: Balanced Sentiment Analysis ==="));
 
-# 1. Helper funksiyasını bərpa edirik (CSV datası üçün)
 fn clean_num(val) -> Float64 {
     s = string(val);
     t = s.replace("$", "").replace("%", "").replace(",", "").replace("\"", "").replace(" ", "");
@@ -21,53 +20,48 @@ fn clean_num(val) -> Float64 {
     return float64(t);
 }
 
-# 2. Modeli Diskdən Yükləyirik
+w1 = vcore.parse_array(vfs.read("models/crypto_deep_v1/w1.dat"));
+b1 = vcore.parse_array(vfs.read("models/crypto_deep_v1/b1.dat"));
+w2 = vcore.parse_array(vfs.read("models/crypto_deep_v1/w2.dat"));
+b2 = vcore.parse_array(vfs.read("models/crypto_deep_v1/b2.dat"));
+w3 = vcore.parse_array(vfs.read("models/crypto_deep_v1/w3.dat"));
+b3 = vcore.parse_array(vfs.read("models/crypto_deep_v1/b3.dat"));
 
-w1_raw = vfs.read("models/crypto_market_v1/w1.dat");
-b1_raw = vfs.read("models/crypto_market_v1/b1.dat");
-w2_raw = vfs.read("models/crypto_market_v1/w2.dat");
-b2_raw = vfs.read("models/crypto_market_v1/b2.dat");
+# Matrix ölçülərini memarlığa uyğun qururuq: 3 -> 8 -> 4 -> 1
+h1_layer = vml.Types.Layer(vlinalg.Types.Matrix(3, 8, w1), b1);
+h2_layer = vml.Types.Layer(vlinalg.Types.Matrix(8, 4, w2), b2);
+o_layer  = vml.Types.Layer(vlinalg.Types.Matrix(4, 1, w3), b3);
 
-w1_data = vcore.parse_array(w1_raw);
-b1_data = vcore.parse_array(b1_raw);
-w2_data = vcore.parse_array(w2_raw);
-b2_data = vcore.parse_array(b2_raw);
+# DeepNeuralNet obyektini yaradırıq
+crypto_net = vml.Types.DeepNeuralNet(h1_layer, h2_layer, o_layer, 0.0);
 
-# Matrix ölçüləri: Input(3) -> Hidden(12) -> Output(1)
-h_layer = vml.Types.Layer(vlinalg.Types.Matrix(3, 12, w1_data), b1_data);
-o_layer = vml.Types.Layer(vlinalg.Types.Matrix(12, 1, w2_data), b2_data);
+out(vcolors.green("Deep Model loaded. 3-layer architecture synchronized."));
 
-# lr 0.0 qoyuruq, çünki öyrənmə (training) etməyəcəyik
-crypto_net = vml.Types.NeuralNet(h_layer, o_layer, 0.0);
-
-out(vcolors.green("Model loaded. Weights synchronized."));
-
-# 3. Datanı yükləyirik və proqnoz veririk
+# 2. Datanı yükləyirik
 raw_data = vfs.parse_csv("crypto.csv");
 
-out("\n" + vcolors.cyan("--- Market Sentiment Analysis ---"));
+out("\n" + vcolors.cyan("--- Balanced Market Sentiment Analysis ---"));
 
-# İlk 10 coin-i analiz edək
 through k :: 0..9 -> loop {
     row = raw_data[k+1];
     coin_name = row[1];
     
-    # Inputları hazırlayırıq (h1, h24, d7)
+    # Input Normalization (Training-də olduğu kimi 100-ə bölürük)
     h1  = clean_num(row[4]) / 100.0;
     h24 = clean_num(row[5]) / 100.0;
     d7  = clean_num(row[6]) / 100.0;
 
     X = vlinalg.Types.Matrix(1, 3, [[h1, h24, d7]]);
     
-    # Sənin vml.vy daxilindəki predict funksiyanı çağırırıq
-    result = vml.predict(crypto_net, X);
+    # DİQQƏT: predict_deep funksiyasını çağırırıq
+    result = vml.predict_deep(crypto_net, X);
     score = result.data[0][0] * 100;
     
-    msg = coin_name + " Score: " + string(score) + "%";
+    msg = coin_name + " Trend Score: " + string(score) + "%";
     
-    if score > 65 {
+    if score > 60 {
         out(vcolors.green(msg + " [ BULLISH ]"));
-    } else if score < 35 {
+    } else if score < 40 {
         out(vcolors.red(msg + " [ BEARISH ]"));
     } else {
         out(vcolors.yellow(msg + " [ NEUTRAL ]"));
