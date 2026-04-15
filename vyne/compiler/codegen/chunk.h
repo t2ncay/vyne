@@ -11,19 +11,30 @@ enum OpCode : uint8_t {
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
-    OP_RETURN,
+    OP_EQUAL,
+    OP_GREATER,
+    OP_SMALLER,
+    OP_NOT,
+    OP_NEGATE,
+    OP_POP,
     OP_DEFINE_GLOBAL,
     OP_GET_GLOBAL,
-    OP_JUMP_IF_FALSE,
+    OP_SET_GLOBAL,
+    OP_GET_LOCAL,    // Lokal dəyişənlər üçün lazımdır
+    OP_SET_LOCAL,    // Lokal təyinat üçün lazımdır
     OP_JUMP,
-    OP_EQUAL,
-    OP_POP,
+    OP_JUMP_IF_FALSE,
+    OP_LOOP,
+    OP_CALL,
+    OP_ARRAY,
+    OP_INDEX_GET,    // Sənin xəta verdiyi sətir üçün bu mütləqdir
+    OP_INDEX_SET,    // array[idx] = val üçün lazım olacaq
     OP_PRINT,
     OP_TYPE,
-    OP_ARRAY,
-    OP_LOOP,
-    OP_GREATER,
-    OP_SMALLER
+    OP_RETURN,
+    OP_GET_PROPERTY,
+    OP_SET_PROPERTY,
+    OP_MODULO
 };
 
 struct Chunk {
@@ -42,6 +53,7 @@ struct Chunk {
     }
 };
 
-#endif
-
 void disassembleChunk(const Chunk& chunk, const std::string& name);
+int disassembleInstruction(const Chunk& chunk, int offset);
+
+#endif

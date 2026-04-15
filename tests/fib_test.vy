@@ -1,3 +1,5 @@
+ruleset { dynamic_casting };
+
 n :: Int64 = 20;
 a = 0;
 b = 1;

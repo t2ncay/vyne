@@ -3,12 +3,42 @@
 
 #include "chunk.h"
 
+struct Local {
+    std::string name;
+    int depth; // Blok dərinliyi (məsələn: if, while daxili)
+};
+
 class Emitter {
 public:
     Chunk* currentChunk;
-    int currentLine;
+    std::vector<Local> locals;
+    int scopeDepth = 0;
+    int currentLine = 1;
 
-    Emitter(Chunk* chunk) : currentChunk(chunk), currentLine(1) {}
+    Emitter(Chunk* chunk) : currentChunk(chunk) {
+        locals.push_back({"", 0}); 
+    }
+
+    void beginScope() { scopeDepth++; }
+    
+    void endScope() {
+        scopeDepth--;
+        while (!locals.empty() && locals.back().depth > scopeDepth) {
+            emitByte(OP_POP);
+            locals.pop_back();
+        }
+    }
+
+    void addLocal(const std::string& name) {
+        locals.push_back({name, scopeDepth});
+    }
+
+    int resolveLocal(const std::string& name) {
+        for (int i = locals.size() - 1; i >= 0; i--) {
+            if (locals[i].name == name) return i;
+        }
+        return -1;
+    }
 
     void emitByte(uint8_t byte) {
         currentChunk->write(byte, currentLine);

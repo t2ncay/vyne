@@ -1,4 +1,13 @@
 #include "value.h"
+#include "../codegen/chunk.h"
+
+FunctionData::FunctionData() : VyneObject(ObjType::Function), bytecode(nullptr) {}
+
+FunctionData::~FunctionData() {
+    if (bytecode) {
+        delete bytecode;
+    }
+}
 
 int Value::getType() const {
     if (std::holds_alternative<std::monostate>(data)) return NONE;

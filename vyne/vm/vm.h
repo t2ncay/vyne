@@ -4,6 +4,7 @@
 #include "../compiler/ast/ast.h"
 #include "../compiler/codegen/chunk.h"
 #include <vector>
+#include <array>
 
 enum InterpretResult {
     INTERPRET_OK,
@@ -11,24 +12,55 @@ enum InterpretResult {
     INTERPRET_RUNTIME_ERROR
 };
 
-class VM {
+// Hər funksiya çağırışı üçün bir "Frame"
+struct CallFrame {
     Chunk* chunk;
     uint8_t* ip;
-    std::vector<Value> stack;
+    Value* slots; // Bu frame-in lokal dəyişənlərinin stack-də başladığı yer
+};
+
+class VM {
+    static const int FRAMES_MAX = 64;
+    static const int STACK_MAX = 1024;
+
+    std::array<CallFrame, FRAMES_MAX> frames;
+    int frameCount = 0;
+
+    std::array<Value, STACK_MAX> stack;
+    Value* stackTop;
+
     SymbolContainer& globals; 
     std::string currentGroup = "global";
 
 public:
-    VM(SymbolContainer& env) : chunk(nullptr), ip(nullptr), globals(env) {}
+    VM(SymbolContainer& env) : globals(env) {
+        resetStack();
+    }
+
     InterpretResult interpret(Chunk& chunk);
     InterpretResult run();
     
-    void push(Value value) { stack.push_back(value); }
-    Value pop() { 
-        Value val = stack.back(); 
-        stack.pop_back(); 
-        return val; 
+    void resetStack() {
+        stackTop = stack.data();
+        frameCount = 0;
     }
+
+    void push(Value value) {
+        if (stackTop >= stack.data() + STACK_MAX) throw std::runtime_error("Stack Overflow");
+        *stackTop = value;
+        stackTop++;
+    }
+
+    Value pop() {
+        stackTop--;
+        return *stackTop;
+    }
+
+    Value peek(int distance) {
+        return stackTop[-1 - distance];
+    }
+
+    Value handleDynamicProperty(Value& receiver, uint32_t nameId);
 };
 
 #endif

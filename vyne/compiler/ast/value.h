@@ -15,9 +15,9 @@
 #include "../types.h"
 
 class FunctionNode;
-
 class ASTNode;
 struct Value;
+struct Chunk;
 
 struct Parameter {
     uint32_t id;
@@ -50,10 +50,16 @@ struct FunctionData : public VyneObject {
     int arity = 0;
     std::vector<Parameter> params;
     std::vector<std::shared_ptr<ASTNode>> body; 
+    
+    Chunk* bytecode = nullptr; 
+
     std::function<Value(std::vector<Value>&)> nativeFn;
     bool isNative = false;
     std::string expectedReturnType = "null";
-    FunctionData() : VyneObject(ObjType::Function) {}
+
+    FunctionData();
+
+    ~FunctionData();
 };
 
 // TODO PERFORMANCE ALIGNMENTS

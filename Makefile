@@ -11,7 +11,7 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
              ./vendor/urage/core/src/pager.c \
              ./vendor/urage/core/src/type.c
 
-CXXFLAGS = -std=c++23 -O3 -Wall -I. \
+CXXFLAGS = -std=c++23 -O3 -I. \
            -I./lsp/backend/src -I./lsp/backend/include \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
 
