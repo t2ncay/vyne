@@ -59,7 +59,7 @@ Y = vlinalg.Types.Matrix(targets_list.size(), 1, targets_list);
 # Data çoxaldığı üçün hidden layer-i bir az böyütdük (12 neyron)
 crypto_net = vml.create_network(3, 12, 1, 0.02);
 
-epochs = 10000;
+epochs = 50000;
 out("Training on " + string(inputs_list.size()) + " assets for " + string(epochs) + " epochs...");
 
 through e :: 1..epochs -> loop {
@@ -71,6 +71,9 @@ through e :: 1..epochs -> loop {
 };
 
 out(vcolors.green("VyneNet is fully trained and ready for inference!"));
+
+out(vcolors.green("Model trained! Saving to disk..."));
+vml.save_model(crypto_net, "cyrpto_market_v1");
 
 # 4. Real-time Prediction (Top 10 Coins)
 out("\n" + vcolors.cyan("--- Market Sentiment Analysis ---"));
