@@ -80,7 +80,7 @@
         },
         {
           "name": "support.class.vyne",
-          "match": "\\b(vcore|vglib|vmem|vmath|warnings|dynamic_casting|String|Array|Number|Int64|Float64)\\b"
+          "match": "\\b(vcore|vglib|vmem|vmath|vfs|vcv|vurage|warnings|dynamic_casting|String|Array|Number|Int64|Float64)\\b"
         }
       ]
     },

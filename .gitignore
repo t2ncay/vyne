@@ -16,6 +16,8 @@ lsp/bin/*
 *.o
 *.dll
 editors/vscode/lsp/node_modules/*
+editors/vscode/lsp/client/node_modules*
+editors/vscode/lsp/server/node_modules/*
 editors/vscode/lsp/*.vsix
 vynec
 tests/assets/*

@@ -28,8 +28,7 @@ namespace VCVNative {
         }
 #elif defined(__linux__)
         std::string cmd = "xdg-open " + path + " > /dev/null 2>&1";
-        int ret = std::system(cmd.c_str());
-        (void)ret; // Unused warning-i söndürmək üçün
+        [[maybe_unused]] int ret = std::system(cmd.c_str());
 #endif
         return Value(true);
     }
