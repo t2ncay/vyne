@@ -60,10 +60,10 @@ int64_t Value::asInt() const {
 
 const std::string& Value::asString() const {
     if (auto* id = std::get_if<uint32_t>(&data)) {
-        return StringPool::instance().get(*id);
+        return StringPool::get(*id);
     }
     if (auto* id64 = std::get_if<int64_t>(&data)) {
-        return StringPool::instance().get(static_cast<uint32_t>(*id64));
+        return StringPool::get(static_cast<uint32_t>(*id64));
     }
     throw std::runtime_error("Type Error: Expected String, found " + getTypeName());
 }
@@ -316,7 +316,7 @@ bool Value::operator<(const Value& other) const {
     }
 }
 
-uint32_t StringPool::intern(const std::string& s) {
+uint32_t StringPool::intern(std::string_view s) {
     StringPool& pool = StringPool::instance();
 
     auto it = pool.strToId.find(s);
@@ -324,7 +324,12 @@ uint32_t StringPool::intern(const std::string& s) {
 
     uint32_t newId = static_cast<uint32_t>(pool.idToStr.size());
     pool.idToStr.emplace_back(s);
-    pool.strToId[s] = newId;
+    
+    pool.strToId[pool.idToStr.back()] = newId;
 
     return newId;
+}
+
+const std::string& StringPool::get(uint32_t id) {
+    return instance().idToStr.at(id);
 }

@@ -11,6 +11,7 @@
 #include <functional>
 #include <cstdint>
 #include <charconv>
+#include <deque>
 
 #include "../types.h"
 
@@ -89,31 +90,31 @@ using ValueData = std::variant<
     Value*
 >;
 
+struct StringHash {
+    using is_transparent = void;
+    size_t operator()(std::string_view sv) const {
+        return std::hash<std::string_view>{}(sv);
+    }
+};
+
 class StringPool {
-    std::vector<std::string> idToStr;
-    std::unordered_map<std::string, uint32_t> strToId;
+private:
+    std::deque<std::string> idToStr;
+    std::unordered_map<std::string_view, uint32_t, StringHash, std::equal_to<>> strToId;
 
     StringPool() {
-        idToStr.reserve(4096); 
-        strToId.reserve(4096); 
-        
-        // OPTIONAL: Intern an empty string at ID 0 as a 'null' state
-        // This is a common compiler trick for default values.
-        // idToStr.emplace_back("");
-        // strToId[""] = 0;
+        idToStr.emplace_back(""); 
+        strToId[""] = 0;
     }
 
 public:
     static StringPool& instance() {
-        static StringPool pool; 
+        static StringPool pool;
         return pool;
     }
-    
-    static uint32_t intern(const std::string& s);
 
-    const std::string& get(uint32_t id) const { 
-        return idToStr.at(id); 
-    }
+    static uint32_t intern(std::string_view sv);
+    static const std::string& get(uint32_t id);
 };
 
 struct Value {
@@ -140,7 +141,7 @@ struct Value {
     Value(int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
     Value(unsigned int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
     Value(size_t n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
-    Value(std::string s) : type(VType::String) {
+    Value(std::string_view s) : type(VType::String) {
         data = StringPool::intern(s);
     }
     Value(std::vector<Value> l) : type(VType::Array) {

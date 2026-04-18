@@ -709,13 +709,18 @@ public:
 class MethodCallNode : public ASTNode {
     std::unique_ptr<ASTNode> receiver;
     std::string methodName;
+    uint32_t methodId;
     std::vector<std::unique_ptr<ASTNode>> arguments;
 
 public:
     MethodCallNode(std::unique_ptr<ASTNode> recv, std::string method, 
                    std::vector<std::unique_ptr<ASTNode>> args)
-        : ASTNode(NodeType::METHOD_CALL),
-        receiver(std::move(recv)), methodName(std::move(method)), arguments(std::move(args)) {}
+        : 
+        ASTNode(NodeType::METHOD_CALL),
+        receiver(std::move(recv)), 
+        methodName(std::move(method)), 
+        methodId(StringPool::intern(methodName)),
+        arguments(std::move(args)) {}
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

@@ -35,30 +35,38 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
     static thread_local std::unordered_map<std::string, uint32_t> groupIdCache;
     static uint32_t globalId = getGlobalId();
     
-    std::string target;
+    uint32_t targetId;
+    
     if (specificGroup.empty()) {
-        target = currentGroup;
+        // Cache yoxlaması
+        auto cacheIt = groupIdCache.find(currentGroup);
+        if (cacheIt != groupIdCache.end()) {
+            targetId = cacheIt->second;
+        } else {
+            targetId = StringPool::intern(currentGroup);
+            groupIdCache[currentGroup] = targetId;
+        }
     } else {
-        target = "global";
+        std::string target = "global";
+        target.reserve(32);
         for (const auto& g : specificGroup) {
-            target += '.';  // appending char to prevent re-allocations
+            target += '.';
             target += g;
         }
-    }
-    
-    auto cacheIt = groupIdCache.find(target);
-    uint32_t targetId;
-    if (cacheIt != groupIdCache.end()) {
-        targetId = cacheIt->second;
-    } else {
-        targetId = StringPool::instance().intern(target);
-        groupIdCache[target] = targetId;
+
+        auto cacheIt = groupIdCache.find(target);
+        if (cacheIt != groupIdCache.end()) {
+            targetId = cacheIt->second;
+        } else {
+            targetId = StringPool::intern(target);
+            groupIdCache[target] = targetId;
+        }
     }
     
     Value* valPtr = lookupSymbol(env, targetId, nameId);
     env.markUsed(nameId);
     
-    if (!valPtr && target != "global") {
+    if (!valPtr && StringPool::get(targetId) != "global") {
         valPtr = lookupSymbol(env, globalId, nameId);
     }
 
@@ -436,7 +444,7 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
             return Value();
             
         case BuiltInType::TYPE:
-            return argValues[0].getTypeName();
+            return Value(argValues[0].getTypeName());
             
         case BuiltInType::STRING:
             if (argValues.size() != 1) 
@@ -679,11 +687,23 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     Value receiverVal = receiver->evaluate(env, currentGroup);
     uint32_t methodId = StringPool::instance().intern(methodName);
 
+    static const uint32_t lengthId   = StringPool::intern("length");
+    static const uint32_t replaceId  = StringPool::intern("replace");
+    static const uint32_t sizeId     = StringPool::intern("size");
+    static const uint32_t pushId     = StringPool::intern("push");
+    static const uint32_t popId      = StringPool::intern("pop");
+    static const uint32_t backId     = StringPool::intern("back");
+    static const uint32_t deleteId   = StringPool::intern("delete");
+    static const uint32_t sortId     = StringPool::intern("sort");
+    static const uint32_t reverseId  = StringPool::intern("reverse");
+    static const uint32_t clearId    = StringPool::intern("clear");
+    static const uint32_t placeAllId = StringPool::intern("place_all");
+    static const uint32_t fieldsId   = StringPool::intern("fields");
+
     if (receiverVal.getType() == Value::STRING) {
         std::string str = receiverVal.asString();
 
-        if (methodName == "replace") {
-            // Parametrləri götürürük: replace(old, new)
+        if (methodId == replaceId) {
             if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
             
             std::string oldS = arguments[0]->evaluate(env, currentGroup).asString();
@@ -695,7 +715,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 str.replace(pos, oldS.length(), newS);
                 pos += newS.length();
             }
-            return Value(str); // Yeni təmizlənmiş string-i qaytarırıq
+            return Value(str);
         }
     }
 
@@ -781,7 +801,6 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             }
         }
 
-
         Value* target = nullptr;
 
         if (receiver->type() == NodeType::VARIABLE) {
@@ -796,13 +815,13 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             }
         }
 
-        if (!target && (methodName == "push" || methodName == "pop" || methodName == "clear")) {
+        if (!target && (methodId == pushId || methodId == popId || methodId == clearId)) {
             throw std::runtime_error("Runtime Error: Cannot call mutating method '" + methodName + "' on anonymous array [ line " + std::to_string(lineNumber) + " ]");
         }
 
         auto& vec = target ? target->asList() : receiverVal.asList();
 
-        if (methodName == "push") {
+        if (methodId == pushId) {
             Value* actualTarget = nullptr;
             
             if (target->getType() == Value::ARRAY) {
@@ -831,7 +850,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return receiverVal;
         }
 
-        if (methodName == "pop") {
+        if (methodId == popId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method pop() on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (target->asList().empty()) throw std::runtime_error("Index Error: pop() from empty array [ line " + std::to_string(lineNumber) + " ]");
             if (!arguments.empty()) throw std::runtime_error("Argument Error: pop() expects 0 arguments, but got " + std::to_string(arguments.size()) + " [ line " + std::to_string(lineNumber) + " ]");
@@ -840,7 +859,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return Value(true);
         }
 
-        if (methodName == "back") {
+        if (methodId == backId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method back() on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (target->asList().empty()) throw std::runtime_error("Index Error: back() from empty array [ line " + std::to_string(lineNumber) + " ]");
             if (!arguments.empty()) throw std::runtime_error("Argument Error: back() expects 0 arguments, but got " + std::to_string(arguments.size()) + " [ line " + std::to_string(lineNumber) + " ]");
@@ -848,7 +867,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return Value(target->asList().back());
         }
 
-        if (methodName == "delete") {
+        if (methodId == deleteId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method delete() on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() != 1) throw std::runtime_error("Argument Error: delete() expects exactly 1 argument, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
 
@@ -859,7 +878,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return Value(true);
         }
 
-        if (methodName == "sort") {
+        if (methodId == sortId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error: sort() called on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (!arguments.empty()) throw std::runtime_error("Argument Error: sort() expects 0 arguments [ line " + std::to_string(lineNumber) + " ]");
             for (auto& el : target->asList()) {
@@ -869,7 +888,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return Value(*target); 
         }
 
-        if (methodName == "place_all") {
+        if (methodId == placeAllId) {
             if (target->getType() != Value::ARRAY) 
                 throw std::runtime_error("Type Error: place_all() called on non-array [ line " + std::to_string(lineNumber) + " ]");
 
@@ -896,14 +915,14 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             return *target; 
         }
 
-        if (methodName == "reverse") {
+        if (methodId == reverseId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error: reverse() called on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() > 0) throw std::runtime_error("Argument Error: reverse() expects 0 arguments, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
             std::reverse(target->asList().begin(), target->asList().end());
             return Value(*target);
         }
 
-        if (methodName == "clear") {
+        if (methodId == clearId) {
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error: clear() called on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() > 0) throw std::runtime_error("Argument Error: clear() expects 0 arguments, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
             target->asList().clear();
@@ -912,7 +931,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
         if (receiverVal.getType() == Value::STRUCT) {
-        if (methodName == "fields") {
+        if (methodId == fieldsId) {
             auto baseObj = receiverVal.asStruct();
             auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
             
@@ -931,7 +950,6 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         if (methodNodeIt != structPtr->methodNodes.end()) {
             FunctionNode* funcNode = methodNodeIt->second;
 
-            // Step 1: Evaluate all arguments ONCE
             std::vector<Value> argValues;
             argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
@@ -974,17 +992,14 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
             }
 
-            // Step 3: Evaluate the method to get its function value
             Value funcVal = funcNode->evaluate(env, currentGroup);
             structPtr->methods[methodId] = funcVal;
             
             auto funcData = funcVal.asFunction();
             
-            // Step 4: Build all arguments including self
             std::vector<Value> allArgs = { receiverVal };
             allArgs.insert(allArgs.end(), argValues.begin(), argValues.end());
             
-            // Step 5: Handle native methods
             if (funcData->isNative) {
                 if (funcData->arity != -1) {
                     checkArgumentCount(funcData->arity, allArgs.size() - 1, ctx);
@@ -992,7 +1007,6 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 return funcData->nativeFn(allArgs);
             }
             
-            // Step 6: Handle Vyne-defined methods
             checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
             
             std::string localScope = createLocalScope("method", methodName);
@@ -1007,7 +1021,6 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             
             Value result = executeFunction(funcData, allArgs, env, localScope, lineNumber);
             
-            // Step 7: Validate return type
             if (funcNode->getReturnType() != VType::Unknown) {
                 std::string expectedReturn = VTypeToString(funcNode->getReturnType());
                 if (result.getTypeName() != expectedReturn) {
