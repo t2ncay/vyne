@@ -32,41 +32,20 @@ Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGrou
  */
 
 Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    static thread_local std::unordered_map<std::string, uint32_t> groupIdCache;
     static uint32_t globalId = getGlobalId();
     
     uint32_t targetId;
-    
-    if (specificGroup.empty()) {
-        // Cache yoxlaması
-        auto cacheIt = groupIdCache.find(currentGroup);
-        if (cacheIt != groupIdCache.end()) {
-            targetId = cacheIt->second;
-        } else {
-            targetId = StringPool::intern(currentGroup);
-            groupIdCache[currentGroup] = targetId;
-        }
-    } else {
-        std::string target = "global";
-        target.reserve(32);
-        for (const auto& g : specificGroup) {
-            target += '.';
-            target += g;
-        }
 
-        auto cacheIt = groupIdCache.find(target);
-        if (cacheIt != groupIdCache.end()) {
-            targetId = cacheIt->second;
-        } else {
-            targetId = StringPool::intern(target);
-            groupIdCache[target] = targetId;
-        }
+    if (specificGroupId != 0) {
+        targetId = specificGroupId;
+    } else {
+        targetId = StringPool::instance().intern(currentGroup);
     }
     
     Value* valPtr = lookupSymbol(env, targetId, nameId);
     env.markUsed(nameId);
     
-    if (!valPtr && StringPool::get(targetId) != "global") {
+    if (!valPtr && targetId != globalId) {
         valPtr = lookupSymbol(env, globalId, nameId);
     }
 
@@ -87,8 +66,12 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
 
 Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     Value val = rhs->evaluate(env, currentGroup);
-    std::string targetGroup = resolvePath(scopePath, currentGroup);
-    auto& table = env[targetGroup];
+
+    uint32_t targetGroupId = (scopeGroupId != 0) 
+                             ? scopeGroupId 
+                             : StringPool::intern(currentGroup);
+
+    auto& table = env[targetGroupId];
     auto it_existing = table.find(identifierId);
 
     if (Vyne::isTypeStrict() && it_existing != table.end()) {
@@ -164,10 +147,12 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     if (this->isReference) {
-        auto varNode = dynamic_cast<VariableNode*>(rhs.get());
-        if (!varNode) throw std::runtime_error("Referencer Error: Must bind to a variable (L-Value) [ line " + std::to_string(lineNumber) + " ]");
-
-        Value* sourcePtr = env.getInternalPointer(targetGroup, varNode->getNameId());
+        if (rhs->type() != NodeType::VARIABLE) {
+            throw std::runtime_error("Referencer Error: Must bind to a variable (L-Value)");
+        }
+        
+        auto* varNode = static_cast<VariableNode*>(rhs.get());
+        Value* sourcePtr = env.getInternalPointer(targetGroupId, varNode->getNameId());
         env.markUsed(varNode->getNameId());
         
         Value refValue(sourcePtr);
@@ -178,7 +163,6 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     }
 
     if (isConstant) val.setReadOnly();
-
     if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
 
     table[identifierId] = val;

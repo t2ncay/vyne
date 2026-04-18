@@ -306,6 +306,7 @@ public:
 
 class VariableNode : public ASTNode {
     uint32_t nameId;
+    uint32_t specificGroupId;
     std::string originalName;
     std::vector<std::string> specificGroup;
     VType explicitType;
@@ -324,7 +325,19 @@ public:
         originalName(std::move(name)), 
         explicitType(std::move(et)),
         specificGroup(std::move(group)),
-        isReference(isRef) {}
+        isReference(isRef) {
+            if (specificGroup.empty()) {
+                specificGroupId = 0;
+            } else {
+                std::string fullPath = "global";
+                fullPath.reserve(64);
+                for (const auto& segment : specificGroup) {
+                    fullPath += ".";
+                    fullPath += segment;
+                }
+                specificGroupId = StringPool::intern(fullPath);
+            }
+        }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
@@ -338,6 +351,7 @@ public:
 
 class AssignmentNode : public ASTNode {
     uint32_t identifierId;
+    uint32_t scopeGroupId;
     std::string originalName;
     std::unique_ptr<ASTNode> rhs;
     std::unique_ptr<ASTNode> indexExpr;
@@ -363,7 +377,18 @@ public:
           scopePath(std::move(path)),
           isConstant(ic),
           isReference(ir),
-          expectedType(std::move(vt)) {}
+          expectedType(std::move(vt)) {
+            if (scopePath.empty()) {
+                scopeGroupId = 0; // Dinamik skop (currentGroup)
+            } else {
+                std::string fullPath = "global";
+                for (const auto& s : scopePath) {
+                    fullPath += ".";
+                    fullPath += s;
+                }
+                scopeGroupId = StringPool::intern(fullPath);
+            }
+          }
 
     void compile(Emitter& e) const override;
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
