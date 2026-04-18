@@ -12,8 +12,8 @@ interface JsonValue {
     bool_value: Bool;
     num_value: Float64;
     str_value: String;
-    array_value: sequence;  # sequence of JsonValue
-    obj_value: sequence;    # sequence of JsonPair
+    array_value: Array;  # sequence of JsonValue
+    obj_value: Array;    # sequence of JsonPair
 }
 
 # Key-value pair for JSON objects
@@ -33,11 +33,11 @@ interface JsonParser {
 
 fn null() -> JsonValue {
     val = JsonValue();
-    val.type = "null";
+    val.type = null;
     return val;
 }
 
-fn boolean(b: bool) -> JsonValue {
+fn boolean(b :: Bool) -> JsonValue {
     val = JsonValue();
     val.type = "boolean";
     val.bool_value = b;

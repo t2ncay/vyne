@@ -136,7 +136,7 @@ through i :: 1..epochs -> loop {
 
 out(vcolors.green("Training finished. Vyne is officially 'intelligent' now."));
 
-save_model(my_net, "xor_trained_v1");
+#save_model(my_net, "xor_trained_v1");
 
 # --- 4. Testing / Inference ---
 out("\n--- Testing VyneNet Predictions ---");

@@ -2,9 +2,8 @@ ruleset {
     warnings,
     dynamic_casting
 };
-module custom;
 
-x :: Int64 = 5;
+module custom;
 
 group Master :: custom {
     interface Element {
@@ -12,11 +11,7 @@ group Master :: custom {
         name :: String,
 
         getName() {
-            if self.name == "" {
-                return "Empty";
-            } else {
-                return self.name;
-            }
+            return self.name;
         }
     }
 };
