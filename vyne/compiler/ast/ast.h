@@ -39,7 +39,6 @@ class SymbolContainer {
     }
 
 public:
-    // Key operations - now using uint32_t
     SymbolTable& operator[](uint32_t id) { return table[id]; }
     auto find(uint32_t id) { return table.find(id); }
     auto find(uint32_t id) const { return table.find(id); }
@@ -48,7 +47,6 @@ public:
     size_t erase(uint32_t id) { return table.erase(id); }
     const SymbolTable& at(uint32_t id) const { return table.at(id); }
 
-    // Convenience methods that accept strings (they intern automatically)
     SymbolTable& operator[](const std::string& key) { 
         return table[intern(key)]; 
     }
@@ -77,7 +75,6 @@ public:
         return table.at(intern(key)); 
     }
 
-    // Iterator support
     auto begin() { return table.begin(); } 
     auto begin() const { return table.begin(); }
     auto end() { return table.end(); }
@@ -103,7 +100,6 @@ public:
     
     const auto& getUsageMap() const { return variableUsage; }
 
-    // Member access
     Value getGroupMember(const std::string& groupName, const std::string& memberName) {
         uint32_t groupId = intern(groupName);
         auto moduleIt = table.find(groupId);
@@ -691,18 +687,33 @@ public:
     VType getReturnType() const { return returnType; }
 };
 class FunctionCallNode : public ASTNode {
-    uint32_t funcNameId;
+    uint32_t targetGroupId;
+    uint32_t targetNameId;
     std::string originalName;
     std::vector<std::unique_ptr<ASTNode>> arguments;
+    bool isNamespaced;
 
 public:
     FunctionCallNode(uint32_t fn, std::string name, std::vector<std::unique_ptr<ASTNode>> args)
-        : 
-        ASTNode(NodeType::FUNCTION_CALL), 
-        funcNameId(fn), 
-        originalName(std::move(name)), 
-        arguments(std::move(args))
-    {}
+        : ASTNode(NodeType::FUNCTION_CALL), 
+          originalName(std::move(name)), 
+          arguments(std::move(args)) {
+        
+        size_t lastDot = originalName.find_last_of('.');
+        
+        if (lastDot != std::string::npos) {
+            std::string groupPart = originalName.substr(0, lastDot);
+            std::string funcPart = originalName.substr(lastDot + 1);
+            
+            targetGroupId = StringPool::instance().intern(groupPart);
+            targetNameId = StringPool::instance().intern(funcPart);
+            isNamespaced = true;
+        } else {
+            targetGroupId = StringPool::instance().intern("global");
+            targetNameId = fn;
+            isNamespaced = false;
+        }
+    }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;

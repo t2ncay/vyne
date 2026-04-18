@@ -511,19 +511,9 @@ Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGro
 Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
     static uint32_t globalId = getGlobalId();
 
-    std::string targetGroupName = "global";
-    uint32_t targetNameId = funcNameId;
-
-    if (originalName.find('.') != std::string::npos) {
-        size_t lastDot = originalName.find_last_of('.');
-        targetGroupName = originalName.substr(0, lastDot);
-        std::string rawName = originalName.substr(lastDot + 1);
-        targetNameId = StringPool::instance().intern(rawName);
-    }
-
-    uint32_t targetGroupId = StringPool::instance().intern(targetGroupName);
     if (!env.contains(targetGroupId)) {
-        throw std::runtime_error("Runtime Error: Group '" + targetGroupName + 
+        std::string groupName = StringPool::instance().get(targetGroupId);
+        throw std::runtime_error("Runtime Error: Group '" + groupName + 
             "' not found for call '" + originalName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
 
@@ -531,12 +521,12 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     auto it = groupMap.find(targetNameId);
 
     if (it == groupMap.end()) {
-        if (targetGroupName != "global") {
+        if (!isNamespaced) { 
             auto& globalMap = env[globalId];
             it = globalMap.find(targetNameId);
         }
-        
-        if (it == env[globalId].end()) {
+
+        if (it == (isNamespaced ? groupMap.end() : env[globalId].end())) {
             throw std::runtime_error("Runtime Error: '" + originalName + 
                 "' is not defined [ line " + std::to_string(lineNumber) + " ]");
         }
@@ -549,13 +539,15 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
             "' is not a callable function or constructor [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    CallContext ctx{env, currentGroup, lineNumber, originalName};
-    
     auto funcData = funcVal.asFunction();
     std::vector<Value> evaluatedArgs;
+    evaluatedArgs.reserve(arguments.size());
+    
     for (const auto& arg : arguments) {
         if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
     }
+
+    CallContext ctx{env, currentGroup, lineNumber, originalName};
 
     if (funcData->isNative) {
         if (funcData->arity != -1) {
