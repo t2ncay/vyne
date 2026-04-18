@@ -4,6 +4,8 @@ ruleset {
 };
 module custom;
 
+x :: Int64 = 5;
+
 group Master :: custom {
     interface Element {
         atomic_mass :: Int64,
@@ -20,9 +22,9 @@ group Master :: custom {
 };
 
 interface Node {
-    kind :: Int64,
-    data :: Int64, 
-    left :: Node&,
+    kind  :: Int64,
+    data  :: Int64, 
+    left  :: Node&,
     right :: Node& 
 }
 

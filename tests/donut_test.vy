@@ -1,10 +1,12 @@
+ruleset {  warnings, dynamic_casting };
+
 module vcore;
 module vglib;
 
 A = 0.0;
 B = 0.0;
 
-while (false) {
+while (true) {
     vglib.donut(A, B);
     A = A + 0.04;
     B = B + 0.02;

@@ -1,3 +1,5 @@
+ruleset { dynamic_casting };
+
 module vurage;
 
 db = vurage.open("tests/vurage_db");

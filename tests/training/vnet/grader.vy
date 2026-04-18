@@ -58,7 +58,7 @@ out(vcolors.green("Model trained! Saving to disk..."));
 out("\n" + vcolors.yellow("--- Testing with New Student Data ---"));
 
 # Ssenari: Tələbə MT1: 70, MT2: 65, Attendance: 60% (Kəsilməlidir!)
-test_data = [0.81, 1.00, 0.3];
+test_data = [0.91, 0.65, 1.0];
 test_student = vlinalg.Types.Matrix(1, 3, [test_data]);
 
 # 70% Qaydası (Hard Logic)
