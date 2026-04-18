@@ -40,7 +40,7 @@ training_targets = vlinalg.Types.Matrix(8, 1, [
 grader_net = vml.create_network(3, 6, 1, 0.05);
 
 # 3. Training Loop
-epochs = 50000;
+epochs = 30000;
 out("Training for " + string(epochs) + " epochs...");
 
 through i :: 1..epochs -> loop {
@@ -58,7 +58,7 @@ out(vcolors.green("Model trained! Saving to disk..."));
 out("\n" + vcolors.yellow("--- Testing with New Student Data ---"));
 
 # Ssenari: Tələbə MT1: 70, MT2: 65, Attendance: 60% (Kəsilməlidir!)
-test_data = [0.91, 0.65, 1.0];
+test_data = [0.9, 0.65, 1.0];
 test_student = vlinalg.Types.Matrix(1, 3, [test_data]);
 
 # 70% Qaydası (Hard Logic)

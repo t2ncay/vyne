@@ -2,9 +2,12 @@
 # CrediTrack AI - Vyne Implementation 
 #===============================================================================
 
-ruleset {  dynamic_casting, warnings }
+ruleset {  dynamic_casting, warnings, memory_limit = 16384 };
 
 module vmath;
+module vmem;
+module vfs;
+module vcv;
 
 interface AcademicProfile {
     gpa :: Float64,

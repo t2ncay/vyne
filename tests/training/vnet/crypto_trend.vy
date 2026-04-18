@@ -10,7 +10,7 @@ out(vcolors.cyan("=== VyneNet Deep Intelligence: Balanced Mode ==="));
 
 raw_data = vfs.parse_csv("crypto.csv");
 inputs_list = [];
-targets_list = [];
+targets_list :: Array = [];
 
 # BALANS ÜÇÜN COUNTERLƏR
 bull_count = 0;
