@@ -12,7 +12,8 @@ enum class VType {
     Module = 6,
     Struct = 7,
     Reference = 8,
-    Null = 9
+    Null = 9,
+    Bool = 10
 };
 
 inline VType stringToVType(std::string_view name) {
@@ -21,6 +22,7 @@ inline VType stringToVType(std::string_view name) {
     if (name == "Array")    return VType::Array;
     if (name == "String")   return VType::String;
     if (name == "Null")     return VType::Null;
+    if (name == "Bool")     return VType::Bool;
     return VType::Unknown;
 }
 
@@ -34,6 +36,7 @@ inline std::string VTypeToString(VType type) {
         case VType::Module:    return "Module";
         case VType::Reference: return "Reference";
         case VType::Null:      return "Null";
+        case VType::Bool:      return "Bool";
         default:               return "Unknown";
     }
 }

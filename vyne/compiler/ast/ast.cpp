@@ -115,7 +115,11 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     if (expectedType != VType::Unknown) {
         val = convertIfNeeded(val, static_cast<int>(expectedType), lineNumber);
         if (static_cast<int>(expectedType) != val.getType()) {
-            throw std::runtime_error("Type Error: Expected " + VTypeToString(expectedType) + "...");
+            throw std::runtime_error(
+                "Type Error : Type mismatch for '" + originalName + "': expected " + 
+                VTypeToString(expectedType) + " but got " + val.getTypeName() + 
+                " [line " + std::to_string(lineNumber) + "]"
+            );
         }
     }
 

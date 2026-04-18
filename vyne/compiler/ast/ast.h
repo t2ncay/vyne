@@ -561,7 +561,7 @@ public :
         return Value(condition);
     };
     void compile(Emitter& e) const override;
-    VType getStaticType() const override { return VType::Int64; }
+    VType getStaticType() const override { return VType::Bool; }
 };
 
 class ArrayNode : public ASTNode {

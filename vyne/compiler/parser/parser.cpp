@@ -1009,6 +1009,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                     case VType::String:  rhs = std::make_unique<StringNode>(""); break;
                     case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
                     case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
+                    case VType::Bool:    rhs = std::make_unique<BooleanNode>(false); break;
                     case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
                     case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
                     default:             
