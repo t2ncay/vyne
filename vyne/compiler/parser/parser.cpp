@@ -934,7 +934,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             consumeSemicolon();
 
             auto node = std::make_unique<MemberAssignmentNode>(
-                std::move(mem->getReceiver()), 
+                mem->takeReceiver(), 
                 mem->getMemberName(),
                 std::move(rhs)
             );

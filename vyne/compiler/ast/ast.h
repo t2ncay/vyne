@@ -918,31 +918,52 @@ public:
 class MemberAccessNode : public ASTNode {
     std::unique_ptr<ASTNode> receiver;
     std::string memberName;
+    uint32_t memberId;
+    uint32_t receiverPathId = 0;
+    uint32_t fullPathId = 0;
+    bool isReceiverStatic = false;
+
 public:
     MemberAccessNode(std::unique_ptr<ASTNode> rec, std::string mem) : 
-        ASTNode(NodeType::MEMBER_ACCESS), receiver(std::move(rec)), memberName(std::move(mem)) {}
+        ASTNode(NodeType::MEMBER_ACCESS), 
+        receiver(std::move(rec)), 
+        memberName(std::move(mem)) {
+        
+        memberId = StringPool::instance().intern(memberName);
+        
+        if (receiver->type() == NodeType::VARIABLE || receiver->type() == NodeType::MEMBER_ACCESS) {
+            isReceiverStatic = true;
+            std::string rPath = this->getReceiverPath();
+            receiverPathId = StringPool::instance().intern(rPath);
+            fullPathId = StringPool::instance().intern(rPath + "." + memberName);
+        }
+    }
 
-    std::unique_ptr<ASTNode> getReceiver() { return std::move(receiver); }
-    const std::string& getMemberName() const { return memberName; }
+    uint32_t getMemberId() const { return memberId; }
+    const std::string& getMemberName() const { return memberName; } 
+    uint32_t getReceiverPathId() const { return receiverPathId; }
+    uint32_t getFullPathId() const { return fullPathId; }
+    ASTNode* getReceiver() const { return receiver.get(); }
 
     Value evaluate(SymbolContainer& env, const std::string& currentGroup = "global") const override;
     void compile(Emitter& e) const override;
-    std::string getPath() const {
-        if (auto var = dynamic_cast<VariableNode*>(receiver.get())) {
-            return var->getOriginalName() + "." + memberName;
-        } else if (auto mem = dynamic_cast<MemberAccessNode*>(receiver.get())) {
-            return mem->getPath() + "." + memberName;
-        }
-        return memberName; 
-    }
 
     std::string getReceiverPath() const {
-        if (auto var = dynamic_cast<VariableNode*>(receiver.get())) {
-            return var->getOriginalName();
-        } else if (auto mem = dynamic_cast<MemberAccessNode*>(receiver.get())) {
-            return mem->getPath();
+        if (receiver->type() == NodeType::VARIABLE) {
+            return static_cast<VariableNode*>(receiver.get())->getOriginalName();
+        } else if (receiver->type() == NodeType::MEMBER_ACCESS) {
+            return static_cast<MemberAccessNode*>(receiver.get())->getFullPath();
         }
         return "";
+    }
+
+    std::string getFullPath() const {
+        std::string rPath = getReceiverPath();
+        return rPath.empty() ? memberName : rPath + "." + memberName;
+    }
+
+    std::unique_ptr<ASTNode> takeReceiver() {
+        return std::move(receiver);
     }
 };
 

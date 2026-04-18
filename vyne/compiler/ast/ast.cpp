@@ -313,28 +313,27 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         throw std::runtime_error("Type Error: Cannot increment/decrement non-numeric type [ line " + std::to_string(lineNumber) + " ]");
     }
 
-     if (left->type() == NodeType::MEMBER_ACCESS) {
+    if (left->type() == NodeType::MEMBER_ACCESS) [[likely]] {
         auto* memNode = static_cast<MemberAccessNode*>(left.get());
-        std::string receiverPath = memNode->getReceiverPath();
-        uint32_t memberId = StringPool::instance().intern(memNode->getMemberName());
+        
+        uint32_t memberId = memNode->getMemberId();
+        
+        Value receiverVal = memNode->getReceiver()->evaluate(env, currentGroup);
 
-        uint32_t scopeId = StringPool::instance().intern(currentGroup.empty() ? "global" : currentGroup);
-        uint32_t receiverId = StringPool::instance().intern(receiverPath);
-        Value* receiverPtr = lookupSymbol(env, scopeId, receiverId);
-
-        if (receiverPtr && receiverPtr->getType() == Value::STRUCT) {
-            auto structPtr = receiverPtr->asStruct();
+        if (receiverVal.getType() == Value::STRUCT) {
+            auto structPtr = receiverVal.asStruct();
             structPtr->fields[memberId] = newVal;
         } else {
-            uint32_t containerId = StringPool::instance().intern(receiverPath);
-            Value* internalVal = env.getInternalPointer(containerId, memberId);
+            // Əgər bu bir modul və ya statik qrupdursa
+            uint32_t receiverId = memNode->getReceiverPathId();
+            Value* internalVal = env.getInternalPointer(receiverId, memberId);
             *internalVal = newVal;
         }
     }
     else if (left->type() == NodeType::VARIABLE) [[likely]] {
         auto* varNode = static_cast<VariableNode*>(left.get());
-        std::string targetScope = currentGroup.empty() ? "global" : currentGroup;
-        uint32_t scopeId = StringPool::instance().intern(targetScope);
+        
+        uint32_t scopeId = StringPool::instance().intern(currentGroup.empty() ? "global" : currentGroup);
         
         Value* internalVal = env.getInternalPointer(scopeId, varNode->getNameId());
         *internalVal = newVal;
@@ -1226,33 +1225,27 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
 }
 
 Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string receiverPath = "";
-    if (auto varNode = dynamic_cast<VariableNode*>(receiver.get())) {
-        receiverPath = varNode->getOriginalName();
-    } else if (auto memNode = dynamic_cast<MemberAccessNode*>(receiver.get())) {
-        receiverPath = memNode->getPath();
-    }
-
-    if (!receiverPath.empty()) {
-        std::vector<std::string> pathsToTry;
-        
+    if (isReceiverStatic) {
         if (!currentGroup.empty()) {
-            pathsToTry.emplace_back(currentGroup + "." + receiverPath);
-        }
-        
-        pathsToTry.emplace_back("global." + receiverPath);
-        
-        pathsToTry.emplace_back(receiverPath);
-        
-        for (const auto& path : pathsToTry) {
-            uint32_t pathId = StringPool::instance().intern(path);
-            if (env.contains(pathId)) {
-                try {
-                    return env.getModuleMember(pathId, memberName);
-                } catch (const std::runtime_error&) {
-                    continue;
-                }
+            uint32_t localContainerId = StringPool::instance().intern(currentGroup + "." + getReceiverPath());
+            if (env.contains(localContainerId)) {
+                auto& table = env[localContainerId];
+                auto it = table.find(memberId);
+                if (it != table.end()) return it->second;
             }
+        }
+
+        if (env.contains(receiverPathId)) {
+            auto& table = env[receiverPathId];
+            auto it = table.find(memberId);
+            if (it != table.end()) return it->second;
+        }
+
+        uint32_t globalContainerId = StringPool::instance().intern("global." + getReceiverPath());
+        if (env.contains(globalContainerId)) {
+            auto& table = env[globalContainerId];
+            auto it = table.find(memberId);
+            if (it != table.end()) return it->second;
         }
     }
 
@@ -1263,41 +1256,38 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
             "' on undefined/null [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    // Handle module type
-    if (receiverVal.getType() == Value::MODULE) {
+    int type = receiverVal.getType();
+
+    if (type == Value::MODULE) {
         auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
         auto mod = static_cast<ModuleData*>(obj.get());
         
         uint32_t moduleId = StringPool::instance().intern(mod->name);
-        uint32_t memberId = StringPool::instance().intern(memberName);
         
-        if (env.contains(moduleId) && env[moduleId].count(memberId)) {
-            return env[moduleId][memberId];
+        if (env.contains(moduleId)) {
+            auto& moduleTable = env[moduleId];
+            auto it = moduleTable.find(memberId);
+            if (it != moduleTable.end()) return it->second;
         }
         
         throw std::runtime_error("Runtime Error: Module '" + mod->name + 
             "' has no member '" + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
 
-    if (std::holds_alternative<std::shared_ptr<VyneObject>>(receiverVal.data)) {
-        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
-
-        if (obj && obj->objType == VyneObject::ObjType::Struct) {
-            auto strct = static_cast<VyneStruct*>(obj.get());
-            uint32_t fieldId = StringPool::instance().intern(memberName);
-            
-            auto it = strct->fields.find(fieldId);
-            if (it != strct->fields.end()) {
-                return it->second;
-            }
-            
-            throw std::runtime_error("Runtime Error: Struct '" + strct->typeName + 
-                "' has no member '" + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+    if (type == Value::STRUCT) {
+        auto strct = receiverVal.asStruct(); 
+        
+        auto it = strct->fields.find(memberId);
+        if (it != strct->fields.end()) {
+            return it->second;
         }
+        
+        throw std::runtime_error("Runtime Error: Struct '" + strct->typeName + 
+            "' has no member '" + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
     }
 
     throw std::runtime_error("Type Error: Member access '" + memberName + 
-        "' not supported for this type [ line " + std::to_string(lineNumber) + " ]");
+        "' not supported for type " + receiverVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
