@@ -3,6 +3,10 @@ CC = gcc
 
 TARGET_BASE = vynec
 BUILD_DIR = build
+
+RAYLIB_INCLUDE = -I./vendor/raylib/include
+RAYLIB_LIB_PATH = -L./vendor/raylib/lib
+
 URAGE_INCLUDES = -I./vendor/urage/core/include -I./vendor/urage/core/src
 URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
              ./vendor/urage/core/src/database.c \
@@ -12,15 +16,17 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
              ./vendor/urage/core/src/type.c
 
 CXXFLAGS = -std=c++23 -O3 -I. \
+            $(RAYLIB_INCLUDE) \
            -I./lsp/backend/src -I./lsp/backend/include \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
+CXXFLAGS += -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
     URAGE_LIB = urage.dll
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
-    LDFLAGS = -mconsole -pthread
-    LDFLAGS += -lshell32
+    LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH)
+    LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32
     MKDIR_P = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
     RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
     DEL = if exist $(TARGET) del /f /q $(TARGET)
@@ -32,7 +38,8 @@ else
     TARGET = $(TARGET_BASE)
     URAGE_LIB = liburage.so
     URAGE_CFLAGS = -shared -fPIC
-    LDFLAGS = -lssl -lcrypto -ldl -pthread
+    LDFLAGS = -lssl -lcrypto -ldl -pthread $(RAYLIB_LIB_PATH)
+    LDFLAGS += -lraylib -lGL -lm -lrt -lX11
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
     DEL = rm -f $(TARGET)

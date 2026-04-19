@@ -1040,6 +1040,8 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         node->lineNumber = line;
         return node;
     }
+    
+    return lhs;
 }
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;

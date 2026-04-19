@@ -38,7 +38,6 @@ namespace VMathNative {
         static std::random_device rd;
         static std::mt19937 gen(rd());
         
-        // Use asInt() for discrete distribution
         std::uniform_int_distribution<long long> dist(
             args[0].asInt(), 
             args[1].asInt()
