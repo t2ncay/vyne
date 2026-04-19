@@ -27,14 +27,21 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential g++
-
+          # Raylib və sistem asılılıqlarını quraşdırırıq
+          sudo apt-get install -y build-essential g++ \
+            libraylib-dev libasound2-dev libx11-dev libxrandr-dev \
+            libxi-dev libxcursor-dev libxinerama-dev libgl1-mesa-dev xvfb
       - name: Compile Vyne
         run: |
+          # Linux-da link etmə qaydası fərqlidir:
+          # -lraylib: Raylib özü
+          # -lGL -lm -lpthread -ldl -lrt -lX11: Lazımi sistem kitabxanaları
           g++ -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
+              -I./vendor/stb \
               $(find . -name "*.cpp") \
-              -o vyne_run
+              -o vyne_run \
+              -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
       - name: Run Tests
         run: |

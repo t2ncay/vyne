@@ -177,6 +177,12 @@ namespace VGLibNative {
         return Value(IsKeyDown(key));
     }
 
+    Value native_is_key_pressed(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        int key = (int)args[0].asInt();
+        return Value(IsKeyPressed(key));
+    }
+
     Value native_rgba(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("rgba() requires 4 arguments: r, g, b, a");
 
@@ -205,6 +211,27 @@ namespace VGLibNative {
         DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), top, bottom);
         return Value();
     }
+
+    Value native_draw_text(std::vector<Value>& args) {
+        if (args.size() < 5) throw std::runtime_error("draw_text() requires text, x, y, size, color");
+        
+        std::string text = args[0].toString();
+        int x = (int)args[1].asInt();
+        int y = (int)args[2].asInt();
+        int fontSize = (int)args[3].asInt();
+        Color color = GetColor((uint32_t)args[4].asInt());
+
+        DrawText(text.c_str(), x, y, fontSize, color);
+        return Value();
+    }
+
+    Value native_draw_grid(std::vector<Value>& args) {
+        int slices = (args.size() > 0) ? (int)args[0].asInt() : 10;
+        float spacing = (args.size() > 1) ? (float)args[1].asFloat() : 1.0f;
+        
+        DrawGrid(slices, spacing);
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -231,9 +258,12 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("begin3d")]    = Value(VGLibNative::native_begin_3d_mode);
     vglib[pool.intern("end3d")]      = Value(VGLibNative::native_end_3d_mode);
     vglib[pool.intern("key_down")]   = Value(VGLibNative::native_is_key_down);
+    vglib[pool.intern("key_pressed")] = Value(VGLibNative::native_is_key_pressed);
     vglib[pool.intern("rgba")]       = Value(VGLibNative::native_rgba);
     vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
+    vglib[pool.intern("text")]       = Value(VGLibNative::native_draw_text);
+    vglib[pool.intern("grid")]       = Value(VGLibNative::native_draw_grid);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
