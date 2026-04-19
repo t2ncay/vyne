@@ -35,22 +35,18 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/raysan5/raylib.git raylib_src
           mkdir raylib_src/build && cd raylib_src/build
-          cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_GAMES=OFF
+          cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_GAMES=OFF -DSHARED=OFF
           make -j$(nproc)
           sudo make install
-          # İndi Raylib /usr/local/lib və /usr/local/include qovluqlarındadır
-
-      - name: Create STB Implementation
-        run: |
-          echo '#define STB_IMAGE_IMPLEMENTATION' > stb_impl.cpp
-          echo '#include "vendor/stb/stb_image.h"' >> stb_impl.cpp
 
       - name: Compile Vyne
         run: |
+          # 1. CMake fayllarını və lazımsız qovluqları find əmrindən kənarlaşdırırıq
+          # 2. stb_impl.cpp-ni YARATMIRIQ, çünki Raylib onu artıq təmin edir
           g++ -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
               -I./vendor/stb \
-              $(find . -name "*.cpp") \
+              $(find . -type f -name "*.cpp" ! -path "./raylib_src/*" ! -path "*/build/*" ! -path "*/CMakeFiles/*") \
               -o vyne_run \
               -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
