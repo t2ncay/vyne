@@ -365,7 +365,109 @@ uniques = <span class="token keyword">through</span> item :: y -> <span class="t
 doubled = <span class="token keyword">through</span> x :: [<span class="token number">10</span>, <span class="token number">20</span>] -> <span class="token keyword">collect</span> { x * <span class="token number">2</span> };</code></pre>
             </div>
           </div>
-          [Image of functional programming map filter unique concepts]
+        </section>
+
+        <section id="functions">
+          <h2>Functions</h2>
+          <p>
+            Functions in Vyne are first-class citizens. They support explicit
+            type checking, type inference, and can be scoped to specific modules
+            using the <code>::</code> operator.
+          </p>
+
+          <div class="explanation">
+            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Braces
+            <code>{}</code> are mandatory for function bodies, and the
+            <code>return</code> keyword is used to exit with a value.
+          </div>
+
+          <h3>Defining Functions</h3>
+          <p>
+            Vyne allows you to define functions with strict typing for
+            parameters and return values, or you can let the engine infer the
+            types dynamically.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">functions.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token comment"># 1. Explicitly Typed Function</span>
+<span class="token keyword">fn</span> <span class="token function">add</span>(a :: <span class="token type">Int64</span>, b :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
+    <span class="token keyword">return</span> a + b;
+}
+
+<span class="token comment"># 2. Type Inference (Dynamic)</span>
+<span class="token keyword">fn</span> <span class="token function">multiply</span>(x, y) {
+    <span class="token keyword">return</span> x * y;
+}
+
+<span class="token comment"># 3. Recursive Logic</span>
+<span class="token keyword">fn</span> <span class="token function">factorial</span>(n :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
+    <span class="token keyword">if</span> n <= <span class="token number">1</span> { <span class="token keyword">return</span> <span class="token number">1</span>; }
+    <span class="token keyword">return</span> n * <span class="token function">factorial</span>(n - <span class="token number">1</span>);
+}</code></pre>
+            </div>
+          </div>
+
+          <h3>Function Scoping (Namespacing)</h3>
+          <p>
+            To organize logic, you can bind functions directly to a module. This
+            prevents naming collisions in large projects.
+          </p>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">scoped_fn.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> MathUtils;
+
+<span class="token comment"># Scoping a function to MathUtils</span>
+<span class="token keyword">fn</span> :: MathUtils <span class="token function">square</span>(x :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
+    <span class="token keyword">return</span> x * x;
+}
+
+<span class="token function">out</span>(MathUtils.<span class="token function">square</span>(<span class="token number">7</span>)); <span class="token comment"># Outputs: 49</span></code></pre>
+            </div>
+          </div>
+          <h3>Type Checking Table</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Syntax</th>
+                  <th>Behavior</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Parameter Typing</strong></td>
+                  <td><code>(var :: Type)</code></td>
+                  <td>Strict validation at call-time.</td>
+                </tr>
+                <tr>
+                  <td><strong>Return Type</strong></td>
+                  <td><code>-> Type</code></td>
+                  <td>Ensures the returned value matches the signature.</td>
+                </tr>
+                <tr>
+                  <td><strong>Void Functions</strong></td>
+                  <td><code>fn name() { ... }</code></td>
+                  <td>
+                    Implicitly returns a <code>Null</code> value if no return is
+                    present.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Recursion</strong></td>
+                  <td><code>factorial(n-1)</code></td>
+                  <td>Fully supported with engine-level stack protection.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section id="interfaces">
@@ -418,19 +520,351 @@ doubled = <span class="token keyword">through</span> x :: [<span class="token nu
           </div>
         </section>
 
-        <section id="vmem">
-          <h2>vmem (Memory Engine)</h2>
+        Tuncay, sən sənədləşmənin strukturunu artıq qurmusan, sadəcə linalg
+        bölməsinin məzmunu çatışmır. vlinalg modulu Vyne-ın ən güclü
+        tərəflərindən biridir (xüsusilə through operatoru ilə matrisləri emal
+        etmək məntiqi). Aşağıdakı HTML blokunu main-content daxilində, modules
+        bölməsindən sonra əlavə edə bilərsən. Bu bölmə sənin yazdığın Matrix və
+        Vector interfeyslərini, həmçinin through operatoru ilə matris
+        əməliyyatlarını izah edir. HTML
+
+        <section id="linalg">
+          <h2>Linear Algebra (vlinalg)</h2>
           <p>
-            Monitor your program's memory footprint in real-time. Extremely
-            useful for recursive depth analysis.
+            The <code>vlinalg</code> module provides high-level abstractions for
+            vector spaces and matrix operations, leveraging Vyne's functional
+            primitives for heavy numerical computations.
           </p>
+
+          <div class="explanation">
+            <i class="fas fa-microchip"></i>
+            <strong>Performance Tip:</strong> Vyne uses internal pooling for
+            matrix data arrays, making <code>vlinalg</code> ideal for MLP and
+            Neural Network prototyping.
+          </div>
+
+          <h3>Defining Architectures</h3>
+          <p>
+            Use <code>interface</code> to define custom mathematical structures.
+            The <code>vlinalg.Types</code>
+            group includes standard definitions for Matrices and Vectors.
+          </p>
+
           <div class="code-container">
             <div class="code-header">
-              <span class="code-title">mem_trace.vy</span>
+              <span class="code-title">linear_types.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">interface</span> <span class="token function">Vector</span> {
+    x :: <span class="token type">Int64</span>,
+    y :: <span class="token type">Int64</span>,
+
+    <span class="token function">magnitude</span>() -> <span class="token type">Float64</span> {
+        <span class="token keyword">return</span> vmath.<span class="token function">sqrt</span>(<span class="token keyword">self</span>.x * <span class="token keyword">self</span>.x + <span class="token keyword">self</span>.y * <span class="token keyword">self</span>.y);
+    }
+}</code></pre>
+            </div>
+          </div>
+
+          <h3>Matrix Operations</h3>
+          <p>
+            Vyne excels at matrix transformations by combining
+            <code>through</code> loops with <code>collect</code> or
+            <code>loop</code> patterns.
+          </p>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Operation</th>
+                  <th>Function</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Addition</strong></td>
+                  <td><code>vlinalg.add(a, b)</code></td>
+                  <td>Element-wise addition of two matrices.</td>
+                </tr>
+                <tr>
+                  <td><strong>Multiplication</strong></td>
+                  <td><code>vlinalg.multiply(a, b)</code></td>
+                  <td>Standard dot product multiplication ($O(n^3)$).</td>
+                </tr>
+                <tr>
+                  <td><strong>Activation</strong></td>
+                  <td><code>vlinalg.apply_sigmoid(m)</code></td>
+                  <td>Applies sigmoid function to all elements.</td>
+                </tr>
+                <tr>
+                  <td><strong>Transpose</strong></td>
+                  <td><code>vlinalg.transpose(m)</code></td>
+                  <td>Swaps rows and columns.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Practical Usage: Matrix Multiplication</h3>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">neural_net_snippet.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> vlinalg;
+<span class="token keyword">deploy</span> vlinalg;
+
+<span class="token comment"># Initialize a 2x2 Matrix</span>
+m1 = Types.Matrix(<span class="token number">2</span>, <span class="token number">2</span>, [[<span class="token number">1</span>, <span class="token number">2</span>], [<span class="token number">3</span>, <span class="token number">4</span>]]);
+m2 = Types.Matrix(<span class="token number">2</span>, <span class="token number">2</span>, [[<span class="token number">5</span>, <span class="token number">6</span>], [<span class="token number">7</span>, <span class="token number">8</span>]]);
+
+<span class="token comment"># Perform dot product</span>
+result = <span class="token function">multiply</span>(m1, m2);
+<span class="token function">out</span>(result.data); <span class="token comment"># [[19, 22], [43, 50]]</span></code></pre>
+            </div>
+          </div>
+        </section>
+
+        <section id="vcore">
+          <h2>VCore (System Standard)</h2>
+          <p>
+            The <code>vcore</code> module is the backbone of the Vyne runtime,
+            providing essential utilities for I/O, process management, and
+            environment introspection.
+          </p>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Signature</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>input</code></td>
+                  <td><code>(prompt) -> String</code></td>
+                  <td>Pauses execution and reads a line from stdin.</td>
+                </tr>
+                <tr>
+                  <td><code>now</code></td>
+                  <td><code>() -> String</code></td>
+                  <td>Returns current system time in ISO format.</td>
+                </tr>
+                <tr>
+                  <td><code>sleep</code></td>
+                  <td><code>(ms :: Int64)</code></td>
+                  <td>Blocks the current thread for specified milliseconds.</td>
+                </tr>
+                <tr>
+                  <td><code>platform</code></td>
+                  <td><code>() -> String</code></td>
+                  <td>Returns OS and Architecture (e.g., "Windows x64").</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>System Properties</h3>
+          <div class="explanation">
+            <i class="fas fa-microchip"></i> <strong>Runtime Data:</strong>
+            Access internal engine metrics directly via static properties.
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>vcore.pid</code></td>
+                  <td><code>Float64</code></td>
+                  <td>The current Process ID.</td>
+                </tr>
+                <tr>
+                  <td><code>vcore.memory_usage</code></td>
+                  <td><code>Float64</code></td>
+                  <td>
+                    Physical memory (RSS) consumed by the engine in bytes.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>vcore.version</code></td>
+                  <td><code>String</code></td>
+                  <td>Vyne engine semantic version.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="vmath">
+          <h2>VMath (Numerical Primitives)</h2>
+          <p>
+            Native C++ math implementations for heavy numerical tasks.
+            <code>vmath</code>
+            functions operate on 64-bit precision floats.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">math_test.vy</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token keyword">module</span> vmath;
+<span class="token keyword">deploy</span> vmath;
+
+val = <span class="token function">sin</span>(<span class="token number">3.14</span> / <span class="token number">2</span>); <span class="token comment"># Approx 1.0</span>
+active = <span class="token function">sigmoid</span>(<span class="token number">0.5</span>); <span class="token comment"># High-perf activation</span>
+rand_val = <span class="token function">random</span>(<span class="token number">1</span>, <span class="token number">100</span>);</code></pre>
+            </div>
+          </div>
+
+          <h3>Function Index</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Methods</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Trigonometry</strong></td>
+                  <td>
+                    <code>sin</code>, <code>cos</code>, <code>tan</code>,
+                    <code>asin</code>, <code>acos</code>, <code>atan2</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Calculus/Log</strong></td>
+                  <td>
+                    <code>sqrt</code>, <code>log</code>, <code>log10</code>,
+                    <code>exp</code>, <code>pow</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Machine Learning</strong></td>
+                  <td>
+                    <code>sigmoid</code>, <code>relu</code>, <code>clamp</code>
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Rounding</strong></td>
+                  <td>
+                    <code>floor</code>, <code>ceil</code>, <code>round</code>,
+                    <code>abs</code>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Mathematical Constants</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Constant</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>vmath.pi</code></td>
+                  <td>$3.141592653589793$</td>
+                </tr>
+                <tr>
+                  <td><code>vmath.e</code></td>
+                  <td>$2.718281828459045$</td>
+                </tr>
+                <tr>
+                  <td><code>vmath.tau</code></td>
+                  <td>$6.283185307179586$</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="vmem">
+          <div class="badge">Low-Level Access</div>
+          <h2>vmem (Memory Engine)</h2>
+          <p>
+            The <code>vmem</code> module provides native introspection and raw
+            memory manipulation capabilities. It allows Vyne to behave as a
+            systems-level tool for debugging heap structures.
+          </p>
+
+          <div class="explanation warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>God Mode:</strong> <code>peek</code> and
+            <code>poke</code> bypass the safety of the Vyne runtime. Incorrect
+            addresses will lead to a C++ segmentation fault.
+          </div>
+
+          <h3>Core Functions</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Method</th>
+                  <th>Signature</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>usage</code></td>
+                  <td><code>() -> Int64</code></td>
+                  <td>Returns the total deep-memory footprint in bytes.</td>
+                </tr>
+                <tr>
+                  <td><code>addrOf</code></td>
+                  <td><code>(any) -> Int64</code></td>
+                  <td>Returns the native memory address of a Vyne object.</td>
+                </tr>
+                <tr>
+                  <td><code>peek</code></td>
+                  <td><code>(addr) -> any</code></td>
+                  <td>Reads a <code>Value</code> from a raw memory address.</td>
+                </tr>
+                <tr>
+                  <td><code>poke</code></td>
+                  <td><code>(addr, val)</code></td>
+                  <td>
+                    Writes a <code>Value</code> directly to a memory address.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3>Example: Memory Manipulation</h3>
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">raw_access.vy</span>
             </div>
             <div class="code-body">
               <pre><code><span class="token keyword">module</span> vmem;
-<span class="token function">out</span>(<span class="token string">"Usage: "</span> + <span class="token function">string</span>(<span class="token keyword">vmem</span>.<span class="token function">usage</span>()));</code></pre>
+<span class="token keyword">deploy</span> vmem;
+
+target = <span class="token string">"Original"</span>;
+addr = <span class="token function">vmem.peek</span>(target);
+
+<span class="token comment"># Directly overwrite the value in memory</span>
+<span class="token function">vmem.poke</span>(addr, <span class="token string">"Injected via vmem"</span>);
+
+<span class="token function">out</span>(target); <span class="token comment"># Outputs: Injected via vmem</span></code></pre>
             </div>
           </div>
         </section>
