@@ -63,6 +63,8 @@ namespace VGLibNative {
         int h = (int)args[1].asInt();
         std::string title = args[2].asString();
 
+        SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI);
+
         InitWindow(w, h, title.c_str());
         SetTargetFPS(60); // standart 60 FPS, gelecekde argument kimi pass edib deyiserik
         return Value(true);
@@ -74,6 +76,7 @@ namespace VGLibNative {
 
     Value native_begin_frame(std::vector<Value>& args) {
         BeginDrawing();
+        rlClearScreenBuffers();
         return Value();
     }
 
@@ -127,8 +130,12 @@ namespace VGLibNative {
             rlTranslatef(x, y, z);
             rlRotatef(rotAngle, 1.0f, 1.0f, 1.0f);
             
+            rlEnableDepthTest(); 
+            
             DrawCube({0, 0, 0}, size, size, size, color);
-            DrawCubeWires({0, 0, 0}, size, size, size, BLACK);
+            DrawCubeWires({0, 0, 0}, size, size, size, Fade(BLACK, 0.5f));
+            
+            rlDisableDepthTest();
         rlPopMatrix();
 
         return Value();
@@ -169,6 +176,35 @@ namespace VGLibNative {
         int key = (int)args[0].asInt();
         return Value(IsKeyDown(key));
     }
+
+    Value native_rgba(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("rgba() requires 4 arguments: r, g, b, a");
+
+        uint32_t r = static_cast<uint32_t>(args[0].asInt()) & 0xFF;
+        uint32_t g = static_cast<uint32_t>(args[1].asInt()) & 0xFF;
+        uint32_t b = static_cast<uint32_t>(args[2].asInt()) & 0xFF;
+        uint32_t a = static_cast<uint32_t>(args[3].asInt()) & 0xFF;
+
+        uint32_t rgba = (r << 24) | (g << 16) | (b << 8) | a;
+
+        return Value(static_cast<int64_t>(rgba));
+    }
+
+    Value native_draw_plane(std::vector<Value>& args) {
+        Vector3 pos = { (float)args[0].asFloat(), (float)args[1].asFloat(), (float)args[2].asFloat() };
+        Vector2 size = { (float)args[3].asFloat(), (float)args[4].asFloat() };
+        Color color = GetColor((uint32_t)args[5].asInt());
+        
+        DrawPlane(pos, size, color);
+        return Value();
+    }
+
+    Value native_clear_gradient(std::vector<Value>& args) {
+        Color top = GetColor((uint32_t)args[0].asInt());
+        Color bottom = GetColor((uint32_t)args[1].asInt());
+        DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), top, bottom);
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -195,6 +231,9 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("begin3d")]    = Value(VGLibNative::native_begin_3d_mode);
     vglib[pool.intern("end3d")]      = Value(VGLibNative::native_end_3d_mode);
     vglib[pool.intern("key_down")]   = Value(VGLibNative::native_is_key_down);
+    vglib[pool.intern("rgba")]       = Value(VGLibNative::native_rgba);
+    vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
+    vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
