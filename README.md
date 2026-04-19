@@ -64,7 +64,7 @@ To ensure engine stability, the following rules are enforced:
 Vyne leverages native C++ modules to handle high-performance tasks that the interpreter shouldn't do alone.
 
 - 📡 **[vcore](https://github.com/tuncaygafarli/vyne/tree/master/vyne/modules/vcore)** System-level utilities, sleep timers, and process management.
-- 🎨 **[vglib](https://github.com/tuncaygafarli/vyne/tree/master/vyne/modules/vglib)** The "Vyne Graphics Library" — home to the 3D ASCII donut and buffer management (in the future).
+- 🎨 **[vglib](https://github.com/tuncaygafarli/vyne/tree/master/vyne/modules/vglib)** Vyne’s high-performance Graphics & Audio Engine. Features hardware-accelerated 3D rendering (Z-buffer), spatial audio pipelines, and native hardware input mapping.
 - 🧠 **[vmem](https://github.com/tuncaygafarli/vyne/tree/master/vyne/modules/vmem)** Memory management and introspection — track heap usage, inspect raw memory addresses, and monitor variable footprints.
 - 🧪 **[vmath](https://github.com/t2ncay/vyne/tree/master/vyne/modules/vmath)** A comprehensive wrapper for the C++ standard math library, featuring trigonometric functions, hyperbolic operations, and mathematical constants like $\pi$ and $\phi$.
 
