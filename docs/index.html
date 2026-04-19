@@ -869,19 +869,120 @@ addr = <span class="token function">vmem.peek</span>(target);
           </div>
         </section>
 
-        <section id="vglib">
-          <h2>vglib (Native Graphics)</h2>
-          <p>
-            Native rendering engine support. Renders high-performance ASCII
-            visuals using C++ matrix math.
-          </p>
-          <div class="code-container">
+        <section id="vglib" class="ultra-module">
+          <div class="module-header">
+            <div class="header-main">
+              <h2>vglib <span class="version-tag">v0.0.1-alpha</span></h2>
+              <div class="status-indicators">
+                <span class="badge performance">Hardware Accelerated</span>
+                <span class="badge audio">Spatial Sound</span>
+                <span class="badge rtx">RTX Optimized</span>
+              </div>
+            </div>
+            <p class="module-intro">
+              Vyne's official graphics and audio engine. Built on a
+              <strong>Raylib backend</strong>, it provides high-performance
+              2D/3D rendering via low-level C++ matrix math and real-time
+              digital signal processing.
+            </p>
+          </div>
+
+          <div class="features-grid">
+            <div class="feature-card">
+              <i class="icon-3d"></i>
+              <h3>3D Engine</h3>
+              <p>
+                Native Z-Buffer, Orbital Camera, and Matrix Transformation
+                support.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="icon-audio"></i>
+              <h3>Audio Pipeline</h3>
+              <p>
+                Seamless MP3/WAV streaming with dynamic gain and master volume
+                control.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="icon-input"></i>
+              <h3>Input Mapping</h3>
+              <p>
+                Real-time key-state tracking with built-in hardware constant
+                mapping.
+              </p>
+            </div>
+          </div>
+
+          <div class="code-container ultra-shadow">
             <div class="code-header">
-              <span class="code-title">graphics.vy</span>
+              <span class="code-title">shoegaze_engine.vy</span>
+              <div class="window-controls">
+                <span class="dot-red"></span><span class="dot-yellow"></span
+                ><span class="dot-green"></span>
+              </div>
             </div>
             <div class="code-body">
-              <pre><code><span class="token keyword">module</span> vglib;
-<span class="token keyword">vglib</span>.<span class="token function">donut</span>(A, B); <span class="token comment"># Renders 3D spinning donut</span></code></pre>
+              <pre><code><span class="token keyword">import</span> vglib;
+
+<span class="token comment"># Initialize high-fidelity environment</span>
+vglib.<span class="token function">init</span>(1280, 720, "Vyne Pro Engine");
+vglib.<span class="token function">init_audio</span>();
+cam = vglib.<span class="token function">camera</span>();
+
+<span class="token comment"># Asset Loading (Pointer-based)</span>
+riff = vglib.<span class="token function">load_sound</span>("assets/shoegaze.wav");
+vglib.<span class="token function">sound_volume</span>(riff, 0.8);
+
+<span class="token keyword">while</span> (vglib.<span class="token function">running</span>()) {
+    vglib.<span class="token function">begin</span>();
+    vglib.<span class="token function">clear</span>(vglib.BLACK);
+
+    <span class="token comment"># 3D Render Block</span>
+    vglib.<span class="token function">begin3d</span>(cam);
+        <span class="token keyword">if</span> (vglib.<span class="token function">key_down</span>(vglib.SPACE)) {
+            <span class="token comment"># Apply rotation and color</span>
+            vglib.<span class="token function">cube</span>(0, 1, 0, 2, 45, vglib.CYAN);
+            vglib.<span class="token function">play_sound</span>(riff);
+        }
+        vglib.<span class="token function">grid</span>(10, 1.0);
+    vglib.<span class="token function">end3d</span>();
+
+    vglib.<span class="token function">text</span>("FPS: 60", 20, 20, 20, vglib.GREEN);
+    vglib.<span class="token function">end</span>();
+}</code></pre>
+            </div>
+          </div>
+
+          <div class="reference-section">
+            <h3>Engine Constants</h3>
+            <div class="table-wrapper">
+              <table class="docs-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Constant</th>
+                    <th>Value / Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Colors</td>
+                    <td><code>vglib.CYAN</code></td>
+                    <td><code>0x00AAFFFF</code> (Native RGBA)</td>
+                  </tr>
+                  <tr>
+                    <td>Input</td>
+                    <td><code>vglib.SPACE</code></td>
+                    <td>Standard 32-bit Mapping</td>
+                  </tr>
+                  <tr>
+                    <td>System</td>
+                    <td><code>vglib.version</code></td>
+                    <td>v0.0.1-alpha</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
