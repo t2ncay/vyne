@@ -697,8 +697,8 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
             uint32_t modId;
             std::string modName;
 
-            if (auto objPtr = std::get_if<std::shared_ptr<VyneObject>>(&receiverVal.data)) {
-                auto mod = static_cast<ModuleData*>(objPtr->get());
+            if (receiverVal.isObject()) {
+                auto mod = static_cast<ModuleData*>(receiverVal.data.obj.get());
                 modName = mod->name;
                 modId = StringPool::instance().intern(modName);
             } else {
@@ -1259,7 +1259,7 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
     int type = receiverVal.getType();
 
     if (type == Value::MODULE) {
-        auto obj = std::get<std::shared_ptr<VyneObject>>(receiverVal.data);
+        auto obj = receiverVal.data.obj;
         auto mod = static_cast<ModuleData*>(obj.get());
         
         uint32_t moduleId = StringPool::instance().intern(mod->name);
@@ -1302,8 +1302,9 @@ Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& cu
     }
     else if (recVal.getType() == Value::MODULE) {
         std::string moduleName;
-        if (auto obj = std::get_if<std::shared_ptr<VyneObject>>(&recVal.data)) {
-            if (auto mod = dynamic_cast<ModuleData*>(obj->get())) {
+        if (recVal.isObject()) {
+            auto& obj = recVal.data.obj;
+            if (auto mod = static_cast<ModuleData*>(obj.get())) {
                 moduleName = mod->name;
             }
         }

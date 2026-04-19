@@ -20,9 +20,13 @@ InterpretResult VM::run() {
     CallFrame* frame = &frames[frameCount - 1];
 
     #define READ_BYTE() (*frame->ip++)
-    #define READ_SHORT() (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+
+    #define READ_SHORT() \
+        (frame->ip += 2, (uint16_t)((frame->ip[-2] << 8) | frame->ip[-1]))
+
     #define READ_CONSTANT() (frame->chunk->constants[READ_BYTE()])
-    #define READ_STRING() (std::get<uint32_t>(READ_CONSTANT().data))
+
+    #define READ_STRING() (READ_CONSTANT().data.u32)
 
     #define BINARY_OP(op) \
         do { \

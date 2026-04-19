@@ -15,7 +15,7 @@ namespace VMemNative {
     Value peek(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("vmem.peek requires an address");
 
-        uintptr_t addr = static_cast<uintptr_t>(std::get<int64_t>(args[0].data));
+        uintptr_t addr = static_cast<uintptr_t>(args[0].asInt());
         
         Value* target = reinterpret_cast<Value*>(addr);
 
@@ -25,7 +25,7 @@ namespace VMemNative {
     Value poke(std::vector<Value>& args) {
         if (args.size() < 2) throw std::runtime_error("vmem.poke requires address and value");
 
-        uintptr_t addr = static_cast<uintptr_t>(std::get<int64_t>(args[0].data));
+        uintptr_t addr = static_cast<uintptr_t>(args[0].asInt());
         Value* target = reinterpret_cast<Value*>(addr);
 
         *target = args[1]; 

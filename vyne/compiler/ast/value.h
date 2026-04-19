@@ -6,7 +6,6 @@
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
-#include <variant>
 #include <sstream>
 #include <functional>
 #include <cstdint>
@@ -30,11 +29,6 @@ struct Parameter {
         : id(i), name(std::move(n)), type(t), isReference(ir) {}
 };
 
-struct StructInstance {
-    std::string typeName;
-    std::unordered_map<std::string, Value> fields;
-};
-
 struct VyneObject {
     enum class ObjType { Array, Function, Module, Struct };
     ObjType objType;
@@ -51,19 +45,14 @@ struct FunctionData : public VyneObject {
     int arity = 0;
     std::vector<Parameter> params;
     std::vector<std::shared_ptr<ASTNode>> body; 
-    
     Chunk* bytecode = nullptr; 
-
     std::function<Value(std::vector<Value>&)> nativeFn;
     bool isNative = false;
     std::string expectedReturnType = "null";
 
     FunctionData();
-
     ~FunctionData();
 };
-
-// TODO PERFORMANCE ALIGNMENTS
 
 struct ModuleData : public VyneObject { 
     uint32_t moduleId;
@@ -81,15 +70,6 @@ struct VyneStruct : public VyneObject {
         : VyneObject(ObjType::Struct), typeName(std::move(name)) {}
 };
 
-using ValueData = std::variant<
-    std::monostate,
-    double,
-    int64_t,
-    uint32_t,
-    std::shared_ptr<VyneObject>,
-    Value*
->;
-
 struct StringHash {
     using is_transparent = void;
     size_t operator()(std::string_view sv) const {
@@ -101,113 +81,85 @@ class StringPool {
 private:
     std::deque<std::string> idToStr;
     std::unordered_map<std::string_view, uint32_t, StringHash, std::equal_to<>> strToId;
-
-    StringPool() {
-        idToStr.emplace_back(""); 
-        strToId[""] = 0;
-    }
+    StringPool() { idToStr.emplace_back(""); strToId[""] = 0; }
 
 public:
-    static StringPool& instance() {
-        static StringPool pool;
-        return pool;
-    }
-
+    static StringPool& instance() { static StringPool pool; return pool; }
     static uint32_t intern(std::string_view sv);
     static const std::string& get(uint32_t id);
 };
 
 struct Value {
     enum TypeIndex { 
-        NONE = 0, 
-        FLOAT64 = 1, 
-        INT64 = 2,
-        STRING = 3, 
-        ARRAY = 4, 
-        FUNCTION = 5, 
-        MODULE = 6,
-        STRUCT = 7,
-        REFERENCE = 8
+        NONE = 0, FLOAT64 = 1, INT64 = 2, STRING = 3, 
+        ARRAY = 4, FUNCTION = 5, MODULE = 6, STRUCT = 7, REFERENCE = 8
     };
 
-    ValueData data;
+    union Data {
+        double f64;
+        int64_t i64;
+        uint32_t u32;
+        std::shared_ptr<VyneObject> obj;
+        Value* ref;
+
+        Data() : i64(0) {}
+        ~Data() {}
+    } data;
+
     VType type;
     bool isReadOnly = false;
 
-    // constructors
-    Value() : type(VType::Null), data(std::monostate{}) {}
-    Value(double n) : type(VType::Float64), data(n) {}
-    Value(int64_t n) : type(VType::Int64), data(n) {}
-    Value(int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
-    Value(unsigned int n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
-    Value(size_t n) : type(VType::Int64), data(static_cast<int64_t>(n)) {}
+    Value() : type(VType::Null) { data.i64 = 0; }
+    Value(double n) : type(VType::Float64) { data.f64 = n; }
+    Value(int64_t n) : type(VType::Int64) { data.i64 = n; }
+    Value(int n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
+    Value(unsigned int n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
+    Value(size_t n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
+    
     Value(std::string_view s) : type(VType::String) {
-        data = StringPool::intern(s);
+        data.u32 = StringPool::intern(s);
     }
-    Value(std::vector<Value> l) : type(VType::Array) {
-        data = std::make_shared<VyneArray>(std::move(l));
-    }
-    Value(std::shared_ptr<FunctionData> f) : type(VType::Function), data(std::move(f)) {}
-    Value(std::vector<Parameter> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt) 
-        : type(VType::Function)  {
-        auto func = std::make_shared<FunctionData>();
-        func->arity = static_cast<int>(p.size());
-        func->params = std::move(p);
-        func->body = std::move(b);
-        func->expectedReturnType = std::move(rt); 
-        
-        this->data = std::move(func);
-    }
-    Value(uint32_t mId, std::string moduleName, bool isModule) : type(VType::Module) {
-        data = std::make_shared<ModuleData>(mId, std::move(moduleName));
-    }
-    Value(std::function<Value(std::vector<Value>&)> native) {
-        auto func = std::make_shared<FunctionData>();
-        func->nativeFn = std::move(native);
-        func->isNative = true;
-        data = std::move(func);
-    }
-    Value(std::shared_ptr<VyneStruct> s) : data(std::move(s)) {}
-    Value(Value* refTarget) : type(VType::Reference), data(refTarget) {}
-    Value(const Value&) = default;
 
-    // safe getters
+    Value(std::vector<Value> l);
+    Value(std::shared_ptr<FunctionData> f);
+    Value(std::vector<Parameter> p, std::vector<std::shared_ptr<ASTNode>> b, std::string rt);
+    Value(uint32_t mId, std::string moduleName, bool isModule);
+    Value(std::function<Value(std::vector<Value>&)> native);
+    Value(std::shared_ptr<VyneStruct> s);
+    Value(Value* refTarget) : type(VType::Reference) { data.ref = refTarget; }
+
+    Value(const Value& other);
+    Value(Value&& other) noexcept;
+    Value& operator=(const Value& other);
+    Value& operator=(Value&& other) noexcept;
+    ~Value();
+
+    inline bool isObject() const { return type >= VType::Array && type <= VType::Struct; }
+
     int getType() const;
     std::string getTypeName() const;
-
     double  asFloat() const;
     int64_t asInt()   const;
-
     const std::string& asString() const;
-
     std::vector<Value>& asList();
-
     const std::vector<Value>& asList() const;
-
     std::shared_ptr<FunctionData> asFunction() const;
-
     const std::string& asModule() const;
-
     std::shared_ptr<VyneStruct> asStruct() const;
-
-    bool isReference() const;
-
+    bool isReference() const { return type == VType::Reference; }
     Value* getPointer() const;
 
-    // core value functions
-    Value& setReadOnly();
+    Value& setReadOnly() { isReadOnly = true; return *this; }
     long getRefCount() const;
-    bool isTruthy()                 const;
-    void print(std::ostream& os)    const;
-    size_t getDeepBytes()           const;
-    size_t getShallowBytes()        const;
+    bool isTruthy() const;
+    void print(std::ostream& os) const;
+    size_t getDeepBytes() const;
+    size_t getShallowBytes() const;
     bool equals(const Value& other) const;
-    std::string toString()          const;
-    int toNumber()                  const;
+    std::string toString() const;
+    int toNumber() const;
 
     bool operator==(const Value& other) const;
     bool operator!=(const Value& other) const;
     bool operator<(const Value& other)  const;
 };
-
-// TODO ADD POOL CLEARING FEATURE WHEN THE DISMISS IS TRIGGERED
