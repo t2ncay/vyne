@@ -19,7 +19,7 @@ while (vglib.running()) {
     if (vglib.key_down(65)) { posX = posX - speed; } # A - Sola
     if (vglib.key_down(68)) { posX = posX + speed; } # D - Sağa
 
-    if (vglib.key_pressed(32)) { 
+    if (vglib.key_down(vglib.SPACE)) { 
         rotation = 0.0;
     }
 

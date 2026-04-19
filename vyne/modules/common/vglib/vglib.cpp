@@ -328,4 +328,31 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
+
+    // keyboard codes important
+    vglib[pool.intern("SPACE")]  = Value(32).setReadOnly();
+    vglib[pool.intern("ENTER")]  = Value(257).setReadOnly();
+    vglib[pool.intern("ESCAPE")] = Value(256).setReadOnly();
+    
+    // wasd
+    vglib[pool.intern("W")] = Value(87).setReadOnly();
+    vglib[pool.intern("A")] = Value(65).setReadOnly();
+    vglib[pool.intern("S")] = Value(83).setReadOnly();
+    vglib[pool.intern("D")] = Value(68).setReadOnly();
+
+    // arrows
+    vglib[pool.intern("UP")]    = Value(265).setReadOnly();
+    vglib[pool.intern("DOWN")]  = Value(264).setReadOnly();
+    vglib[pool.intern("LEFT")]  = Value(263).setReadOnly();
+    vglib[pool.intern("RIGHT")] = Value(262).setReadOnly();
+
+    // preset colors
+    vglib[pool.intern("WHITE")]   = Value((int64_t)0xFFFFFFFF).setReadOnly();
+    vglib[pool.intern("BLACK")]   = Value((int64_t)0x000000FF).setReadOnly();
+    vglib[pool.intern("RED")]     = Value((int64_t)0xFF0000FF).setReadOnly();
+    vglib[pool.intern("GREEN")]   = Value((int64_t)0x00FF00FF).setReadOnly();
+    vglib[pool.intern("BLUE")]    = Value((int64_t)0x0000FFFF).setReadOnly();
+    vglib[pool.intern("CYAN")]    = Value((int64_t)0x00AAFFFF).setReadOnly();
+    vglib[pool.intern("MAGENTA")] = Value((int64_t)0xFF00FFFF).setReadOnly();
+    vglib[pool.intern("PURPLE")]  = Value((int64_t)0x800080FF).setReadOnly();
 }
