@@ -232,6 +232,61 @@ namespace VGLibNative {
         DrawGrid(slices, spacing);
         return Value();
     }
+
+    Value native_init_audio(std::vector<Value>& args) {
+        InitAudioDevice();
+        return Value(IsAudioDeviceReady());
+    }
+
+    Value native_load_sound(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_sound() requires a file path");
+        std::string path = args[0].asString();
+        
+        Sound* sound = new Sound(LoadSound(path.c_str()));
+        
+        if (sound->frameCount == 0) {
+            delete sound;
+            throw std::runtime_error("Audio Error: Could not load sound at " + path);
+        }
+        
+        return Value(reinterpret_cast<int64_t>(sound));
+    }
+
+    Value native_play_sound(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        if (sound) {
+            PlaySound(*sound);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_set_master_volume(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        float volume = (float)args[0].asFloat();
+        SetMasterVolume(volume);
+        return Value(true);
+    }
+
+    Value native_set_sound_volume(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_sound_volume() requires sound_pointer and volume");
+        
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        float volume = (float)args[1].asFloat();
+        
+        if (sound) {
+            SetSoundVolume(*sound, volume);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_close_audio(std::vector<Value>& args) {
+        CloseAudioDevice();
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -259,11 +314,17 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("end3d")]      = Value(VGLibNative::native_end_3d_mode);
     vglib[pool.intern("key_down")]   = Value(VGLibNative::native_is_key_down);
     vglib[pool.intern("key_pressed")] = Value(VGLibNative::native_is_key_pressed);
-    vglib[pool.intern("rgba")]       = Value(VGLibNative::native_rgba);
+    vglib[pool.intern("rgba")]        = Value(VGLibNative::native_rgba);
     vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
-    vglib[pool.intern("text")]       = Value(VGLibNative::native_draw_text);
-    vglib[pool.intern("grid")]       = Value(VGLibNative::native_draw_grid);
+    vglib[pool.intern("text")]        = Value(VGLibNative::native_draw_text);
+    vglib[pool.intern("grid")]        = Value(VGLibNative::native_draw_grid);
+    vglib[pool.intern("init_audio")]  = Value(VGLibNative::native_init_audio);
+    vglib[pool.intern("load_sound")]  = Value(VGLibNative::native_load_sound);
+    vglib[pool.intern("play_sound")]  = Value(VGLibNative::native_play_sound);
+    vglib[pool.intern("close_audio")] = Value(VGLibNative::native_close_audio);
+    vglib[pool.intern("volume")]      = Value(VGLibNative::native_set_master_volume);
+    vglib[pool.intern("sound_volume")] = Value(VGLibNative::native_set_sound_volume);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
