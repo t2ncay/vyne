@@ -2,55 +2,41 @@ ruleset { dynamic_casting };
 module vglib;
 module vaudio;
 
-vglib.init(1920, 1080, 100, "Vyne Pro - VHS Horror Stack", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 100, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN);
 camera = vglib.camera();
 vglib.set_pos(camera, 0.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
-# shaders - CHROMA SİLİNDİ
-fog_shader = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
-vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+# --- SHADERS ---
+fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
+vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs"); # YENİ
 
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
-ground_tex = vglib.load_texture("tests/assets/asphalt.jpg");
+ground_tex   = vglib.load_texture("tests/assets/asphalt.jpg");
 
-# Artıq tək render target kifayətdir (screen -> vhs -> screen)
-screen_target = vglib.load_render_texture(1920, 1080);
+# --- RENDER TARGETS ---
+screen_target  = vglib.load_render_texture(1920, 1080);
+bodycam_target = vglib.load_render_texture(1920, 1080); # YENİ (VHS bura yazılacaq)
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
-    [-7.0,  5.0, 10.0, 10.0],
-    [-7.0,  8.0, 22.0, 16.0],
-    [-10.0, 5.0, 35.0, 10.0],
-    [-12.0, 12.0, 50.0, 24.0],
-
-    [7.0,   5.0, 12.0, 10.0],
-    [9.0,   7.0, 25.0, 14.0],
-    [7.0,   5.0, 38.0, 10.0],
-    [15.0,  15.0, 55.0, 30.0],
-
-    [0.0,   5.0, -10.0, 15.0],
-
-    [25.0,  5.0, 40.0, 10.0],
-    [35.0,  8.0, 40.0, 16.0],
-    [45.0,  5.0, 30.0, 10.0],
-
-    [0.0,   25.0, 90.0, 50.0],
-    
-    [-25.0, 2.5, 20.0, 5.0],
-    [20.0,  2.5, 10.0, 5.0],
-    [-30.0, 10.0, 80.0, 20.0]
+    [-7.0, 5.0, 10.0, 10.0], [-7.0, 8.0, 22.0, 16.0],
+    [-10.0, 5.0, 35.0, 10.0], [-12.0, 12.0, 50.0, 24.0],
+    [7.0, 5.0, 12.0, 10.0], [9.0, 7.0, 25.0, 14.0],
+    [7.0, 5.0, 38.0, 10.0], [15.0, 15.0, 55.0, 30.0],
+    [0.0, 5.0, -10.0, 15.0], [25.0, 5.0, 40.0, 10.0],
+    [35.0, 8.0, 40.0, 16.0], [45.0, 5.0, 30.0, 10.0],
+    [0.0, 25.0, 90.0, 50.0], [-25.0, 2.5, 20.0, 5.0],
+    [20.0, 2.5, 10.0, 5.0], [-30.0, 10.0, 80.0, 20.0]
 ];
 
 run_time = 0.0;
-
-mouse_sens = 0.15;
 speed = 0.15;
 normal_height = 1.8;
 crouch_height = 0.9;
-
 current_y = normal_height;
 velocity_y = 0.0;
 gravity = -0.012;
@@ -58,11 +44,8 @@ jump_force = 0.35;
 is_grounded = true;
 
 vaudio.init_audio();
-volume :: Float64 = 1.0;
-vaudio.volume(volume);
+vaudio.volume(1.0);
 ambiance = vaudio.load_sound("tests/assets/akira.wav");
-
-vaudio.sound_volume(ambiance, 1.0);
 vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
@@ -135,7 +118,6 @@ while (vglib.running()) {
 
     vglib.begin_texture_mode(screen_target);
         vglib.clear(vglib.rgba(128, 128, 140, 255));
-        
         vglib.begin3d(camera);
             vglib.set_shader_camera(fog_shader, camera);
             vglib.begin_shader(fog_shader);
@@ -147,16 +129,27 @@ while (vglib.running()) {
         vglib.end3d();
     vglib.end_texture_mode();
 
-    vglib.begin();
+    # PASS 2: VHS Effect -> Bodycam Target
+    vglib.begin_texture_mode(bodycam_target);
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
+    vglib.end_texture_mode();
 
-        # UI
-        vglib.text("POST-PROCESS: VHS ACTIVE", 40, 40, 25, vglib.RED);
-        vglib.text("REC", 1800, 50, 30, vglib.RED);
+    # PASS 3: Final Bodycam Lens -> Screen
+    vglib.begin();
+        vglib.clear(vglib.BLACK);
+        vglib.set_shader_value(bodycam_shader, "time", run_time);
+        vglib.begin_shader(bodycam_shader);
+            vglib.draw_render_texture(bodycam_target);
+        vglib.end_shader();
+
+        # UI Overlay
+        vglib.text("AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
+        vglib.text("2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
+        vglib.text("REC", 1800, 60, 25, vglib.RED);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
