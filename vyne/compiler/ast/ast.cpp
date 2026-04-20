@@ -65,14 +65,32 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
  */
 
 Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value val = rhs->evaluate(env, currentGroup);
-
     uint32_t targetGroupId = (scopeGroupId != 0) 
                              ? scopeGroupId 
                              : StringPool::intern(currentGroup);
 
     auto& table = env[targetGroupId];
     auto it_existing = table.find(identifierId);
+
+    if (this->isReference) {
+        if (rhs->type() != NodeType::VARIABLE) {
+            throw std::runtime_error("Referencer Error: Must bind to a variable (L-Value) [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        auto* varNode = static_cast<VariableNode*>(rhs.get());
+        Value* sourcePtr = env.getInternalPointer(targetGroupId, varNode->getNameId());
+        env.markUsed(varNode->getNameId()); // İstifadə olunduğunu qeyd edirik
+        
+        if (!sourcePtr) throw std::runtime_error("Reference Error: Target variable '" + varNode->getOriginalName() + "' not found.");
+
+        Value refValue(sourcePtr);
+        if (isConstant) refValue.setReadOnly();
+        
+        table[identifierId] = refValue;
+        return refValue; // Tip yoxlamasına girmədən buradan çıxırıq
+    }
+
+    Value val = rhs->evaluate(env, currentGroup);
 
     if (Vyne::isTypeStrict() && it_existing != table.end()) {
         int existingType = it_existing->second.getType();
@@ -92,14 +110,13 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         Value* targetPtr = it_existing->second.getPointer();
         
         val = convertIfNeeded(val, targetPtr->getType(), lineNumber);
-
         env.markUsed(identifierId);
         
         if (targetPtr->getType() != Value::NONE && targetPtr->getType() != val.getType()) {
-            throw std::runtime_error("Type Error: Reference target mismatch...");
+            throw std::runtime_error("Type Error: Reference target mismatch for '" + originalName + "'");
         }
 
-        *targetPtr = val;
+        *targetPtr = val; // Orijinal dəyişəni yeniləyirik
         return *targetPtr;
     }
 
@@ -122,12 +139,9 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         if (it_existing->second.getType() != Value::NONE && 
             it_existing->second.getType() != val.getType()) {
             
-            std::string existingTypeName = it_existing->second.getTypeName();
-            std::string newTypeName = val.getTypeName();
-            
             throw std::runtime_error(
-                "Type Error: Cannot assign " + newTypeName + " value to '" + originalName + 
-                "', which expects " + existingTypeName + 
+                "Type Error: Cannot assign " + val.getTypeName() + " value to '" + originalName + 
+                "', which expects " + it_existing->second.getTypeName() + 
                 " [ line " + std::to_string(lineNumber) + " ]"
             );
         }
@@ -144,22 +158,6 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         
         vec[idx] = val;
         return val;
-    }
-
-    if (this->isReference) {
-        if (rhs->type() != NodeType::VARIABLE) {
-            throw std::runtime_error("Referencer Error: Must bind to a variable (L-Value)");
-        }
-        
-        auto* varNode = static_cast<VariableNode*>(rhs.get());
-        Value* sourcePtr = env.getInternalPointer(targetGroupId, varNode->getNameId());
-        env.markUsed(varNode->getNameId());
-        
-        Value refValue(sourcePtr);
-        if (isConstant) refValue.setReadOnly();
-        
-        table[identifierId] = refValue;
-        return refValue;
     }
 
     if (isConstant) val.setReadOnly();
