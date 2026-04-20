@@ -344,6 +344,65 @@ namespace VGLibNative {
         }
         return Value();
     }
+
+    Value native_move_forward(std::vector<Value>& args) {
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float distance = (float)args[1].asFloat();
+
+        if (camera) {
+            Vector3 forward = {
+                camera->target.x - camera->position.x,
+                0,
+                camera->target.z - camera->position.z
+            };
+            
+            float len = sqrt(forward.x * forward.x + forward.z * forward.z);
+            if (len > 0) { forward.x /= len; forward.z /= len; }
+
+            camera->position.x += forward.x * distance;
+            camera->position.z += forward.z * distance;
+            camera->target.x += forward.x * distance;
+            camera->target.z += forward.z * distance;
+        }
+        return Value();
+    }
+
+    Value native_move_right(std::vector<Value>& args) {
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float distance = (float)args[1].asFloat();
+
+        if (camera) {
+            Vector3 forward = { camera->target.x - camera->position.x, 0, camera->target.z - camera->position.z };
+            Vector3 right = { -forward.z, 0, forward.x }; 
+            
+            float len = sqrt(right.x * right.x + right.z * right.z);
+            if (len > 0) { right.x /= len; right.z /= len; }
+
+            camera->position.x += right.x * distance;
+            camera->position.z += right.z * distance;
+            camera->target.x += right.x * distance;
+            camera->target.z += right.z * distance;
+        }
+        return Value();
+    }
+
+    Value native_rotate_view(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("rotate_view() requires camera_ptr and sensitivity");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float sensitivity = (float)args[1].asFloat();
+
+        if (camera) {
+            Vector2 mouseDelta = GetMouseDelta();
+            
+            UpdateCameraPro(camera, 
+                (Vector3){ 0, 0, 0 }, 
+                (Vector3){ mouseDelta.x * sensitivity, mouseDelta.y * sensitivity, 0 }, 
+                0.0f
+            );
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -387,6 +446,9 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
     vglib[pool.intern("enable_cursor")]  = Value(VGLibNative::native_enable_cursor);
     vglib[pool.intern("set_camera_height")] = Value(VGLibNative::native_set_camera_height);
+    vglib[pool.intern("move_forward")] = Value(VGLibNative::native_move_forward);
+    vglib[pool.intern("move_right")]   = Value(VGLibNative::native_move_right);
+    vglib[pool.intern("rotate_view")]   = Value(VGLibNative::native_rotate_view);
     vglib[pool.intern("get_fps")] = Value(VGLibNative::native_get_fps);
 
     // VGLib properties
