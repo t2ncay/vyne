@@ -2,9 +2,11 @@ ruleset { dynamic_casting };
 module vglib;
 module vaudio;
 
-vglib.init(1920, 1080, 100, "Vyne Pro Engine", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 100, "Vyne Pro Engine - Mist Atmosphere", vglib.FULLSCREEN);
 camera = vglib.camera();
 vglib.disable_cursor();
+
+fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
 
 mouse_sens = 0.15;
 speed = 0.15;
@@ -64,16 +66,23 @@ while (vglib.running()) {
     if (vglib.key_down(vglib.D)) { vglib.move_right(camera, current_speed); }
 
     vglib.begin();
-        vglib.clear(vglib.rgba(10, 10, 15, 255));
+        vglib.clear(vglib.rgba(128, 128, 140, 255));
         
         vglib.begin3d(camera);
-            vglib.grid(50, 1.0);
-            vglib.cube(0.0, 2.5, 5.0, 5.0, 0.0, vglib.CYAN);
+            vglib.set_shader_camera(fog_shader, camera);
+            
+            vglib.begin_shader(fog_shader);
+                vglib.grid(100, 1.0);
+                vglib.cube(0.0, 2.5, 10.0, 5.0, 0.0, vglib.CYAN);
+                
+                vglib.cube(10.0, 2.5, 20.0, 5.0, 0.0, vglib.rgba(40, 20, 20, 255));
+                vglib.cube(-15.0, 2.5, 35.0, 5.0, 0.0, vglib.rgba(20, 40, 20, 255));
+            vglib.end_shader();
+            
         vglib.end3d();
 
-        vglib.text("VYNE PRO ENGINE v0.1", 20, 20, 20, vglib.CYAN);
-        vglib.text("Y-POS: " + string(current_y), 20, 50, 20, vglib.WHITE);
-        vglib.text("FPS: " + string(vglib.get_fps()), 20, 80, 20, vglib.GREEN);
+        vglib.text("VYNE PRO - GRAY MIST", 20, 20, 20, vglib.BLACK);
+        vglib.text("FPS: " + string(vglib.get_fps()), 20, 80, 20, vglib.BLACK);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();

@@ -363,6 +363,35 @@ namespace VGLibNative {
         }
         return Value();
     }
+
+    Value native_load_shader(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_shader() requires a file path");
+        std::string path = args[0].asString();
+        
+        Shader* shader = new Shader(LoadShader(0, path.c_str()));
+        return Value(reinterpret_cast<int64_t>(shader));
+    }
+
+    Value native_begin_shader(std::vector<Value>& args) {
+        Shader* shader = reinterpret_cast<Shader*>(args[0].asInt());
+        BeginShaderMode(*shader);
+        return Value();
+    }
+
+    Value native_end_shader(std::vector<Value>& args) {
+        EndShaderMode();
+        return Value();
+    }
+
+    Value native_set_shader_camera(std::vector<Value>& args) {
+        Shader* shader = reinterpret_cast<Shader*>(args[0].asInt());
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[1].asInt());
+        
+        int cameraPosLoc = GetShaderLocation(*shader, "cameraPos");
+        float cameraPos[3] = { camera->position.x, camera->position.y, camera->position.z };
+        SetShaderValue(*shader, cameraPosLoc, cameraPos, SHADER_UNIFORM_VEC3);
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -405,6 +434,10 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("move_right")]   = Value(VGLibNative::native_move_right);
     vglib[pool.intern("rotate_view")]   = Value(VGLibNative::native_rotate_view);
     vglib[pool.intern("get_fps")] = Value(VGLibNative::native_get_fps);
+    vglib[pool.intern("load_shader")] = Value(VGLibNative::native_load_shader);
+    vglib[pool.intern("begin_shader")] = Value(VGLibNative::native_begin_shader);
+    vglib[pool.intern("end_shader")] = Value(VGLibNative::native_end_shader);
+    vglib[pool.intern("set_shader_camera")] = Value(VGLibNative::native_set_shader_camera);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
