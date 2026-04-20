@@ -1,6 +1,7 @@
 ruleset { dynamic_casting };
 
 module vglib;
+module vaudio;
 
 BG = vglib.rgba(20, 20, 25, 255);
 CUBE_COLOR = vglib.rgba(0, 150, 200, 255);
@@ -14,6 +15,7 @@ speed = 0.15;
 rotation = 0.0;
 
 while (vglib.running()) {
+    vaudio.play_sound(ambiance);
     if (vglib.key_down(87)) { posZ = posZ - speed; }
     if (vglib.key_down(83)) { posZ = posZ + speed; }
     if (vglib.key_down(65)) { posX = posX - speed; }
@@ -38,4 +40,5 @@ while (vglib.running()) {
     vglib.end();
 }
 
+vaudio.close_audio();
 vglib.close();

@@ -1,5 +1,6 @@
 ruleset { dynamic_casting };
 module vglib;
+module vaudio;
 
 vglib.init(1920, 1080, 100, "Vyne Pro Engine", vglib.FULLSCREEN);
 camera = vglib.camera();
@@ -15,6 +16,14 @@ velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
 is_grounded = true;
+
+vaudio.init_audio();
+volume :: Float64 = 1.0;
+vaudio.volume(volume);
+ambiance = vaudio.load_sound("tests/assets/akira.wav");
+
+vaudio.sound_volume(ambiance, 1.0);
+vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
     vglib.rotate_view(camera, mouse_sens);
