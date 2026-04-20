@@ -6,7 +6,6 @@ in vec3 fragPosition;
 
 out vec4 finalColor;
 
-// BU SƏTİR ÇOX VACİBDİR:
 uniform sampler2D texture0; 
 uniform vec4 colDiffuse;
 uniform vec3 cameraPos;
