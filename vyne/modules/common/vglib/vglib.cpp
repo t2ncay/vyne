@@ -57,11 +57,12 @@ namespace VGLibNative {
     }
 
     Value native_init(std::vector<Value>& args) {
-        if (args.size() < 3) throw std::runtime_error("init() requires width, height, and title");
+        if (args.size() < 4) throw std::runtime_error("init() requires width, height, FPS, and title");
         
         int w = (int)args[0].asInt();
         int h = (int)args[1].asInt();
-        std::string title = args[2].asString();
+        int fps = (int)args[2].asInt();
+        std::string title = args[3].asString();
 
         unsigned int flags = FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI;
 
@@ -71,7 +72,7 @@ namespace VGLibNative {
 
         SetConfigFlags(flags);
         InitWindow(w, h, title.c_str());
-        SetTargetFPS(60);
+        SetTargetFPS(fps);
         
         return Value(true);
     }

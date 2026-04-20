@@ -2,7 +2,7 @@ ruleset { dynamic_casting };
 
 module vglib;
 
-vglib.init(800, 600, "Vyne Audio Boost");
+vglib.init(1920, 1080, 60, "Vyne Ultra - Fullscreen Mode", vglib.FULLSCREEN);
 vglib.init_audio();
 
 volume :: Float64 = 1.0;

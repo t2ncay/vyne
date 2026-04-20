@@ -6,7 +6,7 @@ CYAN_BG = vglib.rgba(0, 100, 150, 255);
 NEON_PINK = vglib.rgba(255, 0, 255, 255);
 WHITE = vglib.rgba(255, 255, 255, 255);
 
-vglib.init(1280, 720, "Vyne Engine - The Grid");
+vglib.init(1920, 1080, 60, "Vyne Ultra - Fullscreen Mode", vglib.FULLSCREEN);
 camera = vglib.camera();
 rotation = 0.0;
 

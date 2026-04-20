@@ -2,7 +2,7 @@ ruleset { dynamic_casting };
 
 module vglib;
 
-vglib.init(1920, 1080, "Vyne Ultra - Fullscreen Mode", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 100, "Vyne Ultra - Fullscreen Mode", vglib.FULLSCREEN);
 camera = vglib.camera();
 
 normal_height = 1.8;
