@@ -34,6 +34,6 @@ while (vglib.running()) {
     rotation = rotation + 5;
 
     vglib.text("VYNE ENGINE v0.1", 20, 20, 20, vglib.CYAN);
-    vglib.text("FPS: 60", 20, 50, 20, vglib.CYAN);
+    vglib.text("FPS: " + string(vglib.get_fps()), 20, 50, 20, vglib.CYAN);
     vglib.end();
 }

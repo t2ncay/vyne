@@ -326,6 +326,10 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_get_fps(std::vector<Value>& args) {
+        return Value((int64_t)GetFPS());
+    }
+
     Value native_set_camera_height(std::vector<Value>& args) {
         if (args.size() < 2) throw std::runtime_error("set_camera_height() requires camera_ptr and height");
 
@@ -382,6 +386,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
     vglib[pool.intern("enable_cursor")]  = Value(VGLibNative::native_enable_cursor);
     vglib[pool.intern("set_camera_height")] = Value(VGLibNative::native_set_camera_height);
+    vglib[pool.intern("get_fps")] = Value(VGLibNative::native_get_fps);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
