@@ -1,6 +1,57 @@
 #include "vglib.h"
 #include <cstring>
 
+// helpers
+
+void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color) {
+    float x = position.x;
+    float y = position.y;
+    float z = position.z;
+
+    rlCheckRenderBatchLimit(36);
+    rlSetTexture(texture.id);
+    rlBegin(RL_QUADS);
+        rlColor4ub(color.r, color.g, color.b, color.a);
+
+        rlNormal3f(0.0f, 0.0f, 1.0f);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
+
+        rlNormal3f(0.0f, 0.0f, -1.0f);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
+
+        rlNormal3f(0.0f, 1.0f, 0.0f);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
+
+        rlNormal3f(0.0f, -1.0f, 0.0f);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
+
+        rlNormal3f(1.0f, 0.0f, 0.0f);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
+
+        rlNormal3f(-1.0f, 0.0f, 0.0f);
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
+        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
+        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
+        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
+    rlEnd();
+    rlSetTexture(0);
+}
+
 /**
  * VGLib Native Method Implementations
  */
@@ -453,6 +504,27 @@ namespace VGLibNative {
         SetShaderValue(*shader, loc, &value, SHADER_UNIFORM_FLOAT);
         return Value();
     }
+
+    Value native_load_texture(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_texture() requires a file path");
+        std::string path = args[0].asString();
+        
+        Texture2D* tex = new Texture2D(LoadTexture(path.c_str()));
+        return Value(reinterpret_cast<int64_t>(tex));
+    }
+
+    Value native_draw_cube_texture(std::vector<Value>& args) {
+        if (args.size() < 5) throw std::runtime_error("cube_texture() requires tex_ptr, x, y, z, size");
+
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[0].asInt());
+        Vector3 pos = { (float)args[1].asFloat(), (float)args[2].asFloat(), (float)args[3].asFloat() };
+        float size = (float)args[4].asFloat();
+        Color color = (args.size() > 5) ? GetColor((uint32_t)args[5].asInt()) : WHITE;
+
+        DrawCubeTexture(*tex, pos, size, size, size, color);
+        
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -506,6 +578,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);
     vglib[pool.intern("draw_render_texture")] = Value(VGLibNative::native_draw_render_texture);
     vglib[pool.intern("set_shader_value")]    = Value(VGLibNative::native_set_shader_value);
+    vglib[pool.intern("load_texture")]  = Value(VGLibNative::native_load_texture);
+    vglib[pool.intern("cube_texture")]  = Value(VGLibNative::native_draw_cube_texture);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();

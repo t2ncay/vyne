@@ -8,6 +8,7 @@ vglib.disable_cursor();
 
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
 vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+building_tex = vglib.load_texture("tests/assets/building.jpg");
 
 screen_target = vglib.load_render_texture(1920, 1080);
 
@@ -110,7 +111,7 @@ while (vglib.running()) {
             vglib.begin_shader(fog_shader);
                 vglib.grid(100, 1.0);
                 through w :: walls -> loop {
-                    vglib.cube(w[0], w[1], w[2], w[3], 0.0, vglib.CYAN);
+                    vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
             vglib.end_shader();
         vglib.end3d();
@@ -123,7 +124,7 @@ while (vglib.running()) {
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
 
-        vglib.text("SIGNAL STABILITY: CRITICAL", 40, 40, 25, vglib.rgba(255, 0, 0, 180));
+        vglib.text("SYSTEM STATUS: MIST DETECTED", 40, 40, 25, vglib.rgba(20, 20, 20, 180));
         vglib.text("FPS: " + string(vglib.get_fps()), 40, 75, 20, vglib.BLACK);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
