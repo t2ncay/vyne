@@ -110,6 +110,19 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_draw_line(std::vector<Value>& args) {
+        if (args.size() < 5) throw std::runtime_error("draw_line() requires start_x, start_y, end_x, end_y, and color");
+
+        (
+            (int)args[0].asInt(),
+            (int)args[1].asInt(),
+            (int)args[2].asInt(),
+            (int)args[3].asInt(),
+            GetColor((uint32_t)args[4].asInt())
+        );
+        return Value();
+    }
+
     Value native_draw_rect(std::vector<Value>& args) {
         if (args.size() < 5) throw std::runtime_error("draw_rect() requires x, y, w, h, and color");
         
@@ -262,60 +275,7 @@ namespace VGLibNative {
         return Value();
     }
 
-    Value native_init_audio(std::vector<Value>& args) {
-        InitAudioDevice();
-        return Value(IsAudioDeviceReady());
-    }
-
-    Value native_load_sound(std::vector<Value>& args) {
-        if (args.empty()) throw std::runtime_error("load_sound() requires a file path");
-        std::string path = args[0].asString();
-        
-        Sound* sound = new Sound(LoadSound(path.c_str()));
-        
-        if (sound->frameCount == 0) {
-            delete sound;
-            throw std::runtime_error("Audio Error: Could not load sound at " + path);
-        }
-        
-        return Value(reinterpret_cast<int64_t>(sound));
-    }
-
-    Value native_play_sound(std::vector<Value>& args) {
-        if (args.empty()) return Value(false);
-        
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound) {
-            PlaySound(*sound);
-            return Value(true);
-        }
-        return Value(false);
-    }
-
-    Value native_set_master_volume(std::vector<Value>& args) {
-        if (args.empty()) return Value(false);
-        float volume = (float)args[0].asFloat();
-        SetMasterVolume(volume);
-        return Value(true);
-    }
-
-    Value native_set_sound_volume(std::vector<Value>& args) {
-        if (args.size() < 2) throw std::runtime_error("set_sound_volume() requires sound_pointer and volume");
-        
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        float volume = (float)args[1].asFloat();
-        
-        if (sound) {
-            SetSoundVolume(*sound, volume);
-            return Value(true);
-        }
-        return Value(false);
-    }
-
-    Value native_close_audio(std::vector<Value>& args) {
-        CloseAudioDevice();
-        return Value();
-    }
+    
 
     Value native_disable_cursor(std::vector<Value>& args) {
         DisableCursor();
@@ -421,6 +381,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("begin")]      = Value(VGLibNative::native_begin_frame);
     vglib[pool.intern("end")]        = Value(VGLibNative::native_end_frame);
     vglib[pool.intern("clear")]      = Value(VGLibNative::native_clear);
+    vglib[pool.intern("line")]       = Value(VGLibNative::native_draw_line);
     vglib[pool.intern("rect")]       = Value(VGLibNative::native_draw_rect);
     vglib[pool.intern("circle")]     = Value(VGLibNative::native_draw_circle);
     vglib[pool.intern("close")]      = Value(VGLibNative::native_close);
@@ -436,12 +397,6 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
     vglib[pool.intern("text")]        = Value(VGLibNative::native_draw_text);
     vglib[pool.intern("grid")]        = Value(VGLibNative::native_draw_grid);
-    vglib[pool.intern("init_audio")]  = Value(VGLibNative::native_init_audio);
-    vglib[pool.intern("load_sound")]  = Value(VGLibNative::native_load_sound);
-    vglib[pool.intern("play_sound")]  = Value(VGLibNative::native_play_sound);
-    vglib[pool.intern("close_audio")] = Value(VGLibNative::native_close_audio);
-    vglib[pool.intern("volume")]      = Value(VGLibNative::native_set_master_volume);
-    vglib[pool.intern("sound_volume")] = Value(VGLibNative::native_set_sound_volume);
     vglib[pool.intern("update_camera")] = Value(VGLibNative::native_update_camera);
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
     vglib[pool.intern("enable_cursor")]  = Value(VGLibNative::native_enable_cursor);

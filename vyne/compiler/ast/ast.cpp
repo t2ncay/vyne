@@ -8,6 +8,7 @@
 #include "../../modules/common/vfs/vfs.h"
 #include "../../modules/common/vurage/vurage.h"
 #include "../../modules/common/vcv/vcv.h"
+#include "../../modules/common/vaudio/vaudio.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -823,12 +824,22 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
         }
 
         if (methodId == popId) {
-            if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method pop() on non-array [ line " + std::to_string(lineNumber) + " ]");
-            if (target->asList().empty()) throw std::runtime_error("Index Error: pop() from empty array [ line " + std::to_string(lineNumber) + " ]");
-            if (!arguments.empty()) throw std::runtime_error("Argument Error: pop() expects 0 arguments, but got " + std::to_string(arguments.size()) + " [ line " + std::to_string(lineNumber) + " ]");
+            if (target->getType() != Value::ARRAY) 
+                throw std::runtime_error("Type Error : Called method pop() on non-array [ line " + std::to_string(lineNumber) + " ]");
+            
+            auto& vec = target->asList(); // Referans alırıq ki, kod qısa olsun
+            
+            if (vec.empty()) 
+                throw std::runtime_error("Index Error: pop() from empty array [ line " + std::to_string(lineNumber) + " ]");
+            
+            if (!arguments.empty()) 
+                throw std::runtime_error("Argument Error: pop() expects 0 arguments [ line " + std::to_string(lineNumber) + " ]");
 
-            target->asList().pop_back();
-            return Value(true);
+            Value poppedValue = vec.back();
+            
+            vec.pop_back();
+            
+            return poppedValue;
         }
 
         if (methodId == backId) {
@@ -1369,6 +1380,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     if (originalName == "vfs")    setupVFs(env, StringPool::instance());
     if (originalName == "vurage") setupVurage(env, StringPool::instance());
     if (originalName == "vcv")    setupVCV(env, StringPool::instance());
+    if (originalName == "vaudio") setupVAudio(env, StringPool::instance());
 
     auto& groupTable = env[currentGroup]; 
 
