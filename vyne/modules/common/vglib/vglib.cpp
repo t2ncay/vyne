@@ -392,6 +392,34 @@ namespace VGLibNative {
         SetShaderValue(*shader, cameraPosLoc, cameraPos, SHADER_UNIFORM_VEC3);
         return Value();
     }
+
+    Value native_get_camera_pos(std::vector<Value>& args) {
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        std::vector<Value> pos = { Value(camera->position.x), Value(camera->position.y), Value(camera->position.z) };
+        return Value(pos);
+    }
+
+    Value native_check_collision(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("check_collision() requires player_pos, player_size, cube_pos, cube_size");
+
+        Vector3 pPos = { (float)args[0].asList()[0].asFloat(), (float)args[0].asList()[1].asFloat(), (float)args[0].asList()[2].asFloat() };
+        Vector3 pSize = { (float)args[1].asList()[0].asFloat(), (float)args[1].asList()[1].asFloat(), (float)args[1].asList()[2].asFloat() };
+
+        Vector3 cPos = { (float)args[2].asList()[0].asFloat(), (float)args[2].asList()[1].asFloat(), (float)args[2].asList()[2].asFloat() };
+        float cSize = (float)args[3].asFloat();
+
+        BoundingBox playerBox = { 
+            (Vector3){ pPos.x - pSize.x/2, pPos.y - pSize.y/2, pPos.z - pSize.z/2 },
+            (Vector3){ pPos.x + pSize.x/2, pPos.y + pSize.y/2, pPos.z + pSize.z/2 }
+        };
+
+        BoundingBox cubeBox = {
+            (Vector3){ cPos.x - cSize/2, cPos.y - cSize/2, cPos.z - cSize/2 },
+            (Vector3){ cPos.x + cSize/2, cPos.y + cSize/2, cPos.z + cSize/2 }
+        };
+
+        return Value(CheckCollisionBoxes(playerBox, cubeBox));
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -438,6 +466,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("begin_shader")] = Value(VGLibNative::native_begin_shader);
     vglib[pool.intern("end_shader")] = Value(VGLibNative::native_end_shader);
     vglib[pool.intern("set_shader_camera")] = Value(VGLibNative::native_set_shader_camera);
+    vglib[pool.intern("check_collision")] = Value(VGLibNative::native_check_collision);
+    vglib[pool.intern("get_pos")] = Value(VGLibNative::native_get_camera_pos);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();

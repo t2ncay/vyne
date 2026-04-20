@@ -8,6 +8,14 @@ vglib.disable_cursor();
 
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
 
+player_size = [0.8, 1.8, 0.8];
+
+walls = [
+    [0.0, 2.5, 10.0, 5.0],
+    [10.0, 2.5, 20.0, 5.0],
+    [-15.0, 2.5, 35.0, 5.0]
+];
+
 mouse_sens = 0.15;
 speed = 0.15;
 normal_height = 1.8;
@@ -60,30 +68,53 @@ while (vglib.running()) {
 
     vglib.set_camera_height(camera, current_y);
 
-    if (vglib.key_down(vglib.W)) { vglib.move_forward(camera, current_speed); }
-    if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, current_speed * -1.0); }
-    if (vglib.key_down(vglib.A)) { vglib.move_right(camera, current_speed * -1.0); }
-    if (vglib.key_down(vglib.D)) { vglib.move_right(camera, current_speed); }
+    if (vglib.key_down(vglib.W)) { 
+        vglib.move_forward(camera, current_speed); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_forward(camera, -current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.S)) { 
+        vglib.move_forward(camera, current_speed * -1.0); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_forward(camera, current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.A)) { 
+        vglib.move_right(camera, current_speed * -1.0); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_right(camera, current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.D)) { 
+        vglib.move_right(camera, current_speed); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_right(camera, -current_speed);
+            }
+        };
+    }
 
     vglib.begin();
         vglib.clear(vglib.rgba(128, 128, 140, 255));
-        
         vglib.begin3d(camera);
             vglib.set_shader_camera(fog_shader, camera);
-            
             vglib.begin_shader(fog_shader);
                 vglib.grid(100, 1.0);
-                vglib.cube(0.0, 2.5, 10.0, 5.0, 0.0, vglib.CYAN);
                 
-                vglib.cube(10.0, 2.5, 20.0, 5.0, 0.0, vglib.rgba(40, 20, 20, 255));
-                vglib.cube(-15.0, 2.5, 35.0, 5.0, 0.0, vglib.rgba(20, 40, 20, 255));
+                through w :: walls -> loop {
+                    vglib.cube(w[0], w[1], w[2], w[3], 0.0, vglib.CYAN);
+                };
             vglib.end_shader();
-            
         vglib.end3d();
 
-        vglib.text("VYNE PRO - GRAY MIST", 20, 20, 20, vglib.BLACK);
-        vglib.text("FPS: " + string(vglib.get_fps()), 20, 80, 20, vglib.BLACK);
-        
+        vglib.text("VYNE RIGID ENGINE v0.1", 20, 20, 20, vglib.BLACK);
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
 }
