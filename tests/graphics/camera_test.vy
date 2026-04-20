@@ -8,12 +8,17 @@ vglib.set_pos(camera, 0.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
+# shaders
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
 vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+chroma_shader = vglib.load_shader("tests/graphics/shaders/chromatic.fs"); # Yeni şeyder
+
+# textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex = vglib.load_texture("tests/assets/asphalt.jpg");
 
 screen_target = vglib.load_render_texture(1920, 1080);
+post_target   = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
@@ -142,16 +147,22 @@ while (vglib.running()) {
         vglib.end3d();
     vglib.end_texture_mode();
 
-    vglib.begin();
+    vglib.begin_texture_mode(post_target);
+        vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
-        
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
+    vglib.end_texture_mode();
 
-        vglib.text("SYSTEM STATUS: MIST DETECTED", 40, 40, 25, vglib.RED);
-        vglib.text("FPS: " + string(vglib.get_fps()), 40, 75, 20, vglib.GREEN);
-        
+    vglib.begin();
+        vglib.set_shader_value(chroma_shader, "time", run_time);
+        vglib.begin_shader(chroma_shader);
+            vglib.draw_render_texture(post_target);
+        vglib.end_shader();
+
+        # UI (Shaderlərdən təsirlənməsin deyə ən sonda)
+        vglib.text("POST-STACK: VHS + CHROMA", 40, 40, 25, vglib.RED);
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
 }
