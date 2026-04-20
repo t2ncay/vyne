@@ -450,6 +450,21 @@ namespace VGLibNative {
         return Value(pos);
     }
 
+    Value native_set_camera_pos(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("set_pos() requires camera_ptr, x, y, z");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float x = (float)args[1].asFloat();
+        float y = (float)args[2].asFloat();
+        float z = (float)args[3].asFloat();
+
+        if (camera) {
+            camera->position = (Vector3){ x, y, z };
+            camera->target = (Vector3){ x, y, z + 1.0f };
+        }
+        return Value();
+    }
+
     Value native_check_collision(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("check_collision() requires player_pos, player_size, cube_pos, cube_size");
 
@@ -573,6 +588,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_shader_camera")] = Value(VGLibNative::native_set_shader_camera);
     vglib[pool.intern("check_collision")] = Value(VGLibNative::native_check_collision);
     vglib[pool.intern("get_pos")] = Value(VGLibNative::native_get_camera_pos);
+    vglib[pool.intern("set_pos")] = Value(VGLibNative::native_set_camera_pos);
     vglib[pool.intern("load_render_texture")] = Value(VGLibNative::native_load_render_texture);
     vglib[pool.intern("begin_texture_mode")]  = Value(VGLibNative::native_begin_texture_mode);
     vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);

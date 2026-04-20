@@ -4,6 +4,8 @@ module vaudio;
 
 vglib.init(1920, 1080, 100, "Vyne Pro - Dual Shader System", vglib.FULLSCREEN);
 camera = vglib.camera();
+vglib.set_pos(camera, 0.0, 1.8, 0.0);
+
 vglib.disable_cursor();
 
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
@@ -13,7 +15,29 @@ building_tex = vglib.load_texture("tests/assets/building.jpg");
 screen_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
-walls = [[0.0, 2.5, 10.0, 5.0], [10.0, 2.5, 20.0, 5.0], [-15.0, 2.5, 35.0, 5.0]];
+walls = [
+    [-7.0,  5.0, 10.0, 10.0],
+    [-7.0,  8.0, 22.0, 16.0],
+    [-10.0, 5.0, 35.0, 10.0],
+    [-12.0, 12.0, 50.0, 24.0],
+
+    [7.0,   5.0, 12.0, 10.0],
+    [9.0,   7.0, 25.0, 14.0],
+    [7.0,   5.0, 38.0, 10.0],
+    [15.0,  15.0, 55.0, 30.0],
+
+    [0.0,   5.0, -10.0, 15.0],
+
+    [25.0,  5.0, 40.0, 10.0],
+    [35.0,  8.0, 40.0, 16.0],
+    [45.0,  5.0, 30.0, 10.0],
+
+    [0.0,  25.0, 90.0, 50.0],
+    
+    [-25.0, 2.5, 20.0, 5.0],
+    [20.0,  2.5, 10.0, 5.0],
+    [-30.0, 10.0, 80.0, 20.0]
+];
 
 run_time = 0.0;
 
@@ -124,8 +148,8 @@ while (vglib.running()) {
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
 
-        vglib.text("SYSTEM STATUS: MIST DETECTED", 40, 40, 25, vglib.rgba(20, 20, 20, 180));
-        vglib.text("FPS: " + string(vglib.get_fps()), 40, 75, 20, vglib.BLACK);
+        vglib.text("SYSTEM STATUS: MIST DETECTED", 40, 40, 25, vglib.RED);
+        vglib.text("FPS: " + string(vglib.get_fps()), 40, 75, 20, vglib.GREEN);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
