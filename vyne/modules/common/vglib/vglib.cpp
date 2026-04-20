@@ -174,6 +174,7 @@ namespace VGLibNative {
     Value native_begin_frame(std::vector<Value>& args) {
         BeginDrawing();
         rlClearScreenBuffers();
+        BeginBlendMode(BLEND_ALPHA);
         return Value();
     }
 
