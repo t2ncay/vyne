@@ -2,19 +2,19 @@ ruleset { dynamic_casting };
 module vglib;
 module vaudio;
 
-vglib.init(1920, 1080, 100, "Vyne Pro Engine - Mist Atmosphere", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 100, "Vyne Pro - Dual Shader System", vglib.FULLSCREEN);
 camera = vglib.camera();
 vglib.disable_cursor();
 
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
+vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+
+screen_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
+walls = [[0.0, 2.5, 10.0, 5.0], [10.0, 2.5, 20.0, 5.0], [-15.0, 2.5, 35.0, 5.0]];
 
-walls = [
-    [0.0, 2.5, 10.0, 5.0],
-    [10.0, 2.5, 20.0, 5.0],
-    [-15.0, 2.5, 35.0, 5.0]
-];
+run_time = 0.0;
 
 mouse_sens = 0.15;
 speed = 0.15;
@@ -36,7 +36,8 @@ vaudio.sound_volume(ambiance, 1.0);
 vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
-    vglib.rotate_view(camera, mouse_sens);
+    run_time = run_time + 0.016;
+    vglib.rotate_view(camera, 0.15);
 
     if (vglib.key_down(vglib.LEFT_SHIFT)) {
         current_speed = speed / 4.0;
@@ -101,20 +102,30 @@ while (vglib.running()) {
         };
     }
 
-    vglib.begin();
+    vglib.begin_texture_mode(screen_target);
         vglib.clear(vglib.rgba(128, 128, 140, 255));
+        
         vglib.begin3d(camera);
             vglib.set_shader_camera(fog_shader, camera);
             vglib.begin_shader(fog_shader);
                 vglib.grid(100, 1.0);
-                
                 through w :: walls -> loop {
                     vglib.cube(w[0], w[1], w[2], w[3], 0.0, vglib.CYAN);
                 };
             vglib.end_shader();
         vglib.end3d();
+    vglib.end_texture_mode();
 
-        vglib.text("VYNE RIGID ENGINE v0.1", 20, 20, 20, vglib.BLACK);
+    vglib.begin();
+        vglib.set_shader_value(vhs_shader, "time", run_time);
+        
+        vglib.begin_shader(vhs_shader);
+            vglib.draw_render_texture(screen_target);
+        vglib.end_shader();
+
+        vglib.text("SIGNAL STABILITY: CRITICAL", 40, 40, 25, vglib.rgba(255, 0, 0, 180));
+        vglib.text("FPS: " + string(vglib.get_fps()), 40, 75, 20, vglib.BLACK);
+        
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
 }

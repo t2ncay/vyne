@@ -420,6 +420,39 @@ namespace VGLibNative {
 
         return Value(CheckCollisionBoxes(playerBox, cubeBox));
     }
+
+    Value native_load_render_texture(std::vector<Value>& args) {
+        int w = (int)args[0].asInt();
+        int h = (int)args[1].asInt();
+        RenderTexture2D* target = new RenderTexture2D(LoadRenderTexture(w, h));
+        return Value(reinterpret_cast<int64_t>(target));
+    }
+
+    Value native_begin_texture_mode(std::vector<Value>& args) {
+        RenderTexture2D* target = reinterpret_cast<RenderTexture2D*>(args[0].asInt());
+        BeginTextureMode(*target);
+        return Value();
+    }
+
+    Value native_end_texture_mode(std::vector<Value>& args) {
+        EndTextureMode();
+        return Value();
+    }
+
+    Value native_draw_render_texture(std::vector<Value>& args) {
+        RenderTexture2D* target = reinterpret_cast<RenderTexture2D*>(args[0].asInt());
+        DrawTextureRec(target->texture, (Rectangle){ 0, 0, (float)target->texture.width, (float)-target->texture.height }, (Vector2){ 0, 0 }, WHITE);
+        return Value();
+    }
+
+    Value native_set_shader_value(std::vector<Value>& args) {
+        Shader* shader = reinterpret_cast<Shader*>(args[0].asInt());
+        std::string uniformName = args[1].asString();
+        float value = (float)args[2].asFloat();
+        int loc = GetShaderLocation(*shader, uniformName.c_str());
+        SetShaderValue(*shader, loc, &value, SHADER_UNIFORM_FLOAT);
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -468,6 +501,11 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_shader_camera")] = Value(VGLibNative::native_set_shader_camera);
     vglib[pool.intern("check_collision")] = Value(VGLibNative::native_check_collision);
     vglib[pool.intern("get_pos")] = Value(VGLibNative::native_get_camera_pos);
+    vglib[pool.intern("load_render_texture")] = Value(VGLibNative::native_load_render_texture);
+    vglib[pool.intern("begin_texture_mode")]  = Value(VGLibNative::native_begin_texture_mode);
+    vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);
+    vglib[pool.intern("draw_render_texture")] = Value(VGLibNative::native_draw_render_texture);
+    vglib[pool.intern("set_shader_value")]    = Value(VGLibNative::native_set_shader_value);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
