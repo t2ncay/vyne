@@ -63,10 +63,16 @@ namespace VGLibNative {
         int h = (int)args[1].asInt();
         std::string title = args[2].asString();
 
-        SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI);
+        unsigned int flags = FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI;
 
+        if (args.size() >= 4) {
+            flags |= (unsigned int)args[3].asInt();
+        }
+
+        SetConfigFlags(flags);
         InitWindow(w, h, title.c_str());
-        SetTargetFPS(60); // standart 60 FPS, gelecekde argument kimi pass edib deyiserik
+        SetTargetFPS(60);
+        
         return Value(true);
     }
 
@@ -149,14 +155,18 @@ namespace VGLibNative {
         camera.fovy = 45.0f;
         camera.projection = CAMERA_PERSPECTIVE;
 
-        UpdateCamera(&camera, CAMERA_ORBITAL);
         return Value(reinterpret_cast<int64_t>(&camera));
     }
 
     Value native_begin_3d_mode(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("begin_3d_mode() requires a camera pointer");
-        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
-        UpdateCamera(camera, CAMERA_ORBITAL); // Kameranı fırlada bilək (orbit mode)
+
+        int64_t ptr_val = args[0].asInt();
+        Camera3D* camera = reinterpret_cast<Camera3D*>(ptr_val);
+        
+        // hələlik sabit qalsın deyə bunu rəyə alırıq
+        // UpdateCamera(camera, CAMERA_ORBITAL); 
+        
         BeginMode3D(*camera);
         return Value();
     }
@@ -355,4 +365,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("CYAN")]    = Value((int64_t)0x00AAFFFF).setReadOnly();
     vglib[pool.intern("MAGENTA")] = Value((int64_t)0xFF00FFFF).setReadOnly();
     vglib[pool.intern("PURPLE")]  = Value((int64_t)0x800080FF).setReadOnly();
+
+    // video props
+    vglib[pool.intern("FULLSCREEN")] = Value(2).setReadOnly(); // FLAG_FULLSCREEN_WINDOW = 0x00000002
+    vglib[pool.intern("VSYNC")]      = Value(64).setReadOnly(); // FLAG_VSYNC_HINT = 0x00000040
 }
