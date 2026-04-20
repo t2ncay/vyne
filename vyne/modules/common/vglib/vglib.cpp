@@ -52,6 +52,24 @@ void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float hei
     rlSetTexture(0);
 }
 
+void DrawPlaneTexture(Texture2D texture, Vector3 centerPos, Vector2 size, Color color) {
+    float tileX = size.x / 2.0f; 
+    float tileY = size.y / 2.0f;
+
+    rlCheckRenderBatchLimit(4);
+    rlSetTexture(texture.id);
+    rlBegin(RL_QUADS);
+        rlColor4ub(color.r, color.g, color.b, color.a);
+        rlNormal3f(0.0f, 1.0f, 0.0f);
+
+        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(centerPos.x - size.x/2, centerPos.y, centerPos.z - size.y/2);
+        rlTexCoord2f(0.0f, tileY); rlVertex3f(centerPos.x - size.x/2, centerPos.y, centerPos.z + size.y/2);
+        rlTexCoord2f(tileX, tileY); rlVertex3f(centerPos.x + size.x/2, centerPos.y, centerPos.z + size.y/2);
+        rlTexCoord2f(tileX, 0.0f); rlVertex3f(centerPos.x + size.x/2, centerPos.y, centerPos.z - size.y/2);
+    rlEnd();
+    rlSetTexture(0);
+}
+
 /**
  * VGLib Native Method Implementations
  */
@@ -416,11 +434,18 @@ namespace VGLibNative {
     }
 
     Value native_load_shader(std::vector<Value>& args) {
-        if (args.empty()) throw std::runtime_error("load_shader() requires a file path");
-        std::string path = args[0].asString();
-        
-        Shader* shader = new Shader(LoadShader(0, path.c_str()));
-        return Value(reinterpret_cast<int64_t>(shader));
+        if (args.empty()) throw std::runtime_error("load_shader() requires at least one path");
+
+        if (args.size() == 2) {
+            std::string vsPath = args[0].asString();
+            std::string fsPath = args[1].asString();
+            Shader* shader = new Shader(LoadShader(vsPath.c_str(), fsPath.c_str()));
+            return Value(reinterpret_cast<int64_t>(shader));
+        } else {
+            std::string fsPath = args[0].asString();
+            Shader* shader = new Shader(LoadShader(0, fsPath.c_str()));
+            return Value(reinterpret_cast<int64_t>(shader));
+        }
     }
 
     Value native_begin_shader(std::vector<Value>& args) {
@@ -540,6 +565,15 @@ namespace VGLibNative {
         
         return Value();
     }
+
+    Value native_draw_plane_texture(std::vector<Value>& args) {
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[0].asInt());
+        Vector3 pos = { (float)args[1].asFloat(), (float)args[2].asFloat(), (float)args[3].asFloat() };
+        Vector2 size = { (float)args[4].asFloat(), (float)args[5].asFloat() };
+        
+        DrawPlaneTexture(*tex, pos, size, WHITE);
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -596,6 +630,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_shader_value")]    = Value(VGLibNative::native_set_shader_value);
     vglib[pool.intern("load_texture")]  = Value(VGLibNative::native_load_texture);
     vglib[pool.intern("cube_texture")]  = Value(VGLibNative::native_draw_cube_texture);
+    vglib[pool.intern("plane_texture")] = Value(VGLibNative::native_draw_plane_texture);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();

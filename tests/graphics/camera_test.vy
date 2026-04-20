@@ -8,9 +8,10 @@ vglib.set_pos(camera, 0.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
-fog_shader = vglib.load_shader("tests/graphics/shaders/fog.fs");
+fog_shader = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
 vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
 building_tex = vglib.load_texture("tests/assets/building.jpg");
+ground_tex = vglib.load_texture("tests/assets/asphalt.jpg");
 
 screen_target = vglib.load_render_texture(1920, 1080);
 
@@ -133,7 +134,7 @@ while (vglib.running()) {
         vglib.begin3d(camera);
             vglib.set_shader_camera(fog_shader, camera);
             vglib.begin_shader(fog_shader);
-                vglib.grid(100, 1.0);
+                vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
                 through w :: walls -> loop {
                     vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
