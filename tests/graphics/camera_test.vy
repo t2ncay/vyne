@@ -59,7 +59,7 @@ while (vglib.running()) {
         
         vglib.begin3d(camera);
             vglib.grid(50, 1.0);
-            vglib.cube(0.0, 1.0, 5.0, 2.0, 0.0, vglib.CYAN);
+            vglib.cube(0.0, 2.5, 5.0, 5.0, 0.0, vglib.CYAN);
         vglib.end3d();
 
         vglib.text("VYNE PRO ENGINE v0.1", 20, 20, 20, vglib.CYAN);
