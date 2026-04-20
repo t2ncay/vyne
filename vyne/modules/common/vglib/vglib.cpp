@@ -574,6 +574,16 @@ namespace VGLibNative {
         DrawPlaneTexture(*tex, pos, size, WHITE);
         return Value();
     }
+
+    Value native_get_mouse_pos(std::vector<Value>& args) {
+        Vector2 m = GetMousePosition();
+        return Value(std::vector<Value>{ Value(m.x), Value(m.y) });
+    }
+
+    Value native_get_mouse_delta(std::vector<Value>& args) {
+        Vector2 d = GetMouseDelta();
+        return Value(std::vector<Value>{ Value(d.x), Value(d.y) });
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -631,6 +641,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("load_texture")]  = Value(VGLibNative::native_load_texture);
     vglib[pool.intern("cube_texture")]  = Value(VGLibNative::native_draw_cube_texture);
     vglib[pool.intern("plane_texture")] = Value(VGLibNative::native_draw_plane_texture);
+    vglib[pool.intern("mouse_pos")] = Value(VGLibNative::native_get_mouse_pos);
+    vglib[pool.intern("mouse_delta")] = Value(VGLibNative::native_get_mouse_delta);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
