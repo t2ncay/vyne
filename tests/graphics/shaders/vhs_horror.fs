@@ -13,7 +13,7 @@ float noise(vec2 p) {
 void main() {
     vec2 uv = fragTexCoord;
     
-    float amount = 0.005 * sin(time * 2.0);
+    float amount = 0.003 * sin(time * 2.0);
     float r = texture(texture0, uv + vec2(amount, 0.0)).r;
     float g = texture(texture0, uv).g;
     float b = texture(texture0, uv - vec2(amount, 0.0)).b;

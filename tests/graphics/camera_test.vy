@@ -2,23 +2,22 @@ ruleset { dynamic_casting };
 module vglib;
 module vaudio;
 
-vglib.init(1920, 1080, 100, "Vyne Pro - Dual Shader System", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 100, "Vyne Pro - VHS Horror Stack", vglib.FULLSCREEN);
 camera = vglib.camera();
 vglib.set_pos(camera, 0.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
-# shaders
+# shaders - CHROMA SİLİNDİ
 fog_shader = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
 vhs_shader = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
-chroma_shader = vglib.load_shader("tests/graphics/shaders/chromatic.fs"); # Yeni şeyder
 
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex = vglib.load_texture("tests/assets/asphalt.jpg");
 
+# Artıq tək render target kifayətdir (screen -> vhs -> screen)
 screen_target = vglib.load_render_texture(1920, 1080);
-post_target   = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
@@ -38,7 +37,7 @@ walls = [
     [35.0,  8.0, 40.0, 16.0],
     [45.0,  5.0, 30.0, 10.0],
 
-    [0.0,  25.0, 90.0, 50.0],
+    [0.0,   25.0, 90.0, 50.0],
     
     [-25.0, 2.5, 20.0, 5.0],
     [20.0,  2.5, 10.0, 5.0],
@@ -70,6 +69,7 @@ while (vglib.running()) {
     run_time = run_time + 0.016;
     vglib.rotate_view(camera, 0.15);
 
+    # --- PHYSICS & COLLISION LOGIC (TOXUNULMADI) ---
     if (vglib.key_down(vglib.LEFT_SHIFT)) {
         current_speed = speed / 4.0;
         target_h = crouch_height;
@@ -147,24 +147,20 @@ while (vglib.running()) {
         vglib.end3d();
     vglib.end_texture_mode();
 
-    vglib.begin_texture_mode(post_target);
+    vglib.begin();
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
-    vglib.end_texture_mode();
 
-    vglib.begin();
-        vglib.set_shader_value(chroma_shader, "time", run_time);
-        vglib.begin_shader(chroma_shader);
-            vglib.draw_render_texture(post_target);
-        vglib.end_shader();
-
-        # UI (Shaderlərdən təsirlənməsin deyə ən sonda)
-        vglib.text("POST-STACK: VHS + CHROMA", 40, 40, 25, vglib.RED);
+        # UI
+        vglib.text("POST-PROCESS: VHS ACTIVE", 40, 40, 25, vglib.RED);
+        vglib.text("REC", 1800, 50, 30, vglib.RED);
+        
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
 }
 
+vaudio.close_audio();
 vglib.close();
