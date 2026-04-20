@@ -3,7 +3,7 @@ ruleset { dynamic_casting };
 module vglib;
 
 BG = vglib.rgba(20, 20, 25, 255);
-CUBE_COLOR = vglib.rgba(0, 255, 200, 255);
+CUBE_COLOR = vglib.rgba(0, 150, 200, 255);
 
 vglib.init(1920, 1080, "Vyne Ultra - Fullscreen Mode", vglib.FULLSCREEN);
 camera = vglib.camera();
@@ -23,7 +23,7 @@ while (vglib.running()) {
     vglib.clear(BG);
     
     vglib.begin3d(camera);
-        vglib.grid(20, 1.0);
+        vglib.grid(50, 1.0);
 
         vglib.cube(posX, 1.0, posZ, 2.0, rotation, CUBE_COLOR);
 
@@ -34,7 +34,7 @@ while (vglib.running()) {
     
     vglib.text("Use WASD to Move, SPACE to spawn Ghost Cube", 20, 20, 20, vglib.WHITE);
     
-    rotation = rotation + 1.0;
+    #rotation = rotation + 1.0;
     vglib.end();
 }
 

@@ -76,6 +76,18 @@ namespace VGLibNative {
         return Value(true);
     }
 
+    Value native_update_camera(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("update_camera() requires camera_ptr and mode");
+        
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        int mode = (int)args[1].asInt();
+
+        if (camera) {
+            UpdateCamera(camera, mode);
+        }
+        return Value();
+    }
+
     Value native_is_running(std::vector<Value>& args) {
         return Value(!WindowShouldClose());
     }
@@ -193,6 +205,12 @@ namespace VGLibNative {
         return Value(IsKeyPressed(key));
     }
 
+    Value native_is_mouse_button_down(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        int button = (int)args[0].asInt();
+        return Value(IsMouseButtonDown(button));
+    }
+
     Value native_rgba(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("rgba() requires 4 arguments: r, g, b, a");
 
@@ -297,6 +315,16 @@ namespace VGLibNative {
         CloseAudioDevice();
         return Value();
     }
+
+    Value native_disable_cursor(std::vector<Value>& args) {
+        DisableCursor();
+        return Value();
+    }
+
+    Value native_enable_cursor(std::vector<Value>& args) {
+        EnableCursor();
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -324,6 +352,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("end3d")]      = Value(VGLibNative::native_end_3d_mode);
     vglib[pool.intern("key_down")]   = Value(VGLibNative::native_is_key_down);
     vglib[pool.intern("key_pressed")] = Value(VGLibNative::native_is_key_pressed);
+    vglib[pool.intern("mouse_down")]  = Value(VGLibNative::native_is_mouse_button_down);
     vglib[pool.intern("rgba")]        = Value(VGLibNative::native_rgba);
     vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
@@ -335,6 +364,9 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("close_audio")] = Value(VGLibNative::native_close_audio);
     vglib[pool.intern("volume")]      = Value(VGLibNative::native_set_master_volume);
     vglib[pool.intern("sound_volume")] = Value(VGLibNative::native_set_sound_volume);
+    vglib[pool.intern("update_camera")] = Value(VGLibNative::native_update_camera);
+    vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
+    vglib[pool.intern("enable_cursor")]  = Value(VGLibNative::native_enable_cursor);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
@@ -349,6 +381,10 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("A")] = Value(65).setReadOnly();
     vglib[pool.intern("S")] = Value(83).setReadOnly();
     vglib[pool.intern("D")] = Value(68).setReadOnly();
+
+    // mouse btns
+    vglib[pool.intern("MOUSE_LEFT")]  = Value(0).setReadOnly();
+    vglib[pool.intern("MOUSE_RIGHT")] = Value(1).setReadOnly();
 
     // arrows
     vglib[pool.intern("UP")]    = Value(265).setReadOnly();
@@ -367,6 +403,10 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("PURPLE")]  = Value((int64_t)0x800080FF).setReadOnly();
 
     // video props
-    vglib[pool.intern("FULLSCREEN")] = Value(2).setReadOnly(); // FLAG_FULLSCREEN_WINDOW = 0x00000002
-    vglib[pool.intern("VSYNC")]      = Value(64).setReadOnly(); // FLAG_VSYNC_HINT = 0x00000040
+    vglib[pool.intern("FULLSCREEN")]      = Value(2).setReadOnly(); // FLAG_FULLSCREEN_WINDOW = 0x00000002
+    vglib[pool.intern("VSYNC")]           = Value(64).setReadOnly(); // FLAG_VSYNC_HINT = 0x00000040
+    vglib[pool.intern("CAMERA_FREE")]     = Value(0).setReadOnly();
+    vglib[pool.intern("CAMERA_ORBITAL")]  = Value(2).setReadOnly();
+    vglib[pool.intern("CAMERA_FIRST_P")]  = Value(3).setReadOnly();
+    vglib[pool.intern("CAMERA_THIRD_P")]  = Value(4).setReadOnly();
 }
