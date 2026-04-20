@@ -15,7 +15,6 @@ speed = 0.15;
 rotation = 0.0;
 
 while (vglib.running()) {
-    vaudio.play_sound(ambiance);
     if (vglib.key_down(87)) { posZ = posZ - speed; }
     if (vglib.key_down(83)) { posZ = posZ + speed; }
     if (vglib.key_down(65)) { posX = posX - speed; }
@@ -39,6 +38,4 @@ while (vglib.running()) {
     #rotation = rotation + 1.0;
     vglib.end();
 }
-
-vaudio.close_audio();
 vglib.close();
