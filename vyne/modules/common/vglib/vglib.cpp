@@ -687,6 +687,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("CYAN")]    = Value((int64_t)0x00AAFFFF).setReadOnly();
     vglib[pool.intern("MAGENTA")] = Value((int64_t)0xFF00FFFF).setReadOnly();
     vglib[pool.intern("PURPLE")]  = Value((int64_t)0x800080FF).setReadOnly();
+    vglib[pool.intern("GRAY")] = Value((int64_t)0x808080FF).setReadOnly();
 
     // video props
     vglib[pool.intern("FULLSCREEN")]      = Value(2).setReadOnly(); // FLAG_FULLSCREEN_WINDOW = 0x00000002
