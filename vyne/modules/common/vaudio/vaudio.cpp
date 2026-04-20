@@ -7,23 +7,11 @@
 float g_drive = 0.5f;
 int   g_mode = 0;
 
-// Saturation Callback - Stereo dəstəkli
 void AudioProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
     for (unsigned int i = 0; i < frames * 2; i++) {
-        float x = samples[i];
-        float drive_mult = 1.0f + (g_drive * 5.0f);
-        float saturated;
-
-        if (g_mode == 0) { // SOFT TUBE (Tanh)
-            saturated = std::tanh(x * drive_mult);
-        } else { // HARD CLIP
-            float threshold = 1.0f - (g_drive * 0.8f);
-            saturated = (x > threshold) ? threshold : (x < -threshold ? -threshold : x);
-        }
-
-        if (std::isnan(saturated) || std::isinf(saturated)) samples[i] = 0.0f;
-        else samples[i] = saturated;
+        
+        samples[i] *= 1.0f; 
     }
 }
 
