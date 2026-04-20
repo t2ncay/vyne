@@ -325,6 +325,20 @@ namespace VGLibNative {
         EnableCursor();
         return Value();
     }
+
+    Value native_set_camera_height(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_camera_height() requires camera_ptr and height");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float newHeight = (float)args[1].asFloat();
+
+        if (camera) {
+            float diffY = camera->target.y - camera->position.y;
+            camera->position.y = newHeight;
+            camera->target.y = camera->position.y + diffY;
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -367,14 +381,16 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("update_camera")] = Value(VGLibNative::native_update_camera);
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
     vglib[pool.intern("enable_cursor")]  = Value(VGLibNative::native_enable_cursor);
+    vglib[pool.intern("set_camera_height")] = Value(VGLibNative::native_set_camera_height);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
 
     // keyboard codes important
-    vglib[pool.intern("SPACE")]  = Value(32).setReadOnly();
-    vglib[pool.intern("ENTER")]  = Value(257).setReadOnly();
-    vglib[pool.intern("ESCAPE")] = Value(256).setReadOnly();
+    vglib[pool.intern("SPACE")]      = Value(32).setReadOnly();
+    vglib[pool.intern("ENTER")]      = Value(257).setReadOnly();
+    vglib[pool.intern("ESCAPE")]     = Value(256).setReadOnly();
+    vglib[pool.intern("LEFT_SHIFT")] = Value(340).setReadOnly();
     
     // wasd
     vglib[pool.intern("W")] = Value(87).setReadOnly();
