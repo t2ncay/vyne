@@ -79,7 +79,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         
         auto* varNode = static_cast<VariableNode*>(rhs.get());
         Value* sourcePtr = env.getInternalPointer(targetGroupId, varNode->getNameId());
-        env.markUsed(varNode->getNameId()); // İstifadə olunduğunu qeyd edirik
+        env.markUsed(varNode->getNameId());
         
         if (!sourcePtr) throw std::runtime_error("Reference Error: Target variable '" + varNode->getOriginalName() + "' not found.");
 
@@ -87,7 +87,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         if (isConstant) refValue.setReadOnly();
         
         table[identifierId] = refValue;
-        return refValue; // Tip yoxlamasına girmədən buradan çıxırıq
+        return refValue;
     }
 
     Value val = rhs->evaluate(env, currentGroup);
@@ -116,7 +116,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
             throw std::runtime_error("Type Error: Reference target mismatch for '" + originalName + "'");
         }
 
-        *targetPtr = val; // Orijinal dəyişəni yeniləyirik
+        *targetPtr = val;
         return *targetPtr;
     }
 
