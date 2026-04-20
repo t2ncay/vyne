@@ -70,6 +70,10 @@ void DrawPlaneTexture(Texture2D texture, Vector3 centerPos, Vector2 size, Color 
     rlSetTexture(0);
 }
 
+void DrawBillboardVyne(Camera3D camera, Texture2D texture, Vector3 position, float size, Color color) {
+    DrawBillboard(camera, texture, position, size, color);
+}
+
 /**
  * VGLib Native Method Implementations
  */
@@ -594,6 +598,24 @@ namespace VGLibNative {
         Vector2 d = GetMouseDelta();
         return Value(std::vector<Value>{ Value(d.x), Value(d.y) });
     }
+
+    Value native_draw_billboard(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("draw_billboard() requires camera_ptr, tex_ptr, pos_list, size");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
+        
+        std::vector<Value> pList = args[2].asList();
+        Vector3 pos = { (float)pList[0].asFloat(), (float)pList[1].asFloat(), (float)pList[2].asFloat() };
+        
+        float size = (float)args[3].asFloat();
+        Color color = (args.size() > 4) ? GetColor((uint32_t)args[4].asInt()) : WHITE;
+
+        if (camera && tex) {
+            DrawBillboard(*camera, *tex, pos, size, color);
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -653,6 +675,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("plane_texture")] = Value(VGLibNative::native_draw_plane_texture);
     vglib[pool.intern("mouse_pos")] = Value(VGLibNative::native_get_mouse_pos);
     vglib[pool.intern("mouse_delta")] = Value(VGLibNative::native_get_mouse_delta);
+    vglib[pool.intern("billboard")] = Value(VGLibNative::native_draw_billboard);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
