@@ -12,7 +12,7 @@ uniform vec3 cameraPos;
 void main() {
     float dist = distance(fragPosition, cameraPos);
     
-    float fogDensity = 0.045; 
+    float fogDensity = 0.03; 
     
     vec4 fogColor = vec4(0.5, 0.5, 0.55, 1.0); 
     

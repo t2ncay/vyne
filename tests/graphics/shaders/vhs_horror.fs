@@ -20,7 +20,7 @@ void main() {
     
     vec3 color = vec3(r, g, b);
     
-    float scanline = sin(uv.y * 800.0) * 0.04;
+    float scanline = sin(uv.y * 800.0) * 0.02;
     color -= scanline;
     
     float n = (noise(uv + time) - 0.5) * 0.1;
