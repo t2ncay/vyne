@@ -11,15 +11,15 @@ vglib.disable_cursor();
 # --- SHADERS ---
 fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
 vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
-bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs"); # YENİ
+bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
 
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
-ground_tex   = vglib.load_texture("tests/assets/asphalt.jpg");
+ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
-bodycam_target = vglib.load_render_texture(1920, 1080); # YENİ (VHS bura yazılacaq)
+bodycam_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
@@ -65,20 +65,37 @@ while (vglib.running()) {
     run_time = run_time + 0.016;
     vglib.rotate_view(camera, 0.15);
 
-    # --- PHYSICS & COLLISION LOGIC (TOXUNULMADI) ---
+    current_speed = speed;
+
+    cam_pos = vglib.get_pos(camera);
+    temp_ground_y = 0.0;
+
+    through w :: walls -> loop {
+        half  = w[3] / 2.0;
+        min_x = w[0] - half;
+        max_x = w[0] + half;
+        min_z = w[2] - half;
+        max_z = w[2] + half;
+
+        if (cam_pos[0] > min_x && cam_pos[0] < max_x && cam_pos[2] > min_z && cam_pos[2] < max_z) {
+            top_y = w[1] + half;
+            
+            if (cam_pos[1] >= top_y - 0.5) {
+                temp_ground_y = top_y;
+            }
+        }
+    };
+
     if (vglib.key_down(vglib.LEFT_SHIFT)) {
-        current_speed = speed / 4.0;
-        target_h = crouch_height;
+        target_h = temp_ground_y + crouch_height;
+        current_speed = 0.05;
     } else {
-        current_speed = speed;
-        target_h = normal_height;
+        target_h = temp_ground_y + normal_height;
     }
 
-    if (vglib.key_down(vglib.SPACE)) {
-        if (is_grounded) {
-            velocity_y = jump_force;
-            is_grounded = false;
-        }
+    if (vglib.key_down(vglib.SPACE) && is_grounded) {
+        velocity_y = jump_force;
+        is_grounded = false;
     }
 
     if (is_grounded == false) {
@@ -91,11 +108,14 @@ while (vglib.running()) {
             is_grounded = true;
         }
     } else {
-        current_y = target_h;
+        if (current_y > target_h + 0.1) {
+            is_grounded = false;
+        } else {
+            current_y = target_h;
+        }
     }
 
     vglib.set_camera_height(camera, current_y);
-
     if (vglib.key_down(vglib.W)) { 
         vglib.move_forward(camera, current_speed); 
         through wall :: walls -> loop {

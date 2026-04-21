@@ -527,7 +527,7 @@ namespace VGLibNative {
         float cSize = (float)args[3].asFloat();
 
         BoundingBox playerBox = { 
-            (Vector3){ pPos.x - pSize.x/2, pPos.y - pSize.y/2, pPos.z - pSize.z/2 },
+            (Vector3){ pPos.x - pSize.x/2, pPos.y - pSize.y/2 + 0.2f, pPos.z - pSize.z/2 },
             (Vector3){ pPos.x + pSize.x/2, pPos.y + pSize.y/2, pPos.z + pSize.z/2 }
         };
 
