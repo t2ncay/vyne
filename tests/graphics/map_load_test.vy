@@ -1,0 +1,170 @@
+ruleset { dynamic_casting };
+module vglib;
+module vaudio;
+
+vglib.init(1920, 1080, 100, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN);
+camera = vglib.camera();
+vglib.set_pos(camera, 0.0, 1.8, 0.0);
+
+vglib.disable_cursor();
+
+# --- SHADERS ---
+fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
+vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
+bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
+
+# textures
+building_tex = vglib.load_texture("tests/assets/building.jpg");
+ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
+
+# --- RENDER TARGETS ---
+screen_target  = vglib.load_render_texture(1920, 1080);
+bodycam_target = vglib.load_render_texture(1920, 1080);
+
+player_size = [0.8, 1.8, 0.8];
+walls = vglib.load_map("tau_map.dat");
+
+run_time = 0.0;
+speed = 0.15;
+normal_height = 1.8;
+crouch_height = 0.9;
+current_y = normal_height;
+velocity_y = 0.0;
+gravity = -0.012;
+jump_force = 0.35;
+is_grounded = true;
+
+vaudio.init_audio();
+vaudio.volume(1.0);
+ambiance = vaudio.load_sound("tests/assets/akira.wav");
+vaudio.play_sound(ambiance);
+
+while (vglib.running()) {
+    run_time = run_time + 0.016;
+    vglib.rotate_view(camera, 0.15);
+
+    current_speed = speed;
+
+    cam_pos = vglib.get_pos(camera);
+    temp_ground_y = 0.0;
+
+    through w :: walls -> loop {
+        half  = w[3] / 2.0;
+        min_x = w[0] - half;
+        max_x = w[0] + half;
+        min_z = w[2] - half;
+        max_z = w[2] + half;
+
+        if (cam_pos[0] > min_x && cam_pos[0] < max_x && cam_pos[2] > min_z && cam_pos[2] < max_z) {
+            top_y = w[1] + half;
+            
+            if (cam_pos[1] >= top_y - 0.5) {
+                temp_ground_y = top_y;
+            }
+        }
+    };
+
+    if (vglib.key_down(vglib.LEFT_SHIFT)) {
+        target_h = temp_ground_y + crouch_height;
+        current_speed = 0.05;
+    } else {
+        target_h = temp_ground_y + normal_height;
+    }
+
+    if (vglib.key_down(vglib.SPACE) && is_grounded) {
+        velocity_y = jump_force;
+        is_grounded = false;
+    }
+
+    if (is_grounded == false) {
+        velocity_y = velocity_y + gravity;
+        current_y = current_y + velocity_y;
+
+        if (current_y <= target_h) {
+            current_y = target_h;
+            velocity_y = 0.0;
+            is_grounded = true;
+        }
+    } else {
+        if (current_y > target_h + 0.1) {
+            is_grounded = false;
+        } else {
+            current_y = target_h;
+        }
+    }
+
+    vglib.set_camera_height(camera, current_y);
+    if (vglib.key_down(vglib.W)) { 
+        vglib.move_forward(camera, current_speed); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_forward(camera, -current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.S)) { 
+        vglib.move_forward(camera, current_speed * -1.0); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_forward(camera, current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.A)) { 
+        vglib.move_right(camera, current_speed * -1.0); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_right(camera, current_speed);
+            }
+        };
+    }
+    if (vglib.key_down(vglib.D)) { 
+        vglib.move_right(camera, current_speed); 
+        through wall :: walls -> loop {
+            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
+                vglib.move_right(camera, -current_speed);
+            }
+        };
+    }
+
+    vglib.begin_texture_mode(screen_target);
+        vglib.clear(vglib.rgba(128, 128, 140, 255));
+        vglib.begin3d(camera);
+            vglib.set_shader_camera(fog_shader, camera);
+            vglib.begin_shader(fog_shader);
+                vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
+                through w :: walls -> loop {
+                    vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
+                };
+            vglib.end_shader();
+        vglib.end3d();
+    vglib.end_texture_mode();
+
+    # PASS 2: VHS Effect -> Bodycam Target
+    vglib.begin_texture_mode(bodycam_target);
+        vglib.clear(vglib.BLACK);
+        vglib.set_shader_value(vhs_shader, "time", run_time);
+        vglib.begin_shader(vhs_shader);
+            vglib.draw_render_texture(screen_target);
+        vglib.end_shader();
+    vglib.end_texture_mode();
+
+    # PASS 3: Final Bodycam Lens -> Screen
+    vglib.begin();
+        vglib.clear(vglib.BLACK);
+        vglib.set_shader_value(bodycam_shader, "time", run_time);
+        vglib.begin_shader(bodycam_shader);
+            vglib.draw_render_texture(bodycam_target);
+        vglib.end_shader();
+
+        # UI Overlay
+        vglib.text("AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
+        vglib.text("2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
+        vglib.text("REC", 1800, 60, 25, vglib.RED);
+        
+        if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
+    vglib.end();
+}
+
+vaudio.close_audio();
+vglib.close();

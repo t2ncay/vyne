@@ -22,3 +22,4 @@ editors/vscode/lsp/*.vsix
 vynec
 tests/assets/*
 *.csv
+*.dat

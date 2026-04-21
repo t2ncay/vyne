@@ -651,6 +651,32 @@ namespace VGLibNative {
         }
         return Value();
     }
+
+    Value native_load_map(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_map() requires a path");
+        std::string path = args[0].asString();
+        
+        std::ifstream file(path);
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        
+        std::vector<Value> final_map;
+        std::stringstream ss(content);
+        std::string segment;
+
+        while (std::getline(ss, segment, ';')) {
+            if (segment.empty()) continue;
+            std::stringstream obj_ss(segment);
+            std::string val;
+            std::vector<Value> obj_data;
+            
+            while (std::getline(obj_ss, val, ',')) {
+                obj_data.emplace_back(std::stod(val));
+            }
+            final_map.emplace_back(obj_data);
+        }
+        
+        return Value(final_map);
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -713,6 +739,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("mouse_pos")] = Value(VGLibNative::native_get_mouse_pos);
     vglib[pool.intern("mouse_delta")] = Value(VGLibNative::native_get_mouse_delta);
     vglib[pool.intern("billboard")] = Value(VGLibNative::native_draw_billboard);
+    vglib[pool.intern("load_map")]  = Value(VGLibNative::native_load_map);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();

@@ -42,10 +42,11 @@ while (vglib.running()) {
     if (vglib.key_pressed(vglib.THREE)) { current_slot = 2; }
     if (vglib.key_pressed(vglib.FOUR))  { current_slot = 3; }
 
-    if (vglib.key_pressed(vglib.I)) { cursor_pos[2] = cursor_pos[2] + grid_size; }
-    if (vglib.key_pressed(vglib.K)) { cursor_pos[2] = cursor_pos[2] - grid_size; }
-    if (vglib.key_pressed(vglib.J)) { cursor_pos[0] = cursor_pos[0] - grid_size; }
-    if (vglib.key_pressed(vglib.L)) { cursor_pos[0] = cursor_pos[0] + grid_size; }
+    if (vglib.key_pressed(vglib.UP))    { cursor_pos[2] = cursor_pos[2] + grid_size; }
+    if (vglib.key_pressed(vglib.DOWN))  { cursor_pos[2] = cursor_pos[2] - grid_size; }
+    if (vglib.key_pressed(vglib.LEFT))  { cursor_pos[0] = cursor_pos[0] - grid_size; }
+    if (vglib.key_pressed(vglib.RIGHT)) { cursor_pos[0] = cursor_pos[0] + grid_size; }
+    
     if (vglib.key_pressed(vglib.U)) { cursor_pos[1] = cursor_pos[1] + grid_size; }
     if (vglib.key_pressed(vglib.O)) { cursor_pos[1] = cursor_pos[1] - grid_size; }
 
@@ -62,10 +63,9 @@ while (vglib.running()) {
         }
     }
 
-    if (vglib.key_pressed(vglib.S)) {
+    if (vglib.key_pressed(vglib.J)) {
         output_str = "";
         through obj :: map_data -> loop {
-            # Koordinatları stringə yığırıq: x,y,z,size,tex_id;
             line = string(obj[0]) + "," + string(obj[1]) + "," + string(obj[2]) + "," + string(obj[3]) + "," + string(obj[4]) + ";";
             output_str = output_str + line;
         };
