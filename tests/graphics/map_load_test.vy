@@ -14,7 +14,7 @@ vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
 bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
 
 # textures
-building_tex = vglib.load_texture("tests/assets/building.jpg");
+building_tex = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 
 # --- RENDER TARGETS ---

@@ -1,10 +1,11 @@
 ruleset { dynamic_casting };
 module vglib;
 module vaudio;
+module vmath;
 
 vglib.init(1920, 1080, 100, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN);
 camera = vglib.camera();
-vglib.set_pos(camera, 0.0, 1.8, 0.0);
+vglib.set_pos(camera, 30.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
@@ -48,12 +49,14 @@ walls = [
 
 run_time = 0.0;
 speed = 0.15;
+sprint_multiplier = 2.5;
 normal_height = 1.8;
 crouch_height = 0.9;
-current_y = normal_height;
+current_y = 1.8;
 velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
+
 is_grounded = true;
 
 vaudio.init_audio();
@@ -86,11 +89,15 @@ while (vglib.running()) {
         }
     };
 
-    if (vglib.key_down(vglib.LEFT_SHIFT)) {
+    if (vglib.key_down(vglib.LEFT_CTRL)) {
         target_h = temp_ground_y + crouch_height;
         current_speed = 0.05;
     } else {
         target_h = temp_ground_y + normal_height;
+    }
+
+    if (vglib.key_down(vglib.LEFT_SHIFT)) {
+        current_speed = current_speed * sprint_multiplier;
     }
 
     if (vglib.key_down(vglib.SPACE) && is_grounded) {
@@ -108,10 +115,20 @@ while (vglib.running()) {
             is_grounded = true;
         }
     } else {
-        if (current_y > target_h + 0.1) {
-            is_grounded = false;
+        diff = target_h - current_y;
+        
+        if (vmath.abs(diff) > 0.001) {
+            if (diff < 0.0) {
+                current_y = current_y + (diff * 0.1); 
+            } else {
+                current_y = current_y + (diff * 0.2); 
+            }
         } else {
             current_y = target_h;
+        }
+
+        if (current_y > target_h + 0.5) {
+            is_grounded = false;
         }
     }
 

@@ -677,6 +677,41 @@ namespace VGLibNative {
         
         return Value(final_map);
     }
+
+    Value native_get_ray_grid(std::vector<Value>& args) {
+        if (args.size() < 3) throw std::runtime_error("get_ray_grid() requires camera_ptr, distance, and grid_size");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float distance = (float)args[1].asFloat();
+        float grid_size = (float)args[2].asFloat();
+
+        if (camera) {
+            Vector3 forward = {
+                camera->target.x - camera->position.x,
+                camera->target.y - camera->position.y,
+                camera->target.z - camera->position.z
+            };
+
+            float len = sqrt(forward.x * forward.x + forward.y * forward.y + forward.z * forward.z);
+            if (len > 0) {
+                forward.x /= len; forward.y /= len; forward.z /= len;
+            }
+
+            Vector3 hitPoint = {
+                camera->position.x + forward.x * distance,
+                camera->position.y + forward.y * distance,
+                camera->position.z + forward.z * distance
+            };
+
+            float snappedX = roundf(hitPoint.x / grid_size) * grid_size;
+            float snappedY = roundf(hitPoint.y / grid_size) * grid_size;
+            float snappedZ = roundf(hitPoint.z / grid_size) * grid_size;
+
+            std::vector<Value> result = { Value(snappedX), Value(snappedY), Value(snappedZ) };
+            return Value(result);
+        }
+        return Value(std::vector<Value>{Value(0.0), Value(0.0), Value(0.0)});
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -726,6 +761,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("check_collision")] = Value(VGLibNative::native_check_collision);
     vglib[pool.intern("get_pos")] = Value(VGLibNative::native_get_camera_pos);
     vglib[pool.intern("set_pos")] = Value(VGLibNative::native_set_camera_pos);
+    vglib[pool.intern("get_ray_grid")] = Value(VGLibNative::native_get_ray_grid);
     vglib[pool.intern("load_render_texture")] = Value(VGLibNative::native_load_render_texture);
     vglib[pool.intern("begin_texture_mode")]  = Value(VGLibNative::native_begin_texture_mode);
     vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);
@@ -766,6 +802,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("ENTER")]      = Value(257).setReadOnly();
     vglib[pool.intern("ESCAPE")]     = Value(256).setReadOnly();
     vglib[pool.intern("LEFT_SHIFT")] = Value(340).setReadOnly();
+    vglib[pool.intern("LEFT_CTRL")]  = Value(341).setReadOnly();
     
     // wasd
     vglib[pool.intern("W")] = Value(87).setReadOnly();

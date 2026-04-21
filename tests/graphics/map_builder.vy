@@ -25,7 +25,7 @@ run_time = 0.0;
 current_slot = 0;
 grid_size = 2.0;
 cursor_pos = [0.0, 1.0, 0.0];
-map_data = [];
+map_data = vglib.load_map("tau_map.dat");
 message = "EDITOR READY - TAU MAP DESIGN";
 
 map_file = "tau_map.dat";
@@ -36,24 +36,18 @@ if (vfs.exists(map_file)) {
 
 while (vglib.running()) {
     run_time = run_time + 0.016;
+
+    cursor_pos = vglib.get_ray_grid(camera, 10.0, grid_size);
     
     if (vglib.key_pressed(vglib.ONE))   { current_slot = 0; }
     if (vglib.key_pressed(vglib.TWO))   { current_slot = 1; }
     if (vglib.key_pressed(vglib.THREE)) { current_slot = 2; }
     if (vglib.key_pressed(vglib.FOUR))  { current_slot = 3; }
-
-    if (vglib.key_pressed(vglib.UP))    { cursor_pos[2] = cursor_pos[2] + grid_size; }
-    if (vglib.key_pressed(vglib.DOWN))  { cursor_pos[2] = cursor_pos[2] - grid_size; }
-    if (vglib.key_pressed(vglib.LEFT))  { cursor_pos[0] = cursor_pos[0] - grid_size; }
-    if (vglib.key_pressed(vglib.RIGHT)) { cursor_pos[0] = cursor_pos[0] + grid_size; }
     
-    if (vglib.key_pressed(vglib.U)) { cursor_pos[1] = cursor_pos[1] + grid_size; }
-    if (vglib.key_pressed(vglib.O)) { cursor_pos[1] = cursor_pos[1] - grid_size; }
-
-    if (vglib.key_pressed(vglib.SPACE)) {
+    if (vglib.key_pressed(vglib.SPACE) || vglib.mouse_down(vglib.MOUSE_LEFT)) {
         new_obj = [cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, current_slot];
         map_data = map_data + [new_obj];
-        message = "OBJECT PLACED AT GRID";
+        message = "OBJECT PLACED AT " + string(cursor_pos[0]) + "," + string(cursor_pos[2]);
     }
 
     if (vglib.key_pressed(vglib.BACKSPACE)) {
@@ -75,32 +69,45 @@ while (vglib.running()) {
     }
 
     vglib.rotate_view(camera, 0.15);
-    if (vglib.key_down(vglib.W)) { vglib.move_forward(camera, 0.2); }
-    if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, -0.2); }
+    cam_pos = vglib.get_pos(camera);
+    cam_y = cam_pos[1];
+
+    if (vglib.key_down(vglib.LEFT_SHIFT)) { cam_y = cam_y + 0.5; }
+    if (vglib.key_down(vglib.LEFT_CTRL))  { cam_y = cam_y - 0.5; }
+    
+    fly_speed = 0.4;
+    if (vglib.key_down(vglib.W)) { vglib.move_forward(camera, fly_speed); }
+    if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, -fly_speed); }
+    if (vglib.key_down(vglib.A)) { vglib.move_right(camera, -fly_speed); }
+    if (vglib.key_down(vglib.D)) { vglib.move_right(camera, fly_speed); }
+
+    vglib.set_camera_height(camera, cam_y);
 
     vglib.begin();
-        vglib.clear(vglib.rgba(20, 20, 25, 255));
+        vglib.clear(vglib.rgba(15, 15, 20, 255));
         
         vglib.begin3d(camera);
-            vglib.grid(100, grid_size); # Vizual grid
+            vglib.grid(100, grid_size);
             
             through obj :: map_data -> loop {
                 vglib.cube_texture(tex_slots[obj[4]], obj[0], obj[1], obj[2], obj[3], vglib.WHITE);
             };
             
-            pulse = int64((vmath.sin(run_time * 8.0) * 0.5 + 0.5) * 180.0);
-            vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, vglib.rgba(255, 255, 255, pulse));
+            pulse_val = (vmath.sin(run_time * 10.0) * 0.5 + 0.5);
+            alpha = int64(pulse_val * 200.0 + 55.0);
+            
+            vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, vglib.rgba(255, 255, 255, alpha));
         vglib.end3d();
 
-        # UI
+        cross_alpha = int64(pulse_val * 255.0);
+        vglib.rect(955, 535, 10, 10, vglib.rgba(0, 255, 255, cross_alpha));
+        
         vglib.text("VYNE MAP BUILDER 1.0 | " + map_file, 50, 50, 24, vglib.CYAN);
         vglib.text("SLOT: " + string(current_slot + 1) + " (" + tex_paths[current_slot] + ")", 50, 85, 18, vglib.WHITE);
         vglib.text("OBJS: " + string(map_data.size()), 50, 115, 18, vglib.GRAY);
         vglib.text(message, 50, 1000, 22, vglib.GREEN);
-        
-        # Crosshair
-        vglib.rect(955, 535, 10, 10, vglib.rgba(255, 255, 255, 150));
     vglib.end();
 }
 
 vglib.close();
+
