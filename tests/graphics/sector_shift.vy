@@ -14,9 +14,9 @@ fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graph
 vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
 bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
 
-building_tex = vglib.load_texture("tests/assets/building.jpg");
-ground_tex   = vglib.load_texture("tests/assets/asphalt.jpg");
-stalker_tex  = vglib.load_texture("tests/assets/stalker.png");
+building_tex = vglib.load_texture("tests/assets/wall.jpeg");
+ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
+stalker_tex  = vglib.load_texture("tests/assets/yusif.jpeg");
 
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
@@ -25,10 +25,15 @@ bodycam_target = vglib.load_render_texture(1920, 1080);
 vaudio.init_audio();
 ambiance = vaudio.load_sound("tests/assets/akira.wav");
 radio_log = vaudio.load_sound("tests/assets/radio_log.wav");
+vaudio.sound_volume(ambiance, 0.5);
+vaudio.sound_volume(radio_log, 1.5);
 vaudio.play_sound(ambiance);
 
 # --- GAME STATE ---
 run_time = 0.0;
+event_active = false;
+event_start_time = 0.0;
+event_text = "MIRCEFER OGLANDI";
 game_event = 0;
 fog_density = 0.05;
 base_speed = 0.12;
@@ -54,10 +59,25 @@ walls = walls + [[0.0, 50.0, final_z, 100.0]];
 fade_alpha = 0.0;
 final_triggered = false;
 
+freeze = false;
+
 while (vglib.running()) {
     run_time = run_time + 0.016;
     cam_pos = vglib.get_pos(camera);
     is_moving = false;
+
+    if (event_active) {
+        t = run_time - event_start_time;
+
+        if (t < 3.0) {
+            freeze = true;
+        } else {
+            freeze = false;
+            event_active = false;
+        }
+    } else {
+        freeze = false;
+    }
     
     # Speed & Sprint
     current_speed = base_speed;
@@ -65,8 +85,9 @@ while (vglib.running()) {
 
     dist_to_stalker = vmath.abs(cam_pos[2] - stalker_z);
     glitch_val = 0.0;
-    if (dist_to_stalker < 35.0) {
-        glitch_val = (35.0 - dist_to_stalker) / 12.0; 
+    if (vmath.abs(cam_pos[2] - stalker_z) < 5.0 && event_active == false) {
+        event_active = true;
+        event_start_time = run_time; 
         if (dist_to_stalker < 70.0) { stalker_z = stalker_z + 180.0; }
     }
 
@@ -77,7 +98,8 @@ while (vglib.running()) {
             fade_alpha = fade_alpha + 0.005; 
             
             # AUDIO FADE-OUT: Akira musiqisi tədricən sönür
-            vaudio.sound_volume(ambiance, 1.0 - fade_alpha);
+            vaudio.sound_volume(ambiance, 0.5 - fade_alpha);
+            vaudio.sound_volume(radio_log, 1.5 - fade_alpha);
         }
         # Finalda hərəkəti dondurmaq üçün sürəti öldürürük
         if (fade_alpha > 0.9) { current_speed = 0.0; }
@@ -102,7 +124,7 @@ while (vglib.running()) {
     }
 
     if (game_event == 2) {
-        fog_density = 0.1 + (vmath.sin(run_time * 2.0) * 0.05);
+        fog_density = 0.8 + (vmath.sin(run_time * 5.0) * 0.1);
     }
 
     vglib.rotate_view(camera, 0.15);
@@ -195,6 +217,28 @@ while (vglib.running()) {
             alpha = int64(fade_alpha * 255.0);
             vglib.rect(0, 0, 1920, 1080, vglib.rgba(0, 0, 0, alpha));
             if (fade_alpha >= 0.95) { vglib.text("YOU NEVER EXISTED", 700, 500, 50, vglib.RED); }
+        }
+
+        if (freeze) {
+            glitch = vmath.sin(t * 50.0) * 0.5 + vmath.sin(t * 120.0) * 0.5;
+
+            r = int64((vmath.sin(run_time * 2.0) * 0.5 + 0.5) * 255.0);
+            g = int64((vmath.sin(t * 2.0 + 2.1) * 0.5 + 0.5) * 255.0);
+            b = int64((vmath.sin(t * 2.0 + 4.2) * 0.5 + 0.5) * 255.0);
+
+            a = int64((0.4 + glitch * 0.3) * 255.0);
+
+            vglib.rect(
+                int64(glitch * 20.0),
+                int64(glitch * 20.0),
+                1920,
+                1080,
+                vglib.rgba(r, g, b, a)
+            );
+
+            if (vmath.sin(run_time * 35.0) > 0.0) {
+                vglib.text(event_text, 652, 522, 40, vglib.RED);
+            }
         }
 
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
