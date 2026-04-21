@@ -7,7 +7,7 @@ vglib.init(1000, 600, 60, "Vyne Saturator - Full Mode", 0);
 vaudio.init_audio();
 vaudio.volume(1.0);
 
-# Sound-u yükləyirik (Səndə işləyən metod)
+# Sound-u yükləyirik
 track = vaudio.load_sound("tests/assets/akira.wav");
 vaudio.attach_saturator(track);
 vaudio.play_sound(track);

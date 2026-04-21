@@ -629,6 +629,28 @@ namespace VGLibNative {
         }
         return Value();
     }
+
+    Value native_load_model(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_model() requires a file path");
+        std::string path = args[0].asString();
+        
+        Model* model = new Model(LoadModel(path.c_str()));
+        return Value(reinterpret_cast<int64_t>(model));
+    }
+
+    Value native_draw_model(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("draw_model() requires model_ptr, x, y, z");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        Vector3 pos = { (float)args[1].asFloat(), (float)args[2].asFloat(), (float)args[3].asFloat() };
+        float scale = (args.size() > 4) ? (float)args[4].asFloat() : 1.0f;
+        Color color = (args.size() > 5) ? GetColor((uint32_t)args[5].asInt()) : WHITE;
+
+        if (model) {
+            DrawModel(*model, pos, scale, color);
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -682,6 +704,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("begin_texture_mode")]  = Value(VGLibNative::native_begin_texture_mode);
     vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);
     vglib[pool.intern("draw_render_texture")] = Value(VGLibNative::native_draw_render_texture);
+    vglib[pool.intern("load_model")] = Value(VGLibNative::native_load_model);
+    vglib[pool.intern("draw_model")] = Value(VGLibNative::native_draw_model);
     vglib[pool.intern("set_shader_value")]    = Value(VGLibNative::native_set_shader_value);
     vglib[pool.intern("load_texture")]  = Value(VGLibNative::native_load_texture);
     vglib[pool.intern("cube_texture")]  = Value(VGLibNative::native_draw_cube_texture);
@@ -694,6 +718,23 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
 
     // keyboard codes important
+    // Numbers
+    vglib[pool.intern("ONE")]   = Value(49).setReadOnly();
+    vglib[pool.intern("TWO")]   = Value(50).setReadOnly();
+    vglib[pool.intern("THREE")] = Value(51).setReadOnly();
+    vglib[pool.intern("FOUR")]  = Value(52).setReadOnly();
+    vglib[pool.intern("FIVE")]  = Value(53).setReadOnly();
+
+    // editor movement for map builder (IJKL & UO)
+    vglib[pool.intern("I")] = Value(73).setReadOnly();
+    vglib[pool.intern("K")] = Value(75).setReadOnly();
+    vglib[pool.intern("J")] = Value(74).setReadOnly();
+    vglib[pool.intern("L")] = Value(76).setReadOnly();
+    vglib[pool.intern("U")] = Value(85).setReadOnly();
+    vglib[pool.intern("O")] = Value(79).setReadOnly();
+
+    // Misc
+    vglib[pool.intern("BACKSPACE")]  = Value(259).setReadOnly();
     vglib[pool.intern("SPACE")]      = Value(32).setReadOnly();
     vglib[pool.intern("ENTER")]      = Value(257).setReadOnly();
     vglib[pool.intern("ESCAPE")]     = Value(256).setReadOnly();
