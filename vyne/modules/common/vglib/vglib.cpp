@@ -3,51 +3,64 @@
 
 // helpers
 
-void DrawCubeTexture(Texture2D texture, Vector3 position, float width, float height, float length, Color color) {
+static inline void DrawFace(
+    Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4,
+    Vector3 normal
+) {
+    rlNormal3f(normal.x, normal.y, normal.z);
+
+    rlTexCoord2f(0.0f, 1.0f); rlVertex3f(v1.x, v1.y, v1.z);
+    rlTexCoord2f(1.0f, 1.0f); rlVertex3f(v2.x, v2.y, v2.z);
+    rlTexCoord2f(1.0f, 0.0f); rlVertex3f(v3.x, v3.y, v3.z);
+    rlTexCoord2f(0.0f, 0.0f); rlVertex3f(v4.x, v4.y, v4.z);
+}
+
+void DrawCubeTexture(Texture2D texture, Vector3 position,
+                     float width, float height, float length,
+                     Color color)
+{
+    float hw = width  * 0.5f;
+    float hh = height * 0.5f;
+    float hl = length * 0.5f;
+
     float x = position.x;
     float y = position.y;
     float z = position.z;
 
+    // precompute vertices
+    Vector3 p000 = { x - hw, y - hh, z - hl };
+    Vector3 p001 = { x - hw, y - hh, z + hl };
+    Vector3 p010 = { x - hw, y + hh, z - hl };
+    Vector3 p011 = { x - hw, y + hh, z + hl };
+    Vector3 p100 = { x + hw, y - hh, z - hl };
+    Vector3 p101 = { x + hw, y - hh, z + hl };
+    Vector3 p110 = { x + hw, y + hh, z - hl };
+    Vector3 p111 = { x + hw, y + hh, z + hl };
+
     rlCheckRenderBatchLimit(36);
     rlSetTexture(texture.id);
     rlBegin(RL_QUADS);
-        rlColor4ub(color.r, color.g, color.b, color.a);
 
-        rlNormal3f(0.0f, 0.0f, 1.0f);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
+    rlColor4ub(color.r, color.g, color.b, color.a);
 
-        rlNormal3f(0.0f, 0.0f, -1.0f);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
+    // Front (+Z)
+    DrawFace(p001, p101, p111, p011, { 0, 0, 1 });
 
-        rlNormal3f(0.0f, 1.0f, 0.0f);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
+    // Back (-Z)
+    DrawFace(p100, p000, p010, p110, { 0, 0, -1 });
 
-        rlNormal3f(0.0f, -1.0f, 0.0f);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
+    // Top (+Y)
+    DrawFace(p011, p111, p110, p010, { 0, 1, 0 });
 
-        rlNormal3f(1.0f, 0.0f, 0.0f);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z - length/2);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z - length/2);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x + width/2, y + height/2, z + length/2);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x + width/2, y - height/2, z + length/2);
+    // Bottom (-Y)
+    DrawFace(p000, p100, p101, p001, { 0, -1, 0 });
 
-        rlNormal3f(-1.0f, 0.0f, 0.0f);
-        rlTexCoord2f(0.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z - length/2);
-        rlTexCoord2f(1.0f, 0.0f); rlVertex3f(x - width/2, y - height/2, z + length/2);
-        rlTexCoord2f(1.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z + length/2);
-        rlTexCoord2f(0.0f, 1.0f); rlVertex3f(x - width/2, y + height/2, z - length/2);
+    // Right (+X)
+    DrawFace(p101, p100, p110, p111, { 1, 0, 0 });
+
+    // Left (-X)
+    DrawFace(p000, p001, p011, p010, { -1, 0, 0 });
+
     rlEnd();
     rlSetTexture(0);
 }
