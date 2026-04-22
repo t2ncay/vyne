@@ -34,7 +34,6 @@ Token Parser::lookAhead(int distance) {
     return Token(VTokenType::End, 0, 0, "");
 }
 
-
 Token Parser::consume(VTokenType expected) {
     Token t = peekToken();
     if (t.type == expected) {

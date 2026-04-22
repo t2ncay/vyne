@@ -68,6 +68,11 @@ while (vglib.running()) {
         message = "MAP SAVED TO " + map_file;
     }
 
+    if (vglib.key_pressed(vglib.K)) {
+        vglib.export_obj(map_data, "exported_map.obj");
+        message = "3D MESH EXPORTED SUCCESSFULLY VIA NATIVE CALL";
+    }
+
     vglib.rotate_view(camera, 0.15);
     cam_pos = vglib.get_pos(camera);
     cam_y = cam_pos[1];

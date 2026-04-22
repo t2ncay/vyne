@@ -681,17 +681,19 @@ namespace VGLibNative {
     }
 
     Value native_set_model_texture(std::vector<Value>& args) {
-        if (args.size() < 2) throw std::runtime_error("set_model_texture() requires model_ptr and tex_ptr");
+        if (args.size() < 2) return Value(false);
 
         Model* model = reinterpret_cast<Model*>(args[0].asInt());
         Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
-        
-        int materialIndex = (args.size() >= 3) ? (int)args[2].asInt() : 0;
 
-        if (model && tex && materialIndex < model->materialCount) {
-            model->materials[materialIndex].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
+        if (model != nullptr && tex != nullptr) {
+            if (model->materialCount > 0 && model->meshCount > 0) {
+                model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
+                return Value(true);
+            }
         }
-        return Value();
+        std::cout << "Vyne Warning: Model texture could not be set!" << std::endl;
+        return Value(false);
     }
 
     Value native_draw_model(std::vector<Value>& args) {
@@ -769,6 +771,59 @@ namespace VGLibNative {
         }
         return Value(std::vector<Value>{Value(0.0), Value(0.0), Value(0.0)});
     }
+
+    Value native_export_obj(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("export_obj() requires map_data and filename");
+        
+        std::vector<Value> map_data = args[0].asList();
+        std::string filename = args[1].asString();
+        
+        std::ofstream file(filename, std::ios::out | std::ios::trunc);
+        
+        if (!file.is_open()) throw std::runtime_error("Could not create OBJ file");
+
+        file << "# Vyne Static Map Export\n";
+        file << "o MapMesh\n";
+
+        // UV koordinatları
+        file << "vt 0.0 0.0\n";
+        file << "vt 1.0 0.0\n";
+        file << "vt 1.0 1.0\n";
+        file << "vt 0.0 1.0\n";
+
+        int v_count = 1;
+
+        for (const auto& obj_val : map_data) {
+            std::vector<Value> obj = obj_val.asList();
+            float x = (float)obj[0].asFloat();
+            float y = (float)obj[1].asFloat();
+            float z = (float)obj[2].asFloat();
+            float s = (float)obj[3].asFloat() / 2.0f;
+
+            file << "v " << x-s << " " << y-s << " " << z-s << "\n";
+            file << "v " << x+s << " " << y-s << " " << z-s << "\n";
+            file << "v " << x+s << " " << y+s << " " << z-s << "\n";
+            file << "v " << x-s << " " << y+s << " " << z-s << "\n";
+            file << "v " << x-s << " " << y-s << " " << z+s << "\n";
+            file << "v " << x+s << " " << y-s << " " << z+s << "\n";
+            file << "v " << x+s << " " << y+s << " " << z+s << "\n";
+            file << "v " << x-s << " " << y+s << " " << z+s << "\n";
+
+            int o = v_count;
+            file << "f " << o << "/1 " << o+1 << "/2 " << o+2 << "/3 " << o+3 << "/4\n";
+            file << "f " << o+4 << "/1 " << o+5 << "/2 " << o+6 << "/3 " << o+7 << "/4\n";
+            file << "f " << o << "/1 " << o+1 << "/2 " << o+5 << "/3 " << o+4 << "/4\n";
+            file << "f " << o+2 << "/1 " << o+3 << "/2 " << o+7 << "/3 " << o+6 << "/4\n";
+            file << "f " << o << "/1 " << o+3 << "/2 " << o+7 << "/3 " << o+4 << "/4\n";
+            file << "f " << o+1 << "/1 " << o+2 << "/2 " << o+6 << "/3 " << o+5 << "/4\n";
+
+            v_count += 8;
+        }
+
+        file << "\n";
+        file.close();
+        return Value(true);
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -836,6 +891,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("mouse_delta")] = Value(VGLibNative::native_get_mouse_delta);
     vglib[pool.intern("billboard")] = Value(VGLibNative::native_draw_billboard);
     vglib[pool.intern("load_map")]  = Value(VGLibNative::native_load_map);
+    vglib[pool.intern("export_obj")] = Value(VGLibNative::native_export_obj);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
