@@ -4,7 +4,7 @@ module vaudio;
 module vmath;
 
 vglib.init(1920, 1080, 75, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN + vglib.VSYNC);
-camera = vglib.camera();
+camera = vglib.camera(80.0);
 vglib.set_pos(camera, 30.0, 1.8, 0.0);
 
 vglib.disable_cursor();

@@ -5,14 +5,14 @@ module vmath;
 
 # --- INITIALIZATION ---
 vglib.init(1920, 1080, 60, "Vyne Pro - Sector 4 Incident", vglib.FULLSCREEN);
-camera = vglib.camera();
+camera = vglib.camera(90.0);
 vglib.set_pos(camera, 0.0, 1.8, -5.0);
 vglib.disable_cursor();
 
 # --- SHADERS & TEXTURES ---
-fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
-vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
-bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
+fog_shader      = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
+vhs_shader      = vglib.load_shader("tests/graphics/shaders/vhs.fs");
+scanline_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 building_tex = vglib.load_texture("tests/assets/wall.jpeg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
@@ -33,7 +33,7 @@ vaudio.play_sound(ambiance);
 run_time = 0.0;
 event_active = false;
 event_start_time = 0.0;
-event_text = "MIRCEFER OGLANDI";
+event_text = "WHY DID YOU LEAVE ME?";
 game_event = 0;
 fog_density = 0.05;
 base_speed = 0.12;
@@ -48,9 +48,20 @@ glitch_val = 0.0;
 # Map Design
 walls = [];
 through i :: 0..25 -> loop {
-    z_pos = i * 20.0;
-    walls = walls + [[-25.0, 20.0, z_pos, 40.0]];
-    walls = walls + [[25.0, 20.0, z_pos, 40.0]];
+    z_pos = i * 20.0; 
+    
+    # PARAMETRLƏR:
+    # w[0] = X (sağ/sol)
+    # w[1] = Y (hündürlük koordinatı)
+    # w[2] = Z (dərinlik koordinatı)
+    # w[3] = Ölçü (burada divarın hündürlüyü və eni kimi gedir)
+    
+    wall_height = 20.0;
+    
+    walls = walls + [[-15.0, 10.0, z_pos, wall_height]];
+    
+    # Sağ divar
+    walls = walls + [[15.0, 10.0, z_pos, wall_height]];
 };
 
 final_z = 500.0;
@@ -97,11 +108,9 @@ while (vglib.running()) {
         if (fade_alpha < 1.0) { 
             fade_alpha = fade_alpha + 0.005; 
             
-            # AUDIO FADE-OUT: Akira musiqisi tədricən sönür
             vaudio.sound_volume(ambiance, 0.5 - fade_alpha);
             vaudio.sound_volume(radio_log, 1.5 - fade_alpha);
         }
-        # Finalda hərəkəti dondurmaq üçün sürəti öldürürük
         if (fade_alpha > 0.9) { current_speed = 0.0; }
     }
     
@@ -195,6 +204,7 @@ while (vglib.running()) {
         
         vglib.set_shader_value(vhs_shader, "time", vt);
         vglib.set_shader_value(vhs_shader, "noise_amount", glitch_val); 
+        vglib.set_shader_value(vhs_shader, "renderSize", [1920.0, 1080.0]);
         
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
@@ -203,8 +213,9 @@ while (vglib.running()) {
 
     vglib.begin();
         vglib.clear(vglib.BLACK);
-        vglib.set_shader_value(bodycam_shader, "time", run_time);
-        vglib.begin_shader(bodycam_shader);
+        vglib.set_shader_value(scanline_shader, "time", run_time);
+        vglib.set_shader_value(scanline_shader, "renderSize", [1920.0, 1080.0]);
+        vglib.begin_shader(scanline_shader);
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
@@ -220,24 +231,16 @@ while (vglib.running()) {
         }
 
         if (freeze) {
-            glitch = vmath.sin(t * 50.0) * 0.5 + vmath.sin(t * 120.0) * 0.5;
+            vglib.rect(0, 0, 1920, 1080, vglib.BLACK);
 
-            r = int64((vmath.sin(run_time * 2.0) * 0.5 + 0.5) * 255.0);
-            g = int64((vmath.sin(t * 2.0 + 2.1) * 0.5 + 0.5) * 255.0);
-            b = int64((vmath.sin(t * 2.0 + 4.2) * 0.5 + 0.5) * 255.0);
-
-            a = int64((0.4 + glitch * 0.3) * 255.0);
-
-            vglib.rect(
-                int64(glitch * 20.0),
-                int64(glitch * 20.0),
-                1920,
-                1080,
-                vglib.rgba(r, g, b, a)
-            );
-
-            if (vmath.sin(run_time * 35.0) > 0.0) {
-                vglib.text(event_text, 652, 522, 40, vglib.RED);
+            shake = vmath.sin(run_time * 60.0) * 2.0; # Kəskin titrəmə
+            
+            if (vmath.sin(run_time * 25.0) > 0.0) {
+                vglib.text(event_text, int64(650 + shake), int64(520 + shake), 45, vglib.RED);
+            }
+            
+            if (vmath.sin(run_time * 100.0) > 0.8) {
+                vglib.rect(0, int64(vmath.sin(run_time) * 1080.0), 1920, 2, vglib.GRAY);
             }
         }
 
