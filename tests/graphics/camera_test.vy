@@ -25,6 +25,16 @@ screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
 flashlight_target = vglib.load_render_texture(1920, 1080);
 
+# --- MODEL LOADING ---
+cat_model = vglib.load_model("tests/assets/12222_Cat_v1_l3.obj");
+cat_tex   = vglib.load_texture("tests/assets/Cat_diffuse.jpg");
+
+vglib.set_model_texture(cat_model, cat_tex);
+
+cat_scale = 0.05;
+cat_x = 35.0;
+cat_z = 25.0;
+
 player_size = [0.8, 1.8, 0.8];
 walls = [
     [-7.0,  5.0, 10.0, 10.0],
@@ -72,6 +82,7 @@ while (vglib.running()) {
     vglib.rotate_view(camera, 0.15);
 
     current_speed = speed;
+    hover = vmath.sin(run_time * 2.0) * 0.2;
 
     cam_pos = vglib.get_pos(camera);
     temp_ground_y = 0.0;
@@ -178,6 +189,17 @@ while (vglib.running()) {
                 through w :: walls -> loop {
                     vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
+
+                vglib.draw_model(
+                    cat_model, 
+                    cat_x, 
+                    2.5 + hover, 
+                    cat_z, 
+                    cat_scale,
+                    vglib.WHITE
+                );
+
+                cat_x = cat_x - run_time / 100;
             vglib.end_shader();
         vglib.end3d();
     vglib.end_texture_mode();

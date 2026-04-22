@@ -2,7 +2,6 @@ ruleset { dynamic_casting, warnings };
 module vglib;
 module vaudio;
 module vmath;
-module vmem;
 
 # --- INITIALIZATION ---
 vglib.init(1920, 1080, 60, "Vyne Pro - Sector 4 Incident", vglib.FULLSCREEN);
@@ -228,7 +227,7 @@ while (vglib.running()) {
         if (final_triggered) {
             alpha = int64(fade_alpha * 255.0);
             vglib.rect(0, 0, 1920, 1080, vglib.rgba(0, 0, 0, alpha));
-            if (fade_alpha >= 0.95) { vglib.text("YOU NEVER EXISTED", 700, 500, 50, vglib.RED); }
+            if (fade_alpha >= 0.95) { vglib.text_ex(vcr_font,"YOU NEVER EXISTED", 700, 475, 50, vglib.RED); }
         }
 
         if (freeze) {
@@ -247,8 +246,6 @@ while (vglib.running()) {
 
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end(); 
-
-    out(vmem.usage());
 }
 
 vaudio.close_audio();

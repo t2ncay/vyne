@@ -671,7 +671,25 @@ namespace VGLibNative {
         std::string path = args[0].asString();
         
         Model* model = new Model(LoadModel(path.c_str()));
+        
+        if (model->meshCount == 0) {
+            delete model;
+            throw std::runtime_error("Model Error: Could not load model from " + path);
+        }
+        
         return Value(reinterpret_cast<int64_t>(model));
+    }
+
+    Value native_set_model_texture(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_model_texture() requires model_ptr and tex_ptr");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
+
+        if (model && tex) {
+            model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
+        }
+        return Value();
     }
 
     Value native_draw_model(std::vector<Value>& args) {
@@ -683,7 +701,8 @@ namespace VGLibNative {
         Color color = (args.size() > 5) ? GetColor((uint32_t)args[5].asInt()) : WHITE;
 
         if (model) {
-            DrawModel(*model, pos, scale, color);
+            Vector3 rotationAxis = { 1.0f, 0.0f, 0.0f }; 
+            DrawModelEx(*model, pos, rotationAxis, 180.0f, (Vector3){ scale, scale, scale }, color);
         }
         return Value();
     }
@@ -805,6 +824,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("end_texture_mode")]    = Value(VGLibNative::native_end_texture_mode);
     vglib[pool.intern("draw_render_texture")] = Value(VGLibNative::native_draw_render_texture);
     vglib[pool.intern("load_model")] = Value(VGLibNative::native_load_model);
+    vglib[pool.intern("set_model_texture")] = Value(VGLibNative::native_set_model_texture);
     vglib[pool.intern("draw_model")] = Value(VGLibNative::native_draw_model);
     vglib[pool.intern("set_shader_value")]    = Value(VGLibNative::native_set_shader_value);
     vglib[pool.intern("load_texture")]  = Value(VGLibNative::native_load_texture);

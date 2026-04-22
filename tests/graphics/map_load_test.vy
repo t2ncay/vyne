@@ -15,8 +15,8 @@ vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
 vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 # textures
-building_tex = vglib.load_texture("tests/assets/building.jpg");
-ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
+building_tex = vglib.load_texture("tests/assets/Brick/Brick_16-512x512.png");
+ground_tex   = vglib.load_texture("tests/assets/Dirt/Dirt_20-512x512.png");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
