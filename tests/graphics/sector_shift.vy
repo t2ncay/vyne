@@ -18,6 +18,8 @@ building_tex = vglib.load_texture("tests/assets/wall.jpeg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 stalker_tex  = vglib.load_texture("tests/assets/yusif.jpeg");
 
+vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
+
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
 
@@ -219,10 +221,10 @@ while (vglib.running()) {
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
-        vglib.text("AXON BODY 3 | UNIT 402", 60, 60, 22, vglib.WHITE);
-        vglib.text("LAT: 40.4093 N | LON: 49.8671 E", 60, 90, 16, vglib.GRAY);
-        vglib.text(message, 60, 1000, 25, vglib.RED);
-        if (vmath.sin(run_time * 4.0) > 0.0) { vglib.text("● REC", 1750, 60, 30, vglib.RED); }
+        vglib.text_ex(vcr_font, "AXON BODY 3 | UNIT 402", 60, 60, 24, vglib.WHITE);
+        vglib.text_ex(vcr_font, "LAT: 40.4093 N | LON: 49.8671 E", 60, 90, 16, vglib.GRAY);
+        vglib.text_ex(vcr_font, message, 60, 1000, 25, vglib.RED);
+        if (vmath.sin(run_time * 4.0) > 0.0) { vglib.text_ex(vcr_font,"REC", 1750, 60, 30, vglib.RED); }
 
         if (final_triggered) {
             alpha = int64(fade_alpha * 255.0);
@@ -236,7 +238,7 @@ while (vglib.running()) {
             shake = vmath.sin(run_time * 60.0) * 2.0; # Kəskin titrəmə
             
             if (vmath.sin(run_time * 25.0) > 0.0) {
-                vglib.text(event_text, int64(650 + shake), int64(520 + shake), 45, vglib.RED);
+                vglib.text_ex(vcr_font, event_text, int64(650 + shake), int64(520 + shake), 45, vglib.RED);
             }
             
             if (vmath.sin(run_time * 100.0) > 0.8) {

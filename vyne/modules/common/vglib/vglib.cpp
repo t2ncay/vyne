@@ -356,6 +356,27 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_load_font(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("load_font() requires path");
+        std::string path = args[0].asString();
+        
+        Font* font = new Font(LoadFont(path.c_str()));
+        return Value(reinterpret_cast<int64_t>(font));
+    }
+
+    Value native_draw_text_ex(std::vector<Value>& args) {
+        if (args.size() < 6) throw std::runtime_error("draw_text_ex() requires font, text, x, y, size, color");
+
+        Font* font = reinterpret_cast<Font*>(args[0].asInt());
+        std::string text = args[1].asString();
+        Vector2 pos = { (float)args[2].asFloat(), (float)args[3].asFloat() };
+        float fontSize = (float)args[4].asFloat();
+        Color color = GetColor((uint32_t)args[5].asInt());
+
+        DrawTextEx(*font, text.c_str(), pos, fontSize, 2.0f, color);
+        return Value();
+    }
+
     Value native_draw_text(std::vector<Value>& args) {
         if (args.size() < 5) throw std::runtime_error("draw_text() requires text, x, y, size, color");
         
@@ -760,6 +781,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
     vglib[pool.intern("text")]        = Value(VGLibNative::native_draw_text);
+    vglib[pool.intern("load_font")] = Value(VGLibNative::native_load_font);
+    vglib[pool.intern("text_ex")] = Value(VGLibNative::native_draw_text_ex);
     vglib[pool.intern("grid")]        = Value(VGLibNative::native_draw_grid);
     vglib[pool.intern("update_camera")] = Value(VGLibNative::native_update_camera);
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);
