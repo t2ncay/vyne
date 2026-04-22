@@ -3,7 +3,7 @@ module vglib;
 module vaudio;
 module vmath;
 
-vglib.init(1920, 1080, 100, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN);
+vglib.init(1920, 1080, 75, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN + vglib.VSYNC);
 camera = vglib.camera();
 vglib.set_pos(camera, 30.0, 1.8, 0.0);
 
@@ -11,8 +11,8 @@ vglib.disable_cursor();
 
 # --- SHADERS ---
 fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
-vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
-bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
+vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
+vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
@@ -21,6 +21,7 @@ ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
+flashlight_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
@@ -179,20 +180,20 @@ while (vglib.running()) {
         vglib.end3d();
     vglib.end_texture_mode();
 
-    # PASS 2: VHS Effect -> Bodycam Target
     vglib.begin_texture_mode(bodycam_target);
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
+        vglib.set_shader_value(vhs_shader, "renderSize", [1920.0, 1080.0]);
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
     vglib.end_texture_mode();
 
-    # PASS 3: Final Bodycam Lens -> Screen
     vglib.begin();
         vglib.clear(vglib.BLACK);
-        vglib.set_shader_value(bodycam_shader, "time", run_time);
-        vglib.begin_shader(bodycam_shader);
+        vglib.set_shader_value(vhs_color_shader, "time", run_time);
+        vglib.set_shader_value(vhs_color_shader, "renderSize", [1920.0, 1080.0]);
+        vglib.begin_shader(vhs_color_shader);
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
