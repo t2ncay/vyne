@@ -2,6 +2,7 @@ ruleset { dynamic_casting, warnings };
 module vglib;
 module vaudio;
 module vmath;
+module vmem;
 
 # --- INITIALIZATION ---
 vglib.init(1920, 1080, 60, "Vyne Pro - Sector 4 Incident", vglib.FULLSCREEN);
@@ -60,10 +61,8 @@ through i :: 0..25 -> loop {
     
     wall_height = 20.0;
     
-    walls = walls + [[-15.0, 10.0, z_pos, wall_height]];
-    
-    # Sağ divar
-    walls = walls + [[15.0, 10.0, z_pos, wall_height]];
+    walls.push([-15.0, 10.0, z_pos, wall_height]);
+    walls.push([15.0, 10.0, z_pos, wall_height]);
 };
 
 final_z = 500.0;
@@ -248,6 +247,8 @@ while (vglib.running()) {
 
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end(); 
+
+    out(vmem.usage());
 }
 
 vaudio.close_audio();

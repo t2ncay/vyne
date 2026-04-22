@@ -14,6 +14,8 @@ fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graph
 vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
 vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
+vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
+
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
@@ -198,9 +200,9 @@ while (vglib.running()) {
         vglib.end_shader();
 
         # UI Overlay
-        vglib.text("AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
-        vglib.text("2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
-        vglib.text("REC", 1800, 60, 25, vglib.RED);
+        vglib.text_ex(vcr_font,"AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
+        vglib.text_ex(vcr_font,"2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
+        vglib.text_ex(vcr_font,"REC", 1800, 60, 25, vglib.RED);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
