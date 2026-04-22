@@ -705,8 +705,7 @@ namespace VGLibNative {
         Color color = (args.size() > 5) ? GetColor((uint32_t)args[5].asInt()) : WHITE;
 
         if (model) {
-            Vector3 rotationAxis = { 1.0f, 0.0f, 0.0f }; 
-            DrawModelEx(*model, pos, rotationAxis, -90.0f, (Vector3){ scale, scale, scale }, color);
+            DrawModel(*model, pos, scale, color);
         }
         return Value();
     }
