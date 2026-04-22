@@ -564,11 +564,20 @@ namespace VGLibNative {
     }
 
     Value native_set_shader_value(std::vector<Value>& args) {
+        if (args.size() < 3) throw std::runtime_error("set_shader_value() requires 3 args");
+
         Shader* shader = reinterpret_cast<Shader*>(args[0].asInt());
         std::string uniformName = args[1].asString();
-        float value = (float)args[2].asFloat();
         int loc = GetShaderLocation(*shader, uniformName.c_str());
-        SetShaderValue(*shader, loc, &value, SHADER_UNIFORM_FLOAT);
+
+        if (args[2].type == VType::Array) {
+            std::vector<Value> list = args[2].asList();
+            float values[2] = { (float)list[0].asFloat(), (float)list[1].asFloat() };
+            SetShaderValue(*shader, loc, values, SHADER_UNIFORM_VEC2);
+        } else {
+            float value = (float)args[2].asFloat();
+            SetShaderValue(*shader, loc, &value, SHADER_UNIFORM_FLOAT);
+        }
         return Value();
     }
 
