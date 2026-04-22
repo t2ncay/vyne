@@ -50,11 +50,18 @@ while (vglib.running()) {
         message = "OBJECT PLACED AT " + string(cursor_pos[0]) + "," + string(cursor_pos[2]);
     }
 
-    if (vglib.key_pressed(vglib.BACKSPACE)) {
-        if (map_data.size() > 0) {
-            map_data.pop();
-            message = "LAST OBJECT REMOVED";
-        }
+    if (vglib.key_pressed(vglib.BACKSPACE) || vglib.mouse_down(vglib.MOUSE_RIGHT)) {
+        target_x = cursor_pos[0];
+        target_y = cursor_pos[1];
+        target_z = cursor_pos[2];
+
+        # map_data-nı süzgəcdən keçiririk (Filter mode)
+        # Yalnız hədəf koordinatda OLMAYAN kubları saxlayırıq
+        map_data = through obj :: map_data -> filter {
+            !(obj[0] == target_x && obj[1] == target_y && obj[2] == target_z)
+        };
+        
+        message = "OBJECT REMOVED AT CURSOR";
     }
 
     if (vglib.key_pressed(vglib.J)) {
