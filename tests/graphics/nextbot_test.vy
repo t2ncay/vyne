@@ -19,7 +19,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-nextbot_tex   = vglib.load_texture("tests/assets/yusif.jpeg");
+nextbot_tex   = vglib.load_texture("tests/assets/ferhad.jpeg");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
@@ -33,7 +33,7 @@ spawn_point = [30.0, 1.8, 0.0];
 message = "";
 glitch_factor = 0.0;
 
-spawn_point = [30.0, 1.8, 0.0]; # Başlanğıc nöqtən
+spawn_point = [30.0, 1.8, 0.0];
 
 player_size = [0.8, 1.8, 0.8];
 walls = [
