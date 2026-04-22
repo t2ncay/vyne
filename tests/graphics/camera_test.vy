@@ -132,7 +132,7 @@ while (vglib.running()) {
         current_speed = current_speed * sprint_multiplier;
     }
 
-    if (vglib.key_down(vglib.SPACE) && is_grounded) {
+    if (vglib.key_down(vglib.SPACE)) { # && is_grounded
         velocity_y = jump_force;
         is_grounded = false;
     }
