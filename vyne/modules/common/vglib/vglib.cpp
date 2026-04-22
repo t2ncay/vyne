@@ -685,9 +685,11 @@ namespace VGLibNative {
 
         Model* model = reinterpret_cast<Model*>(args[0].asInt());
         Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
+        
+        int materialIndex = (args.size() >= 3) ? (int)args[2].asInt() : 0;
 
-        if (model && tex) {
-            model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
+        if (model && tex && materialIndex < model->materialCount) {
+            model->materials[materialIndex].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
         }
         return Value();
     }

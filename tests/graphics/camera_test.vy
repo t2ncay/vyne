@@ -35,10 +35,17 @@ cat_scale = 0.05;
 cat_x = 35.0;
 cat_z = 25.0;
 
-airplane_model = vglib.load_model("tests/assets/11803_Airplane_v1_l1.obj");
-airplane_tex   = vglib.load_texture("tests/assets/11803_Airplane_body_diff.jpg"); # Əgər teksturası varsa
+airplane_model    = vglib.load_model("tests/assets/11803_Airplane_v1_l1.obj");
+airplane_body_tex = vglib.load_texture("tests/assets/11803_Airplane_body_diff.jpg");
+airplane_tail_tex = vglib.load_texture("tests/assets/11803_Airplane_tail_diff.jpg");
+airplane_lwing_tex = vglib.load_texture("tests/assets/11803_Airplane_wing_big_L_diff.jpg");
+airplane_rwing_tex = vglib.load_texture("tests/assets/11803_Airplane_wing_big_R_diff.jpg");
 
-vglib.set_model_texture(airplane_model, airplane_tex);
+vglib.set_model_texture(airplane_model, airplane_body_tex, 0);
+vglib.set_model_texture(airplane_model, airplane_tail_tex, 1);
+vglib.set_model_texture(airplane_model, airplane_lwing_tex, 2);
+vglib.set_model_texture(airplane_model, airplane_rwing_tex, 3);
+
 
 air_z = -50.0; 
 air_x = -330.0;
@@ -213,6 +220,7 @@ while (vglib.running()) {
                 cat_x = cat_x - run_time / 100;
 
                 air_x = air_x + air_speed;
+                air_y = air_y - air_speed/10;
 
                 vglib.draw_model(
                     airplane_model, 
