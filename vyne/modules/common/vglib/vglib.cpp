@@ -715,6 +715,8 @@ namespace VGLibNative {
         std::string path = args[0].asString();
         
         std::ifstream file(path);
+        if (!file.is_open()) return Value(std::vector<Value>{}); // Fayl yoxdursa boş list qaytar
+
         std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
         
         std::vector<Value> final_map;
@@ -722,15 +724,22 @@ namespace VGLibNative {
         std::string segment;
 
         while (std::getline(ss, segment, ';')) {
-            if (segment.empty()) continue;
+            if (segment.empty() || segment == "\n") continue;
             std::stringstream obj_ss(segment);
             std::string val;
             std::vector<Value> obj_data;
             
             while (std::getline(obj_ss, val, ',')) {
-                obj_data.emplace_back(std::stod(val));
+                if (!val.empty()) {
+                    obj_data.emplace_back(static_cast<double>(std::atof(val.c_str())));
+                }
             }
-            final_map.emplace_back(obj_data);
+            
+            if (obj_data.size() < 5) {
+                obj_data.emplace_back(0.0); 
+            }
+            
+            final_map.emplace_back(Value(obj_data));
         }
         
         return Value(final_map);

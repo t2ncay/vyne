@@ -13,15 +13,28 @@ vglib.disable_cursor();
 fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
 vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
 vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
+flashlight_shader = vglib.load_shader("tests/graphics/shaders/flashlight.fs");
 
 # textures
-building_tex = vglib.load_texture("tests/assets/Brick/Brick_16-512x512.png");
-ground_tex   = vglib.load_texture("tests/assets/Dirt/Dirt_20-512x512.png");
+tex_paths = [
+    "tests/assets/Brick/Brick_16-512x512.png",
+    "tests/assets/wall.jpeg", 
+    "tests/assets/Dirt/Dirt_20-512x512.png", 
+    "tests/assets/yusif.jpeg"
+];
+
+tex_slots = [];
+through path :: tex_paths -> loop {
+    tex_slots = tex_slots + [vglib.load_texture(path)];
+};
+
+ground_tex   = tex_slots[2];
+
+out(tex_slots);
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
-flashlight_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = vglib.load_map("tau_map.dat");
@@ -152,7 +165,12 @@ while (vglib.running()) {
             vglib.begin_shader(fog_shader);
                 vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
                 through w :: walls -> loop {
-                    vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
+                    tex_idx = 0;
+                    if (w.size() > 4) {
+                        tex_idx = int64(w[4]);
+                    }
+                                        
+                    vglib.cube_texture(tex_slots[tex_idx], w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
             vglib.end_shader();
         vglib.end3d();
