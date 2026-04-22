@@ -702,7 +702,7 @@ namespace VGLibNative {
 
         if (model) {
             Vector3 rotationAxis = { 1.0f, 0.0f, 0.0f }; 
-            DrawModelEx(*model, pos, rotationAxis, 180.0f, (Vector3){ scale, scale, scale }, color);
+            DrawModelEx(*model, pos, rotationAxis, -90.0f, (Vector3){ scale, scale, scale }, color);
         }
         return Value();
     }

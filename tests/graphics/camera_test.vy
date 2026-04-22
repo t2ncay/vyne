@@ -35,6 +35,17 @@ cat_scale = 0.05;
 cat_x = 35.0;
 cat_z = 25.0;
 
+airplane_model = vglib.load_model("tests/assets/11803_Airplane_v1_l1.obj");
+airplane_tex   = vglib.load_texture("tests/assets/11803_Airplane_body_diff.jpg"); # Əgər teksturası varsa
+
+vglib.set_model_texture(airplane_model, airplane_tex);
+
+air_z = -50.0; 
+air_x = -330.0;
+air_y = 100.0;
+air_scale = 0.02;
+air_speed = 0.8;
+
 player_size = [0.8, 1.8, 0.8];
 walls = [
     [-7.0,  5.0, 10.0, 10.0],
@@ -200,6 +211,17 @@ while (vglib.running()) {
                 );
 
                 cat_x = cat_x - run_time / 100;
+
+                air_x = air_x + air_speed;
+
+                vglib.draw_model(
+                    airplane_model, 
+                    air_x, 
+                    air_y, 
+                    air_z, 
+                    air_scale, 
+                    vglib.WHITE
+                );
             vglib.end_shader();
         vglib.end3d();
     vglib.end_texture_mode();
