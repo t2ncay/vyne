@@ -10,14 +10,10 @@ void main() {
     vec2 uv = fragTexCoord;
     vec4 texel = texture(texture0, uv);
     
-    // Mərkəzdən məsafə (0.5, 0.5 tam mərkəzdir)
     float dist = distance(uv, vec2(0.5));
     
-    // Fənər dairəsi: radiusu bir az böyütdük (0.5) və daha parlaq etdik
     float flashlight = smoothstep(0.5, 0.1, dist);
     
-    // İşığı rəsmi olaraq gücləndiririk (Boost)
-    // 4.0 qatı dumanın (fog) içində hər şeyi göstərəcək
     vec3 scene = texel.rgb * (flashlight * 4.0 + 0.1);
     
     // Fənər titrəməsi
