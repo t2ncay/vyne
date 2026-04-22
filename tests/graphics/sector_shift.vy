@@ -35,7 +35,7 @@ vaudio.play_sound(ambiance);
 run_time = 0.0;
 event_active = false;
 event_start_time = 0.0;
-event_text = "WHY DID YOU LEAVE ME?";
+event_text = "THE WALLS ARE MOVING...";
 game_event = 0;
 fog_density = 0.05;
 base_speed = 0.12;
@@ -133,7 +133,7 @@ while (vglib.running()) {
     }
 
     if (game_event == 2) {
-        fog_density = 0.8 + (vmath.sin(run_time * 5.0) * 0.1);
+        fog_density = 28 + (vmath.sin(run_time * 5.0) * 0.1);
     }
 
     vglib.rotate_view(camera, 0.15);
@@ -227,13 +227,13 @@ while (vglib.running()) {
         if (final_triggered) {
             alpha = int64(fade_alpha * 255.0);
             vglib.rect(0, 0, 1920, 1080, vglib.rgba(0, 0, 0, alpha));
-            if (fade_alpha >= 0.95) { vglib.text_ex(vcr_font,"YOU NEVER EXISTED", 700, 475, 50, vglib.RED); }
+            if (fade_alpha >= 0.95) { vglib.text_ex(vcr_font,"YOU NEVER EXISTED", 700, 450, 50, vglib.RED); }
         }
 
         if (freeze) {
             vglib.rect(0, 0, 1920, 1080, vglib.BLACK);
 
-            shake = vmath.sin(run_time * 60.0) * 2.0; # Kəskin titrəmə
+            shake = vmath.sin(run_time * 60.0) * 2.0;
             
             if (vmath.sin(run_time * 25.0) > 0.0) {
                 vglib.text_ex(vcr_font, event_text, int64(650 + shake), int64(520 + shake), 45, vglib.RED);
