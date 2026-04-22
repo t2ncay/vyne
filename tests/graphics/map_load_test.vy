@@ -1,37 +1,41 @@
 ruleset { dynamic_casting };
 module vglib;
 module vaudio;
+module vmath;
 
-vglib.init(1920, 1080, 100, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN);
-camera = vglib.camera();
-vglib.set_pos(camera, 0.0, 1.8, 0.0);
+vglib.init(1920, 1080, 75, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN + vglib.VSYNC);
+camera = vglib.camera(80.0);
+vglib.set_pos(camera, 30.0, 1.8, 0.0);
 
 vglib.disable_cursor();
 
 # --- SHADERS ---
 fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
-vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs_horror.fs");
-bodycam_shader = vglib.load_shader("tests/graphics/shaders/bodycam.fs");
+vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
+vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 # textures
-building_tex = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
+building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
+flashlight_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = vglib.load_map("tau_map.dat");
 
 run_time = 0.0;
 speed = 0.15;
+sprint_multiplier = 2.5;
 normal_height = 1.8;
 crouch_height = 0.9;
-current_y = normal_height;
+current_y = 1.8;
 velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
+
 is_grounded = true;
 
 vaudio.init_audio();
@@ -64,11 +68,15 @@ while (vglib.running()) {
         }
     };
 
-    if (vglib.key_down(vglib.LEFT_SHIFT)) {
+    if (vglib.key_down(vglib.LEFT_CTRL)) {
         target_h = temp_ground_y + crouch_height;
         current_speed = 0.05;
     } else {
         target_h = temp_ground_y + normal_height;
+    }
+
+    if (vglib.key_down(vglib.LEFT_SHIFT)) {
+        current_speed = current_speed * sprint_multiplier;
     }
 
     if (vglib.key_down(vglib.SPACE) && is_grounded) {
@@ -86,10 +94,20 @@ while (vglib.running()) {
             is_grounded = true;
         }
     } else {
-        if (current_y > target_h + 0.1) {
-            is_grounded = false;
+        diff = target_h - current_y;
+        
+        if (vmath.abs(diff) > 0.001) {
+            if (diff < 0.0) {
+                current_y = current_y + (diff * 0.1); 
+            } else {
+                current_y = current_y + (diff * 0.2); 
+            }
         } else {
             current_y = target_h;
+        }
+
+        if (current_y > target_h + 0.5) {
+            is_grounded = false;
         }
     }
 
@@ -140,20 +158,20 @@ while (vglib.running()) {
         vglib.end3d();
     vglib.end_texture_mode();
 
-    # PASS 2: VHS Effect -> Bodycam Target
     vglib.begin_texture_mode(bodycam_target);
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
+        vglib.set_shader_value(vhs_shader, "renderSize", [1920.0, 1080.0]);
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
         vglib.end_shader();
     vglib.end_texture_mode();
 
-    # PASS 3: Final Bodycam Lens -> Screen
     vglib.begin();
         vglib.clear(vglib.BLACK);
-        vglib.set_shader_value(bodycam_shader, "time", run_time);
-        vglib.begin_shader(bodycam_shader);
+        vglib.set_shader_value(vhs_color_shader, "time", run_time);
+        vglib.set_shader_value(vhs_color_shader, "renderSize", [1920.0, 1080.0]);
+        vglib.begin_shader(vhs_color_shader);
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
