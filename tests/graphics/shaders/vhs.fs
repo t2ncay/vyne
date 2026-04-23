@@ -7,15 +7,14 @@ in vec4 fragColor;
 out vec4 finalColor;
 
 // --- UNIFORMS ---
-uniform sampler2D texture0; // Raylib default (ekran görüntüsü)
-uniform float time;         // vglib-dən göndərdiyin run_time
-uniform vec2 renderSize;    // Ekran ölçüsü (məs: 1920, 1080)
+uniform sampler2D texture0;
+uniform float time;
+uniform vec2 renderSize;
 
 // --- CONSTANTS/PARAMETERS ---
 float wiggle = 0.0;
 float smear = 1.0;
 
-// YIQ/RGB conversion (VHS rəng rəqsi üçün)
 vec3 rgb2yiq(vec3 c) {
     return vec3(
         (0.2989*c.x + 0.5870*c.y + 0.1140*c.z),
@@ -94,7 +93,7 @@ void main() {
     
     
     vec2 dist = fragTexCoord - vec2(0.5);
-    float vignette = 1.0 - dot(dist, dist) * 2.0;
+    float vignette = 1.0 - dot(dist, dist) * 1.8;
     finalRGB *= clamp(vignette, 0.0, 1.0);
 
     finalColor = vec4(finalRGB, 1.0);
