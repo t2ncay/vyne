@@ -377,6 +377,15 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_measure_text_ex(std::vector<Value>& args) {
+        if (args.size() < 3) throw std::runtime_error("measure_text() requires font, text, size");
+        Font* font = reinterpret_cast<Font*>(args[0].asInt());
+        std::string text = args[1].asString();
+        float fontSize = (float)args[2].asFloat();
+        Vector2 size = MeasureTextEx(*font, text.c_str(), fontSize, 2.0f);
+        return Value(std::vector<Value>{ Value(size.x), Value(size.y) });
+    }
+
     Value native_draw_text(std::vector<Value>& args) {
         if (args.size() < 5) throw std::runtime_error("draw_text() requires text, x, y, size, color");
         
@@ -880,6 +889,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("text")]        = Value(VGLibNative::native_draw_text);
     vglib[pool.intern("load_font")] = Value(VGLibNative::native_load_font);
     vglib[pool.intern("text_ex")] = Value(VGLibNative::native_draw_text_ex);
+    vglib[pool.intern("measure_text")] = Value(VGLibNative::native_measure_text_ex);
     vglib[pool.intern("grid")]        = Value(VGLibNative::native_draw_grid);
     vglib[pool.intern("update_camera")] = Value(VGLibNative::native_update_camera);
     vglib[pool.intern("disable_cursor")] = Value(VGLibNative::native_disable_cursor);

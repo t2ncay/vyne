@@ -16,22 +16,22 @@ vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
-# textures
+# --- TEXTURES ---
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
 nextbot_tex   = vglib.load_texture("tests/assets/selena.jpg");
+
+# --- SFX EFFECTS ---
+vaudio.init_audio();
+ambiance = vaudio.load_sound("tests/assets/vhs_sound.wav");
+qulaq = vaudio.load_sound("tests/assets/selena.wav");
+death_sound = vaudio.load_sound("tests/assets/death_sound.wav");
+vaudio.volume(1.0);
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
 flashlight_target = vglib.load_render_texture(1920, 1080);
-
-# --- NEXTBOT SETUP ---
-nextbot_pos = [60.0, 1.8, 60.0];
-nextbot_speed = 0.4;
-spawn_point = [30.0, 1.8, 0.0];
-message = "";
-glitch_factor = 0.0;
 
 spawn_point = [30.0, 1.8, 0.0];
 
@@ -60,8 +60,10 @@ walls = [
     [-30.0, 10.0, 80.0, 20.0]
 ];
 
+# --- GAME CONFIGURATIONS ---
+
 run_time = 0.0;
-speed = 0.15;
+speed = 0.2;
 sprint_multiplier = 2.5;
 normal_height = 1.8;
 crouch_height = 0.9;
@@ -70,12 +72,22 @@ velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
 
+# --- NEXTBOT SETUP ---
+nextbot_pos = [60.0, 1.8, 60.0];
+nextbot_speed = 0.4;
+spawn_point = [30.0, 1.8, 0.0];
+message = "";
+glitch_factor = 0.0;
+
+# --- GAME STATES ---
 is_grounded = true;
 
-vaudio.init_audio();
-vaudio.volume(1.0);
-ambiance = vaudio.load_sound("tests/assets/akira.wav");
-qulaq = vaudio.load_sound("tests/assets/selena.wav");
+is_dead = false;
+death_timer = 0.0;
+
+title_size = vglib.measure_text(vcr_font, "SUBJECT LOST", 80);
+sub_size   = vglib.measure_text(vcr_font, "SYSTEM ERROR: SIGNAL CORRUPTED", 30);
+
 vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
@@ -112,9 +124,11 @@ while (vglib.running()) {
     }
 
     if (dist_3d < 2.5) {
-        vglib.set_pos(camera, spawn_point[0], spawn_point[1], spawn_point[2]);
+        is_dead = true;
+        death_timer = 3.0;
+        vaudio.play_sound(death_sound);
         nextbot_pos = [60.0, 1.8, 60.0];
-        message = "SYSTEM ERROR: SUBJECT LOST";
+        glitch_factor = 0.0;
     }
 
     temp_ground_y = 0.0;
@@ -217,7 +231,7 @@ while (vglib.running()) {
         vglib.begin3d(camera);
             vglib.set_shader_camera(fog_shader, camera);
             vglib.begin_shader(fog_shader);
-                vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
+                vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 500.0, 500.0);
                 through w :: walls -> loop {
                     vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
@@ -243,7 +257,30 @@ while (vglib.running()) {
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
-        if (glitch_factor > 0.1) {
+        if (is_dead == true) {
+            death_timer = death_timer - 0.008;
+            nextbot_speed = 0.0;
+
+            vglib.rect(0, 0, 1920, 1080, vglib.rgba(0, 0, 0, 255));
+
+            vglib.rect(0, 0, 1920, 1080, vglib.rgba(180, 0, 0, (vmath.sin(run_time * 23.0) * 40.0 + 40.0)));
+
+            vglib.rect(vmath.sin(run_time * 17.3) * 960.0 + 960.0, vmath.sin(run_time * 9.1)  * 540.0 + 270.0, 800.0, 6.0,  vglib.rgba(255, 0, 0, 180));
+            vglib.rect(vmath.sin(run_time * 31.7) * 960.0 + 960.0, vmath.sin(run_time * 13.7) * 540.0 + 540.0, 500.0, 10.0, vglib.rgba(255, 255, 255, 120));
+            vglib.rect(vmath.sin(run_time * 41.1) * 960.0 + 960.0, vmath.sin(run_time * 7.3)  * 540.0 + 810.0, 300.0, 4.0,  vglib.rgba(0, 255, 255, 90));
+
+            vglib.text_ex(vcr_font, "SUBJECT LOST", (1920.0 - title_size[0]) / 2.0, 480, 80, vglib.RED);
+            vglib.text_ex(vcr_font, "SYSTEM ERROR: SIGNAL CORRUPTED",(1920.0 - sub_size[0])   / 2.0, 580, 30, vglib.WHITE);
+
+            if (death_timer <= 0.0) {
+                is_dead = false;
+                message = "";
+                vglib.set_pos(camera, spawn_point[0], spawn_point[1], spawn_point[2]);
+                nextbot_speed = 0.4;
+            }
+        }
+
+        if (is_dead == false && glitch_factor > 0.1) {
             glitch_count = (glitch_factor * 12.0);
             
             vglib.rect(vmath.sin(run_time * 13.7) * 900.0 + 960.0, vmath.sin(run_time * 7.3)  * 400.0 + 540.0, glitch_factor * 300.0, glitch_factor * 8.0,  vglib.rgba(255, 0,   0,   (glitch_factor * 180.0)));
