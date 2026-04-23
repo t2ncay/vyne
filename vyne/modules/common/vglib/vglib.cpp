@@ -918,6 +918,60 @@ namespace VGLibNative {
 
         return Value(false);
     }
+
+    Value native_pathfind(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("pathfind() requires start_pos, target_pos, map_data, and grid_size");
+
+        std::vector<Value> startList = args[0].asList();
+        std::vector<Value> targetList = args[1].asList();
+        std::vector<Value> mapData = args[2].asList();
+        float gridSize = (float)args[3].asFloat();
+
+        Vector3 start = { (float)startList[0].asFloat(), (float)startList[1].asFloat(), (float)startList[2].asFloat() };
+        Vector3 target = { (float)targetList[0].asFloat(), (float)targetList[1].asFloat(), (float)targetList[2].asFloat() };
+
+        Vector3 bestDir = { target.x - start.x, 0, target.z - start.z };
+        float len = sqrtf(bestDir.x * bestDir.x + bestDir.z * bestDir.z);
+        
+        if (len > 0.1f) {
+            bestDir.x /= len;
+            bestDir.z /= len;
+        }
+
+        Vector3 testPos = { start.x + bestDir.x * gridSize, start.y, start.z + bestDir.z * gridSize };
+        
+        BoundingBox nextBotBox = {
+            (Vector3){ testPos.x - 1.0f, testPos.y - 0.5f, testPos.z - 1.0f },
+            (Vector3){ testPos.x + 1.0f, testPos.y + 1.5f, testPos.z + 1.0f }
+        };
+
+        bool collision = false;
+        for (const auto& objVal : mapData) {
+            std::vector<Value> obj = objVal.asList();
+            float s = (float)obj[3].asFloat();
+            BoundingBox wallBox = {
+                (Vector3){ (float)obj[0].asFloat() - s/2, (float)obj[1].asFloat() - s/2, (float)obj[2].asFloat() - s/2 },
+                (Vector3){ (float)obj[0].asFloat() + s/2, (float)obj[1].asFloat() + s/2, (float)obj[2].asFloat() + s/2 }
+            };
+
+            if (CheckCollisionBoxes(nextBotBox, wallBox)) {
+                collision = true;
+                break;
+            }
+        }
+
+        if (collision) {
+            float angle = 0.785f; // 45 dərəcə
+            Vector3 altDir = {
+                bestDir.x * cosf(angle) - bestDir.z * sinf(angle),
+                0,
+                bestDir.x * sinf(angle) + bestDir.z * cosf(angle)
+            };
+            bestDir = altDir;
+        }
+
+        return Value(std::vector<Value>{ Value(bestDir.x), Value(bestDir.y), Value(bestDir.z) });
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -990,6 +1044,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("export_obj")] = Value(VGLibNative::native_export_obj);
     vglib[pool.intern("draw_texture")] = Value(VGLibNative::native_draw_texture);
     vglib[pool.intern("check_collision_map")] = Value(VGLibNative::native_check_collision_map);
+    vglib[pool.intern("pathfind")] = Value(VGLibNative::native_pathfind);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();

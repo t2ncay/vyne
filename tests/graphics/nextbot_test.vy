@@ -50,7 +50,7 @@ crouch_height = 0.9;
 current_y = 1.8;
 velocity_y = 0.0;
 gravity = -0.012;
-jump_force = 0.35;
+jump_force = 0.5;
 
 # --- GAME STATE ---
 nextbot_pos = [60.0, 1.8, 60.0];
@@ -61,6 +61,12 @@ is_dead = false;
 death_timer = 0.0;
 flash_timer = 0.0;
 glitch_factor = 0.0;
+
+# --- AI CONFIG ---
+ai_tick_rate = 0.1;
+ai_timer = 0.0;
+target_x = 60.0;
+target_z = 60.0;
 
 title_size = vglib.measure_text(vcr_font, "SUBJECT LOST", 80);
 sub_size   = vglib.measure_text(vcr_font, "SYSTEM ERROR: SIGNAL CORRUPTED", 30);
@@ -136,30 +142,40 @@ while (vglib.running()) {
 
     vglib.set_camera_height(camera, current_y);
 
-    # --- 4. NEXTBOT LOGIC ---
-    if (!is_dead) {
-        dir_x = cam_pos[0] - nextbot_pos[0];
-        dir_z = cam_pos[2] - nextbot_pos[2];
-        ground_dist = vmath.abs(dir_x) + vmath.abs(dir_z);
-        
-        if (ground_dist > 0.1) {
-            nextbot_pos[0] = nextbot_pos[0] + (dir_x / ground_dist) * nextbot_speed;
-            nextbot_pos[2] = nextbot_pos[2] + (dir_z / ground_dist) * nextbot_speed;
+    # --- NEXTBOT LOGIC ---
+    if (is_dead == false) {
+        ai_timer = ai_timer + 0.016;
+
+        if (ai_timer >= ai_tick_rate) {
+            res = vglib.pathfind(nextbot_pos, cam_pos, walls, 1.0); # grid_size yerinə 1.0 kifayətdir
+            
+            target_x = nextbot_pos[0] + (res[0] * nextbot_speed * 10.0);
+            target_z = nextbot_pos[2] + (res[2] * nextbot_speed * 10.0);
+            
+            ai_timer = 0.0;
         }
+
+        nextbot_pos[0] = nextbot_pos[0] + (target_x - nextbot_pos[0]) * 0.1;
+        nextbot_pos[2] = nextbot_pos[2] + (target_z - nextbot_pos[2]) * 0.1;
 
         dist_3d = vglib.distance_3d(cam_pos, nextbot_pos);
         vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
         
         if (dist_3d < 40.0) {
             glitch_factor = 1.0 - (dist_3d / 40.0);
-        } else { glitch_factor = 0.0; }
+        } else { 
+            glitch_factor = 0.0; 
+        }
 
         if (dist_3d < 2.5) {
             is_dead = true;
             death_timer = 3.0;
             flash_timer = 0.5;
             vaudio.play_sound(death_sound);
+            # Reset
             nextbot_pos = [60.0, 1.8, 60.0];
+            target_x = 60.0;
+            target_z = 60.0;
         }
     }
 
