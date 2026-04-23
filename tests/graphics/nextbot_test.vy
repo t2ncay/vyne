@@ -19,7 +19,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-nextbot_tex   = vglib.load_texture("tests/assets/ferhad.jpeg");
+nextbot_tex   = vglib.load_texture("tests/assets/ebil_qehbe.png");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
@@ -28,7 +28,7 @@ flashlight_target = vglib.load_render_texture(1920, 1080);
 
 # --- NEXTBOT SETUP ---
 nextbot_pos = [60.0, 1.8, 60.0];
-nextbot_speed = 0.3;
+nextbot_speed = 0.4;
 spawn_point = [30.0, 1.8, 0.0];
 message = "";
 glitch_factor = 0.0;
@@ -75,6 +75,7 @@ is_grounded = true;
 vaudio.init_audio();
 vaudio.volume(1.0);
 ambiance = vaudio.load_sound("tests/assets/akira.wav");
+qulaq = vaudio.load_sound("tests/assets/qulag.wav");
 vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
@@ -89,8 +90,16 @@ while (vglib.running()) {
     dir_x = cam_pos[0] - nextbot_pos[0];
     dir_y = cam_pos[1] - nextbot_pos[1]; # Hündürlük fərqi
     dir_z = cam_pos[2] - nextbot_pos[2];
+
+    if (vaudio.is_playing(ambiance) == false) {
+        vaudio.play_sound(ambiance);
+    }
+    if (vaudio.is_playing(qulaq) == false) {
+        vaudio.play_sound(qulaq);
+    }
     
     dist_3d = vmath.abs(dir_x) + vmath.abs(dir_y) + vmath.abs(dir_z);
+    vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
     
     ground_dist = vmath.abs(dir_x) + vmath.abs(dir_z);
     
@@ -134,7 +143,7 @@ while (vglib.running()) {
         current_speed = current_speed * sprint_multiplier;
     }
 
-    if (vglib.key_down(vglib.SPACE)) { # && is_grounded
+    if (vglib.key_down(vglib.SPACE) && is_grounded) { # && is_grounded
         velocity_y = jump_force;
         is_grounded = false;
     }

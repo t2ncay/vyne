@@ -23,6 +23,12 @@ namespace VAudioNative {
         return Value(IsAudioDeviceReady());
     }
 
+    Value native_is_sound_playing(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        return Value(sound ? IsSoundPlaying(*sound) : false);
+    }
+
     Value native_close_audio(std::vector<Value>& args) {
         CloseAudioDevice();
         return Value();
@@ -97,6 +103,32 @@ namespace VAudioNative {
         if (sound) SetAudioStreamCallback(sound->stream, AudioProcessCallback);
         return Value(true);
     }
+
+    Value native_set_sound_3d(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("sound_3d() requires sound_ptr, listener_pos, source_pos, max_distance");
+
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        if (!sound) return Value(false);
+
+        std::vector<Value> lp = args[1].asList();
+        std::vector<Value> sp = args[2].asList();
+        float maxDist = (float)args[3].asFloat();
+        float maxVol  = (args.size() > 4) ? (float)args[4].asFloat() : 1.0f;
+
+        float dx = (float)lp[0].asFloat() - (float)sp[0].asFloat();
+        float dy = (float)lp[1].asFloat() - (float)sp[1].asFloat();
+        float dz = (float)lp[2].asFloat() - (float)sp[2].asFloat();
+        float dist = sqrtf(dx*dx + dy*dy + dz*dz);
+
+        float vol = 0.0f;
+        if (dist < maxDist) {
+            float t = 1.0f - (dist / maxDist);
+            vol = maxVol * (t * t);
+        }
+
+        SetSoundVolume(*sound, vol);
+        return Value(vol);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -119,4 +151,8 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("play_stream")]   = Value(VAudioNative::native_play_stream);
     vaudio[pool.intern("update_stream")] = Value(VAudioNative::native_update_stream);
     vaudio[pool.intern("set_dsp")]       = Value(VAudioNative::native_set_dsp_params);
+    vaudio[pool.intern("is_playing")] = Value(VAudioNative::native_is_sound_playing);
+
+    // 3D
+    vaudio[pool.intern("sound_3d")] = Value(VAudioNative::native_set_sound_3d);
 }
