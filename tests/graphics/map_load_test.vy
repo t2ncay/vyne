@@ -63,20 +63,14 @@ while (vglib.running()) {
     current_speed = speed;
 
     cam_pos = vglib.get_pos(camera);
-    temp_ground_y = 0.0;
+    temp_ground_y = 0.0; # Default yer səviyyəsi
 
     through w :: walls -> loop {
-        half  = w[3] / 2.0;
-        min_x = w[0] - half;
-        max_x = w[0] + half;
-        min_z = w[2] - half;
-        max_z = w[2] + half;
-
-        if (cam_pos[0] > min_x && cam_pos[0] < max_x && cam_pos[2] > min_z && cam_pos[2] < max_z) {
+        half = w[3] / 2.0;
+        if (cam_pos[0] > w[0]-half && cam_pos[0] < w[0]+half && cam_pos[2] > w[2]-half && cam_pos[2] < w[2]+half) {
             top_y = w[1] + half;
-            
-            if (cam_pos[1] >= top_y - 0.5) {
-                temp_ground_y = top_y;
+            if (cam_pos[1] >= top_y - 0.8) { 
+                if (top_y > temp_ground_y) { temp_ground_y = top_y; }
             }
         }
     };
@@ -137,15 +131,25 @@ while (vglib.running()) {
 
     new_pos = vglib.get_pos(camera);
 
-    if (moved) {
-        if (vglib.check_collision_map(new_pos, player_size, walls)) {      
-            test_pos_x = [new_pos[0], old_pos[1], old_pos[2]];
-            if (!vglib.check_collision_map(test_pos_x, player_size, walls)) {
-                vglib.set_pos(camera, test_pos_x[0], test_pos_x[1], test_pos_x[2]);
+    if (moved || !is_grounded) {
+        if (vglib.check_collision_map(new_pos, player_size, walls)) {
+            
+            if (velocity_y > 0.0) {
+                test_pos_y = [old_pos[0], new_pos[1], old_pos[2]];
+                if (vglib.check_collision_map(test_pos_y, player_size, walls)) {
+                    velocity_y = 0.0; # Başın tavana dəydi, impulsu sıfırla
+                    current_y = old_pos[1]; # Köhnə hündürlükdə qal
+                    vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
+                }
+            }
+
+            test_x = [new_pos[0], old_pos[1], old_pos[2]];
+            if (!vglib.check_collision_map(test_x, player_size, walls)) {
+                vglib.set_pos(camera, test_x[0], old_pos[1], test_x[2]);
             } else {
                 test_pos_z = [old_pos[0], old_pos[1], new_pos[2]];
                 if (!vglib.check_collision_map(test_pos_z, player_size, walls)) {
-                    vglib.set_pos(camera, test_pos_z[0], test_pos_z[1], test_pos_z[2]);
+                    vglib.set_pos(camera, test_pos_z[0], old_pos[1], test_pos_z[2]);
                 } else {
                     vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
                 }
