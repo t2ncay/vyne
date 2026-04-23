@@ -85,6 +85,8 @@ is_grounded = true;
 is_dead = false;
 death_timer = 0.0;
 
+flash_timer = 0.0;
+
 title_size = vglib.measure_text(vcr_font, "SUBJECT LOST", 80);
 sub_size   = vglib.measure_text(vcr_font, "SYSTEM ERROR: SIGNAL CORRUPTED", 30);
 
@@ -126,6 +128,7 @@ while (vglib.running()) {
     if (dist_3d < 2.5) {
         is_dead = true;
         death_timer = 3.0;
+        flash_timer = 0.5;
         vaudio.play_sound(death_sound);
         nextbot_pos = [60.0, 1.8, 60.0];
         glitch_factor = 0.0;
@@ -263,6 +266,15 @@ while (vglib.running()) {
 
             vglib.rect(0, 0, 1920, 1080, vglib.rgba(0, 0, 0, 255));
 
+            if (flash_timer > 0.0) {
+                flash_timer = flash_timer - 0.02; # Sürətlə azalır
+                
+                alpha = (flash_timer / 0.5) * 255.0;
+                if (alpha < 0.0) { alpha = 0.0; }
+                
+                vglib.rect(0, 0, 1920, 1080, vglib.rgba(255, 255, 255, int64(alpha)));
+            }
+
             vglib.rect(0, 0, 1920, 1080, vglib.rgba(180, 0, 0, (vmath.sin(run_time * 23.0) * 40.0 + 40.0)));
 
             vglib.rect(vmath.sin(run_time * 17.3) * 960.0 + 960.0, vmath.sin(run_time * 9.1)  * 540.0 + 270.0, 800.0, 6.0,  vglib.rgba(255, 0, 0, 180));
@@ -278,6 +290,7 @@ while (vglib.running()) {
                 vglib.set_pos(camera, spawn_point[0], spawn_point[1], spawn_point[2]);
                 nextbot_speed = 0.4;
             }
+
         }
 
         if (is_dead == false && glitch_factor > 0.1) {
@@ -289,7 +302,6 @@ while (vglib.running()) {
             vglib.rect(vmath.sin(run_time * 41.7) * 900.0 + 960.0, vmath.sin(run_time * 23.1) * 400.0 + 540.0, glitch_factor * 400.0, glitch_factor * 6.0,  vglib.rgba(255, 0,   255, (glitch_factor * 100.0)));
             vglib.rect(vmath.sin(run_time * 53.9) * 900.0 + 960.0, vmath.sin(run_time * 17.3) * 400.0 + 540.0, glitch_factor * 600.0, glitch_factor * 4.0,  vglib.rgba(255, 255, 255, (glitch_factor * 80.0)));
 
-            # full screen flash when extremely close
             if (glitch_factor > 0.8) {
                 vglib.rect(0, 0, 1920, 1080, vglib.rgba(255, 0, 0, ((glitch_factor - 0.8) * 5.0 * 60.0)));
             }
