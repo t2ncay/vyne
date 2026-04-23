@@ -16,7 +16,7 @@ scanline_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
 
 building_tex = vglib.load_texture("tests/assets/wall.jpeg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-stalker_tex  = vglib.load_texture("tests/assets/yusif.jpeg");
+stalker_tex  = vglib.load_texture("tests/assets/ebil_qehbe.png");
 
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 

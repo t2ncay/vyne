@@ -832,6 +832,19 @@ namespace VGLibNative {
         file.close();
         return Value(true);
     }
+
+    Value native_distance_3d(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("distance_3d() requires two position lists");
+        
+        std::vector<Value> a = args[0].asList();
+        std::vector<Value> b = args[1].asList();
+        
+        float dx = (float)a[0].asFloat() - (float)b[0].asFloat();
+        float dy = (float)a[1].asFloat() - (float)b[1].asFloat();
+        float dz = (float)a[2].asFloat() - (float)b[2].asFloat();
+        
+        return Value((double)sqrtf(dx*dx + dy*dy + dz*dz));
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -899,6 +912,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("mouse_delta")] = Value(VGLibNative::native_get_mouse_delta);
     vglib[pool.intern("billboard")] = Value(VGLibNative::native_draw_billboard);
     vglib[pool.intern("load_map")]  = Value(VGLibNative::native_load_map);
+    vglib[pool.intern("distance_3d")] = Value(VGLibNative::native_distance_3d);
     vglib[pool.intern("export_obj")] = Value(VGLibNative::native_export_obj);
 
     // VGLib properties

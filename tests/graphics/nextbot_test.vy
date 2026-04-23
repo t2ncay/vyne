@@ -19,7 +19,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 # textures
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-nextbot_tex   = vglib.load_texture("tests/assets/ebil_qehbe.png");
+nextbot_tex   = vglib.load_texture("tests/assets/selena.jpg");
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
@@ -75,7 +75,7 @@ is_grounded = true;
 vaudio.init_audio();
 vaudio.volume(1.0);
 ambiance = vaudio.load_sound("tests/assets/akira.wav");
-qulaq = vaudio.load_sound("tests/assets/qulag.wav");
+qulaq = vaudio.load_sound("tests/assets/selena.wav");
 vaudio.play_sound(ambiance);
 
 while (vglib.running()) {
@@ -88,7 +88,6 @@ while (vglib.running()) {
     cam_pos = vglib.get_pos(camera);
 
     dir_x = cam_pos[0] - nextbot_pos[0];
-    dir_y = cam_pos[1] - nextbot_pos[1]; # Hündürlük fərqi
     dir_z = cam_pos[2] - nextbot_pos[2];
 
     if (vaudio.is_playing(ambiance) == false) {
@@ -98,7 +97,7 @@ while (vglib.running()) {
         vaudio.play_sound(qulaq);
     }
     
-    dist_3d = vmath.abs(dir_x) + vmath.abs(dir_y) + vmath.abs(dir_z);
+    dist_3d = vglib.distance_3d(cam_pos, nextbot_pos);
     vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
     
     ground_dist = vmath.abs(dir_x) + vmath.abs(dir_z);
@@ -106,6 +105,10 @@ while (vglib.running()) {
     if (ground_dist > 0.1) {
         nextbot_pos[0] = nextbot_pos[0] + (dir_x / ground_dist) * nextbot_speed;
         nextbot_pos[2] = nextbot_pos[2] + (dir_z / ground_dist) * nextbot_speed;
+    }
+
+    if (dist_3d < 40.0) {
+        glitch_factor = 1.0 - (dist_3d / 40.0);
     }
 
     if (dist_3d < 2.5) {
@@ -239,6 +242,21 @@ while (vglib.running()) {
         vglib.begin_shader(vhs_color_shader);
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
+
+        if (glitch_factor > 0.1) {
+            glitch_count = (glitch_factor * 12.0);
+            
+            vglib.rect(vmath.sin(run_time * 13.7) * 900.0 + 960.0, vmath.sin(run_time * 7.3)  * 400.0 + 540.0, glitch_factor * 300.0, glitch_factor * 8.0,  vglib.rgba(255, 0,   0,   (glitch_factor * 180.0)));
+            vglib.rect(vmath.sin(run_time * 19.1) * 900.0 + 960.0, vmath.sin(run_time * 11.9) * 400.0 + 540.0, glitch_factor * 500.0, glitch_factor * 5.0,  vglib.rgba(0,   255, 255, (glitch_factor * 120.0)));
+            vglib.rect(vmath.sin(run_time * 31.3) * 900.0 + 960.0, vmath.sin(run_time * 5.7)  * 400.0 + 540.0, glitch_factor * 200.0, glitch_factor * 12.0, vglib.rgba(255, 255, 0,   (glitch_factor * 150.0)));
+            vglib.rect(vmath.sin(run_time * 41.7) * 900.0 + 960.0, vmath.sin(run_time * 23.1) * 400.0 + 540.0, glitch_factor * 400.0, glitch_factor * 6.0,  vglib.rgba(255, 0,   255, (glitch_factor * 100.0)));
+            vglib.rect(vmath.sin(run_time * 53.9) * 900.0 + 960.0, vmath.sin(run_time * 17.3) * 400.0 + 540.0, glitch_factor * 600.0, glitch_factor * 4.0,  vglib.rgba(255, 255, 255, (glitch_factor * 80.0)));
+
+            # full screen flash when extremely close
+            if (glitch_factor > 0.8) {
+                vglib.rect(0, 0, 1920, 1080, vglib.rgba(255, 0, 0, ((glitch_factor - 0.8) * 5.0 * 60.0)));
+            }
+        }
 
         # UI Overlay
         vglib.text_ex(vcr_font,"AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
