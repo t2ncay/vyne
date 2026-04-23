@@ -172,15 +172,17 @@ while (vglib.running()) {
             vglib.begin_shader(fog_shader);
                 vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
                 through w :: walls -> loop {
-                    tex_idx = 0;
-
-                    if (w.size() > 4) {
-                        raw_idx = int64(w[4]);
-
-                        tex_idx = raw_idx % tex_slots.size();
+                    dx = cam_pos[0] - w[0];
+                    dz = cam_pos[2] - w[2];
+                    
+                    if ((dx*dx + dz*dz) < 10000.0) {
+                        t_idx = 0;
+                        if (w.size() > 4) {
+                            raw_idx = int64(w[4]);
+                            tex_idx = raw_idx % tex_slots.size();
+                            vglib.cube_texture(tex_slots[tex_idx], w[0], w[1], w[2], w[3], vglib.WHITE);
+                        }
                     }
-
-                    vglib.cube_texture(tex_slots[tex_idx], w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
             vglib.end_shader();
         vglib.end3d();
