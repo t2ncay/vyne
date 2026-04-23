@@ -19,8 +19,12 @@ flashlight_shader = vglib.load_shader("tests/graphics/shaders/flashlight.fs");
 tex_paths = [
     "tests/assets/Brick/Brick_16-512x512.png",
     "tests/assets/wall.jpeg", 
-    "tests/assets/Dirt/Dirt_20-512x512.png", 
-    "tests/assets/yusif.jpeg"
+    "tests/assets/Dirt/Dirt_20-512x512.png",
+    "tests/assets/yusif.jpeg",
+    "tests/assets/asphalt_road_3.jpg",
+    "tests/assets/Metal/Metal_18-512x512.png",
+    "tests/assets/Metal/Metal_18-512x512.png",
+    "tests/assets/Metal/Metal_18-512x512.png"
 ];
 
 tex_slots = [];
@@ -38,6 +42,7 @@ bodycam_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = vglib.load_map("tau_map.dat");
+out("YUKLENEN BLOK SAYI: " + string(walls.size()));
 
 run_time = 0.0;
 speed = 0.12;
@@ -168,10 +173,13 @@ while (vglib.running()) {
                 vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
                 through w :: walls -> loop {
                     tex_idx = 0;
+
                     if (w.size() > 4) {
-                        tex_idx = int64(w[4]);
+                        raw_idx = int64(w[4]);
+
+                        tex_idx = raw_idx % tex_slots.size();
                     }
-                                        
+
                     vglib.cube_texture(tex_slots[tex_idx], w[0], w[1], w[2], w[3], vglib.WHITE);
                 };
             vglib.end_shader();

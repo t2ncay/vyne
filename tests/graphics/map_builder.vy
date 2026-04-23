@@ -41,7 +41,7 @@ if (vfs.exists(map_file)) {
 while (vglib.running()) {
     run_time = run_time + 0.016;
 
-    cursor_pos = vglib.get_ray_grid(camera, 10.0, grid_size);
+    cursor_pos = vglib.get_ray_grid(camera, 8.0, grid_size);
     
     if (vglib.key_pressed(vglib.ONE))   { current_slot = 0; }
     if (vglib.key_pressed(vglib.TWO))   { current_slot = 1; }
