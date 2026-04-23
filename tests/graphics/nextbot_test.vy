@@ -159,7 +159,6 @@ while (vglib.running()) {
         nextbot_pos[2] = nextbot_pos[2] + (target_z - nextbot_pos[2]) * 0.1;
 
         dist_3d = vglib.distance_3d(cam_pos, nextbot_pos);
-        vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
         
         if (dist_3d < 40.0) {
             glitch_factor = 1.0 - (dist_3d / 40.0);
@@ -177,6 +176,8 @@ while (vglib.running()) {
             target_x = 60.0;
             target_z = 60.0;
         }
+
+        vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
     }
 
     # --- 5. SLIDING COLLISION (WASD) ---
