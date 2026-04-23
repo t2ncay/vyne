@@ -283,7 +283,7 @@ while (vglib.running()) {
 
         # Axon UI
         vglib.text_ex(vcr_font, "AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
-        vglib.text_ex(vcr_font, "REC", 1800, 60, 25, vglib.RED);
+        if (vmath.sin(run_time * 4.0) > 0.0) { vglib.text_ex(vcr_font, "REC", 1800, 60, 25, vglib.RED); }
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
