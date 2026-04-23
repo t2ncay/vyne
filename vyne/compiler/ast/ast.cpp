@@ -645,123 +645,123 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
  * * @return Value The result of the function execution or the modified receiver object.
  */
 
-    Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-        if (receiver->type() == NodeType::VARIABLE) {
-            auto* varNode = static_cast<VariableNode*>(receiver.get());
+Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* varNode = static_cast<VariableNode*>(receiver.get());
+        env.markUsed(varNode->getNameId());
+    }
+
+    for (auto& arg : arguments) {
+        if (arg->type() == NodeType::VARIABLE) {
+            auto* varNode = static_cast<VariableNode*>(arg.get());
             env.markUsed(varNode->getNameId());
         }
-
-        for (auto& arg : arguments) {
-            if (arg->type() == NodeType::VARIABLE) {
-                auto* varNode = static_cast<VariableNode*>(arg.get());
-                env.markUsed(varNode->getNameId());
-            }
-        }
-
-        Value receiverVal = receiver->evaluate(env, currentGroup);
-
-        static const uint32_t lengthId   = StringPool::intern("length");
-        static const uint32_t replaceId  = StringPool::intern("replace");
-        static const uint32_t sizeId     = StringPool::intern("size");
-        static const uint32_t pushId     = StringPool::intern("push");
-        static const uint32_t popId      = StringPool::intern("pop");
-        static const uint32_t backId     = StringPool::intern("back");
-        static const uint32_t deleteId   = StringPool::intern("delete");
-        static const uint32_t sortId     = StringPool::intern("sort");
-        static const uint32_t reverseId  = StringPool::intern("reverse");
-        static const uint32_t clearId    = StringPool::intern("clear");
-        static const uint32_t placeAllId = StringPool::intern("place_all");
-        static const uint32_t fieldsId   = StringPool::intern("fields");
-
-        if (receiverVal.getType() == Value::STRING) {
-            std::string str = receiverVal.asString();
-
-            if (methodId == replaceId) {
-                if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
-                
-                std::string oldS = arguments[0]->evaluate(env, currentGroup).asString();
-                std::string newS = arguments[1]->evaluate(env, currentGroup).asString();
-
-                // C++ daxilində string əvəzləmə məntiqi
-                size_t pos = 0;
-                while ((pos = str.find(oldS, pos)) != std::string::npos) {
-                    str.replace(pos, oldS.length(), newS);
-                    pos += newS.length();
-                }
-                return Value(str);
-            }
-        }
-
-        if (receiverVal.getType() == Value::MODULE) {
-            uint32_t modId;
-            std::string modName;
-
-            if (receiverVal.isObject()) {
-                auto mod = static_cast<ModuleData*>(receiverVal.data.obj.get());
-                modName = mod->name;
-                modId = StringPool::instance().intern(modName);
-            } else {
-                modName = receiverVal.asString(); 
-                modId = StringPool::instance().intern(modName);
-            }
-
-            if (env.contains(modId) && env[modId].count(methodId)) {
-                Value& funcVal = env[modId][methodId];
-
-                if (funcVal.getType() == Value::FUNCTION) {
-                    auto func = funcVal.asFunction();
-
-                    if (arguments.empty() && func->isNative) {
-                        static std::vector<Value> emptyArgs; 
-                        return func->nativeFn(emptyArgs);
-                    }
-
-                std::vector<Value> argValues;
-                argValues.reserve(arguments.size());
-                for (auto& arg : arguments) {
-                    argValues.emplace_back(arg->evaluate(env, currentGroup));
-                }
-
-                if (func->isNative) {
-                    return func->nativeFn(argValues); 
-                }
-
-                const std::string& localCallScope = modName + ".call_" + std::to_string(rand());
-
-                for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
-                    const Parameter& param = func->params[i];
-                    Value& providedArg = argValues[i];
-
-                    if (param.type != VType::Unknown) {
-                        if (static_cast<VType>(providedArg.getType()) != param.type) {
-                            throw std::runtime_error(
-                                "Type Mismatch: Parameter '" + param.name + 
-                                "' expects " + VTypeToString(param.type) + 
-                                " but got " + providedArg.getTypeName() + 
-                                " at line " + std::to_string(lineNumber)
-                            );
-                        }
-                    }
-
-                    env[localCallScope][param.id] = std::move(providedArg);
-                }
-
-                Value result(0.0); 
-                try {
-                    for (auto& stmt : func->body) {
-                        result = stmt->evaluate(env, localCallScope);
-                    }
-                } catch (const ReturnException& e) {
-                    result = e.value;
-                }
-
-                env.erase(localCallScope);
-                return result;
-            }
-        }
-        
-        throw std::runtime_error("Module Error: Method '" + methodName + "' not found in module " + modName + " [ line " + std::to_string(lineNumber) + " ]");
     }
+
+    Value receiverVal = receiver->evaluate(env, currentGroup);
+
+    static const uint32_t lengthId   = StringPool::intern("length");
+    static const uint32_t replaceId  = StringPool::intern("replace");
+    static const uint32_t sizeId     = StringPool::intern("size");
+    static const uint32_t pushId     = StringPool::intern("push");
+    static const uint32_t popId      = StringPool::intern("pop");
+    static const uint32_t backId     = StringPool::intern("back");
+    static const uint32_t deleteId   = StringPool::intern("delete");
+    static const uint32_t sortId     = StringPool::intern("sort");
+    static const uint32_t reverseId  = StringPool::intern("reverse");
+    static const uint32_t clearId    = StringPool::intern("clear");
+    static const uint32_t placeAllId = StringPool::intern("place_all");
+    static const uint32_t fieldsId   = StringPool::intern("fields");
+
+    if (receiverVal.getType() == Value::STRING) {
+        std::string str = receiverVal.asString();
+
+        if (methodId == replaceId) {
+            if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
+            
+            std::string oldS = arguments[0]->evaluate(env, currentGroup).asString();
+            std::string newS = arguments[1]->evaluate(env, currentGroup).asString();
+
+            // C++ daxilində string əvəzləmə məntiqi
+            size_t pos = 0;
+            while ((pos = str.find(oldS, pos)) != std::string::npos) {
+                str.replace(pos, oldS.length(), newS);
+                pos += newS.length();
+            }
+            return Value(str);
+        }
+    }
+
+    if (receiverVal.getType() == Value::MODULE) {
+        uint32_t modId;
+        std::string modName;
+
+        if (receiverVal.isObject()) {
+            auto mod = static_cast<ModuleData*>(receiverVal.data.obj.get());
+            modName = mod->name;
+            modId = StringPool::instance().intern(modName);
+        } else {
+            modName = receiverVal.asString(); 
+            modId = StringPool::instance().intern(modName);
+        }
+
+        if (env.contains(modId) && env[modId].count(methodId)) {
+            Value& funcVal = env[modId][methodId];
+
+            if (funcVal.getType() == Value::FUNCTION) {
+                auto func = funcVal.asFunction();
+
+                if (arguments.empty() && func->isNative) {
+                    static std::vector<Value> emptyArgs; 
+                    return func->nativeFn(emptyArgs);
+                }
+
+            std::vector<Value> argValues;
+            argValues.reserve(arguments.size());
+            for (auto& arg : arguments) {
+                argValues.emplace_back(arg->evaluate(env, currentGroup));
+            }
+
+            if (func->isNative) {
+                return func->nativeFn(argValues); 
+            }
+
+            const std::string& localCallScope = modName + ".call_" + std::to_string(rand());
+
+            for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
+                const Parameter& param = func->params[i];
+                Value& providedArg = argValues[i];
+
+                if (param.type != VType::Unknown) {
+                    if (static_cast<VType>(providedArg.getType()) != param.type) {
+                        throw std::runtime_error(
+                            "Type Mismatch: Parameter '" + param.name + 
+                            "' expects " + VTypeToString(param.type) + 
+                            " but got " + providedArg.getTypeName() + 
+                            " at line " + std::to_string(lineNumber)
+                        );
+                    }
+                }
+
+                env[localCallScope][param.id] = std::move(providedArg);
+            }
+
+            Value result(0.0); 
+            try {
+                for (auto& stmt : func->body) {
+                    result = stmt->evaluate(env, localCallScope);
+                }
+            } catch (const ReturnException& e) {
+                result = e.value;
+            }
+
+            env.erase(localCallScope);
+            return result;
+        }
+    }
+    
+    throw std::runtime_error("Module Error: Method '" + methodName + "' not found in module " + modName + " [ line " + std::to_string(lineNumber) + " ]");
+}
 
     // --- ARRAY METHODS ---
     // TODO USE STRING_VIEW TO COMPARE INPUT METHOD WITH AVAILABLE METHOD OPTIONS
@@ -913,7 +913,7 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
         }
     }
 
-        if (receiverVal.getType() == Value::STRUCT) {
+    if (receiverVal.getType() == Value::STRUCT) {
         if (methodId == fieldsId) {
             auto baseObj = receiverVal.asStruct();
             auto structPtr = std::static_pointer_cast<VyneStruct>(baseObj);
