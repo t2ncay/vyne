@@ -864,114 +864,191 @@ addr = <span class="token function">vmem.peek</span>(target);
         <section id="vglib" class="ultra-module">
           <div class="module-header">
             <div class="header-main">
-              <h2>vglib <span class="version-tag">v0.0.1-alpha</span></h2>
+              <h2>vglib <span class="version-tag">v0.0.4-alpha</span></h2>
               <div class="status-indicators">
                 <span class="badge performance">Hardware Accelerated</span>
-                <span class="badge audio">Spatial Sound</span>
-                <span class="badge rtx">RTX Optimized</span>
+                <span class="badge audio">3D Spatial Audio</span>
+                <span class="badge rtx">Post-Processing Stack</span>
+                <span class="badge ai">Neural Pathfinding</span>
               </div>
             </div>
             <p class="module-intro">
-              Vyne's official graphics and audio engine. Built on a
-              <strong>Raylib backend</strong>, it provides high-performance
-              2D/3D rendering via low-level C++ matrix math and real-time
-              digital signal processing.
+              <strong>vglib</strong> is Vyne's high-performance graphics, audio,
+              and physics ecosystem. Engineered on a multi-threaded C++ backend,
+              it bridges the gap between high-level Vyne scripting and raw
+              hardware power.
             </p>
           </div>
 
           <div class="features-grid">
             <div class="feature-card">
-              <i class="icon-3d"></i>
-              <h3>3D Engine</h3>
+              <i class="icon-render"></i>
+              <h3>Hybrid 2D/3D Pipeline</h3>
               <p>
-                Native Z-Buffer, Orbital Camera, and Matrix Transformation
-                support.
+                Seamlessly switch between native OpenGL 3D modes and high-speed
+                texture rendering with Z-buffer support.
               </p>
             </div>
             <div class="feature-card">
-              <i class="icon-audio"></i>
-              <h3>Audio Pipeline</h3>
+              <i class="icon-vhs"></i>
+              <h3>Shader Stack</h3>
               <p>
-                Seamless MP3/WAV streaming with dynamic gain and master volume
-                control.
+                Native GLSL support for Bodycam filters, VHS glitches, VHS-Color
+                correction, and Volumetric Fog.
               </p>
             </div>
             <div class="feature-card">
-              <i class="icon-input"></i>
-              <h3>Input Mapping</h3>
+              <i class="icon-bot"></i>
+              <h3>Nextbot AI (BETA)</h3>
               <p>
-                Real-time key-state tracking with built-in hardware constant
-                mapping.
+                Built-in <code>vglib.pathfind()</code> utilizing dynamic
+                grid-avoidance for high-tension chase sequences.
+              </p>
+            </div>
+            <div class="feature-card">
+              <i class="icon-map"></i>
+              <h3>Architect Suite</h3>
+              <p>
+                Native <code>.dat</code> map loader and OBJ exporter for modular
+                level design and external engine porting.
               </p>
             </div>
           </div>
 
           <div class="code-container ultra-shadow">
             <div class="code-header">
-              <span class="code-title">shoegaze_engine.vy</span>
+              <span class="code-title"
+                >selena_chase.vy (Bodycam AI implementation)</span
+              >
               <div class="window-controls">
                 <span class="dot-red"></span><span class="dot-yellow"></span
                 ><span class="dot-green"></span>
               </div>
             </div>
             <div class="code-body">
-              <pre><code><span class="token keyword">import</span> vglib;
+              <pre><code><span class="token keyword">module</span> <span class = "token type">vglib;</span>
+<span class="token keyword">module</span> <span class = "token type">vaudio;</span>
+<span class="token keyword">module</span> <span class = "token type">vmath;</span>
 
-<span class="token comment"># Initialize high-fidelity environment</span>
-vglib.<span class="token function">init</span>(1280, 720, "Vyne Pro Engine");
-vglib.<span class="token function">init_audio</span>();
-cam = vglib.<span class="token function">camera</span>();
+<span class="token comment"># Initialize high-end bodycam environment</span>
+vglib.<span class="token function">init</span>(1920, 1080, "Vyne Pro - Selena Nextbot", vglib.FULLSCREEN);
+vhs_shader = vglib.<span class="token function">load_shader</span>("shaders/vhs.fs");
+selena_tex = vglib.<span class="token function">load_texture</span>("assets/selena.jpg");
 
-<span class="token comment"># Asset Loading (Pointer-based)</span>
-riff = vglib.<span class="token function">load_sound</span>("assets/shoegaze.wav");
-vglib.<span class="token function">sound_volume</span>(riff, 0.8);
+<span class="token comment"># Global AI State</span>
+bot_pos = [60.0, 1.8, 60.0];
+walls = vglib.<span class="token function">load_map</span>("tau_map.dat");
 
 <span class="token keyword">while</span> (vglib.<span class="token function">running</span>()) {
-    vglib.<span class="token function">begin</span>();
-    vglib.<span class="token function">clear</span>(vglib.BLACK);
+    cam_pos = vglib.<span class="token function">get_pos</span>(camera);
+    
+    <span class="token comment"># AI Neural Tick: Pathfind through modular walls</span>
+    res = vglib.<span class="token function">pathfind</span>(bot_pos, cam_pos, walls, 1.0);
+    bot_pos[0] = bot_pos[0] + res[0] * 0.4;
+    bot_pos[2] = bot_pos[2] + res[2] * 0.4;
 
-    <span class="token comment"># 3D Render Block</span>
-    vglib.<span class="token function">begin3d</span>(cam);
-        <span class="token keyword">if</span> (vglib.<span class="token function">key_down</span>(vglib.SPACE)) {
-            <span class="token comment"># Apply rotation and color</span>
-            vglib.<span class="token function">cube</span>(0, 1, 0, 2, 45, vglib.CYAN);
-            vglib.<span class="token function">play_sound</span>(riff);
-        }
-        vglib.<span class="token function">grid</span>(10, 1.0);
-    vglib.<span class="token function">end3d</span>();
-
-    vglib.<span class="token function">text</span>("FPS: 60", 20, 20, 20, vglib.GREEN);
-    vglib.<span class="token function">end</span>();
+    <span class="token comment"># 3D Render with VHS Post-Processing</span>
+    vglib.<span class="token function">begin_texture_mode</span>(screen_target);
+        vglib.<span class="token function">begin3d</span>(cam);
+            vglib.<span class="token function">billboard</span>(cam, selena_tex, bot_pos, 4.0, vglib.WHITE);
+            <span class="token keyword">through</span> w :: walls -> <span class="token keyword">loop</span> {
+                vglib.<span class="token function">cube_texture</span>(wall_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
+            }
+        vglib.<span class="token function">end3d</span>();
+    vglib.<span class="token function">end_texture_mode</span>();
 }</code></pre>
             </div>
           </div>
 
           <div class="reference-section">
-            <h3>Engine Constants</h3>
+            <h3>Module Reference: vglib</h3>
             <div class="table-wrapper">
               <table class="docs-table">
                 <thead>
                   <tr>
-                    <th>Category</th>
-                    <th>Constant</th>
-                    <th>Value / Purpose</th>
+                    <th>Method</th>
+                    <th>Parameters</th>
+                    <th>Description</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <td>Colors</td>
+                    <td><code>vglib.load_map(path)</code></td>
+                    <td><code>string</code></td>
+                    <td>
+                      Parses <code>.dat</code> files and returns an array of
+                      modular world blocks.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>vglib.pathfind(start, target, map, size)</code>
+                    </td>
+                    <td><code>list, list, array, float</code></td>
+                    <td>
+                      Native AI routine for obstacle avoidance in modular
+                      environments.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>vglib.billboard(cam, tex, pos, size)</code></td>
+                    <td><code>ptr, ptr, list, float</code></td>
+                    <td>
+                      Renders a 2D texture always facing the camera (Ideal for
+                      Nextbots).
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <code>vglib.check_collision_map(pos, size, map)</code>
+                    </td>
+                    <td><code>list, list, array</code></td>
+                    <td>
+                      Iterates through world data for high-speed AABB sliding
+                      collision.
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>vglib.export_obj(map, filename)</code></td>
+                    <td><code>array, string</code></td>
+                    <td>
+                      Bakes modular world data into a standard 3D mesh (OBJ
+                      format).
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <br />
+          <div class="reference-section">
+            <h3>Technical Constants</h3>
+            <div class="table-wrapper">
+              <table class="docs-table">
+                <thead>
+                  <tr>
+                    <th>Constant</th>
+                    <th>Type</th>
+                    <th>Value / Mapping</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>vglib.VSYNC</code></td>
+                    <td><code>System</code></td>
+                    <td><code>0x00000040</code> - Synchronization Hint</td>
+                  </tr>
+                  <tr>
+                    <td><code>vglib.LEFT_SHIFT</code></td>
+                    <td><code>Input</code></td>
+                    <td><code>340</code> - Standard Sprint Mapping</td>
+                  </tr>
+                  <tr>
                     <td><code>vglib.CYAN</code></td>
-                    <td><code>0x00AAFFFF</code> (Native RGBA)</td>
-                  </tr>
-                  <tr>
-                    <td>Input</td>
-                    <td><code>vglib.SPACE</code></td>
-                    <td>Standard 32-bit Mapping</td>
-                  </tr>
-                  <tr>
-                    <td>System</td>
-                    <td><code>vglib.version</code></td>
-                    <td>v0.0.1-alpha</td>
+                    <td><code>Color</code></td>
+                    <td>
+                      <code>0x00AAFFFF</code> - Vyne Standard Branding Color
+                    </td>
                   </tr>
                 </tbody>
               </table>
