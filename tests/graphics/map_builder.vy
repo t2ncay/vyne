@@ -95,6 +95,16 @@ while (vglib.running()) {
 
     vglib.set_camera_height(camera, cam_y);
 
+    pulse_val = (vmath.sin(run_time * 12.0) * 0.4 + 0.6); 
+    
+    bright_green = vglib.rgba(50, 255, 50, int64(pulse_val * 180.0 + 75.0));
+    
+    alpha_val = int64(pulse_val * 145.0 + 55.0); 
+    
+    preview_x = 1700;
+    preview_y = 850;
+    preview_size = 150;
+
     vglib.begin();
         vglib.clear(vglib.rgba(15, 15, 20, 255));
         
@@ -105,18 +115,22 @@ while (vglib.running()) {
                 vglib.cube_texture(tex_slots[obj[4]], obj[0], obj[1], obj[2], obj[3], vglib.WHITE);
             };
             
-            pulse_val = (vmath.sin(run_time * 10.0) * 0.5 + 0.5);
-            alpha = int64(pulse_val * 200.0 + 55.0);
-            
-            vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, vglib.rgba(255, 255, 255, alpha));
+            vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, vglib.rgba(100, 255, 100, alpha_val));
         vglib.end3d();
 
+        p_x = 1650; p_y = 800; p_size = 200;
+        vglib.rect(p_x - 10, p_y - 10, p_size + 20, p_size + 20, vglib.rgba(40, 40, 50, 200));
+        
+        vglib.draw_texture(tex_slots[current_slot], p_x, p_y, p_size, p_size, vglib.WHITE);
+        
+        vglib.text("SELECTED TEXTURE", p_x, p_y - 30, 20, vglib.CYAN);
+        vglib.text(tex_paths[current_slot], p_x, p_y + p_size + 10, 16, vglib.GRAY);
+        
         cross_alpha = int64(pulse_val * 255.0);
-        vglib.rect(955, 535, 10, 10, vglib.rgba(0, 255, 255, cross_alpha));
+        vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, bright_green);
         
         vglib.text("VYNE MAP BUILDER 1.0 | " + map_file, 50, 50, 24, vglib.CYAN);
-        vglib.text("SLOT: " + string(current_slot + 1) + " (" + tex_paths[current_slot] + ")", 50, 85, 18, vglib.WHITE);
-        vglib.text("OBJS: " + string(map_data.size()), 50, 115, 18, vglib.GRAY);
+        vglib.text("SLOT: " + string(current_slot + 1), 50, 85, 18, vglib.WHITE);
         vglib.text(message, 50, 1000, 22, vglib.GREEN);
     vglib.end();
 }

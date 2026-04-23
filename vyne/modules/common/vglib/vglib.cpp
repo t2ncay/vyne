@@ -244,6 +244,26 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_draw_texture(std::vector<Value>& args) {
+        if (args.size() < 5) throw std::runtime_error("draw_texture() requires tex_ptr, x, y, w, h");
+
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[0].asInt());
+        float x = (float)args[1].asFloat();
+        float y = (float)args[2].asFloat();
+        float w = (float)args[3].asFloat();
+        float h = (float)args[4].asFloat();
+        Color color = (args.size() > 5) ? GetColor((uint32_t)args[5].asInt()) : WHITE;
+
+        if (tex) {
+            Rectangle source = { 0.0f, 0.0f, (float)tex->width, (float)tex->height };
+            Rectangle dest = { x, y, w, h };
+            Vector2 origin = { 0.0f, 0.0f };
+
+            DrawTexturePro(*tex, source, dest, origin, 0.0f, color);
+        }
+        return Value();
+    }
+
     Value native_draw_cube(std::vector<Value>& args) {
         if (args.size() < 6) throw std::runtime_error("draw_cube() requires x, y, z, size, rotation, and color");
         
@@ -547,8 +567,15 @@ namespace VGLibNative {
         float z = (float)args[3].asFloat();
 
         if (camera) {
+            Vector3 direction = {
+                camera->target.x - camera->position.x,
+                camera->target.y - camera->position.y,
+                camera->target.z - camera->position.z
+            };
+
             camera->position = (Vector3){ x, y, z };
-            camera->target = (Vector3){ x, y, z + 1.0f };
+
+            camera->target = (Vector3){ x + direction.x, y + direction.y, z + direction.z };
         }
         return Value();
     }
@@ -854,6 +881,43 @@ namespace VGLibNative {
         
         return Value((double)sqrtf(dx*dx + dy*dy + dz*dz));
     }
+
+    Value native_check_collision_map(std::vector<Value>& args) {
+        if (args.size() < 3) throw std::runtime_error("check_collision_map() requires player_pos, player_size, and map_data");
+
+        std::vector<Value> pPosList = args[0].asList();
+        std::vector<Value> pSizeList = args[1].asList();
+        
+        Vector3 pPos = { (float)pPosList[0].asFloat(), (float)pPosList[1].asFloat(), (float)pPosList[2].asFloat() };
+        Vector3 pSize = { (float)pSizeList[0].asFloat(), (float)pSizeList[1].asFloat(), (float)pSizeList[2].asFloat() };
+
+        BoundingBox playerBox = { 
+            (Vector3){ pPos.x - pSize.x/2, pPos.y - pSize.y/2, pPos.z - pSize.z/2 },
+            (Vector3){ pPos.x + pSize.x/2, pPos.y + pSize.y/2, pPos.z + pSize.z/2 }
+        };
+
+        std::vector<Value> mapData = args[2].asList();
+
+        for (const auto& objVal : mapData) {
+            std::vector<Value> obj = objVal.asList();
+            
+            float cX = (float)obj[0].asFloat();
+            float cY = (float)obj[1].asFloat();
+            float cZ = (float)obj[2].asFloat();
+            float cSize = (float)obj[3].asFloat();
+
+            BoundingBox cubeBox = {
+                (Vector3){ cX - cSize/2, cY - cSize/2, cZ - cSize/2 },
+                (Vector3){ cX + cSize/2, cY + cSize/2, cZ + cSize/2 }
+            };
+
+            if (CheckCollisionBoxes(playerBox, cubeBox)) {
+                return Value(true);
+            }
+        }
+
+        return Value(false);
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -924,9 +988,11 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("load_map")]  = Value(VGLibNative::native_load_map);
     vglib[pool.intern("distance_3d")] = Value(VGLibNative::native_distance_3d);
     vglib[pool.intern("export_obj")] = Value(VGLibNative::native_export_obj);
+    vglib[pool.intern("draw_texture")] = Value(VGLibNative::native_draw_texture);
+    vglib[pool.intern("check_collision_map")] = Value(VGLibNative::native_check_collision_map);
 
     // VGLib properties
-    vglib[pool.intern("version")]  = Value("v0.0.1-alpha").setReadOnly();
+    vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
 
     // keyboard codes important
     // Numbers

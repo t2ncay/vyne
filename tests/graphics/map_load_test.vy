@@ -124,38 +124,33 @@ while (vglib.running()) {
         }
     }
 
+    vglib.rotate_view(camera, 0.15);
     vglib.set_camera_height(camera, current_y);
-    if (vglib.key_down(vglib.W)) { 
-        vglib.move_forward(camera, current_speed); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_forward(camera, -current_speed);
+
+    old_pos = vglib.get_pos(camera);
+    
+    moved = false;
+    if (vglib.key_down(vglib.W)) { vglib.move_forward(camera, current_speed); moved = true; }
+    if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, current_speed * -1.0); moved = true; }
+    if (vglib.key_down(vglib.A)) { vglib.move_right(camera, current_speed * -1.0); moved = true; }
+    if (vglib.key_down(vglib.D)) { vglib.move_right(camera, current_speed); moved = true; }
+
+    new_pos = vglib.get_pos(camera);
+
+    if (moved) {
+        if (vglib.check_collision_map(new_pos, player_size, walls)) {      
+            test_pos_x = [new_pos[0], old_pos[1], old_pos[2]];
+            if (!vglib.check_collision_map(test_pos_x, player_size, walls)) {
+                vglib.set_pos(camera, test_pos_x[0], test_pos_x[1], test_pos_x[2]);
+            } else {
+                test_pos_z = [old_pos[0], old_pos[1], new_pos[2]];
+                if (!vglib.check_collision_map(test_pos_z, player_size, walls)) {
+                    vglib.set_pos(camera, test_pos_z[0], test_pos_z[1], test_pos_z[2]);
+                } else {
+                    vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
+                }
             }
-        };
-    }
-    if (vglib.key_down(vglib.S)) { 
-        vglib.move_forward(camera, current_speed * -1.0); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_forward(camera, current_speed);
-            }
-        };
-    }
-    if (vglib.key_down(vglib.A)) { 
-        vglib.move_right(camera, current_speed * -1.0); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_right(camera, current_speed);
-            }
-        };
-    }
-    if (vglib.key_down(vglib.D)) { 
-        vglib.move_right(camera, current_speed); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_right(camera, -current_speed);
-            }
-        };
+        }
     }
 
     vglib.begin_texture_mode(screen_target);
