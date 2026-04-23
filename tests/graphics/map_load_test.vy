@@ -40,7 +40,7 @@ player_size = [0.8, 1.8, 0.8];
 walls = vglib.load_map("tau_map.dat");
 
 run_time = 0.0;
-speed = 0.15;
+speed = 0.12;
 sprint_multiplier = 2.5;
 normal_height = 1.8;
 crouch_height = 0.9;
@@ -48,6 +48,8 @@ current_y = 1.8;
 velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
+
+padding_size = [player_size[0] + 0.1, player_size[1], player_size[2] + 0.1];
 
 is_grounded = true;
 
@@ -132,25 +134,26 @@ while (vglib.running()) {
     new_pos = vglib.get_pos(camera);
 
     if (moved || !is_grounded) {
-        if (vglib.check_collision_map(new_pos, player_size, walls)) {
+        if (vglib.check_collision_map(new_pos, padding_size, walls)) {
             
             if (velocity_y > 0.0) {
                 test_pos_y = [old_pos[0], new_pos[1], old_pos[2]];
-                if (vglib.check_collision_map(test_pos_y, player_size, walls)) {
-                    velocity_y = 0.0; # Başın tavana dəydi, impulsu sıfırla
-                    current_y = old_pos[1]; # Köhnə hündürlükdə qal
+                if (vglib.check_collision_map(test_pos_y, padding_size, walls)) {
+                    velocity_y = 0.0;
+                    current_y = old_pos[1];
                     vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
                 }
             }
 
             test_x = [new_pos[0], old_pos[1], old_pos[2]];
-            if (!vglib.check_collision_map(test_x, player_size, walls)) {
+            if (!vglib.check_collision_map(test_x, padding_size, walls)) {
                 vglib.set_pos(camera, test_x[0], old_pos[1], test_x[2]);
             } else {
                 test_pos_z = [old_pos[0], old_pos[1], new_pos[2]];
-                if (!vglib.check_collision_map(test_pos_z, player_size, walls)) {
+                if (!vglib.check_collision_map(test_pos_z, padding_size, walls)) {
                     vglib.set_pos(camera, test_pos_z[0], old_pos[1], test_pos_z[2]);
                 } else {
+                    # Tam bloklanma
                     vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
                 }
             }

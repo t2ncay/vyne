@@ -4,7 +4,7 @@ module vmath;
 module vfs;
 
 vglib.init(1920, 1080, 60, "Vyne Architect - University Project", vglib.FULLSCREEN);
-camera = vglib.camera();
+camera = vglib.camera(70.0);
 vglib.set_pos(camera, 0.0, 25.0, -15.0);
 vglib.disable_cursor();
 
