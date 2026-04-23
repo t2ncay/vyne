@@ -2,6 +2,7 @@ ruleset { dynamic_casting };
 module vglib;
 module vaudio;
 module vmath;
+module vcore;
 
 vglib.init(1920, 1080, 75, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN + vglib.VSYNC);
 camera = vglib.camera(80.0);
@@ -207,7 +208,7 @@ while (vglib.running()) {
 
         # UI Overlay
         vglib.text("AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
-        vglib.text("2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
+        vglib.text(vcore.now(), 60, 90, 18, vglib.WHITE);
         vglib.text("REC", 1800, 60, 25, vglib.RED);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
