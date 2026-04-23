@@ -996,11 +996,14 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
 
     // keyboard codes important
     // Numbers
-    vglib[pool.intern("ONE")]   = Value(49).setReadOnly();
-    vglib[pool.intern("TWO")]   = Value(50).setReadOnly();
-    vglib[pool.intern("THREE")] = Value(51).setReadOnly();
-    vglib[pool.intern("FOUR")]  = Value(52).setReadOnly();
-    vglib[pool.intern("FIVE")]  = Value(53).setReadOnly();
+    vglib[pool.intern("ONE")]    = Value(49).setReadOnly();
+    vglib[pool.intern("TWO")]    = Value(50).setReadOnly();
+    vglib[pool.intern("THREE")]  = Value(51).setReadOnly();
+    vglib[pool.intern("FOUR")]   = Value(52).setReadOnly();
+    vglib[pool.intern("FIVE")]   = Value(53).setReadOnly();
+    vglib[pool.intern("SIX")]    = Value(54).setReadOnly();
+    vglib[pool.intern("SEVEN")]  = Value(55).setReadOnly();
+    vglib[pool.intern("EIGHT")]  = Value(56).setReadOnly();
 
     // editor movement for map builder (IJKL & UO)
     vglib[pool.intern("I")] = Value(73).setReadOnly();

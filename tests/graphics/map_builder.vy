@@ -9,10 +9,14 @@ vglib.set_pos(camera, 0.0, 25.0, -15.0);
 vglib.disable_cursor();
 
 tex_paths = [
-    "tests/assets/asphalt_road_3.jpg", 
+    "tests/assets/Brick/Brick_16-512x512.png",
     "tests/assets/wall.jpeg", 
     "tests/assets/building.jpg",
-    "tests/assets/yusif.jpeg" # Stalker/Entity spawn
+    "tests/assets/yusif.jpeg",
+    "tests/assets/asphalt_road_3.jpg",
+    "tests/assets/Metal/Metal_18-512x512.png",
+    "tests/assets/Metal/Metal_18-512x512.png",
+    "tests/assets/Metal/Metal_18-512x512.png"
 ];
 
 tex_slots = [];
@@ -43,6 +47,10 @@ while (vglib.running()) {
     if (vglib.key_pressed(vglib.TWO))   { current_slot = 1; }
     if (vglib.key_pressed(vglib.THREE)) { current_slot = 2; }
     if (vglib.key_pressed(vglib.FOUR))  { current_slot = 3; }
+    if (vglib.key_pressed(vglib.FIVE))  { current_slot = 4; }
+    if (vglib.key_pressed(vglib.SIX))   { current_slot = 5; }
+    if (vglib.key_pressed(vglib.SEVEN)) { current_slot = 6; }
+    if (vglib.key_pressed(vglib.EIGHT)) { current_slot = 7; }
     
     if (vglib.key_pressed(vglib.SPACE) || vglib.mouse_down(vglib.MOUSE_LEFT)) {
         new_obj = [cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, current_slot];
