@@ -3,64 +3,44 @@ module vglib;
 module vaudio;
 module vmath;
 
-vglib.init(1920, 1080, 75, "Vyne Pro - Bodycam Horror", vglib.FULLSCREEN + vglib.VSYNC);
+vglib.init(1920, 1080, 75, "Vyne Pro - Selena Nextbot", vglib.FULLSCREEN + vglib.VSYNC);
 camera = vglib.camera(80.0);
 vglib.set_pos(camera, 30.0, 1.8, 0.0);
-
 vglib.disable_cursor();
 
 # --- SHADERS ---
-fog_shader     = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
-vhs_shader     = vglib.load_shader("tests/graphics/shaders/vhs.fs");
+fog_shader       = vglib.load_shader("tests/graphics/shaders/fog.vs", "tests/graphics/shaders/fog.fs");
+vhs_shader       = vglib.load_shader("tests/graphics/shaders/vhs.fs");
 vhs_color_shader = vglib.load_shader("tests/graphics/shaders/scanline.fs");
-
-vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
+vcr_font         = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 # --- TEXTURES ---
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-nextbot_tex   = vglib.load_texture("tests/assets/selena.jpg");
+nextbot_tex  = vglib.load_texture("tests/assets/selena.jpg");
 
-# --- SFX EFFECTS ---
+# --- SFX ---
 vaudio.init_audio();
-ambiance = vaudio.load_sound("tests/assets/vhs_sound.wav");
-qulaq = vaudio.load_sound("tests/assets/selena.wav");
+ambiance    = vaudio.load_sound("tests/assets/vhs_sound.wav");
+qulaq       = vaudio.load_sound("tests/assets/selena.wav");
 death_sound = vaudio.load_sound("tests/assets/death_sound.wav");
 vaudio.volume(1.0);
 
 # --- RENDER TARGETS ---
 screen_target  = vglib.load_render_texture(1920, 1080);
 bodycam_target = vglib.load_render_texture(1920, 1080);
-flashlight_target = vglib.load_render_texture(1920, 1080);
 
-spawn_point = [30.0, 1.8, 0.0];
-
+# --- PHYSICS & WORLD ---
 player_size = [0.8, 1.8, 0.8];
+p_size = [player_size[0] + 0.1, player_size[1], player_size[2] + 0.1];
 walls = [
-    [-7.0,  5.0, 10.0, 10.0],
-    [-7.0,  8.0, 22.0, 16.0],
-    [-10.0, 5.0, 35.0, 10.0],
-    [-12.0, 12.0, 50.0, 24.0],
-
-    [7.0,   5.0, 12.0, 10.0],
-    [9.0,   7.0, 25.0, 14.0],
-    [7.0,   5.0, 38.0, 10.0],
-    [15.0,  15.0, 55.0, 30.0],
-
-    [0.0,   5.0, -10.0, 15.0],
-
-    [25.0,  5.0, 40.0, 10.0],
-    [35.0,  8.0, 40.0, 16.0],
-    [45.0,  5.0, 30.0, 10.0],
-
-    [0.0,  25.0, 90.0, 50.0],
-    
-    [-25.0, 2.5, 20.0, 5.0],
-    [20.0,  2.5, 10.0, 5.0],
+    [-7.0, 5.0, 10.0, 10.0], [-7.0, 8.0, 22.0, 16.0], [-10.0, 5.0, 35.0, 10.0],
+    [-12.0, 12.0, 50.0, 24.0], [7.0, 5.0, 12.0, 10.0], [9.0, 7.0, 25.0, 14.0],
+    [7.0, 5.0, 38.0, 10.0], [15.0, 15.0, 55.0, 30.0], [0.0, 5.0, -10.0, 15.0],
+    [25.0, 5.0, 40.0, 10.0], [35.0, 8.0, 40.0, 16.0], [45.0, 5.0, 30.0, 10.0],
+    [0.0, 25.0, 90.0, 50.0], [-25.0, 2.5, 20.0, 5.0], [20.0, 2.5, 10.0, 5.0],
     [-30.0, 10.0, 80.0, 20.0]
 ];
-
-# --- GAME CONFIGURATIONS ---
 
 run_time = 0.0;
 speed = 0.2;
@@ -72,20 +52,15 @@ velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
 
-# --- NEXTBOT SETUP ---
+# --- GAME STATE ---
 nextbot_pos = [60.0, 1.8, 60.0];
 nextbot_speed = 0.4;
 spawn_point = [30.0, 1.8, 0.0];
-message = "";
-glitch_factor = 0.0;
-
-# --- GAME STATES ---
 is_grounded = true;
-
 is_dead = false;
 death_timer = 0.0;
-
 flash_timer = 0.0;
+glitch_factor = 0.0;
 
 title_size = vglib.measure_text(vcr_font, "SUBJECT LOST", 80);
 sub_size   = vglib.measure_text(vcr_font, "SYSTEM ERROR: SIGNAL CORRUPTED", 30);
@@ -95,14 +70,7 @@ vaudio.play_sound(ambiance);
 while (vglib.running()) {
     run_time = run_time + 0.016;
     vglib.rotate_view(camera, 0.15);
-
-    current_speed = speed;
-    hover = vmath.sin(run_time * 2.0) * 0.2;
-
     cam_pos = vglib.get_pos(camera);
-
-    dir_x = cam_pos[0] - nextbot_pos[0];
-    dir_z = cam_pos[2] - nextbot_pos[2];
 
     if (vaudio.is_playing(ambiance) == false) {
         vaudio.play_sound(ambiance);
@@ -110,125 +78,127 @@ while (vglib.running()) {
     if (vaudio.is_playing(qulaq) == false) {
         vaudio.play_sound(qulaq);
     }
-    
-    dist_3d = vglib.distance_3d(cam_pos, nextbot_pos);
-    vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
-    
-    ground_dist = vmath.abs(dir_x) + vmath.abs(dir_z);
-    
-    if (ground_dist > 0.1) {
-        nextbot_pos[0] = nextbot_pos[0] + (dir_x / ground_dist) * nextbot_speed;
-        nextbot_pos[2] = nextbot_pos[2] + (dir_z / ground_dist) * nextbot_speed;
-    }
 
-    if (dist_3d < 40.0) {
-        glitch_factor = 1.0 - (dist_3d / 40.0);
-    }
-
-    if (dist_3d < 2.5) {
-        is_dead = true;
-        death_timer = 3.0;
-        flash_timer = 0.5;
-        vaudio.play_sound(death_sound);
-        nextbot_pos = [60.0, 1.8, 60.0];
-        glitch_factor = 0.0;
-    }
-
+    # --- 1. GROUND CHECK
     temp_ground_y = 0.0;
-
     through w :: walls -> loop {
-        half  = w[3] / 2.0;
-        min_x = w[0] - half;
-        max_x = w[0] + half;
-        min_z = w[2] - half;
-        max_z = w[2] + half;
-
-        if (cam_pos[0] > min_x && cam_pos[0] < max_x && cam_pos[2] > min_z && cam_pos[2] < max_z) {
+        half = w[3] / 2.0;
+        if (cam_pos[0] > w[0]-half && cam_pos[0] < w[0]+half && cam_pos[2] > w[2]-half && cam_pos[2] < w[2]+half) {
             top_y = w[1] + half;
-            
-            if (cam_pos[1] >= top_y - 0.5) {
-                temp_ground_y = top_y;
+            if (cam_pos[1] >= top_y - 0.5) { 
+                temp_ground_y = top_y; 
             }
         }
     };
 
+    # --- 2. TARGET HEIGHT TƏYİNİ ---
+    current_speed = speed;
     if (vglib.key_down(vglib.LEFT_CTRL)) {
         target_h = temp_ground_y + crouch_height;
         current_speed = 0.05;
     } else {
         target_h = temp_ground_y + normal_height;
     }
-
-    if (vglib.key_down(vglib.LEFT_SHIFT)) {
-        current_speed = current_speed * sprint_multiplier;
+    if (vglib.key_down(vglib.LEFT_SHIFT)) { 
+        current_speed = current_speed * sprint_multiplier; 
     }
 
-    if (vglib.key_down(vglib.SPACE) && is_grounded) { # && is_grounded
+    # --- 3. JUMP & GRAVITY (İndi target_h artıq mövcuddur) ---
+    if (vglib.key_down(vglib.SPACE) && is_grounded) {
         velocity_y = jump_force;
         is_grounded = false;
+        current_y = current_y + 0.05; 
     }
 
     if (is_grounded == false) {
         velocity_y = velocity_y + gravity;
         current_y = current_y + velocity_y;
 
-        if (current_y <= target_h) {
+        if (velocity_y < 0.0 && current_y <= target_h) {
             current_y = target_h;
             velocity_y = 0.0;
             is_grounded = true;
         }
     } else {
         diff = target_h - current_y;
-        
         if (vmath.abs(diff) > 0.001) {
-            if (diff < 0.0) {
-                current_y = current_y + (diff * 0.1); 
-            } else {
-                current_y = current_y + (diff * 0.2); 
-            }
+            step = 0.2;
+            if (diff < 0.0) { step = 0.1; }
+            current_y = current_y + (diff * step);
         } else {
             current_y = target_h;
         }
-
+        
         if (current_y > target_h + 0.5) {
             is_grounded = false;
         }
     }
 
     vglib.set_camera_height(camera, current_y);
-    if (vglib.key_down(vglib.W)) { 
-        vglib.move_forward(camera, current_speed); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_forward(camera, -current_speed);
-            }
-        };
-    }
-    if (vglib.key_down(vglib.S)) { 
-        vglib.move_forward(camera, current_speed * -1.0); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_forward(camera, current_speed);
-            }
-        };
-    }
-    if (vglib.key_down(vglib.A)) { 
-        vglib.move_right(camera, current_speed * -1.0); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_right(camera, current_speed);
-            }
-        };
-    }
-    if (vglib.key_down(vglib.D)) { 
-        vglib.move_right(camera, current_speed); 
-        through wall :: walls -> loop {
-            if (vglib.check_collision(vglib.get_pos(camera), player_size, wall, wall[3])) {
-                vglib.move_right(camera, -current_speed);
-            }
-        };
+
+    # --- 4. NEXTBOT LOGIC ---
+    if (!is_dead) {
+        dir_x = cam_pos[0] - nextbot_pos[0];
+        dir_z = cam_pos[2] - nextbot_pos[2];
+        ground_dist = vmath.abs(dir_x) + vmath.abs(dir_z);
+        
+        if (ground_dist > 0.1) {
+            nextbot_pos[0] = nextbot_pos[0] + (dir_x / ground_dist) * nextbot_speed;
+            nextbot_pos[2] = nextbot_pos[2] + (dir_z / ground_dist) * nextbot_speed;
+        }
+
+        dist_3d = vglib.distance_3d(cam_pos, nextbot_pos);
+        vaudio.sound_3d(qulaq, cam_pos, nextbot_pos, 80.0, 1.0);
+        
+        if (dist_3d < 40.0) {
+            glitch_factor = 1.0 - (dist_3d / 40.0);
+        } else { glitch_factor = 0.0; }
+
+        if (dist_3d < 2.5) {
+            is_dead = true;
+            death_timer = 3.0;
+            flash_timer = 0.5;
+            vaudio.play_sound(death_sound);
+            nextbot_pos = [60.0, 1.8, 60.0];
+        }
     }
 
+    # --- 5. SLIDING COLLISION (WASD) ---
+    old_pos = vglib.get_pos(camera);
+    moved = false;
+    if (vglib.key_down(vglib.W)) { vglib.move_forward(camera, current_speed); moved = true; }
+    if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, current_speed * -1.0); moved = true; }
+    if (vglib.key_down(vglib.A)) { vglib.move_right(camera, current_speed * -1.0); moved = true; }
+    if (vglib.key_down(vglib.D)) { vglib.move_right(camera, current_speed); moved = true; }
+
+    new_pos = vglib.get_pos(camera);
+
+    if (moved || !is_grounded) {
+        if (vglib.check_collision_map(new_pos, p_size, walls)) {
+            if (velocity_y > 0.0) {
+                test_y = [old_pos[0], new_pos[1], old_pos[2]];
+                if (vglib.check_collision_map(test_y, p_size, walls)) {
+                    velocity_y = 0.0;
+                    current_y = old_pos[1];
+                    vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
+                }
+            }
+            test_x = [new_pos[0], old_pos[1], old_pos[2]];
+            if (!vglib.check_collision_map(test_x, p_size, walls)) {
+                vglib.set_pos(camera, test_x[0], old_pos[1], test_x[2]);
+            } else {
+                test_z = [old_pos[0], old_pos[1], new_pos[2]];
+                if (!vglib.check_collision_map(test_z, p_size, walls)) {
+                    # Səhvən test_pos_z yazılmışdı, test_z ilə əvəzləndi
+                    vglib.set_pos(camera, test_z[0], old_pos[1], test_z[2]);
+                } else {
+                    vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
+                }
+            }
+        }
+    }
+
+    # --- RENDER PIPELINE ---
     vglib.begin_texture_mode(screen_target);
         vglib.clear(vglib.rgba(128, 128, 140, 255));
         vglib.begin3d(camera);
@@ -260,7 +230,8 @@ while (vglib.running()) {
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
 
-        if (is_dead == true) {
+        # Death & Glitch UI
+         if (is_dead == true) {
             death_timer = death_timer - 0.008;
             nextbot_speed = 0.0;
 
@@ -293,24 +264,9 @@ while (vglib.running()) {
 
         }
 
-        if (is_dead == false && glitch_factor > 0.1) {
-            glitch_count = (glitch_factor * 12.0);
-            
-            vglib.rect(vmath.sin(run_time * 13.7) * 900.0 + 960.0, vmath.sin(run_time * 7.3)  * 400.0 + 540.0, glitch_factor * 300.0, glitch_factor * 8.0,  vglib.rgba(255, 0,   0,   (glitch_factor * 180.0)));
-            vglib.rect(vmath.sin(run_time * 19.1) * 900.0 + 960.0, vmath.sin(run_time * 11.9) * 400.0 + 540.0, glitch_factor * 500.0, glitch_factor * 5.0,  vglib.rgba(0,   255, 255, (glitch_factor * 120.0)));
-            vglib.rect(vmath.sin(run_time * 31.3) * 900.0 + 960.0, vmath.sin(run_time * 5.7)  * 400.0 + 540.0, glitch_factor * 200.0, glitch_factor * 12.0, vglib.rgba(255, 255, 0,   (glitch_factor * 150.0)));
-            vglib.rect(vmath.sin(run_time * 41.7) * 900.0 + 960.0, vmath.sin(run_time * 23.1) * 400.0 + 540.0, glitch_factor * 400.0, glitch_factor * 6.0,  vglib.rgba(255, 0,   255, (glitch_factor * 100.0)));
-            vglib.rect(vmath.sin(run_time * 53.9) * 900.0 + 960.0, vmath.sin(run_time * 17.3) * 400.0 + 540.0, glitch_factor * 600.0, glitch_factor * 4.0,  vglib.rgba(255, 255, 255, (glitch_factor * 80.0)));
-
-            if (glitch_factor > 0.8) {
-                vglib.rect(0, 0, 1920, 1080, vglib.rgba(255, 0, 0, ((glitch_factor - 0.8) * 5.0 * 60.0)));
-            }
-        }
-
-        # UI Overlay
-        vglib.text_ex(vcr_font,"AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
-        vglib.text_ex(vcr_font,"2026-04-21 01:14:23", 60, 90, 18, vglib.WHITE);
-        vglib.text_ex(vcr_font,"REC", 1800, 60, 25, vglib.RED);
+        # Axon UI
+        vglib.text_ex(vcr_font, "AXON BODY 3 - UNIT 402", 60, 60, 20, vglib.WHITE);
+        vglib.text_ex(vcr_font, "REC", 1800, 60, 25, vglib.RED);
         
         if (vglib.key_down(vglib.ESCAPE)) { vglib.enable_cursor(); }
     vglib.end();
