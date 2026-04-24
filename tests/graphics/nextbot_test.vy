@@ -206,7 +206,6 @@ while (vglib.running()) {
             } else {
                 test_z = [old_pos[0], old_pos[1], new_pos[2]];
                 if (!vglib.check_collision_map(test_z, p_size, walls)) {
-                    # Səhvən test_pos_z yazılmışdı, test_z ilə əvəzləndi
                     vglib.set_pos(camera, test_z[0], old_pos[1], test_z[2]);
                 } else {
                     vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
@@ -233,6 +232,7 @@ while (vglib.running()) {
     vglib.begin_texture_mode(bodycam_target);
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_shader, "time", run_time);
+        vglib.set_shader_value(vhs_shader, "noise_amount", glitch_factor); 
         vglib.set_shader_value(vhs_shader, "renderSize", [1920.0, 1080.0]);
         vglib.begin_shader(vhs_shader);
             vglib.draw_render_texture(screen_target);
@@ -243,9 +243,23 @@ while (vglib.running()) {
         vglib.clear(vglib.BLACK);
         vglib.set_shader_value(vhs_color_shader, "time", run_time);
         vglib.set_shader_value(vhs_color_shader, "renderSize", [1920.0, 1080.0]);
+        vglib.set_shader_value(vhs_color_shader, "offset", glitch_factor * 0.05);
         vglib.begin_shader(vhs_color_shader);
             vglib.draw_render_texture(bodycam_target);
         vglib.end_shader();
+
+        if (is_dead == false && glitch_factor > 0.1) {
+            red_alpha = int64(glitch_factor * 120.0);
+            if (glitch_factor > 0.7) {
+                red_alpha = red_alpha + int64(vmath.sin(run_time * 20.0) * 10.0);
+            }
+            if (glitch_factor > 0.8) {
+                vignette_size = int64(vmath.sin(run_time * 25.0) * 50.0);
+                vglib.rect(0, 0, 1920, vignette_size, vglib.BLACK); # Top bar
+                vglib.rect(0, 1080 - vignette_size, 1920, vignette_size, vglib.BLACK);
+            }
+            vglib.rect(0, 0, 1920, 1080, vglib.rgba(150, 0, 0, red_alpha));
+        }
 
         # Death & Glitch UI
          if (is_dead == true) {

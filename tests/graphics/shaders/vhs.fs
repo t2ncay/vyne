@@ -10,6 +10,7 @@ out vec4 finalColor;
 uniform sampler2D texture0;
 uniform float time;
 uniform vec2 renderSize;
+uniform float offset;
 
 // --- CONSTANTS/PARAMETERS ---
 float wiggle = 0.0;
@@ -61,7 +62,8 @@ vec2 jumpy(vec2 uv, float frame) {
     vec2 look = uv;
     float window = 1.0 / (1.0 + 80.0 * (look.y - mod(frame/4.0, 1.0)) * (look.y - mod(frame/4.0, 1.0)));
     look.x += 0.05 * sin(look.y * 10.0 + frame) / 20.0 * onOff(4.0, 4.0, 0.3, frame) * (0.5 + cos(frame * 20.0)) * window;
-    float vShift = (0.1 * wiggle) * 0.4 * onOff(2.0, 3.0, 0.9, frame) * (sin(frame) * sin(frame * 20.0) + (0.5 + 0.1 * sin(frame * 200.0) * cos(frame)));
+    
+    float vShift = (0.1 * (wiggle + offset * 5.0)) * 0.4 * onOff(2.0, 3.0, 0.9, frame) * (sin(frame) * sin(frame * 20.0) + (0.5 + 0.1 * sin(frame * 200.0) * cos(frame)));
     look.y = mod(look.y - 0.01 * vShift, 1.0);
     return look;
 }
@@ -72,26 +74,29 @@ void main() {
     
     vec2 uv = jumpy(fragTexCoord, iTime);
     
-    float s = 0.0001 * -d_val + 0.0001 * wiggle * sin(iTime);
+    float s = 0.0001 * -d_val + 0.0001 * (wiggle + offset * 10.0) * sin(iTime);
     float e = min(0.30, pow(max(0.0, cos(uv.y * 4.0 + 0.3) - 0.75) * (s + 0.5) * 1.0, 3.0)) * 25.0;
-    float r = (iTime * (2.0 * s));
     
-    uv.x += abs(r * pow(min(0.003, (-uv.y + (0.01 * mod(iTime, 17.0)))) * 3.0, 2.0));
-
-    float final_d = 0.051 + abs(sin(s / 4.0));
+    float final_d = 0.051 + abs(sin(s / 4.0)) + (offset * 0.5);
     float c_val = max(0.0001, 0.002 * final_d) * smear;
     
     float y = rgb2yiq(Blur(uv, c_val + c_val * uv.x, iTime)).r;
     
-    uv.x += 0.01 * final_d;
+    uv.x += 0.01 * final_d + (offset * 0.02);
     float i = rgb2yiq(Blur(uv, c_val * 6.0, iTime)).g;
     
-    uv.x += 0.005 * final_d;
+    uv.x += 0.005 * final_d + (offset * 0.01);
     float q = rgb2yiq(Blur(uv, c_val * 2.50, iTime)).b;
 
-    vec3 finalRGB = yiq2rgb(vec3(y, i, q)) - pow(s + e * 2.0, 3.0);
-    
-    
+    y += (offset * 0.4) * (0.8 + 0.2 * sin(time * 50.0)); 
+
+    i *= (1.0 + offset * 3.0);
+    q *= (1.0 + offset * 3.0);
+
+    vec3 finalRGB = yiq2rgb(vec3(y, i, q));
+
+    finalRGB += pow(offset, 2.0) * 0.5;
+
     vec2 dist = fragTexCoord - vec2(0.5);
     float vignette = 1.0 - dot(dist, dist) * 1.8;
     finalRGB *= clamp(vignette, 0.0, 1.0);
