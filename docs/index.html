@@ -113,6 +113,16 @@
               </li>
             </ul>
           </div>
+          <div class="nav-section">
+            <h4 class="nav-section-title">Tools</h4>
+            <ul class="nav-links">
+              <li>
+                <a href="#builder"
+                  ><i class="fas fa-hammer"></i> Vyne Builder</a
+                >
+              </li>
+            </ul>
+          </div>
         </nav>
       </aside>
 
@@ -1056,10 +1066,99 @@ walls = vglib.<span class="token function">load_map</span>("tau_map.dat");
           </div>
         </section>
 
-        <footer class="footer">
+        <section id="builder">
+          <h2>Vyne Builder (CLI)</h2>
+          <div class="badge">SDK Tooling</div>
           <p>
-            Vyne Engine Documentation &copy; 2026. Engineered with RISCCORE.
+            Vyne includes a native deployment tool designed to package your
+            projects into standalone, distributable environments. The builder
+            automatically resolves dependencies, bundles assets, and generates
+            bootstrap scripts.
           </p>
+
+          <div class="explanation">
+            <i class="fas fa-box-open"></i> <strong>Automated Bundling:</strong>
+            The builder performs a static scan of your source code to identify
+            and collect all referenced textures, sounds, shaders, and data maps.
+          </div>
+
+          <h3>Usage</h3>
+          <p>
+            Execute the builder via the primary compiler CLI using the
+            <code>-b</code> flag.
+          </p>
+
+          <div class="code-container">
+            <div class="code-header">
+              <span class="code-title">terminal</span>
+            </div>
+            <div class="code-body">
+              <pre><code><span class="token comment"># Synthesizing a standalone release qovluğu</span>
+./vynec.exe <span class="token keyword">-b</span> main.vy</code></pre>
+            </div>
+          </div>
+
+          <h3>Deployment Pipeline</h3>
+          <p>
+            When <code>vynec -b</code> is invoked, the engine executes the
+            following high-speed deployment sequence:
+          </p>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  <th>Action</th>
+                  <th>Output</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>1. Workspace Init</strong></td>
+                  <td>
+                    Creates a dynamic output directory based on script name.
+                  </td>
+                  <td><code>/main_release/</code></td>
+                </tr>
+                <tr>
+                  <td><strong>2. Binary Injection</strong></td>
+                  <td>
+                    Copies <code>vynec.exe</code> and <code>urage.dll</code> to
+                    the root.
+                  </td>
+                  <td>Engine Binaries</td>
+                </tr>
+                <tr>
+                  <td><strong>3. Asset Discovery</strong></td>
+                  <td>
+                    Regex-based scanning of strings for
+                    <code>.png, .wav, .fs, .dat</code>, etc.
+                  </td>
+                  <td>Virtualized Assets</td>
+                </tr>
+                <tr>
+                  <td><strong>4. Bootstrap Generation</strong></td>
+                  <td>
+                    Writes a <code>run.bat</code> to handle interpreted
+                    execution.
+                  </td>
+                  <td>Executable Script</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="explanation warning">
+            <i class="fas fa-terminal"></i> <strong>Pro Tip:</strong>
+            Ensure your asset paths are relative to the project root. The
+            builder recreates the entire sub-directory structure inside the
+            release folder to maintain VFS (Virtual File System) integrity.
+          </div>
+        </section>
+
+        <footer class="footer">
+          <p>Vyne Engine Documentation &copy; 2026. Engineered with love.</p>
         </footer>
       </main>
     </div>
