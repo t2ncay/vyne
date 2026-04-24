@@ -43,7 +43,6 @@ bodycam_target = vglib.load_render_texture(1920, 1080);
 
 player_size = [0.8, 1.8, 0.8];
 walls = vglib.load_map("tau_map.dat");
-out("YUKLENEN BLOK SAYI: " + string(walls.size()));
 
 run_time = 0.0;
 speed = 0.12;
@@ -55,7 +54,7 @@ velocity_y = 0.0;
 gravity = -0.012;
 jump_force = 0.35;
 
-padding_size = [player_size[0] + 0.1, player_size[1], player_size[2] + 0.1];
+padding_size = [player_size[0] + 0.2, player_size[1] + 0.2, player_size[2] + 0.2];
 
 is_grounded = true;
 
@@ -71,7 +70,7 @@ while (vglib.running()) {
     current_speed = speed;
 
     cam_pos = vglib.get_pos(camera);
-    temp_ground_y = 0.0; # Default yer səviyyəsi
+    temp_ground_y = 0.0;
 
     through w :: walls -> loop {
         half = w[3] / 2.0;

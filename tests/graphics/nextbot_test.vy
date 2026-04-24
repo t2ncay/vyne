@@ -17,12 +17,12 @@ vcr_font         = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 # --- TEXTURES ---
 building_tex = vglib.load_texture("tests/assets/building.jpg");
 ground_tex   = vglib.load_texture("tests/assets/asphalt_road_3.jpg");
-nextbot_tex  = vglib.load_texture("tests/assets/selena.jpg");
+nextbot_tex  = vglib.load_texture("tests/assets/ebiltroot.png");
 
 # --- SFX ---
 vaudio.init_audio();
 ambiance    = vaudio.load_sound("tests/assets/vhs_sound.wav");
-qulaq       = vaudio.load_sound("tests/assets/selena.wav");
+qulaq       = vaudio.load_sound("tests/assets/kumirleyem.wav");
 death_sound = vaudio.load_sound("tests/assets/death_sound.wav");
 vaudio.volume(1.0);
 
@@ -44,7 +44,7 @@ walls = [
 
 run_time = 0.0;
 speed = 0.2;
-sprint_multiplier = 2.5;
+sprint_multiplier = 2.2;
 normal_height = 1.8;
 crouch_height = 0.9;
 current_y = 1.8;
@@ -54,7 +54,7 @@ jump_force = 0.5;
 
 # --- GAME STATE ---
 nextbot_pos = [60.0, 1.8, 60.0];
-nextbot_speed = 0.4;
+nextbot_speed = 0.6;
 spawn_point = [30.0, 1.8, 0.0];
 is_grounded = true;
 is_dead = false;
