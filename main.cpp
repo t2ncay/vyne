@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
         } else if (flag == "--build-game") {
             std::string filename = argv[2];
             VynePackager packager(filename);
-            packager.build("dist_game");
+            packager.build();
             return 0;
         } else {
             std::cerr << "Unknown flag: " << flag << "\n";

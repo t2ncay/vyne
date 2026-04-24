@@ -11,7 +11,7 @@ class VynePackager {
 public:
     explicit VynePackager(const std::string& scriptPath);
 
-    void build(const std::string& outDir);
+    void build();
 
 private:
     std::string mainScript;

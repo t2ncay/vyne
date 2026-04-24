@@ -14,23 +14,26 @@ namespace fs = std::filesystem;
 
 VynePackager::VynePackager(const std::string& scriptPath) : mainScript(scriptPath) {}
 
-void VynePackager::build(const std::string& outDir) {
+void VynePackager::build() {
+    fs::path scriptPath(mainScript);
+    std::string outDir = scriptPath.stem().string() + "_release";
+    
     if (!fs::exists(outDir)) {
         fs::create_directory(outDir);
     }
     
-    std::cout << CYAN << "Vyne Builder: Starting deployment for " << mainScript << RESET << "\n";
+    std::cout << CYAN << "Vyne Builder: Deploying project to /" << outDir << RESET << "\n";
 
     try {
         fs::copy_file("vynec.exe", outDir + "/vynec.exe", fs::copy_options::overwrite_existing);
         fs::copy_file("urage.dll", outDir + "/urage.dll", fs::copy_options::overwrite_existing);
     } catch (const std::exception& e) {
-        std::cout << MAGENTA << "Warning: Binaries (vynec/urage) not found in current path, skipping self-copy." << RESET << "\n";
+        std::cout << MAGENTA << "Warning: Engine binaries (vynec/urage) not found in root." << RESET << "\n";
     }
     
     std::ifstream file(mainScript);
     if (!file.is_open()) {
-        std::cerr << RED << "Error: Could not open script " << mainScript << RESET << "\n";
+        std::cerr << RED << "Error: Could not open " << mainScript << RESET << "\n";
         return;
     }
 
@@ -42,17 +45,16 @@ void VynePackager::build(const std::string& outDir) {
         auto words_end = std::sregex_iterator();
 
         for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            std::string assetPath = (*i)[1].str();
-            copyAsset(assetPath, outDir);
+            copyAsset((*i)[1].str(), outDir);
         }
     }
 
-    fs::copy_file(mainScript, outDir + "/main.vy", fs::copy_options::overwrite_existing);
+    fs::copy_file(mainScript, outDir + "/" + mainScript, fs::copy_options::overwrite_existing);
 
     std::ofstream bat(outDir + "/run.bat");
-    bat << "@echo off\nvynec.exe --ast main.vy\npause";
+    bat << "@echo off\nvynec.exe --ast " << mainScript << "\npause";
     
-    std::cout << GREEN << "\nBUILD SUCCESS: " << outDir << " is ready to ship!" << RESET << "\n";
+    std::cout << GREEN << "\nBUILD SUCCESS: /" << outDir << " is ready for delivery!" << RESET << "\n";
 }
 
 void VynePackager::copyAsset(const std::string& path, const std::string& outDir) {
@@ -64,6 +66,6 @@ void VynePackager::copyAsset(const std::string& path, const std::string& outDir)
         fs::copy_file(path, fs::path(outDir) / path, fs::copy_options::overwrite_existing);
         std::cout << YELLOW << "[BUNDLED] " << RESET << path << "\n";
     } else {
-        std::cout << RED << "[MISSING] " << RESET << "Asset not found: " << path << "\n";
+        std::cout << RED << "[MISSING] " << RESET << path << "\n";
     }
 }
