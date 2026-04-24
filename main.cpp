@@ -1,5 +1,6 @@
 #include "cli/repl.h"
 #include "cli/file_handler.h"
+#include "cli/packager.h"
 #include "vyne/utils/file_utils.h"
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include <cstring>
@@ -23,6 +24,11 @@ int main(int argc, char* argv[]) {
             runFile(filename, env, "ast");
         } else if (flag == "--bytecode") {
             runFile(filename, env, "bytecode");
+        } else if (flag == "--build-game") {
+            std::string filename = argv[2];
+            VynePackager packager(filename);
+            packager.build("dist_game");
+            return 0;
         } else {
             std::cerr << "Unknown flag: " << flag << "\n";
             return 1;
