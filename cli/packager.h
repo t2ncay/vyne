@@ -4,8 +4,7 @@
 #include <string>
 #include <iostream>
 #include <filesystem>
-
-namespace fs = std::filesystem;
+#include <set>
 
 class VynePackager {
 public:
@@ -16,9 +15,9 @@ public:
 private:
     std::string mainScript;
 
-    void copyAsset(const std::string& path, const std::string& outDir);
+    void scanDependencies(const std::string& filePath, const std::string& outDir, std::set<std::string>& processed);
     
-    void bundleBinaries(const std::string& outDir);
+    void copyFileWithStructure(const std::string& path, const std::string& outDir);
 };
 
 #endif

@@ -5,35 +5,41 @@
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include <cstring>
 
-int runLspServer();
-
 int main(int argc, char* argv[]) {
     FileUtils::setExeDir(argv[0]);
     SymbolContainer env;
-    env["global"] = {};
+    
+    uint32_t globalId = StringPool::instance().intern("global");
+    env[globalId] = {}; 
 
     if (argc > 1 && strcmp(argv[1], "--lsp") == 0) {
         return runLspServer(env);
     }
 
-    if (argc == 3) {
-        std::string flag = argv[1];
-        std::string filename = argv[2];
+    if (argc == 3 && strcmp(argv[1], "--build-game") == 0) {
+        VynePackager packager(argv[2]);
+        packager.build();
+        return 0;
+    }
 
-        if (flag == "--ast") {
-            runFile(filename, env, "ast");
-        } else if (flag == "--bytecode") {
-            runFile(filename, env, "bytecode");
-        } else if (flag == "--build-game") {
+    if (argc > 1) {
+        std::string firstArg = argv[1];
+        
+        if (argc == 3) {
             std::string filename = argv[2];
-            VynePackager packager(filename);
-            packager.build();
-            return 0;
-        } else {
-            std::cerr << "Unknown flag: " << flag << "\n";
-            return 1;
+            if (firstArg == "--ast") return runFile(filename, env, "ast");
+            if (firstArg == "--bytecode") return runFile(filename, env, "bytecode");
+        } 
+        
+        if (firstArg.substr(0, 2) != "--") {
+            return runFile(firstArg, env, "ast");
         }
-    } else {
+
+        std::cerr << "Error: Invalid arguments or file not found.\n";
+        return 1;
+    } 
+    
+    else {
         std::string input;
         init_REPL(input, env);
     }

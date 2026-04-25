@@ -2,15 +2,17 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <set>
 
 namespace fs = std::filesystem;
 
+// Rəng kodlarını saxlayırıq
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
 #define GREEN   "\033[32m"
 #define YELLOW  "\033[33m"
-#define MAGENTA "\033[35m"
 #define CYAN    "\033[36m"
+#define MAGENTA "\033[35m"
 
 VynePackager::VynePackager(const std::string& scriptPath) : mainScript(scriptPath) {}
 
@@ -22,50 +24,64 @@ void VynePackager::build() {
         fs::create_directory(outDir);
     }
     
-    std::cout << CYAN << "Vyne Builder: Deploying project to /" << outDir << RESET << "\n";
+    std::cout << CYAN << "Vyne Builder: Recursive Scan & Deploying to /" << outDir << RESET << "\n";
 
     try {
         fs::copy_file("vynec.exe", outDir + "/vynec.exe", fs::copy_options::overwrite_existing);
         fs::copy_file("urage.dll", outDir + "/urage.dll", fs::copy_options::overwrite_existing);
-    } catch (const std::exception& e) {
-        std::cout << MAGENTA << "Warning: Engine binaries (vynec/urage) not found in root." << RESET << "\n";
-    }
-    
-    std::ifstream file(mainScript);
-    if (!file.is_open()) {
-        std::cerr << RED << "Error: Could not open " << mainScript << RESET << "\n";
-        return;
-    }
+    } catch (...) {}
 
-    std::string line;
-    std::regex pathRegex("\"([^\"]*\\.(png|jpg|jpeg|wav|mp3|fs|vs|ttf|dat|obj))\"");
-
-    while (std::getline(file, line)) {
-        auto words_begin = std::sregex_iterator(line.begin(), line.end(), pathRegex);
-        auto words_end = std::sregex_iterator();
-
-        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            copyAsset((*i)[1].str(), outDir);
-        }
-    }
-
-    fs::copy_file(mainScript, outDir + "/" + mainScript, fs::copy_options::overwrite_existing);
+    std::set<std::string> processedFiles;
+    scanDependencies(mainScript, outDir, processedFiles);
 
     std::ofstream bat(outDir + "/run.bat");
     bat << "@echo off\nvynec.exe --ast " << mainScript << "\npause";
     
-    std::cout << GREEN << "\nBUILD SUCCESS: /" << outDir << " is ready for delivery!" << RESET << "\n";
+    std::cout << GREEN << "\nBUILD SUCCESS: Recursive bundle is ready!" << RESET << "\n";
 }
 
-void VynePackager::copyAsset(const std::string& path, const std::string& outDir) {
-    if (fs::exists(path)) {
-        fs::path p(path);
-        if (p.has_parent_path()) {
-            fs::create_directories(fs::path(outDir) / p.parent_path());
+void VynePackager::scanDependencies(const std::string& filePath, const std::string& outDir, std::set<std::string>& processed) {
+    if (processed.count(filePath) || !fs::exists(filePath)) return;
+    processed.insert(filePath);
+
+    copyFileWithStructure(filePath, outDir);
+
+    std::ifstream file(filePath);
+    std::string line;
+    
+    std::regex assetRegex("\"([^\"]*\\.(png|jpg|jpeg|wav|mp3|fs|vs|ttf|dat|obj|ogg))\"");
+    std::regex vyRegex("use\\s+\"([^\"]*\\.vy)\"");
+
+    while (std::getline(file, line)) {
+        auto assets_begin = std::sregex_iterator(line.begin(), line.end(), assetRegex);
+        auto assets_end = std::sregex_iterator();
+        for (std::sregex_iterator i = assets_begin; i != assets_end; ++i) {
+            copyFileWithStructure((*i)[1].str(), outDir);
         }
-        fs::copy_file(path, fs::path(outDir) / path, fs::copy_options::overwrite_existing);
-        std::cout << YELLOW << "[BUNDLED] " << RESET << path << "\n";
-    } else {
-        std::cout << RED << "[MISSING] " << RESET << path << "\n";
+
+        auto vy_begin = std::sregex_iterator(line.begin(), line.end(), vyRegex);
+        auto vy_end = std::sregex_iterator();
+        for (std::sregex_iterator i = vy_begin; i != vy_end; ++i) {
+            std::string nestedVy = (*i)[1].str();
+            std::cout << CYAN << "[DEPENDENCY] " << RESET << nestedVy << "\n";
+            scanDependencies(nestedVy, outDir, processed);
+        }
     }
+}
+
+void VynePackager::copyFileWithStructure(const std::string& path, const std::string& outDir) {
+    if (!fs::exists(path)) {
+        std::cout << RED << "[MISSING] " << RESET << path << "\n";
+        return;
+    }
+
+    fs::path p(path);
+    fs::path dest = fs::path(outDir) / p;
+
+    if (p.has_parent_path()) {
+        fs::create_directories(fs::path(outDir) / p.parent_path());
+    }
+
+    fs::copy_file(path, dest, fs::copy_options::overwrite_existing);
+    std::cout << YELLOW << "[BUNDLED] " << RESET << path << "\n";
 }
