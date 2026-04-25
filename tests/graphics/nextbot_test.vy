@@ -262,7 +262,7 @@ while (vglib.running()) {
         }
 
         # Death & Glitch UI
-         if (is_dead == true) {
+        if (is_dead == true) {
             death_timer = death_timer - 0.008;
             nextbot_speed = 0.0;
 
@@ -292,7 +292,6 @@ while (vglib.running()) {
                 vglib.set_pos(camera, spawn_point[0], spawn_point[1], spawn_point[2]);
                 nextbot_speed = 0.4;
             }
-
         }
 
         # Axon UI

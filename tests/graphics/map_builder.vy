@@ -29,10 +29,10 @@ run_time = 0.0;
 current_slot = 0;
 grid_size = 2.0;
 cursor_pos = [0.0, 1.0, 0.0];
-map_data = [];
+map_data = vglib.load_map("tau_map.dat");
 message = "EDITOR READY - TAU MAP DESIGN";
 
-map_file = "kharkiv_map.dat";
+map_file = "tau_map.dat";
 
 if (vfs.exists(map_file)) {
     message = "EXISTING MAP FOUND. READY TO OVERWRITE.";
