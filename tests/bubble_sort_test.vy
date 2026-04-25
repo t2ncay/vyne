@@ -1,3 +1,7 @@
+ruleset {
+    dynamic_casting
+};
+
 numbers = [42, 7, 19, 88, 3, 56, 12, 101, 34, 25, 67, 2, 91, 14, 48];
 n = numbers.size();
 

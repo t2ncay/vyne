@@ -1,7 +1,6 @@
 ruleset {
-    warnings : off,
-    dynamic_casting : on
-}
+    dynamic_casting
+};
 
 use lib "vlinalg.vy";
 module vcore;

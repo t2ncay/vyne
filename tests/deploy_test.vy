@@ -1,3 +1,7 @@
+ruleset {
+    dynamic_casting
+};
+
 module vlinalg;
 
 group Types :: vlinalg {

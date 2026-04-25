@@ -1,3 +1,7 @@
+ruleset {
+    dynamic_casting
+};
+
 use lib "vcolors.vy";
 
 out(vcolors.green("Green text"));

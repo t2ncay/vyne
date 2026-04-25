@@ -2,7 +2,7 @@
 # CrediTrack AI - Vyne Implementation 
 #===============================================================================
 
-ruleset {  dynamic_casting, warnings, memory_limit = 16384 };
+ruleset {  dynamic_casting };
 
 module vmath;
 module vmem;

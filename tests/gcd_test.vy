@@ -1,3 +1,7 @@
+ruleset {
+    dynamic_casting
+};
+
 module vcore;
 
 # Greatest Common Divisor (GCD) Test
