@@ -692,7 +692,13 @@ namespace VGLibNative {
         Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
         
         std::vector<Value> pList = args[2].asList();
-        Vector3 pos = { (float)pList[0].asFloat(), (float)pList[1].asFloat(), (float)pList[2].asFloat() };
+        if (pList.size() < 3) throw std::runtime_error("billboard pos_list must have 3 elements [x,y,z]");
+
+        Vector3 pos = { 
+            (float)pList[0].asFloat(), 
+            (float)pList[1].asFloat(), 
+            (float)pList[2].asFloat() 
+        };
         
         float size = (float)args[3].asFloat();
         Color color = (args.size() > 4) ? GetColor((uint32_t)args[4].asInt()) : WHITE;
