@@ -1,7 +1,15 @@
 #include "vglib.h"
 #include <cstring>
+#include <map>
 
 // helpers
+
+struct PersistentInstance {
+    Vector3 position;
+    float scale;
+};
+
+static std::map<std::string, std::vector<PersistentInstance>> persistent_groups;
 
 static inline void DrawFace(
     Vector3 v1, Vector3 v2, Vector3 v3, Vector3 v4,
@@ -1067,6 +1075,102 @@ namespace VGLibNative {
         }
         return Value();
     }
+
+    Value native_draw_instances(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("draw_instances() requires model_ptr and instances_list");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        std::vector<Value> instances = args[1].asList();
+
+        if (!model) return Value();
+
+        for (const auto& instance_val : instances) {
+            std::vector<Value> data = instance_val.asList();
+            
+            if (data.size() < 4) continue;
+
+            Vector3 pos = { (float)data[0].asFloat(), (float)data[1].asFloat(), (float)data[2].asFloat() };
+            float scale = (float)data[3].asFloat();
+            
+            // Opsional: rəng də əlavə edə bilərsən data[4]-ə
+            Color col = WHITE;
+            
+            DrawModel(*model, pos, scale, col);
+        }
+        return Value();
+    }
+
+    Value native_draw_instances_ex(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("draw_instances() requires model_ptr, instances_list, cam_pos, and max_dist");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        std::vector<Value> instances = args[1].asList();
+        std::vector<Value> camPosList = args[2].asList();
+        float maxDistSq = (float)args[3].asFloat() * (float)args[3].asFloat(); // Kvadratı ilə müqayisə daha sürətlidir (sqrt-dan qaçırıq)
+
+        Vector3 camPos = { (float)camPosList[0].asFloat(), (float)camPosList[1].asFloat(), (float)camPosList[2].asFloat() };
+
+        if (!model) return Value();
+
+        for (const auto& instance_val : instances) {
+            std::vector<Value> data = instance_val.asList();
+            if (data.size() < 4) continue;
+
+            float dx = (float)data[0].asFloat() - camPos.x;
+            float dz = (float)data[2].asFloat() - camPos.z;
+            float distSq = dx*dx + dz*dz; // Manhattan-a yaxın, amma daha dəqiq dairəvi məsafə
+
+            if (distSq < maxDistSq) {
+                Vector3 pos = { (float)data[0].asFloat(), (float)data[1].asFloat(), (float)data[2].asFloat() };
+                float scale = (float)data[3].asFloat();
+                DrawModel(*model, pos, scale, WHITE);
+            }
+        }
+        return Value();
+    }
+
+    Value native_upload_persistent_group(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("upload_persistent_group() requires group_name and data_list");
+        
+        std::string groupName = args[0].asString();
+        std::vector<Value> instances = args[1].asList();
+        
+        auto& group = persistent_groups[groupName];
+        group.clear();
+
+        for (const auto& inst_val : instances) {
+            std::vector<Value> d = inst_val.asList();
+            group.push_back({
+                {(float)d[0].asFloat(), (float)d[1].asFloat(), (float)d[2].asFloat()},
+                (float)d[3].asFloat()
+            });
+        }
+        return Value(true);
+    }
+
+    Value native_draw_persistent_group(std::vector<Value>& args) {
+        if (args.size() < 4) throw std::runtime_error("draw_persistent_group() requires name, model, cam_pos, max_dist");
+
+        std::string groupName = args[0].asString();
+        Model* model = reinterpret_cast<Model*>(args[1].asInt());
+        std::vector<Value> camPosList = args[2].asList();
+        float maxDistSq = (float)args[3].asFloat() * (float)args[3].asFloat();
+
+        Vector3 camPos = {(float)camPosList[0].asFloat(), 0, (float)camPosList[2].asFloat()};
+
+        if (persistent_groups.find(groupName) == persistent_groups.end()) return Value();
+
+        const auto& instances = persistent_groups[groupName];
+        for (const auto& inst : instances) {
+            float dx = inst.position.x - camPos.x;
+            float dz = inst.position.z - camPos.z;
+            
+            if ((dx*dx + dz*dz) < maxDistSq) {
+                DrawModel(*model, inst.position, inst.scale, WHITE);
+            }
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -1145,6 +1249,10 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_alpha_discard")] = Value(VGLibNative::native_set_alpha_discard);
     vglib[pool.intern("set_roll")] = Value(VGLibNative::native_set_camera_roll);
     vglib[pool.intern("rotate_yaw")] = Value(VGLibNative::native_rotate_yaw);
+    vglib[pool.intern("draw_instances")] = Value(VGLibNative::native_draw_instances);
+    vglib[pool.intern("draw_instances_ex")] = Value(VGLibNative::native_draw_instances_ex);
+    vglib[pool.intern("upload_persistent_group")] = Value(VGLibNative::native_upload_persistent_group);
+    vglib[pool.intern("draw_persistent_group")] = Value(VGLibNative::native_draw_persistent_group);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();

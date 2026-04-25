@@ -414,7 +414,22 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseExpression() {
-    return parseRange();
+    return parseTernary();
+}
+
+std::unique_ptr<ASTNode> Parser::parseTernary() {
+    auto expr = parseRange();
+
+    if (peekToken().type == VTokenType::Question) {
+        consume(VTokenType::Question);
+        auto truePart = parseExpression();
+        consume(VTokenType::Colon);
+        auto falsePart = parseTernary();
+        
+        return std::make_unique<TernaryNode>(std::move(expr), std::move(truePart), std::move(falsePart));
+    }
+
+    return expr;
 }
 
 std::unique_ptr<ASTNode> Parser::parseRange() {

@@ -336,3 +336,21 @@ void ForNode::compile(Emitter& e) const {
     body->compile(e);
     e.emitLoop(loopStart);
 }
+
+void TernaryNode::compile(Emitter& e) const {
+    condition->compile(e);
+
+    int thenJump = e.emitJump(OP_JUMP_IF_FALSE);
+
+    e.emitByte(OP_POP);
+    trueExpr->compile(e);
+
+    int elseJump = e.emitJump(OP_JUMP);
+
+    e.patchJump(thenJump);
+    e.emitByte(OP_POP);
+
+    falseExpr->compile(e);
+
+    e.patchJump(elseJump);
+}

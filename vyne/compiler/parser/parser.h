@@ -126,6 +126,7 @@ public:
 	std::unique_ptr<ASTNode>     parseLogicalAnd();
 	std::unique_ptr<ASTNode>     parseLogicalOr();
 	std::unique_ptr<ASTNode>     parseRange();
+	std::unique_ptr<ASTNode>     parseTernary();
 	std::unique_ptr<ASTNode>     parseExpression();
 	std::unique_ptr<ASTNode>     parseImportModule();
 	std::unique_ptr<ASTNode>     parseDeployModule();

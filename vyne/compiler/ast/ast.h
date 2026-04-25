@@ -222,6 +222,7 @@ enum class NodeType {
     FOR,
     BLOCK,
     IF,
+    TERNARY,
 
     MODULE,
     DISMISS,
@@ -983,6 +984,28 @@ public:
         ASTNode(NodeType::NULLTYPE), typeName(std::move(tn)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(Emitter& e) const override;
+};
+
+class TernaryNode : public ASTNode {
+    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<ASTNode> trueExpr;
+    std::unique_ptr<ASTNode> falseExpr;
+
+public:
+    TernaryNode(std::unique_ptr<ASTNode> cond, std::unique_ptr<ASTNode> t, std::unique_ptr<ASTNode> f)
+        : ASTNode(NodeType::TERNARY),
+          condition(std::move(cond)), trueExpr(std::move(t)), falseExpr(std::move(f)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        Value condVal = condition->evaluate(env, currentGroupId);
+        if (condVal.isTruthy()) {
+            return trueExpr->evaluate(env, currentGroupId);
+        } else {
+            return falseExpr->evaluate(env, currentGroupId);
+        }
+    }
+
     void compile(Emitter& e) const override;
 };
 

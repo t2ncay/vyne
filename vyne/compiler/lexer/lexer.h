@@ -38,6 +38,7 @@ enum class VTokenType {
     Return,
     Break,
     Continue,
+    Question,
 
     // --- OPERATORS: ARITHMETIC ---
     Add,                // +
