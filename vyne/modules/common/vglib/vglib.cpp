@@ -1019,6 +1019,48 @@ namespace VGLibNative {
         }
         return Value(false);
     }
+
+    Value native_set_camera_roll(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_camera_roll() requires camera_ptr and angle");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float rollAngle = (float)args[1].asFloat() * DEG2RAD;
+
+        if (camera) {
+            Vector3 forward = {
+                camera->target.x - camera->position.x,
+                camera->target.y - camera->position.y,
+                camera->target.z - camera->position.z
+            };
+            forward = Vector3Normalize(forward);
+
+            Vector3 worldUp = { 0.0f, 1.0f, 0.0f };
+
+            Vector3 right = Vector3CrossProduct(forward, worldUp);
+            right = Vector3Normalize(right);
+
+            camera->up.x = worldUp.x * cosf(rollAngle) + right.x * sinf(rollAngle);
+            camera->up.y = worldUp.y * cosf(rollAngle) + right.y * sinf(rollAngle);
+            camera->up.z = worldUp.z * cosf(rollAngle) + right.z * sinf(rollAngle);
+        }
+        return Value();
+    }
+
+    Value native_rotate_yaw(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("rotate_yaw() requires camera_ptr and angle");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        float angle = (float)args[1].asFloat(); // dərəcə ilə
+
+        if (camera) {
+            UpdateCameraPro(camera, 
+                (Vector3){ 0, 0, 0 },
+                (Vector3){ angle, 0, 0 },
+                0.0f
+            );
+        }
+        return Value();
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -1095,6 +1137,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_model_texture_all")] = Value(VGLibNative::native_set_model_mesh_texture);
     vglib[pool.intern("set_alpha_cutoff")]      = Value(VGLibNative::native_set_model_alpha_cutoff);
     vglib[pool.intern("set_alpha_discard")] = Value(VGLibNative::native_set_alpha_discard);
+    vglib[pool.intern("set_roll")] = Value(VGLibNative::native_set_camera_roll);
+    vglib[pool.intern("rotate_yaw")] = Value(VGLibNative::native_rotate_yaw);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
@@ -1110,13 +1154,15 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("SEVEN")]  = Value(55).setReadOnly();
     vglib[pool.intern("EIGHT")]  = Value(56).setReadOnly();
 
-    // editor movement for map builder (IJKL & UO)
+    // editor movement for map builder
     vglib[pool.intern("I")] = Value(73).setReadOnly();
     vglib[pool.intern("K")] = Value(75).setReadOnly();
     vglib[pool.intern("J")] = Value(74).setReadOnly();
     vglib[pool.intern("L")] = Value(76).setReadOnly();
     vglib[pool.intern("U")] = Value(85).setReadOnly();
     vglib[pool.intern("O")] = Value(79).setReadOnly();
+    vglib[pool.intern("Q")] = Value(81).setReadOnly();
+    vglib[pool.intern("E")] = Value(69).setReadOnly();
 
     // Misc
     vglib[pool.intern("BACKSPACE")]  = Value(259).setReadOnly();

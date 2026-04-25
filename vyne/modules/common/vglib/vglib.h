@@ -23,6 +23,7 @@
 
 #include "../../../../vendor/raylib/include/raylib.h"
 #include "../../../../vendor/raylib/include/rlgl.h"
+#include "../../../../vendor/raylib/include/raymath.h"
 
 #include <cstring>
 #include <vector>
