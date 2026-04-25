@@ -13,10 +13,10 @@
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
 
-Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value ProgramNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     Value lastValue;
     for (const auto& statement : statements) {
-        lastValue = statement->evaluate(env, currentGroup);
+        lastValue = statement->evaluate(env, currentGroupId);
     }
     return lastValue; 
 }
@@ -32,16 +32,9 @@ Value ProgramNode::evaluate(SymbolContainer& env, const std::string& currentGrou
  * @return Value The stored value of the variable.
  */
 
-Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value VariableNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
-    
-    uint32_t targetId;
-
-    if (specificGroupId != 0) {
-        targetId = specificGroupId;
-    } else {
-        targetId = StringPool::instance().intern(currentGroup);
-    }
+    uint32_t targetId = (specificGroupId != 0) ? specificGroupId : currentGroupId;
     
     Value* valPtr = lookupSymbol(env, targetId, nameId);
     env.markUsed(nameId);
@@ -65,10 +58,8 @@ Value VariableNode::evaluate(SymbolContainer& env, const std::string& currentGro
  * * @return Value The value being assigned (allows for chained assignments like a = b = 1).
  */
 
-Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    uint32_t targetGroupId = (scopeGroupId != 0) 
-                             ? scopeGroupId 
-                             : StringPool::intern(currentGroup);
+Value AssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    uint32_t targetGroupId = (scopeGroupId != 0) ? scopeGroupId : currentGroupId;
 
     auto& table = env[targetGroupId];
     auto it_existing = table.find(identifierId);
@@ -91,7 +82,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
         return refValue;
     }
 
-    Value val = rhs->evaluate(env, currentGroup);
+    Value val = rhs->evaluate(env, currentGroupId);
 
     if (Vyne::isTypeStrict() && it_existing != table.end()) {
         int existingType = it_existing->second.getType();
@@ -154,7 +145,7 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
 
         Value& arrayVal = it_existing->second;
         auto& vec = getArrayRef(arrayVal, originalName, lineNumber);
-        Value idxValue = indexExpr->evaluate(env, currentGroup);
+        Value idxValue = indexExpr->evaluate(env, currentGroupId);
         size_t idx = validateIndex(idxValue, vec.size(), lineNumber);
         
         vec[idx] = val;
@@ -168,15 +159,19 @@ Value AssignmentNode::evaluate(SymbolContainer& env, const std::string& currentG
     return val;
 }
 
-Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    std::string parentScope = targetModule.empty() ? currentGroup : targetModule;
-    std::string fullName = parentScope + "." + groupName;
-    uint32_t groupNameId = StringPool::instance().intern(groupName);
-
-    env[parentScope][groupNameId] = Value(groupNameId, fullName, true); 
+Value GroupNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    static uint32_t globalId = getGlobalId();
+    
+    uint32_t fullNameId;
+    if (currentGroupId == globalId) {
+        fullNameId = groupNameId;
+    } else {
+        std::string parentName = StringPool::instance().get(currentGroupId);
+        fullNameId = StringPool::instance().intern(parentName + "." + groupName);
+    }
 
     for (const auto& stmt : statements) {
-        stmt->evaluate(env, fullName);
+        stmt->evaluate(env, fullNameId);
     }
     return Value();
 }
@@ -219,20 +214,20 @@ Value GroupNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
  * maintain type consistency within the `Value` system.
  */
 
-Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    const Value& l = left->evaluate(env, currentGroup);
+Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    const Value& l = left->evaluate(env, currentGroupId);
 
     if (op == VTokenType::And) {
         if (!l.isTruthy()) return Value(static_cast<int64_t>(0));
-        return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
+        return Value(static_cast<int64_t>(right->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
     }
 
     if (op == VTokenType::Or) {
         if (l.isTruthy()) return Value(static_cast<int64_t>(1));
-        return Value(static_cast<int64_t>(right->evaluate(env, currentGroup).isTruthy() ? 1 : 0));
+        return Value(static_cast<int64_t>(right->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
     }
 
-    const Value& r = right->evaluate(env, currentGroup);
+    const Value& r = right->evaluate(env, currentGroupId);
     int lType = l.getType();
     int rType = r.getType();
 
@@ -298,8 +293,8 @@ Value BinOpNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     throw std::runtime_error("Type Error: Invalid operation " + VTokenTypeToString(op) + " between " + l.getTypeName() + " and " + r.getTypeName() + "[ " + std::to_string(lineNumber) + " ]");
 }
 
-Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value oldValue = left->evaluate(env, currentGroup);
+Value PostFixNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value oldValue = left->evaluate(env, currentGroupId);
     Value newVal;
 
     if (oldValue.getType() == Value::INT64) {
@@ -317,7 +312,7 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         
         uint32_t memberId = memNode->getMemberId();
         
-        Value receiverVal = memNode->getReceiver()->evaluate(env, currentGroup);
+        Value receiverVal = memNode->getReceiver()->evaluate(env, currentGroupId);
 
         if (receiverVal.getType() == Value::STRUCT) {
             auto structPtr = receiverVal.asStruct();
@@ -332,9 +327,19 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     else if (left->type() == NodeType::VARIABLE) [[likely]] {
         auto* varNode = static_cast<VariableNode*>(left.get());
         
-        uint32_t scopeId = StringPool::instance().intern(currentGroup.empty() ? "global" : currentGroup);
+        uint32_t scopeId = currentGroupId; 
         
+        if (varNode->getScope().empty() == false) {
+            scopeId = resolvePathId(varNode->getScope(), currentGroupId);
+        }
+
         Value* internalVal = env.getInternalPointer(scopeId, varNode->getNameId());
+        
+        if (!internalVal) {
+            throw std::runtime_error("Runtime Error: Cannot assign to undefined variable '" + 
+                                    varNode->getOriginalName() + "'");
+        }
+        
         *internalVal = newVal;
     }
     else {
@@ -344,8 +349,8 @@ Value PostFixNode::evaluate(SymbolContainer& env, const std::string& currentGrou
     return oldValue; 
 }
 
-Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value val = right->evaluate(env, currentGroup);
+Value UnaryNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value val = right->evaluate(env, currentGroupId);
 
     switch(op){
         case VTokenType::Exclamatory : 
@@ -359,7 +364,7 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
             auto varNode = dynamic_cast<VariableNode*>(right.get());
             if (!varNode) throw std::runtime_error("Cannot take address of a non-variable.");
 
-            uint32_t scopeId = StringPool::instance().intern(currentGroup);
+            uint32_t scopeId = currentGroupId;
             Value* internalPtr = env.getInternalPointer(scopeId, varNode->getNameId()); 
             
             return Value(reinterpret_cast<int64_t>(internalPtr));
@@ -368,18 +373,18 @@ Value UnaryNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     }
 }
 
-Value ArrayNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value ArrayNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     std::vector<Value> results;
-    for (const auto& node : elements) results.emplace_back(node->evaluate(env, currentGroup));
+    for (const auto& node : elements) results.emplace_back(node->evaluate(env, currentGroupId));
 
     if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
 
     return Value(std::move(results));
 }
 
-Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value startVal = left->evaluate(env, currentGroup);
-    Value endVal = right->evaluate(env, currentGroup);
+Value RangeNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value startVal = left->evaluate(env, currentGroupId);
+    Value endVal = right->evaluate(env, currentGroupId);
     
     std::vector<Value> rangeArray;
 
@@ -396,7 +401,7 @@ Value RangeNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
     return Value(rangeArray);
 }
 
-Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value BuiltInCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     std::vector<Value> argValues;
 
     for (auto& arg : arguments) {
@@ -407,7 +412,7 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
     }
     
     for(auto& arg : arguments){
-        argValues.emplace_back(arg->evaluate(env, currentGroup));
+        argValues.emplace_back(arg->evaluate(env, currentGroupId));
     }
 
     switch (builtInType) {
@@ -452,9 +457,9 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, const std::string& current
     }
 }
 
-Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value baseVal = base->evaluate(env, currentGroup);
-    Value idxVal  = index->evaluate(env, currentGroup);
+Value IndexAccessNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value baseVal = base->evaluate(env, currentGroupId);
+    Value idxVal  = index->evaluate(env, currentGroupId);
     
     if (baseVal.getType() == Value::ARRAY) {
         auto& vec = baseVal.asList();
@@ -471,10 +476,10 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, const std::string& current
     throw std::runtime_error("Type Error: Cannot index non-array, non-string type...");
 }
 
-Value IndexAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value baseVal = base->evaluate(env, currentGroup);
-    Value idxVal = index->evaluate(env, currentGroup);
-    Value val = rhs->evaluate(env, currentGroup);
+Value IndexAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value baseVal = base->evaluate(env, currentGroupId);
+    Value idxVal = index->evaluate(env, currentGroupId);
+    Value val = rhs->evaluate(env, currentGroupId);
     
     if (baseVal.getType() == Value::ARRAY) {
         auto& vec = baseVal.asList();
@@ -493,20 +498,21 @@ Value IndexAssignmentNode::evaluate(SymbolContainer& env, const std::string& cur
     throw std::runtime_error("Type Error: Cannot assign to index of non-array type...");
 }
 
-Value FunctionNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value FunctionNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     Value funcValue(
         parameters, 
-        std::move(body),
+        body,
         VTypeToString(returnType)
     );
 
-    std::string destination = targetModule.empty() ? currentGroup : targetModule;
-    env[destination][funcNameId] = funcValue;
+    uint32_t destinationId = (targetModuleId != 0) ? targetModuleId : currentGroupId;
+
+    env[destinationId][funcNameId] = funcValue;
 
     return funcValue;
 }
 
-Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value FunctionCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
 
     if (!env.contains(targetGroupId)) {
@@ -542,10 +548,11 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
     evaluatedArgs.reserve(arguments.size());
     
     for (const auto& arg : arguments) {
-        if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroup));
+        if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroupId));
     }
 
-    CallContext ctx{env, currentGroup, lineNumber, originalName};
+    std::string currentGroupNameStr = StringPool::instance().get(currentGroupId);
+    CallContext ctx{env, currentGroupNameStr, lineNumber, originalName};
 
     if (funcData->isNative) {
         if (funcData->arity != -1) {
@@ -556,8 +563,9 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
 
     checkArgumentCount(funcData->params.size(), evaluatedArgs.size(), ctx);
 
-    std::string localScope = createLocalScope("call", originalName);
-    ScopedEnvironment scope(env, localScope, currentGroup);
+    std::string localScopeName = createLocalScope("call", originalName);
+    ScopedEnvironment scope(env, localScopeName, currentGroupId);
+    uint32_t localScopeId = scope.getScopeId();
 
     if (Vyne::isTypeStrict()) {
         for (size_t i = 0; i < funcData->params.size(); ++i) {
@@ -586,14 +594,12 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
             
             if (arguments[i]->type() == NodeType::VARIABLE) {
                 auto* varNode = static_cast<VariableNode*>(arguments[i].get());
-                std::string targetScope = currentGroup.empty() ? "global" : currentGroup;
-                uint32_t scopeId = StringPool::instance().intern(targetScope);
-                sourcePtr = env.getInternalPointer(scopeId, varNode->getNameId());
+                sourcePtr = env.getInternalPointer(currentGroupId, varNode->getNameId());
                 env.markUsed(varNode->getNameId());
-            } 
+            }
             else if (arguments[i]->type() == NodeType::MEMBER_ACCESS) {
                 auto* memNode = static_cast<MemberAccessNode*>(arguments[i].get());
-                Value memberVal = memNode->evaluate(env, currentGroup);
+                Value memberVal = memNode->evaluate(env, currentGroupId);
                 if (memberVal.isReference()) {
                     sourcePtr = memberVal.getPointer();
                 }
@@ -616,11 +622,11 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, const std::string& curren
         }
     }
 
-    return executeFunction(funcData, evaluatedArgs, env, localScope, lineNumber);
+    return executeFunction(funcData, evaluatedArgs, env, localScopeId, lineNumber);
 }
 
-Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    throw ReturnException{expression->evaluate(env, currentGroup)};
+Value ReturnNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    throw ReturnException{expression->evaluate(env, currentGroupId)};
 }
 
 /**
@@ -645,7 +651,7 @@ Value ReturnNode::evaluate(SymbolContainer& env, const std::string& currentGroup
  * * @return Value The result of the function execution or the modified receiver object.
  */
 
-Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     if (receiver->type() == NodeType::VARIABLE) {
         auto* varNode = static_cast<VariableNode*>(receiver.get());
         env.markUsed(varNode->getNameId());
@@ -658,7 +664,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
     }
 
-    Value receiverVal = receiver->evaluate(env, currentGroup);
+    Value receiverVal = receiver->evaluate(env, currentGroupId);
 
     static const uint32_t lengthId   = StringPool::intern("length");
     static const uint32_t replaceId  = StringPool::intern("replace");
@@ -679,8 +685,8 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         if (methodId == replaceId) {
             if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
             
-            std::string oldS = arguments[0]->evaluate(env, currentGroup).asString();
-            std::string newS = arguments[1]->evaluate(env, currentGroup).asString();
+            std::string oldS = arguments[0]->evaluate(env, currentGroupId).asString();
+            std::string newS = arguments[1]->evaluate(env, currentGroupId).asString();
 
             // C++ daxilində string əvəzləmə məntiqi
             size_t pos = 0;
@@ -698,11 +704,9 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
 
         if (receiverVal.isObject()) {
             auto mod = static_cast<ModuleData*>(receiverVal.data.obj.get());
-            modName = mod->name;
-            modId = StringPool::instance().intern(modName);
+            modId = StringPool::instance().intern(mod->name); 
         } else {
-            modName = receiverVal.asString(); 
-            modId = StringPool::instance().intern(modName);
+            modId = StringPool::instance().intern(receiverVal.asString());
         }
 
         if (env.contains(modId) && env[modId].count(methodId)) {
@@ -719,14 +723,15 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             std::vector<Value> argValues;
             argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
-                argValues.emplace_back(arg->evaluate(env, currentGroup));
+                argValues.emplace_back(arg->evaluate(env, currentGroupId));
             }
 
             if (func->isNative) {
                 return func->nativeFn(argValues); 
             }
 
-            const std::string& localCallScope = modName + ".call_" + std::to_string(rand());
+            std::string scopeName = "call_" + std::to_string(rand());
+            uint32_t localScopeId = StringPool::instance().intern(scopeName);
 
             for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
                 const Parameter& param = func->params[i];
@@ -743,19 +748,19 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                     }
                 }
 
-                env[localCallScope][param.id] = std::move(providedArg);
+                env[localScopeId][param.id] = std::move(providedArg);
             }
 
             Value result(0.0); 
             try {
                 for (auto& stmt : func->body) {
-                    result = stmt->evaluate(env, localCallScope);
+                    result = stmt->evaluate(env, localScopeId);
                 }
             } catch (const ReturnException& e) {
                 result = e.value;
             }
 
-            env.erase(localCallScope);
+            env.erase(localScopeId);
             return result;
         }
     }
@@ -778,13 +783,18 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
 
         if (receiver->type() == NodeType::VARIABLE) {
             auto* var = static_cast<VariableNode*>(receiver.get());
-            std::string targetGroup = resolvePath(var->getScope(), currentGroup);
-            if (env.count(targetGroup) && env[targetGroup].count(var->getNameId())) {
-                target = &env[targetGroup][var->getNameId()];
-                env.markUsed(var->getNameId());
-            } else if (targetGroup != "global" && env[getGlobalId()].count(var->getNameId())) {
-                target = &env["global"][var->getNameId()];
-                env.markUsed(var->getNameId());
+            static uint32_t globalId = getGlobalId();
+            
+            uint32_t targetGroupId = resolvePathId(var->getScope(), currentGroupId);
+            uint32_t varNameId = var->getNameId();
+
+            if (env.count(targetGroupId) && env[targetGroupId].count(varNameId)) {
+                target = &env[targetGroupId][varNameId];
+                env.markUsed(varNameId);
+            } 
+            else if (targetGroupId != globalId && env.count(globalId) && env[globalId].count(varNameId)) {
+                target = &env[globalId][varNameId];
+                env.markUsed(varNameId);
             }
         }
 
@@ -814,7 +824,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             }
             
             for(auto& arg : arguments){
-                Value val = arg->evaluate(env, currentGroup);
+                Value val = arg->evaluate(env, currentGroupId);
                 actualTarget->asList().emplace_back(val);
             }
 
@@ -854,7 +864,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error : Called method delete() on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() != 1) throw std::runtime_error("Argument Error: delete() expects exactly 1 argument, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
 
-            Value val = arguments[0]->evaluate(env, currentGroup);
+            Value val = arguments[0]->evaluate(env, currentGroupId);
             auto it = std::find(target->asList().begin(), target->asList().end(), val);
             if (it == std::end(target->asList())) throw std::runtime_error("Value error : Could not find given value in array! [ line " + std::to_string(lineNumber) + " ]");
             target->asList().erase(it);
@@ -878,8 +888,8 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             if (arguments.size() < 2)
                 throw std::runtime_error("Argument Error: place_all(element, count) expects 2 arguments [ line " + std::to_string(lineNumber) + " ]");
 
-            Value element = arguments[0]->evaluate(env, currentGroup);
-            Value countVal = arguments[1]->evaluate(env, currentGroup);
+            Value element = arguments[0]->evaluate(env, currentGroupId);
+            Value countVal = arguments[1]->evaluate(env, currentGroupId);
             
             int64_t count = countVal.asInt();
             if (count < 0) {
@@ -927,7 +937,8 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
         }
         
         auto structPtr = receiverVal.asStruct();
-        CallContext ctx{env, currentGroup, lineNumber, methodName};
+        std::string currentGroupNameStr = StringPool::instance().get(currentGroupId);
+        CallContext ctx{env, currentGroupNameStr, lineNumber, methodName};
 
         auto methodNodeIt = structPtr->methodNodes.find(methodId);
         if (methodNodeIt != structPtr->methodNodes.end()) {
@@ -936,7 +947,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             std::vector<Value> argValues;
             argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
-                argValues.emplace_back(arg->evaluate(env, currentGroup));
+                argValues.emplace_back(arg->evaluate(env, currentGroupId));
             }
 
             // Step 2: Validate the call using the evaluated arguments
@@ -975,7 +986,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
             }
 
-            Value funcVal = funcNode->evaluate(env, currentGroup);
+            Value funcVal = funcNode->evaluate(env, currentGroupId);
             structPtr->methods[methodId] = funcVal;
             
             auto funcData = funcVal.asFunction();
@@ -993,8 +1004,10 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
             
             std::string localScope = createLocalScope("method", methodName);
-            ScopedEnvironment scope(env, localScope, currentGroup);
-            scope.bind("self", receiverVal);
+            ScopedEnvironment scope(env, localScope, currentGroupId);
+            static uint32_t selfId = StringPool::instance().intern("self");
+
+            scope.bind(selfId, receiverVal);
             
             for (size_t i = 1; i < allArgs.size(); ++i) {
                 if (i-1 < funcData->params.size()) {
@@ -1002,7 +1015,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
             }
             
-            Value result = executeFunction(funcData, allArgs, env, localScope, lineNumber);
+            Value result = executeFunction(funcData, allArgs, env, scope.getScopeId(), lineNumber);
             
             if (funcNode->getReturnType() != VType::Unknown) {
                 std::string expectedReturn = VTypeToString(funcNode->getReturnType());
@@ -1031,7 +1044,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             std::vector<Value> argValues;
             argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
-                argValues.emplace_back(arg->evaluate(env, currentGroup));
+                argValues.emplace_back(arg->evaluate(env, currentGroupId));
             }
             
             std::vector<Value> allArgs = { receiverVal };
@@ -1046,9 +1059,11 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
             
             checkArgumentCount(funcData->params.size(), allArgs.size() - 1, ctx);
             
-            std::string localScope = createLocalScope("method", methodName);
-            ScopedEnvironment scope(env, localScope, currentGroup);
-            scope.bind("self", receiverVal);
+            std::string localScopeName = createLocalScope("method", methodName);
+            ScopedEnvironment scope(env, localScopeName, currentGroupId);
+
+            static uint32_t selfId = StringPool::instance().intern("self");
+            scope.bind(selfId, receiverVal);
             
             for (size_t i = 1; i < allArgs.size(); ++i) {
                 if (i-1 < funcData->params.size()) {
@@ -1056,7 +1071,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
                 }
             }
             
-            return executeFunction(funcData, allArgs, env, localScope, lineNumber);
+            return executeFunction(funcData, allArgs, env, scope.getScopeId(), lineNumber);
         }
         
         auto fieldIt = structPtr->fields.find(methodId);
@@ -1078,26 +1093,26 @@ Value MethodCallNode::evaluate(SymbolContainer& env, const std::string& currentG
  * - @b Continue: Caught via ContinueException to skip to the next iteration.
  * * */
 
-Value WhileNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value WhileNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     Value lastResult;
     
-    while (condition->evaluate(env, currentGroup).isTruthy()) {
+    while (condition->evaluate(env, currentGroupId).isTruthy()) {
         try {
-            lastResult = body->evaluate(env, currentGroup);
+            lastResult = body->evaluate(env, currentGroupId);
         } catch (const BreakException&) { break; }
         catch (const ContinueException&) { continue; }
     }
     return lastResult;
 }
 
-Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value collection = iterable->evaluate(env, currentGroup);
+Value ForNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value collection = iterable->evaluate(env, currentGroupId);
     if (collection.getType() != Value::ARRAY) {
         throw std::runtime_error("Runtime Error: 'through' requires a sequence or range...");
     }
 
     const auto& elements = collection.asList();
-    auto& scope = env[currentGroup];  // uses current group directly!!!!
+    auto& scope = env[currentGroupId];  // uses current group directly!!!!
     uint32_t itId = StringPool::instance().intern(iteratorName);
 
     Value savedIt;
@@ -1112,7 +1127,7 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
         scope[itId] = element;  // direct assignment in current group ( for now )
         
         try {
-            Value currentResult = body->evaluate(env, currentGroup);
+            Value currentResult = body->evaluate(env, currentGroupId);
 
             switch(mode) {
                 case ForMode::COLLECT: 
@@ -1146,12 +1161,12 @@ Value ForNode::evaluate(SymbolContainer& env, const std::string& currentGroup) c
     return lastVal;
 }
 
-Value IfNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value IfNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     try{
-        if(condition->evaluate(env, currentGroup).isTruthy()){
-            return body->evaluate(env, currentGroup);
+        if(condition->evaluate(env, currentGroupId).isTruthy()){
+            return body->evaluate(env, currentGroupId);
         } else if (elseBody) {
-            return elseBody->evaluate(env, currentGroup);
+            return elseBody->evaluate(env, currentGroupId);
         }
     } catch (const BreakException& breakException){
         throw;
@@ -1159,7 +1174,7 @@ Value IfNode::evaluate(SymbolContainer& env, const std::string& currentGroup) co
     return Value();
 }
 
-Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value InterfaceNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     auto funcData = std::make_shared<FunctionData>();
     funcData->isNative = true;
     funcData->arity = -1; 
@@ -1216,7 +1231,7 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     };
 
     uint32_t id = StringPool::instance().intern(interfaceName);
-    env[currentGroup][id] = Value(funcData);
+    env[currentGroupId][id] = Value(funcData);
     
     if (!moduleName.empty()) {
         if (env.find(moduleName) == env.end()) {
@@ -1233,10 +1248,12 @@ Value InterfaceNode::evaluate(SymbolContainer& env, const std::string& currentGr
     return Value();
 }
 
-Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value MemberAccessNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     if (isReceiverStatic) {
-        if (!currentGroup.empty()) {
-            uint32_t localContainerId = StringPool::instance().intern(currentGroup + "." + getReceiverPath());
+        if (currentGroupId != 0) { 
+            std::string currentGroupName = StringPool::instance().get(currentGroupId);
+            uint32_t localContainerId = StringPool::instance().intern(currentGroupName + "." + getReceiverPath());
+            
             if (env.contains(localContainerId)) {
                 auto& table = env[localContainerId];
                 auto it = table.find(memberId);
@@ -1250,6 +1267,8 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
             if (it != table.end()) return it->second;
         }
 
+        // Global fallback üçün "global." prefix-ini bir dəfə intern edib saxlamaq olar
+        // Amma indiki halda belə fix edirik:
         uint32_t globalContainerId = StringPool::instance().intern("global." + getReceiverPath());
         if (env.contains(globalContainerId)) {
             auto& table = env[globalContainerId];
@@ -1258,7 +1277,7 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
         }
     }
 
-    Value receiverVal = receiver->evaluate(env, currentGroup);
+    Value receiverVal = receiver->evaluate(env, currentGroupId);
     
     if (receiverVal.getType() == Value::NONE) {
         throw std::runtime_error("Runtime Error: Cannot access member '" + memberName + 
@@ -1271,6 +1290,7 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
         auto obj = receiverVal.data.obj;
         auto mod = static_cast<ModuleData*>(obj.get());
         
+        // Modulun öz ID-si ModuleData-da varsa onu istifadə et, yoxdursa:
         uint32_t moduleId = StringPool::instance().intern(mod->name);
         
         if (env.contains(moduleId)) {
@@ -1299,9 +1319,9 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, const std::string& curren
         "' not supported for type " + receiverVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
 }
 
-Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
-    Value newValue = rhs->evaluate(env, currentGroup);
-    Value recVal = receiver->evaluate(env, currentGroup);
+Value MemberAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value newValue = rhs->evaluate(env, currentGroupId);
+    Value recVal = receiver->evaluate(env, currentGroupId);
     
     if (recVal.getType() == Value::STRUCT) {
         auto structPtr = recVal.asStruct();
@@ -1353,12 +1373,12 @@ Value MemberAssignmentNode::evaluate(SymbolContainer& env, const std::string& cu
     }
 }
 
-Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value BlockNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     // TEMPORARY FIX: we won't create new scopes for now
     // TODO ADD IT
     Value lastValue;
     for (const auto& statement : statements) {
-        lastValue = statement->evaluate(env, currentGroup);
+        lastValue = statement->evaluate(env, currentGroupId);
     }
     return lastValue; 
 }
@@ -1372,7 +1392,7 @@ Value BlockNode::evaluate(SymbolContainer& env, const std::string& currentGroup)
  * @return Value The Module-typed value representing the loaded library.
  */
 
-Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value ModuleNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     if (originalName == "vcore")  setupVCore(env, StringPool::instance());
     if (originalName == "vglib")  setupVGLib(env, StringPool::instance());
     if (originalName == "vmem")   setupVMem(env, StringPool::instance());
@@ -1382,7 +1402,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     if (originalName == "vcv")    setupVCV(env, StringPool::instance());
     if (originalName == "vaudio") setupVAudio(env, StringPool::instance());
 
-    auto& groupTable = env[currentGroup]; 
+    auto& groupTable = env[currentGroupId]; 
 
     groupTable[moduleId] = Value(moduleId, originalName, true); 
 
@@ -1393,7 +1413,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     return groupTable[moduleId];
 }
 
-Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value ImportNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
     std::filesystem::path finalPath;
     
@@ -1426,7 +1446,7 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     externalEnv.setSourceDir(finalPath.parent_path().string());
 
     try {
-        externalAst->evaluate(externalEnv, "global");
+        externalAst->evaluate(externalEnv, globalId);
     } catch (const std::runtime_error& e) {
         throw std::runtime_error("In " + cleanPath + ": " + e.what());
     }
@@ -1434,41 +1454,42 @@ Value ImportNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     if (alias.empty()) {
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             uint32_t groupId = it->first;
-            std::string groupName = StringPool::instance().get(groupId); 
             
-            if (groupName == "global") {
+            if (groupId == globalId) {
                 for (auto const& [id, val] : it->second) {
                     env[globalId][id] = val;
                 }
             } else {
-                env[groupName] = std::move(it->second);
+                env[groupId] = std::move(it->second);
             }
         }
     } else {
-        env[alias] = {};
+        uint32_t aliasId = StringPool::instance().intern(alias);
+        env[aliasId] = {};
         
         auto globalIt = externalEnv.find(globalId);
         if (globalIt != externalEnv.end()) {
             for (auto const& [id, val] : globalIt->second) {
-                env[alias][id] = val;
+                env[aliasId][id] = val;
             }
         }
         
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             uint32_t groupId = it->first;
+            if (groupId == globalId) continue;
+            
             std::string groupName = StringPool::instance().get(groupId);
+            std::string aliasGroupName = alias + "." + groupName;
+            uint32_t aliasGroupId = StringPool::instance().intern(aliasGroupName);
             
-            if (groupName == "global") continue;
-            
-            std::string aliasGroup = alias + "." + groupName;
-            env[aliasGroup] = std::move(it->second);
+            env[aliasGroupId] = std::move(it->second);
         }
     }
 
     return Value(true);
 }
 
-Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value DeployNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     
     if (!env.contains(moduleName)) {
         throw std::runtime_error("Runtime Error: Module '" + moduleName + 
@@ -1479,22 +1500,23 @@ Value DeployNode::evaluate(SymbolContainer& env, const std::string& currentGroup
     return Value(true); 
 }
 
-Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value DismissNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
 
     bool erasedSomething = false;
     uint32_t nameId = StringPool::instance().intern(originalName);
     
-    uint32_t moduleGroupId = getGroupId(originalName);
+    uint32_t moduleGroupId = StringPool::instance().intern(originalName);
     if (env.erase(moduleGroupId)) {
         erasedSomething = true;
     }
     
     std::vector<uint32_t> keysToErase;
+    std::string prefix = "global." + originalName;
+    
     for (const auto& [groupId, table] : env) {
         const std::string& groupName = StringPool::instance().get(groupId);
-        
-        if (groupName.find("global." + originalName) == 0) {
+        if (groupName.find(prefix) == 0) {
             keysToErase.push_back(groupId);
         }
     }
@@ -1504,19 +1526,17 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
         erasedSomething = true;
     }
     
-    uint32_t globalDotNameId = getGroupId("global." + originalName);
+    uint32_t globalDotNameId = StringPool::instance().intern(prefix);
     if (env.erase(globalDotNameId)) erasedSomething = true;
     
-    uint32_t currentGroupId = getGroupId(currentGroup);
     if (env.count(currentGroupId)) {
         if (env[currentGroupId].erase(nameId)) erasedSomething = true;
     }
     
-    if (currentGroup != "global" && env.count(globalId)) {
+    if (currentGroupId != globalId && env.count(globalId)) {
         if (env[globalId].erase(nameId)) erasedSomething = true;
     }
     
-    // 4. Also remove any entries in the module's own namespace
     if (env.count(nameId)) {
         env.erase(nameId);
         erasedSomething = true;
@@ -1528,18 +1548,17 @@ Value DismissNode::evaluate(SymbolContainer& env, const std::string& currentGrou
                             "' [ line " + std::to_string(lineNumber) + " ]");
 }
 
-Value NullNode::evaluate(SymbolContainer& env, const std::string& currentGroup) const {
+Value NullNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     return Value();
 }
 
-std::string resolvePath(std::vector<std::string> scope, const std::string& currentGroup) {
-    if (scope.empty()) {
-        return currentGroup;
-    }
+uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId) {
+    if (scope.empty()) return currentGroupId;
     
+    // Məcbur qalıb string birləşdiririksə, bunu ancaq mürəkkəb yollarda edirik
     std::string path = "global";
-    for (const auto& segment : scope) {
-        path += "." + segment;
+    for (const auto& part : scope) {
+        path += "." + part;
     }
-    return path;
+    return StringPool::instance().intern(path);
 }

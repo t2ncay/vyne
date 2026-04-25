@@ -98,13 +98,13 @@ struct Value {
     union Data {
         double f64;
         int64_t i64;
-        uint32_t u32;
         std::shared_ptr<VyneObject> obj;
         Value* ref;
 
         Data() : i64(0) {}
         ~Data() {}
     } data;
+    uint32_t stringId = 0;
 
     VType type;
     bool isReadOnly = false;
@@ -116,8 +116,8 @@ struct Value {
     Value(unsigned int n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
     Value(size_t n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
     
-    Value(std::string_view s) : type(VType::String) {
-        data.u32 = StringPool::intern(s);
+    Value(std::string_view s) : type(VType::String), stringId(StringPool::intern(s)) {
+        data.i64 = 0; 
     }
 
     Value(std::vector<Value> l);

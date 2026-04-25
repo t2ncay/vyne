@@ -209,13 +209,14 @@ namespace VGLibNative {
     Value native_draw_line(std::vector<Value>& args) {
         if (args.size() < 5) throw std::runtime_error("draw_line() requires start_x, start_y, end_x, end_y, and color");
 
-        (
-            (int)args[0].asInt(),
-            (int)args[1].asInt(),
-            (int)args[2].asInt(),
-            (int)args[3].asInt(),
-            GetColor((uint32_t)args[4].asInt())
+        DrawLine(
+            (int)args[0].asInt(),                   // startPosX
+            (int)args[1].asInt(),                   // startPosY
+            (int)args[2].asInt(),                   // endPosX
+            (int)args[3].asInt(),                   // endPosY
+            GetColor((uint32_t)args[4].asInt())     // color
         );
+        
         return Value();
     }
 

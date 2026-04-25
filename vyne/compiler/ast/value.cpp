@@ -38,71 +38,65 @@ Value::Value(std::shared_ptr<VyneStruct> s) : type(VType::Struct) {
 
 Value::~Value() { if (isObject()) data.obj.~shared_ptr(); }
 
-Value::Value(const Value& other) : type(other.type), isReadOnly(other.isReadOnly) {
+Value::Value(const Value& other) : type(other.type), isReadOnly(other.isReadOnly), stringId(other.stringId) {
     if (isObject()) {
         new (&data.obj) std::shared_ptr<VyneObject>(other.data.obj);
     } else {
         switch(type) {
             case VType::Float64:   data.f64 = other.data.f64; break;
             case VType::Int64:     data.i64 = other.data.i64; break;
-            case VType::String:    data.u32 = other.data.u32; break;
             case VType::Reference: data.ref = other.data.ref; break;
-            default:               data.i64 = 0; break;
+            default:               data.i64 = other.data.i64; break;
         }
     }
 }
 
-Value::Value(Value&& other) noexcept : type(other.type), isReadOnly(other.isReadOnly) {
+Value::Value(Value&& other) noexcept : type(other.type), isReadOnly(other.isReadOnly), stringId(other.stringId) {
     if (isObject()) {
         new (&data.obj) std::shared_ptr<VyneObject>(std::move(other.data.obj));
     } else {
-        switch(type) {
-            case VType::Float64:   data.f64 = other.data.f64; break;
-            case VType::Int64:     data.i64 = other.data.i64; break;
-            case VType::String:    data.u32 = other.data.u32; break;
-            case VType::Reference: data.ref = other.data.ref; break;
-            default:               data.i64 = 0; break;
-        }
+        data.i64 = other.data.i64;
     }
     other.type = VType::Null;
+    other.stringId = 0;
 }
 
 Value& Value::operator=(const Value& other) {
     if (this == &other) return *this;
+
     this->~Value();
+
     type = other.type;
     isReadOnly = other.isReadOnly;
+    stringId = other.stringId;
+
     if (isObject()) {
         new (&data.obj) std::shared_ptr<VyneObject>(other.data.obj);
     } else {
-        switch(type) {
-            case VType::Float64:   data.f64 = other.data.f64; break;
-            case VType::Int64:     data.i64 = other.data.i64; break;
-            case VType::String:    data.u32 = other.data.u32; break;
-            case VType::Reference: data.ref = other.data.ref; break;
-            default:               data.i64 = 0; break;
-        }
+        data.i64 = other.data.i64;
     }
+
     return *this;
 }
 
 Value& Value::operator=(Value&& other) noexcept {
     if (this == &other) return *this;
+
     this->~Value();
+
     type = other.type;
     isReadOnly = other.isReadOnly;
+    stringId = other.stringId;
+
     if (isObject()) {
         new (&data.obj) std::shared_ptr<VyneObject>(std::move(other.data.obj));
     } else {
-        switch(type) {
-            case VType::Float64:   data.f64 = other.data.f64; break;
-            case VType::Int64:     data.i64 = other.data.i64; break;
-            case VType::String:    data.u32 = other.data.u32; break;
-            case VType::Reference: data.ref = other.data.ref; break;
-            default:               data.i64 = 0; break;
-        }
+        data.i64 = other.data.i64;
     }
+
     other.type = VType::Null;
+    other.stringId = 0;
+
     return *this;
 }
 
@@ -154,7 +148,7 @@ int64_t Value::asInt() const {
 
 const std::string& Value::asString() const {
     if (type != VType::String) throw std::runtime_error("Type Error: Expected String");
-    return StringPool::get(data.u32);
+    return StringPool::get(this->stringId);
 }
 
 std::vector<Value>& Value::asList() {
@@ -240,7 +234,7 @@ bool Value::isTruthy() const {
     switch(type) {
         case VType::Float64: return data.f64 != 0;
         case VType::Int64:   return data.i64 != 0;
-        case VType::String:  return data.u32 != 0; 
+        case VType::String:  return stringId != 0;
         case VType::Null:    return false;
         default:             return true;
     }
@@ -252,7 +246,7 @@ bool Value::operator==(const Value& other) const {
         case VType::Null:    return true;
         case VType::Float64: return data.f64 == other.data.f64;
         case VType::Int64:   return data.i64 == other.data.i64;
-        case VType::String:  return data.u32 == other.data.u32;
+        case VType::String:  return stringId == other.stringId;
         default:             return data.obj == other.data.obj;
     }
 }
@@ -264,7 +258,7 @@ bool Value::operator<(const Value& other) const {
     switch (type) {
         case VType::Float64: return data.f64 < other.data.f64;
         case VType::Int64:   return data.i64 < other.data.i64;
-        case VType::String:  return data.u32 < other.data.u32;
+        case VType::String:  return stringId < other.stringId;
         default:             return data.obj < other.data.obj;
     }
 }

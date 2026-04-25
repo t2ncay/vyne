@@ -20,7 +20,7 @@ void BlockNode::compile(Emitter& e) const {
     for (const auto& stmt : statements) {
         if (stmt) stmt->compile(e);
     }
-    e.endScope(); // Burada avtomatik OP_POP-lar emit olunur (Emitter-də yazmışdıq)
+    e.endScope(); 
 }
 
 // --- Literallar (Sabitlər) ---
@@ -30,6 +30,8 @@ void NumberNode::compile(Emitter& e) const {
 }
 
 void StringNode::compile(Emitter& e) const {
+    // String-i hələ də VM daxilində string kimi saxlaya bilərik, 
+    // lakin adlar artıq ID-dir.
     e.emitConstant(Value(text));
 }
 
@@ -41,34 +43,34 @@ void NullNode::compile(Emitter& e) const {
     e.emitConstant(Value());
 }
 
-// --- Dəyişənlər və Assignment ---
+// --- Dəyişənlər və Assignment (ID-yə keçid) ---
 
 void VariableNode::compile(Emitter& e) const {
+    // Lokal dəyişənləri hələ də adla axtarırıq (kompilyasiya vaxtı), 
+    // amma bytecode-da ancaq index qalır.
     int arg = e.resolveLocal(originalName);
     if (arg != -1) {
-        // Lokal: O(1) sürəti ilə stack-dən götür
         e.emitBytes(OP_GET_LOCAL, (uint8_t)arg);
     } else {
-        // Qlobal: Map-dən axtar
-        int nameIndex = e.currentChunk->addConstant(Value(originalName));
+        // Qlobal: String yerinə nameId-ni (double olaraq) sabit kimi əlavə edirik
+        int nameIndex = e.currentChunk->addConstant(Value((double)nameId));
         e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIndex);
     }
 }
 
 void AssignmentNode::compile(Emitter& e) const {
-    rhs->compile(e); // Dəyər stack-in başına çıxır
+    rhs->compile(e); 
 
     int arg = e.resolveLocal(originalName);
     if (arg != -1) {
         e.emitBytes(OP_SET_LOCAL, (uint8_t)arg);
     } else if (e.scopeDepth > 0) {
-        
         e.addLocal(originalName);
         int localIdx = e.resolveLocal(originalName);
         e.emitBytes(OP_SET_LOCAL, (uint8_t)localIdx);
     } else {
-        // Qlobal dəyişən
-        int nameIndex = e.currentChunk->addConstant(Value(originalName));
+        // Qlobal: identifierId (uint32_t) istifadə olunur
+        int nameIndex = e.currentChunk->addConstant(Value((double)identifierId));
         e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIndex);
     }
 }
@@ -76,7 +78,6 @@ void AssignmentNode::compile(Emitter& e) const {
 // --- Riyazi və Məntiqi Əməliyyatlar ---
 
 void BinOpNode::compile(Emitter& e) const {
-    // Qısa-qapanma (Short-circuit) məntiqi (And/Or üçün)
     if (op == VTokenType::And) {
         left->compile(e);
         int endJump = e.emitJump(OP_JUMP_IF_FALSE);
@@ -109,27 +110,19 @@ void BinOpNode::compile(Emitter& e) const {
 }
 
 void PostFixNode::compile(Emitter& e) const {
-    // 1. Dəyişənin cari dəyərini stack-ə gətir (məs: i)
     left->compile(e); 
-
-    // 2. Artırılacaq vahidi (1) stack-ə qoy
-    e.emitConstant(Value(1));
-
-    // 3. Topla
+    e.emitConstant(Value(1.0));
     e.emitByte(OP_ADD);
 
-    // 4. Nəticəni eyni dəyişənə geri yaz
     if (auto* var = dynamic_cast<VariableNode*>(left.get())) {
         int arg = e.resolveLocal(var->getOriginalName());
         if (arg != -1) {
             e.emitBytes(OP_SET_LOCAL, (uint8_t)arg);
         } else {
-            int nameIdx = e.currentChunk->addConstant(Value(var->getOriginalName()));
+            int nameIdx = e.currentChunk->addConstant(Value((double)var->getNameId()));
             e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
         }
     }
-
-    // 5. Kritik: i++ bir statement kimidir, stack-də artıq qalan dəyəri təmizlə
     e.emitByte(OP_POP);
 }
 
@@ -142,10 +135,9 @@ void UnaryNode::compile(Emitter& e) const {
     }
 }
 
-// --- Funksiyalar və Çağırışlar ---
+// --- Funksiyalar (ID-yə keçid) ---
 
 void FunctionNode::compile(Emitter& e) const {
-    // 1. Yeni funksiya üçün Chunk yarat
     Chunk* funcChunk = new Chunk(); 
     Emitter funcEmitter(funcChunk);
     funcEmitter.scopeDepth = 1; 
@@ -161,37 +153,36 @@ void FunctionNode::compile(Emitter& e) const {
 
     auto funcData = std::make_shared<FunctionData>();
     funcData->params = this->parameters;
-    funcData->bytecode = funcChunk; // <--- Artıq xəta verməyəcək
+    funcData->bytecode = funcChunk; 
     funcData->isNative = false;
     funcData->expectedReturnType = VTypeToString(returnType);
 
     Value funcVal(funcData);
-
     int constIdx = e.currentChunk->addConstant(funcVal);
     e.emitBytes(OP_CONSTANT, (uint8_t)constIdx);
 
-    int nameIdx = e.currentChunk->addConstant(Value(originalName));
+    // Funksiya adı ID olaraq saxlanılır
+    int nameIdx = e.currentChunk->addConstant(Value((double)funcNameId));
     e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
 }
 
 void FunctionCallNode::compile(Emitter& e) const {
-    // Argumentləri stack-ə yığ
     for (const auto& arg : arguments) {
         arg->compile(e);
     }
 
-    // Funksiya obyektini tap və çağır
-    int nameIndex = e.currentChunk->addConstant(Value(originalName));
+    // targetNameId artıq hazırdır
+    int nameIndex = e.currentChunk->addConstant(Value((double)targetNameId));
     e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIndex);
     e.emitBytes(OP_CALL, (uint8_t)arguments.size());
 }
 
-// --- Control Flow (If, While) ---
+// --- Control Flow ---
 
 void IfNode::compile(Emitter& e) const {
     condition->compile(e);
     int thenJump = e.emitJump(OP_JUMP_IF_FALSE);
-    e.emitByte(OP_POP); // Şərt nəticəsini təmizlə
+    e.emitByte(OP_POP); 
 
     body->compile(e);
     int elseJump = e.emitJump(OP_JUMP);
@@ -217,7 +208,7 @@ void WhileNode::compile(Emitter& e) const {
     e.emitByte(OP_POP);
 }
 
-// --- Massiv və Obyektlər ---
+// --- Massivlər və Property-lər ---
 
 void ArrayNode::compile(Emitter& e) const {
     for (const auto& element : elements) {
@@ -234,18 +225,28 @@ void IndexAccessNode::compile(Emitter& e) const {
 
 void MemberAccessNode::compile(Emitter& e) const {
     receiver->compile(e);
-    int memberIdx = e.currentChunk->addConstant(Value(memberName));
+    // memberName yerinə memberId (uint32_t) istifadə olunur
+    int memberIdx = e.currentChunk->addConstant(Value((double)memberId));
     e.emitBytes(OP_GET_PROPERTY, (uint8_t)memberIdx);
 }
 
-// --- Digər (Break, Continue, Return) ---
+void MemberAssignmentNode::compile(Emitter& e) const {
+    receiver->compile(e); 
+    rhs->compile(e);
+    
+    // memberName-i ID-yə çevirib sabitlərə əlavə et
+    uint32_t mId = StringPool::instance().intern(memberName);
+    int memberIdx = e.currentChunk->addConstant(Value((double)mId));
+    e.emitBytes(OP_SET_PROPERTY, (uint8_t)memberIdx);
+}
+
+// --- Digərləri ---
 
 void ReturnNode::compile(Emitter& e) const {
     if (expression) {
         expression->compile(e);
     } else {
-        e.emitByte(OP_CONSTANT); // NULL qaytar
-        e.emitByte(e.currentChunk->addConstant(Value()));
+        e.emitConstant(Value()); // NULL
     }
     e.emitReturn();
 }
@@ -255,131 +256,83 @@ void BreakNode::compile(Emitter& e) const {
 }
 
 void ContinueNode::compile(Emitter& e) const {
-    // Loop-un başına qayıtmaq üçün
-    e.emitLoop(0); // Emitter loopStart-ı idarə etməlidir
+    e.emitLoop(0); 
 }
 
 void GroupNode::compile(Emitter& e) const {
-    // Group-lar əsasən ad sahəsidir (namespace). 
-    // Daxilindəki bütün statement-ləri ardıcıl kompilyasiya edirik.
     for (const auto& stmt : statements) {
         if (stmt) stmt->compile(e);
     }
 }
 
 void ModuleNode::compile(Emitter& e) const {
-    // VM-də bu modulun setup funksiyasını tetikləmək üçün OP_CONSTANT + OP_DEFINE_GLOBAL
-    // Və ya birbaşa VM-in tanıdığı OP_MODULE_LOAD (əgər varsa) istifadə oluna bilər.
-    int nameIdx = e.currentChunk->addConstant(Value(originalName));
+    int nameIdx = e.currentChunk->addConstant(Value((double)moduleId));
     e.emitBytes(OP_CONSTANT, (uint8_t)nameIdx);
     e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
 }
 
-void ImportNode::compile(Emitter& e) const {
-    // Import zamanı hədəf fayl artıq parse olunub AST-yə çevrilməlidir.
-    // VM səviyyəsində bu, həmin AST-nin bytecode-a çevrilib icra olunması deməkdir.
-    // Hələlik boş saxlamaq olar və ya 'eval' kimi bir opcode emit edə bilərsən.
-}
+void ImportNode::compile(Emitter& e) const {}
 
 void DismissNode::compile(Emitter& e) const {
-    // Bir modulu yaddaşdan silmək üçün VM-ə siqnal göndəririk.
-    int nameIdx = e.currentChunk->addConstant(Value(originalName));
+    int nameIdx = e.currentChunk->addConstant(Value((double)moduleId));
     e.emitBytes(OP_CONSTANT, (uint8_t)nameIdx);
-    // e.emitByte(OP_DISMISS); // Əgər OP_DISMISS opcode-u yaratmısansa
 }
 
-// --- Massiv və Range Əməliyyatları ---
-
 void RangeNode::compile(Emitter& e) const {
-    // range(left, right) -> Vyne-da bu bir array yaradır.
     left->compile(e);
     right->compile(e);
-    // VM-də bunu handle edəcək OP_RANGE əlavə edə bilərsən və ya array-ə çevirə bilərsən.
-    // Hələlik array kimi simulyasiya edirik:
     e.emitBytes(OP_ARRAY, 2); 
 }
 
 void IndexAssignmentNode::compile(Emitter& e) const {
-    // array[index] = value
-    base->compile(e);   // Array obyektini stack-ə qoy
-    index->compile(e);  // İndeksi stack-ə qoy
-    rhs->compile(e);    // Dəyəri stack-ə qoy
-    
-    e.emitByte(OP_INDEX_SET); // VM: pop(value), pop(index), pop(array)
-}
-
-// --- Struct və Property Məntiqi ---
-
-void MemberAssignmentNode::compile(Emitter& e) const {
-    // receiver.memberName = rhs
-    receiver->compile(e); 
-    rhs->compile(e);
-    
-    int memberIdx = e.currentChunk->addConstant(Value(memberName));
-    e.emitBytes(OP_SET_PROPERTY, (uint8_t)memberIdx);
+    base->compile(e);   
+    index->compile(e);  
+    rhs->compile(e);    
+    e.emitByte(OP_INDEX_SET); 
 }
 
 void InterfaceNode::compile(Emitter& e) const {
-    // Interface Vyne-da Struct yaradıcısı (constructor) kimidir.
-    // Bu, əslində bir FunctionNode kimi davranır.
     auto funcData = std::make_shared<FunctionData>();
-    funcData->isNative = true; // Struct yaradılması native bir prosesdir
+    funcData->isNative = true; 
     
     int constIdx = e.currentChunk->addConstant(Value(funcData));
     e.emitBytes(OP_CONSTANT, (uint8_t)constIdx);
     
-    int nameIdx = e.currentChunk->addConstant(Value(interfaceName));
+    uint32_t iId = StringPool::instance().intern(interfaceName);
+    int nameIdx = e.currentChunk->addConstant(Value((double)iId));
     e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
 }
 
-// --- Çağırışlar və Dövrələr ---
-
 void BuiltInCallNode::compile(Emitter& e) const {
-    // out(), exit(), type() və s.
     for (const auto& arg : arguments) {
         arg->compile(e);
     }
     
-    // VM-də hər built-in üçün ayrı opcode və ya vahid OP_BUILTIN istifadə et.
     if (funcName == "out") e.emitByte(OP_PRINT);
     else if (funcName == "type") e.emitByte(OP_TYPE);
     else {
-        int nameIdx = e.currentChunk->addConstant(Value(funcName));
+        uint32_t fId = StringPool::instance().intern(funcName);
+        int nameIdx = e.currentChunk->addConstant(Value((double)fId));
         e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIdx);
         e.emitBytes(OP_CALL, (uint8_t)arguments.size());
     }
 }
 
 void MethodCallNode::compile(Emitter& e) const {
-    // receiver.methodName(args)
-    
-    // 1. Argumentləri stack-ə yığ
     for (const auto& arg : arguments) {
         arg->compile(e);
     }
-    
-    // 2. Receiver-i stack-ə qoy
     receiver->compile(e);
     
-    // 3. Metodu tap (Get Property)
-    int nameIdx = e.currentChunk->addConstant(Value(methodName));
+    uint32_t mId = StringPool::instance().intern(methodName);
+    int nameIdx = e.currentChunk->addConstant(Value((double)mId));
     e.emitBytes(OP_GET_PROPERTY, (uint8_t)nameIdx);
-    
-    // 4. Çağır
     e.emitBytes(OP_CALL, (uint8_t)arguments.size());
 }
 
 void ForNode::compile(Emitter& e) const {    
     iterable->compile(e);
-    
-    // 2. Dövrənin başlanğıcı
     int loopStart = e.currentChunk->code.size();
-    
-    // 3. VM-də iterasiyanı idarə edəcək bir opcode lazımdır (məsələn OP_ITER_NEXT)
-    // Hələlik while-a bənzər strukturla simulyasiya edə bilərsən.
-    // Bu hissə Vyne-ın iterasiya protokolundan asılıdır.
-    
     body->compile(e);
-    
     e.emitLoop(loopStart);
 }

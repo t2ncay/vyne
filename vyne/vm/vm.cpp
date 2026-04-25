@@ -26,7 +26,7 @@ InterpretResult VM::run() {
 
     #define READ_CONSTANT() (frame->chunk->constants[READ_BYTE()])
 
-    #define READ_STRING() (READ_CONSTANT().data.u32)
+    #define READ_STRING() (READ_CONSTANT().stringId)
 
     #define BINARY_OP(op) \
         do { \

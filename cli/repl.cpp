@@ -51,7 +51,8 @@ void init_REPL(std::string& input, SymbolContainer& env){
             if (root) {
                 Value result;
                 try {
-                    result = root->evaluate(env); 
+                    uint32_t globalId = StringPool::instance().intern("global");
+                    result = root->evaluate(env, globalId);
                 } 
                 catch (const ReturnException& e) {
                     result = e.value; 

@@ -119,18 +119,13 @@ inline std::string createLocalScope(const std::string& prefix, const std::string
 }
 
 inline Value* findVariableInScope(SymbolContainer& env, 
-                                  const std::string& currentScope,
-                                  uint32_t varId) {
-    uint32_t scopeId = StringPool::instance().intern(currentScope);
+                                 uint32_t scopeId, // string yox, ID
+                                 uint32_t varId) {
     auto scopeIt = env.find(scopeId);
-    
     if (scopeIt != env.end()) {
         auto varIt = scopeIt->second.find(varId);
-        if (varIt != scopeIt->second.end()) {
-            return &varIt->second;
-        }
+        if (varIt != scopeIt->second.end()) return &varIt->second;
     }
-        
     return nullptr;
 }
 
@@ -140,49 +135,26 @@ inline Value* findVariableInScope(SymbolContainer& env,
 
 class ScopedEnvironment {
     SymbolContainer& env;
-    std::string scopeName;
-    std::string parentScope;
-public:
-    ScopedEnvironment(SymbolContainer& e, std::string name) 
-        : env(e), scopeName(std::move(name)) {
-        env[scopeName] = SymbolTable();
-    }
+    uint32_t scopeId;    // string yox, ID saxlayırıq
+    uint32_t parentId;   
+    std::string scopeNameStr; // debug üçün lazım ola bilər
 
-    ScopedEnvironment(SymbolContainer& e, std::string name, const std::string& parent = "") 
-        : env(e), scopeName(std::move(name)), parentScope(parent) {
-        env[scopeName] = SymbolTable();
+public:
+    ScopedEnvironment(SymbolContainer& e, std::string name, uint32_t parent = 0) 
+        : env(e), scopeNameStr(name), parentId(parent) {
+        scopeId = StringPool::instance().intern(scopeNameStr);
+        env[scopeId] = SymbolTable();
     }
     
     ~ScopedEnvironment() {
-        env.erase(scopeName);
-    }
-    
-    void bind(const std::string& name, Value val) {
-        uint32_t id = StringPool::instance().intern(name);
-        env[scopeName][id] = std::move(val);
+        env.erase(scopeId);
     }
     
     void bind(uint32_t id, Value val) {
-        env[scopeName][id] = std::move(val);
+        env[scopeId][id] = std::move(val);
     }
 
-    Value* lookup(uint32_t id) {
-        auto it = env[scopeName].find(id);
-        if (it != env[scopeName].end()) return &it->second;
-        
-        if (!parentScope.empty()) {
-            uint32_t parentId = StringPool::instance().intern(parentScope);
-            auto parentIt = env.find(parentId);
-            if (parentIt != env.end()) {
-                auto varIt = parentIt->second.find(id);
-                if (varIt != parentIt->second.end()) return &varIt->second;
-            }
-        }
-        
-        return nullptr;
-    }
-    
-    const std::string& name() const { return scopeName; }
+    uint32_t getScopeId() const { return scopeId; }
 };
 
 // ============================================================================
@@ -192,7 +164,7 @@ public:
 inline Value executeFunction(std::shared_ptr<FunctionData> funcData,
                             const std::vector<Value>& args,
                             SymbolContainer& env,
-                            const std::string& scopeName,
+                            uint32_t scopeId, // Dəyişdirildi
                             int line) {
     if (funcData->isNative) {
         std::vector<Value> mutableArgs = args;
@@ -202,7 +174,7 @@ inline Value executeFunction(std::shared_ptr<FunctionData> funcData,
     Value result;
     try {
         for (const auto& stmt : funcData->body) {
-            if (stmt) result = stmt->evaluate(env, scopeName);
+            if (stmt) result = stmt->evaluate(env, scopeId); // ID ötürülür
         }
     } catch (const ReturnException& e) {
         result = e.value;
@@ -257,12 +229,11 @@ inline Value deepCopyValue(const Value& val) {
 // ============================================================================
 
 inline void validateMethodCall(const FunctionNode* funcNode,
-                              const std::vector<std::unique_ptr<ASTNode>>& arguments,
-                              const std::string& methodName,
-                              SymbolContainer& env,
-                              const std::string& currentGroup,
-                              int lineNumber) {
-    // Check argument count
+                               const std::vector<std::unique_ptr<ASTNode>>& arguments,
+                               const std::string& methodName,
+                               SymbolContainer& env,
+                               uint32_t currentGroupId, // Dəyişdirildi: string -> uint32_t
+                               int lineNumber) {
     if (arguments.size() != funcNode->getParameters().size()) {
         throw std::runtime_error(
             "Type Error: Method '" + methodName + 
@@ -272,15 +243,15 @@ inline void validateMethodCall(const FunctionNode* funcNode,
         );
     }
     
-    // Check argument types
     for (size_t i = 0; i < arguments.size(); ++i) {
-        Value argVal = arguments[i]->evaluate(env, currentGroup);
+        Value argVal = arguments[i]->evaluate(env, currentGroupId);
         VType expectedType = funcNode->getParameters()[i].type;
         
         if (expectedType != VType::Unknown) {
             int argType = argVal.getType();
             bool typeMatch = false;
             
+            // Implicit conversion logic (int -> float)
             if (expectedType == VType::Float64 && argType == Value::INT64) typeMatch = true;
             else if (static_cast<int>(expectedType) == argType) typeMatch = true;
             

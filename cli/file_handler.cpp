@@ -27,7 +27,8 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             auto start = std::chrono::high_resolution_clock::now();
 
             env.setSourceDir(filename);
-            rootShared->evaluate(env); 
+            uint32_t globalId = StringPool::instance().intern("global");
+            rootShared->evaluate(env, globalId);
             
             auto end = std::chrono::high_resolution_clock::now();
             parser.checkUnusedVariables(env);
