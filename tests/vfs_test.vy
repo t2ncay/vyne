@@ -1,4 +1,4 @@
-ruleset { dynamic_casting }
+ruleset { dynamic_casting };
 module vfs;
 
 # I'll write a lot of useless test here to prove tuncay that this shit works
