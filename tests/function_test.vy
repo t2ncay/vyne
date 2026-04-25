@@ -1,4 +1,4 @@
-ruleset { warnings };
+ruleset { dynamic_casting };
 
 arr = [1, 2, 3];
 
