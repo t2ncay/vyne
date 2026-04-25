@@ -1,3 +1,5 @@
+ruleset { dynamic_casting };
+
 use lib "vstring.vy";
 
 me = "abdullah";

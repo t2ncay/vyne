@@ -1,5 +1,5 @@
 # Test 1: Basic reference parameter
-ruleset { dynamic_casting : on };
+ruleset { dynamic_casting };
 out("=== TEST 1: Basic reference parameter ===");
 
 sa = null;

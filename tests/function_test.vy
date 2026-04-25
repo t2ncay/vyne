@@ -1,4 +1,4 @@
-ruleset warnings;
+ruleset { warnings };
 
 arr = [1, 2, 3];
 
