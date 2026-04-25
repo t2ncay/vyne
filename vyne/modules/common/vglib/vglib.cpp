@@ -973,6 +973,52 @@ namespace VGLibNative {
 
         return Value(std::vector<Value>{ Value(bestDir.x), Value(bestDir.y), Value(bestDir.z) });
     }
+
+    Value native_set_model_mesh_texture(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_model_texture_all() requires model_ptr and tex_ptr");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        Texture2D* tex = reinterpret_cast<Texture2D*>(args[1].asInt());
+
+        if (model && tex) {
+            for (int i = 0; i < model->materialCount; i++) {
+                model->materials[i].maps[MATERIAL_MAP_DIFFUSE].texture = *tex;
+            }
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_set_model_alpha_cutoff(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("set_alpha_cutoff() requires model_ptr and threshold (0.0 - 1.0)");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        float cutoff = (float)args[1].asFloat();
+
+        if (model) {
+            for (int i = 0; i < model->materialCount; i++) {
+                int loc = GetShaderLocation(model->materials[i].shader, "alphaCutoff");
+                if (loc != -1) {
+                    SetShaderValue(model->materials[i].shader, loc, &cutoff, SHADER_UNIFORM_FLOAT);
+                }
+            }
+        }
+        return Value();
+    }
+
+    Value native_set_alpha_discard(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("set_alpha_discard() requires model_ptr");
+
+        Model* model = reinterpret_cast<Model*>(args[0].asInt());
+        
+        if (model) {
+            for (int i = 0; i < model->materialCount; i++) {
+                SetTextureFilter(model->materials[i].maps[MATERIAL_MAP_DIFFUSE].texture, TEXTURE_FILTER_POINT);
+            }
+            return Value(true);
+        }
+        return Value(false);
+    }
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -1046,6 +1092,9 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("draw_texture")] = Value(VGLibNative::native_draw_texture);
     vglib[pool.intern("check_collision_map")] = Value(VGLibNative::native_check_collision_map);
     vglib[pool.intern("pathfind")] = Value(VGLibNative::native_pathfind);
+    vglib[pool.intern("set_model_texture_all")] = Value(VGLibNative::native_set_model_mesh_texture);
+    vglib[pool.intern("set_alpha_cutoff")]      = Value(VGLibNative::native_set_model_alpha_cutoff);
+    vglib[pool.intern("set_alpha_discard")] = Value(VGLibNative::native_set_alpha_discard);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
