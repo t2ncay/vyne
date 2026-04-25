@@ -3,9 +3,7 @@ ruleset {
     dynamic_casting
 };
 
-module custom;
-
-group Master :: custom {
+group Master {
     interface Element {
         atomic_mass :: Int64,
         name :: String,
@@ -23,7 +21,7 @@ interface Node {
     right :: Node& 
 }
 
-hydrogen :: custom.Master.Element = custom.Master.Element();
+hydrogen :: Master.Element = Master.Element();
 out(hydrogen.atomic_mass);
 out(hydrogen);
 out(hydrogen.getName());

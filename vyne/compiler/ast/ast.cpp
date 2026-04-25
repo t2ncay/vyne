@@ -161,13 +161,19 @@ Value AssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
 
 Value GroupNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
-    
     uint32_t fullNameId;
+    
     if (currentGroupId == globalId) {
         fullNameId = groupNameId;
     } else {
         std::string parentName = StringPool::instance().get(currentGroupId);
         fullNameId = StringPool::instance().intern(parentName + "." + groupName);
+    }
+
+    env[currentGroupId][groupNameId] = Value(fullNameId, groupName, true);
+
+    if (!env.contains(fullNameId)) {
+        env[fullNameId] = SymbolTable();
     }
 
     for (const auto& stmt : statements) {
