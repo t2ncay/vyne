@@ -1,36 +1,40 @@
 #ifndef VYNE_EMITTER_H
 #define VYNE_EMITTER_H
 
-#include "chunk.h"
-
-struct Local {
-    std::string name;
-    int depth;
-};
+#include <sstream>
+#include <string>
 
 class C_Emitter {
-    std::stringstream body;
+    std::stringstream bodyStream;
+    std::stringstream functionStream;
     int tempVarCount = 0;
-    int indentLevel = 1;
+    bool isInsideFunction = false;
 
 public:
+    void setFunctionContext(bool inside) {
+        isInsideFunction = inside;
+    }
+
     void emit(const std::string& code) {
-        for(int i = 0; i < indentLevel; i++) body << "  ";
-        body << code << "\n";
+        if (isInsideFunction) {
+            functionStream << code << "\n";
+        } else {
+            bodyStream << "  " << code << "\n";
+        }
     }
 
     std::string newTemp() {
         return "t" + std::to_string(tempVarCount++);
     }
 
-    std::string getBodyCode() {
-        return body.str();
-    }
+    std::string getFunctionCode() { return functionStream.str(); }
+    std::string getBodyCode() { return bodyStream.str(); }
     
     void reset() {
-        body.str("");
-        body.clear();
+        bodyStream.str(""); functionStream.str("");
+        bodyStream.clear(); functionStream.clear();
         tempVarCount = 0;
+        isInsideFunction = false;
     }
 };
 

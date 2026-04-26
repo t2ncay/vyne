@@ -35,7 +35,6 @@ void VariableNode::compile(C_Emitter& e) const { e.emit(getCExpr(e) + ";"); }
 std::string AssignmentNode::getCExpr(C_Emitter& e) const {
     std::string val = rhs->getCExpr(e);
     std::string varName = "v_" + originalName;
-    // C-də hər şeyi VyneValue (dinamik struct) kimi elan edirik
     e.emit("VyneValue " + varName + " = " + val + ";");
     return varName;
 }
@@ -106,27 +105,51 @@ std::string ReturnNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_
 // --- Functions and Calls ---
 
 void FunctionNode::compile(C_Emitter& e) const {
+    e.setFunctionContext(true);
+    
+    e.emit("");
     e.emit("// Vyne Function: " + originalName);
-    e.emit("VyneValue fn_" + originalName + "(/* VyneValue args... */) {");
-    for (const auto& stmt : body) stmt->compile(e);
+    e.emit("VyneValue fn_" + originalName + "(int arg_count, VyneValue* args) {");
+    
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        std::string paramName = "v_" + parameters[i].name;
+        e.emit("    VyneValue " + paramName + " = (arg_count > " + std::to_string(i) + ") ? args[" + std::to_string(i) + "] : vyne_null();");
+    }
+
+    for (const auto& stmt : body) {
+        if (stmt) stmt->compile(e);
+    }
+
+    e.emit("    return vyne_null();");
     e.emit("}");
+    
+    e.setFunctionContext(false);
 }
 std::string FunctionNode::getCExpr(C_Emitter& e) const { compile(e); return "fn_" + originalName; }
 
 std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
-    std::vector<std::string> argVars;
-    for (const auto& arg : arguments) argVars.push_back(arg->getCExpr(e));
+    int argSize = arguments.size();
+    std::string argArrayName = e.newTemp() + "_args";
     
-    std::string temp = e.newTemp();
-    std::string callStr = "fn_" + originalName + "(";
-    for (size_t i = 0; i < argVars.size(); ++i) {
-        callStr += argVars[i] + (i == argVars.size() - 1 ? "" : ", ");
+    if (argSize > 0) {
+        e.emit("VyneValue " + argArrayName + "[] = {");
+        for (int i = 0; i < argSize; ++i) {
+            e.emit("    " + arguments[i]->getCExpr(e) + (i == argSize - 1 ? "" : ","));
+        }
+        e.emit("};");
+    } else {
+        e.emit("VyneValue* " + argArrayName + " = NULL;");
     }
-    callStr += ")";
-    e.emit("VyneValue " + temp + " = " + callStr + ";");
-    return temp;
+
+    std::string resultTemp = e.newTemp();
+    e.emit("VyneValue " + resultTemp + " = fn_" + originalName + "(" + std::to_string(argSize) + ", " + argArrayName + ");");
+    
+    return resultTemp;
 }
-void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
+void FunctionCallNode::compile(C_Emitter& e) const { 
+    std::string temp = getCExpr(e); 
+    e.emit("// Call finished"); 
+}
 
 // --- Program structure ---
 
@@ -147,8 +170,15 @@ std::string BlockNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_n
 
 std::string ArrayNode::getCExpr(C_Emitter& e) const {
     std::string temp = e.newTemp();
-    e.emit("VyneValue " + temp + " = vyne_array_create(" + std::to_string(elements.size()) + ");");
-    // Elementləri tək-tək mənsub etmək kodu burda olacaq
+    int size = elements.size();
+    
+    e.emit("VyneValue " + temp + " = vyne_array_create(" + std::to_string(size) + ");");
+    
+    for (int i = 0; i < size; i++) {
+        std::string elemVal = elements[i]->getCExpr(e);
+        e.emit("vyne_array_set(" + temp + ", vyne_int(" + std::to_string(i) + "), " + elemVal + ");");
+    }
+    
     return temp;
 }
 void ArrayNode::compile(C_Emitter& e) const { getCExpr(e); }
@@ -157,6 +187,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     std::string b = base->getCExpr(e);
     std::string i = index->getCExpr(e);
     std::string temp = e.newTemp();
+    
     e.emit("VyneValue " + temp + " = vyne_array_get(" + b + ", " + i + ");");
     return temp;
 }
@@ -209,8 +240,17 @@ std::string DeployNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 void RangeNode::compile(C_Emitter& e) const {}
 std::string RangeNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void IndexAssignmentNode::compile(C_Emitter& e) const {}
-std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void IndexAssignmentNode::compile(C_Emitter& e) const {
+    std::string b = base->getCExpr(e);
+    std::string i = index->getCExpr(e);
+    std::string r = rhs->getCExpr(e);
+    
+    e.emit("vyne_array_set(" + b + ", " + i + ", " + r + ");");
+}
+std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const {
+    compile(e); 
+    return "vyne_null()";
+}
 
 void MethodCallNode::compile(C_Emitter& e) const {}
 std::string MethodCallNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }

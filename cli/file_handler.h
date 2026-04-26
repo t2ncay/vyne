@@ -17,5 +17,6 @@
 #define YELLOW  "\033[33m"
 #define CYAN    "\033[36m"
 #define BOLD    "\033[1m"
+#define MAGENTA "\033[35m"
 
 int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode);
