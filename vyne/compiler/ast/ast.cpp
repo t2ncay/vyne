@@ -292,7 +292,7 @@ Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
                 return Value(lv / rv); 
             case VTokenType::Modulo:
                 if (rv == 0) throw std::runtime_error("Modulo by zero!");
-                return Value(std::fmod(lv, rv));
+                return Value(static_cast<int64_t>(lv % rv));
             case VTokenType::Power : return Value(std::pow(lv, rv));
             case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(lv == rv);

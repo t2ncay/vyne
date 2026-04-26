@@ -49,7 +49,7 @@ void VynePackager::scanDependencies(const std::string& filePath, const std::stri
     std::ifstream file(filePath);
     std::string line;
     
-    std::regex assetRegex("\"([^\"]*\\.(png|jpg|jpeg|wav|mp3|fs|vs|ttf|dat|obj|ogg))\"");
+    std::regex assetRegex("\"([^\"]*\\.(png|jpg|jpeg|wav|mp3|fs|vs|ttf|dat|obj|ogg|glb))\"");
     std::regex vyRegex("use\\s+\"([^\"]*\\.vy)\"");
 
     while (std::getline(file, line)) {
