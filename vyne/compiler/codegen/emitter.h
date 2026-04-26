@@ -9,6 +9,7 @@ class C_Emitter {
     std::stringstream functionStream;
     int tempVarCount = 0;
     bool isInsideFunction = false;
+    std::stringstream includes;
 
 public:
     void setFunctionContext(bool inside) {
@@ -36,6 +37,12 @@ public:
         tempVarCount = 0;
         isInsideFunction = false;
     }
+
+    void addInclude(const std::string& header) {
+        includes << "#include \"" << header << "\"\n";
+    }
+
+    std::string getIncludes() { return includes.str(); }
 };
 
 #endif

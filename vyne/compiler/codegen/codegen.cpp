@@ -206,7 +206,7 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue " + temp + " = vyne_to_string(" + argExpr + ");");
         return temp;
     }
-    
+
     return "vyne_null()";
 }
 void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
@@ -249,7 +249,13 @@ std::string GroupNode::getCExpr(C_Emitter& e) const {
     return "vyne_null()"; 
 }
 
-void ModuleNode::compile(C_Emitter& e) const { e.emit("// Module " + originalName); }
+void ModuleNode::compile(C_Emitter& e) const {
+    e.emit("// Loading Vyne Module: " + originalName);
+    
+    if (originalName == "vmath")  e.addInclude("modules/vmath.h");
+    if (originalName == "vcore")  e.addInclude("modules/vcore.h");
+    if (originalName == "vaudio") e.addInclude("modules/vaudio.h");
+}
 std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 void ForNode::compile(C_Emitter& e) const { e.emit("// For loop logic here"); }
