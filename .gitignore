@@ -24,3 +24,4 @@ tests/assets/*
 *.csv
 *.dat
 *.obj
+*.vy.c

@@ -29,7 +29,8 @@ int main(int argc, char* argv[]) {
             std::string filename = argv[2];
             if (firstArg == "--ast") return runFile(filename, env, "ast");
             if (firstArg == "--bytecode") return runFile(filename, env, "bytecode");
-        } 
+            if (firstArg == "--c" || firstArg == "--compile") return runFile(filename, env, "c");
+        }
         
         if (firstArg.substr(0, 2) != "--") {
             return runFile(firstArg, env, "ast");

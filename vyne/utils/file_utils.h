@@ -9,7 +9,17 @@ namespace FileUtils {
     inline std::string exeDir = "."; 
 
     static void setExeDir(const std::string& argv0) {
-        exeDir = std::filesystem::absolute(argv0).parent_path().string();
+        try {
+            std::filesystem::path p = std::filesystem::absolute(argv0);
+            exeDir = p.parent_path().string();
+            if (exeDir.empty()) exeDir = ".";
+        } catch (...) {
+            exeDir = ".";
+        }
+    }
+
+    static std::string getExeDir() {
+        return exeDir;
     }
 
     [[maybe_unused]] static std::string getExternPath(const std::string& filePath) {

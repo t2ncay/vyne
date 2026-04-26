@@ -18,6 +18,7 @@
 #include "../types.h"
 #include "../../utils/file_utils.h"
 #include "../../runtime/diagnostics.h"
+#include "../codegen/emitter.h"
 #include "value.h"
 
 class Emitter;
@@ -252,7 +253,8 @@ public:
     NodeType type() const { return nodeType; }
     virtual VType getStaticType() const { return VType::Unknown; }
     virtual Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const = 0;
-    virtual void compile(Emitter& e) const = 0;
+    virtual std::string getCExpr(C_Emitter& e) const = 0;
+    virtual void compile(C_Emitter& e) const = 0;
 };
 
 class ProgramNode : public ASTNode {
@@ -263,7 +265,8 @@ public:
         : ASTNode(NodeType::PROGRAM), statements(std::move(stmts)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class GroupNode : public ASTNode {
@@ -285,7 +288,8 @@ public:
     }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class NumberNode : public ASTNode {
@@ -299,7 +303,8 @@ public:
         return value;
     }
     
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { 
         return (value.getType() == Value::INT64) ? VType::Int64 : VType::Float64; 
     }
@@ -341,7 +346,8 @@ public:
         }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 
     const std::vector<std::string>& getScope() const { return specificGroup; }
     uint32_t getNameId() const { return nameId; }
@@ -391,7 +397,8 @@ public:
             }
           }
 
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
 };
 
@@ -408,21 +415,24 @@ public:
           rhs(std::move(r)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class BinOpNode : public ASTNode {
-    VTokenType op;
-    std::unique_ptr<ASTNode> left;
-    std::unique_ptr<ASTNode> right;
 public:
+    VTokenType op;
+    std::unique_ptr<ASTNode> leftNode;
+    std::unique_ptr<ASTNode> rightNode;
+
     BinOpNode(VTokenType op, std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r)
-        : ASTNode(NodeType::BINARY_OP), op(op), left(std::move(l)), right(std::move(r)) {
+        : ASTNode(NodeType::BINARY_OP), op(op), leftNode(std::move(l)), rightNode(std::move(r)) {
     }
     
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 
     VType getStaticType() const override {
         switch(op) {
@@ -454,7 +464,8 @@ public:
         : ASTNode(NodeType::POSTFIX), op(op), left(std::move(lhs)) {}
     
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { 
         return left->getStaticType(); 
     }
@@ -469,7 +480,8 @@ public:
         : ASTNode(NodeType::UNARY), op(op), right(std::move(rhs)) {}
     
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { 
         if (op == VTokenType::Addresser) {
             return VType::Int64;
@@ -562,7 +574,8 @@ public:
         }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class StringNode : public ASTNode {
@@ -574,7 +587,8 @@ public:
         return Value(text);
     }
 
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::String; }
 };
 
@@ -586,7 +600,8 @@ public :
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
         return Value(condition);
     };
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Bool; }
 };
 
@@ -596,7 +611,8 @@ public:
     ArrayNode(std::vector<std::unique_ptr<ASTNode>> elm) : ASTNode(NodeType::ARRAY), elements(std::move(elm)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Array; }
 };
 
@@ -609,7 +625,8 @@ public:
     left(std::move(l)), right(std::move(r)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Array; }
 };
 
@@ -627,7 +644,8 @@ public:
     }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     std::unique_ptr<ASTNode> takeBase() { return std::move(base); }
     std::unique_ptr<ASTNode> takeIndex() { return std::move(index); }
 };
@@ -659,12 +677,12 @@ public:
         }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    
-    void compile(Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class FunctionNode : public ASTNode {
-    uint32_t targetModuleId; // Əlavə edildi
+    uint32_t targetModuleId;
     std::string targetModule;
     uint32_t funcNameId;
     std::string originalName;
@@ -687,7 +705,8 @@ public:
     }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Function; }
     const std::string& getOriginalName() const { return originalName; }
 
@@ -724,7 +743,8 @@ public:
     }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     static Value deepCopyArray(const Value& arr) {
         auto& originalVec = arr.asList();
         std::vector<Value> copiedVec;
@@ -747,7 +767,8 @@ public:
     ReturnNode(std::unique_ptr<ASTNode> expr) : ASTNode(NodeType::RETURN), expression(std::move(expr)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class MethodCallNode : public ASTNode {
@@ -767,7 +788,8 @@ public:
         arguments(std::move(args)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class WhileNode : public ASTNode {
@@ -779,7 +801,8 @@ public:
         : ASTNode(NodeType::WHILE), condition(std::move(c)), body(std::move(b)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
 };
 
 class ForNode : public ASTNode {
@@ -794,7 +817,8 @@ public:
         : ASTNode(NodeType::FOR), iterable(std::move(i)), body(std::move(b)), iteratorName(std::move(in)), mode(m) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 
     static ForMode getForMode(const std::string& modeStr){
         if (modeStr == "collect") return ForNode::ForMode::COLLECT;
@@ -813,7 +837,8 @@ public:
         : ASTNode(NodeType::BLOCK), statements(std::move(stmts)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class ModuleNode : public ASTNode {
@@ -824,7 +849,8 @@ public:
     ModuleNode(uint32_t mId, std::string mName) : ASTNode(NodeType::MODULE), moduleId(mId), originalName(std::move(mName)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Module; }
 };
 
@@ -837,7 +863,8 @@ public:
     : ASTNode(NodeType::IMPORT), filePath(std::move(path)), alias(std::move(al)), isExtern(ie) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class DeployNode : public ASTNode {
@@ -847,7 +874,8 @@ public:
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     
-    void compile(Emitter& e) const override {}
+    void compile(C_Emitter& e) const override {}
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class DismissNode : public ASTNode {
@@ -858,7 +886,8 @@ public:
     DismissNode(uint32_t mId, std::string mName) : ASTNode(NodeType::DISMISS), moduleId(mId), originalName(std::move(mName)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class IfNode : public ASTNode {
@@ -871,7 +900,8 @@ public:
     ASTNode(NodeType::IF), condition(std::move(c)), body(std::move(b)), elseBody(std::move(eb)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 struct InterfaceMember {
@@ -909,17 +939,18 @@ public:
                 sig.returnType = funcNode->getReturnType();
                 
                 for (const auto& param : funcNode->getParameters()) {
-                    sig.paramTypes.push_back(param.type);
-                    sig.paramNames.push_back(param.name);
+                    sig.paramTypes.emplace_back(param.type);
+                    sig.paramNames.emplace_back(param.name);
                 }
                 
-                methodSignatures.push_back(sig);
+                methodSignatures.emplace_back(sig);
             }
         }
     }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     void setModuleName(const std::string& name) { moduleName = name; }
 };
 
@@ -954,7 +985,8 @@ public:
     ASTNode* getReceiver() const { return receiver.get(); }
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 
     std::string getReceiverPath() const {
         if (receiver->type() == NodeType::VARIABLE) {
@@ -984,7 +1016,8 @@ public:
         ASTNode(NodeType::NULLTYPE), typeName(std::move(tn)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class TernaryNode : public ASTNode {
@@ -1006,7 +1039,8 @@ public:
         }
     }
 
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 // exception structs
@@ -1016,7 +1050,8 @@ struct BreakNode : public ASTNode {
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
         throw BreakException();
     }
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 struct ContinueNode : public ASTNode {
@@ -1025,7 +1060,8 @@ struct ContinueNode : public ASTNode {
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
         throw ContinueException();
     }
-    void compile(Emitter& e) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId);

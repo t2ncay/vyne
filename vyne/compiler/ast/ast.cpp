@@ -228,19 +228,19 @@ Value GroupNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
  */
 
 Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
-    const Value& l = left->evaluate(env, currentGroupId);
+    const Value& l = leftNode->evaluate(env, currentGroupId);
 
     if (op == VTokenType::And) {
         if (!l.isTruthy()) return Value(static_cast<int64_t>(0));
-        return Value(static_cast<int64_t>(right->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
+        return Value(static_cast<int64_t>(rightNode->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
     }
 
     if (op == VTokenType::Or) {
         if (l.isTruthy()) return Value(static_cast<int64_t>(1));
-        return Value(static_cast<int64_t>(right->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
+        return Value(static_cast<int64_t>(rightNode->evaluate(env, currentGroupId).isTruthy() ? 1 : 0));
     }
 
-    const Value& r = right->evaluate(env, currentGroupId);
+    const Value& r = rightNode->evaluate(env, currentGroupId);
     int lType = l.getType();
     int rType = r.getType();
 

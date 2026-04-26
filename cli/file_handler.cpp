@@ -35,29 +35,47 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
             return 0;
-        } else {
-            std::cout << GREEN << "Compiling to Bytecode..." << RESET << "\n";
-    
-            Chunk chunk = compile(rootShared);
-            disassembleChunk(chunk, filename);
-
-            VM vm(env); 
-
-            std::cout << GREEN << "Running VM...\n" << RESET;
+        } else if (mode == "c") {
+            C_Emitter emitter;
+            rootShared->compile(emitter);
             
-            auto start = std::chrono::high_resolution_clock::now();
-
-            InterpretResult result = vm.interpret(chunk);
-
-            auto end = std::chrono::high_resolution_clock::now();
+            std::string c_code = emitter.getBodyCode();
             
-            std::chrono::duration<double, std::milli> ms = end - start;
+            std::string base_name = filename.substr(0, filename.find_last_of("."));
+            std::string c_file_name = base_name + ".vy.c";
+            std::string exe_name = base_name; 
 
-            if (result == INTERPRET_OK) {
-                std::cout << GREEN << "\nVM Execution finished in: " << ms.count() << "ms" << RESET << "\n";
+        #ifdef _WIN32
+            exe_name += ".exe";
+        #endif
+
+            std::ofstream out_file(c_file_name);
+            out_file << "#include \"./vyne/runtime/vyne_runtime.h\"\n\n";
+            out_file << "int main() {\n";
+            out_file << c_code;
+            out_file << "    return 0;\n";
+            out_file << "}\n";
+            out_file.close();
+
+            std::cout << GREEN << "C code generated: " << c_file_name << RESET << "\n";
+
+            std::string exeDir = FileUtils::getExeDir();
+            std::string runtimePath = exeDir + "/runtime";
+            std::string compile_cmd = "gcc \"" + c_file_name + "\" -o \"" + exe_name + 
+                          "\" -I\"" + exeDir + "\" -O3 -w";
+            
+            std::cout << YELLOW << "Compiling with GCC..." << RESET << "\n";
+            
+            int result = system(compile_cmd.c_str());
+
+            if (result == 0) {
+                std::cout << BOLD << GREEN << "Successfully built: " << exe_name << RESET << "\n";
+                // system(("./" + exe_name).c_str()); 
+            } else {
+                std::cerr << RED << "Compilation failed! Make sure GCC is installed and vyne_runtime.h is in the path." << RESET << "\n";
             }
 
-            return (result == INTERPRET_OK) ? 0 : 70;
+            return result;
         }
     } catch (const std::exception& e) {
         std::cerr << RED << "Error: " << e.what() << RESET << "\n";

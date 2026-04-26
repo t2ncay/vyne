@@ -1,356 +1,222 @@
-#include "emitter.h"
 #include "../ast/ast.h"
 
-Chunk compile(std::shared_ptr<ASTNode> root) {
-    Chunk chunk;
-    Emitter emitter(&chunk);
-    if (root) root->compile(emitter);
-    emitter.emitReturn(); 
-    return chunk;
+// --- Literals
+
+std::string NumberNode::getCExpr(C_Emitter& e) const {
+    if (value.getType() == Value::INT64)
+        return "vyne_int(" + std::to_string(value.asInt()) + ")";
+    return "vyne_float(" + std::to_string(value.asFloat()) + ")";
 }
 
-void ProgramNode::compile(Emitter& e) const {
-    for (const auto& stmt : statements) {
-        if (stmt) stmt->compile(e);
-    }
+void NumberNode::compile(C_Emitter& e) const { getCExpr(e); }
+
+std::string StringNode::getCExpr(C_Emitter& e) const {
+    return "vyne_string(\"" + text + "\")";
 }
+void StringNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-void BlockNode::compile(Emitter& e) const {
-    e.beginScope();
-    for (const auto& stmt : statements) {
-        if (stmt) stmt->compile(e);
-    }
-    e.endScope(); 
+std::string BooleanNode::getCExpr(C_Emitter& e) const {
+    return condition ? "vyne_bool(1)" : "vyne_bool(0)";
 }
+void BooleanNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-// --- Literallar (Sabitlər) ---
-
-void NumberNode::compile(Emitter& e) const {
-    e.emitConstant(value);
+std::string NullNode::getCExpr(C_Emitter& e) const {
+    return "vyne_null()";
 }
+void NullNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-void StringNode::compile(Emitter& e) const {
-    // String-i hələ də VM daxilində string kimi saxlaya bilərik, 
-    // lakin adlar artıq ID-dir.
-    e.emitConstant(Value(text));
+// --- Variables and Assignments ---
+
+std::string VariableNode::getCExpr(C_Emitter& e) const {
+    return "v_" + originalName;
 }
+void VariableNode::compile(C_Emitter& e) const { e.emit(getCExpr(e) + ";"); }
 
-void BooleanNode::compile(Emitter& e) const {
-    e.emitConstant(Value(condition));
+std::string AssignmentNode::getCExpr(C_Emitter& e) const {
+    std::string val = rhs->getCExpr(e);
+    std::string varName = "v_" + originalName;
+    // C-də hər şeyi VyneValue (dinamik struct) kimi elan edirik
+    e.emit("VyneValue " + varName + " = " + val + ";");
+    return varName;
 }
+void AssignmentNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-void NullNode::compile(Emitter& e) const {
-    e.emitConstant(Value());
+// --- Mathematical and Logical Operations ---
+
+std::string BinOpNode::getCExpr(C_Emitter& e) const {
+    // Diqqət: 'left' və 'right'ə 'this->' ilə müraciət edirik
+    std::string l = this->leftNode->getCExpr(e);
+    std::string r = this->rightNode->getCExpr(e);
+    std::string temp = e.newTemp();
+    
+    // Op-u int-ə cast edirik ki, enum xətası verməsin
+    e.emit("VyneValue " + temp + " = vyne_binop(" + l + ", " + r + ", " + std::to_string((int)this->op) + ");");
+    return temp;
 }
+void BinOpNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-// --- Dəyişənlər və Assignment (ID-yə keçid) ---
-
-void VariableNode::compile(Emitter& e) const {
-    // Lokal dəyişənləri hələ də adla axtarırıq (kompilyasiya vaxtı), 
-    // amma bytecode-da ancaq index qalır.
-    int arg = e.resolveLocal(originalName);
-    if (arg != -1) {
-        e.emitBytes(OP_GET_LOCAL, (uint8_t)arg);
-    } else {
-        // Qlobal: String yerinə nameId-ni (double olaraq) sabit kimi əlavə edirik
-        int nameIndex = e.currentChunk->addConstant(Value((double)nameId));
-        e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIndex);
-    }
+std::string UnaryNode::getCExpr(C_Emitter& e) const {
+    std::string rightVal = right->getCExpr(e);
+    std::string temp = e.newTemp();
+    e.emit("VyneValue " + temp + " = vyne_unary(" + rightVal + ", " + std::to_string((int)op) + ");");
+    return temp;
 }
+void UnaryNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-void AssignmentNode::compile(Emitter& e) const {
-    rhs->compile(e); 
-
-    int arg = e.resolveLocal(originalName);
-    if (arg != -1) {
-        e.emitBytes(OP_SET_LOCAL, (uint8_t)arg);
-    } else if (e.scopeDepth > 0) {
-        e.addLocal(originalName);
-        int localIdx = e.resolveLocal(originalName);
-        e.emitBytes(OP_SET_LOCAL, (uint8_t)localIdx);
-    } else {
-        // Qlobal: identifierId (uint32_t) istifadə olunur
-        int nameIndex = e.currentChunk->addConstant(Value((double)identifierId));
-        e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIndex);
-    }
+std::string PostFixNode::getCExpr(C_Emitter& e) const {
+    std::string var = left->getCExpr(e);
+    e.emit(var + ".as.f64++;"); // Sadəlik üçün float fərz edirik
+    return var;
 }
-
-// --- Riyazi və Məntiqi Əməliyyatlar ---
-
-void BinOpNode::compile(Emitter& e) const {
-    if (op == VTokenType::And) {
-        left->compile(e);
-        int endJump = e.emitJump(OP_JUMP_IF_FALSE);
-        e.emitByte(OP_POP);
-        right->compile(e);
-        e.patchJump(endJump);
-    } else if (op == VTokenType::Or) {
-        left->compile(e);
-        int elseJump = e.emitJump(OP_JUMP_IF_FALSE);
-        int endJump = e.emitJump(OP_JUMP);
-        e.patchJump(elseJump);
-        e.emitByte(OP_POP);
-        right->compile(e);
-        e.patchJump(endJump);
-    } else {
-        left->compile(e);
-        right->compile(e);
-        switch (op) {
-            case VTokenType::Add:      e.emitByte(OP_ADD); break;
-            case VTokenType::Substract:e.emitByte(OP_SUBTRACT); break;
-            case VTokenType::Multiply: e.emitByte(OP_MULTIPLY); break;
-            case VTokenType::Division: e.emitByte(OP_DIVIDE); break;
-            case VTokenType::Double_Equals: e.emitByte(OP_EQUAL); break;
-            case VTokenType::Greater:  e.emitByte(OP_GREATER); break;
-            case VTokenType::Smaller:  e.emitByte(OP_SMALLER); break;
-            case VTokenType::Modulo:   e.emitByte(OP_MODULO); break;
-            default: break;
-        }
-    }
-}
-
-void PostFixNode::compile(Emitter& e) const {
-    left->compile(e); 
-    e.emitConstant(Value(1.0));
-    e.emitByte(OP_ADD);
-
-    if (auto* var = dynamic_cast<VariableNode*>(left.get())) {
-        int arg = e.resolveLocal(var->getOriginalName());
-        if (arg != -1) {
-            e.emitBytes(OP_SET_LOCAL, (uint8_t)arg);
-        } else {
-            int nameIdx = e.currentChunk->addConstant(Value((double)var->getNameId()));
-            e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
-        }
-    }
-    e.emitByte(OP_POP);
-}
-
-void UnaryNode::compile(Emitter& e) const {
-    right->compile(e);
-    switch (op) {
-        case VTokenType::Exclamatory: e.emitByte(OP_NOT); break;
-        case VTokenType::Substract:   e.emitByte(OP_NEGATE); break;
-        default: break;
-    }
-}
-
-// --- Funksiyalar (ID-yə keçid) ---
-
-void FunctionNode::compile(Emitter& e) const {
-    Chunk* funcChunk = new Chunk(); 
-    Emitter funcEmitter(funcChunk);
-    funcEmitter.scopeDepth = 1; 
-
-    for (const auto& param : parameters) {
-        funcEmitter.addLocal(param.name);
-    }
-
-    for (const auto& stmt : body) {
-        if (stmt) stmt->compile(funcEmitter);
-    }
-    funcEmitter.emitReturn();
-
-    auto funcData = std::make_shared<FunctionData>();
-    funcData->params = this->parameters;
-    funcData->bytecode = funcChunk; 
-    funcData->isNative = false;
-    funcData->expectedReturnType = VTypeToString(returnType);
-
-    Value funcVal(funcData);
-    int constIdx = e.currentChunk->addConstant(funcVal);
-    e.emitBytes(OP_CONSTANT, (uint8_t)constIdx);
-
-    // Funksiya adı ID olaraq saxlanılır
-    int nameIdx = e.currentChunk->addConstant(Value((double)funcNameId));
-    e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
-}
-
-void FunctionCallNode::compile(Emitter& e) const {
-    for (const auto& arg : arguments) {
-        arg->compile(e);
-    }
-
-    // targetNameId artıq hazırdır
-    int nameIndex = e.currentChunk->addConstant(Value((double)targetNameId));
-    e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIndex);
-    e.emitBytes(OP_CALL, (uint8_t)arguments.size());
-}
+void PostFixNode::compile(C_Emitter& e) const { getCExpr(e); }
 
 // --- Control Flow ---
 
-void IfNode::compile(Emitter& e) const {
-    condition->compile(e);
-    int thenJump = e.emitJump(OP_JUMP_IF_FALSE);
-    e.emitByte(OP_POP); 
-
-    body->compile(e);
-    int elseJump = e.emitJump(OP_JUMP);
-
-    e.patchJump(thenJump);
-    e.emitByte(OP_POP);
-
-    if (elseBody) elseBody->compile(e);
-    e.patchJump(elseJump);
-}
-
-void WhileNode::compile(Emitter& e) const {
-    int loopStart = e.currentChunk->code.size();
-    condition->compile(e);
-    
-    int exitJump = e.emitJump(OP_JUMP_IF_FALSE);
-    e.emitByte(OP_POP);
-
-    body->compile(e);
-    e.emitLoop(loopStart);
-
-    e.patchJump(exitJump);
-    e.emitByte(OP_POP);
-}
-
-// --- Massivlər və Property-lər ---
-
-void ArrayNode::compile(Emitter& e) const {
-    for (const auto& element : elements) {
-        element->compile(e);
+void IfNode::compile(C_Emitter& e) const {
+    std::string cond = condition->getCExpr(e);
+    e.emit("if (vyne_is_truthy(" + cond + ")) {");
+    if (body) body->compile(e);
+    e.emit("}");
+    if (elseBody) {
+        e.emit("else {");
+        elseBody->compile(e);
+        e.emit("}");
     }
-    e.emitBytes(OP_ARRAY, (uint8_t)elements.size());
 }
+std::string IfNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
 
-void IndexAccessNode::compile(Emitter& e) const {
-    base->compile(e);
-    index->compile(e);
-    e.emitByte(OP_INDEX_GET);
+void WhileNode::compile(C_Emitter& e) const {
+    e.emit("while (1) {");
+    std::string cond = condition->getCExpr(e);
+    e.emit("  if (!vyne_is_truthy(" + cond + ")) break;");
+    if (body) body->compile(e);
+    e.emit("}");
 }
+std::string WhileNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
 
-void MemberAccessNode::compile(Emitter& e) const {
-    receiver->compile(e);
-    // memberName yerinə memberId (uint32_t) istifadə olunur
-    int memberIdx = e.currentChunk->addConstant(Value((double)memberId));
-    e.emitBytes(OP_GET_PROPERTY, (uint8_t)memberIdx);
-}
-
-void MemberAssignmentNode::compile(Emitter& e) const {
-    receiver->compile(e); 
-    rhs->compile(e);
-    
-    // memberName-i ID-yə çevirib sabitlərə əlavə et
-    uint32_t mId = StringPool::instance().intern(memberName);
-    int memberIdx = e.currentChunk->addConstant(Value((double)mId));
-    e.emitBytes(OP_SET_PROPERTY, (uint8_t)memberIdx);
-}
-
-// --- Digərləri ---
-
-void ReturnNode::compile(Emitter& e) const {
+void ReturnNode::compile(C_Emitter& e) const {
     if (expression) {
-        expression->compile(e);
+        e.emit("return " + expression->getCExpr(e) + ";");
     } else {
-        e.emitConstant(Value()); // NULL
-    }
-    e.emitReturn();
-}
-
-void BreakNode::compile(Emitter& e) const {
-    e.emitJump(OP_JUMP); 
-}
-
-void ContinueNode::compile(Emitter& e) const {
-    e.emitLoop(0); 
-}
-
-void GroupNode::compile(Emitter& e) const {
-    for (const auto& stmt : statements) {
-        if (stmt) stmt->compile(e);
+        e.emit("return vyne_null();");
     }
 }
+std::string ReturnNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
 
-void ModuleNode::compile(Emitter& e) const {
-    int nameIdx = e.currentChunk->addConstant(Value((double)moduleId));
-    e.emitBytes(OP_CONSTANT, (uint8_t)nameIdx);
-    e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
+// --- Functions and Calls ---
+
+void FunctionNode::compile(C_Emitter& e) const {
+    e.emit("// Vyne Function: " + originalName);
+    e.emit("VyneValue fn_" + originalName + "(/* VyneValue args... */) {");
+    for (const auto& stmt : body) stmt->compile(e);
+    e.emit("}");
 }
+std::string FunctionNode::getCExpr(C_Emitter& e) const { compile(e); return "fn_" + originalName; }
 
-void ImportNode::compile(Emitter& e) const {}
-
-void DismissNode::compile(Emitter& e) const {
-    int nameIdx = e.currentChunk->addConstant(Value((double)moduleId));
-    e.emitBytes(OP_CONSTANT, (uint8_t)nameIdx);
-}
-
-void RangeNode::compile(Emitter& e) const {
-    left->compile(e);
-    right->compile(e);
-    e.emitBytes(OP_ARRAY, 2); 
-}
-
-void IndexAssignmentNode::compile(Emitter& e) const {
-    base->compile(e);   
-    index->compile(e);  
-    rhs->compile(e);    
-    e.emitByte(OP_INDEX_SET); 
-}
-
-void InterfaceNode::compile(Emitter& e) const {
-    auto funcData = std::make_shared<FunctionData>();
-    funcData->isNative = true; 
+std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
+    std::vector<std::string> argVars;
+    for (const auto& arg : arguments) argVars.push_back(arg->getCExpr(e));
     
-    int constIdx = e.currentChunk->addConstant(Value(funcData));
-    e.emitBytes(OP_CONSTANT, (uint8_t)constIdx);
-    
-    uint32_t iId = StringPool::instance().intern(interfaceName);
-    int nameIdx = e.currentChunk->addConstant(Value((double)iId));
-    e.emitBytes(OP_DEFINE_GLOBAL, (uint8_t)nameIdx);
-}
-
-void BuiltInCallNode::compile(Emitter& e) const {
-    for (const auto& arg : arguments) {
-        arg->compile(e);
+    std::string temp = e.newTemp();
+    std::string callStr = "fn_" + originalName + "(";
+    for (size_t i = 0; i < argVars.size(); ++i) {
+        callStr += argVars[i] + (i == argVars.size() - 1 ? "" : ", ");
     }
-    
-    if (funcName == "out") e.emitByte(OP_PRINT);
-    else if (funcName == "type") e.emitByte(OP_TYPE);
-    else {
-        uint32_t fId = StringPool::instance().intern(funcName);
-        int nameIdx = e.currentChunk->addConstant(Value((double)fId));
-        e.emitBytes(OP_GET_GLOBAL, (uint8_t)nameIdx);
-        e.emitBytes(OP_CALL, (uint8_t)arguments.size());
+    callStr += ")";
+    e.emit("VyneValue " + temp + " = " + callStr + ";");
+    return temp;
+}
+void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
+
+// --- Program structure ---
+
+void ProgramNode::compile(C_Emitter& e) const {
+    e.emit("// --- Vyne Program Generated C Code ---");
+    for (const auto& stmt : statements) if (stmt) stmt->compile(e);
+}
+std::string ProgramNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
+
+void BlockNode::compile(C_Emitter& e) const {
+    e.emit("{");
+    for (const auto& stmt : statements) if (stmt) stmt->compile(e);
+    e.emit("}");
+}
+std::string BlockNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
+
+// --- Others ---
+
+std::string ArrayNode::getCExpr(C_Emitter& e) const {
+    std::string temp = e.newTemp();
+    e.emit("VyneValue " + temp + " = vyne_array_create(" + std::to_string(elements.size()) + ");");
+    // Elementləri tək-tək mənsub etmək kodu burda olacaq
+    return temp;
+}
+void ArrayNode::compile(C_Emitter& e) const { getCExpr(e); }
+
+std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
+    std::string b = base->getCExpr(e);
+    std::string i = index->getCExpr(e);
+    std::string temp = e.newTemp();
+    e.emit("VyneValue " + temp + " = vyne_array_get(" + b + ", " + i + ");");
+    return temp;
+}
+void IndexAccessNode::compile(C_Emitter& e) const { getCExpr(e); }
+
+std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
+    if (funcName == "out") {
+        for (const auto& arg : arguments) e.emit("vyne_out(" + arg->getCExpr(e) + ");");
     }
+    return "vyne_null()";
 }
+void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 
-void MethodCallNode::compile(Emitter& e) const {
-    for (const auto& arg : arguments) {
-        arg->compile(e);
-    }
-    receiver->compile(e);
-    
-    uint32_t mId = StringPool::instance().intern(methodName);
-    int nameIdx = e.currentChunk->addConstant(Value((double)mId));
-    e.emitBytes(OP_GET_PROPERTY, (uint8_t)nameIdx);
-    e.emitBytes(OP_CALL, (uint8_t)arguments.size());
+// --- (Interface, Module, Group) ---
+
+void InterfaceNode::compile(C_Emitter& e) const { e.emit("// Interface " + interfaceName + " logic here"); }
+std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void GroupNode::compile(C_Emitter& e) const { /* C-də prefix-lərlə həll olunacaq */ }
+std::string GroupNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void ModuleNode::compile(C_Emitter& e) const { e.emit("// Module " + originalName); }
+std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void ForNode::compile(C_Emitter& e) const { e.emit("// For loop logic here"); }
+std::string ForNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void TernaryNode::compile(C_Emitter& e) const {
+    std::string cond = condition->getCExpr(e);
+    std::string temp = e.newTemp();
+    e.emit("VyneValue " + temp + " = vyne_is_truthy(" + cond + ") ? " + trueExpr->getCExpr(e) + " : " + falseExpr->getCExpr(e) + ";");
 }
+std::string TernaryNode::getCExpr(C_Emitter& e) const { compile(e); return "vyne_null()"; }
 
-void ForNode::compile(Emitter& e) const {    
-    iterable->compile(e);
-    int loopStart = e.currentChunk->code.size();
-    body->compile(e);
-    e.emitLoop(loopStart);
-}
+// Break, Continue, Dismiss, Import, Dismiss
+void BreakNode::compile(C_Emitter& e) const { e.emit("break;"); }
+std::string BreakNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void TernaryNode::compile(Emitter& e) const {
-    condition->compile(e);
+void ContinueNode::compile(C_Emitter& e) const { e.emit("continue;"); }
+std::string ContinueNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    int thenJump = e.emitJump(OP_JUMP_IF_FALSE);
+void ImportNode::compile(C_Emitter& e) const {}
+std::string ImportNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    e.emitByte(OP_POP);
-    trueExpr->compile(e);
+void DismissNode::compile(C_Emitter& e) const {}
+std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    int elseJump = e.emitJump(OP_JUMP);
+std::string DeployNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    e.patchJump(thenJump);
-    e.emitByte(OP_POP);
+void RangeNode::compile(C_Emitter& e) const {}
+std::string RangeNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    falseExpr->compile(e);
+void IndexAssignmentNode::compile(C_Emitter& e) const {}
+std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-    e.patchJump(elseJump);
-}
+void MethodCallNode::compile(C_Emitter& e) const {}
+std::string MethodCallNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void MemberAccessNode::compile(C_Emitter& e) const {}
+std::string MemberAccessNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void MemberAssignmentNode::compile(C_Emitter& e) const {}
+std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
