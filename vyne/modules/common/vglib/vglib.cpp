@@ -228,6 +228,17 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_draw_line_3d(std::vector<Value>& args) {
+        if (args.size() < 7) throw std::runtime_error("line_3d() requires x1, y1, z1, x2, y2, z2, color");
+
+        Vector3 start = { (float)args[0].asFloat(), (float)args[1].asFloat(), (float)args[2].asFloat() };
+        Vector3 end   = { (float)args[3].asFloat(), (float)args[4].asFloat(), (float)args[5].asFloat() };
+        Color color   = GetColor((uint32_t)args[6].asInt());
+
+        DrawLine3D(start, end, color);
+        return Value();
+    }
+
     Value native_draw_rect(std::vector<Value>& args) {
         if (args.size() < 5) throw std::runtime_error("draw_rect() requires x, y, w, h, and color");
         
@@ -1060,6 +1071,22 @@ namespace VGLibNative {
         return Value();
     }
 
+    Value native_get_camera_yaw(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("get_yaw() requires camera_ptr");
+
+        Camera3D* camera = reinterpret_cast<Camera3D*>(args[0].asInt());
+        
+        if (camera) {
+            float dx = camera->target.x - camera->position.x;
+            float dz = camera->target.z - camera->position.z;
+            
+            float yaw = atan2f(dz, dx) * RAD2DEG;
+            
+            return Value((double)yaw);
+        }
+        return Value(0.0);
+    }
+
     Value native_rotate_yaw(std::vector<Value>& args) {
         if (args.size() < 2) throw std::runtime_error("rotate_yaw() requires camera_ptr and angle");
 
@@ -1190,6 +1217,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("end")]        = Value(VGLibNative::native_end_frame);
     vglib[pool.intern("clear")]      = Value(VGLibNative::native_clear);
     vglib[pool.intern("line")]       = Value(VGLibNative::native_draw_line);
+    vglib[pool.intern("line_3d")]    = Value(VGLibNative::native_draw_line_3d);
     vglib[pool.intern("rect")]       = Value(VGLibNative::native_draw_rect);
     vglib[pool.intern("circle")]     = Value(VGLibNative::native_draw_circle);
     vglib[pool.intern("close")]      = Value(VGLibNative::native_close);
@@ -1249,6 +1277,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("set_alpha_discard")] = Value(VGLibNative::native_set_alpha_discard);
     vglib[pool.intern("set_roll")] = Value(VGLibNative::native_set_camera_roll);
     vglib[pool.intern("rotate_yaw")] = Value(VGLibNative::native_rotate_yaw);
+    vglib[pool.intern("get_yaw")] = Value(VGLibNative::native_get_camera_yaw);
     vglib[pool.intern("draw_instances")] = Value(VGLibNative::native_draw_instances);
     vglib[pool.intern("draw_instances_ex")] = Value(VGLibNative::native_draw_instances_ex);
     vglib[pool.intern("upload_persistent_group")] = Value(VGLibNative::native_upload_persistent_group);

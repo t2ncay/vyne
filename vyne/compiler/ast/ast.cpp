@@ -59,7 +59,14 @@ Value VariableNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) cons
  */
 
 Value AssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    static uint32_t globalId = getGlobalId();
     uint32_t targetGroupId = (scopeGroupId != 0) ? scopeGroupId : currentGroupId;
+    
+    if (targetGroupId != globalId && env[targetGroupId].find(identifierId) == env[targetGroupId].end()) {
+        if (env[globalId].find(identifierId) != env[globalId].end()) {
+            targetGroupId = globalId;
+        }
+    }
 
     auto& table = env[targetGroupId];
     auto it_existing = table.find(identifierId);
@@ -268,6 +275,9 @@ Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
             case VTokenType::Smaller_Or_Equal: return Value(lv <= rv);
             case VTokenType::Greater:       return Value(lv > rv);
             case VTokenType::Greater_Or_Equal: return Value(lv >= rv);
+            case VTokenType::Modulo:
+                if (rv == 0) throw std::runtime_error("Modulo by zero!");
+                return Value(std::fmod(lv, rv));
             default: break;
         }
     } else if (lType == Value::INT64 && rType == Value::INT64) {
@@ -282,7 +292,7 @@ Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
                 return Value(lv / rv); 
             case VTokenType::Modulo:
                 if (rv == 0) throw std::runtime_error("Modulo by zero!");
-                return Value(lv % rv);
+                return Value(std::fmod(lv, rv));
             case VTokenType::Power : return Value(std::pow(lv, rv));
             case VTokenType::Smaller:   return Value(lv < rv);
             case VTokenType::Double_Equals: return Value(lv == rv);
@@ -479,7 +489,7 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) c
         return Value(std::string(1, str[idx]));
     }
     
-    throw std::runtime_error("Type Error: Cannot index non-array, non-string type...");
+    throw std::runtime_error("Type Error: Cannot index non-array, non-string type [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value IndexAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
