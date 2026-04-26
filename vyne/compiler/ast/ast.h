@@ -386,7 +386,7 @@ public:
           isReference(ir),
           expectedType(std::move(vt)) {
             if (scopePath.empty()) {
-                scopeGroupId = 0; // Dinamik skop (currentGroup)
+                scopeGroupId = 0;
             } else {
                 std::string fullPath;
                 for (const auto& s : scopePath) {
