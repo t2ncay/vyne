@@ -197,6 +197,16 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
     if (funcName == "out") {
         for (const auto& arg : arguments) e.emit("vyne_out(" + arg->getCExpr(e) + ");");
     }
+
+    if (funcName == "string") {
+        if (arguments.empty()) return "vyne_string(\"\")";
+        
+        std::string argExpr = arguments[0]->getCExpr(e);
+        std::string temp = e.newTemp();
+        e.emit("VyneValue " + temp + " = vyne_to_string(" + argExpr + ");");
+        return temp;
+    }
+    
     return "vyne_null()";
 }
 void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
@@ -206,8 +216,38 @@ void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 void InterfaceNode::compile(C_Emitter& e) const { e.emit("// Interface " + interfaceName + " logic here"); }
 std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void GroupNode::compile(C_Emitter& e) const { /* C-də prefix-lərlə həll olunacaq */ }
-std::string GroupNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void GroupNode::compile(C_Emitter& e) const {
+    e.setFunctionContext(true);
+    
+    e.emit("");
+    e.emit("// --- Group Namespace: " + groupName + " ---");
+    
+    for (const auto& stmt : statements) {
+        if (!stmt) continue;
+
+        if (stmt->type() == NodeType::ASSIGNMENT) {
+            auto* assign = static_cast<AssignmentNode*>(stmt.get());
+            std::string mangledName = "v_" + groupName + "_" + assign->getOriginalName();
+            
+            e.emit("VyneValue " + mangledName + ";");
+            
+            e.setFunctionContext(false);
+            std::string val = assign->getRHS()->getCExpr(e);
+            e.emit(mangledName + " = " + val + ";");
+            e.setFunctionContext(true);
+        }
+        else if (stmt->type() == NodeType::FUNCTION) {
+             stmt->compile(e);
+        }
+    }
+    
+    e.setFunctionContext(false);
+}
+
+std::string GroupNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()"; 
+}
 
 void ModuleNode::compile(C_Emitter& e) const { e.emit("// Module " + originalName); }
 std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
@@ -255,8 +295,32 @@ std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const {
 void MethodCallNode::compile(C_Emitter& e) const {}
 std::string MethodCallNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void MemberAccessNode::compile(C_Emitter& e) const {}
-std::string MemberAccessNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void MemberAccessNode::compile(C_Emitter& e) const {
+    e.emit(getCExpr(e) + ";");
+}
 
-void MemberAssignmentNode::compile(C_Emitter& e) const {}
-std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(receiver.get());
+        return "v_" + var->getOriginalName() + "_" + memberName;
+    }
+    
+    if (receiver->type() == NodeType::MEMBER_ACCESS) {
+        return receiver->getCExpr(e) + "_" + memberName;
+    }
+
+    return "vyne_null()";
+}
+
+void MemberAssignmentNode::compile(C_Emitter& e) const {
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(receiver.get());
+        std::string val = rhs->getCExpr(e);
+        
+        e.emit("v_" + var->getOriginalName() + "_" + memberName + " = " + val + ";");
+    }
+}
+std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "v_Human_" + memberName;
+}

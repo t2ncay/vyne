@@ -107,6 +107,7 @@ static inline bool vyne_is_truthy(VyneValue v) {
     return true;
 }
 
+// built-in calls
 static inline void vyne_out(VyneValue v) {
     switch(v.type) {
         case V_INT64:   printf("%lld\n", v.as.i64); break;
@@ -117,6 +118,20 @@ static inline void vyne_out(VyneValue v) {
         default:        printf("[object]\n");
     }
     fflush(stdout);
+}
+
+static inline VyneValue vyne_to_string(VyneValue v) {
+    char buf[256];
+    switch(v.type) {
+        case V_INT64:   sprintf(buf, "%lld", v.as.i64); break;
+        case V_FLOAT64: sprintf(buf, "%g", v.as.f64); break;
+        case V_BOOL:    strcpy(buf, v.as.i64 ? "true" : "false"); break;
+        case V_STRING:  return v;
+        case V_NULL:    strcpy(buf, "null"); break;
+        case V_ARRAY:   strcpy(buf, "[array]"); break;
+        default:        strcpy(buf, "[object]");
+    }
+    return vyne_string(buf);
 }
 
 static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {

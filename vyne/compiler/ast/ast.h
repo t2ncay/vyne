@@ -400,6 +400,10 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+
+    // helpers
+    const std::string& getOriginalName() const { return originalName; }
+    ASTNode* getRHS() const { return rhs.get(); }
 };
 
 class MemberAssignmentNode : public ASTNode {
