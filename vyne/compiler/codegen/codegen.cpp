@@ -255,6 +255,7 @@ void ModuleNode::compile(C_Emitter& e) const {
     if (originalName == "vmath")  e.addInclude("modules/vmath.h");
     if (originalName == "vcore")  e.addInclude("modules/vcore.h");
     if (originalName == "vaudio") e.addInclude("modules/vaudio.h");
+    if (originalName == "vglib") e.addInclude("modules/vglib.h");
 }
 std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
