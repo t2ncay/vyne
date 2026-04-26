@@ -10,7 +10,6 @@
 #include "../vyne/compiler/ast/ast.h"
 #include "../vyne/compiler/ast/value.h"
 #include "../vyne/compiler/codegen/codegen.h"
-#include "../vyne/vm/vm.h"
 
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
