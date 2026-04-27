@@ -7,5 +7,5 @@ fn fib(n) {
     return fib(n - 1) + fib(n - 2);
 }
 
-out("Fibonacci(30) nəticəsi:");
+out("Fibonacci(30) result:");
 out(fib(20));
