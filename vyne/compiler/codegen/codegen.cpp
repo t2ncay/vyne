@@ -267,16 +267,15 @@ std::string FunctionNode::getCExpr(C_Emitter& e) const {
 
 std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     int argSize = (int)arguments.size();
-    std::string argArr  = e.newTemp("args");
-    std::string result  = e.newTemp("ret");
+    std::string argArr = e.newTemp("args");
+    std::string retTemp = e.newTemp("ret");
 
     if (argSize > 0) {
-        std::string elems;
+        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " + std::to_string(argSize) + ");");
         for (int i = 0; i < argSize; ++i) {
-            if (i > 0) elems += ", ";
-            elems += arguments[i]->getCExpr(e);
+            std::string val = arguments[i]->getCExpr(e);
+            e.emit(argArr + "[" + std::to_string(i) + "] = " + val + ";");
         }
-        e.emit("VyneValue " + argArr + "[] = {" + elems + "};");
     } else {
         e.emit("VyneValue* " + argArr + " = NULL;");
     }
@@ -287,10 +286,13 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             if (i > 0) directArgs += ", ";
             directArgs += arguments[i]->getCExpr(e);
         }
-        return "struct_" + originalName + "(" + directArgs + ")";
+        e.emit("VyneValue " + retTemp + " = struct_" + originalName + "(...);");
+        return retTemp;
     }
 
-    return "fn_" + originalName + "(" + std::to_string(argSize) + ", " + argArr + ")";
+    e.emit("VyneValue " + retTemp + " = fn_" + originalName + "(" + std::to_string(argSize) + ", " + argArr + ");");
+    
+    return retTemp;
 }
 void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 
@@ -575,14 +577,21 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         std::string name = var->getOriginalName();
 
         if (e.isGroup(name)) {
-            std::string argStr;
-            for (size_t i = 0; i < arguments.size(); ++i) {
-                if (i > 0) argStr += ", ";
-                argStr += arguments[i]->getCExpr(e);
+            int argSize = (int)arguments.size();
+            std::string argArr = e.newTemp("g_args");
+            
+            if (argSize > 0) {
+                e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " + std::to_string(argSize) + ");");
+                for (int i = 0; i < argSize; ++i) {
+                    e.emit(argArr + "[" + std::to_string(i) + "] = " + arguments[i]->getCExpr(e) + ";");
+                }
+            } else {
+                e.emit("VyneValue* " + argArr + " = NULL;");
             }
+
             std::string resTemp = e.newTemp("g_ret");
             e.emit("VyneValue " + resTemp + " = fn_" + name + "_" + methodName + 
-                   "(" + std::to_string(arguments.size()) + ", (VyneValue[]){" + argStr + "});");
+                "(" + std::to_string(argSize) + ", " + argArr + ");");
             return resTemp;
         }
 

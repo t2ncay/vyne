@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define VYNE_ARENA_BLOCK_SIZE (1 << 20)
+#define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
 
 typedef struct ArenaBlock {
     uint8_t *    data;
@@ -316,16 +316,16 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         free(res);
         return v;
     }
-
+    
     if (left.type == V_INT64 && right.type == V_INT64) {
         switch(op) {
             case 28: return vyne_int(left.as.i64 + right.as.i64);
             case 29: return vyne_int(left.as.i64 - right.as.i64);
             case 31: return vyne_int(left.as.i64 * right.as.i64);
             case 32: return (right.as.i64 == 0) ? vyne_null() : vyne_float((double)left.as.i64 / right.as.i64);
-            case 45: return vyne_bool(left.as.i64 == right.as.i64);
-            case 47: return vyne_bool(left.as.i64 > right.as.i64);
-            case 48: return vyne_bool(left.as.i64 < right.as.i64);
+            case 42: return vyne_bool(left.as.i64 == right.as.i64);
+            case 44: return vyne_bool(left.as.i64 > right.as.i64);
+            case 45: return vyne_bool(left.as.i64 < right.as.i64);
         }
     }
 
