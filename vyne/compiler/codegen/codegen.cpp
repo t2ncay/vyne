@@ -510,21 +510,27 @@ void InterfaceNode::compile(C_Emitter& e) const {
 std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 std::string MethodCallNode::getCExpr(C_Emitter& e) const {
-    std::string recv = receiver->getCExpr(e);
+    std::string recvRaw = receiver->getCExpr(e);
+    std::string recv = e.newTemp("m_recv");
+    e.emit("VyneValue " + recv + " = " + recvRaw + ";");
 
-    if(methodName == "push"){
-        int argSize = (int)arguments.size();
-        for(int i = 0; i < argSize; i++){
-            std::string arg = arguments[i]->getCExpr(e);
+    if (methodName == "push") {
+        for (const auto& argNode : arguments) {
+            std::string arg = argNode->getCExpr(e);
             e.emit("vyne_array_push(" + recv + ", " + arg + ");");
         }
         return recv;
     }
 
-    if(methodName == "pop"){
+    if (methodName == "pop") {
         std::string temp = e.newTemp("pop");
         e.emit("VyneValue " + temp + " = vyne_array_pop(" + recv + ");");
         return temp;
+    }
+
+    if (methodName == "reverse") {
+        e.emit("vyne_array_reverse(" + recv + ");");
+        return recv;
     }
 
     return "vyne_null()";

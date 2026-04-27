@@ -176,11 +176,33 @@ static inline void vyne_array_push(VyneValue arr_val, VyneValue val) {
     arr->elements[arr->size++] = val;
 }
 
-static inline void vyne_array_pop(VyneValue arr_val, VyneValue val) {
+static inline VyneValue vyne_array_pop(VyneValue arr_val, VyneValue val) {
     VyneArray* arr = arr_val.as.arr;
     if(arr->size == 0) return vyne_null();
 
     return arr->elements[--arr->size];
+}
+
+static inline VyneValue vyne_array_reverse(VyneValue arr_val) {
+    if (arr_val.type != V_ARRAY) return vyne_null();
+    
+    VyneArray* arr = arr_val.as.arr;
+    if (arr->size <= 1) return arr_val;
+
+    int start = 0;
+    int end = arr->size - 1;
+    VyneValue temp;
+
+    while (start < end) {
+        temp = arr->elements[start];
+        arr->elements[start] = arr->elements[end];
+        arr->elements[end] = temp;
+        
+        start++;
+        end--;
+    }
+
+    return arr_val;
 }
 
 static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
@@ -189,14 +211,14 @@ static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
         if (vyne_binop(arr->elements[i], target, 45).as.i64) return true;
     }
     return false;
-}
+};
 
 static inline bool vyne_is_truthy(VyneValue v) {
     if (v.type == V_NULL) return false;
     if (v.type == V_BOOL || v.type == V_INT64) return v.as.i64 != 0;
     if (v.type == V_FLOAT64) return v.as.f64 != 0.0;
     return true;
-}
+};
 
 // built-in calls
 static inline void vyne_out(VyneValue v) {
