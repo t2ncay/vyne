@@ -1,5 +1,4 @@
 #include "value.h"
-#include "../codegen/chunk.h"
 
 FunctionData::FunctionData() : VyneObject(ObjType::Function), bytecode(nullptr) {}
 FunctionData::~FunctionData() { if (bytecode) delete bytecode; }

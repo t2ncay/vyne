@@ -16,8 +16,6 @@ vendor/urage/core/src/pager.c ^
 vendor/urage/core/src/type.c
 
 set SRC_FILES=main.cpp ^
-vyne/vm/vm.cpp ^
-vyne/compiler/codegen/chunk.cpp ^
 vyne/compiler/codegen/codegen.cpp ^
 vyne/compiler/lexer/lexer.cpp ^
 vyne/compiler/parser/parser.cpp ^
