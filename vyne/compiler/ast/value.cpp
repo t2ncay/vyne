@@ -1,7 +1,7 @@
 #include "value.h"
 
-FunctionData::FunctionData() : VyneObject(ObjType::Function), bytecode(nullptr) {}
-FunctionData::~FunctionData() { if (bytecode) delete bytecode; }
+FunctionData::FunctionData() : VyneObject(ObjType::Function) {}
+FunctionData::~FunctionData() = default;
 
 Value::Value(std::vector<Value> l) : type(VType::Array) {
     new (&data.obj) std::shared_ptr<VyneObject>(std::make_shared<VyneArray>(std::move(l)));
