@@ -29,7 +29,11 @@ void NullNode::compile(C_Emitter& e) const {}
 // ============================================================
 
 std::string VariableNode::getCExpr(C_Emitter& e) const {
-    return "v_" + originalName;
+    std::string name = "v_" + originalName;
+    if (e.isReference(name)) {
+        return "(*" + name + ")";
+    }
+    return name;
 }
 void VariableNode::compile(C_Emitter& e) const {
     // A bare variable reference as a statement is a no-op in C
@@ -38,15 +42,26 @@ void VariableNode::compile(C_Emitter& e) const {
 std::string AssignmentNode::getCExpr(C_Emitter& e) const {
     return "v_" + originalName;
 }
+// AssignmentNode::compile metodunu belə refaktor et:
 void AssignmentNode::compile(C_Emitter& e) const {
     std::string val = rhs->getCExpr(e);
-    std::string varName = "v_" + originalName; 
+    std::string varName = "v_" + originalName;
 
-    if (e.isAlreadyDeclared(varName)) {
-        e.emit(varName + " = " + val + ";");
-    } else {
+    if (this->isReference && !e.isAlreadyDeclared(varName)) {
+        e.registerReference(varName);
         e.registerDeclaration(varName);
-        e.emit("VyneValue " + varName + " = " + val + ";");
+        e.emit("VyneValue* " + varName + " = &" + val + ";");
+    } 
+    else if (e.isReference(varName)) {
+        e.emit("*" + varName + " = " + val + ";");
+    } 
+    else {
+        if (e.isAlreadyDeclared(varName)) {
+            e.emit(varName + " = " + val + ";");
+        } else {
+            e.registerDeclaration(varName);
+            e.emit("VyneValue " + varName + " = " + val + ";");
+        }
     }
 }
 

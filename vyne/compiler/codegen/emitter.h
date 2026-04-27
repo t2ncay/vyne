@@ -16,6 +16,7 @@ class C_Emitter {
     std::set<std::string> includeSet;
 
     std::set<std::string> declaredVars;
+    std::set<std::string> references;
 
     std::set<std::string> interfaceSet; 
     std::set<std::string> groupSet;
@@ -49,6 +50,14 @@ public:
 
     void registerDeclaration(const std::string& name) {
         declaredVars.insert(name);
+    }
+
+    void registerReference(const std::string& name) {
+        references.insert(name);
+    }
+
+    bool isReference(const std::string& name) const {
+        return references.count(name) > 0;
     }
 
     void pushFunctionContext() {
@@ -175,6 +184,7 @@ public:
         interfaceSet.clear();
         groupSet.clear();
         declaredVars.clear();
+        references.clear();
         tempVarCount = 0;
         indentLevel  = 1;
     }
