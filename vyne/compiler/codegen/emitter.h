@@ -6,6 +6,8 @@
 #include <vector>
 #include <set>
 
+#include "../../modules/common/vcore/vcore.h"
+
 class C_Emitter {
     std::stringstream globalsStream;
     std::stringstream functionStream;
@@ -90,7 +92,7 @@ public:
     // --- Includes ---
 
     void addInclude(const std::string& header) {
-        includeSet.insert(header); // caller passes full string e.g. "vmath.h"
+        includeSet.insert(header);
     }
 
     // --- Final Output Assembly ---
@@ -129,6 +131,18 @@ public:
         for (const auto& inc : includeSet)
             res += "#include \"" + inc + "\"\n";
         return res;
+    }
+
+   std::string getNativeMapping(const std::string& module, const std::string& member, bool asFunctionCall) {
+        if (module == "vcore") {
+            for (auto& m : VCORE_MAP) {
+                if (m.vyneName == member) {
+                    if (m.isProperty) return m.cName;
+                    return asFunctionCall ? m.cName : m.cName + "()";
+                }
+            }
+        }
+        return "v_" + module + "_" + member;
     }
 
     void reset() {

@@ -424,12 +424,17 @@ void TernaryNode::compile(C_Emitter& e) const { getCExpr(e); }
 std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
     if (receiver->type() == NodeType::VARIABLE) {
         auto* var = static_cast<VariableNode*>(receiver.get());
-        return "v_" + var->getOriginalName() + "_" + memberName;
+        std::string modName = var->getOriginalName();
+        
+        std::string native = e.getNativeMapping(modName, memberName, false);
+        
+        if (native.find("v_" + modName) == std::string::npos) {
+            return native;
+        }
     }
-    if (receiver->type() == NodeType::MEMBER_ACCESS) {
-        return receiver->getCExpr(e) + "_" + memberName;
-    }
-    return "vyne_null()";
+    
+    std::string recv = receiver->getCExpr(e);
+    return recv + "_" + memberName;
 }
 void MemberAccessNode::compile(C_Emitter& e) const {
     // bare member access as statement — no-op
@@ -493,10 +498,13 @@ std::string GroupNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 void ModuleNode::compile(C_Emitter& e) const {
-    if (originalName == "vmath")  e.addInclude("modules/vmath.h");
-    if (originalName == "vcore")  e.addInclude("modules/vcore.h");
-    if (originalName == "vaudio") e.addInclude("modules/vaudio.h");
-    if (originalName == "vglib")  e.addInclude("modules/vglib.h");
+    std::string base = FileUtils::getExeDir();  
+    std::filesystem::path moduleBase = std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+
+    if (originalName == "vmath")  e.addInclude((moduleBase / "vmath.h").string());
+    if (originalName == "vcore")  e.addInclude((moduleBase / "vcore.h").string());
+    if (originalName == "vaudio") e.addInclude((moduleBase / "vaudio.h").string());
+    if (originalName == "vglib")  e.addInclude((moduleBase / "vglib.h").string());
 }
 std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
@@ -510,6 +518,25 @@ void InterfaceNode::compile(C_Emitter& e) const {
 std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 std::string MethodCallNode::getCExpr(C_Emitter& e) const {
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(receiver.get());
+        std::string modName = var->getOriginalName();
+
+        std::string nativeFunc = e.getNativeMapping(modName, methodName, true);
+
+        if (nativeFunc.find("v_" + modName) == std::string::npos) {
+            std::string argStr;
+            for (size_t i = 0; i < arguments.size(); ++i) {
+                if (i > 0) argStr += ", ";
+                argStr += arguments[i]->getCExpr(e);
+            }
+            
+            std::string resTemp = e.newTemp("n_ret");
+            e.emit("VyneValue " + resTemp + " = " + nativeFunc + "(" + argStr + ");");
+            return resTemp;
+        }
+    }
+
     std::string recvRaw = receiver->getCExpr(e);
     std::string recv = e.newTemp("m_recv");
     e.emit("VyneValue " + recv + " = " + recvRaw + ";");
@@ -535,7 +562,6 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
 
     return "vyne_null()";
 }
-
 void MethodCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 
 void ImportNode::compile(C_Emitter& e) const {}

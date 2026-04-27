@@ -1,5 +1,3 @@
-#include "vcore.h"
-
 #ifdef _WIN32
     #include <process.h>
     #include <windows.h>
@@ -11,6 +9,10 @@
 #elif __APPLE__
     #include <mach/mach.h>
 #endif
+
+#include "vcore.h"
+#include "../../../compiler/ast/ast.h"
+#include "../../../compiler/ast/value.h"
 
 double getPhysicalMemoryUsage() {
 #ifdef _WIN32
@@ -41,57 +43,39 @@ struct ParsedURL {
     int port;
 };  
 
-ParsedURL parseURL(const std::string& url)
-{
-    ParsedURL result;
-
-    size_t scheme_end = url.find("://"); // Ts the first time I'm coding a parser lol
-    result.scheme = url.substr(0, scheme_end);
-
-    size_t host_start = scheme_end + 3;
-    size_t path_start = url.find('/', host_start);
-
-    result.host = url.substr(host_start, path_start - host_start);
-    result.path = path_start == std::string::npos ? "/" : url.substr(path_start);
-
-    result.port = result.scheme == "https" ? 443 : 80; // Fancy HTTPS vs chill HTTP fr
-
-    return result;
-}
-
 Value parseElement(const std::string& str, size_t& pos) {
-        while (pos < str.length() && std::isspace(str[pos])) pos++;
+    while (pos < str.length() && std::isspace(str[pos])) pos++;
 
-        if (str[pos] == '[') {
-            pos++;
-            std::vector<Value> elements;
-            while (pos < str.length() && str[pos] != ']') {
-                elements.push_back(parseElement(str, pos));
-                
-                while (pos < str.length() && std::isspace(str[pos])) pos++;
-                if (pos < str.length() && str[pos] == ',') {
-                    pos++; // ',' keç
-                }
-            }
-            if (pos < str.length()) pos++;
-            return Value(elements);
-        } else {
-            size_t start = pos;
-            while (pos < str.length() && (std::isdigit(str[pos]) || str[pos] == '.' || str[pos] == '-' || str[pos] == 'e' || str[pos] == '+')) {
-                pos++;
-            }
-            std::string numStr = str.substr(start, pos - start);
-            try {
-                if (numStr.find('.') != std::string::npos || numStr.find('e') != std::string::npos) {
-                    return Value(std::stod(numStr));
-                } else {
-                    return Value(static_cast<int64_t>(std::stoll(numStr)));
-                }
-            } catch (...) {
-                return Value(0.0);
+    if (str[pos] == '[') {
+        pos++;
+        std::vector<Value> elements;
+        while (pos < str.length() && str[pos] != ']') {
+            elements.push_back(parseElement(str, pos));
+            
+            while (pos < str.length() && std::isspace(str[pos])) pos++;
+            if (pos < str.length() && str[pos] == ',') {
+                pos++; // ',' keç
             }
         }
+        if (pos < str.length()) pos++;
+        return Value(elements);
+    } else {
+        size_t start = pos;
+        while (pos < str.length() && (std::isdigit(str[pos]) || str[pos] == '.' || str[pos] == '-' || str[pos] == 'e' || str[pos] == '+')) {
+            pos++;
+        }
+        std::string numStr = str.substr(start, pos - start);
+        try {
+            if (numStr.find('.') != std::string::npos || numStr.find('e') != std::string::npos) {
+                return Value(std::stod(numStr));
+            } else {
+                return Value(static_cast<int64_t>(std::stoll(numStr)));
+            }
+        } catch (...) {
+            return Value(0.0);
+        }
     }
+}
 
 /**
  * VCore Native Method Implementations
