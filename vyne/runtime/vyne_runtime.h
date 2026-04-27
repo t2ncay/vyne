@@ -59,7 +59,7 @@ static inline void arena_free_all(void) {
 }
 
 typedef enum {
-    V_NULL, V_FLOAT64, V_INT64, V_STRING, V_ARRAY, V_BOOL
+    V_NULL, V_FLOAT64, V_INT64, V_STRING, V_ARRAY, V_BOOL, V_STRUCT
 } VyneType;
 
 struct VyneArray;
@@ -71,6 +71,7 @@ typedef struct {
         int64_t i64;
         char* str;
         struct VyneArray* arr;
+        struct VyneStruct* strct;
     } as;
 } VyneValue;
 
@@ -79,6 +80,17 @@ typedef struct VyneArray {
     int size;
     int capacity;
 } VyneArray;
+
+typedef struct VyneField {
+    uint32_t id;
+    VyneValue value;
+} VyneField;
+
+typedef struct VyneStruct {
+    const char* type_name;
+    VyneField* fields;
+    int field_count;
+} VyneStruct;
 
 static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op);
 static inline bool vyne_is_truthy(VyneValue v);
@@ -212,6 +224,28 @@ static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
     }
     return false;
 };
+
+// interfaces
+
+static inline VyneValue vyne_struct_get(VyneValue s_val, uint32_t field_id) {
+    if (s_val.type != V_STRUCT) return vyne_null();
+    VyneStruct* s = s_val.as.strct;
+    for (int i = 0; i < s->field_count; i++) {
+        if (s->fields[i].id == field_id) return s->fields[i].value;
+    }
+    return vyne_null();
+}
+
+static inline void vyne_struct_set(VyneValue s_val, uint32_t field_id, VyneValue val) {
+    if (s_val.type != V_STRUCT) return;
+    VyneStruct* s = s_val.as.strct;
+    for (int i = 0; i < s->field_count; i++) {
+        if (s->fields[i].id == field_id) {
+            s->fields[i].value = val;
+            return;
+        }
+    }
+}
 
 static inline bool vyne_is_truthy(VyneValue v) {
     if (v.type == V_NULL) return false;

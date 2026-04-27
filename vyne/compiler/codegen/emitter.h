@@ -14,6 +14,12 @@ class C_Emitter {
     std::stringstream mainStream;
 
     std::set<std::string> includeSet;
+
+    std::set<std::string> declaredVars;
+
+    std::set<std::string> interfaceSet; 
+    std::set<std::string> groupSet;
+
     int tempVarCount = 0;
 
     enum class EmitContext { GLOBAL, FUNCTION, MAIN };
@@ -37,14 +43,23 @@ class C_Emitter {
 public:
     // --- Context Management ---
 
+    bool isAlreadyDeclared(const std::string& name) const {
+        return declaredVars.count(name) > 0;
+    }
+
+    void registerDeclaration(const std::string& name) {
+        declaredVars.insert(name);
+    }
+
     void pushFunctionContext() {
         contextStack.emplace_back(EmitContext::FUNCTION);
-        indentLevel = 1; // inside function body
+        indentLevel = 1;
     }
 
     void popFunctionContext() {
         if (!contextStack.empty()) contextStack.pop_back();
-        indentLevel = 1; // back to main body indent
+        declaredVars.clear();
+        indentLevel = 1;
     }
 
     void pushGlobalContext() {
@@ -145,14 +160,23 @@ public:
         return "v_" + module + "_" + member;
     }
 
+    void registerInterface(const std::string& name) { interfaceSet.insert(name); }
+    void registerGroup(const std::string& name)     { groupSet.insert(name); }
+
+    bool isInterface(const std::string& name) const { return interfaceSet.count(name) > 0; }
+    bool isGroup(const std::string& name) const     { return groupSet.count(name) > 0; }
+
     void reset() {
         globalsStream.str("");   globalsStream.clear();
         functionStream.str(""); functionStream.clear();
         mainStream.str("");     mainStream.clear();
         includeSet.clear();
         contextStack.clear();
+        interfaceSet.clear();
+        groupSet.clear();
+        declaredVars.clear();
         tempVarCount = 0;
-        indentLevel  = 1; // default: inside main
+        indentLevel  = 1;
     }
 };
 
