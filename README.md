@@ -11,6 +11,55 @@ Vyne is currently in its early stages but already supports a robust set of core 
 
 ---
 
+## ⚙️ The Transpilation Engine: C as High-Level Assembly
+
+Vyne features a powerful **C-Transpiler** that bridges the gap between high-level expressive syntax and low-level machine performance. Instead of compiling to a heavy bytecode or relying solely on an interpreter, Vyne generates human-readable, optimized C99 code.
+
+### 🏗️ How it Works: From AST to Binary
+
+The transformation process follows a strict pipeline to ensure that the semantic meaning of Vyne logic is preserved while maximizing execution speed:
+
+1. **AST Flattening**: Complex, nested expressions are decomposed into a linear sequence of C statements. This prevents stack-depth issues and allows the C compiler to better optimize register usage.
+2. **Mangled Namespacing**: To support Vyne's `group` and `interface` structures in a flat C namespace, the engine uses a deterministic mangling scheme (e.g., `Master.Element.getName()` becomes `fn_Master_Element_getName`).
+3. **Implicit Header Injection**: The transpiler automatically links the source with `vyne_runtime.h`, a lightweight header providing the core `Value` system, Arena memory management, and built-in math/graphics operations.
+
+### 💎 Why Transpile to C?
+
+- **Zero Overhead Portability**: Any system with a C compiler (GCC, Clang, MSVC) can run Vyne code.
+- **Aggressive Optimization**: By transpiling to C, Vyne inherits decades of optimization research embedded in modern C compilers (like loop unrolling and vectorization).
+- **Embedded Friendly**: The resulting binaries are extremely small (starting at 50 KB), making Vyne suitable for resource-constrained environments or as an embedded logic engine for larger C++ projects.
+
+### 🚀 Usage
+
+To generate and compile the C source in one command:
+
+```bash
+
+# This generates script.vy.c and compiles it to script.exe
+vynec --compile ./tests/logic_test.vy
+```
+
+#### 📊 Performance Benchmark: Recursive Fibonacci (30)
+
+Recursive functions are a stress test for any language's call stack and value system. Vyne’s transpiler consistently outperforms its interpreter by nearly 3x in recursion-heavy tasks.
+
+| Execution Mode         | Time (ms)    | Speed Gain       |
+| :--------------------- | :----------- | :--------------- |
+| **AST Interpreter**    | 54.52 ms     | 1.0x (Base)      |
+| **Compiled (GCC -O3)** | **20.78 ms** | **~2.6x Faster** |
+
+##### Test Environment: i7-14700 | Windows 11 | Vyne Transpiler v0.9
+
+#### 🧠 Advanced Memory Management: The "Silent" Heap Frame
+
+To prevent **Stack Overflow** during deep recursion (like Fibonacci 30+), Vyne's transpiler employs a specialized memory strategy:
+
+1. **Heap-Based Call Frames**: Unlike standard C which uses the limited system stack for function arguments, Vyne's transpiler allocates argument arrays inside the **Vyne Arena**.
+2. **Flattened Expression Trees**: Nested function calls (e.g., `f(g(x))`) are automatically flattened into temporary variables during code generation. This ensures that the C stack only handles function return addresses, while all heavy data resides in the heap.
+3. **Arena Block Allocation**: Memory is managed in high-speed 8MB blocks, where allocation is a simple pointer increment, ensuring zero overhead during recursive calls.
+
+---
+
 ### 🔢 Core Language Syntax
 
 | Feature        | Syntax Example            | Description                                                |
