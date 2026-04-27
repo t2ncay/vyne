@@ -35,78 +35,107 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
             return 0;
+
         } else if (mode == "c") {
+
+            auto tokens_for_count = tokenize(content);
+            int tokenCount = (int)tokens_for_count.size();
+            int lineCount  = (int)std::count(content.begin(), content.end(), '\n') + 1;
+
+            std::cout << "\n";
+            std::cout << BOLD << "  Compiling " << RESET << filename << "\n\n";
+
             auto start_transpile = std::chrono::high_resolution_clock::now();
 
             C_Emitter emitter;
+            emitter.reset();
             rootShared->compile(emitter);
-            
-            std::string vyne_funcs = emitter.getFunctionCode();
-            std::string vyne_body = emitter.getBodyCode();
-            
-            std::string base_name = filename.substr(0, filename.find_last_of("."));
-            std::string c_file_name = base_name + ".vy.c";
-            std::string exe_name = base_name; 
 
+            std::string exeDir  = FileUtils::getExeDir();
+            std::string runtime = exeDir + "/vyne/runtime/vyne_runtime.h";
+            std::string cSource = emitter.finalize(runtime);
+
+            std::string base    = filename.substr(0, filename.find_last_of("."));
+            std::string cFile   = base + ".vy.c";
+            std::string exeName = base;
             #ifdef _WIN32
-                exe_name += ".exe";
+                exeName += ".exe";
             #endif
 
-            std::ofstream out_file(c_file_name);
-            out_file << "#include \"vyne/runtime/vyne_runtime.h\"\n\n";
-            
-            out_file << vyne_funcs << "\n";
-            
-            out_file << "int main(int argc, char* argv[]) {\n";
-            out_file << vyne_body;
-            out_file << "    return 0;\n";
-            out_file << "}\n";
-            out_file.close();
+            std::ofstream out(cFile);
+            if (!out.is_open()) {
+                std::cerr << RED << "  error" << RESET << "  could not write " << cFile << "\n";
+                return 1;
+            }
+            out << cSource;
+            out.close();
 
             auto end_transpile = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> transpile_ms = end_transpile - start_transpile;
 
-            std::cout << GREEN << "C code generated: " << c_file_name << RESET << " (" << transpile_ms.count() << "ms)\n";
+            std::cout << GREEN << "  transpile" << RESET
+                    << "  " << lineCount << " lines  "
+                    << tokenCount << " tokens  "
+                    << std::fixed << std::setprecision(2) << transpile_ms.count() << "ms\n";
 
-            // GCC
-            std::string exeDir = FileUtils::getExeDir();
-            std::string compile_cmd = "gcc \"" + c_file_name + "\" -o \"" + exe_name + "\" -I\"" + exeDir + "\" -O3 -w";
-            
-            std::cout << YELLOW << "Compiling with GCC..." << RESET << "\n";
-            
+            std::string compile_cmd = "gcc \"" + cFile + "\" -o \"" + exeName + "\""
+                                    " -I\"" + exeDir + "\" -O3 -w";
+
             auto start_compile = std::chrono::high_resolution_clock::now();
             int compile_result = system(compile_cmd.c_str());
-            auto end_compile = std::chrono::high_resolution_clock::now();
-            
+            auto end_compile   = std::chrono::high_resolution_clock::now();
             std::chrono::duration<double, std::milli> compile_ms = end_compile - start_compile;
 
-            if (compile_result == 0) {
-                std::cout << BOLD << GREEN << "Successfully built: " << exe_name << RESET << " (" << compile_ms.count() << "ms)\n";
-                
-                std::cout << CYAN << "\n--- Vyne Execution Output ---\n" << RESET;
-                
-                auto start_exec = std::chrono::high_resolution_clock::now();
-                
-                std::string run_cmd = (exe_name.find('/') == std::string::npos && exe_name.find('\\') == std::string::npos) 
-                                    ? "./" + exe_name : exe_name;
-                int run_result = system(run_cmd.c_str());
-                
-                auto end_exec = std::chrono::high_resolution_clock::now();
-                std::chrono::duration<double, std::milli> exec_ms = end_exec - start_exec;
-
-                std::cout << CYAN << "-----------------------------\n" << RESET;
-                
-                if (run_result != 0) {
-                    std::cout << RED << "Runtime Error: Program exited with code " << run_result << RESET << "\n";
-                }
-                
-                std::cout << MAGENTA << "Total Pipeline: " << (transpile_ms + compile_ms + exec_ms).count() << "ms" << RESET << "\n";
-                return 0;
-            } else {
-                std::cerr << RED << "Compilation failed!" << RESET << "\n";
+            if (compile_result != 0) {
+                std::cerr << "\n" << RED << "  error" << RESET << "  gcc failed — see above\n\n";
                 return 1;
             }
+
+            std::string sizeStr = "?";
+            if (std::filesystem::exists(exeName)) {
+                uintmax_t bytes = std::filesystem::file_size(exeName);
+                if      (bytes < 1024)             sizeStr = std::to_string(bytes) + " B";
+                else if (bytes < 1024 * 1024)      sizeStr = std::to_string(bytes / 1024) + " KB";
+                else                               sizeStr = std::to_string(bytes / (1024*1024)) + " MB";
+            }
+
+            std::cout << GREEN << "  compile  " << RESET
+                    << "  gcc -O3  "
+                    << std::fixed << std::setprecision(2) << compile_ms.count() << "ms\n";
+
+            std::string run_cmd = (exeName.find('/') == std::string::npos &&
+                                exeName.find('\\') == std::string::npos)
+                                ? "./" + exeName : exeName;
+
+            std::cout << "\n";
+            std::cout << CYAN << "  >> output" << RESET << "\n";
+            std::cout << CYAN << "  " << std::string(42, '-') << RESET << "\n\n";
+
+            auto start_exec = std::chrono::high_resolution_clock::now();
+            int  run_result = system(run_cmd.c_str());
+            auto end_exec   = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double, std::milli> exec_ms = end_exec - start_exec;
+
+            std::cout << "\n";
+            std::cout << CYAN << "  " << std::string(42, '-') << RESET << "\n\n";
+
+            double total_ms = (transpile_ms + compile_ms + exec_ms).count();
+
+            std::cout << BOLD << YELLOW << "  >> summary" << RESET << "\n";
+            std::cout << YELLOW << "  " << std::string(42, '-') << RESET << "\n";
+            std::cout << "  " << GREEN  << "binary    " << RESET << exeName << "  " << CYAN << "(" << sizeStr << ")" << RESET << "\n";
+            std::cout << "  " << GREEN  << "transpile " << RESET << std::fixed << std::setprecision(2) << transpile_ms.count() << "ms\n";
+            std::cout << "  " << GREEN  << "compile   " << RESET << compile_ms.count() << "ms\n";
+            std::cout << "  " << GREEN  << "execution " << RESET << exec_ms.count() << "ms\n";
+            std::cout << YELLOW << "  " << std::string(42, '-') << RESET << "\n";
+            std::cout << "  " << BOLD   << "total     " << RESET << BOLD << total_ms << "ms" << RESET << "\n\n";
+
+            if (run_result != 0)
+                std::cout << RED << "  >> exited with code " << run_result << RESET << "\n\n";
+
+            return 0;
         }
+
     } catch (const std::exception& e) {
         std::cerr << RED << "Error: " << e.what() << RESET << "\n";
         return 1;

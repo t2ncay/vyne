@@ -5,6 +5,59 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define VYNE_ARENA_BLOCK_SIZE (1 << 20)
+
+typedef struct ArenaBlock {
+    uint8_t *    data;
+    size_t       used;
+    size_t       capacity;
+    struct ArenaBlock* next;
+} ArenaBlock;
+
+typedef struct {
+    ArenaBlock*     head;
+    size_t          total_allocated;      
+} VyneArena;
+
+static VyneArena g_arena = {NULL, 0};
+
+static inline ArenaBlock* arena_new_block(size_t min_size) {
+    size_t cap = min_size > VYNE_ARENA_BLOCK_SIZE ? min_size : VYNE_ARENA_BLOCK_SIZE;
+    ArenaBlock* block = (ArenaBlock*)malloc(sizeof(ArenaBlock));
+    block->data     = (uint8_t*)malloc(cap);
+    block->used     = 0;
+    block->capacity = cap;
+    block->next     = NULL;
+    return block;
+}
+
+static inline void* arena_alloc(size_t size) {
+    size = (size + 7) & ~(size_t)7;
+
+    if (!g_arena.head || g_arena.head->used + size > g_arena.head->capacity) {
+        ArenaBlock* block = arena_new_block(size);
+        block->next  = g_arena.head;
+        g_arena.head = block;
+    }
+
+    void* ptr = g_arena.head->data + g_arena.head->used;
+    g_arena.head->used      += size;
+    g_arena.total_allocated += size;
+    return ptr;
+}
+
+static inline void arena_free_all(void) {
+    ArenaBlock* block = g_arena.head;
+    while (block) {
+        ArenaBlock* next = block->next;
+        free(block->data);
+        free(block);
+        block = next;
+    }
+    g_arena.head            = NULL;
+    g_arena.total_allocated = 0;
+}
+
 typedef enum {
     V_NULL, V_FLOAT64, V_INT64, V_STRING, V_ARRAY, V_BOOL
 } VyneType;
@@ -26,6 +79,13 @@ typedef struct VyneArray {
     int size;
     int capacity;
 } VyneArray;
+
+static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op);
+static inline bool vyne_is_truthy(VyneValue v);
+static inline VyneValue vyne_int(int64_t v);
+static inline VyneValue vyne_bool(bool v);
+static inline VyneValue vyne_null();
+static inline VyneValue vyne_string(const   char* s);
 
 // 2. Fundamental funksiyaları (null kimi) ən yuxarıya çəkirik
 static inline VyneValue vyne_null() {
@@ -56,25 +116,29 @@ static inline VyneValue vyne_float(double v) {
     return val;
 }
 
-static inline VyneValue vyne_string(char* s) {
+static inline VyneValue vyne_string(const char* s) {
     VyneValue val;
     val.type = V_STRING;
-    val.as.str = strdup(s);
+    size_t len = strlen(s) + 1;
+    char* copy = (char*)arena_alloc(len);
+    memcpy(copy, s, len);
+    val.as.str = copy;
     return val;
 }
 
 static inline VyneValue vyne_array_create(int initial_size) {
     VyneValue val;
     val.type = V_ARRAY;
-    VyneArray* arr = (VyneArray*)malloc(sizeof(VyneArray));
-    arr->size = initial_size;
-    arr->capacity = initial_size > 0 ? initial_size : 4;
-    arr->elements = (VyneValue*)malloc(sizeof(VyneValue) * arr->capacity);
-    
-    for(int i = 0; i < initial_size; i++) {
+
+    VyneArray* arr  = (VyneArray*)arena_alloc(sizeof(VyneArray));
+    int cap         = initial_size > 0 ? initial_size : 4;
+    arr->elements   = (VyneValue*)arena_alloc(sizeof(VyneValue) * cap);
+    arr->size       = initial_size;
+    arr->capacity   = cap;
+
+    for (int i = 0; i < initial_size; i++)
         arr->elements[i] = vyne_null();
-    }
-    
+
     val.as.arr = arr;
     return val;
 }
@@ -100,6 +164,26 @@ static inline void vyne_array_set(VyneValue arr_val, VyneValue index_val, VyneVa
     }
 }
 
+static inline void vyne_array_push(VyneValue arr_val, VyneValue val) {
+    VyneArray* arr = arr_val.as.arr;
+    if (arr->size >= arr->capacity) {
+        int new_cap = arr->capacity * 2;
+        VyneValue* new_elems = (VyneValue*)arena_alloc(sizeof(VyneValue) * new_cap);
+        memcpy(new_elems, arr->elements, sizeof(VyneValue) * arr->size);
+        arr->elements = new_elems;
+        arr->capacity = new_cap;
+    }
+    arr->elements[arr->size++] = val;
+}
+
+static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
+    VyneArray* arr = arr_val.as.arr;
+    for (int i = 0; i < arr->size; i++) {
+        if (vyne_binop(arr->elements[i], target, 45).as.i64) return true;
+    }
+    return false;
+}
+
 static inline bool vyne_is_truthy(VyneValue v) {
     if (v.type == V_NULL) return false;
     if (v.type == V_BOOL || v.type == V_INT64) return v.as.i64 != 0;
@@ -115,7 +199,21 @@ static inline void vyne_out(VyneValue v) {
         case V_STRING:  printf("%s\n", v.as.str); break;
         case V_BOOL:    printf("%s\n", v.as.i64 ? "true" : "false"); break;
         case V_NULL:    printf("null\n"); break;
-        default:        printf("[object]\n");
+        case V_ARRAY: {
+            printf("[");
+            VyneArray* arr = v.as.arr;
+            for (int i = 0; i < arr->size; i++) {
+                if (arr->elements[i].type == V_INT64) printf("%lld", arr->elements[i].as.i64);
+                else if (arr->elements[i].type == V_FLOAT64) printf("%g", arr->elements[i].as.f64);
+                else if (arr->elements[i].type == V_STRING) printf("\"%s\"", arr->elements[i].as.str);
+                else printf("[obj]");
+                
+                if (i < arr->size - 1) printf(", ");
+            }
+            printf("]\n");
+            break;
+        }
+        default: printf("[object]\n");
     }
     fflush(stdout);
 }
@@ -152,7 +250,7 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         strcpy(res, buf_l);
         strcat(res, buf_r);
         VyneValue v = vyne_string(res);
-        free(res); // vyne_string uses strdup
+        free(res);
         return v;
     }
 

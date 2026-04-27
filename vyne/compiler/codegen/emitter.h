@@ -3,46 +3,143 @@
 
 #include <sstream>
 #include <string>
+#include <vector>
+#include <set>
 
 class C_Emitter {
-    std::stringstream bodyStream;
+    std::stringstream globalsStream;
     std::stringstream functionStream;
-    int tempVarCount = 0;
-    bool isInsideFunction = false;
-    std::stringstream includes;
+    std::stringstream mainStream;
 
-public:
-    void setFunctionContext(bool inside) {
-        isInsideFunction = inside;
+    std::set<std::string> includeSet;
+    int tempVarCount = 0;
+
+    enum class EmitContext { GLOBAL, FUNCTION, MAIN };
+    std::vector<EmitContext> contextStack;
+
+    int indentLevel = 0;
+
+    std::string getIndent() const {
+        return std::string(indentLevel * 4, ' ');
     }
 
-    void emit(const std::string& code) {
-        if (isInsideFunction) {
-            functionStream << code << "\n";
-        } else {
-            bodyStream << "  " << code << "\n";
+    std::stringstream& currentStream() {
+        if (contextStack.empty()) return mainStream;
+        switch (contextStack.back()) {
+            case EmitContext::FUNCTION: return functionStream;
+            case EmitContext::GLOBAL:   return globalsStream;
+            default:                   return mainStream;
         }
     }
 
-    std::string newTemp() {
-        return "t" + std::to_string(tempVarCount++);
+public:
+    // --- Context Management ---
+
+    void pushFunctionContext() {
+        contextStack.emplace_back(EmitContext::FUNCTION);
+        indentLevel = 1; // inside function body
+    }
+
+    void popFunctionContext() {
+        if (!contextStack.empty()) contextStack.pop_back();
+        indentLevel = 1; // back to main body indent
+    }
+
+    void pushGlobalContext() {
+        contextStack.emplace_back(EmitContext::GLOBAL);
+        indentLevel = 0;
+    }
+
+    void popGlobalContext() {
+        if (!contextStack.empty()) contextStack.pop_back();
+        indentLevel = 1;
+    }
+
+    void setFunctionContext(bool inside) {
+        if (inside) pushFunctionContext();
+        else popFunctionContext();
+    }
+
+    // --- Indentation ---
+
+    void indent()   { indentLevel++; }
+    void dedent()   { if (indentLevel > 0) indentLevel--; }
+
+    // --- Emission ---
+
+    void emit(const std::string& code) {
+        currentStream() << getIndent() << code << "\n";
+    }
+
+    void emitBlockOpen(const std::string& line) {
+        emit(line);
+        indent();
+    }
+
+    void emitBlockClose(const std::string& suffix = "") {
+        dedent();
+        emit("}" + suffix);
+    }
+
+    // --- Temp Variables ---
+
+    std::string newTemp(const std::string& prefix = "t") {
+        return prefix + "_" + std::to_string(tempVarCount++);
+    }
+
+    // --- Includes ---
+
+    void addInclude(const std::string& header) {
+        includeSet.insert(header); // caller passes full string e.g. "vmath.h"
+    }
+
+    // --- Final Output Assembly ---
+
+    std::string finalize(const std::string& runtimeHeader = "vyne_runtime.h") {
+        std::stringstream out;
+        out << "#include \"" << runtimeHeader << "\"\n";
+        for (const auto& inc : includeSet)
+            out << "#include \"" << inc << "\"\n";
+        out << "\n";
+
+        std::string globals = globalsStream.str();
+        if (!globals.empty()) {
+            out << "// --- Globals ---\n";
+            out << globals << "\n";
+        }
+
+        std::string funcs = functionStream.str();
+        if (!funcs.empty()) {
+            out << "// --- Functions ---\n";
+            out << funcs << "\n";
+        }
+
+        out << "int main(void) {\n";
+        out << mainStream.str();
+        out << "    arena_free_all();\n";
+        out << "    return 0;\n";
+        out << "}\n";
+        return out.str();
     }
 
     std::string getFunctionCode() { return functionStream.str(); }
-    std::string getBodyCode() { return bodyStream.str(); }
-    
+    std::string getBodyCode()     { return mainStream.str(); }
+    std::string getIncludes() {
+        std::string res;
+        for (const auto& inc : includeSet)
+            res += "#include \"" + inc + "\"\n";
+        return res;
+    }
+
     void reset() {
-        bodyStream.str(""); functionStream.str("");
-        bodyStream.clear(); functionStream.clear();
+        globalsStream.str("");   globalsStream.clear();
+        functionStream.str(""); functionStream.clear();
+        mainStream.str("");     mainStream.clear();
+        includeSet.clear();
+        contextStack.clear();
         tempVarCount = 0;
-        isInsideFunction = false;
+        indentLevel  = 1; // default: inside main
     }
-
-    void addInclude(const std::string& header) {
-        includes << "#include \"" << header << "\"\n";
-    }
-
-    std::string getIncludes() { return includes.str(); }
 };
 
 #endif
