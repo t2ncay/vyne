@@ -509,24 +509,28 @@ void InterfaceNode::compile(C_Emitter& e) const {
 }
 std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void MethodCallNode::compile(C_Emitter& e) const {
+std::string MethodCallNode::getCExpr(C_Emitter& e) const {
     std::string recv = receiver->getCExpr(e);
 
     if(methodName == "push"){
         int argSize = (int)arguments.size();
-
-        for (int i = 0; i < argSize; i++){
+        for(int i = 0; i < argSize; i++){
             std::string arg = arguments[i]->getCExpr(e);
             e.emit("vyne_array_push(" + recv + ", " + arg + ");");
         }
-
-        return;
+        return recv;
     }
 
-    
-    e.emit("/* method call ." + methodName + " — not yet supported in codegen */");
+    if(methodName == "pop"){
+        std::string temp = e.newTemp("pop");
+        e.emit("VyneValue " + temp + " = vyne_array_pop(" + recv + ");");
+        return temp;
+    }
+
+    return "vyne_null()";
 }
-std::string MethodCallNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void MethodCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 
 void ImportNode::compile(C_Emitter& e) const {}
 std::string ImportNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }

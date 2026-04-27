@@ -176,6 +176,13 @@ static inline void vyne_array_push(VyneValue arr_val, VyneValue val) {
     arr->elements[arr->size++] = val;
 }
 
+static inline void vyne_array_pop(VyneValue arr_val, VyneValue val) {
+    VyneArray* arr = arr_val.as.arr;
+    if(arr->size == 0) return vyne_null();
+
+    return arr->elements[--arr->size];
+}
+
 static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
     VyneArray* arr = arr_val.as.arr;
     for (int i = 0; i < arr->size; i++) {
