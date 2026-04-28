@@ -307,6 +307,9 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     std::string argArr = e.newTemp("args");
     std::string retTemp = e.newTemp("ret");
 
+    std::string mangledName = originalName;
+    std::replace(mangledName.begin(), mangledName.end(), '.', '_');
+
     if (argSize > 0) {
         e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " + std::to_string(argSize) + ");");
         for (int i = 0; i < argSize; ++i) {
@@ -317,18 +320,17 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue* " + argArr + " = NULL;");
     }
 
-    if (e.isInterface(originalName)) {
+    if (e.isInterface(originalName) || e.isInterface(mangledName)) {
         std::string directArgs;
         for (size_t i = 0; i < arguments.size(); ++i) {
             if (i > 0) directArgs += ", ";
             directArgs += arguments[i]->getCExpr(e);
         }
-        e.emit("VyneValue " + retTemp + " = struct_" + originalName + "(" + directArgs + ");");
+        e.emit("VyneValue " + retTemp + " = struct_" + mangledName + "(" + directArgs + ");");
         return retTemp;
     }
 
-    e.emit("VyneValue " + retTemp + " = fn_" + originalName + "(" + std::to_string(argSize) + ", " + argArr + ");");
-    
+    e.emit("VyneValue " + retTemp + " = fn_" + mangledName + "(" + std::to_string(argSize) + ", " + argArr + ");");
     return retTemp;
 }
 void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
@@ -499,11 +501,16 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
             e.emit("v_" + modName + "_" + memberName + " = " + val + ";");
             return;
         }
+
+        if (modName == "self") {
+            uint32_t fid = StringPool::intern(memberName);
+            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) + ", " + val + ");");
+            return;
+        }
     }
 
     std::string recv = receiver->getCExpr(e);
     uint32_t fid = StringPool::intern(memberName);
-    
     e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", " + val + ");");
 }
 std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
@@ -569,6 +576,10 @@ std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 void InterfaceNode::compile(C_Emitter& e) const {
     e.registerInterface(interfaceName);
+    if (!moduleName.empty()) {
+        e.registerInterface(moduleName + "." + interfaceName);
+        e.registerInterface(moduleName + "_" + interfaceName);
+    }
     e.pushFunctionContext();
     
     e.emit("// interface: " + interfaceName);
@@ -596,6 +607,39 @@ void InterfaceNode::compile(C_Emitter& e) const {
     e.emit("VyneValue res; res.type = V_STRUCT; res.as.strct = " + temp + ";");
     e.emit("return res;");
     e.emitBlockClose();
+    e.emit("");
+
+    for (const auto& method : methods) {
+        if (!method) continue;
+        auto* fn = static_cast<FunctionNode*>(method.get());
+        std::string methodName = interfaceName + "_" + fn->getOriginalName();
+        
+        e.emitGlobalDecl("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);");
+        e.pushFunctionContext();
+        e.emitBlockOpen("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args) {");
+        
+        e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
+        
+        const auto& params2 = fn->getParameters();
+        for (size_t i = 0; i < params2.size(); ++i) {
+            e.emit("VyneValue v_" + params2[i].name +
+                   " = (arg_count > " + std::to_string(i + 1) +
+                   ") ? args[" + std::to_string(i + 1) + "] : vyne_null();");
+        }
+        
+        for (const auto& stmt : fn->getBody())
+            if (stmt) stmt->compile(e);
+        
+        e.emit("return vyne_null();");
+        e.emitBlockClose();
+        e.emit("");
+        e.popFunctionContext();
+
+        e.pushMainContext();
+        e.emit("vyne_register_method(\"" + interfaceName + "\", \"" +
+            fn->getOriginalName() + "\", fn_" + methodName + ");");
+        e.popMainContext();
+    }
     
     e.popFunctionContext();
 }
@@ -658,6 +702,26 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         return recv;
     }
 
+    {
+        std::string temp = e.newTemp("mret");
+        int argSize = (int)arguments.size();
+        std::string argArr = e.newTemp("m_args");
+
+        e.emit("VyneValue " + temp + " = vyne_null();");
+        e.emitBlockOpen("if (" + recv + ".type == V_STRUCT) {");
+        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+            std::to_string(argSize + 1) + ");");
+        e.emit(argArr + "[0] = " + recv + ";");
+        for (int i = 0; i < argSize; ++i) {
+            e.emit(argArr + "[" + std::to_string(i + 1) + "] = " +
+                arguments[i]->getCExpr(e) + ";");
+        }
+        e.emit(temp + " = vyne_struct_call(" + recv + ", \"" + methodName + "\", " +
+            std::to_string(argSize + 1) + ", " + argArr + ");");
+        e.emitBlockClose();
+        return temp;
+    }
+
     return "vyne_null()";
 }
 
@@ -703,6 +767,24 @@ void ImportNode::compile(C_Emitter& e) const {
 
     std::string prevDir = e.getSourceDir();
     e.setSourceDir(finalPath.parent_path().string());
+
+    for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {
+        if (!stmt) continue;
+        if (stmt->type() == NodeType::INTERFACE) {
+            auto* iface = static_cast<InterfaceNode*>(stmt.get());
+            std::string ifaceName = iface->getInterfaceName();
+            std::string modName   = iface->getModuleName();
+            e.registerInterface(ifaceName);
+            if (!modName.empty()) {
+                e.registerInterface(modName + "." + ifaceName);
+                e.registerInterface(modName + "_" + ifaceName);
+            }
+        }
+        if (stmt->type() == NodeType::GROUP) {
+            auto* grp = static_cast<GroupNode*>(stmt.get());
+            e.registerGroup(grp->getGroupName());
+        }
+    }
 
     if (alias.empty()) {
         for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {

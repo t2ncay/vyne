@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
+#define VYNE_MAX_METHODS 256
 
 typedef struct ArenaBlock {
     uint8_t *    data;
@@ -61,13 +62,17 @@ static inline void arena_free_all(void) {
     g_arena.total_allocated = 0;
 }
 
+typedef struct VyneValue VyneValue;
+struct VyneArray;
+struct VyneStruct;
+
+typedef VyneValue (*VyneMethodFn)(int argc, VyneValue* args);
+
 typedef enum {
     V_NULL, V_FLOAT64, V_INT64, V_STRING, V_ARRAY, V_BOOL, V_STRUCT
 } VyneType;
 
-struct VyneArray;
-
-typedef struct {
+struct VyneValue {
     VyneType type;
     union {
         double f64;
@@ -76,7 +81,7 @@ typedef struct {
         struct VyneArray* arr;
         struct VyneStruct* strct;
     } as;
-} VyneValue;
+};
 
 typedef struct VyneArray {
     VyneValue* elements;
@@ -95,6 +100,15 @@ typedef struct VyneStruct {
     VyneField* fields;
     int field_count;
 } VyneStruct;
+
+typedef struct {
+    const char* type_name;
+    const char* method_name;
+    VyneMethodFn fn;
+} VyneMethodEntry;
+
+static VyneMethodEntry g_method_table[VYNE_MAX_METHODS];
+static int g_method_count = 0;
 
 static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op);
 static inline bool vyne_is_truthy(VyneValue v);
@@ -248,6 +262,28 @@ static inline void vyne_struct_set(VyneValue s_val, uint32_t field_id, VyneValue
             return;
         }
     }
+}
+
+static inline void vyne_register_method(const char* type, const char* method, VyneMethodFn fn) {
+    if (g_method_count < VYNE_MAX_METHODS) {
+        VyneMethodEntry entry;
+        entry.type_name = type;
+        entry.method_name = method;
+        entry.fn = fn;
+        g_method_table[g_method_count++] = entry; 
+    }
+}
+
+static inline VyneValue vyne_struct_call(VyneValue self, const char* method, int argc, VyneValue* args) {
+    if (self.type != V_STRUCT) return vyne_null();
+    const char* type_name = self.as.strct->type_name;
+    for (int i = 0; i < g_method_count; i++) {
+        if (strcmp(g_method_table[i].type_name, type_name) == 0 &&
+            strcmp(g_method_table[i].method_name, method) == 0) {
+            return g_method_table[i].fn(argc, args);
+        }
+    }
+    return vyne_null();
 }
 
 static inline bool vyne_is_truthy(VyneValue v) {

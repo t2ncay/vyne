@@ -290,6 +290,8 @@ public:
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+
+    const std::string& getGroupName() const { return groupName; }
 };
 
 class NumberNode : public ASTNode {
@@ -717,6 +719,7 @@ public:
 
     const std::vector<Parameter>& getParameters() const { return parameters; }
     VType getReturnType() const { return returnType; }
+    const std::vector<std::shared_ptr<ASTNode>>& getBody() const { return body; }
 };
 class FunctionCallNode : public ASTNode {
     uint32_t targetGroupId;
@@ -957,6 +960,9 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     void setModuleName(const std::string& name) { moduleName = name; }
+
+    const std::string& getInterfaceName() const { return interfaceName; }
+    const std::string& getModuleName() const { return moduleName; }
 };
 
 class MemberAccessNode : public ASTNode {
