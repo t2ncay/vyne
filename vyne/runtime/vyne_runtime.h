@@ -255,37 +255,101 @@ static inline bool vyne_is_truthy(VyneValue v) {
 };
 
 // built-in calls
-static inline void vyne_out(VyneValue v) {
+static inline void _vyne_print_internal(VyneValue v) {
     switch(v.type) {
-        case V_INT64:   printf("%lld\n", v.as.i64); break;
-        case V_FLOAT64: printf("%g\n", v.as.f64); break;
-        case V_STRING:  printf("%s\n", v.as.str); break;
-        case V_BOOL:    printf("%s\n", v.as.i64 ? "true" : "false"); break;
-        case V_NULL:    printf("null\n"); break;
+        case V_INT64:   printf("%lld", v.as.i64); break;
+        case V_BOOL:    printf("%s", v.as.i64 ? "true" : "false"); break;
+        case V_NULL:    printf("null"); break;
+        case V_STRING:  printf("%s", v.as.str); break;
+        
+        case V_FLOAT64: {
+            char buf[64];
+            sprintf(buf, "%g", v.as.f64);
+            if (strchr(buf, '.') == NULL && strchr(buf, 'e') == NULL) {
+                strcat(buf, ".0");
+            }
+            printf("%s", buf);
+            break;
+        }
+
         case V_ARRAY: {
             printf("[");
             VyneArray* arr = v.as.arr;
             for (int i = 0; i < arr->size; i++) {
-                if (arr->elements[i].type == V_INT64) printf("%lld", arr->elements[i].as.i64);
-                else if (arr->elements[i].type == V_FLOAT64) printf("%g", arr->elements[i].as.f64);
-                else if (arr->elements[i].type == V_STRING) printf("\"%s\"", arr->elements[i].as.str);
-                else printf("[obj]");
-                
+                _vyne_print_internal(arr->elements[i]); 
                 if (i < arr->size - 1) printf(", ");
             }
-            printf("]\n");
+            printf("]");
             break;
         }
-        default: printf("[object]\n");
+
+        case V_STRUCT: {
+            VyneStruct* s = v.as.strct;
+            printf("%s { ", s->type_name);
+            for (int i = 0; i < s->field_count; i++) {
+                printf("field_%u: ", s->fields[i].id);
+                _vyne_print_internal(s->fields[i].value);
+                if (i < s->field_count - 1) printf(", ");
+            }
+            printf(" }");
+            break;
+        }
+        default: printf("<unknown>");
     }
+}
+
+static inline void vyne_out(VyneValue v) {
+    _vyne_print_internal(v);
+    printf("\n");
     fflush(stdout);
+}
+
+static inline VyneValue vyne_to_int(VyneValue v) {
+    if (v.type == V_INT64) return v;
+    if (v.type == V_FLOAT64) return vyne_int((int64_t)v.as.f64);
+    if (v.type == V_STRING) return vyne_int(atoll(v.as.str));
+    if (v.type == V_BOOL) return vyne_int(v.as.i64);
+    return vyne_int(0);
+}
+
+static inline VyneValue vyne_to_float(VyneValue v) {
+    if (v.type == V_FLOAT64) return v;
+    if (v.type == V_INT64) return vyne_float((double)v.as.i64);
+    if (v.type == V_STRING) return vyne_float(atof(v.as.str));
+    return vyne_float(0.0);
+}
+
+static inline const char* vyne_get_type_name(VyneValue v) {
+    switch(v.type) {
+        case V_INT64:   return "Int64";
+        case V_FLOAT64: return "Float64";
+        case V_STRING:  return "String";
+        case V_BOOL:    return "Boolean";
+        case V_ARRAY:   return "Array";
+        case V_STRUCT:  return "Struct";
+        default:        return "Null";
+    }
+}
+
+static inline int64_t vyne_get_sizeof(VyneValue v) {
+    if (v.type == V_ARRAY) return (int64_t)v.as.arr->size;
+    if (v.type == V_STRING) return (int64_t)strlen(v.as.str);
+    if (v.type == V_STRUCT) return (int64_t)v.as.strct->field_count;
+    return (int64_t)sizeof(VyneValue);
+}
+
+static inline void _vyne_format_float(char* buf, double val) {
+    sprintf(buf, "%g", val);
+    if (strchr(buf, '.') == NULL && strchr(buf, 'e') == NULL) {
+        strcat(buf, ".0");
+    }
 }
 
 static inline VyneValue vyne_to_string(VyneValue v) {
     char buf[256];
     switch(v.type) {
         case V_INT64:   sprintf(buf, "%lld", v.as.i64); break;
-        case V_FLOAT64: sprintf(buf, "%g", v.as.f64); break;
+        case V_FLOAT64: _vyne_format_float(buf, v.as.f64); break;
         case V_BOOL:    strcpy(buf, v.as.i64 ? "true" : "false"); break;
         case V_STRING:  return v;
         case V_NULL:    strcpy(buf, "null"); break;

@@ -367,16 +367,8 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
         return temp;
     }
     if (funcName == "int64") {
-        if (arguments.empty()) return "vyne_int(0)";
-        std::string temp = e.newTemp("i64");
-        std::string arg  = arguments[0]->getCExpr(e);
-        // Runtime cast: if float → truncate, if string → atoll
-        e.emit("VyneValue " + temp + " = (" + arg + ".type == V_FLOAT64)"
-               " ? vyne_int((int64_t)" + arg + ".as.f64)"
-               " : (" + arg + ".type == V_STRING)"
-               " ? vyne_int(atoll(" + arg + ".as.str))"
-               " : " + arg + ";");
-        return temp;
+        std::string arg = arguments.empty() ? "vyne_null()" : arguments[0]->getCExpr(e);
+        return "vyne_to_int(" + arg + ")";
     }
     if (funcName == "float64") {
         if (arguments.empty()) return "vyne_float(0.0)";
