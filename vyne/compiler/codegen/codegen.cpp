@@ -301,7 +301,7 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             if (i > 0) directArgs += ", ";
             directArgs += arguments[i]->getCExpr(e);
         }
-        e.emit("VyneValue " + retTemp + " = struct_" + originalName + "(...);");
+        e.emit("VyneValue " + retTemp + " = struct_" + originalName + "(" + directArgs + ");");
         return retTemp;
     }
 

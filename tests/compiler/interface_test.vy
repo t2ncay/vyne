@@ -6,4 +6,5 @@ interface Person {
 
 person = Person(100);
 
+out(person);
 out(person.health);
