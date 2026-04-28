@@ -20,6 +20,9 @@ class C_Emitter {
 
     std::set<std::string> interfaceSet; 
     std::set<std::string> groupSet;
+    
+    std::set<std::string> localVars;
+    std::set<std::string> globalVars;
 
     int tempVarCount = 0;
 
@@ -44,12 +47,44 @@ class C_Emitter {
 public:
     // --- Context Management ---
 
+    std::set<std::string> getGlobalVars() { return globalVars; }
+
+    void pushMainContext() {
+        contextStack.emplace_back(EmitContext::MAIN);
+        indentLevel = 1;
+    }
+
+    void popMainContext() {
+        if (!contextStack.empty()) contextStack.pop_back();
+        indentLevel = 0;
+    }
+
+    bool isGlobalContext() {
+        return contextStack.empty() || contextStack.back() == EmitContext::GLOBAL;
+    }
+
+    bool isGlobalDeclared(const std::string& name) const {
+        return globalVars.count(name) > 0;
+    }
+
+    bool isLocalVarsEmpty() {
+        return localVars.empty();
+    }
+
+    bool isLocalDeclared(const std::string& name) {
+        return localVars.count(name) > 0;
+    }
+
     bool isAlreadyDeclared(const std::string& name) const {
-        return declaredVars.count(name) > 0;
+        return localVars.count(name) > 0 || globalVars.count(name) > 0;
     }
 
     void registerDeclaration(const std::string& name) {
-        declaredVars.insert(name);
+        if (isGlobalContext()) {
+            globalVars.insert(name);
+        } else {
+            localVars.insert(name);
+        }
     }
 
     void registerReference(const std::string& name) {
@@ -62,12 +97,12 @@ public:
 
     void pushFunctionContext() {
         contextStack.emplace_back(EmitContext::FUNCTION);
-        indentLevel = 1;
+        indentLevel = 0;
     }
 
     void popFunctionContext() {
         if (!contextStack.empty()) contextStack.pop_back();
-        declaredVars.clear();
+        localVars.clear();
         indentLevel = 1;
     }
 
@@ -95,6 +130,10 @@ public:
 
     void emit(const std::string& code) {
         currentStream() << getIndent() << code << "\n";
+    }
+    
+    void emitGlobalDecl(const std::string& code) {
+        globalsStream << code << "\n";
     }
 
     void emitBlockOpen(const std::string& line) {

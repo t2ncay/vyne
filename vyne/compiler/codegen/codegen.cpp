@@ -42,25 +42,26 @@ void VariableNode::compile(C_Emitter& e) const {
 std::string AssignmentNode::getCExpr(C_Emitter& e) const {
     return "v_" + originalName;
 }
-// AssignmentNode::compile metodunu belə refaktor et:
 void AssignmentNode::compile(C_Emitter& e) const {
-    std::string val = rhs->getCExpr(e);
     std::string varName = "v_" + originalName;
 
-    if (this->isReference && !e.isAlreadyDeclared(varName)) {
-        e.registerReference(varName);
-        e.registerDeclaration(varName);
-        e.emit("VyneValue* " + varName + " = &" + val + ";");
-    } 
-    else if (e.isReference(varName)) {
-        e.emit("*" + varName + " = " + val + ";");
-    } 
-    else {
-        if (e.isAlreadyDeclared(varName)) {
-            e.emit(varName + " = " + val + ";");
-        } else {
+    if (e.isGlobalContext()) {
+        if (e.getGlobalVars().count(varName) == 0) {
             e.registerDeclaration(varName);
+            e.emitGlobalDecl("VyneValue " + varName + ";");
+        }
+        e.pushMainContext();
+        std::string val = rhs->getCExpr(e);
+        e.emit(varName + " = " + val + ";");
+        e.popMainContext();
+    } else {
+        if (!e.isLocalDeclared(varName)) {
+            e.registerDeclaration(varName);
+            std::string val = rhs->getCExpr(e);
             e.emit("VyneValue " + varName + " = " + val + ";");
+        } else {
+            std::string val = rhs->getCExpr(e);
+            e.emit(varName + " = " + val + ";");
         }
     }
 }
@@ -253,7 +254,7 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 void FunctionNode::compile(C_Emitter& e) const {
-    // Functions always go into functionStream regardless of call site
+    e.emitGlobalDecl("VyneValue fn_" + originalName + "(int arg_count, VyneValue* args);");
     e.pushFunctionContext();
 
     e.emit("// fn: " + originalName);

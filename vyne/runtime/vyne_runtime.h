@@ -47,14 +47,17 @@ static inline void* arena_alloc(size_t size) {
 }
 
 static inline void arena_free_all(void) {
+    size_t total = g_arena.total_allocated;
+    int blocks = 0;
     ArenaBlock* block = g_arena.head;
     while (block) {
         ArenaBlock* next = block->next;
+        blocks++;
         free(block->data);
         free(block);
         block = next;
     }
-    g_arena.head            = NULL;
+    g_arena.head = NULL;
     g_arena.total_allocated = 0;
 }
 
@@ -99,7 +102,6 @@ static inline VyneValue vyne_bool(bool v);
 static inline VyneValue vyne_null();
 static inline VyneValue vyne_string(const   char* s);
 
-// 2. Fundamental funksiyaları (null kimi) ən yuxarıya çəkirik
 static inline VyneValue vyne_null() {
     VyneValue val;
     val.type = V_NULL;
