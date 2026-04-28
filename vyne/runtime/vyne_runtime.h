@@ -86,6 +86,7 @@ typedef struct VyneArray {
 
 typedef struct VyneField {
     uint32_t id;
+    const char* name;
     VyneValue value;
 } VyneField;
 
@@ -289,7 +290,7 @@ static inline void _vyne_print_internal(VyneValue v) {
             VyneStruct* s = v.as.strct;
             printf("%s { ", s->type_name);
             for (int i = 0; i < s->field_count; i++) {
-                printf("field_%u: ", s->fields[i].id);
+                printf("%s: ", s->fields[i].name);
                 _vyne_print_internal(s->fields[i].value);
                 if (i < s->field_count - 1) printf(", ");
             }
@@ -387,7 +388,7 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         switch(op) {
             case 28: return vyne_int(left.as.i64 + right.as.i64);
             case 29: return vyne_int(left.as.i64 - right.as.i64);
-            case 31: return vyne_int(left.as.i64 * right.as.i64);
+            case 30: return vyne_int(left.as.i64 * right.as.i64);
             case 32: return (right.as.i64 == 0) ? vyne_null() : vyne_float((double)left.as.i64 / right.as.i64);
             case 42: return vyne_bool(left.as.i64 == right.as.i64);
             case 44: return vyne_bool(left.as.i64 > right.as.i64);

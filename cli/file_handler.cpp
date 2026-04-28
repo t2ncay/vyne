@@ -49,6 +49,7 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
 
             C_Emitter emitter;
             emitter.reset();
+            emitter.setSourceDir(std::filesystem::absolute(filename).parent_path().string());
             rootShared->compile(emitter);
 
             std::string exeDir  = FileUtils::getExeDir();

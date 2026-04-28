@@ -1,4 +1,5 @@
 #include "../ast/ast.h"
+#include "../parser/parser.h"
 
 // ============================================================
 // LITERALS — only return expressions, never emit statements
@@ -274,6 +275,26 @@ void FunctionNode::compile(C_Emitter& e) const {
     e.emitBlockClose(); // fn body
     e.emit("");
 
+    e.popFunctionContext();
+}
+void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const {
+    e.emitGlobalDecl("VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args);");
+    e.pushFunctionContext();
+    e.emit("// fn (aliased): " + mangledName);
+    e.emitBlockOpen("VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args) {");
+
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        e.emit("VyneValue v_" + parameters[i].name +
+                " = (arg_count > " + std::to_string(i) +
+                ") ? args[" + std::to_string(i) + "] : vyne_null();");
+    }
+
+    for (const auto& stmt : body)
+        if (stmt) stmt->compile(e);
+
+    e.emit("return vyne_null();");
+    e.emitBlockClose();
+    e.emit("");
     e.popFunctionContext();
 }
 std::string FunctionNode::getCExpr(C_Emitter& e) const {
@@ -568,6 +589,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
     for(size_t i = 0; i < members.size(); ++i) {
         uint32_t fid = StringPool::intern(members[i].name);
         e.emit(temp + "->fields[" + std::to_string(i) + "].id = " + std::to_string(fid) + ";");
+        e.emit(temp + "->fields[" + std::to_string(i) + "].name = \"" + members[i].name + "\";");
         e.emit(temp + "->fields[" + std::to_string(i) + "].value = v_" + members[i].name + ";");
     }
     
@@ -646,8 +668,86 @@ void MethodCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 // STUBS — not yet compiled to C
 // ============================================================
 
-void ImportNode::compile(C_Emitter& e) const {}
-std::string ImportNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void ImportNode::compile(C_Emitter& e) const {
+    std::filesystem::path finalPath;
+
+    std::string cleanPath = filePath;
+    if (!cleanPath.empty() && (cleanPath[0] == '/' || cleanPath[0] == '\\'))
+        cleanPath.erase(0, 1);
+
+    if (isExtern) {
+        finalPath = std::filesystem::path(FileUtils::getExeDir())
+                    / "vyne" / "modules" / "external" / cleanPath;
+    } else {
+        finalPath = std::filesystem::path(e.getSourceDir()) / cleanPath;
+    }
+    finalPath = std::filesystem::weakly_canonical(finalPath);
+
+    if (!std::filesystem::exists(finalPath) || std::filesystem::is_directory(finalPath)) {
+        throw std::runtime_error("Vyne Error: import '" + cleanPath +
+                                 "' not found at: " + finalPath.string());
+    }
+
+    if (e.isAlreadyImported(finalPath.string()))
+        return;
+    e.markImported(finalPath.string());
+
+    const std::string& source = FileUtils::readFile(finalPath.string());
+    auto tokens = tokenize(source);
+    
+    SymbolContainer parseEnv;
+    Parser parser(std::move(tokens));
+    std::unique_ptr<ProgramNode> externalAst = parser.parseProgram(parseEnv);
+    if (!externalAst)
+        throw std::runtime_error("Import Error: failed to parse '" + cleanPath + "'");
+
+    std::string prevDir = e.getSourceDir();
+    e.setSourceDir(finalPath.parent_path().string());
+
+    if (alias.empty()) {
+        for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {
+            if (stmt) stmt->compile(e);
+        }
+    } else {
+        e.registerGroup(alias);
+        e.pushGlobalContext();
+        e.emit("// --- import as " + alias + " ---");
+
+        for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {
+            if (!stmt) continue;
+
+            if (stmt->type() == NodeType::FUNCTION) {
+                auto* fn = static_cast<FunctionNode*>(stmt.get());
+                e.popGlobalContext();
+                fn->compileAs(e, alias + "_" + fn->getOriginalName());
+                e.pushGlobalContext();
+
+            } else if (stmt->type() == NodeType::ASSIGNMENT) {
+                auto* assign = static_cast<AssignmentNode*>(stmt.get());
+                std::string mangled = "v_" + alias + "_" + assign->getOriginalName();
+                e.emit("VyneValue " + mangled + ";");
+                e.popGlobalContext();
+                std::string val = assign->getRHS()->getCExpr(e);
+                e.emit(mangled + " = " + val + ";");
+                e.pushGlobalContext();
+
+            } else {
+                e.popGlobalContext();
+                stmt->compile(e);
+                e.pushGlobalContext();
+            }
+        }
+
+        e.popGlobalContext();
+    }
+
+    e.setSourceDir(prevDir);
+}
+
+std::string ImportNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()";
+}
 
 void DismissNode::compile(C_Emitter& e) const {}
 std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }

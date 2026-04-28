@@ -710,6 +710,7 @@ public:
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
+    void compileAs(C_Emitter& e, const std::string& mangledName) const;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Function; }
     const std::string& getOriginalName() const { return originalName; }

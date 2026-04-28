@@ -24,6 +24,9 @@ class C_Emitter {
     std::set<std::string> localVars;
     std::set<std::string> globalVars;
 
+    std::set<std::string> importedFiles;
+    std::string sourceDir;
+
     int tempVarCount = 0;
 
     enum class EmitContext { GLOBAL, FUNCTION, MAIN };
@@ -46,6 +49,15 @@ class C_Emitter {
 
 public:
     // --- Context Management ---
+    
+    bool isAlreadyImported(const std::string& path) const {
+        return importedFiles.count(path) > 0;
+    }
+    void markImported(const std::string& path) {
+        importedFiles.insert(path);
+    }
+    std::string getSourceDir() const { return sourceDir; }
+    void setSourceDir(const std::string& dir) { sourceDir = dir; }
 
     std::set<std::string> getGlobalVars() { return globalVars; }
 
@@ -224,6 +236,8 @@ public:
         groupSet.clear();
         declaredVars.clear();
         references.clear();
+        importedFiles.clear();
+        sourceDir = "";
         tempVarCount = 0;
         indentLevel  = 1;
     }
