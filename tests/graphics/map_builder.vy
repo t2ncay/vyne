@@ -138,6 +138,9 @@ while (vglib.running()) {
         vglib.cube_texture(tex_slots[current_slot], cursor_pos[0], cursor_pos[1], cursor_pos[2], grid_size, bright_green);
         
         vglib.text("VYNE MAP BUILDER 1.0 | " + map_file, 50, 50, 24, vglib.CYAN);
+        vglib.text("x :  " + string(cam_pos[0]), 50, 150, 24, vglib.GREEN);
+        vglib.text("y :  " + string(cam_pos[1]), 50, 200, 24, vglib.GREEN);
+        vglib.text("z :  " + string(cam_pos[2]), 50, 250, 24, vglib.GREEN);
         vglib.text("SLOT: " + string(current_slot + 1), 50, 85, 18, vglib.WHITE);
         vglib.text(message, 50, 1000, 22, vglib.GREEN);
     vglib.end();
