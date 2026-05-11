@@ -176,8 +176,6 @@ Value* Value::getPointer() const { return isReference() ? data.ref : nullptr; }
 
 long Value::getRefCount() const { return isObject() ? data.obj.use_count() : 0; }
 
-#include <print>
-
 void Value::print() const {
     switch (type) {
         case VType::Null: std::printf("null"); break;
