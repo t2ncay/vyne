@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <charconv>
 #include <deque>
+#include <format>
 
 #include "../types.h"
 

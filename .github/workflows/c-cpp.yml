@@ -9,7 +9,7 @@ on:
 jobs:
   test-suite:
     name: ${{ matrix.build_type }} Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +27,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake git g++-13 \
+          sudo apt-get install -y build-essential cmake git g++-13 libstdc++-13-dev \
             libasound2-dev libx11-dev libxrandr-dev libxi-dev \
             libxcursor-dev libxinerama-dev libgl1-mesa-dev xvfb
 
