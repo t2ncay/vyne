@@ -434,7 +434,7 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) c
     switch (builtInType) {
         case BuiltInType::PRINT:
             if (!argValues.empty()) { 
-                argValues[0].print(std::cout); 
+                argValues[0].print(); 
                 std::cout << "\n"; 
             }
             

@@ -4,6 +4,9 @@
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#include <print>
+#include <format>
+#include <cstdio>
 
 #include "../vyne/compiler/lexer/lexer.h"
 #include "../vyne/compiler/parser/parser.h"
@@ -20,3 +23,15 @@
 #define MAGENTA "\033[35m"
 
 int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode);
+
+template<typename... Args>
+static inline void vprint(std::string_view fmt, Args&&... args) {
+    std::string s = std::vformat(fmt, std::make_format_args(args...));
+    std::printf("%s", s.c_str());
+}
+
+template<typename... Args>
+static inline void vprintln(std::string_view fmt, Args&&... args) {
+    std::string s = std::vformat(fmt, std::make_format_args(args...));
+    std::printf("%s\n", s.c_str());
+}

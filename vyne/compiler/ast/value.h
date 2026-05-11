@@ -152,7 +152,7 @@ struct Value {
     Value& setReadOnly() { isReadOnly = true; return *this; }
     long getRefCount() const;
     bool isTruthy() const;
-    void print(std::ostream& os) const;
+    void print() const;
     size_t getDeepBytes() const;
     size_t getShallowBytes() const;
     bool equals(const Value& other) const;

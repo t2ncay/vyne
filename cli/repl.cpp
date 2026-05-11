@@ -31,7 +31,7 @@ void init_REPL(std::string& input, SymbolContainer& env){
                         std::cout << CYAN << groupName << RESET << "." << BOLD << realName << RESET << " = ";
                     }
 
-                    val.print(std::cout);
+                    val.print();
                     std::cout << "\n";
                 }
             }
@@ -59,7 +59,7 @@ void init_REPL(std::string& input, SymbolContainer& env){
                 }
 
                 if (result.getType() != Value::NONE) { 
-                    result.print(std::cout);
+                    result.print();
                     std::cout << "\n";
                 }
             }

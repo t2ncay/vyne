@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 #include <chrono>
+#include <format>
+#include <cstdio>
 
 #include "../vyne/compiler/lexer/lexer.h"
 #include "../vyne/compiler/parser/parser.h"

@@ -176,40 +176,49 @@ Value* Value::getPointer() const { return isReference() ? data.ref : nullptr; }
 
 long Value::getRefCount() const { return isObject() ? data.obj.use_count() : 0; }
 
-void Value::print(std::ostream& os) const {
+#include <print>
+
+void Value::print() const {
     switch (type) {
-        case VType::Null: os << "null"; break;
+        case VType::Null: std::printf("null"); break;
         case VType::Float64: {
-            std::ostringstream oss; oss << data.f64;
-            std::string s = oss.str();
-            if (s.find('.') == std::string::npos && s.find('e') == std::string::npos) s += ".0";
-            os << s; break;
+            if (data.f64 == static_cast<int64_t>(data.f64)) 
+                std::printf("%.1f", data.f64);
+            else 
+                std::printf("%g", data.f64);
+            break;
         }
-        case VType::Int64: os << data.i64; break;
-        case VType::String: os << asString(); break;
+        case VType::Int64:  std::printf("%lld", (long long)data.i64); break;
+        case VType::String: std::printf("%s", asString().c_str()); break;
         default: {
-            if (!isObject()) { os << "null"; break; }
+            if (!isObject()) { std::printf("null"); break; }
             switch (data.obj->objType) {
                 case VyneObject::ObjType::Array: {
                     auto& list = static_cast<VyneArray*>(data.obj.get())->elements;
-                    os << "[";
+                    std::printf("[");
                     for (size_t i = 0; i < list.size(); ++i) {
-                        list[i].print(os); if (i < list.size() - 1) os << ", ";
+                        list[i].print(); 
+                        if (i < list.size() - 1) std::printf(", ");
                     }
-                    os << "]"; break;
+                    std::printf("]"); break;
                 }
-                case VyneObject::ObjType::Function:
-                    os << (static_cast<FunctionData*>(data.obj.get())->isNative ? "<native function>" : "<function>"); break;
+                case VyneObject::ObjType::Function: {
+                    auto* func = static_cast<FunctionData*>(data.obj.get());
+                    std::printf("%s", (func->isNative ? "<native function>" : "<function>")); 
+                    break;
+                }
                 case VyneObject::ObjType::Module:
-                    os << "<module '" << static_cast<ModuleData*>(data.obj.get())->name << "'>"; break;
+                    std::printf("<module '%s'>", static_cast<ModuleData*>(data.obj.get())->name.c_str()); 
+                    break;
                 case VyneObject::ObjType::Struct: {
                     auto s = std::static_pointer_cast<VyneStruct>(data.obj);
-                    os << s->typeName << " { ";
+                    std::printf("%s { ", s->typeName.c_str());
                     for (auto it = s->fields.begin(); it != s->fields.end();) {
-                        os << StringPool::get(it->first) << ": "; it->second.print(os);
-                        if (++it != s->fields.end()) os << ", ";
+                        std::printf("%s: ", StringPool::get(it->first).c_str()); 
+                        it->second.print();
+                        if (++it != s->fields.end()) std::printf(", ");
                     }
-                    os << " }"; break;
+                    std::printf(" }"); break;
                 }
             }
         }
@@ -275,8 +284,15 @@ uint32_t StringPool::intern(std::string_view s) {
 const std::string& StringPool::get(uint32_t id) { return instance().idToStr.at(id); }
 
 std::string Value::toString() const {
-    if (type == VType::String) return asString();
-    std::stringstream ss; print(ss); return ss.str();
+    switch (type) {
+        case VType::Null:    return "null";
+        case VType::Float64: return std::format("{}", data.f64);
+        case VType::Int64:   return std::format("{}", data.i64);
+        case VType::String:  return asString();
+        case VType::Array:   return "[array]";
+        case VType::Struct:  return asStruct()->typeName + " { struct }";
+        default:             return "<object>";
+    }
 }
 
 int Value::toNumber() const {

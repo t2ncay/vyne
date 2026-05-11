@@ -122,14 +122,12 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
 
             double total_ms = (transpile_ms + compile_ms + exec_ms).count();
 
-            std::cout << BOLD << YELLOW << "  >> summary" << RESET << "\n";
-            std::cout << YELLOW << "  " << std::string(42, '-') << RESET << "\n";
-            std::cout << "  " << GREEN  << "binary    " << RESET << exeName << "  " << CYAN << "(" << sizeStr << ")" << RESET << "\n";
-            std::cout << "  " << GREEN  << "transpile " << RESET << std::fixed << std::setprecision(2) << transpile_ms.count() << "ms\n";
-            std::cout << "  " << GREEN  << "compile   " << RESET << compile_ms.count() << "ms\n";
-            std::cout << "  " << GREEN  << "execution " << RESET << exec_ms.count() << "ms\n";
-            std::cout << YELLOW << "  " << std::string(42, '-') << RESET << "\n";
-            std::cout << "  " << BOLD   << "total     " << RESET << BOLD << total_ms << "ms" << RESET << "\n\n";
+            vprintln("\n{}{}{}  >> summary {}", BOLD, YELLOW, "", RESET);
+            vprintln("{} {} binary     {} ({}) {}", YELLOW, "  -", GREEN, exeName, CYAN, sizeStr, RESET);
+            vprintln("     {}transpile {:.2f}ms", GREEN, transpile_ms.count());
+            vprintln("     {}compile   {:.2f}ms", GREEN, compile_ms.count());
+            vprintln("     {}execution {:.2f}ms", GREEN, exec_ms.count());
+            vprintln("{} {} {}total      {:.2f}ms", YELLOW, "  -", BOLD, total_ms);
 
             if (run_result != 0)
                 std::cout << RED << "  >> exited with code " << run_result << RESET << "\n\n";
