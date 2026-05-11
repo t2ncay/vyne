@@ -27,7 +27,7 @@ jobs:
       - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake git \
+          sudo apt-get install -y build-essential cmake git g++-13 \
             libasound2-dev libx11-dev libxrandr-dev libxi-dev \
             libxcursor-dev libxinerama-dev libgl1-mesa-dev xvfb
 
@@ -41,9 +41,7 @@ jobs:
 
       - name: Compile Vyne
         run: |
-          # 1. CMake fayllarını və lazımsız qovluqları find əmrindən kənarlaşdırırıq
-          # 2. stb_impl.cpp-ni YARATMIRIQ, çünki Raylib onu artıq təmin edir
-          g++ -std=c++23 ${{ matrix.flags }} \
+          g++-13 -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
               -I./vendor/stb \
               $(find . -type f -name "*.cpp" ! -path "./raylib_src/*" ! -path "*/build/*" ! -path "*/CMakeFiles/*") \
