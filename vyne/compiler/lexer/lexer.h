@@ -6,6 +6,7 @@
 #include <variant>
 #include <charconv>
 #include <cctype>
+#include <unordered_map>
 
 enum class VTokenType {
     // --- LITERALS & IDENTIFIERS ---
@@ -87,6 +88,46 @@ enum class VTokenType {
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
     End                 // End of File (EOF)
+};
+
+static const std::unordered_map<std::string_view, VTokenType> keywords = {
+    {"out",             VTokenType::BuiltIn},
+    {"sizeof",          VTokenType::BuiltIn},
+    {"type",            VTokenType::BuiltIn},
+    {"string",          VTokenType::BuiltIn},
+    {"int64",           VTokenType::BuiltIn},
+    {"float64",         VTokenType::BuiltIn},
+    {"sequence",        VTokenType::BuiltIn},
+    {"exit",            VTokenType::BuiltIn},
+    {"group",           VTokenType::Group},
+    {"true",            VTokenType::True},
+    {"false",           VTokenType::False},
+    {"null",            VTokenType::Null},
+    {"fn",              VTokenType::Function},
+    {"return",          VTokenType::Return},
+    {"while",           VTokenType::While},
+    {"through",         VTokenType::Through},
+    {"loop",            VTokenType::LoopMode},
+    {"collect",         VTokenType::LoopMode},
+    {"unique",          VTokenType::LoopMode},
+    {"every",           VTokenType::LoopMode},
+    {"filter",          VTokenType::LoopMode},
+    {"break",           VTokenType::Break},
+    {"continue",        VTokenType::Continue},
+    {"module",          VTokenType::Module},
+    {"dismiss",         VTokenType::Dismiss},
+    {"if",              VTokenType::If},
+    {"else",            VTokenType::Else},
+    {"const",           VTokenType::Const},
+    {"use",             VTokenType::Use},
+    {"deploy",          VTokenType::Deploy},
+    {"as",              VTokenType::As},
+    {"lib",             VTokenType::Extern},
+    {"interface",       VTokenType::Interface},
+    {"ruleset",         VTokenType::Ruleset},
+    {"warnings",        VTokenType::Warnings},
+    {"dynamic_casting", VTokenType::Dynamic_Casting},
+    {"memory_limit",    VTokenType::Memory_Limit}
 };
 
 using TokenData = std::variant<std::monostate, double, int64_t, std::string>;

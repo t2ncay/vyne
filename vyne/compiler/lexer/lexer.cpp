@@ -89,51 +89,18 @@ std::vector<Token> tokenize(std::string_view input) {
 
         if (std::isalpha(character) || character == '_') {
             size_t start = i;
-
             while (i < input.length() && (std::isalnum(input[i]) || input[i] == '_')) {
                 i++;
             }
 
             std::string_view buffer = input.substr(start, i - start);
 
-            if (buffer == "out") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "sizeof") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "type") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "string") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "int64") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "float64") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "sequence") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "exit") tokens.emplace_back(VTokenType::BuiltIn, currentLine, 0, buffer);
-            else if (buffer == "group") tokens.emplace_back(VTokenType::Group, currentLine, 0, "");
-            else if (buffer == "true") tokens.emplace_back(VTokenType::True, currentLine, 1, "");
-            else if (buffer == "false") tokens.emplace_back(VTokenType::False, currentLine, 0, "");
-            else if (buffer == "null") tokens.emplace_back(VTokenType::Null, currentLine, 0, "");
-            else if (buffer == "fn") tokens.emplace_back(VTokenType::Function, currentLine, 0, buffer);
-            else if (buffer == "return") tokens.emplace_back(VTokenType::Return, currentLine, 0, buffer);
-            else if (buffer == "while") tokens.emplace_back(VTokenType::While, currentLine, 0, buffer);
-            else if (buffer == "through") tokens.emplace_back(VTokenType::Through, currentLine, 0, buffer);
-            else if (buffer == "loop") tokens.emplace_back(VTokenType::LoopMode, currentLine, 0, buffer);
-            else if (buffer == "collect") tokens.emplace_back(VTokenType::LoopMode, currentLine, 0, buffer);
-            else if (buffer == "unique") tokens.emplace_back(VTokenType::LoopMode, currentLine, 0, buffer);
-            else if (buffer == "every") tokens.emplace_back(VTokenType::LoopMode, currentLine, 0, buffer);
-            else if (buffer == "filter") tokens.emplace_back(VTokenType::LoopMode, currentLine, 0, buffer);
-            else if (buffer == "break") tokens.emplace_back(VTokenType::Break, currentLine, 0, buffer);
-            else if (buffer == "continue") tokens.emplace_back(VTokenType::Continue, currentLine, 0, buffer);
-            else if (buffer == "module") tokens.emplace_back(VTokenType::Module, currentLine, 0, buffer);
-            else if (buffer == "dismiss") tokens.emplace_back(VTokenType::Dismiss, currentLine, 0, buffer);
-            else if (buffer == "if") tokens.emplace_back(VTokenType::If, currentLine, 0, buffer);
-            else if (buffer == "else") tokens.emplace_back(VTokenType::Else, currentLine, 0, buffer);
-            else if (buffer == "const") tokens.emplace_back(VTokenType::Const, currentLine, 0, buffer);
-            else if (buffer == "use") tokens.emplace_back(VTokenType::Use, currentLine, 0, buffer);
-            else if (buffer == "deploy") tokens.emplace_back(VTokenType::Deploy, currentLine, 0, buffer);
-            else if (buffer == "as") tokens.emplace_back(VTokenType::As, currentLine, 0, buffer);
-            else if (buffer == "lib") tokens.emplace_back(VTokenType::Extern, currentLine, 0, buffer);
-            else if (buffer == "interface") tokens.emplace_back(VTokenType::Interface, currentLine, 0, buffer);
-            else if (buffer == "ruleset") tokens.emplace_back(VTokenType::Ruleset, currentLine, 0, buffer);
-            else if (buffer == "warnings") tokens.emplace_back(VTokenType::Warnings, currentLine, 0, buffer);
-            else if (buffer == "dynamic_casting") tokens.emplace_back(VTokenType::Dynamic_Casting, currentLine, 0, buffer);
-            else if (buffer == "memory_limit") tokens.emplace_back(VTokenType::Memory_Limit, currentLine, 0, buffer);
-            else tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
+            auto it = keywords.find(buffer);
+            if (it != keywords.end()) {
+                tokens.emplace_back(it->second, currentLine, 0, buffer);
+            } else {
+                tokens.emplace_back(VTokenType::Identifier, currentLine, 0, buffer);
+            }
             continue;
         }
 
