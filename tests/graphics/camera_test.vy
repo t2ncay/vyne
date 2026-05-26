@@ -204,6 +204,7 @@ while (vglib.running()) {
             vglib.set_shader_camera(fog_shader, camera);
             vglib.begin_shader(fog_shader);
                 vglib.plane_texture(ground_tex, 0.0, 0.0, 0.0, 200.0, 200.0);
+
                 through w :: walls -> loop {
                     vglib.cube_texture(building_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
                 };

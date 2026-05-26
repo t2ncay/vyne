@@ -28,12 +28,12 @@ w3 = vcore.parse_array(vfs.read("models/crypto_deep_v1/w3.dat"));
 b3 = vcore.parse_array(vfs.read("models/crypto_deep_v1/b3.dat"));
 
 # Matrix ölçülərini memarlığa uyğun qururuq: 3 -> 8 -> 4 -> 1
-h1_layer = vml.Types.Layer(vlinalg.Types.Matrix(3, 8, w1), b1);
-h2_layer = vml.Types.Layer(vlinalg.Types.Matrix(8, 4, w2), b2);
-o_layer  = vml.Types.Layer(vlinalg.Types.Matrix(4, 1, w3), b3);
+h1_layer = Types.Layer(vlinalg.Types.Matrix(3, 8, w1), b1);
+h2_layer = Types.Layer(vlinalg.Types.Matrix(8, 4, w2), b2);
+o_layer  = Types.Layer(vlinalg.Types.Matrix(4, 1, w3), b3);
 
 # DeepNeuralNet obyektini yaradırıq
-crypto_net = vml.Types.DeepNeuralNet(h1_layer, h2_layer, o_layer, 0.0);
+crypto_net = Types.DeepNeuralNet(h1_layer, h2_layer, o_layer, 0.0);
 
 out(vcolors.green("Deep Model loaded. 3-layer architecture synchronized."));
 
