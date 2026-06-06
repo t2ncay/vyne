@@ -1468,38 +1468,48 @@ Value ImportNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const 
     }
 
     if (alias.empty()) {
+        std::string stem = finalPath.stem().string();
+        uint32_t stemId = StringPool::instance().intern(stem);
+
+        if (!env.contains(stemId)) {
+            env[stemId] = SymbolTable();
+        }
+
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             uint32_t groupId = it->first;
-            
+
             if (groupId == globalId) {
                 for (auto const& [id, val] : it->second) {
                     env[globalId][id] = val;
+                    env[stemId][id]   = val;
                 }
             } else {
                 env[groupId] = std::move(it->second);
             }
         }
+
+        env[globalId][stemId] = Value(stemId, stem, true);
     } else {
         uint32_t aliasId = StringPool::instance().intern(alias);
         env[aliasId] = {};
-        
+
         auto globalIt = externalEnv.find(globalId);
         if (globalIt != externalEnv.end()) {
             for (auto const& [id, val] : globalIt->second) {
                 env[aliasId][id] = val;
             }
         }
-        
+
         for (auto it = externalEnv.begin(); it != externalEnv.end(); ++it) {
             uint32_t groupId = it->first;
             if (groupId == globalId) continue;
-            
+
             std::string groupName = StringPool::instance().get(groupId);
-            std::string aliasGroupName = alias + "." + groupName;
-            uint32_t aliasGroupId = StringPool::instance().intern(aliasGroupName);
-            
+            uint32_t aliasGroupId = StringPool::instance().intern(alias + "." + groupName);
             env[aliasGroupId] = std::move(it->second);
         }
+
+        env[globalId][aliasId] = Value(aliasId, alias, true);
     }
 
     return Value(true);

@@ -1,4 +1,4 @@
 use "dumm_test.vy";
 
-out(add(3, 4));
-out(multiply(5, 6));
+out(dumm_test.add(3, 4));
+out(dumm_test.multiply(5, 6));
