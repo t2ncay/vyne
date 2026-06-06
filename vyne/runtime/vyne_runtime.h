@@ -205,10 +205,9 @@ static inline void vyne_array_push(VyneValue arr_val, VyneValue val) {
     arr->elements[arr->size++] = val;
 }
 
-static inline VyneValue vyne_array_pop(VyneValue arr_val, VyneValue val) {
+static inline VyneValue vyne_array_pop(VyneValue arr_val) {
     VyneArray* arr = arr_val.as.arr;
-    if(arr->size == 0) return vyne_null();
-
+    if (arr->size == 0) return vyne_null();
     return arr->elements[--arr->size];
 }
 
@@ -390,10 +389,33 @@ static inline VyneValue vyne_to_string(VyneValue v) {
         case V_INT64:   sprintf(buf, "%lld", v.as.i64); break;
         case V_FLOAT64: _vyne_format_float(buf, v.as.f64); break;
         case V_BOOL:    strcpy(buf, v.as.i64 ? "true" : "false"); break;
-        case V_STRING:  return v;
         case V_NULL:    strcpy(buf, "null"); break;
-        case V_ARRAY:   strcpy(buf, "[array]"); break;
-        default:        strcpy(buf, "[object]");
+        case V_STRING:  return v;
+        case V_ARRAY: {
+            VyneArray* arr = v.as.arr;
+            size_t cap = 64;
+            char* tmp = (char*)malloc(cap);
+            size_t pos = 0;
+            tmp[pos++] = '[';
+            for (int i = 0; i < arr->size; i++) {
+                if (i > 0) {
+                    if (pos + 2 >= cap) { cap *= 2; tmp = (char*)realloc(tmp, cap); }
+                    tmp[pos++] = ','; tmp[pos++] = ' ';
+                }
+                VyneValue elem = vyne_to_string(arr->elements[i]);  // recursive
+                const char* s = (elem.type == V_STRING) ? elem.as.str : "null";
+                size_t slen = strlen(s);
+                while (pos + slen + 2 >= cap) { cap *= 2; tmp = (char*)realloc(tmp, cap); }
+                memcpy(tmp + pos, s, slen);
+                pos += slen;
+            }
+            tmp[pos++] = ']';
+            tmp[pos]   = '\0';
+            VyneValue result = vyne_string(tmp);
+            free(tmp);
+            return result;
+        }
+        default: strcpy(buf, "[object]"); break;
     }
     return vyne_string(buf);
 }

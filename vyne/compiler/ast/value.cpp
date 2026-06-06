@@ -287,7 +287,15 @@ std::string Value::toString() const {
         case VType::Float64: return std::format("{}", data.f64);
         case VType::Int64:   return std::format("{}", data.i64);
         case VType::String:  return asString();
-        case VType::Array:   return "[array]";
+        case VType::Array: {
+            auto& list = static_cast<VyneArray*>(data.obj.get())->elements;
+            std::string result = "[";
+            for (size_t i = 0; i < list.size(); ++i) {
+                result += list[i].toString();
+                if (i < list.size() - 1) result += ", ";
+            }
+            return result + "]";
+        }
         case VType::Struct:  return asStruct()->typeName + " { struct }";
         default:             return "<object>";
     }
