@@ -168,16 +168,22 @@ Value AssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
 
 Value GroupNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     static uint32_t globalId = getGlobalId();
+
+    uint32_t effectiveParentId = (targetModuleId != 0) ? targetModuleId : currentGroupId;
+
     uint32_t fullNameId;
-    
-    if (currentGroupId == globalId) {
+    std::string fullName;
+
+    if (effectiveParentId == globalId) {
         fullNameId = groupNameId;
+        fullName = groupName;
     } else {
-        std::string parentName = StringPool::instance().get(currentGroupId);
-        fullNameId = StringPool::instance().intern(parentName + "." + groupName);
+        std::string parentName = StringPool::instance().get(effectiveParentId);
+        fullName = parentName + "." + groupName;
+        fullNameId = StringPool::instance().intern(fullName);
     }
 
-    env[currentGroupId][groupNameId] = Value(fullNameId, groupName, true);
+    env[effectiveParentId][groupNameId] = Value(fullNameId, fullName, true);
 
     if (!env.contains(fullNameId)) {
         env[fullNameId] = SymbolTable();
@@ -720,9 +726,11 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
 
         if (receiverVal.isObject()) {
             auto mod = static_cast<ModuleData*>(receiverVal.data.obj.get());
-            modId = StringPool::instance().intern(mod->name); 
+            modName = mod->name;
+            modId = StringPool::instance().intern(modName);
         } else {
-            modId = StringPool::instance().intern(receiverVal.asString());
+            modName = receiverVal.asString();
+            modId = StringPool::instance().intern(modName);
         }
 
         if (env.contains(modId) && env[modId].count(methodId)) {
