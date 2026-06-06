@@ -754,9 +754,9 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
                 return func->nativeFn(argValues); 
             }
 
-            std::string scopeName = "call_" + std::to_string(rand());
-            uint32_t localScopeId = StringPool::instance().intern(scopeName);
-
+            std::string localScopeName = createLocalScope("modcall", methodName);
+            ScopedEnvironment scope(env, localScopeName, currentGroupId);
+            
             for (size_t i = 0; i < func->params.size() && i < argValues.size(); ++i) {
                 const Parameter& param = func->params[i];
                 Value& providedArg = argValues[i];
@@ -772,20 +772,10 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
                     }
                 }
 
-                env[localScopeId][param.id] = std::move(providedArg);
+                scope.bind(param.id, providedArg);
             }
 
-            Value result(0.0); 
-            try {
-                for (auto& stmt : func->body) {
-                    result = stmt->evaluate(env, localScopeId);
-                }
-            } catch (const ReturnException& e) {
-                result = e.value;
-            }
-
-            env.erase(localScopeId);
-            return result;
+            return executeFunction(func, argValues, env, scope.getScopeId(), lineNumber);
         }
     }
     
