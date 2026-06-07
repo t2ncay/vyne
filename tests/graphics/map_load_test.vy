@@ -135,6 +135,7 @@ while (vglib.running()) {
     if (vglib.key_down(vglib.S)) { vglib.move_forward(camera, current_speed * -1.0); moved = true; }
     if (vglib.key_down(vglib.A)) { vglib.move_right(camera, current_speed * -1.0); moved = true; }
     if (vglib.key_down(vglib.D)) { vglib.move_right(camera, current_speed); moved = true; }
+    if (vglib.key_down(vglib.J)) { vglib.set_pos(camera, 30.0, 1.8, 0.0); }
 
     new_pos = vglib.get_pos(camera);
 
@@ -158,7 +159,6 @@ while (vglib.running()) {
                 if (!vglib.check_collision_map(test_pos_z, padding_size, walls)) {
                     vglib.set_pos(camera, test_pos_z[0], old_pos[1], test_pos_z[2]);
                 } else {
-                    # Tam bloklanma
                     vglib.set_pos(camera, old_pos[0], old_pos[1], old_pos[2]);
                 }
             }
