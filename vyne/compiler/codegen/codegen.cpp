@@ -570,6 +570,8 @@ void ModuleNode::compile(C_Emitter& e) const {
     if (originalName == "vcore")  e.addInclude((moduleBase / "vcore.h").string());
     if (originalName == "vaudio") e.addInclude((moduleBase / "vaudio.h").string());
     if (originalName == "vglib")  e.addInclude((moduleBase / "vglib.h").string());
+    
+    e.registerGroup(originalName);
 }
 std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
@@ -682,7 +684,6 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
             return resTemp;
         }
     }
-
     std::string recvRaw = receiver->getCExpr(e);
     std::string recv = e.newTemp("m_recv");
     e.emit("VyneValue " + recv + " = " + recvRaw + ";");
@@ -769,7 +770,7 @@ void ImportNode::compile(C_Emitter& e) const {
     std::string prevDir = e.getSourceDir();
     e.setSourceDir(finalPath.parent_path().string());
 
-    for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {
+    for (const auto& stmt : externalAst->statements) {
         if (!stmt) continue;
         if (stmt->type() == NodeType::INTERFACE) {
             auto* iface = static_cast<InterfaceNode*>(stmt.get());
@@ -785,7 +786,13 @@ void ImportNode::compile(C_Emitter& e) const {
             auto* grp = static_cast<GroupNode*>(stmt.get());
             e.registerGroup(grp->getGroupName());
         }
+        if (stmt->type() == NodeType::MODULE) {
+            auto* mod = static_cast<ModuleNode*>(stmt.get());
+            e.registerGroup(mod->getOriginalName());
+        }
     }
+
+    std::string targetNamespace = alias.empty() ? finalPath.stem().string() : alias;
 
     if (alias.empty()) {
         for (const std::shared_ptr<ASTNode>& stmt : externalAst->statements) {
@@ -820,9 +827,50 @@ void ImportNode::compile(C_Emitter& e) const {
                 e.pushGlobalContext();
             }
         }
-
         e.popGlobalContext();
     }
+
+    std::string modVirtualVar = "v_" + targetNamespace;
+
+    if (e.getGlobalVars().count(modVirtualVar) == 0) {
+        e.registerDeclaration(modVirtualVar);
+        e.emitGlobalDecl("VyneValue " + modVirtualVar + ";");
+    }
+
+    e.pushMainContext();
+    e.emit("// Virtual Module Struct registration for " + targetNamespace);
+    e.emitBlockOpen("{");
+    std::string tempS = e.newTemp("mod_s");
+    e.emit("VyneStruct* " + tempS + " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));");
+    e.emit(tempS + "->type_name = \"" + targetNamespace + "\";");
+    e.emit(tempS + "->field_count = 0;");
+    e.emit(tempS + "->fields = NULL;");
+    e.emit(modVirtualVar + ".type = V_STRUCT; " + modVirtualVar + ".as.strct = " + tempS + ";");
+    
+    for (const auto& stmt : externalAst->statements) {
+        if (stmt && stmt->type() == NodeType::FUNCTION) {
+            auto* fn = static_cast<FunctionNode*>(stmt.get());
+            std::string fnOrigName = fn->getOriginalName();
+            std::string fnRealCName = "fn_" + (alias.empty() ? fnOrigName : (alias + "_" + fnOrigName));
+            
+            std::string wrapperName = "wrap_" + targetNamespace + "_" + fnOrigName;
+            
+            e.pushFunctionContext();
+            e.emitGlobalDecl("VyneValue " + wrapperName + "(int arg_count, VyneValue* args);");
+            e.emitBlockOpen("VyneValue " + wrapperName + "(int arg_count, VyneValue* args) {");
+            e.emit("if (arg_count > 0) {");
+            e.emit("    // args[0] 'self'");
+            e.emit("    return " + fnRealCName + "(arg_count - 1, args + 1);");
+            e.emit("}");
+            e.emit("return " + fnRealCName + "(arg_count, args);");
+            e.emitBlockClose();
+            e.popFunctionContext();
+            
+            e.emit("vyne_register_method(\"" + targetNamespace + "\", \"" + fnOrigName + "\", " + wrapperName + ");");
+        }
+    }
+    e.emitBlockClose();
+    e.popMainContext();
 
     e.setSourceDir(prevDir);
 }

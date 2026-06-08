@@ -861,6 +861,7 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Module; }
+    const std::string& getOriginalName() { return originalName; }
 };
 
 class ImportNode : public ASTNode {
