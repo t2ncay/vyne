@@ -645,6 +645,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
 }
 std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
+
 std::string MethodCallNode::getCExpr(C_Emitter& e) const {
     if (receiver->type() == NodeType::VARIABLE) {
         auto* var = static_cast<VariableNode*>(receiver.get());
@@ -840,3 +841,8 @@ void RangeNode::compile(C_Emitter& e) const {
     e.emit("/* range — not yet supported in codegen */");
 }
 std::string RangeNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+std::string EnumNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void EnumNode::compile(C_Emitter& e) const {
+    e.emit("/* enum — not yet supported in codegen */");
+}

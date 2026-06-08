@@ -230,6 +230,7 @@ enum class NodeType {
     DEPLOY,
     IMPORT,
     INTERFACE,
+    ENUM,
 
     NULLTYPE,
     MEMBER_ASSIGNMENT,
@@ -963,6 +964,21 @@ public:
 
     const std::string& getInterfaceName() const { return interfaceName; }
     const std::string& getModuleName() const { return moduleName; }
+};
+
+class EnumNode : public ASTNode {
+    std::string enumName;
+    std::unordered_map<std::string, uint32_t> members;
+public:
+
+    EnumNode(std::string en, std::unordered_map<std::string, uint32_t> m) 
+    : ASTNode(NodeType::ENUM), enumName(std::move(en)), members(std::move(m))
+    {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+
 };
 
 class MemberAccessNode : public ASTNode {

@@ -368,6 +368,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Deploy:     return parseDeployModule();
         case VTokenType::Interface:  return parseInterfaceDefinition();
         case VTokenType::Ruleset:    return parseRuleset();
+        case VTokenType::Enum:       return parseEnum();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -1057,6 +1058,48 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     
     return lhs;
 }
+
+std::unique_ptr<ASTNode> Parser::parseEnum() {
+    int line = peekToken().line;
+    consume(VTokenType::Enum);
+
+    Token enumTok = consume(VTokenType::Identifier);
+    std::string enumName = enumTok.name;
+
+    consume(VTokenType::Left_CB);
+
+    std::unordered_map<std::string, uint32_t> members;
+    uint32_t counter = 0;
+
+    while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
+        Token memberTok = consume(VTokenType::Identifier);
+        std::string memberName = memberTok.name;
+
+        if (peekToken().type == VTokenType::Equals) {
+            consume(VTokenType::Equals);
+            Token valTok = consume(VTokenType::Int64);
+            counter = static_cast<uint32_t>(std::get<int64_t>(valTok.literal));
+        }
+
+        members[memberName] = counter;
+        counter++;
+
+        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+            consume(peekToken().type);
+        }
+    }
+
+    consume(VTokenType::Right_CB); // '}' uduruq
+    consumeSemicolon();            // Optional ';' sığortası
+
+    // Elan olunmuş tip kimi qeydiyyata alırıq ki, gələcəkdə static_type check-dən keçsin
+    declaredTypes.insert(enumName);
+
+    auto node = std::make_unique<EnumNode>(enumName, std::move(members));
+    node->lineNumber = line;
+    return node;
+}
+
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);

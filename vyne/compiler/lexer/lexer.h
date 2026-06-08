@@ -29,6 +29,7 @@ enum class VTokenType {
     As,                 // Alias declaration
     Extern,             // External lib modifier
     Interface,          // Struct definers
+    Enum,               // Enumeration
 
     // --- KEYWORDS: CONTROL FLOW ---
     If,
@@ -127,7 +128,8 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"ruleset",         VTokenType::Ruleset},
     {"warnings",        VTokenType::Warnings},
     {"dynamic_casting", VTokenType::Dynamic_Casting},
-    {"memory_limit",    VTokenType::Memory_Limit}
+    {"memory_limit",    VTokenType::Memory_Limit},
+    {"enum",            VTokenType::Enum}
 };
 
 using TokenData = std::variant<std::monostate, double, int64_t, std::string>;

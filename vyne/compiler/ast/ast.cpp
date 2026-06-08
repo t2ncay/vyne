@@ -1337,54 +1337,81 @@ Value MemberAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroup
     Value newValue = rhs->evaluate(env, currentGroupId);
     Value recVal = receiver->evaluate(env, currentGroupId);
     
+    uint32_t memberId = StringPool::instance().intern(memberName);
+
     if (recVal.getType() == Value::STRUCT) {
         auto structPtr = recVal.asStruct();
-        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        auto fieldIt = structPtr->fields.find(memberId);
+        if (fieldIt != structPtr->fields.end() && fieldIt->second.isReadOnly) {
+            throw std::runtime_error("Runtime Error: Cannot assign to read-only struct field '" + 
+                memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+        }
+
         structPtr->fields[memberId] = newValue;
         return newValue;
     }
-    else if (recVal.getType() == Value::MODULE) {
-        std::string moduleName;
-        if (recVal.isObject()) {
+    
+    else if (recVal.getType() == Value::MODULE || recVal.getType() == Value::NONE) {
+        std::string moduleName = "";
+        uint32_t moduleId = 0;
+
+        if (recVal.getType() == Value::MODULE && recVal.isObject()) {
             auto& obj = recVal.data.obj;
             if (auto mod = static_cast<ModuleData*>(obj.get())) {
                 moduleName = mod->name;
+                moduleId = StringPool::instance().intern(moduleName);
             }
+        } else if (recVal.getType() == Value::MODULE) {
+            moduleName = recVal.asString();
+            moduleId = StringPool::instance().intern(moduleName);
+        } else if (receiver->type() == NodeType::VARIABLE) {
+            moduleId = static_cast<VariableNode*>(receiver.get())->getNameId();
+            moduleName = static_cast<VariableNode*>(receiver.get())->getOriginalName();
         }
-        
-        if (moduleName.empty()) {
-            throw std::runtime_error("Runtime Error: Cannot assign to member of unknown module/group [ line " + 
-                                    std::to_string(lineNumber) + " ]");
+
+        if (moduleId == 0 && receiver->type() == NodeType::MEMBER_ACCESS) {
+            auto* memAccess = static_cast<MemberAccessNode*>(receiver.get());
+            moduleId = memAccess->getFullPathId();
+            moduleName = memAccess->getFullPath();
         }
-        
-        uint32_t memberId = StringPool::instance().intern(memberName);
-        uint32_t moduleId = StringPool::instance().intern(moduleName);
-        
-        if (!env.contains(moduleId)) {
+
+        if (moduleId != 0 && env.contains(moduleId)) {
+            auto& moduleTable = env[moduleId];
+            auto it = moduleTable.find(memberId);
+            
+            if (it == moduleTable.end()) {
+                throw std::runtime_error("Runtime Error: '" + moduleName + "' has no member '" + 
+                    memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+            }
+            
+            if (it->second.isReadOnly || it->second.isReadOnly) {
+                throw std::runtime_error("Runtime Error: Cannot assign to read-only member '" + 
+                    moduleName + "." + memberName + "' [ line " + std::to_string(lineNumber) + " ]");
+            }
+
+            if (Vyne::isTypeStrict() && it->second.getType() != Value::NONE) {
+                if (it->second.getType() != newValue.getType()) {
+                    throw std::runtime_error(
+                        "Type Error: Cannot assign " + newValue.getTypeName() + 
+                        " to '" + moduleName + "." + memberName + "' of type " + it->second.getTypeName() +
+                        " in strict mode [ line " + std::to_string(lineNumber) + " ]"
+                    );
+                }
+            }
+
+            moduleTable[memberId] = newValue;
+            return newValue;
+        }
+
+        if (!moduleName.empty()) {
             throw std::runtime_error("Runtime Error: Module/group '" + moduleName + 
-                                    "' not found [ line " + std::to_string(lineNumber) + " ]");
+                "' not found in environment [ line " + std::to_string(lineNumber) + " ]");
         }
-        
-        auto& moduleTable = env[moduleId];
-        auto it = moduleTable.find(memberId);
-        
-        if (it == moduleTable.end()) {
-            throw std::runtime_error("Runtime Error: '" + moduleName + "' has no member '" + 
-                                    memberName + "' [ line " + std::to_string(lineNumber) + " ]");
-        }
-        
-        if (it->second.isReadOnly) {
-            throw std::runtime_error("Runtime Error: Cannot assign to read-only member '" + 
-                                    memberName + "' [ line " + std::to_string(lineNumber) + " ]");
-        }
-        
-        moduleTable[memberId] = newValue;
-        return newValue;
     }
-    else {
-        throw std::runtime_error("Type Error: Cannot assign to member of non-struct, non-module type [ line " + 
-                                std::to_string(lineNumber) + " ]");
-    }
+    
+    throw std::runtime_error("Type Error: Cannot assign to member of non-struct, non-module type " + 
+        recVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
 }
 
 Value BlockNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
@@ -1570,6 +1597,27 @@ Value DismissNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const
     
     throw std::runtime_error("Module Error: Could not dismiss '" + originalName + 
                             "' [ line " + std::to_string(lineNumber) + " ]");
+}
+
+Value EnumNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    uint32_t enumId = StringPool::instance().intern(enumName);
+
+    if (!env.contains(enumId)) {
+        env[enumId] = SymbolTable();
+    }
+
+    env[currentGroupId][enumId] = Value(enumId, enumName, true);
+
+    for (const auto& [memberName, value] : members) {
+        uint32_t memberId = StringPool::instance().intern(memberName);
+        
+        Value constValue(static_cast<int64_t>(value));
+        constValue.setReadOnly();
+
+        env[enumId][memberId] = constValue;
+    }
+
+    return Value();
 }
 
 Value NullNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {

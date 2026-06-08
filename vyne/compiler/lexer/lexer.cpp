@@ -44,12 +44,12 @@ std::vector<Token> tokenize(std::string_view input) {
                 i++;
             }
 
-    if (i < input.length()) { // Skip the closing quote
-        i++;
-    }
-    tokens.emplace_back(VTokenType::String, currentLine, strBuffer, "");
-    continue;
-}
+            if (i < input.length()) {
+                i++;
+            }
+            tokens.emplace_back(VTokenType::String, currentLine, strBuffer, "");
+            continue;
+        }
 
         if (std::isdigit(character)) {
             std::string buffer;
