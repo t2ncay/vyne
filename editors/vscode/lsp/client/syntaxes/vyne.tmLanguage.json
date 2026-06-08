@@ -5,6 +5,7 @@
   "patterns": [
     { "include": "#comments" },
     { "include": "#keywords" },
+    { "include": "#storage_types" },
     { "include": "#modules" },
     { "include": "#operators" },
     { "include": "#strings" },
@@ -25,7 +26,23 @@
       "patterns": [
         {
           "name": "keyword.control.vyne",
-          "match": "\\b(if|else|while|return|dismiss|break|continue|through|as|use|lib)\\b"
+          "match": "\\b(if|else|while|return|dismiss|break|continue|through|as|use|lib|loop|collect|every|filter|unique)\\b"
+        }
+      ]
+    },
+    "storage_types": {
+      "patterns": [
+        {
+          "name": "storage.type.function.vyne",
+          "match": "\\bfn\\b"
+        },
+        {
+          "name": "storage.type.vyne",
+          "match": "\\b(group|interface|enum|module)\\b"
+        },
+        {
+          "name": "keyword.other.vyne",
+          "match": "\\b(deploy|ruleset)\\b"
         }
       ]
     },
@@ -33,7 +50,19 @@
       "patterns": [
         {
           "name": "constant.language.boolean.vyne",
-          "match": "\\b(true|false|null|const|self|interface|group|fn|module|deploy|loop|collect|every|filter|unique|ruleset)\\b"
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.vyne",
+          "match": "\\bnull\\b"
+        },
+        {
+          "name": "storage.modifier.vyne",
+          "match": "\\bconst\\b"
+        },
+        {
+          "name": "variable.language.self.vyne",
+          "match": "\\bself\\b"
         }
       ]
     },
@@ -41,15 +70,19 @@
       "patterns": [
         {
           "name": "keyword.operator.logical.vyne",
-          "match": "(&&|\\|\\||==|!=|>=|<=|>|<)"
+          "match": "(&&|\\|\\||==|!=|>=|<=|>|<|!)"
         },
         {
           "name": "keyword.operator.range.vyne",
-          "match": "(\\.\\.|::|->)"
+          "match": "(\\.\\.|::|->|\\|>)"
         },
         {
           "name": "keyword.operator.assignment.vyne",
           "match": "="
+        },
+        {
+          "name": "keyword.operator.arithmetic.vyne",
+          "match": "(\\+|\\-|\\*|\\/|\\%|\\*\\*|\\+\\+|\\-\\-)"
         }
       ]
     },
@@ -79,8 +112,8 @@
           "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
         },
         {
-          "name": "support.class.vyne",
-          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|warnings|dynamic_casting|String|Array|Number|Int64|Float64)\\b"
+          "name": "support.type.vyne",
+          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|warnings|dynamic_casting|memory_limit|String|Array|Number|Int64|Float64)\\b"
         }
       ]
     },
