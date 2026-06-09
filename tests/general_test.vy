@@ -448,3 +448,12 @@ through i :: start..end -> loop {
 out("Sum of 0..1000 = " + string(sum));
 
 out(vcolors.green("\n=== ALL TESTS COMPLETED SUCCESSFULLY ==="));
+
+#===============================================================================
+# 21. ENUMERATION TEST
+#===============================================================================
+
+enum MODE { ON, OFF };
+
+out(MODE.ON);
+out(MODE.OFF);
