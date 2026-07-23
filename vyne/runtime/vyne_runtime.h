@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <math.h>
 
 #define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
 #define VYNE_MAX_METHODS 256
@@ -420,54 +421,113 @@ static inline VyneValue vyne_to_string(VyneValue v) {
     return vyne_string(buf);
 }
 
+static inline bool vyne_values_equal(VyneValue a, VyneValue b) {
+    if (a.type != b.type) {
+        if ((a.type == V_INT64 || a.type == V_FLOAT64) &&
+            (b.type == V_INT64 || b.type == V_FLOAT64)) {
+            double av = (a.type == V_FLOAT64) ? a.as.f64 : (double)a.as.i64;
+            double bv = (b.type == V_FLOAT64) ? b.as.f64 : (double)b.as.i64;
+            return av == bv;
+        }
+        return false;
+    }
+    switch (a.type) {
+        case V_NULL:    return true;
+        case V_BOOL:
+        case V_INT64:   return a.as.i64 == b.as.i64;
+        case V_FLOAT64: return a.as.f64 == b.as.f64;
+        case V_STRING:  return strcmp(a.as.str, b.as.str) == 0;
+        default:        return false; // arrays/structs: no structural compare yet
+    }
+}
+
+enum {
+    VBOP_ADD = 29, VBOP_SUB = 30, VBOP_MUL = 31, VBOP_DIV = 32,
+    VBOP_MOD = 36, VBOP_POW = 37,
+    VBOP_EQ  = 43, VBOP_NEQ = 44,
+    VBOP_GT  = 45, VBOP_LT  = 46, VBOP_GTE = 47, VBOP_LTE = 48
+};
+
 static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
-    if (op == 28 && (left.type == V_STRING || right.type == V_STRING)) {
-        char buf_l[512], buf_r[512];
-        
-        if (left.type == V_STRING) strcpy(buf_l, left.as.str);
-        else if (left.type == V_INT64) sprintf(buf_l, "%lld", left.as.i64);
-        else if (left.type == V_FLOAT64) sprintf(buf_l, "%g", left.as.f64);
-        else strcpy(buf_l, "null");
-
-        if (right.type == V_STRING) strcpy(buf_r, right.as.str);
-        else if (right.type == V_INT64) sprintf(buf_r, "%lld", right.as.i64);
-        else if (right.type == V_FLOAT64) sprintf(buf_r, "%g", right.as.f64);
-        else strcpy(buf_r, "null");
-
-        char* res = (char*)malloc(strlen(buf_l) + strlen(buf_r) + 1);
-        strcpy(res, buf_l);
-        strcat(res, buf_r);
+    if (op == VBOP_ADD && (left.type == V_STRING || right.type == V_STRING)) {
+        VyneValue ls = vyne_to_string(left);
+        VyneValue rs = vyne_to_string(right);
+        size_t llen = strlen(ls.as.str);
+        size_t rlen = strlen(rs.as.str);
+        char* res = (char*)malloc(llen + rlen + 1);
+        memcpy(res, ls.as.str, llen);
+        memcpy(res + llen, rs.as.str, rlen);
+        res[llen + rlen] = '\0';
         VyneValue v = vyne_string(res);
         free(res);
         return v;
     }
-    
-    if (left.type == V_INT64 && right.type == V_INT64) {
-        switch(op) {
-            case 28: return vyne_int(left.as.i64 + right.as.i64);
-            case 29: return vyne_int(left.as.i64 - right.as.i64);
-            case 30: return vyne_int(left.as.i64 * right.as.i64);
-            case 32: return (right.as.i64 == 0) ? vyne_null() : vyne_float((double)left.as.i64 / right.as.i64);
-            case 42: return vyne_bool(left.as.i64 == right.as.i64);
-            case 44: return vyne_bool(left.as.i64 > right.as.i64);
-            case 45: return vyne_bool(left.as.i64 < right.as.i64);
-        }
+
+    if (op == VBOP_ADD && left.type == V_ARRAY && right.type == V_ARRAY) {
+        VyneArray* la = left.as.arr;
+        VyneArray* ra = right.as.arr;
+        VyneValue result = vyne_array_create(0);
+        for (int i = 0; i < la->size; i++) vyne_array_push(result, la->elements[i]);
+        for (int i = 0; i < ra->size; i++) vyne_array_push(result, ra->elements[i]);
+        return result;
     }
 
-    if ((left.type == V_FLOAT64 || left.type == V_INT64) && 
+    bool is_float_math = (left.type == V_FLOAT64 || right.type == V_FLOAT64);
+
+    if (is_float_math &&
+        (left.type == V_FLOAT64 || left.type == V_INT64) &&
         (right.type == V_FLOAT64 || right.type == V_INT64)) {
-        double l = (left.type == V_FLOAT64) ? left.as.f64 : (double)left.as.i64;
+        double l = (left.type == V_FLOAT64)  ? left.as.f64  : (double)left.as.i64;
         double r = (right.type == V_FLOAT64) ? right.as.f64 : (double)right.as.i64;
-        switch(op) {
-            case 28: return vyne_float(l + r);
-            case 29: return vyne_float(l - r);
-            case 31: return vyne_float(l * r);
-            case 32: return vyne_float(l / r);
-            case 45: return vyne_bool(l == r);
-            case 47: return vyne_bool(l > r);
-            case 48: return vyne_bool(l < r);
+        switch (op) {
+            case VBOP_ADD: return vyne_float(l + r);
+            case VBOP_SUB: return vyne_float(l - r);
+            case VBOP_MUL: return vyne_float(l * r);
+            case VBOP_DIV:
+                if (r == 0.0) { fprintf(stderr, "Runtime error: Division by zero!\n"); exit(1); }
+                return vyne_float(l / r);
+            case VBOP_MOD:
+                if (r == 0.0) { fprintf(stderr, "Runtime error: Modulo by zero!\n"); exit(1); }
+                return vyne_float(fmod(l, r));
+            case VBOP_POW: return vyne_float(pow(l, r));
+            case VBOP_EQ:  return vyne_bool(l == r);
+            case VBOP_NEQ: return vyne_bool(l != r);
+            case VBOP_GT:  return vyne_bool(l > r);
+            case VBOP_LT:  return vyne_bool(l < r);
+            case VBOP_GTE: return vyne_bool(l >= r);
+            case VBOP_LTE: return vyne_bool(l <= r);
         }
+        return vyne_null();
     }
 
-    return vyne_null(); 
+    if (left.type == V_INT64 && right.type == V_INT64) {
+        int64_t l = left.as.i64;
+        int64_t r = right.as.i64;
+        switch (op) {
+            case VBOP_ADD: return vyne_int(l + r);
+            case VBOP_SUB: return vyne_int(l - r);
+            case VBOP_MUL: return vyne_int(l * r);
+            case VBOP_DIV:
+                if (r == 0) { fprintf(stderr, "Runtime error: Division by zero!\n"); exit(1); }
+                return vyne_int(l / r);          // truncating int division, matches BinOpNode
+            case VBOP_MOD:
+                if (r == 0) { fprintf(stderr, "Runtime error: Modulo by zero!\n"); exit(1); }
+                return vyne_int(l % r);
+            case VBOP_POW: return vyne_float(pow((double)l, (double)r));
+            case VBOP_EQ:  return vyne_bool(l == r);
+            case VBOP_NEQ: return vyne_bool(l != r);
+            case VBOP_GT:  return vyne_bool(l > r);
+            case VBOP_LT:  return vyne_bool(l < r);
+            case VBOP_GTE: return vyne_bool(l >= r);
+            case VBOP_LTE: return vyne_bool(l <= r);
+        }
+        return vyne_null();
+    }
+
+    if (op == VBOP_EQ)  return vyne_bool(vyne_values_equal(left, right));
+    if (op == VBOP_NEQ) return vyne_bool(!vyne_values_equal(left, right));
+
+    fprintf(stderr, "Runtime error: Invalid operation between %s and %s\n",
+            vyne_get_type_name(left), vyne_get_type_name(right));
+    exit(1);
 }
