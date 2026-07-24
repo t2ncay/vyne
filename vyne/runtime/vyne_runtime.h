@@ -509,7 +509,7 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
             case VBOP_MUL: return vyne_int(l * r);
             case VBOP_DIV:
                 if (r == 0) { fprintf(stderr, "Runtime error: Division by zero!\n"); exit(1); }
-                return vyne_int(l / r);          // truncating int division, matches BinOpNode
+                return vyne_int(l / r);
             case VBOP_MOD:
                 if (r == 0) { fprintf(stderr, "Runtime error: Modulo by zero!\n"); exit(1); }
                 return vyne_int(l % r);
