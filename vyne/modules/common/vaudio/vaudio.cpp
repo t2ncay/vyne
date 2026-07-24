@@ -3,21 +3,21 @@
 #include <cmath>
 #include <algorithm>
 
-// digital sound processing parameters
+// dsp params
 float g_drive = 0.5f;
 int   g_mode = 0;
 
 void AudioProcessCallback(void *buffer, unsigned int frames) {
-    float *samples = (float *)buffer;
+    short *samples = (short *)buffer;
     
-    // Convert 0.0 - 1.0 drive parameter to gain multiplier (1.0x to 20.0x)
-    float gain = 1.0f + (g_drive * 19.0f);
+    float gain = 1.0f + (g_drive * 14.0f);
 
     for (unsigned int i = 0; i < frames * 2; i++) {
-        float sample = samples[i] * gain;
+        float sample = ((float)samples[i] / 32768.0f) * gain;
 
+        // 2. Apply Saturation DSP
         switch (g_mode) {
-            case 0: // SOFT TUBE (tanh saturation)
+            case 0: // SOFT TUBE (tanh curve)
                 sample = std::tanh(sample);
                 break;
 
@@ -37,8 +37,9 @@ void AudioProcessCallback(void *buffer, unsigned int frames) {
                 break;
         }
 
-        // Master output volume adjustment to prevent clipping
-        samples[i] = sample * 0.7f;
+        // clamp back to 16int PCM
+        float output = std::clamp(sample * 0.7f, -1.0f, 1.0f);
+        samples[i] = (short)(output * 32767.0f);
     }
 }
 
@@ -47,9 +48,6 @@ namespace VAudioNative {
     Value native_init_audio(std::vector<Value>& args) {
         InitAudioDevice();
         SetMasterVolume(1.0f);
-        
-        SetAudioStreamBufferSizeDefault(4096); 
-        
         return Value(IsAudioDeviceReady());
     }
 
@@ -110,10 +108,7 @@ namespace VAudioNative {
         }
 
         mPtr->looping = true;
-        
         PlayMusicStream(*mPtr);
-
-        AttachAudioStreamProcessor(mPtr->stream, AudioProcessCallback);
 
         return Value(reinterpret_cast<int64_t>(mPtr));
     }
@@ -137,6 +132,7 @@ namespace VAudioNative {
         if (args.empty()) return Value(false);
         Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
         if (sound != nullptr) {
+            // Attach processor to the sound's active audio stream
             AttachAudioStreamProcessor(sound->stream, AudioProcessCallback);
             return Value(true);
         }
@@ -190,8 +186,8 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("play_stream")]   = Value(VAudioNative::native_play_stream);
     vaudio[pool.intern("update_stream")] = Value(VAudioNative::native_update_stream);
     vaudio[pool.intern("set_dsp")]       = Value(VAudioNative::native_set_dsp_params);
-    vaudio[pool.intern("is_playing")] = Value(VAudioNative::native_is_sound_playing);
+    vaudio[pool.intern("is_playing")]    = Value(VAudioNative::native_is_sound_playing);
 
     // 3D
-    vaudio[pool.intern("sound_3d")] = Value(VAudioNative::native_set_sound_3d);
+    vaudio[pool.intern("sound_3d")]      = Value(VAudioNative::native_set_sound_3d);
 }

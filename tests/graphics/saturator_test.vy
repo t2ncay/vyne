@@ -3,25 +3,23 @@ module vglib;
 module vaudio;
 module vmath;
 
-# 1. Başlanğıc
 vglib.init(1000, 600, 60, "Vyne Saturator Pro", 0);
 is_ready = vaudio.init_audio();
 out("Audio Device Ready: " + string(is_ready));
 vaudio.volume(1.0);
 
-# 2. Audio Stream (Yolun düzgünlüyündən əmin ol)
 track = vaudio.load_sound("tests/assets/akira.wav");
 out("Track Pointer Handle : " + string(track));
 
-vaudio.attach_saturator(track);
 vaudio.play_sound(track);
+vaudio.attach_saturator(track); ### important
 
 run_time = 0.0;
 drive = 0.3;
 mode = 0;
 modes = ["SOFT TUBE", "HARD CLIP", "ASYMMETRIC"];
 
-# --- UI FUNKSİYASI ---
+# --- UI KNOB RENDERER ---
 fn draw_knob(name, x, y, val, color) {
     vglib.circle(x, y, 42.0, vglib.BLACK);
     vglib.circle(x, y, 40.0, vglib.rgba(70, 70, 80, 255));
@@ -42,14 +40,10 @@ fn draw_knob(name, x, y, val, color) {
 while (vglib.running()) {
     run_time = run_time + 0.016;
     
-    if (track != 0) {
-        vaudio.update_stream(track);
-        
-        if (int64(run_time * 60) % 60 == 0) {
-            out("Stream Updating... Track Handle: " + string(track) + " | Drive: " + string(drive));
-        }
-    } else {
-        out("ERROR: Track handle is NULL (0)!");
+    # Auto-loop track when finished
+    if (vaudio.is_playing(track) == false) {
+        vaudio.play_sound(track);
+        vaudio.attach_saturator(track);
     }
     
     m = vglib.mouse_pos();
@@ -66,28 +60,27 @@ while (vglib.running()) {
         mode = (mode + 1) % 3; 
     }
 
-    # DSP-ni C++ tərəfinə ötür
+    # Pass DSP parameters to C++
     vaudio.set_dsp(drive, mode);
 
-        vglib.begin();
-            vglib.clear(vglib.rgba(25, 25, 30, 255));
-            
-            # UI
-            draw_knob("DRIVE", 250, 300, drive, vglib.rgba(255, 100, 50, 255));
-            
-            # Visualizer
-            through i :: 0..80 -> loop {
-                x_p = 100 + (i * 10);
-                # Vizualizasiya üçün drive-ı istifadə edirik
-                h = vmath.tanh(vmath.sin(run_time * 10.0 + i * 0.1) * (1.0 + drive * 10.0)) * 60.0;
-                vglib.rect(x_p, 500, 6, -h, vglib.rgba(255, 100, 50, 255));
-            };
-            
-            # Display Info
-            vglib.text("MODE: " + modes[mode], 700, 280, 20, vglib.GREEN);
-            vglib.text("Vyne Audio Engine v0.0.1", 700, 550, 12, vglib.RED);
-            
-        vglib.end();
+    vglib.begin();
+        vglib.clear(vglib.rgba(25, 25, 30, 255));
+        
+        # UI
+        draw_knob("DRIVE", 250, 300, drive, vglib.rgba(255, 100, 50, 255));
+        
+        # Visualizer
+        through i :: 0..80 -> loop {
+            x_p = 100 + (i * 10);
+            h = vmath.tanh(vmath.sin(run_time * 10.0 + i * 0.1) * (1.0 + drive * 10.0)) * 60.0;
+            vglib.rect(x_p, 500, 6, -h, vglib.rgba(255, 100, 50, 255));
+        };
+        
+        # Display Info
+        vglib.text("MODE: " + modes[mode], 700, 280, 20, vglib.GREEN);
+        vglib.text("Vyne Audio Engine v0.0.1", 700, 550, 12, vglib.RED);
+        
+    vglib.end();
 }
 
 vaudio.close_audio();
