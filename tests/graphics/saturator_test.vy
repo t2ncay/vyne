@@ -5,11 +5,16 @@ module vmath;
 
 # 1. Başlanğıc
 vglib.init(1000, 600, 60, "Vyne Saturator Pro", 0);
-vaudio.init_audio();
+is_ready = vaudio.init_audio();
+out("Audio Device Ready: " + string(is_ready));
 vaudio.volume(1.0);
 
 # 2. Audio Stream (Yolun düzgünlüyündən əmin ol)
-track = vaudio.play_stream("tests/assets/akira.wav");
+track = vaudio.load_sound("tests/assets/akira.wav");
+out("Track Pointer Handle : " + string(track));
+
+vaudio.attach_saturator(track);
+vaudio.play_sound(track);
 
 run_time = 0.0;
 drive = 0.3;
@@ -39,6 +44,12 @@ while (vglib.running()) {
     
     if (track != 0) {
         vaudio.update_stream(track);
+        
+        if (int64(run_time * 60) % 60 == 0) {
+            out("Stream Updating... Track Handle: " + string(track) + " | Drive: " + string(drive));
+        }
+    } else {
+        out("ERROR: Track handle is NULL (0)!");
     }
     
     m = vglib.mouse_pos();

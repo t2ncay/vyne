@@ -3,15 +3,42 @@
 #include <cmath>
 #include <algorithm>
 
-// Qlobal DSP parametrləri
+// digital sound processing parameters
 float g_drive = 0.5f;
 int   g_mode = 0;
 
 void AudioProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
+    
+    // Convert 0.0 - 1.0 drive parameter to gain multiplier (1.0x to 20.0x)
+    float gain = 1.0f + (g_drive * 19.0f);
+
     for (unsigned int i = 0; i < frames * 2; i++) {
-        
-        samples[i] *= 1.0f; 
+        float sample = samples[i] * gain;
+
+        switch (g_mode) {
+            case 0: // SOFT TUBE (tanh saturation)
+                sample = std::tanh(sample);
+                break;
+
+            case 1: // HARD CLIP
+                sample = std::clamp(sample, -0.8f, 0.8f) * 1.25f;
+                break;
+
+            case 2: // ASYMMETRIC SATURATION
+                if (sample > 0.0f) {
+                    sample = std::tanh(sample);
+                } else {
+                    sample = std::clamp(sample, -0.5f, 0.5f) * 2.0f;
+                }
+                break;
+
+            default:
+                break;
+        }
+
+        // Master output volume adjustment to prevent clipping
+        samples[i] = sample * 0.7f;
     }
 }
 
@@ -20,6 +47,9 @@ namespace VAudioNative {
     Value native_init_audio(std::vector<Value>& args) {
         InitAudioDevice();
         SetMasterVolume(1.0f);
+        
+        SetAudioStreamBufferSizeDefault(4096); 
+        
         return Value(IsAudioDeviceReady());
     }
 
@@ -70,15 +100,21 @@ namespace VAudioNative {
     Value native_play_stream(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("play_stream() requires path");
         std::string path = args[0].asString();
+        
         Music* mPtr = new Music();
         *mPtr = LoadMusicStream(path.c_str());
+        
         if (mPtr->stream.buffer == NULL) {
             delete mPtr;
-            throw std::runtime_error("Audio Error: Failed to load stream");
+            throw std::runtime_error("Audio Error: Failed to load stream at " + path);
         }
+
         mPtr->looping = true;
+        
         PlayMusicStream(*mPtr);
-        SetAudioStreamCallback(mPtr->stream, AudioProcessCallback);
+
+        AttachAudioStreamProcessor(mPtr->stream, AudioProcessCallback);
+
         return Value(reinterpret_cast<int64_t>(mPtr));
     }
 
@@ -100,8 +136,11 @@ namespace VAudioNative {
     Value native_attach_saturation(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
         Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound) SetAudioStreamCallback(sound->stream, AudioProcessCallback);
-        return Value(true);
+        if (sound != nullptr) {
+            AttachAudioStreamProcessor(sound->stream, AudioProcessCallback);
+            return Value(true);
+        }
+        return Value(false);
     }
 
     Value native_set_sound_3d(std::vector<Value>& args) {

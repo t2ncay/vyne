@@ -22,10 +22,8 @@ interface TreeNode {
     isLeaf       :: Bool
 }
 
-# Scope and module allocations
+# Module allocations
 module NodeStore;
-group LeftNodes {};
-group RightNodes {};
 module MLUtils;
 module DecisionTreeEngine;
 
@@ -45,7 +43,7 @@ fn :: MLUtils calculateVariance(sensors :: Array, mean :: Float64) -> Float64 {
     through s :: sensors -> loop {
         diff = float64(s) - mean;
         sumSqDiff = sumSqDiff + (diff * diff);
-    };
+    }; 
     return sumSqDiff / float64(sensors.size());
 }
 
