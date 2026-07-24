@@ -3,33 +3,33 @@
 #include <cmath>
 #include <algorithm>
 
-// dsp params
+// Digital Sound Processing Parameters
 float g_drive = 0.5f;
 int   g_mode = 0;
 
 void AudioProcessCallback(void *buffer, unsigned int frames) {
-    short *samples = (short *)buffer;
-    
-    float gain = 1.0f + (g_drive * 14.0f);
+    // If raylib stream is 32-bit Float (like hardshit.wav)
+    float *samples = (float *)buffer;
+    float gain = 1.0f + (g_drive * 7.0f);
+    float makeup = 1.0f / std::sqrt(gain);
 
     for (unsigned int i = 0; i < frames * 2; i++) {
-        float sample = ((float)samples[i] / 32768.0f) * gain;
+        float sample = samples[i] * gain;
 
-        // 2. Apply Saturation DSP
         switch (g_mode) {
-            case 0: // SOFT TUBE (tanh curve)
+            case 0: // SOFT TUBE
                 sample = std::tanh(sample);
                 break;
 
             case 1: // HARD CLIP
-                sample = std::clamp(sample, -0.8f, 0.8f) * 1.25f;
+                sample = std::clamp(sample, -0.7f, 0.7f) * 1.42f;
                 break;
 
             case 2: // ASYMMETRIC SATURATION
                 if (sample > 0.0f) {
                     sample = std::tanh(sample);
                 } else {
-                    sample = std::clamp(sample, -0.5f, 0.5f) * 2.0f;
+                    sample = std::tanh(sample * 1.5f) * 0.8f;
                 }
                 break;
 
@@ -37,9 +37,7 @@ void AudioProcessCallback(void *buffer, unsigned int frames) {
                 break;
         }
 
-        // clamp back to 16int PCM
-        float output = std::clamp(sample * 0.7f, -1.0f, 1.0f);
-        samples[i] = (short)(output * 32767.0f);
+        samples[i] = std::clamp(sample * makeup * 0.85f, -1.0f, 1.0f);
     }
 }
 

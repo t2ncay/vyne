@@ -8,18 +8,18 @@ is_ready = vaudio.init_audio();
 out("Audio Device Ready: " + string(is_ready));
 vaudio.volume(1.0);
 
-track = vaudio.load_sound("tests/assets/akira.wav");
+track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
 out("Track Pointer Handle : " + string(track));
 
+# Start playback AND attach saturator ONCE at startup
 vaudio.play_sound(track);
-vaudio.attach_saturator(track); ### important
+vaudio.attach_saturator(track); # Attached ONLY once!
 
 run_time = 0.0;
 drive = 0.3;
 mode = 0;
 modes = ["SOFT TUBE", "HARD CLIP", "ASYMMETRIC"];
 
-# --- UI KNOB RENDERER ---
 fn draw_knob(name, x, y, val, color) {
     vglib.circle(x, y, 42.0, vglib.BLACK);
     vglib.circle(x, y, 40.0, vglib.rgba(70, 70, 80, 255));
@@ -40,10 +40,9 @@ fn draw_knob(name, x, y, val, color) {
 while (vglib.running()) {
     run_time = run_time + 0.016;
     
-    # Auto-loop track when finished
+    # Auto-loop track when finished (DO NOT attach_saturator again here!)
     if (vaudio.is_playing(track) == false) {
         vaudio.play_sound(track);
-        vaudio.attach_saturator(track);
     }
     
     m = vglib.mouse_pos();
