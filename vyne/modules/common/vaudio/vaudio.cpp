@@ -15,6 +15,11 @@ float g_comp_release_ms= 120.0f; // 10 ms to 1000 ms
 float g_comp_makeup_db = 3.0f;   // 0 dB to 24 dB
 bool  g_comp_enabled   = true;
 
+// --- REVERB DSP PARAMETERS ---
+float g_rev_decay = 0.5f;   // Decay time / Room Size (0.0 to 0.95)
+float g_rev_mix   = 0.3f;   // Wet/Dry mix (0.0 = Dry, 1.0 = Wet)
+bool  g_rev_enabled = true;
+
 static float g_envelope = 0.0f; // Envelope detector state across blocks
 static float g_out_envelope = 0.0f;
 
@@ -93,6 +98,87 @@ void CompressorProcessCallback(void *buffer, unsigned int frames) {
         } else {
             g_out_envelope = alpha_release * g_out_envelope + (1.0f - alpha_release) * out_peak;
         }
+    }
+}
+
+struct CombFilter {
+    std::vector<float> buffer;
+    size_t bufIdx = 0;
+    float feedback = 0.5f;
+
+    void init(size_t size) {
+        buffer.assign(size, 0.0f);
+        bufIdx = 0;
+    }
+
+    float process(float input) {
+        float output = buffer[bufIdx];
+        buffer[bufIdx] = input + (output * feedback);
+        bufIdx = (bufIdx + 1) % buffer.size();
+        return output;
+    }
+};
+
+struct AllpassFilter {
+    std::vector<float> buffer;
+    size_t bufIdx = 0;
+    float feedback = 0.5f;
+
+    void init(size_t size) {
+        buffer.assign(size, 0.0f);
+        bufIdx = 0;
+    }
+
+    float process(float input) {
+        float bufOut = buffer[bufIdx];
+        float output = -input + bufOut;
+        buffer[bufIdx] = input + (bufOut * feedback);
+        bufIdx = (bufIdx + 1) % buffer.size();
+        return output;
+    }
+};
+
+static CombFilter g_combs[4];
+static AllpassFilter g_allpass[2];
+static bool g_reverb_inited = false;
+
+void InitReverbDSP() {
+    if (g_reverb_inited) return;
+
+    g_combs[0].init(1116);
+    g_combs[1].init(1188);
+    g_combs[2].init(1276);
+    g_combs[3].init(1356);
+
+    g_allpass[0].init(225);
+    g_allpass[1].init(556);
+    g_reverb_inited = true;
+}
+
+void ReverbProcessCallback(void *buffer, unsigned int frames) {
+    float *samples = (float *)buffer;
+    if (!g_rev_enabled) return;
+
+    InitReverbDSP();
+
+    for (int i = 0; i < 4; i++) g_combs[i].feedback = std::clamp(g_rev_decay, 0.0f, 0.95f);
+
+    for (unsigned int i = 0; i < frames; i++) {
+        float left  = samples[i * 2];
+        float right = samples[i * 2 + 1];
+        float input = (left + right) * 0.5f;
+
+        float combOut = 0.0f;
+        for (int c = 0; c < 4; c++) {
+            combOut += g_combs[c].process(input);
+        }
+
+        float diffOut = g_allpass[0].process(combOut * 0.25f);
+        diffOut = g_allpass[1].process(diffOut);
+
+        float wet = diffOut;
+        samples[i * 2]     = std::clamp(left * (1.0f - g_rev_mix) + wet * g_rev_mix, -1.0f, 1.0f);
+        samples[i * 2 + 1] = std::clamp(right * (1.0f - g_rev_mix) + wet * g_rev_mix, -1.0f, 1.0f);
     }
 }
 
@@ -233,6 +319,24 @@ namespace VAudioNative {
         return Value(rms_norm);
     }
 
+    Value native_attach_reverb(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        if (sound != nullptr) {
+            AttachAudioStreamProcessor(sound->stream, ReverbProcessCallback);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_set_reverb_params(std::vector<Value>& args) {
+        if (args.size() < 2) return Value(false);
+        g_rev_decay = (float)args[0].asFloat(); // Decay (0.0 to 0.95)
+        g_rev_mix   = (float)args[1].asFloat(); // Mix (0.0 to 1.0)
+        if (args.size() >= 3) g_rev_enabled = args[2].isTruthy();
+        return Value(true);
+    }
+
     Value native_set_sound_3d(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("sound_3d() requires sound_ptr, listener_pos, source_pos, max_distance");
 
@@ -287,6 +391,10 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("set_dsp")]           = Value(VAudioNative::native_set_dsp_params);
     vaudio[pool.intern("is_playing")]        = Value(VAudioNative::native_is_sound_playing);
     vaudio[pool.intern("get_rms")] = Value(VAudioNative::native_get_rms);
+
+    // Reverb
+    vaudio[pool.intern("attach_reverb")] = Value(VAudioNative::native_attach_reverb);
+    vaudio[pool.intern("set_reverb")]    = Value(VAudioNative::native_set_reverb_params);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);
