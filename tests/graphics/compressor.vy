@@ -69,7 +69,6 @@ while (vglib.running()) {
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
 
-    # KNOB INTERACTION (Vertical Drag)
     if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
         if (active_knob == 0) {
             if (vmath.hypot(m[0] - 150, m[1] - 300) < 45) { active_knob = 1; }
@@ -89,12 +88,10 @@ while (vglib.running()) {
         active_knob = 0;
     }
 
-    # 1. TOGGLE WITH SPACEBAR
     if (vglib.key_pressed(vglib.SPACE)) {
         if (enabled == 1) { enabled = 0; } else { enabled = 1; }
     }
 
-    # 2. TOGGLE WITH MOUSE CLICK ON BUTTON
     if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
         if (m[0] >= 50 && m[0] <= 160 && m[1] >= 520 && m[1] <= 558) {
             if (enabled == 1) { enabled = 0; } else { enabled = 1; }
@@ -109,7 +106,6 @@ while (vglib.running()) {
     vglib.begin();
         vglib.clear(vglib.rgba(20, 22, 28, 255));
 
-        # --- 1. DRAW GAIN REDUCTION (GR) METER (RED, DOWNWARDS) ---
         vglib.rect(850, 200, 20, 200, vglib.rgba(40, 40, 50, 255));
         meter_h = vmath.clamp((gr_db / 24.0) * 200.0, 0.0, 200.0);
         
@@ -120,7 +116,6 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "GR", 850, 175, 14, vglib.WHITE);
         vglib.text_ex(vcr_font, "-" + string(vmath.round(gr_db)) + "dB", 840, 410, 12, vglib.rgba(255, 100, 100, 255));
 
-        # --- 2. DRAW RMS OUTPUT METER (GREEN, UPWARDS) ---
         vglib.rect(900, 200, 20, 200, vglib.rgba(40, 40, 50, 255));
         rms_h = vmath.clamp(rms_val * 200.0, 0.0, 200.0);
         
@@ -131,7 +126,6 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "RMS", 898, 175, 14, vglib.WHITE);
         vglib.text_ex(vcr_font, string(vmath.round(rms_val * 100)) + "%", 895, 410, 12, vglib.rgba(50, 255, 120, 255));
 
-        # --- 3. KNOBS & VALUES ---
         t_norm   = (thresh + 40.0) / 40.0;
         r_norm   = (ratio - 1.0) / 15.0;
         a_norm   = (attack - 1.0) / 99.0;
@@ -147,7 +141,6 @@ while (vglib.running()) {
         draw_knob("RELEASE", 600, 300, rel_norm, string(vmath.round(release)) + "ms", vglib.rgba(180, 100, 255, 255));
         draw_knob("MAKEUP", 750, 300, m_norm, "+" + string(vmath.round(makeup)) + "dB", vglib.rgba(50, 255, 120, 255));
         
-        # --- 4. BOTTOM-LEFT BYPASS BUTTON ---
         draw_bypass_button(50, 520, enabled);
 
         # Header Info
