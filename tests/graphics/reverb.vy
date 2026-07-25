@@ -64,7 +64,6 @@ fn draw_bypass_button(x, y, is_active) {
 while (vglib.running()) {
     run_time = run_time + 0.016;
     
-    # Auto-loop track when finished
     if (vaudio.is_playing(track) == 0) {
         vaudio.play_sound(track);
     }
@@ -72,7 +71,6 @@ while (vglib.running()) {
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
 
-    # --- KNOB INTERACTION (Vertical Drag) ---
     if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
         if (active_knob == 0) {
             if (vmath.hypot(m[0] - 200, m[1] - 300) < 45) { active_knob = 1; } # Decay
@@ -90,29 +88,24 @@ while (vglib.running()) {
         active_knob = 0;
     }
 
-    # 1. TOGGLE WITH SPACEBAR
     if (vglib.key_pressed(vglib.SPACE)) {
         if (enabled == 1) { enabled = 0; } else { enabled = 1; }
     }
 
-    # 2. TOGGLE WITH MOUSE CLICK ON BUTTON
     if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
         if (m[0] >= 50 && m[0] <= 160 && m[1] >= 520 && m[1] <= 558) {
             if (enabled == 1) { enabled = 0; } else { enabled = 1; }
         }
     }
 
-    # Send state to C++ VAudio DSP Engine
     vaudio.set_reverb(decay, mix, enabled);
 
-    rms_val = vaudio.get_rms();  # Audio output RMS level
+    rms_val = vaudio.get_rms();
 
     vglib.begin();
         # Dark Space Aesthetic
         vglib.clear(vglib.rgba(16, 18, 24, 255));
 
-        # --- 1. STEREO OUTPUT METERS (PURPLE & CYAN GLOW) ---
-        # LEFT CHANNEL METER
         vglib.rect(840, 200, 18, 200, vglib.rgba(30, 32, 42, 255));
         l_meter_h = vmath.clamp(rms_val * 200.0, 0.0, 200.0);
         if (l_meter_h > 1.0) {
@@ -120,7 +113,6 @@ while (vglib.running()) {
         }
         vglib.text_ex(vcr_font, "L", 845, 175, 14, vglib.WHITE);
 
-        # RIGHT CHANNEL METER
         vglib.rect(880, 200, 18, 200, vglib.rgba(30, 32, 42, 255));
         r_meter_h = vmath.clamp(rms_val * 190.0, 0.0, 200.0); # Subtle offset for visual stereo
         if (r_meter_h > 1.0) {
@@ -130,7 +122,6 @@ while (vglib.running()) {
 
         vglib.text_ex(vcr_font, string(vmath.round(rms_val * 100)) + "%", 842, 410, 12, vglib.rgba(160, 120, 255, 255));
 
-        # --- 2. KNOBS & VALUES ---
         decay_norm   = decay / 0.95;
         mix_norm     = mix;
         predelay_norm = predelay / 100.0;
@@ -152,7 +143,7 @@ while (vglib.running()) {
         draw_bypass_button(50, 520, enabled);
 
         vglib.rect(50, 60, 900, 3, vglib.rgba(140, 80, 255, 180)); # Metallic Accent Line
-        vglib.text_ex(vcr_font, "VYNE SPATIAL REVERB PRO", 300, 90, 24, vglib.WHITE);
+        vglib.text_ex(vcr_font, "VYNE SPATIAL REVERB", 310, 90, 24, vglib.WHITE);
         vglib.text_ex(vcr_font, "Shoegaze Atmospheric Processor v0.0.1", 285, 120, 12, vglib.rgba(160, 120, 255, 255));
         vglib.text_ex(vcr_font, "Vyne Studio Rack", 710, 550, 12, vglib.rgba(140, 80, 255, 255));
         
