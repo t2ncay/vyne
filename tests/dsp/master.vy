@@ -10,7 +10,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
-track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
+track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
@@ -23,11 +23,15 @@ run_time = 0.0;
 active_tab :: Int64 = 0; # 0 = EQ, 1 = COMPRESSOR, 2 = SATURATOR, 3 = REVERB
 prev_mouse_state = 0;
 
-# --- EQUALIZER STATE ---
-b1_f :: Float64 = 100.0;   b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
-b2_f :: Float64 = 1000.0;  b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
-b3_f :: Float64 = 3500.0;  b3_g :: Float64 = 5.0;   b3_q :: Float64 = 1.2;
-b4_f :: Float64 = 10000.0; b4_g :: Float64 = 2.0;   b4_q :: Float64 = 0.8;
+# --- EQUALIZER STATE (7 BANDS) ---
+b1_f :: Float64 = 60.0;    b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
+b2_f :: Float64 = 180.0;   b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
+b3_f :: Float64 = 500.0;   b3_g :: Float64 = 2.0;   b3_q :: Float64 = 1.2;
+b4_f :: Float64 = 1200.0;  b4_g :: Float64 = -2.0;  b4_q :: Float64 = 1.0;
+b5_f :: Float64 = 3000.0;  b5_g :: Float64 = 4.0;   b5_q :: Float64 = 1.2;
+b6_f :: Float64 = 7500.0;  b6_g :: Float64 = -1.0;  b6_q :: Float64 = 0.8;
+b7_f :: Float64 = 14000.0; b7_g :: Float64 = 3.0;   b7_q :: Float64 = 0.8;
+
 eq_on :: Int64 = 1;
 active_eq_node = 0;
 
@@ -270,7 +274,7 @@ fn draw_saturator_curve(x, y, d_val, m_val, is_on) {
     vglib.text_ex(vcr_font, "TRANSFER CURVE", x + 50, y + 232, 11, vglib.rgba(160, 170, 185, 255));
 }
 
-# --- REVERB 3D WIREFRAME ROOM VISUALIZER ( got the inspo from fruity reeverb 2 ) ---
+# --- REVERB 3D WIREFRAME ROOM VISUALIZER ---
 fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
     # Dark Backing Card
     vglib.rect(cx - 200, cy - 180, 400, 360, vglib.rgba(16, 18, 24, 255));
@@ -284,12 +288,12 @@ fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
     glow_color = (is_on == 1) ? vglib.rgba(170, 100, 255, 255) : vglib.rgba(70, 75, 90, 255);
     dim_color  = (is_on == 1) ? vglib.rgba(120, 60, 200, 180) : vglib.rgba(45, 50, 60, 180);
 
-    # 3D Room Cylinder Dimensions (Scaled by Size & Decay)
+    # 3D Room Cylinder Dimensions
     r :: Float64 = 55.0 + (room_size * 55.0);
     h :: Float64 = 60.0 + (decay_val * 70.0);
-    rot_angle = t_time * 0.8;
+    rot_angle = t_time * 8;
 
-    num_pillars = 16;
+    num_pillars = 32;
     
     # Render Top and Bottom Ellipses & Vertical Pillars
     through i :: 0..15 -> loop {
@@ -315,16 +319,11 @@ fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
         bot_x2 :: Float64 = cx + (cos2 * r);
         bot_y2 :: Float64 = (cy + h) + (sin2 * r * 0.38);
 
-        # Depth-based shading (back lines dimmer)
+        # Depth-based shading
         wire_col = (sin1 < 0.0) ? dim_color : glow_color;
 
-        # Draw Top Ring Segment
         vglib.line(top_x1, top_y1, top_x2, top_y2, wire_col);
-        
-        # Draw Bottom Ring Segment
         vglib.line(bot_x1, bot_y1, bot_x2, bot_y2, wire_col);
-
-        # Draw Vertical Pillar Lines
         vglib.line(top_x1, top_y1, bot_x1, bot_y1, wire_col);
     };
 
@@ -356,7 +355,6 @@ fn draw_reverb_decay_graph(x, y, dec_val, damp_val, mix_val, is_on) {
     while (curr_px <= x + 410.0) {
         norm_t = (curr_px - (x + 10.0)) / 400.0;
         
-        # Exponential impulse decay curve
         env_val = vmath.exp(-norm_t * (10.0 / decay_factor));
         reflections = vmath.sin(norm_t * 45.0 * damp_factor) * env_val * 0.25;
         
@@ -412,16 +410,18 @@ while (vglib.running()) {
         if (active_tab == 2) { sat_mode = (sat_mode + 1) % 3; } # saturator cycle
     }
 
-    # --- UPDATE ALL DSP PROCESSORS IN REAL-TIME ---
+    # --- UPDATE ALL DSP PROCESSORS IN REAL-TIME (7 BANDS) ---
     vaudio.enable_eq(eq_on);
     vaudio.set_eq(0, b1_f, b1_g, b1_q);
     vaudio.set_eq(1, b2_f, b2_g, b2_q);
     vaudio.set_eq(2, b3_f, b3_g, b3_q);
     vaudio.set_eq(3, b4_f, b4_g, b4_q);
+    vaudio.set_eq(4, b5_f, b5_g, b5_q);
+    vaudio.set_eq(5, b6_f, b6_g, b6_q);
+    vaudio.set_eq(6, b7_f, b7_g, b7_q);
 
     vaudio.set_compressor(thresh, ratio, attack, release, makeup, comp_on);
     
-    # pass drive and mode to backframe dsp chain
     effective_drive = (sat_on == 1) ? drive : 0.0;
     vaudio.set_dsp(effective_drive, sat_mode);
     
@@ -456,21 +456,39 @@ while (vglib.running()) {
         vglib.line(50, 65, 1150, 65, vglib.rgba(60, 70, 85, 255));
 
         # ====================================================================
-        # RACK 1: PRO-Q EQUALIZER DISPLAY
+        # RACK 1: PRO-Q EQUALIZER DISPLAY (7-BAND + MOUSE WHEEL Q CONTROL)
         # ====================================================================
         if (active_tab == 0) {
+            wheel_delta = vglib.mouse_wheel();
+            if (wheel_delta != 0.0) {
+                if (vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22) { b1_q = vmath.clamp(b1_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b2_f), m[1] - gain_to_y(b2_g)) < 22) { b2_q = vmath.clamp(b2_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b3_f), m[1] - gain_to_y(b3_g)) < 22) { b3_q = vmath.clamp(b3_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b4_f), m[1] - gain_to_y(b4_g)) < 22) { b4_q = vmath.clamp(b4_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b5_f), m[1] - gain_to_y(b5_g)) < 22) { b5_q = vmath.clamp(b5_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b6_f), m[1] - gain_to_y(b6_g)) < 22) { b6_q = vmath.clamp(b6_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b7_f), m[1] - gain_to_y(b7_g)) < 22) { b7_q = vmath.clamp(b7_q + (wheel_delta * 0.8), 0.1, 10.0); }
+            }
+
+            # --- NODE DRAGGING INTERACTION ---
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_eq_node == 0) {
                     if (vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22) { active_eq_node = 1; }
                     if (vmath.hypot(m[0] - freq_to_x(b2_f), m[1] - gain_to_y(b2_g)) < 22) { active_eq_node = 2; }
                     if (vmath.hypot(m[0] - freq_to_x(b3_f), m[1] - gain_to_y(b3_g)) < 22) { active_eq_node = 3; }
                     if (vmath.hypot(m[0] - freq_to_x(b4_f), m[1] - gain_to_y(b4_g)) < 22) { active_eq_node = 4; }
+                    if (vmath.hypot(m[0] - freq_to_x(b5_f), m[1] - gain_to_y(b5_g)) < 22) { active_eq_node = 5; }
+                    if (vmath.hypot(m[0] - freq_to_x(b6_f), m[1] - gain_to_y(b6_g)) < 22) { active_eq_node = 6; }
+                    if (vmath.hypot(m[0] - freq_to_x(b7_f), m[1] - gain_to_y(b7_g)) < 22) { active_eq_node = 7; }
                 }
 
                 if (active_eq_node == 1) { b1_f = x_to_freq(m[0]); b1_g = y_to_gain(m[1]); }
                 if (active_eq_node == 2) { b2_f = x_to_freq(m[0]); b2_g = y_to_gain(m[1]); }
                 if (active_eq_node == 3) { b3_f = x_to_freq(m[0]); b3_g = y_to_gain(m[1]); }
                 if (active_eq_node == 4) { b4_f = x_to_freq(m[0]); b4_g = y_to_gain(m[1]); }
+                if (active_eq_node == 5) { b5_f = x_to_freq(m[0]); b5_g = y_to_gain(m[1]); }
+                if (active_eq_node == 6) { b6_f = x_to_freq(m[0]); b6_g = y_to_gain(m[1]); }
+                if (active_eq_node == 7) { b7_f = x_to_freq(m[0]); b7_g = y_to_gain(m[1]); }
             } else { active_eq_node = 0; }
 
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
@@ -499,6 +517,7 @@ while (vglib.running()) {
             vglib.line(freq_to_x(10000.0), 100, freq_to_x(10000.0), 620, vglib.rgba(32, 38, 50, 255));
             vglib.text_ex(vcr_font, "10kHz", freq_to_x(10000.0) - 15, 628, 10, vglib.rgba(100, 110, 130, 255));
 
+            # --- REAL-TIME 7-BAND CURVE SUMMING ---
             prev_px :: Float64 = 80.0; prev_py :: Float64 = 360.0;
             curr_x :: Float64 = 80.0;
             while (curr_x <= 1100.0) {
@@ -507,7 +526,11 @@ while (vglib.running()) {
                 d2 = vmath.log(eval_f / b2_f); g2 = b2_g * vmath.exp(-3.0 * d2 * d2 * b2_q);
                 d3 = vmath.log(eval_f / b3_f); g3 = b3_g * vmath.exp(-3.0 * d3 * d3 * b3_q);
                 d4 = vmath.log(eval_f / b4_f); g4 = b4_g * vmath.exp(-3.0 * d4 * d4 * b4_q);
-                tot = (eq_on == 1) ? (g1 + g2 + g3 + g4) : 0.0;
+                d5 = vmath.log(eval_f / b5_f); g5 = b5_g * vmath.exp(-3.0 * d5 * d5 * b5_q);
+                d6 = vmath.log(eval_f / b6_f); g6 = b6_g * vmath.exp(-3.0 * d6 * d6 * b6_q);
+                d7 = vmath.log(eval_f / b7_f); g7 = b7_g * vmath.exp(-3.0 * d7 * d7 * b7_q);
+
+                tot = (eq_on == 1) ? (g1 + g2 + g3 + g4 + g5 + g6 + g7) : 0.0;
                 curr_y = gain_to_y(tot);
 
                 curve_color = (eq_on == 1) ? vglib.rgba(0, 230, 255, 255) : vglib.rgba(80, 90, 105, 255);
@@ -516,35 +539,64 @@ while (vglib.running()) {
                 prev_px = curr_x; prev_py = curr_y; curr_x = curr_x + 8.0;
             }
 
-            c1 = vglib.rgba(255, 80, 80, 255);
-            c2 = vglib.rgba(255, 200, 50, 255);
-            c3 = vglib.rgba(50, 220, 120, 255);
-            c4 = vglib.rgba(180, 90, 255, 255);
+            c1 = vglib.rgba(255, 80, 80, 255);    # Red (Low Sub)
+            c2 = vglib.rgba(255, 200, 50, 255);   # Gold / Yellow (Low Mid)
+            c3 = vglib.rgba(50, 220, 120, 255);   # Bright Emerald Green (Mid)
+            c4 = vglib.rgba(0, 210, 255, 255);    # Cyan / Electric Blue (High Mid)
+            c5 = vglib.rgba(180, 90, 255, 255);   # Deep Neon Purple (High / Presence)
+            c6 = vglib.rgba(255, 110, 200, 255);  # Hot Pink / Magenta (Air)
+            c7 = vglib.rgba(255, 140, 40, 255);   # Warm Neon Orange (Brilliance)
 
             draw_eq_node("1", freq_to_x(b1_f), gain_to_y(b1_g), c1, active_eq_node == 1);
             draw_eq_node("2", freq_to_x(b2_f), gain_to_y(b2_g), c2, active_eq_node == 2);
             draw_eq_node("3", freq_to_x(b3_f), gain_to_y(b3_g), c3, active_eq_node == 3);
             draw_eq_node("4", freq_to_x(b4_f), gain_to_y(b4_g), c4, active_eq_node == 4);
+            draw_eq_node("5", freq_to_x(b5_f), gain_to_y(b5_g), c5, active_eq_node == 5);
+            draw_eq_node("6", freq_to_x(b6_f), gain_to_y(b6_g), c6, active_eq_node == 6);
+            draw_eq_node("7", freq_to_x(b7_f), gain_to_y(b7_g), c7, active_eq_node == 7);
 
-            vglib.rect(80, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
-            vglib.text_ex(vcr_font, "BAND 1 (LOW)", 90, 688, 12, c1);
-            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b1_f)) + "Hz", 90, 706, 11, vglib.WHITE);
-            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b1_g)) + "dB", 90, 722, 11, vglib.WHITE);
+            # --- COMPACT 7-BAND INFO RACK (WITH FREQ, GAIN & Q DISPLAY) ---
+            vglib.rect(80, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B1 SUB", 86, 685, 11, c1);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b1_f)) + "Hz", 86, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b1_g)) + "dB", 86, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b1_q), 86, 725, 10, vglib.rgba(160, 170, 185, 255));
 
-            vglib.rect(340, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
-            vglib.text_ex(vcr_font, "BAND 2 (MID)", 350, 688, 12, c2);
-            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b2_f)) + "Hz", 350, 706, 11, vglib.WHITE);
-            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b2_g)) + "dB", 350, 722, 11, vglib.WHITE);
+            vglib.rect(225, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B2 BASS", 231, 685, 11, c2);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b2_f)) + "Hz", 231, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b2_g)) + "dB", 231, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b2_q), 231, 725, 10, vglib.rgba(160, 170, 185, 255));
 
-            vglib.rect(600, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
-            vglib.text_ex(vcr_font, "BAND 3 (HI-MID)", 610, 688, 12, c3);
-            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b3_f)) + "Hz", 610, 706, 11, vglib.WHITE);
-            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b3_g)) + "dB", 610, 722, 11, vglib.WHITE);
+            vglib.rect(370, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B3 L-MID", 376, 685, 11, c3);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b3_f)) + "Hz", 376, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b3_g)) + "dB", 376, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b3_q), 376, 725, 10, vglib.rgba(160, 170, 185, 255));
 
-            vglib.rect(860, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
-            vglib.text_ex(vcr_font, "BAND 4 (AIR)", 870, 688, 12, c4);
-            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b4_f)) + "Hz", 870, 706, 11, vglib.WHITE);
-            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b4_g)) + "dB", 870, 722, 11, vglib.WHITE);
+            vglib.rect(515, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B4 MID", 521, 685, 11, c4);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b4_f)) + "Hz", 521, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b4_g)) + "dB", 521, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b4_q), 521, 725, 10, vglib.rgba(160, 170, 185, 255));
+
+            vglib.rect(660, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B5 H-MID", 666, 685, 11, c5);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b5_f)) + "Hz", 666, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b5_g)) + "dB", 666, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b5_q), 666, 725, 10, vglib.rgba(160, 170, 185, 255));
+
+            vglib.rect(805, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B6 PRES", 811, 685, 11, c6);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b6_f)) + "Hz", 811, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b6_g)) + "dB", 811, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b6_q), 811, 725, 10, vglib.rgba(160, 170, 185, 255));
+
+            vglib.rect(950, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "B7 AIR", 956, 685, 11, c7);
+            vglib.text_ex(vcr_font, "F:" + string(vmath.round(b7_f)) + "Hz", 956, 699, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b7_g)) + "dB", 956, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "Q:" + string(b7_q), 956, 725, 10, vglib.rgba(160, 170, 185, 255));
 
             draw_bypass_button(50, 810, eq_on, vglib.rgba(0, 220, 255, 255));
         }
@@ -576,7 +628,6 @@ while (vglib.running()) {
                 }
             }
 
-            # transfer graph, vu meter and rms card locations
             draw_transfer_graph(80, 200, thresh, ratio, gr_db);
             draw_vu_meter(530, 200, gr_db, comp_on);
             draw_output_rms_card(880, 200, rms_val);
@@ -642,10 +693,8 @@ while (vglib.running()) {
             vglib.rect(480, 320, 160, 35, btn2_col);
             vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 332, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
 
-            # 3. Live Non-Linear Transfer Curve
             draw_saturator_curve(720, 155, drive, sat_mode, sat_on);
 
-            # 4. Waveform Visualizer Bars (Lowered to match y=600 card)
             vglib.rect(80, 600, 1020, 70, vglib.rgba(22, 26, 34, 255));
             
             through i :: 0..100 -> loop {
@@ -662,17 +711,16 @@ while (vglib.running()) {
                 }
                 
                 h = vmath.abs(wave_in) * 28.0;
-                vglib.rect(x_p, 635 - h, 6, h * 2.0, sat_orange); # Centered vertically at Y = 635
+                vglib.rect(x_p, 635 - h, 6, h * 2.0, sat_orange);
             };
 
             draw_bypass_button(50, 810, sat_on, vglib.rgba(255, 100, 40, 255));
         }
 
         # ====================================================================
-        # RACK 4: SPATIAL REVERB DISPLAY (FRUITY REEVERB 2 DESIGN)
+        # RACK 4: SPATIAL REVERB DISPLAY
         # ====================================================================
         if (active_tab == 3) {
-            # Knob Dragging Interaction
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_rev_knob == 0) {
                     if (vmath.hypot(m[0] - 180, m[1] - 650) < 45) { active_rev_knob = 1; }
@@ -694,14 +742,10 @@ while (vglib.running()) {
                 }
             }
 
-            # 1. Fruity Reeverb 2 Style 3D Wireframe Room Visualizer
-            size_norm = predelay / 100.0; # Map predelay/size parameter
+            size_norm = predelay / 100.0;
             draw_reverb_room_3d(300, 300, size_norm, decay, run_time, rev_on);
-
-            # 2. Reverb Impulse Response Decay Curve
             draw_reverb_decay_graph(620, 200, decay, damping, mix, rev_on);
 
-            # 3. Parameter Controls (Bottom Row)
             purple_glow = (rev_on == 1) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(90, 90, 100, 255);
 
             draw_knob("DECAY", 180, 650, decay / 0.95, string(vmath.round(decay * 100.0)) + "%", purple_glow);
@@ -712,16 +756,74 @@ while (vglib.running()) {
             draw_bypass_button(50, 810, rev_on, vglib.rgba(160, 90, 255, 255));
         }
 
-        # --- GLOBAL MASTER STEREO OUTPUT METER (FAR RIGHT EDGE) ---
-        vglib.rect(1150, 100, 20, 680, vglib.rgba(20, 24, 32, 255));
-        m_rms = vmath.clamp(rms_val * 680.0, 0.0, 680.0);
-        if (m_rms > 1.0) {
-            vglib.rect(1150, 780 - m_rms, 20, m_rms, vglib.rgba(50, 255, 120, 255));
-        }
-        vglib.text_ex(vcr_font, "MASTER OUT", 1100, 820, 11, vglib.rgba(50, 255, 120, 255));
+        # --- GLOBAL MASTER STEREO OUTPUT METER ---
+        meter_x = 1150;
+        meter_y = 100;
+        meter_w = 22;
+        meter_h = 680;
 
-        # Footer
-        vglib.text_ex(vcr_font, "Vyne Studio Engine v1.0.0", 900, 850, 12, vglib.rgba(150, 160, 180, 255));
+        vglib.rect(meter_x, meter_y, meter_w, meter_h, vglib.rgba(18, 22, 28, 255));
+        vglib.line(meter_x, meter_y, meter_x + meter_w, meter_y, vglib.rgba(50, 55, 68, 255));
+        vglib.line(meter_x + meter_w, meter_y, meter_x + meter_w, meter_y + meter_h, vglib.rgba(50, 55, 68, 255));
+        vglib.line(meter_x + meter_w, meter_y + meter_h, meter_x, meter_y + meter_h, vglib.rgba(50, 55, 68, 255));
+        vglib.line(meter_x, meter_y + meter_h, meter_x, meter_y, vglib.rgba(50, 55, 68, 255));
+
+        m_rms = vmath.clamp(rms_val * meter_h, 0.0, meter_h);
+        if (m_rms > 1.0) {
+            bar_y = (meter_y + meter_h) - m_rms;
+            
+            bar_color = vglib.rgba(50, 255, 120, 255); # Default Green
+            if (rms_val > 0.85) { bar_color = vglib.rgba(255, 180, 40, 255); } # Orange (-3dB zone)
+            if (rms_val >= 0.95) { bar_color = vglib.rgba(255, 50, 50, 255); }  # Red (Clipping)
+
+            vglib.rect(meter_x + 2, bar_y, meter_w - 4, m_rms, bar_color);
+        }
+
+        # dB scale marks (+3 dB to -33 dB)
+        vglib.line(meter_x - 6, meter_y + 15, meter_x, meter_y + 15, vglib.rgba(255, 60, 60, 255));
+        vglib.text_ex(vcr_font, "+3", meter_x - 30, meter_y + 10, 9, vglib.rgba(255, 80, 80, 255));
+
+        vglib.line(meter_x - 2, meter_y + 60, meter_x + meter_w + 2, meter_y + 60, vglib.rgba(255, 200, 50, 255));
+        vglib.text_ex(vcr_font, " 0", meter_x - 30, meter_y + 55, 10, vglib.WHITE);
+
+        vglib.line(meter_x - 6, meter_y + 115, meter_x, meter_y + 115, vglib.rgba(140, 150, 165, 255));
+        vglib.text_ex(vcr_font, "-3", meter_x - 30, meter_y + 110, 9, vglib.rgba(160, 170, 185, 255));
+
+        vglib.line(meter_x - 6, meter_y + 175, meter_x, meter_y + 175, vglib.rgba(140, 150, 165, 255));
+        vglib.text_ex(vcr_font, "-6", meter_x - 30, meter_y + 170, 9, vglib.rgba(160, 170, 185, 255));
+
+        vglib.line(meter_x - 6, meter_y + 290, meter_x, meter_y + 290, vglib.rgba(140, 150, 165, 255));
+        vglib.text_ex(vcr_font, "-12", meter_x - 36, meter_y + 285, 9, vglib.rgba(160, 170, 185, 255));
+
+        vglib.line(meter_x - 6, meter_y + 400, meter_x, meter_y + 400, vglib.rgba(140, 150, 165, 255));
+        vglib.text_ex(vcr_font, "-18", meter_x - 36, meter_y + 395, 9, vglib.rgba(160, 170, 185, 255));
+
+        vglib.line(meter_x - 6, meter_y + 510, meter_x, meter_y + 510, vglib.rgba(140, 150, 165, 255));
+        vglib.text_ex(vcr_font, "-24", meter_x - 36, meter_y + 505, 9, vglib.rgba(160, 170, 185, 255));
+
+        vglib.line(meter_x - 6, meter_y + 640, meter_x, meter_y + 640, vglib.rgba(100, 110, 125, 255));
+        vglib.text_ex(vcr_font, "-33", meter_x - 36, meter_y + 635, 9, vglib.rgba(120, 130, 145, 255));
+
+        vglib.text_ex(vcr_font, "MASTER OUT", meter_x - 55, meter_y + meter_h + 20, 11, vglib.rgba(50, 255, 120, 255));
+
+        # --- LUFS DIGITAL READOUT CARD ---
+        lufs_val = vaudio.get_lufs();
+
+        vglib.rect(950, 755, 135, 45, vglib.rgba(18, 22, 28, 255));
+        vglib.line(950, 755, 1085, 755, vglib.rgba(50, 55, 68, 255));
+        vglib.line(1085, 755, 1085, 800, vglib.rgba(50, 55, 68, 255));
+        vglib.line(1085, 800, 950, 800, vglib.rgba(50, 55, 68, 255));
+        vglib.line(950, 800, 950, 755, vglib.rgba(50, 55, 68, 255));
+
+        lufs_color = vglib.rgba(50, 255, 120, 255); # Green
+        if (lufs_val > -10.0) { lufs_color = vglib.rgba(255, 180, 40, 255); }
+        if (lufs_val > -7.0)  { lufs_color = vglib.rgba(255, 50, 50, 255); }
+
+        vglib.text_ex(vcr_font, "MOMENTARY LUFS", 958, 763, 10, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", 962, 780, 13, lufs_color);
+
+        # --- FOOTER ---
+        vglib.text_ex(vcr_font, "VYNE STUDIO ENGINE v1.0.0", 475, 855, 13, vglib.rgba(150, 160, 180, 255));
 
     vglib.end();
 }

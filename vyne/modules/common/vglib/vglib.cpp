@@ -1175,6 +1175,10 @@ namespace VGLibNative {
         return Value(true);
     }
 
+    Value get_mouse_wheel(std::vector<Value>& args) {
+        return Value((double)GetMouseWheelMove());
+    }
+
     Value native_draw_persistent_group(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("draw_persistent_group() requires name, model, cam_pos, max_dist");
 
@@ -1282,6 +1286,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("draw_instances_ex")] = Value(VGLibNative::native_draw_instances_ex);
     vglib[pool.intern("upload_persistent_group")] = Value(VGLibNative::native_upload_persistent_group);
     vglib[pool.intern("draw_persistent_group")] = Value(VGLibNative::native_draw_persistent_group);
+    vglib[pool.intern("mouse_wheel")] = Value(VGLibNative::get_mouse_wheel);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
