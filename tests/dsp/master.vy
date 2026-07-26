@@ -602,7 +602,6 @@ while (vglib.running()) {
         # RACK 3: SATURATOR DISPLAY
         # ====================================================================
         if (active_tab == 2) {
-            # Drive Knob Mouse Dragging
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_sat_knob == 0) {
                     if (vmath.hypot(m[0] - 220, m[1] - 300) < 55) { active_sat_knob = 1; }
@@ -614,7 +613,6 @@ while (vglib.running()) {
                 active_sat_knob = 0;
             }
 
-            # Mode Button Clicks & Bypass Toggle
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
                 if (m[0] >= 480 && m[0] <= 640 && m[1] >= 220 && m[1] <= 255) { sat_mode = 0; }
                 if (m[0] >= 480 && m[0] <= 640 && m[1] >= 270 && m[1] <= 305) { sat_mode = 1; }
@@ -625,11 +623,9 @@ while (vglib.running()) {
                 }
             }
 
-            # 1. Big Analog Drive Knob
             sat_orange = (sat_on == 1) ? vglib.rgba(255, 100, 40, 255) : vglib.rgba(90, 90, 100, 255);
             draw_knob("DRIVE", 220, 300, drive, string(vmath.round(drive * 100.0)) + "%", sat_orange);
 
-            # 2. Mode Selector Card
             vglib.rect(460, 180, 200, 195, vglib.rgba(22, 26, 34, 255));
             vglib.text_ex(vcr_font, "SATURATION MODE", 480, 195, 12, vglib.WHITE);
 
@@ -649,8 +645,8 @@ while (vglib.running()) {
             # 3. Live Non-Linear Transfer Curve
             draw_saturator_curve(720, 155, drive, sat_mode, sat_on);
 
-            # 4. Waveform Visualizer Bars
-            vglib.rect(80, 450, 1020, 70, vglib.rgba(22, 26, 34, 255));
+            # 4. Waveform Visualizer Bars (Lowered to match y=600 card)
+            vglib.rect(80, 600, 1020, 70, vglib.rgba(22, 26, 34, 255));
             
             through i :: 0..100 -> loop {
                 x_p = 90 + (i * 10);
@@ -666,10 +662,9 @@ while (vglib.running()) {
                 }
                 
                 h = vmath.abs(wave_in) * 28.0;
-                vglib.rect(x_p, 485 - h, 6, h * 2.0, sat_orange);
+                vglib.rect(x_p, 635 - h, 6, h * 2.0, sat_orange); # Centered vertically at Y = 635
             };
 
-            # Bypass Button
             draw_bypass_button(50, 810, sat_on, vglib.rgba(255, 100, 40, 255));
         }
 
