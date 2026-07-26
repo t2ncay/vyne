@@ -10,7 +10,6 @@ vaudio.volume(1.0);
 
 track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
 
-# Start playback and attach saturator processor ONCE
 vaudio.play_sound(track);
 vaudio.attach_saturator(track);
 

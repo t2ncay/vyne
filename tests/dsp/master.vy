@@ -461,13 +461,13 @@ while (vglib.running()) {
         if (active_tab == 0) {
             wheel_delta = vglib.mouse_wheel();
             if (wheel_delta != 0.0) {
-                if (vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22) { b1_q = vmath.clamp(b1_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b2_f), m[1] - gain_to_y(b2_g)) < 22) { b2_q = vmath.clamp(b2_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b3_f), m[1] - gain_to_y(b3_g)) < 22) { b3_q = vmath.clamp(b3_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b4_f), m[1] - gain_to_y(b4_g)) < 22) { b4_q = vmath.clamp(b4_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b5_f), m[1] - gain_to_y(b5_g)) < 22) { b5_q = vmath.clamp(b5_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b6_f), m[1] - gain_to_y(b6_g)) < 22) { b6_q = vmath.clamp(b6_q + (wheel_delta * 0.8), 0.1, 10.0); }
-                if (vmath.hypot(m[0] - freq_to_x(b7_f), m[1] - gain_to_y(b7_g)) < 22) { b7_q = vmath.clamp(b7_q + (wheel_delta * 0.8), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22) { b1_q = vmath.clamp(b1_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b2_f), m[1] - gain_to_y(b2_g)) < 22) { b2_q = vmath.clamp(b2_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b3_f), m[1] - gain_to_y(b3_g)) < 22) { b3_q = vmath.clamp(b3_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b4_f), m[1] - gain_to_y(b4_g)) < 22) { b4_q = vmath.clamp(b4_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b5_f), m[1] - gain_to_y(b5_g)) < 22) { b5_q = vmath.clamp(b5_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b6_f), m[1] - gain_to_y(b6_g)) < 22) { b6_q = vmath.clamp(b6_q + (wheel_delta * 0.1), 0.1, 10.0); }
+                if (vmath.hypot(m[0] - freq_to_x(b7_f), m[1] - gain_to_y(b7_g)) < 22) { b7_q = vmath.clamp(b7_q + (wheel_delta * 0.1), 0.1, 10.0); }
             }
 
             # --- NODE DRAGGING INTERACTION ---
@@ -650,12 +650,13 @@ while (vglib.running()) {
         }
 
         # ====================================================================
-        # RACK 3: SATURATOR DISPLAY
+        # RACK 3: SATURATOR DISPLAY (LOWERED LAYOUT)
         # ====================================================================
         if (active_tab == 2) {
+            # --- KNOB INTERACTION ---
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_sat_knob == 0) {
-                    if (vmath.hypot(m[0] - 220, m[1] - 300) < 55) { active_sat_knob = 1; }
+                    if (vmath.hypot(m[0] - 220, m[1] - 360) < 55) { active_sat_knob = 1; }
                 }
 
                 delta = md[1] * 0.3;
@@ -664,10 +665,11 @@ while (vglib.running()) {
                 active_sat_knob = 0;
             }
 
+            # --- BUTTON & BYPASS CLICK INTERACTION ---
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 220 && m[1] <= 255) { sat_mode = 0; }
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 270 && m[1] <= 305) { sat_mode = 1; }
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 320 && m[1] <= 355) { sat_mode = 2; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 280 && m[1] <= 315) { sat_mode = 0; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 330 && m[1] <= 365) { sat_mode = 1; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 380 && m[1] <= 415) { sat_mode = 2; }
 
                 if (m[0] >= 50 && m[0] <= 160 && m[1] >= 810 && m[1] <= 844) {
                     if (sat_on == 1) { sat_on = 0; } else { sat_on = 1; }
@@ -675,25 +677,26 @@ while (vglib.running()) {
             }
 
             sat_orange = (sat_on == 1) ? vglib.rgba(255, 100, 40, 255) : vglib.rgba(90, 90, 100, 255);
-            draw_knob("DRIVE", 220, 300, drive, string(vmath.round(drive * 100.0)) + "%", sat_orange);
 
-            vglib.rect(460, 180, 200, 195, vglib.rgba(22, 26, 34, 255));
-            vglib.text_ex(vcr_font, "SATURATION MODE", 480, 195, 12, vglib.WHITE);
+            draw_knob("DRIVE", 220, 360, drive, string(vmath.round(drive * 100.0)) + "%", sat_orange);
+
+            vglib.rect(460, 240, 200, 195, vglib.rgba(22, 26, 34, 255));
+            vglib.text_ex(vcr_font, "SATURATION MODE", 480, 255, 12, vglib.WHITE);
 
             btn0_col = (sat_mode == 0) ? sat_orange : vglib.rgba(40, 45, 58, 255);
             btn1_col = (sat_mode == 1) ? sat_orange : vglib.rgba(40, 45, 58, 255);
             btn2_col = (sat_mode == 2) ? sat_orange : vglib.rgba(40, 45, 58, 255);
 
-            vglib.rect(480, 220, 160, 35, btn0_col);
-            vglib.text_ex(vcr_font, "SOFT TUBE", 510, 232, 12, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 280, 160, 35, btn0_col);
+            vglib.text_ex(vcr_font, "SOFT TUBE", 510, 292, 12, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
 
-            vglib.rect(480, 270, 160, 35, btn1_col);
-            vglib.text_ex(vcr_font, "HARD CLIP", 510, 282, 12, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 330, 160, 35, btn1_col);
+            vglib.text_ex(vcr_font, "HARD CLIP", 510, 342, 12, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
 
-            vglib.rect(480, 320, 160, 35, btn2_col);
-            vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 332, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 380, 160, 35, btn2_col);
+            vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 392, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
 
-            draw_saturator_curve(720, 155, drive, sat_mode, sat_on);
+            draw_saturator_curve(720, 228, drive, sat_mode, sat_on);
 
             vglib.rect(80, 600, 1020, 70, vglib.rgba(22, 26, 34, 255));
             
