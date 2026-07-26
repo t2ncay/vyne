@@ -23,7 +23,7 @@ vaudio.attach_reverb(track);
 run_time = 0.0;
 active_tab :: Int64 = 0; # 0 = EQ, 1 = COMPRESSOR, 2 = SATURATOR, 3 = REVERB
 
-# --- 1. EQUALIZER STATE ---
+# --- EQUALIZER STATE ---
 b1_f :: Float64 = 100.0;   b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
 b2_f :: Float64 = 1000.0;  b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
 b3_f :: Float64 = 3500.0;  b3_g :: Float64 = 5.0;   b3_q :: Float64 = 1.2;
@@ -31,7 +31,7 @@ b4_f :: Float64 = 10000.0; b4_g :: Float64 = 2.0;   b4_q :: Float64 = 0.8;
 eq_on :: Int64 = 1;
 active_eq_node = 0;
 
-# --- 2. COMPRESSOR STATE ---
+# --- COMPRESSOR STATE ---
 thresh  :: Float64 = -18.0;
 ratio   :: Float64 = 4.0;
 attack  :: Float64 = 15.0;
@@ -40,13 +40,13 @@ makeup  :: Float64 = 3.0;
 comp_on :: Int64   = 1;
 active_comp_knob = 0;
 
-# --- 3. SATURATOR STATE ---
+# --- SATURATOR STATE ---
 drive   :: Float64 = 0.45;
 sat_mode:: Int64   = 0;
 sat_on  :: Int64   = 1;
 active_sat_knob = 0;
 
-# --- 4. REVERB STATE ---
+# --- REVERB STATE ---
 decay    :: Float64 = 0.85;
 mix      :: Float64 = 0.35;
 predelay :: Float64 = 20.0;
@@ -136,7 +136,7 @@ while (vglib.running()) {
     }
     prev_mouse_state = mouse_click ? 1 : 0;
 
-    # --- 2. UPDATE ALL DSP PROCESSORS IN REAL-TIME ---
+    # --- UPDATE ALL DSP PROCESSORS IN REAL-TIME ---
     vaudio.enable_eq(eq_on);
     vaudio.set_eq(0, b1_f, b1_g, b1_q);
     vaudio.set_eq(1, b2_f, b2_g, b2_q);
