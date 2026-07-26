@@ -576,9 +576,10 @@ while (vglib.running()) {
                 }
             }
 
-            draw_transfer_graph(80, 140, thresh, ratio, gr_db);
-            draw_vu_meter(530, 140, gr_db, comp_on);
-            draw_output_rms_card(880, 140, rms_val);
+            # transfer graph, vu meter and rms card locations
+            draw_transfer_graph(80, 200, thresh, ratio, gr_db);
+            draw_vu_meter(530, 200, gr_db, comp_on);
+            draw_output_rms_card(880, 200, rms_val);
 
             t_norm   = (thresh + 40.0) / 40.0;
             r_norm   = (ratio - 1.0) / 15.0;
