@@ -182,6 +182,58 @@ void ReverbProcessCallback(void *buffer, unsigned int frames) {
     }
 }
 
+struct Biquad {
+    float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f;
+    float x1 = 0.0f, x2 = 0.0f, y1 = 0.0f, y2 = 0.0f;
+
+    void setPeaking(float freq, float Q, float gainDb, float samplerate = 48000.0f) {
+        if (freq < 20.0f) freq = 20.0f;
+        if (freq > samplerate * 0.49f) freq = samplerate * 0.49f;
+
+        float A = powf(10.0f, gainDb / 40.0f);
+        float omega = 2.0f * 3.1415926535f * freq / samplerate;
+        float alpha = sinf(omega) / (2.0f * std::max(Q, 0.1f));
+
+        float norm = 1.0f + alpha / A;
+        b0 = (1.0f + alpha * A) / norm;
+        b1 = (-2.0f * cosf(omega)) / norm;
+        b2 = (1.0f - alpha * A) / norm;
+        a1 = (-2.0f * cosf(omega)) / norm;
+        a2 = (1.0f - alpha / A) / norm;
+    }
+
+    float process(float sample) {
+        float out = b0 * sample + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1; x1 = sample;
+        y2 = y1; y1 = out;
+        return out;
+    }
+};
+
+static Biquad g_eq_bands[4];
+static bool g_eq_enabled = true;
+
+void EQProcessCallback(void *buffer, unsigned int frames) {
+    float *samples = (float *)buffer;
+    if (!g_eq_enabled) return;
+
+    for (unsigned int i = 0; i < frames; i++) {
+        float left  = samples[i * 2];
+        float right = samples[i * 2 + 1];
+
+        for (int b = 0; b < 4; b++) {
+            left = g_eq_bands[b].process(left);
+        }
+
+        for (int b = 0; b < 4; b++) {
+            right = g_eq_bands[b].process(right);
+        }
+
+        samples[i * 2]     = std::clamp(left, -1.0f, 1.0f);
+        samples[i * 2 + 1] = std::clamp(right, -1.0f, 1.0f);
+    }
+}
+
 namespace VAudioNative {
     // --- BASIC DEVICE CONTROL ---
     Value native_init_audio(std::vector<Value>& args) {
@@ -336,6 +388,36 @@ namespace VAudioNative {
         if (args.size() >= 3) g_rev_enabled = args[2].isTruthy();
         return Value(true);
     }
+    
+    Value native_attach_eq(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
+        if (sound != nullptr) {
+            AttachAudioStreamProcessor(sound->stream, EQProcessCallback);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_set_eq_band(std::vector<Value>& args) {
+        if (args.size() < 4) return Value(false);
+        int bandIdx = (int)args[0].asInt();
+        float freq  = (float)args[1].asFloat();
+        float gain  = (float)args[2].asFloat();
+        float q     = (float)args[3].asFloat();
+
+        if (bandIdx >= 0 && bandIdx < 4) {
+            g_eq_bands[bandIdx].setPeaking(freq, q, gain);
+        }
+        return Value(true);
+    }
+
+    Value native_set_eq_enabled(std::vector<Value>& args) {
+        if (!args.empty()) {
+            g_eq_enabled = args[0].isTruthy();
+        }
+        return Value(true);
+    }
 
     Value native_set_sound_3d(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("sound_3d() requires sound_ptr, listener_pos, source_pos, max_distance");
@@ -395,6 +477,11 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     // Reverb
     vaudio[pool.intern("attach_reverb")] = Value(VAudioNative::native_attach_reverb);
     vaudio[pool.intern("set_reverb")]    = Value(VAudioNative::native_set_reverb_params);
+
+    // Equalizer
+    vaudio[pool.intern("attach_eq")] = Value(VAudioNative::native_attach_eq);
+    vaudio[pool.intern("set_eq")]    = Value(VAudioNative::native_set_eq_band);
+    vaudio[pool.intern("enable_eq")] = Value(VAudioNative::native_set_eq_enabled);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);
