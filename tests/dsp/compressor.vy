@@ -8,7 +8,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
+track = vaudio.load_sound("tests/assets/darkograd.wav");
 
 vaudio.play_sound(track);
 vaudio.attach_compressor(track);
