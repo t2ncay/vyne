@@ -22,6 +22,7 @@ vaudio.attach_reverb(track);
 
 run_time = 0.0;
 active_tab :: Int64 = 0; # 0 = EQ, 1 = COMPRESSOR, 2 = SATURATOR, 3 = REVERB
+prev_mouse_state = 0;
 
 # --- EQUALIZER STATE ---
 b1_f :: Float64 = 100.0;   b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
@@ -42,7 +43,7 @@ active_comp_knob = 0;
 
 # --- SATURATOR STATE ---
 drive   :: Float64 = 0.45;
-sat_mode:: Int64   = 0;
+sat_mode:: Int64   = 0; # 0 = SOFT TUBE, 1 = HARD CLIP, 2 = ASYMMETRIC
 sat_on  :: Int64   = 1;
 active_sat_knob = 0;
 
@@ -89,28 +90,185 @@ fn draw_bypass_button(x, y, is_active, active_color) {
     vglib.text_ex(vcr_font, label, x + 18, y + 9, 13, vglib.BLACK);
 }
 
+# --- PRO-Q EQ HELPER FUNCTIONS ---
 fn freq_to_x(f) {
     log_min = 1.30103; log_max = 4.30103;
     log_val = vmath.log(vmath.clamp(f, 20.0, 20000.0)) / 2.302585;
     norm = (log_val - log_min) / (log_max - log_min);
-    return 80.0 + (norm * 1040.0);
+    return 80.0 + (norm * 1020.0);
 }
 
 fn x_to_freq(x) {
     log_min = 1.30103; log_max = 4.30103;
-    norm = vmath.clamp((x - 80.0) / 1040.0, 0.0, 1.0);
+    norm = vmath.clamp((x - 80.0) / 1020.0, 0.0, 1.0);
     log_val = log_min + (norm * (log_max - log_min));
     return vmath.pow(10.0, log_val);
 }
 
 fn gain_to_y(g) {
     norm = vmath.clamp(g / 18.0, -1.0, 1.0);
-    return 420.0 - (norm * 200.0);
+    return 360.0 - (norm * 220.0);
 }
 
 fn y_to_gain(y) {
-    norm = vmath.clamp((420.0 - y) / 200.0, -1.0, 1.0);
+    norm = vmath.clamp((360.0 - y) / 220.0, -1.0, 1.0);
     return norm * 18.0;
+}
+
+fn draw_eq_node(id_str, x, y, color, is_selected) {
+    radius = 12.0;
+    if (is_selected) { radius = 16.0; }
+
+    vglib.circle(x, y, radius + 3.0, vglib.BLACK);
+    vglib.circle(x, y, radius, color);
+    vglib.circle(x, y, radius - 4.0, vglib.rgba(18, 20, 26, 255));
+    vglib.text_ex(vcr_font, id_str, x - 4.0, y - 5.0, 12, color);
+}
+
+# --- OPTO COMPRESSOR DISPLAY CARDS ---
+fn draw_transfer_graph(x, y, t_dB, r_val, gr_db) {
+    vglib.rect(x, y, 420, 240, vglib.rgba(14, 16, 20, 255));
+    
+    vglib.line(x, y, x + 420, y, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 420, y, x + 420, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 420, y + 240, x, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x, y + 240, x, y, vglib.rgba(50, 55, 68, 255));
+
+    vglib.line(x + 210, y, x + 210, y + 240, vglib.rgba(30, 36, 48, 255));
+    vglib.line(x, y + 120, x + 420, y + 120, vglib.rgba(30, 36, 48, 255));
+    
+    vglib.line(x + 20, y + 220, x + 400, y + 20, vglib.rgba(55, 62, 75, 255));
+
+    t_norm = (t_dB + 40.0) / 40.0;
+    knee_x :: Float64 = x + 20.0 + (t_norm * 380.0);
+    knee_y :: Float64 = y + 220.0 - (t_norm * 200.0);
+
+    vglib.line(x + 20.0, y + 220.0, knee_x, knee_y, vglib.rgba(255, 140, 40, 255));
+
+    end_x :: Float64 = x + 400.0;
+    compressed_rise = (200.0 * (1.0 - t_norm)) / r_val;
+    end_y :: Float64 = knee_y - compressed_rise;
+
+    vglib.line(knee_x, knee_y, end_x, end_y, vglib.rgba(255, 140, 40, 255));
+    vglib.circle(knee_x, knee_y, 4.0, vglib.WHITE);
+
+    if (gr_db > 0.5) {
+        gr_norm = vmath.clamp(gr_db / 24.0, 0.0, 1.0);
+        dot_x :: Float64 = knee_x + (gr_norm * (end_x - knee_x));
+        dot_y :: Float64 = knee_y - (gr_norm * (knee_y - end_y));
+        vglib.circle(dot_x, dot_y, 6.0, vglib.rgba(255, 60, 60, 255));
+    }
+
+    vglib.text_ex(vcr_font, "TRANSFER FUNCTION & DYNAMICS KNEE", x + 50, y + 252, 11, vglib.rgba(160, 170, 185, 255));
+}
+
+fn draw_vu_meter(x, y, gr_db, is_on) {
+    vglib.rect(x, y, 320, 240, vglib.rgba(14, 16, 20, 255));
+    vglib.line(x, y, x + 320, y, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 320, y, x + 320, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 320, y + 240, x, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x, y + 240, x, y, vglib.rgba(50, 55, 68, 255));
+
+    face_col = (is_on == 1) ? vglib.rgba(240, 230, 190, 255) : vglib.rgba(80, 80, 75, 255);
+    vglib.rect(x + 15, y + 15, 290, 180, face_col);
+
+    vglib.text_ex(vcr_font, "0", x + 35, y + 35, 12, vglib.BLACK);
+    vglib.text_ex(vcr_font, "-6", x + 105, y + 28, 12, vglib.BLACK);
+    vglib.text_ex(vcr_font, "-12", x + 175, y + 28, 12, vglib.BLACK);
+    vglib.text_ex(vcr_font, "-24", x + 245, y + 35, 12, vglib.BLACK);
+
+    pivot_x :: Float64 = x + 160.0;
+    pivot_y :: Float64 = y + 185.0;
+
+    norm_gr = vmath.clamp(gr_db / 24.0, 0.0, 1.0);
+    needle_angle = -45.0 + (norm_gr * 90.0);
+    rad = vmath.radians(needle_angle);
+
+    needle_x :: Float64 = pivot_x + vmath.sin(rad) * 140.0;
+    needle_y :: Float64 = pivot_y - vmath.cos(rad) * 140.0;
+
+    vglib.line(pivot_x, pivot_y, needle_x, needle_y, vglib.rgba(200, 30, 30, 255));
+    vglib.circle(pivot_x, pivot_y, 8.0, vglib.BLACK);
+
+    vglib.text_ex(vcr_font, "GAIN REDUCTION (dB)", x + 90, y + 210, 11, vglib.rgba(160, 170, 185, 255));
+}
+
+fn draw_output_rms_card(x, y, rms_val) {
+    vglib.rect(x, y, 200, 240, vglib.rgba(14, 16, 20, 255));
+    
+    vglib.line(x, y, x + 200, y, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 200, y, x + 200, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 200, y + 240, x, y + 240, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x, y + 240, x, y, vglib.rgba(50, 55, 68, 255));
+
+    vglib.text_ex(vcr_font, " 0dB", x + 15, y + 25, 10, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "-12dB", x + 15, y + 75, 10, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "-24dB", x + 15, y + 125, 10, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "-48dB", x + 15, y + 175, 10, vglib.rgba(140, 150, 165, 255));
+
+    vglib.rect(x + 90, y + 20, 30, 180, vglib.rgba(24, 28, 36, 255));
+    vglib.rect(x + 135, y + 20, 30, 180, vglib.rgba(24, 28, 36, 255));
+
+    rms_h = vmath.clamp(rms_val * 180.0, 0.0, 180.0);
+    if (rms_h > 1.0) {
+        vglib.rect(x + 90, (y + 200) - rms_h, 30, rms_h, vglib.rgba(50, 255, 120, 255));
+        vglib.rect(x + 135, (y + 200) - rms_h, 30, rms_h, vglib.rgba(50, 255, 120, 255));
+    }
+
+    vglib.text_ex(vcr_font, "OUTPUT RMS", x + 55, y + 212, 11, vglib.rgba(50, 255, 120, 255));
+}
+
+# --- SATURATOR TRANSFER CURVE HELPER ---
+fn draw_saturator_curve(x, y, d_val, m_val, is_on) {
+    vglib.rect(x, y, 220, 220, vglib.rgba(14, 16, 20, 255));
+    
+    vglib.line(x, y, x + 220, y, vglib.rgba(50, 55, 65, 255));
+    vglib.line(x + 220, y, x + 220, y + 220, vglib.rgba(50, 55, 65, 255));
+    vglib.line(x + 220, y + 220, x, y + 220, vglib.rgba(50, 55, 65, 255));
+    vglib.line(x, y + 220, x, y, vglib.rgba(50, 55, 65, 255));
+
+    vglib.line(x + 110, y, x + 110, y + 220, vglib.rgba(32, 38, 48, 255));
+    vglib.line(x, y + 110, x + 220, y + 110, vglib.rgba(32, 38, 48, 255));
+
+    vglib.line(x + 10, y + 210, x + 210, y + 10, vglib.rgba(50, 55, 65, 255));
+
+    prev_px :: Float64 = x + 10.0;
+    prev_py :: Float64 = y + 110.0;
+    gain = 1.0 + (d_val * 7.0);
+
+    step = 4.0;
+    curr_px :: Float64 = x + 10.0;
+
+    while (curr_px <= x + 210.0) {
+        norm_in = ((curr_px - (x + 10.0)) / 200.0 * 2.0) - 1.0;
+        sample = norm_in * gain;
+
+        if (is_on == 1) {
+            if (m_val == 0) { sample = vmath.tanh(sample); }
+            if (m_val == 1) { sample = vmath.clamp(sample, -0.7, 0.7) * 1.42; }
+            if (m_val == 2) {
+                if (sample > 0.0) { sample = vmath.tanh(sample); }
+                else { sample = vmath.tanh(sample * 1.5) * 0.8; }
+            }
+        } else {
+            sample = norm_in;
+        }
+
+        norm_out = vmath.clamp(sample * (1.0 / vmath.sqrt(gain)), -1.0, 1.0);
+        curr_py :: Float64 = (y + 110.0) - (norm_out * 100.0);
+
+        curve_color = (is_on == 1) ? vglib.rgba(255, 100, 40, 255) : vglib.rgba(80, 80, 95, 255);
+
+        if (curr_px > x + 10.0) {
+            vglib.line(prev_px, prev_py, curr_px, curr_py, curve_color);
+        }
+
+        prev_px = curr_px;
+        prev_py = curr_py;
+        curr_px = curr_px + step;
+    }
+
+    vglib.text_ex(vcr_font, "TRANSFER CURVE", x + 50, y + 232, 11, vglib.rgba(160, 170, 185, 255));
 }
 
 # --- MAIN RACK LOOP ---
@@ -136,6 +294,18 @@ while (vglib.running()) {
     }
     prev_mouse_state = mouse_click ? 1 : 0;
 
+    # --- GLOBAL SPACEBAR MECHANIC ---
+    if (vglib.key_pressed(vglib.SPACE)) {
+        if (active_tab == 0) { eq_on = (eq_on == 1) ? 0 : 1; }
+        if (active_tab == 1) { comp_on = (comp_on == 1) ? 0 : 1; }
+        if (active_tab == 2) { sat_on = (sat_on == 1) ? 0 : 1; } 
+        if (active_tab == 3) { rev_on = (rev_on == 1) ? 0 : 1; }
+    }
+
+    if (vglib.key_pressed(vglib.ENTER)) {
+        if (active_tab == 2) { sat_mode = (sat_mode + 1) % 3; } # saturator cycle
+    }
+
     # --- UPDATE ALL DSP PROCESSORS IN REAL-TIME ---
     vaudio.enable_eq(eq_on);
     vaudio.set_eq(0, b1_f, b1_g, b1_q);
@@ -144,7 +314,11 @@ while (vglib.running()) {
     vaudio.set_eq(3, b4_f, b4_g, b4_q);
 
     vaudio.set_compressor(thresh, ratio, attack, release, makeup, comp_on);
-    vaudio.set_dsp(drive, sat_mode);
+    
+    # Pass drive and mode to C++ DSP (Drive set to 0 if bypassed)
+    effective_drive = (sat_on == 1) ? drive : 0.0;
+    vaudio.set_dsp(effective_drive, sat_mode);
+    
     vaudio.set_reverb(decay, mix, rev_on);
 
     gr_db   = vaudio.get_gr();
@@ -179,7 +353,6 @@ while (vglib.running()) {
         # RACK 1: PRO-Q EQUALIZER DISPLAY
         # ====================================================================
         if (active_tab == 0) {
-            # EQ Node Dragging
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_eq_node == 0) {
                     if (vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22) { active_eq_node = 1; }
@@ -200,13 +373,29 @@ while (vglib.running()) {
                 }
             }
 
-            vglib.rect(80, 120, 1040, 500, vglib.rgba(18, 22, 30, 255));
-            vglib.line(80, 370, 1120, 370, vglib.rgba(70, 82, 100, 255));
+            vglib.rect(80, 100, 1020, 520, vglib.rgba(18, 22, 30, 255));
+            vglib.line(80, 100, 1100, 100, vglib.rgba(40, 48, 62, 255));
+            vglib.line(1100, 100, 1100, 620, vglib.rgba(40, 48, 62, 255));
+            vglib.line(1100, 620, 80, 620, vglib.rgba(40, 48, 62, 255));
+            vglib.line(80, 620, 80, 100, vglib.rgba(40, 48, 62, 255));
 
-            # Curve
-            prev_px :: Float64 = 80.0; prev_py :: Float64 = 370.0;
+            vglib.line(80, 360, 1100, 360, vglib.rgba(70, 82, 100, 255));
+            vglib.text_ex(vcr_font, "0 dB", 35, 354, 10, vglib.rgba(120, 130, 150, 255));
+            vglib.text_ex(vcr_font, "+18dB", 30, 100, 10, vglib.rgba(120, 130, 150, 255));
+            vglib.text_ex(vcr_font, "-18dB", 30, 610, 10, vglib.rgba(120, 130, 150, 255));
+
+            vglib.line(freq_to_x(100.0), 100, freq_to_x(100.0), 620, vglib.rgba(32, 38, 50, 255));
+            vglib.text_ex(vcr_font, "100Hz", freq_to_x(100.0) - 15, 628, 10, vglib.rgba(100, 110, 130, 255));
+
+            vglib.line(freq_to_x(1000.0), 100, freq_to_x(1000.0), 620, vglib.rgba(32, 38, 50, 255));
+            vglib.text_ex(vcr_font, "1kHz", freq_to_x(1000.0) - 12, 628, 10, vglib.rgba(100, 110, 130, 255));
+
+            vglib.line(freq_to_x(10000.0), 100, freq_to_x(10000.0), 620, vglib.rgba(32, 38, 50, 255));
+            vglib.text_ex(vcr_font, "10kHz", freq_to_x(10000.0) - 15, 628, 10, vglib.rgba(100, 110, 130, 255));
+
+            prev_px :: Float64 = 80.0; prev_py :: Float64 = 360.0;
             curr_x :: Float64 = 80.0;
-            while (curr_x <= 1120.0) {
+            while (curr_x <= 1100.0) {
                 eval_f = x_to_freq(curr_x);
                 d1 = vmath.log(eval_f / b1_f); g1 = b1_g * vmath.exp(-3.0 * d1 * d1 * b1_q);
                 d2 = vmath.log(eval_f / b2_f); g2 = b2_g * vmath.exp(-3.0 * d2 * d2 * b2_q);
@@ -215,15 +404,41 @@ while (vglib.running()) {
                 tot = (eq_on == 1) ? (g1 + g2 + g3 + g4) : 0.0;
                 curr_y = gain_to_y(tot);
 
-                if (curr_x > 80.0) { vglib.line(prev_px, prev_py, curr_x, curr_y, vglib.rgba(0, 230, 255, 255)); }
-                prev_px = curr_x; prev_py = curr_y; curr_x = curr_x + 10.0;
+                curve_color = (eq_on == 1) ? vglib.rgba(0, 230, 255, 255) : vglib.rgba(80, 90, 105, 255);
+
+                if (curr_x > 80.0) { vglib.line(prev_px, prev_py, curr_x, curr_y, curve_color); }
+                prev_px = curr_x; prev_py = curr_y; curr_x = curr_x + 8.0;
             }
 
-            # Draw Nodes
-            vglib.circle(freq_to_x(b1_f), gain_to_y(b1_g), 12.0, vglib.rgba(255, 80, 80, 255));
-            vglib.circle(freq_to_x(b2_f), gain_to_y(b2_g), 12.0, vglib.rgba(255, 200, 50, 255));
-            vglib.circle(freq_to_x(b3_f), gain_to_y(b3_g), 12.0, vglib.rgba(50, 220, 120, 255));
-            vglib.circle(freq_to_x(b4_f), gain_to_y(b4_g), 12.0, vglib.rgba(180, 90, 255, 255));
+            c1 = vglib.rgba(255, 80, 80, 255);
+            c2 = vglib.rgba(255, 200, 50, 255);
+            c3 = vglib.rgba(50, 220, 120, 255);
+            c4 = vglib.rgba(180, 90, 255, 255);
+
+            draw_eq_node("1", freq_to_x(b1_f), gain_to_y(b1_g), c1, active_eq_node == 1);
+            draw_eq_node("2", freq_to_x(b2_f), gain_to_y(b2_g), c2, active_eq_node == 2);
+            draw_eq_node("3", freq_to_x(b3_f), gain_to_y(b3_g), c3, active_eq_node == 3);
+            draw_eq_node("4", freq_to_x(b4_f), gain_to_y(b4_g), c4, active_eq_node == 4);
+
+            vglib.rect(80, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "BAND 1 (LOW)", 90, 688, 12, c1);
+            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b1_f)) + "Hz", 90, 706, 11, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b1_g)) + "dB", 90, 722, 11, vglib.WHITE);
+
+            vglib.rect(340, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "BAND 2 (MID)", 350, 688, 12, c2);
+            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b2_f)) + "Hz", 350, 706, 11, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b2_g)) + "dB", 350, 722, 11, vglib.WHITE);
+
+            vglib.rect(600, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "BAND 3 (HI-MID)", 610, 688, 12, c3);
+            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b3_f)) + "Hz", 610, 706, 11, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b3_g)) + "dB", 610, 722, 11, vglib.WHITE);
+
+            vglib.rect(860, 680, 230, 60, vglib.rgba(20, 24, 32, 255));
+            vglib.text_ex(vcr_font, "BAND 4 (AIR)", 870, 688, 12, c4);
+            vglib.text_ex(vcr_font, "F: " + string(vmath.round(b4_f)) + "Hz", 870, 706, 11, vglib.WHITE);
+            vglib.text_ex(vcr_font, "G: " + string(vmath.round(b4_g)) + "dB", 870, 722, 11, vglib.WHITE);
 
             draw_bypass_button(50, 810, eq_on, vglib.rgba(0, 220, 255, 255));
         }
@@ -234,11 +449,11 @@ while (vglib.running()) {
         if (active_tab == 1) {
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_comp_knob == 0) {
-                    if (vmath.hypot(m[0] - 150, m[1] - 650) < 45) { active_comp_knob = 1; }
-                    if (vmath.hypot(m[0] - 350, m[1] - 650) < 45) { active_comp_knob = 2; }
-                    if (vmath.hypot(m[0] - 550, m[1] - 650) < 45) { active_comp_knob = 3; }
-                    if (vmath.hypot(m[0] - 750, m[1] - 650) < 45) { active_comp_knob = 4; }
-                    if (vmath.hypot(m[0] - 950, m[1] - 650) < 45) { active_comp_knob = 5; }
+                    if (vmath.hypot(m[0] - 180, m[1] - 650) < 45) { active_comp_knob = 1; }
+                    if (vmath.hypot(m[0] - 380, m[1] - 650) < 45) { active_comp_knob = 2; }
+                    if (vmath.hypot(m[0] - 580, m[1] - 650) < 45) { active_comp_knob = 3; }
+                    if (vmath.hypot(m[0] - 780, m[1] - 650) < 45) { active_comp_knob = 4; }
+                    if (vmath.hypot(m[0] - 980, m[1] - 650) < 45) { active_comp_knob = 5; }
                 }
 
                 delta = md[1] * 0.3;
@@ -255,47 +470,100 @@ while (vglib.running()) {
                 }
             }
 
-            draw_knob("THRESH", 150, 650, (thresh + 40.0) / 40.0, string(vmath.round(thresh)) + "dB", vglib.rgba(255, 120, 40, 255));
-            draw_knob("RATIO", 350, 650, (ratio - 1.0) / 15.0, string(vmath.round(ratio)) + ":1", vglib.rgba(50, 200, 255, 255));
-            draw_knob("ATTACK", 550, 650, (attack - 1.0) / 99.0, string(vmath.round(attack)) + "ms", vglib.rgba(255, 220, 50, 255));
-            draw_knob("RELEASE", 750, 650, (release - 10.0) / 490.0, string(vmath.round(release)) + "ms", vglib.rgba(180, 100, 255, 255));
-            draw_knob("MAKEUP", 950, 650, makeup / 12.0, "+" + string(vmath.round(makeup)) + "dB", vglib.rgba(50, 255, 120, 255));
+            draw_transfer_graph(80, 140, thresh, ratio, gr_db);
+            draw_vu_meter(530, 140, gr_db, comp_on);
+            draw_output_rms_card(880, 140, rms_val);
+
+            t_norm   = (thresh + 40.0) / 40.0;
+            r_norm   = (ratio - 1.0) / 15.0;
+            a_norm   = (attack - 1.0) / 99.0;
+            rel_norm = (release - 10.0) / 490.0;
+            m_norm   = makeup / 12.0;
+
+            orange_glow = (comp_on == 1) ? vglib.rgba(255, 130, 40, 255) : vglib.rgba(90, 90, 100, 255);
+
+            draw_knob("THRESH", 180, 650, t_norm, string(vmath.round(thresh)) + "dB", orange_glow);
+            draw_knob("RATIO", 380, 650, r_norm, string(vmath.round(ratio)) + ":1", vglib.rgba(50, 200, 255, 255));
+            draw_knob("ATTACK", 580, 650, a_norm, string(vmath.round(attack)) + "ms", vglib.rgba(255, 220, 50, 255));
+            draw_knob("RELEASE", 780, 650, rel_norm, string(vmath.round(release)) + "ms", vglib.rgba(180, 100, 255, 255));
+            draw_knob("MAKEUP", 980, 650, m_norm, "+" + string(vmath.round(makeup)) + "dB", vglib.rgba(50, 255, 120, 255));
 
             draw_bypass_button(50, 810, comp_on, vglib.rgba(255, 120, 40, 255));
         }
 
         # ====================================================================
-        # RACK 3: SATURATOR DISPLAY
+        # RACK 3: SATURATOR DISPLAY (FULL NEW DESIGN & INTERACTION)
         # ====================================================================
         if (active_tab == 2) {
+            # Drive Knob Mouse Dragging
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
-                if (vmath.hypot(m[0] - 300, m[1] - 400) < 55) {
-                    drive = vmath.clamp(drive - (md[1] * 0.003), 0.0, 1.0);
+                if (active_sat_knob == 0) {
+                    if (vmath.hypot(m[0] - 220, m[1] - 300) < 55) { active_sat_knob = 1; }
                 }
+
+                delta = md[1] * 0.3;
+                if (active_sat_knob == 1) { drive = vmath.clamp(drive - (delta * 0.01), 0.0, 1.0); }
+            } else {
+                active_sat_knob = 0;
             }
 
+            # Mode Button Clicks & Bypass Toggle
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
-                if (m[0] >= 550 && m[0] <= 750 && m[1] >= 300 && m[1] <= 340) { sat_mode = 0; }
-                if (m[0] >= 550 && m[0] <= 750 && m[1] >= 360 && m[1] <= 400) { sat_mode = 1; }
-                if (m[0] >= 550 && m[0] <= 750 && m[1] >= 420 && m[1] <= 460) { sat_mode = 2; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 220 && m[1] <= 255) { sat_mode = 0; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 270 && m[1] <= 305) { sat_mode = 1; }
+                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 320 && m[1] <= 355) { sat_mode = 2; }
 
                 if (m[0] >= 50 && m[0] <= 160 && m[1] >= 810 && m[1] <= 844) {
                     if (sat_on == 1) { sat_on = 0; } else { sat_on = 1; }
                 }
             }
 
-            draw_knob("DRIVE", 300, 400, drive, string(vmath.round(drive * 100.0)) + "%", vglib.rgba(255, 90, 90, 255));
+            # 1. Big Analog Drive Knob
+            sat_orange = (sat_on == 1) ? vglib.rgba(255, 100, 40, 255) : vglib.rgba(90, 90, 100, 255);
+            draw_knob("DRIVE", 220, 300, drive, string(vmath.round(drive * 100.0)) + "%", sat_orange);
 
-            vglib.rect(550, 300, 200, 40, (sat_mode == 0) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(40, 45, 58, 255));
-            vglib.text_ex(vcr_font, "SOFT TUBE", 590, 312, 13, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
+            # 2. Mode Selector Card
+            vglib.rect(460, 180, 200, 195, vglib.rgba(22, 26, 34, 255));
+            vglib.text_ex(vcr_font, "SATURATION MODE", 480, 195, 12, vglib.WHITE);
 
-            vglib.rect(550, 360, 200, 40, (sat_mode == 1) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(40, 45, 58, 255));
-            vglib.text_ex(vcr_font, "HARD CLIP", 590, 372, 13, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
+            btn0_col = (sat_mode == 0) ? sat_orange : vglib.rgba(40, 45, 58, 255);
+            btn1_col = (sat_mode == 1) ? sat_orange : vglib.rgba(40, 45, 58, 255);
+            btn2_col = (sat_mode == 2) ? sat_orange : vglib.rgba(40, 45, 58, 255);
 
-            vglib.rect(550, 420, 200, 40, (sat_mode == 2) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(40, 45, 58, 255));
-            vglib.text_ex(vcr_font, "ASYMMETRIC", 580, 432, 13, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 220, 160, 35, btn0_col);
+            vglib.text_ex(vcr_font, "SOFT TUBE", 510, 232, 12, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
 
-            draw_bypass_button(50, 810, sat_on, vglib.rgba(255, 90, 90, 255));
+            vglib.rect(480, 270, 160, 35, btn1_col);
+            vglib.text_ex(vcr_font, "HARD CLIP", 510, 282, 12, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
+
+            vglib.rect(480, 320, 160, 35, btn2_col);
+            vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 332, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
+
+            # 3. Live Non-Linear Transfer Curve
+            draw_saturator_curve(720, 155, drive, sat_mode, sat_on);
+
+            # 4. Waveform Visualizer Bars
+            vglib.rect(80, 450, 1020, 70, vglib.rgba(22, 26, 34, 255));
+            
+            through i :: 0..100 -> loop {
+                x_p = 90 + (i * 10);
+                wave_in = vmath.sin(run_time * 8.0 + i * 0.15);
+                
+                if (sat_on == 1) {
+                    if (sat_mode == 0) { wave_in = vmath.tanh(wave_in * (1.0 + drive * 5.0)); }
+                    if (sat_mode == 1) { wave_in = vmath.clamp(wave_in * (1.0 + drive * 5.0), -0.7, 0.7); }
+                    if (sat_mode == 2) {
+                        if (wave_in > 0.0) { wave_in = vmath.tanh(wave_in * (1.0 + drive * 5.0)); }
+                        else { wave_in = vmath.tanh(wave_in * (1.0 + drive * 7.5)) * 0.8; }
+                    }
+                }
+                
+                h = vmath.abs(wave_in) * 28.0;
+                vglib.rect(x_p, 485 - h, 6, h * 2.0, sat_orange);
+            };
+
+            # Bypass Button
+            draw_bypass_button(50, 810, sat_on, vglib.rgba(255, 100, 40, 255));
         }
 
         # ====================================================================
@@ -332,10 +600,10 @@ while (vglib.running()) {
         }
 
         # --- GLOBAL MASTER STEREO OUTPUT METER (FAR RIGHT EDGE) ---
-        vglib.rect(1150, 120, 20, 680, vglib.rgba(20, 24, 32, 255));
+        vglib.rect(1150, 100, 20, 680, vglib.rgba(20, 24, 32, 255));
         m_rms = vmath.clamp(rms_val * 680.0, 0.0, 680.0);
         if (m_rms > 1.0) {
-            vglib.rect(1150, (800) - m_rms, 20, m_rms, vglib.rgba(50, 255, 120, 255));
+            vglib.rect(1150, 780 - m_rms, 20, m_rms, vglib.rgba(50, 255, 120, 255));
         }
         vglib.text_ex(vcr_font, "MASTER OUT", 1100, 820, 11, vglib.rgba(50, 255, 120, 255));
 
