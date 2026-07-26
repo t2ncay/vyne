@@ -271,6 +271,113 @@ fn draw_saturator_curve(x, y, d_val, m_val, is_on) {
     vglib.text_ex(vcr_font, "TRANSFER CURVE", x + 50, y + 232, 11, vglib.rgba(160, 170, 185, 255));
 }
 
+# --- REVERB 3D WIREFRAME ROOM VISUALIZER (FRUITY REEVERB 2 STYLE) ---
+fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
+    # Dark Backing Card
+    vglib.rect(cx - 200, cy - 180, 400, 360, vglib.rgba(16, 18, 24, 255));
+    
+    # Outer Card Borders
+    vglib.line(cx - 200, cy - 180, cx + 200, cy - 180, vglib.rgba(50, 55, 68, 255));
+    vglib.line(cx + 200, cy - 180, cx + 200, cy + 180, vglib.rgba(50, 55, 68, 255));
+    vglib.line(cx + 200, cy + 180, cx - 200, cy + 180, vglib.rgba(50, 55, 68, 255));
+    vglib.line(cx - 200, cy + 180, cx - 200, cy - 180, vglib.rgba(50, 55, 68, 255));
+
+    glow_color = (is_on == 1) ? vglib.rgba(170, 100, 255, 255) : vglib.rgba(70, 75, 90, 255);
+    dim_color  = (is_on == 1) ? vglib.rgba(120, 60, 200, 180) : vglib.rgba(45, 50, 60, 180);
+
+    # 3D Room Cylinder Dimensions (Scaled by Size & Decay)
+    r :: Float64 = 55.0 + (room_size * 55.0);
+    h :: Float64 = 60.0 + (decay_val * 70.0);
+    rot_angle = t_time * 0.8;
+
+    num_pillars = 16;
+    
+    # Render Top and Bottom Ellipses & Vertical Pillars
+    through i :: 0..15 -> loop {
+        a1 = (i * 22.5) + rot_angle;
+        a2 = ((i + 1) * 22.5) + rot_angle;
+
+        rad1 = vmath.radians(a1);
+        rad2 = vmath.radians(a2);
+
+        # Perspective projection Math
+        cos1 = vmath.cos(rad1); sin1 = vmath.sin(rad1);
+        cos2 = vmath.cos(rad2); sin2 = vmath.sin(rad2);
+
+        # Top Ring Coordinates
+        top_x1 :: Float64 = cx + (cos1 * r);
+        top_y1 :: Float64 = (cy - h) + (sin1 * r * 0.38);
+        top_x2 :: Float64 = cx + (cos2 * r);
+        top_y2 :: Float64 = (cy - h) + (sin2 * r * 0.38);
+
+        # Bottom Ring Coordinates
+        bot_x1 :: Float64 = cx + (cos1 * r);
+        bot_y1 :: Float64 = (cy + h) + (sin1 * r * 0.38);
+        bot_x2 :: Float64 = cx + (cos2 * r);
+        bot_y2 :: Float64 = (cy + h) + (sin2 * r * 0.38);
+
+        # Depth-based shading (back lines dimmer)
+        wire_col = (sin1 < 0.0) ? dim_color : glow_color;
+
+        # Draw Top Ring Segment
+        vglib.line(top_x1, top_y1, top_x2, top_y2, wire_col);
+        
+        # Draw Bottom Ring Segment
+        vglib.line(bot_x1, bot_y1, bot_x2, bot_y2, wire_col);
+
+        # Draw Vertical Pillar Lines
+        vglib.line(top_x1, top_y1, bot_x1, bot_y1, wire_col);
+    };
+
+    vglib.text_ex(vcr_font, "3D ACOUSTIC ROOM MODEL", cx - 95, cy + 192, 11, vglib.rgba(160, 170, 185, 255));
+}
+
+# --- REVERB IMPULSE DECAY ENVELOPE GRAPH ---
+fn draw_reverb_decay_graph(x, y, dec_val, damp_val, mix_val, is_on) {
+    vglib.rect(x, y, 420, 200, vglib.rgba(14, 16, 20, 255));
+    
+    vglib.line(x, y, x + 420, y, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 420, y, x + 420, y + 200, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x + 420, y + 200, x, y + 200, vglib.rgba(50, 55, 68, 255));
+    vglib.line(x, y + 200, x, y, vglib.rgba(50, 55, 68, 255));
+
+    vglib.line(x, y + 180, x + 420, y + 180, vglib.rgba(35, 42, 54, 255));
+
+    line_col = (is_on == 1) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(80, 80, 95, 255);
+
+    prev_px :: Float64 = x + 10.0;
+    prev_py :: Float64 = y + 180.0;
+
+    decay_factor = 1.0 + (dec_val * 8.0);
+    damp_factor  = 1.0 + (damp_val * 5.0);
+
+    step = 6.0;
+    curr_px :: Float64 = x + 10.0;
+
+    while (curr_px <= x + 410.0) {
+        norm_t = (curr_px - (x + 10.0)) / 400.0;
+        
+        # Exponential impulse decay curve
+        env_val = vmath.exp(-norm_t * (10.0 / decay_factor));
+        reflections = vmath.sin(norm_t * 45.0 * damp_factor) * env_val * 0.25;
+        
+        tot_amp = (env_val + reflections) * mix_val;
+        if (is_on == 0) { tot_amp = 0.0; }
+
+        curr_py :: Float64 = (y + 180.0) - (vmath.clamp(tot_amp, 0.0, 1.0) * 150.0);
+
+        if (curr_px > x + 10.0) {
+            vglib.line(prev_px, prev_py, curr_px, curr_py, line_col);
+        }
+
+        prev_px = curr_px;
+        prev_py = curr_py;
+        curr_px = curr_px + step;
+    }
+
+    vglib.text_ex(vcr_font, "IMPULSE RESPONSE DECAY TAIL", x + 85, y + 212, 11, vglib.rgba(160, 170, 185, 255));
+}
+
 # --- MAIN RACK LOOP ---
 while (vglib.running()) {
     run_time = run_time + 0.016;
@@ -492,7 +599,7 @@ while (vglib.running()) {
         }
 
         # ====================================================================
-        # RACK 3: SATURATOR DISPLAY (FULL NEW DESIGN & INTERACTION)
+        # RACK 3: SATURATOR DISPLAY
         # ====================================================================
         if (active_tab == 2) {
             # Drive Knob Mouse Dragging
@@ -567,15 +674,16 @@ while (vglib.running()) {
         }
 
         # ====================================================================
-        # RACK 4: SPATIAL REVERB DISPLAY
+        # RACK 4: SPATIAL REVERB DISPLAY (FRUITY REEVERB 2 DESIGN)
         # ====================================================================
         if (active_tab == 3) {
+            # Knob Dragging Interaction
             if (vglib.mouse_down(vglib.MOUSE_LEFT)) {
                 if (active_rev_knob == 0) {
-                    if (vmath.hypot(m[0] - 250, m[1] - 400) < 45) { active_rev_knob = 1; }
-                    if (vmath.hypot(m[0] - 450, m[1] - 400) < 45) { active_rev_knob = 2; }
-                    if (vmath.hypot(m[0] - 650, m[1] - 400) < 45) { active_rev_knob = 3; }
-                    if (vmath.hypot(m[0] - 850, m[1] - 400) < 45) { active_rev_knob = 4; }
+                    if (vmath.hypot(m[0] - 180, m[1] - 650) < 45) { active_rev_knob = 1; }
+                    if (vmath.hypot(m[0] - 380, m[1] - 650) < 45) { active_rev_knob = 2; }
+                    if (vmath.hypot(m[0] - 580, m[1] - 650) < 45) { active_rev_knob = 3; }
+                    if (vmath.hypot(m[0] - 780, m[1] - 650) < 45) { active_rev_knob = 4; }
                 }
 
                 delta = md[1] * 0.3;
@@ -591,10 +699,20 @@ while (vglib.running()) {
                 }
             }
 
-            draw_knob("DECAY", 250, 400, decay / 0.95, string(vmath.round(decay * 100.0)) + "%", vglib.rgba(160, 90, 255, 255));
-            draw_knob("MIX", 450, 400, mix, string(vmath.round(mix * 100.0)) + "%", vglib.rgba(60, 220, 255, 255));
-            draw_knob("PRE-DELAY", 650, 400, predelay / 100.0, string(vmath.round(predelay)) + "ms", vglib.rgba(255, 200, 50, 255));
-            draw_knob("DAMPING", 850, 400, damping, string(vmath.round(damping * 100.0)) + "%", vglib.rgba(255, 90, 120, 255));
+            # 1. Fruity Reeverb 2 Style 3D Wireframe Room Visualizer
+            size_norm = predelay / 100.0; # Map predelay/size parameter
+            draw_reverb_room_3d(300, 300, size_norm, decay, run_time, rev_on);
+
+            # 2. Reverb Impulse Response Decay Curve
+            draw_reverb_decay_graph(620, 200, decay, damping, mix, rev_on);
+
+            # 3. Parameter Controls (Bottom Row)
+            purple_glow = (rev_on == 1) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(90, 90, 100, 255);
+
+            draw_knob("DECAY", 180, 650, decay / 0.95, string(vmath.round(decay * 100.0)) + "%", purple_glow);
+            draw_knob("MIX", 380, 650, mix, string(vmath.round(mix * 100.0)) + "%", vglib.rgba(60, 220, 255, 255));
+            draw_knob("PRE-DELAY", 580, 650, predelay / 100.0, string(vmath.round(predelay)) + "ms", vglib.rgba(255, 200, 50, 255));
+            draw_knob("DAMPING", 780, 650, damping, string(vmath.round(damping * 100.0)) + "%", vglib.rgba(255, 90, 120, 255));
 
             draw_bypass_button(50, 810, rev_on, vglib.rgba(160, 90, 255, 255));
         }
