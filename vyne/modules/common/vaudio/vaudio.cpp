@@ -7,6 +7,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+void UpdateLUFSMeasurement(float left, float right);
+
 // --- SATURATOR DSP PARAMETERS ---
 float g_drive = 0.5f;
 int   g_mode = 0;
@@ -72,6 +74,15 @@ void SaturationProcessCallback(void *buffer, unsigned int frames) {
                     sample = std::tanh(sample * 1.5f) * 0.8f;
                 }
                 break;
+            case 3: // TAPE SATURATION / POLY TUBE
+                sample = sample - (1.0f / 3.0f) * std::pow(sample, 3.0f);
+                break;
+            case 4: { // BITCRUSH
+                float bits = 8.0f;
+                float steps = std::pow(2.0f, bits);
+                sample = std::round(sample * steps) / steps;
+                break;
+            }
             default:
                 break;
         }
@@ -92,6 +103,8 @@ void CompressorProcessCallback(void *buffer, unsigned int frames) {
     for (unsigned int i = 0; i < frames; i++) {
         float left  = samples[i * 2];
         float right = samples[i * 2 + 1];
+
+        UpdateLUFSMeasurement(left, right);
 
         float peak = std::max(std::abs(left), std::abs(right));
 
@@ -250,7 +263,7 @@ struct Biquad {
     }
 };
 
-static Biquad g_eq_bands[4];
+static Biquad g_eq_bands[7];
 static bool g_eq_enabled = true;
 
 void EQProcessCallback(void *buffer, unsigned int frames) {
@@ -261,11 +274,13 @@ void EQProcessCallback(void *buffer, unsigned int frames) {
         float left  = samples[i * 2];
         float right = samples[i * 2 + 1];
 
-        for (int b = 0; b < 4; b++) {
+        UpdateLUFSMeasurement(left, right);
+
+        for (int b = 0; b < 7; b++) {
             left = g_eq_bands[b].process(left);
         }
 
-        for (int b = 0; b < 4; b++) {
+        for (int b = 0; b < 7; b++) {
             right = g_eq_bands[b].process(right);
         }
 
@@ -558,7 +573,7 @@ namespace VAudioNative {
         float gain  = (float)args[2].asFloat();
         float q     = (float)args[3].asFloat();
 
-        if (bandIdx >= 0 && bandIdx < 4) {
+        if (bandIdx >= 0 && bandIdx < 7) {
             g_eq_bands[bandIdx].setPeaking(freq, q, gain);
         }
         return Value(true);

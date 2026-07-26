@@ -426,7 +426,7 @@ while (vglib.running()) {
     }
 
     if (vglib.key_pressed(vglib.ENTER)) {
-        if (active_tab == 2) { sat_mode = (sat_mode + 1) % 3; } # saturator cycle
+        if (active_tab == 2) { sat_mode = (sat_mode + 1) % 5; } # saturator cycle
     }
 
     # --- UPDATE ALL DSP PROCESSORS IN REAL-TIME (7 BANDS) ---
@@ -669,7 +669,7 @@ while (vglib.running()) {
         }
 
         # ====================================================================
-        # RACK 3: SATURATOR DISPLAY (LOWERED LAYOUT)
+        # RACK 3: SATURATOR DISPLAY (5 MODES INCLUDED)
         # ====================================================================
         if (active_tab == 2) {
             # --- KNOB INTERACTION ---
@@ -686,9 +686,13 @@ while (vglib.running()) {
 
             # --- BUTTON & BYPASS CLICK INTERACTION ---
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 280 && m[1] <= 315) { sat_mode = 0; }
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 330 && m[1] <= 365) { sat_mode = 1; }
-                if (m[0] >= 480 && m[0] <= 640 && m[1] >= 380 && m[1] <= 415) { sat_mode = 2; }
+                if (m[0] >= 480 && m[0] <= 640) {
+                    if (m[1] >= 250 && m[1] <= 285) { sat_mode = 0; } # SOFT TUBE
+                    if (m[1] >= 295 && m[1] <= 330) { sat_mode = 1; } # HARD CLIP
+                    if (m[1] >= 340 && m[1] <= 375) { sat_mode = 2; } # ASYMMETRIC
+                    if (m[1] >= 385 && m[1] <= 420) { sat_mode = 3; } # TAPE
+                    if (m[1] >= 430 && m[1] <= 465) { sat_mode = 4; } # BITCRUSH
+                }
 
                 if (m[0] >= 50 && m[0] <= 160 && m[1] >= 810 && m[1] <= 844) {
                     if (sat_on == 1) { sat_on = 0; } else { sat_on = 1; }
@@ -699,30 +703,38 @@ while (vglib.running()) {
 
             draw_knob("DRIVE", 220, 360, drive, string(vmath.round(drive * 100.0)) + "%", sat_orange);
 
-            vglib.rect(460, 240, 200, 195, vglib.rgba(22, 26, 34, 255));
-            vglib.text_ex(vcr_font, "SATURATION MODE", 480, 255, 12, vglib.WHITE);
+            vglib.rect(460, 210, 200, 270, vglib.rgba(22, 26, 34, 255));
+            vglib.text_ex(vcr_font, "SATURATION MODE", 475, 225, 12, vglib.WHITE);
 
             btn0_col = (sat_mode == 0) ? sat_orange : vglib.rgba(40, 45, 58, 255);
             btn1_col = (sat_mode == 1) ? sat_orange : vglib.rgba(40, 45, 58, 255);
             btn2_col = (sat_mode == 2) ? sat_orange : vglib.rgba(40, 45, 58, 255);
+            btn3_col = (sat_mode == 3) ? sat_orange : vglib.rgba(40, 45, 58, 255);
+            btn4_col = (sat_mode == 4) ? sat_orange : vglib.rgba(40, 45, 58, 255);
 
-            vglib.rect(480, 280, 160, 35, btn0_col);
-            vglib.text_ex(vcr_font, "SOFT TUBE", 510, 292, 12, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 250, 160, 35, btn0_col);
+            vglib.text_ex(vcr_font, "SOFT TUBE", 510, 262, 12, (sat_mode == 0) ? vglib.BLACK : vglib.WHITE);
 
-            vglib.rect(480, 330, 160, 35, btn1_col);
-            vglib.text_ex(vcr_font, "HARD CLIP", 510, 342, 12, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 295, 160, 35, btn1_col);
+            vglib.text_ex(vcr_font, "HARD CLIP", 510, 307, 12, (sat_mode == 1) ? vglib.BLACK : vglib.WHITE);
 
-            vglib.rect(480, 380, 160, 35, btn2_col);
-            vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 392, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
+            vglib.rect(480, 340, 160, 35, btn2_col);
+            vglib.text_ex(vcr_font, "ASYMMETRIC", 502, 352, 12, (sat_mode == 2) ? vglib.BLACK : vglib.WHITE);
+
+            vglib.rect(480, 385, 160, 35, btn3_col);
+            vglib.text_ex(vcr_font, "TAPE WARMTH", 502, 397, 12, (sat_mode == 3) ? vglib.BLACK : vglib.WHITE);
+
+            vglib.rect(480, 430, 160, 35, btn4_col);
+            vglib.text_ex(vcr_font, "BITCRUSHER", 505, 442, 12, (sat_mode == 4) ? vglib.BLACK : vglib.WHITE);
 
             draw_saturator_curve(720, 228, drive, sat_mode, sat_on);
 
             vglib.rect(80, 600, 1020, 70, vglib.rgba(22, 26, 34, 255));
-            
+
             through i :: 0..100 -> loop {
                 x_p = 90 + (i * 10);
                 wave_in = vmath.sin(run_time * 8.0 + i * 0.15);
-                
+
                 if (sat_on == 1) {
                     if (sat_mode == 0) { wave_in = vmath.tanh(wave_in * (1.0 + drive * 5.0)); }
                     if (sat_mode == 1) { wave_in = vmath.clamp(wave_in * (1.0 + drive * 5.0), -0.7, 0.7); }
@@ -730,8 +742,16 @@ while (vglib.running()) {
                         if (wave_in > 0.0) { wave_in = vmath.tanh(wave_in * (1.0 + drive * 5.0)); }
                         else { wave_in = vmath.tanh(wave_in * (1.0 + drive * 7.5)) * 0.8; }
                     }
+                    if (sat_mode == 3) { 
+                        w_amp = wave_in * (1.0 + drive * 3.0);
+                        wave_in = w_amp - (1.0 / 3.0) * vmath.pow(w_amp, 3.0); 
+                    }
+                    if (sat_mode == 4) { 
+                        steps = 8.0;
+                        wave_in = vmath.round(wave_in * steps) / steps; 
+                    }
                 }
-                
+
                 h = vmath.abs(wave_in) * 28.0;
                 vglib.rect(x_p, 635 - h, 6, h * 2.0, sat_orange);
             };
