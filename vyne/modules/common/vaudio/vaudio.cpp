@@ -2,6 +2,8 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+#include <fstream>
+#include <stdexcept>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -9,12 +11,18 @@
 
 void UpdateLUFSMeasurement(float left, float right);
 
+// --- SOUND HANDLE WRAPPER ---
+struct VAudioSoundHandle {
+    Sound sound;
+    bool is_paused = false;
+    bool is_stopped = false;
+};
+
 // --- SATURATOR DSP PARAMETERS ---
 float g_drive = 0.5f;
 int   g_mode = 0;
 
 // --- COMPRESSOR DSP PARAMETERS ---
-
 float g_comp_thresh_db = -12.0f; // -60 dB to 0 dB
 float g_comp_ratio     = 4.0f;   // 1.0 to 20.0
 float g_comp_attack_ms = 15.0f;  // 0.1 ms to 100 ms
@@ -76,7 +84,7 @@ void SaturationProcessCallback(void *buffer, unsigned int frames) {
                 }
                 break;
             case 3: // TAPE SATURATION / POLY TUBE
-                sample = sample - (1.0f / 3.0f) * std::pow(sample, 3.0f);
+                sample = sample - (1.0f / 3.0f) * sample * sample * sample;
                 break;
             case 4: { // BITCRUSH
                 float bits = 8.0f;
@@ -312,61 +320,6 @@ void PanningProcessCallback(void* buffer, unsigned int frames) {
     }
 }
 
-struct WavetableOscillator {
-    // 2D Table: [frame_index][sample_index]
-    std::vector<std::vector<float>> wavetable; 
-    
-    float phase = 0.0f;
-    float frequency = 440.0f;
-    float table_position = 0.0f; // e.g., 0.0 to 63.0 (sweeps through frames)
-
-    float process(float sample_rate) {
-        if (wavetable.empty()) return 0.0f;
-
-        float phase_step = frequency / sample_rate;
-        phase += phase_step;
-        if (phase >= 1.0f) phase -= 1.0f;
-
-        int frame_idx = (int)table_position;
-        float frame_frac = table_position - frame_idx;
-        
-        int frame_a = std::clamp(frame_idx, 0, (int)wavetable.size() - 1);
-        int frame_b = std::clamp(frame_a + 1, 0, (int)wavetable.size() - 1);
-
-        float sample_pos = phase * 2048.0f;
-        int sample_idx_0 = (int)sample_pos;
-        int sample_idx_1 = (sample_idx_0 + 1) % 2048;
-        float sample_frac = sample_pos - sample_idx_0;
-
-        float val_a = (1.0f - sample_frac) * wavetable[frame_a][sample_idx_0] + 
-                       sample_frac * wavetable[frame_a][sample_idx_1];
-
-        float val_b = (1.0f - sample_frac) * wavetable[frame_b][sample_idx_0] + 
-                       sample_frac * wavetable[frame_b][sample_idx_1];
-
-        return (1.0f - frame_frac) * val_a + frame_frac * val_b;
-    }
-};
-
-void GenerateBasicWavetable(WavetableOscillator& osc) {
-    int num_frames = 64;
-    int table_size = 2048;
-    osc.wavetable.resize(num_frames, std::vector<float>(table_size));
-
-    for (int f = 0; f < num_frames; f++) {
-        float morph = (float)f / (float)(num_frames - 1); // 0.0 to 1.0
-        
-        for (int i = 0; i < table_size; i++) {
-            float phase = (float)i / (float)table_size; // 0.0 to 1.0
-            
-            float sine_val = std::sin(2.0f * M_PI * phase);
-            float saw_val  = 2.0f * (phase - std::floor(phase + 0.5f));
-            
-            osc.wavetable[f][i] = (1.0f - morph) * sine_val + morph * saw_val;
-        }
-    }
-}
-
 // --- LUFS (ITU-R BS.1770) STATE & FILTERS ---
 struct KWeightingFilter {
     float b0_hs = 1.53512485958697f, b1_hs   = -2.69169618940638f, b2_hs = 1.19839281085285f;
@@ -406,7 +359,6 @@ void UpdateLUFSMeasurement(float left, float right) {
     g_lufs_energy_acc += (k_left * k_left) + (k_right * k_right);
     g_lufs_sample_count++;
 
-    // calculate LUFS (19,200 samples @ 48kHz)
     if (g_lufs_sample_count >= 19200) {
         float mean_square = g_lufs_energy_acc / (float)g_lufs_sample_count;
         
@@ -431,8 +383,8 @@ namespace VAudioNative {
 
     Value native_is_sound_playing(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        return Value(sound ? IsSoundPlaying(*sound) : false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        return Value(handle ? IsSoundPlaying(handle->sound) : false);
     }
 
     Value native_close_audio(std::vector<Value>& args) {
@@ -450,25 +402,72 @@ namespace VAudioNative {
     Value native_load_sound(std::vector<Value>& args) {
         if (args.empty()) throw std::runtime_error("load_sound() requires path");
         std::string path = args[0].asString();
-        Sound* sound = new Sound(LoadSound(path.c_str()));
-        if (sound->frameCount == 0) {
-            delete sound;
+        
+        auto* handle = new VAudioSoundHandle();
+        handle->sound = LoadSound(path.c_str());
+
+        if (handle->sound.frameCount == 0) {
+            delete handle;
             throw std::runtime_error("Audio Error: Could not load sound at " + path);
         }
-        return Value(reinterpret_cast<int64_t>(sound));
+        return Value(reinterpret_cast<int64_t>(handle));
     }
 
     Value native_play_sound(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound) PlaySound(*sound);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            PlaySound(handle->sound);
+            handle->is_paused = false;
+            handle->is_stopped = false;
+        }
+        return Value(true);
+    }
+
+    Value native_pause_sound(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            PauseSound(handle->sound);
+            handle->is_paused = true;
+        }
+        return Value(true);
+    }
+
+    Value native_resume_sound(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            ResumeSound(handle->sound);
+            handle->is_paused = false;
+            handle->is_stopped = false;
+        }
+        return Value(true);
+    }
+
+    Value native_is_sound_paused(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        return Value(handle ? handle->is_paused : false);
+    }
+
+    Value native_stop_sound(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            StopSound(handle->sound);
+            handle->is_paused = false;
+            handle->is_stopped = true;
+        }
         return Value(true);
     }
 
     Value native_set_sound_volume(std::vector<Value>& args) {
         if (args.size() < 2) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        SetSoundVolume(*sound, (float)args[1].asFloat());
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            SetSoundVolume(handle->sound, (float)args[1].asFloat());
+        }
         return Value(true);
     }
 
@@ -508,9 +507,9 @@ namespace VAudioNative {
 
     Value native_attach_saturation(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound != nullptr) {
-            AttachAudioStreamProcessor(sound->stream, SaturationProcessCallback);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle != nullptr) {
+            AttachAudioStreamProcessor(handle->sound.stream, SaturationProcessCallback);
             return Value(true);
         }
         return Value(false);
@@ -525,15 +524,15 @@ namespace VAudioNative {
         g_comp_release_ms = (float)args[3].asFloat();
         g_comp_makeup_db  = (float)args[4].asFloat();
         if (args.size() >= 6) g_comp_enabled = args[5].isTruthy();
-        if (args.size() >= 7) g_comp_auto_makeup = args[6].isTruthy(); // NEW
+        if (args.size() >= 7) g_comp_auto_makeup = args[6].isTruthy();
         return Value(true);
     }
 
     Value native_attach_compressor(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound != nullptr) {
-            AttachAudioStreamProcessor(sound->stream, CompressorProcessCallback);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle != nullptr) {
+            AttachAudioStreamProcessor(handle->sound.stream, CompressorProcessCallback);
             return Value(true);
         }
         return Value(false);
@@ -551,9 +550,9 @@ namespace VAudioNative {
 
     Value native_attach_reverb(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound != nullptr) {
-            AttachAudioStreamProcessor(sound->stream, ReverbProcessCallback);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle != nullptr) {
+            AttachAudioStreamProcessor(handle->sound.stream, ReverbProcessCallback);
             return Value(true);
         }
         return Value(false);
@@ -561,17 +560,17 @@ namespace VAudioNative {
 
     Value native_set_reverb_params(std::vector<Value>& args) {
         if (args.size() < 2) return Value(false);
-        g_rev_decay = (float)args[0].asFloat(); // Decay (0.0 to 0.95)
-        g_rev_mix   = (float)args[1].asFloat(); // Mix (0.0 to 1.0)
+        g_rev_decay = (float)args[0].asFloat();
+        g_rev_mix   = (float)args[1].asFloat();
         if (args.size() >= 3) g_rev_enabled = args[2].isTruthy();
         return Value(true);
     }
     
     Value native_attach_eq(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (sound != nullptr) {
-            AttachAudioStreamProcessor(sound->stream, EQProcessCallback);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle != nullptr) {
+            AttachAudioStreamProcessor(handle->sound.stream, EQProcessCallback);
             return Value(true);
         }
         return Value(false);
@@ -604,8 +603,8 @@ namespace VAudioNative {
     Value native_set_sound_3d(std::vector<Value>& args) {
         if (args.size() < 4) throw std::runtime_error("sound_3d() requires sound_ptr, listener_pos, source_pos, max_distance");
 
-        Sound* sound = reinterpret_cast<Sound*>(args[0].asInt());
-        if (!sound) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (!handle) return Value(false);
 
         std::vector<Value> lp = args[1].asList();
         std::vector<Value> sp = args[2].asList();
@@ -623,7 +622,7 @@ namespace VAudioNative {
             vol = maxVol * (t * t);
         }
 
-        SetSoundVolume(*sound, vol);
+        SetSoundVolume(handle->sound, vol);
         return Value(vol);
     }
 
@@ -647,7 +646,6 @@ namespace VAudioNative {
             unsigned int current_frames = std::min(block_size, total_frames - processed);
             float* block_ptr = samples + (processed * 2);
 
-            // Pass through DSP chain sequentially
             if (g_eq_enabled)    EQProcessCallback(block_ptr, current_frames);
             if (g_comp_enabled)  CompressorProcessCallback(block_ptr, current_frames);
             if (g_drive > 0.0f) SaturationProcessCallback(block_ptr, current_frames);
@@ -705,17 +703,23 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("get_lufs")]          = Value(VAudioNative::native_get_lufs);
 
     // Reverb
-    vaudio[pool.intern("attach_reverb")] = Value(VAudioNative::native_attach_reverb);
-    vaudio[pool.intern("set_reverb")]    = Value(VAudioNative::native_set_reverb_params);
+    vaudio[pool.intern("attach_reverb")]     = Value(VAudioNative::native_attach_reverb);
+    vaudio[pool.intern("set_reverb")]        = Value(VAudioNative::native_set_reverb_params);
 
     // Equalizer
-    vaudio[pool.intern("attach_eq")] = Value(VAudioNative::native_attach_eq);
-    vaudio[pool.intern("set_eq")]    = Value(VAudioNative::native_set_eq_band);
-    vaudio[pool.intern("enable_eq")] = Value(VAudioNative::native_set_eq_enabled);
+    vaudio[pool.intern("attach_eq")]         = Value(VAudioNative::native_attach_eq);
+    vaudio[pool.intern("set_eq")]            = Value(VAudioNative::native_set_eq_band);
+    vaudio[pool.intern("enable_eq")]         = Value(VAudioNative::native_set_eq_enabled);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);
 
     // Render
-    vaudio[pool.intern("render_offline")] = Value(VAudioNative::native_render_offline);
+    vaudio[pool.intern("render_offline")]    = Value(VAudioNative::native_render_offline);
+
+    // Audio state
+    vaudio[pool.intern("pause_sound")]       = Value(VAudioNative::native_pause_sound);
+    vaudio[pool.intern("resume_sound")]      = Value(VAudioNative::native_resume_sound);
+    vaudio[pool.intern("is_paused")]         = Value(VAudioNative::native_is_sound_paused);
+    vaudio[pool.intern("stop_sound")]        = Value(VAudioNative::native_stop_sound);
 }
