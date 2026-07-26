@@ -33,6 +33,22 @@ static float g_envelope = 0.0f;
 static float g_out_envelope = 0.0f;
 static float g_current_gr_db = 0.0f;
 
+struct WAVHeader {
+    char chunkID[4] = {'R', 'I', 'F', 'F'};
+    uint32_t chunkSize;
+    char format[4] = {'W', 'A', 'V', 'E'};
+    char subchunk1ID[4] = {'f', 'm', 't', ' '};
+    uint32_t subchunk1Size = 16;
+    uint16_t audioFormat = 3; // 3 = IEEE Float
+    uint16_t numChannels = 2;
+    uint32_t sampleRate = 48000;
+    uint32_t byteRate = 48000 * 2 * sizeof(float);
+    uint16_t blockAlign = 2 * sizeof(float);
+    uint16_t bitsPerSample = 32;
+    char subchunk2ID[4] = {'d', 'a', 't', 'a'};
+    uint32_t subchunk2Size;
+};
+
 // --- SATURATOR CALLBACK ---
 void SaturationProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
@@ -584,6 +600,53 @@ namespace VAudioNative {
         SetSoundVolume(*sound, vol);
         return Value(vol);
     }
+
+    Value native_render_offline(std::vector<Value>& args) {
+        if (args.size() < 2) throw std::runtime_error("render_offline() requires input_path and output_path");
+        
+        std::string input_path  = args[0].asString();
+        std::string output_path = args[1].asString();
+
+        Wave wave = LoadWave(input_path.c_str());
+        if (wave.frameCount == 0) return Value(false);
+
+        WaveFormat(&wave, 48000, 32, 2);
+        float* samples = (float*)wave.data;
+        unsigned int total_frames = wave.frameCount;
+
+        unsigned int block_size = 512;
+        unsigned int processed = 0;
+
+        while (processed < total_frames) {
+            unsigned int current_frames = std::min(block_size, total_frames - processed);
+            float* block_ptr = samples + (processed * 2);
+
+            // Pass through DSP chain sequentially
+            if (g_eq_enabled)    EQProcessCallback(block_ptr, current_frames);
+            if (g_comp_enabled)  CompressorProcessCallback(block_ptr, current_frames);
+            if (g_drive > 0.0f) SaturationProcessCallback(block_ptr, current_frames);
+            if (g_rev_enabled)   ReverbProcessCallback(block_ptr, current_frames);
+
+            processed += current_frames;
+        }
+
+        std::ofstream out(output_path, std::ios::binary);
+        if (!out.is_open()) {
+            UnloadWave(wave);
+            return Value(false);
+        }
+
+        WAVHeader header;
+        header.subchunk2Size = total_frames * 2 * sizeof(float);
+        header.chunkSize = 36 + header.subchunk2Size;
+
+        out.write(reinterpret_cast<char*>(&header), sizeof(WAVHeader));
+        out.write(reinterpret_cast<char*>(samples), header.subchunk2Size);
+        out.close();
+
+        UnloadWave(wave);
+        return Value(true);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -626,4 +689,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);
+
+    // Render
+    vaudio[pool.intern("render_offline")] = Value(VAudioNative::native_render_offline);
 }

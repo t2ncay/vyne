@@ -1311,6 +1311,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("O")] = Value(79).setReadOnly();
     vglib[pool.intern("Q")] = Value(81).setReadOnly();
     vglib[pool.intern("E")] = Value(69).setReadOnly();
+    vglib[pool.intern("R")] = Value(82).setReadOnly();
 
     // Misc
     vglib[pool.intern("BACKSPACE")]  = Value(259).setReadOnly();

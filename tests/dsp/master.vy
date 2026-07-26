@@ -10,7 +10,8 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
-track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
+track_name :: String = "tests/assets/azerjazz.wav";
+track = vaudio.load_sound("tests/assets/azerjazz.wav");
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
@@ -57,6 +58,11 @@ predelay :: Float64 = 20.0;
 damping  :: Float64 = 0.30;
 rev_on   :: Int64   = 1;
 active_rev_knob = 0;
+
+# --- RENDER NOTIFICATION STATE ---
+is_rendering   :: Int64 = 0;
+render_timer   :: Float64 = 0.0;
+render_status  :: Int64 = 0; # 0 = Idle, 1 = Success, -1 = Error
 
 # --- UI HELPER FUNCTIONS ---
 fn draw_knob(name, x, y, val_norm, display_val, color) {
@@ -386,6 +392,19 @@ while (vglib.running()) {
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
     mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
+
+    if (vglib.key_pressed(vglib.R)) {
+        is_rendering = 1;
+        
+        success = vaudio.render_offline(track_name, track_name + "_rendered.wav");
+        
+        if (success) {
+            render_status = 1;
+        } else {
+            render_status = -1;
+        }
+        render_timer = 3.0;
+    }
 
     # --- RACK SWITCHING TAB INTERACTION ---
     if (mouse_click && prev_mouse_state == 0) {
@@ -828,6 +847,21 @@ while (vglib.running()) {
         # --- FOOTER ---
         vglib.text_ex(vcr_font, "VYNE STUDIO ENGINE v1.0.0", 475, 855, 13, vglib.rgba(150, 160, 180, 255));
 
+        # --- RENDER TOAST BANNER ---
+        if (render_timer > 0.0) {
+            render_timer = render_timer - 0.016;
+            
+            banner_col = (render_status == 1) ? vglib.rgba(50, 255, 120, 230) : vglib.rgba(255, 60, 60, 230);
+            banner_msg = (render_status == 1) ? "BOUNCED: rendered_output.wav" : "RENDER FAILED!";
+
+            vglib.rect(400, 420, 400, 60, vglib.rgba(18, 22, 28, 240));
+            vglib.line(400, 420, 800, 420, banner_col);
+            vglib.line(800, 420, 800, 480, banner_col);
+            vglib.line(800, 480, 400, 480, banner_col);
+            vglib.line(400, 480, 400, 420, banner_col);
+
+            vglib.text_ex(vcr_font, banner_msg, 430, 442, 14, banner_col);
+        }
     vglib.end();
 }
 
