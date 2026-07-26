@@ -3,18 +3,17 @@ module vglib;
 module vaudio;
 module vmath;
 
-# Window Setup (1200x900 for full Master Rack resolution)
 vglib.init(1200, 900, 60, "VYNE MASTER STUDIO RACK v1.0", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-# Load Main Audio Track
+# load audio track
 track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
 vaudio.play_sound(track);
 
-# --- ATTACH FULL MASTER DSP CHAIN ---
+# --- attaching the chain here, the order matters btw ---
 vaudio.attach_eq(track);
 vaudio.attach_compressor(track);
 vaudio.attach_saturator(track);
@@ -271,7 +270,7 @@ fn draw_saturator_curve(x, y, d_val, m_val, is_on) {
     vglib.text_ex(vcr_font, "TRANSFER CURVE", x + 50, y + 232, 11, vglib.rgba(160, 170, 185, 255));
 }
 
-# --- REVERB 3D WIREFRAME ROOM VISUALIZER (FRUITY REEVERB 2 STYLE) ---
+# --- REVERB 3D WIREFRAME ROOM VISUALIZER ( got the inspo from fruity reeverb 2 ) ---
 fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
     # Dark Backing Card
     vglib.rect(cx - 200, cy - 180, 400, 360, vglib.rgba(16, 18, 24, 255));
@@ -390,7 +389,7 @@ while (vglib.running()) {
     md = vglib.mouse_delta();
     mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
 
-    # --- 1. RACK SWITCHING TAB INTERACTION ---
+    # --- RACK SWITCHING TAB INTERACTION ---
     if (mouse_click && prev_mouse_state == 0) {
         if (m[1] >= 20 && m[1] <= 60) {
             if (m[0] >= 50 && m[0] <= 200) { active_tab = 0; }  # EQ
@@ -422,7 +421,7 @@ while (vglib.running()) {
 
     vaudio.set_compressor(thresh, ratio, attack, release, makeup, comp_on);
     
-    # Pass drive and mode to C++ DSP (Drive set to 0 if bypassed)
+    # pass drive and mode to backframe dsp chain
     effective_drive = (sat_on == 1) ? drive : 0.0;
     vaudio.set_dsp(effective_drive, sat_mode);
     
@@ -432,7 +431,7 @@ while (vglib.running()) {
     rms_val = vaudio.get_rms();
 
     vglib.begin();
-        vglib.clear(vglib.rgba(12, 14, 18, 255)); # Studio Chassis Dark
+        vglib.clear(vglib.rgba(12, 14, 18, 255)); # studio chassis dark theme
 
         # --- TOP MASTER RACK TAB BAR ---
         c_eq   = (active_tab == 0) ? vglib.rgba(0, 220, 255, 255)   : vglib.rgba(30, 35, 45, 255);
