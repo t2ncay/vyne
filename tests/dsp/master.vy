@@ -10,7 +10,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
-track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
+track = vaudio.load_sound("tests/assets/fucking hardshit.wav");
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
