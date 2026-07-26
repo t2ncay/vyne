@@ -3,6 +3,10 @@
 #include <cmath>
 #include <algorithm>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // --- SATURATOR DSP PARAMETERS ---
 float g_drive = 0.5f;
 int   g_mode = 0;
@@ -249,6 +253,68 @@ void EQProcessCallback(void *buffer, unsigned int frames) {
 
         samples[i * 2]     = std::clamp(left, -1.0f, 1.0f);
         samples[i * 2 + 1] = std::clamp(right, -1.0f, 1.0f);
+    }
+}
+
+struct WavetableOscillator {
+    // 2D Table: [frame_index][sample_index]
+    std::vector<std::vector<float>> wavetable; 
+    
+    float phase = 0.0f;
+    float frequency = 440.0f;
+    float table_position = 0.0f; // e.g., 0.0 to 63.0 (sweeps through frames)
+
+    float process(float sample_rate) {
+        if (wavetable.empty()) return 0.0f;
+
+        // 1. Calculate phase step based on note frequency
+        float phase_step = frequency / sample_rate;
+        phase += phase_step;
+        if (phase >= 1.0f) phase -= 1.0f;
+
+        // 2. Linear interpolation between samples inside a frame
+        int frame_idx = (int)table_position;
+        float frame_frac = table_position - frame_idx;
+        
+        // Clamp frame index
+        int frame_a = std::clamp(frame_idx, 0, (int)wavetable.size() - 1);
+        int frame_b = std::clamp(frame_a + 1, 0, (int)wavetable.size() - 1);
+
+        float sample_pos = phase * 2048.0f;
+        int sample_idx_0 = (int)sample_pos;
+        int sample_idx_1 = (sample_idx_0 + 1) % 2048;
+        float sample_frac = sample_pos - sample_idx_0;
+
+        // Sample interpolation for Frame A
+        float val_a = (1.0f - sample_frac) * wavetable[frame_a][sample_idx_0] + 
+                       sample_frac * wavetable[frame_a][sample_idx_1];
+
+        // Sample interpolation for Frame B
+        float val_b = (1.0f - sample_frac) * wavetable[frame_b][sample_idx_0] + 
+                       sample_frac * wavetable[frame_b][sample_idx_1];
+
+        // 3. Morph between Frame A and Frame B (Serum's smooth morph feature!)
+        return (1.0f - frame_frac) * val_a + frame_frac * val_b;
+    }
+};
+
+void GenerateBasicWavetable(WavetableOscillator& osc) {
+    int num_frames = 64;
+    int table_size = 2048;
+    osc.wavetable.resize(num_frames, std::vector<float>(table_size));
+
+    for (int f = 0; f < num_frames; f++) {
+        float morph = (float)f / (float)(num_frames - 1); // 0.0 to 1.0
+        
+        for (int i = 0; i < table_size; i++) {
+            float phase = (float)i / (float)table_size; // 0.0 to 1.0
+            
+            // Morphing formula: Sine wave -> Harmonic-rich Saw/Square
+            float sine_val = std::sin(2.0f * M_PI * phase);
+            float saw_val  = 2.0f * (phase - std::floor(phase + 0.5f));
+            
+            osc.wavetable[f][i] = (1.0f - morph) * sine_val + morph * saw_val;
+        }
     }
 }
 
