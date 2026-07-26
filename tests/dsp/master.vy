@@ -29,10 +29,9 @@ b1_f :: Float64 = 60.0;    b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
 b2_f :: Float64 = 180.0;   b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
 b3_f :: Float64 = 500.0;   b3_g :: Float64 = 2.0;   b3_q :: Float64 = 1.2;
 b4_f :: Float64 = 1200.0;  b4_g :: Float64 = -2.0;  b4_q :: Float64 = 1.0;
-b5_f :: Float64 = 3000.0;  b5_g :: Float64 = 4.0;   b5_q :: Float64 = 1.2;
+b5_f :: Float64 = 3000.0;   b5_g :: Float64 = -1.5;  b5_q :: Float64 = 1.0;
 b6_f :: Float64 = 7500.0;  b6_g :: Float64 = -1.0;  b6_q :: Float64 = 0.8;
-b7_f :: Float64 = 14000.0; b7_g :: Float64 = 3.0;   b7_q :: Float64 = 0.8;
-
+b7_f :: Float64 = 14000.0;  b7_g :: Float64 = 1.0;   b7_q :: Float64 = 0.7;
 eq_on :: Int64 = 1;
 active_eq_node = 0;
 
@@ -43,10 +42,11 @@ attack  :: Float64 = 15.0;
 release :: Float64 = 120.0;
 makeup  :: Float64 = 3.0;
 comp_on :: Int64   = 1;
+auto_makeup :: Int64 = 1;
 active_comp_knob = 0;
 
 # --- SATURATOR STATE ---
-drive   :: Float64 = 0.45;
+drive   :: Float64 = 0.18;
 sat_mode:: Int64   = 0; # 0 = SOFT TUBE, 1 = HARD CLIP, 2 = ASYMMETRIC
 sat_on  :: Int64   = 1;
 active_sat_knob = 0;
@@ -97,6 +97,20 @@ fn draw_bypass_button(x, y, is_active, active_color) {
     vglib.rect(x, y, 110, 34, bg_color);
     vglib.rect(x + 2, y + 2, 106, 30, btn_color);
     vglib.text_ex(vcr_font, label, x + 18, y + 9, 13, vglib.BLACK);
+}
+
+fn draw_make_up_button(x, y, is_active, active_color) {
+    bg_color = vglib.rgba(35, 38, 48, 255);
+    btn_color = vglib.rgba(220, 50, 50, 255);
+    label :: String = "AUTO-GAIN";
+
+    if (is_active == 1) {
+        btn_color = active_color;
+    }
+
+    vglib.rect(x, y, 110, 34, bg_color);
+    vglib.rect(x + 2, y + 2, 106, 30, btn_color);
+    vglib.text_ex(vcr_font, label, x + 10, y + 9, 13, vglib.BLACK);
 }
 
 # --- PRO-Q EQ HELPER FUNCTIONS ---
@@ -439,7 +453,7 @@ while (vglib.running()) {
     vaudio.set_eq(5, b6_f, b6_g, b6_q);
     vaudio.set_eq(6, b7_f, b7_g, b7_q);
 
-    vaudio.set_compressor(thresh, ratio, attack, release, makeup, comp_on);
+    vaudio.set_compressor(thresh, ratio, attack, release, makeup, comp_on, auto_makeup);
     
     effective_drive = (sat_on == 1) ? drive : 0.0;
     vaudio.set_dsp(effective_drive, sat_mode);
@@ -641,6 +655,10 @@ while (vglib.running()) {
                 if (active_comp_knob == 5) { makeup = vmath.clamp(makeup - (delta * 0.1), 0.0, 12.0); }
             } else { active_comp_knob = 0; }
 
+            if (vglib.key_pressed(vglib.J)) {
+                auto_makeup = (auto_makeup == 1) ? 0 : 1;
+            }
+
             if (vglib.key_pressed(vglib.MOUSE_LEFT)) {
                 if (m[0] >= 50 && m[0] <= 160 && m[1] >= 810 && m[1] <= 844) {
                     if (comp_on == 1) { comp_on = 0; } else { comp_on = 1; }
@@ -665,6 +683,10 @@ while (vglib.running()) {
             draw_knob("RELEASE", 780, 650, rel_norm, string(vmath.round(release)) + "ms", vglib.rgba(180, 100, 255, 255));
             draw_knob("MAKEUP", 980, 650, m_norm, "+" + string(vmath.round(makeup)) + "dB", vglib.rgba(50, 255, 120, 255));
 
+            # auto-gain make up
+            draw_make_up_button(930, 720, auto_makeup, vglib.rgba(50, 255, 120, 255));
+
+            # bypass
             draw_bypass_button(50, 810, comp_on, vglib.rgba(255, 120, 40, 255));
         }
 
@@ -851,18 +873,21 @@ while (vglib.running()) {
         # --- LUFS DIGITAL READOUT CARD ---
         lufs_val = vaudio.get_lufs();
 
-        vglib.rect(950, 755, 135, 45, vglib.rgba(18, 22, 28, 255));
-        vglib.line(950, 755, 1085, 755, vglib.rgba(50, 55, 68, 255));
-        vglib.line(1085, 755, 1085, 800, vglib.rgba(50, 55, 68, 255));
-        vglib.line(1085, 800, 950, 800, vglib.rgba(50, 55, 68, 255));
-        vglib.line(950, 800, 950, 755, vglib.rgba(50, 55, 68, 255));
+        lufs_x :: Int64 = 920;
+        lufs_y :: Int64 = 835;
+
+        vglib.rect(lufs_x, lufs_y, 135, 45, vglib.rgba(18, 22, 28, 255));
+        vglib.line(lufs_x, lufs_y, lufs_x + 135, lufs_y, vglib.rgba(50, 55, 68, 255));
+        vglib.line(lufs_x + 135, lufs_y, lufs_x + 135, lufs_y + 45, vglib.rgba(50, 55, 68, 255));
+        vglib.line(lufs_x + 135, lufs_y + 45, lufs_x, lufs_y + 45, vglib.rgba(50, 55, 68, 255));
+        vglib.line(lufs_x, lufs_y + 45, lufs_x, lufs_y, vglib.rgba(50, 55, 68, 255));
 
         lufs_color = vglib.rgba(50, 255, 120, 255); # Green
         if (lufs_val > -10.0) { lufs_color = vglib.rgba(255, 180, 40, 255); }
         if (lufs_val > -7.0)  { lufs_color = vglib.rgba(255, 50, 50, 255); }
 
-        vglib.text_ex(vcr_font, "MOMENTARY LUFS", 958, 763, 10, vglib.rgba(160, 170, 185, 255));
-        vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", 962, 780, 13, lufs_color);
+        vglib.text_ex(vcr_font, "MOMENTARY LUFS", lufs_x + 8, lufs_y + 8, 10, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", lufs_x + 25, lufs_y + 25, 13, lufs_color);
 
         # --- FOOTER ---
         vglib.text_ex(vcr_font, "VYNE STUDIO ENGINE v1.0.0", 475, 855, 13, vglib.rgba(150, 160, 180, 255));

@@ -21,6 +21,7 @@ float g_comp_attack_ms = 15.0f;  // 0.1 ms to 100 ms
 float g_comp_release_ms= 120.0f; // 10 ms to 1000 ms
 float g_comp_makeup_db = 3.0f;   // 0 dB to 24 dB
 bool  g_comp_enabled   = true;
+bool  g_comp_auto_makeup = true;
 
 // --- T4 PHOTOCELL STATE VARIABLES ---
 static float g_opto_cap_fast = 0.0f; // Fast capacitor (short-term memory)
@@ -54,7 +55,7 @@ struct WAVHeader {
 // --- SATURATOR CALLBACK ---
 void SaturationProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
-    float gain = 1.0f + (g_drive * 7.0f);
+    float gain = 1.0f + (g_drive * 3.0f);
     float makeup = 1.0f / std::sqrt(gain);
 
     for (unsigned int i = 0; i < frames * 2; i++) {
@@ -98,14 +99,21 @@ void CompressorProcessCallback(void *buffer, unsigned int frames) {
     float sample_rate = 48000.0f;
     float alpha_attack  = std::exp(-1.0f / (0.001f * g_comp_attack_ms * sample_rate));
     float alpha_release = std::exp(-1.0f / (0.001f * g_comp_release_ms * sample_rate));
-    float makeup_linear = std::pow(10.0f, g_comp_makeup_db / 20.0f);
+    
+    float effective_makeup_db = g_comp_makeup_db;
+    if (g_comp_auto_makeup && g_comp_thresh_db < 0.0f) {
+        float ratio_factor = 1.0f - (1.0f / static_cast<float>(g_comp_ratio));
+        float expected_gr_db = (-g_comp_thresh_db) * ratio_factor * 0.85f;
+        effective_makeup_db += expected_gr_db;
+    }
+
+    float makeup_linear = std::pow(10.0f, effective_makeup_db / 20.0f);
 
     for (unsigned int i = 0; i < frames; i++) {
         float left  = samples[i * 2];
         float right = samples[i * 2 + 1];
 
         UpdateLUFSMeasurement(left, right);
-
         float peak = std::max(std::abs(left), std::abs(right));
 
         if (peak > g_envelope) {
@@ -124,9 +132,6 @@ void CompressorProcessCallback(void *buffer, unsigned int frames) {
         g_current_gr_db = g_comp_enabled ? control_db : 0.0f;
 
         if (!g_comp_enabled) {
-            // bypass mode: pass clean audio & update RMS output meter ( will add the LUFS meter soon)
-            // TODO add LUFS meter ()
-
             float clean_peak = peak;
             if (clean_peak > g_out_envelope) {
                 g_out_envelope = alpha_attack * g_out_envelope + (1.0f - alpha_attack) * clean_peak;
@@ -158,15 +163,20 @@ struct CombFilter {
     std::vector<float> buffer;
     size_t bufIdx = 0;
     float feedback = 0.5f;
+    float filter_store = 0.0f;
 
     void init(size_t size) {
         buffer.assign(size, 0.0f);
         bufIdx = 0;
+        filter_store = 0.0f;
     }
 
     float process(float input) {
         float output = buffer[bufIdx];
-        buffer[bufIdx] = input + (output * feedback);
+        
+        filter_store = (output * 0.6f) + (filter_store * 0.4f);
+        
+        buffer[bufIdx] = input + (filter_store * feedback);
         bufIdx = (bufIdx + 1) % buffer.size();
         return output;
     }
@@ -515,6 +525,7 @@ namespace VAudioNative {
         g_comp_release_ms = (float)args[3].asFloat();
         g_comp_makeup_db  = (float)args[4].asFloat();
         if (args.size() >= 6) g_comp_enabled = args[5].isTruthy();
+        if (args.size() >= 7) g_comp_auto_makeup = args[6].isTruthy(); // NEW
         return Value(true);
     }
 
