@@ -557,7 +557,7 @@ while (vglib.running()) {
         # ====================================================================
         if (active_tab == 0) {
             # Hover detection
-            h1 = vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(b1_g)) < 22;
+            h1 = vmath.hypot(m[0] - freq_to_x(b1_f), m[1] - gain_to_y(0.0)) < 22;
             h2 = vmath.hypot(m[0] - freq_to_x(b2_f), m[1] - gain_to_y(b2_g)) < 22;
             h3 = vmath.hypot(m[0] - freq_to_x(b3_f), m[1] - gain_to_y(b3_g)) < 22;
             h4 = vmath.hypot(m[0] - freq_to_x(b4_f), m[1] - gain_to_y(b4_g)) < 22;
@@ -588,7 +588,7 @@ while (vglib.running()) {
                     if (h7) { active_eq_node = 7; }
                 }
 
-                if (active_eq_node == 1) { b1_f = x_to_freq(m[0]); b1_g = y_to_gain(m[1]); }
+                if (active_eq_node == 1) { b1_f = x_to_freq(m[0]); b1_g = 0.0; }
                 if (active_eq_node == 2) { b2_f = x_to_freq(m[0]); b2_g = y_to_gain(m[1]); }
                 if (active_eq_node == 3) { b3_f = x_to_freq(m[0]); b3_g = y_to_gain(m[1]); }
                 if (active_eq_node == 4) { b4_f = x_to_freq(m[0]); b4_g = y_to_gain(m[1]); }
@@ -628,7 +628,12 @@ while (vglib.running()) {
             curr_x :: Float64 = 80.0;
             while (curr_x <= 1100.0) {
                 eval_f = x_to_freq(curr_x);
-                d1 = vmath.log(eval_f / b1_f); g1 = b1_g * vmath.exp(-3.0 * d1 * d1 * b1_q);
+                
+                # --- BAND 1: HIGH PASS TRANSFER FUNCTION (-12dB/oct response) ---
+                ratio_f = eval_f / b1_f;
+                g1 = -10.0 * vmath.log(1.0 + vmath.pow(1.0 / ratio_f, 4.0)) / 2.302585;
+
+                # Bands 2..7: Peaking EQ
                 d2 = vmath.log(eval_f / b2_f); g2 = b2_g * vmath.exp(-3.0 * d2 * d2 * b2_q);
                 d3 = vmath.log(eval_f / b3_f); g3 = b3_g * vmath.exp(-3.0 * d3 * d3 * b3_q);
                 d4 = vmath.log(eval_f / b4_f); g4 = b4_g * vmath.exp(-3.0 * d4 * d4 * b4_q);
@@ -653,7 +658,8 @@ while (vglib.running()) {
             c6 = vglib.rgba(255, 110, 200, 255);  # Hot Pink / Magenta (Air)
             c7 = vglib.rgba(255, 140, 40, 255);   # Warm Neon Orange (Brilliance)
 
-            draw_eq_node("1", freq_to_x(b1_f), gain_to_y(b1_g), c1, active_eq_node == 1, h1);
+            # Node 1 is locked to 0 dB line (y-axis) as cutoff frequency handle
+            draw_eq_node("1", freq_to_x(b1_f), gain_to_y(0.0), c1, active_eq_node == 1, h1);
             draw_eq_node("2", freq_to_x(b2_f), gain_to_y(b2_g), c2, active_eq_node == 2, h2);
             draw_eq_node("3", freq_to_x(b3_f), gain_to_y(b3_g), c3, active_eq_node == 3, h3);
             draw_eq_node("4", freq_to_x(b4_f), gain_to_y(b4_g), c4, active_eq_node == 4, h4);
@@ -663,9 +669,9 @@ while (vglib.running()) {
 
             # --- COMPACT 7-BAND INFO RACK (WITH FREQ, GAIN & Q DISPLAY) ---
             vglib.rect(80, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
-            vglib.text_ex(vcr_font, "B1 SUB", 86, 685, 11, c1);
+            vglib.text_ex(vcr_font, "B1 CUTOFF", 86, 685, 11, c1);
             vglib.text_ex(vcr_font, "F:" + string(vmath.round(b1_f)) + "Hz", 86, 699, 10, vglib.WHITE);
-            vglib.text_ex(vcr_font, "G:" + string(vmath.round(b1_g)) + "dB", 86, 712, 10, vglib.WHITE);
+            vglib.text_ex(vcr_font, "HPF 12dB/oct", 86, 712, 10, vglib.WHITE);
             vglib.text_ex(vcr_font, "Q:" + string(b1_q), 86, 725, 10, vglib.rgba(160, 170, 185, 255));
 
             vglib.rect(225, 680, 135, 60, vglib.rgba(20, 24, 32, 255));
