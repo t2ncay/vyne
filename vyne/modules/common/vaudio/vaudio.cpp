@@ -8,6 +8,7 @@ float g_drive = 0.5f;
 int   g_mode = 0;
 
 // --- COMPRESSOR DSP PARAMETERS ---
+
 float g_comp_thresh_db = -12.0f; // -60 dB to 0 dB
 float g_comp_ratio     = 4.0f;   // 1.0 to 20.0
 float g_comp_attack_ms = 15.0f;  // 0.1 ms to 100 ms
@@ -15,13 +16,18 @@ float g_comp_release_ms= 120.0f; // 10 ms to 1000 ms
 float g_comp_makeup_db = 3.0f;   // 0 dB to 24 dB
 bool  g_comp_enabled   = true;
 
+// --- T4 PHOTOCELL STATE VARIABLES ---
+static float g_opto_cap_fast = 0.0f; // Fast capacitor (short-term memory)
+static float g_opto_cap_slow = 0.0f; // Slow capacitor (long-term memory tail)
+
 // --- REVERB DSP PARAMETERS ---
 float g_rev_decay = 0.5f;   // Decay time / Room Size (0.0 to 0.95)
 float g_rev_mix   = 0.3f;   // Wet/Dry mix (0.0 = Dry, 1.0 = Wet)
 bool  g_rev_enabled = true;
 
-static float g_envelope = 0.0f; // Envelope detector state across blocks
+static float g_envelope = 0.0f; 
 static float g_out_envelope = 0.0f;
+static float g_current_gr_db = 0.0f;
 
 // --- SATURATOR CALLBACK ---
 void SaturationProcessCallback(void *buffer, unsigned int frames) {
@@ -57,7 +63,6 @@ void SaturationProcessCallback(void *buffer, unsigned int frames) {
 // --- COMPRESSOR CALLBACK ---
 void CompressorProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
-    if (!g_comp_enabled) return;
 
     float sample_rate = 48000.0f;
     float alpha_attack  = std::exp(-1.0f / (0.001f * g_comp_attack_ms * sample_rate));
@@ -81,6 +86,19 @@ void CompressorProcessCallback(void *buffer, unsigned int frames) {
         if (env_db > g_comp_thresh_db) {
             float excess_db = env_db - g_comp_thresh_db;
             control_db = excess_db * (1.0f - (1.0f / g_comp_ratio));
+        }
+
+        g_current_gr_db = g_comp_enabled ? control_db : 0.0f;
+
+        if (!g_comp_enabled) {
+            // Bypass mode: Pass clean audio & update RMS output meter
+            float clean_peak = peak;
+            if (clean_peak > g_out_envelope) {
+                g_out_envelope = alpha_attack * g_out_envelope + (1.0f - alpha_attack) * clean_peak;
+            } else {
+                g_out_envelope = alpha_release * g_out_envelope + (1.0f - alpha_release) * clean_peak;
+            }
+            continue;
         }
 
         float gr_linear = std::pow(10.0f, -control_db / 20.0f);
@@ -352,17 +370,7 @@ namespace VAudioNative {
     }
 
     Value native_get_gain_reduction(std::vector<Value>& args) {
-        float sample_rate = 48000.0f;
-        
-        float env_db = 20.0f * std::log10(std::max(g_envelope, 1e-6f));
-        
-        float gr_db = 0.0f;
-        if (env_db > g_comp_thresh_db && g_comp_enabled) {
-            float excess_db = env_db - g_comp_thresh_db;
-            gr_db = excess_db * (1.0f - (1.0f / g_comp_ratio));
-        }
-
-        return Value(gr_db); // e.g. 0.0 when clean, 6.5 when compressing by 6.5 dB
+        return Value(g_current_gr_db);
     }
 
     Value native_get_rms(std::vector<Value>& args) {
