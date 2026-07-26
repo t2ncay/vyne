@@ -440,16 +440,16 @@ while (vglib.running()) {
         c_rev  = (active_tab == 3) ? vglib.rgba(160, 90, 255, 255)  : vglib.rgba(30, 35, 45, 255);
 
         vglib.rect(50, 20, 150, 40, c_eq);
-        vglib.text_ex(vcr_font, "1. PRO-Q EQ", 70, 32, 13, (active_tab == 0) ? vglib.BLACK : vglib.WHITE);
+        vglib.text_ex(vcr_font, "PRO-Q EQ", 90, 32, 13, (active_tab == 0) ? vglib.BLACK : vglib.WHITE);
 
         vglib.rect(210, 20, 150, 40, c_comp);
-        vglib.text_ex(vcr_font, "2. COMPRESSOR", 220, 32, 13, (active_tab == 1) ? vglib.BLACK : vglib.WHITE);
+        vglib.text_ex(vcr_font, "COMPRESSOR", 233, 32, 13, (active_tab == 1) ? vglib.BLACK : vglib.WHITE);
 
         vglib.rect(370, 20, 150, 40, c_sat);
-        vglib.text_ex(vcr_font, "3. SATURATOR", 382, 32, 13, (active_tab == 2) ? vglib.BLACK : vglib.WHITE);
+        vglib.text_ex(vcr_font, "SATURATOR", 402, 32, 13, (active_tab == 2) ? vglib.BLACK : vglib.WHITE);
 
         vglib.rect(530, 20, 150, 40, c_rev);
-        vglib.text_ex(vcr_font, "4. REVERB", 552, 32, 13, (active_tab == 3) ? vglib.BLACK : vglib.WHITE);
+        vglib.text_ex(vcr_font, "REVERB", 572, 32, 13, (active_tab == 3) ? vglib.BLACK : vglib.WHITE);
 
         # Header Title
         vglib.text_ex(vcr_font, "VYNE MASTER STUDIO BUS", 780, 28, 20, vglib.WHITE);
