@@ -10,8 +10,8 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
-track_name :: String = "tests/assets/azerjazz.wav";
-track = vaudio.load_sound("tests/assets/azerjazz.wav");
+track_name :: String = "tests/assets/akira.wav";
+track = vaudio.load_sound("tests/assets/akira.wav");
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
