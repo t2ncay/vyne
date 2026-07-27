@@ -11,7 +11,7 @@ vaudio.volume(1.0);
 
 # load audio track
 track_name :: String = "tests/assets/akira.wav";
-track = vaudio.load_sound("tests/assets/akira.wav");
+track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
@@ -44,7 +44,7 @@ thresh  :: Float64 = -18.0;
 ratio   :: Float64 = 4.0;
 attack  :: Float64 = 15.0;
 release :: Float64 = 120.0;
-makeup  :: Float64 = 3.0;
+makeup  :: Float64 = 0.0;
 comp_on :: Int64   = 1;
 auto_makeup :: Int64 = 1;
 active_comp_knob = 0;
