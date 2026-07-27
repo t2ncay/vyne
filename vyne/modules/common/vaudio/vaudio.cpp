@@ -755,6 +755,10 @@ namespace VAudioNative {
         UnloadWave(wave);
         return Value(true);
     }
+
+    Value native_get_input_envelope(std::vector<Value>& args) {
+        return Value((double)g_envelope);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -777,6 +781,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("attach_compressor")] = Value(VAudioNative::native_attach_compressor);
     vaudio[pool.intern("set_compressor")]    = Value(VAudioNative::native_set_compressor_params);
     vaudio[pool.intern("get_gr")]            = Value(VAudioNative::native_get_gain_reduction);
+    vaudio[pool.intern("get_env")] = Value(VAudioNative::native_get_input_envelope);
 
     // Stream
     vaudio[pool.intern("play_stream")]       = Value(VAudioNative::native_play_stream);

@@ -49,6 +49,15 @@ comp_on :: Int64   = 1;
 auto_makeup :: Int64 = 1;
 active_comp_knob = 0;
 
+wave_history_in :: Array = [];
+wave_history_gr :: Array = [];
+wave_buf_size   :: Int64 = 60;
+
+through i :: 0..59 -> loop {
+    wave_history_in.push(0.0);
+    wave_history_gr.push(0.0);
+};
+
 # --- SATURATOR STATE ---
 drive   :: Float64 = 0.18;
 sat_mode:: Int64   = 0; # 0 = SOFT TUBE, 1 = HARD CLIP, 2 = ASYMMETRIC, 3 = TAPE, 4 = BITCRUSH
@@ -168,7 +177,7 @@ fn draw_eq_node(id_str, x, y, color, is_selected, is_hovered) {
 }
 
 # --- OPTO COMPRESSOR DISPLAY CARDS ---
-fn draw_transfer_graph(x, y, t_dB, r_val, gr_db) {
+fn draw_transfer_graph(x, y, t_dB, r_val, gr_db, wave_in_list, wave_gr_list) {
     vglib.rect(x, y, 420, 240, vglib.rgba(14, 16, 20, 255));
     
     vglib.line(x, y, x + 420, y, vglib.rgba(50, 55, 68, 255));
@@ -179,6 +188,32 @@ fn draw_transfer_graph(x, y, t_dB, r_val, gr_db) {
     vglib.line(x + 210, y, x + 210, y + 240, vglib.rgba(30, 36, 48, 255));
     vglib.line(x, y + 120, x + 420, y + 120, vglib.rgba(30, 36, 48, 255));
     
+    num_samples = wave_in_list.length();
+    step_w :: Float64 = 400.0 / num_samples;
+
+    through idx :: 0..(num_samples - 1) -> loop {
+        slice_in = wave_in_list[idx];
+        slice_gr = wave_gr_list[idx];
+
+        bar_x :: Float64 = (x + 20.0) + (idx * step_w);
+        
+        h_in :: Float64 = vmath.clamp(slice_in * 180.0, 0.0, 180.0);
+
+        if (h_in > 1.0) {
+            bot_y :: Float64 = y + 220.0;
+            top_y :: Float64 = bot_y - h_in;
+
+            # Base Uncompressed Audio Waveform (Ghost Cyan/White)
+            vglib.rect(bar_x, top_y, step_w - 1.0, h_in, vglib.rgba(0, 200, 255, 40));
+
+            # Compressed Peak Shading (Neon Red highlight for the gain reduction portion)
+            if (slice_gr > 0.2) {
+                gr_h :: Float64 = vmath.clamp((slice_gr / 24.0) * h_in, 2.0, h_in);
+                vglib.rect(bar_x, top_y, step_w - 1.0, gr_h, vglib.rgba(255, 50, 60, 140));
+            }
+        }
+    };
+
     vglib.line(x + 20, y + 220, x + 400, y + 20, vglib.rgba(55, 62, 75, 255));
 
     t_norm = (t_dB + 40.0) / 40.0;
@@ -201,7 +236,7 @@ fn draw_transfer_graph(x, y, t_dB, r_val, gr_db) {
         vglib.circle(dot_x, dot_y, 6.0, vglib.rgba(255, 60, 60, 255));
     }
 
-    vglib.text_ex(vcr_font, "TRANSFER FUNCTION & DYNAMICS KNEE", x + 50, y + 252, 11, vglib.rgba(160, 170, 185, 255));
+    vglib.text_ex(vcr_font, "TRANSFER FUNCTION & REAL-TIME GR WAVEFORM", x + 35, y + 252, 11, vglib.rgba(160, 170, 185, 255));
 }
 
 fn draw_vu_meter(x, y, gr_db, is_on) {
@@ -517,6 +552,15 @@ while (vglib.running()) {
         render_timer = 3.0;
     }
 
+    curr_env = vaudio.get_env();
+    curr_gr  = vaudio.get_gr();
+
+    wave_history_in.pop_front();
+    wave_history_in.push(curr_env);
+
+    wave_history_gr.pop_front();
+    wave_history_gr.push(curr_gr);
+
     # --- RACK SWITCHING TAB INTERACTION ---
     if (mouse_click && prev_mouse_state == 0) {
         if (m[1] >= 20 && m[1] <= 60) {
@@ -797,7 +841,7 @@ while (vglib.running()) {
                 }
             }
 
-            draw_transfer_graph(80, 200, thresh, ratio, gr_db);
+            draw_transfer_graph(80, 200, thresh, ratio, gr_db, wave_history_in, wave_history_gr);
             draw_vu_meter(530, 200, gr_db, comp_on);
             draw_output_rms_card(880, 200, rms_val);
 
