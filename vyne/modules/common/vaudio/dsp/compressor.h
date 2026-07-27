@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "shared_state.h"
+
 namespace VAudioDSP {
 
 // Forward declaration from DspUtils or LUFS module
@@ -11,18 +13,12 @@ inline float g_comp_thresh_db   = -12.0f; // -60 dB to 0 dB
 inline float g_comp_ratio       = 4.0f;   // 1.0 to 20.0
 inline float g_comp_attack_ms   = 15.0f;  // 0.1 ms to 100 ms
 inline float g_comp_release_ms  = 120.0f; // 10 ms to 1000 ms
-inline float g_comp_makeup_db   = 3.0f;   // 0 dB to 24 dB
+inline float g_comp_makeup_db   = 0.0f;   // 0 dB to 24 dB
 inline bool  g_comp_enabled     = true;
-inline bool  g_comp_auto_makeup  = true;
-
-inline float g_envelope        = 0.0f; 
-inline float g_out_envelope    = 0.0f;
-inline float g_current_gr_db   = 0.0f;
+inline bool  g_comp_auto_makeup = true;
 
 inline int   g_comp_detection_mode = 1; 
 inline float g_comp_rms_window_ms  = 30.0f; // Typical RMS window (10ms - 50ms)
-
-inline float g_rms_sq_state = 0.0f;
 
 inline void CompressorProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
@@ -67,7 +63,7 @@ inline void CompressorProcessCallback(void *buffer, unsigned int frames) {
             g_envelope = alpha_release * g_envelope + (1.0f - alpha_release) * detector_signal;
         }
 
-        float env_db = 20.0f * std::log10(std::max(g_envelope, 1e-6f));
+        float env_db = 20.0f * std::log10(std::max(g_envelope.load(), 1e-6f));
         float control_db = 0.0f;
         if (env_db > g_comp_thresh_db) {
             float excess_db = env_db - g_comp_thresh_db;

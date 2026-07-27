@@ -11,6 +11,7 @@
 #include "dsp/reverb.h"
 #include "dsp/lufs.h"
 #include "dsp/dsp_utils.h"
+#include "dsp/analyzer.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -193,7 +194,7 @@ namespace VAudioNative {
     }
 
     Value native_get_rms(std::vector<Value>& args) {
-        float rms_db = 20.0f * std::log10(std::max(VAudioDSP::g_out_envelope, 1e-6f));
+        float rms_db = 20.0f * std::log10(std::max(VAudioDSP::g_out_envelope.load(), 1e-6f));
         float rms_norm = std::clamp((rms_db + 60.0f) / 60.0f, 0.0f, 1.0f);
         return Value(rms_norm);
     }
@@ -253,7 +254,7 @@ namespace VAudioNative {
     }
 
     Value native_get_lufs(std::vector<Value>& args) {
-        return Value((double)VAudioDSP::g_current_lufs);
+        return Value((double)VAudioDSP::g_current_lufs.load());
     }
 
     Value native_set_sound_3d(std::vector<Value>& args) {
@@ -338,6 +339,19 @@ namespace VAudioNative {
     Value native_get_input_envelope(std::vector<Value>& args) {
         return Value((double)VAudioDSP::g_envelope);
     }
+
+    Value native_get_analyzer_envelope(std::vector<Value>& args) {
+        return Value((double)VAudioDSP::g_analyzer_envelope.load());
+    }
+
+    Value native_attach_analyzer(std::vector<Value>& args) {
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::AnalyzerProcessCallback);
+            return Value(true);
+        }
+        return Value(false);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -360,7 +374,8 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("attach_compressor")] = Value(VAudioNative::native_attach_compressor);
     vaudio[pool.intern("set_compressor")]    = Value(VAudioNative::native_set_compressor_params);
     vaudio[pool.intern("get_gr")]            = Value(VAudioNative::native_get_gain_reduction);
-    vaudio[pool.intern("get_env")] = Value(VAudioNative::native_get_input_envelope);
+    vaudio[pool.intern("get_env")]           = Value(VAudioNative::native_get_input_envelope);
+    vaudio[pool.intern("get_analyzer_env")]  = Value(VAudioNative::native_get_analyzer_envelope);
 
     // Stream
     vaudio[pool.intern("play_stream")]       = Value(VAudioNative::native_play_stream);
@@ -378,6 +393,9 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("attach_eq")]         = Value(VAudioNative::native_attach_eq);
     vaudio[pool.intern("set_eq")]            = Value(VAudioNative::native_set_eq_band);
     vaudio[pool.intern("enable_eq")]         = Value(VAudioNative::native_set_eq_enabled);
+
+    // Analyzer
+    vaudio[pool.intern("attach_analyzer")]   = Value(VAudioNative::native_attach_analyzer);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);

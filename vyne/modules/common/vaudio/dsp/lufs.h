@@ -34,7 +34,7 @@ struct KWeightingFilter {
 inline KWeightingFilter g_k_filter;
 inline float g_lufs_energy_acc = 0.0f;
 inline unsigned int g_lufs_sample_count = 0;
-inline float g_current_lufs = -70.0f; // Momentary LUFS floor
+inline std::atomic<float> g_current_lufs = -70.0f;
 
 inline void UpdateLUFSMeasurement(float left, float right) {
     float k_left = 0.0f, k_right = 0.0f;
@@ -47,9 +47,9 @@ inline void UpdateLUFSMeasurement(float left, float right) {
         float mean_square = g_lufs_energy_acc / (float)g_lufs_sample_count;
         
         if (mean_square > 1e-10f) {
-            g_current_lufs = -0.691f + 10.0f * std::log10(mean_square);
+            g_current_lufs.store(-0.691f + 10.0f * std::log10(mean_square));
         } else {
-            g_current_lufs = -70.0f;
+            g_current_lufs.store(-70.0f);
         }
 
         g_lufs_energy_acc = 0.0f;
