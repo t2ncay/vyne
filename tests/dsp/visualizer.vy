@@ -3,7 +3,7 @@ module vglib;
 module vaudio;
 module vmath;
 
-vglib.init(1800, 300, 60, "VYNE MASTER VISUALIZER RACK v1.0", 0);
+vglib.init(1800, 500, 60, "VYNE MASTER VISUALIZER CONSOLE v1.1", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 is_ready = vaudio.init_audio();
@@ -16,6 +16,12 @@ vaudio.attach_compressor(track);
 vaudio.play_sound(track);
 
 run_time = 0.0;
+
+# --- CRT LINE POSITIONS ---
+crt_line_pos :: Array = [];
+through i :: 0..300 -> loop {
+    crt_line_pos.push(i * 4);
+};
 
 # --- SPECTROGRAM SLICE HISTORY BUFFER ---
 spec_history :: Array = [];
@@ -35,7 +41,7 @@ fn log2(x) {
 }
 
 # --- MODULE 1: ROLLING STFT SPECTROGRAM WATERFALL ---
-fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
+fn draw_spectrogram_waterfall(x, y, w, h, spec_hist, audio_env) {
     vglib.rect(x, y, w, h, vglib.rgba(8, 6, 12, 255));
     
     num_slices :: Float64 = spec_hist.length();
@@ -50,9 +56,9 @@ fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
             mag = slice[b_idx];
             py :: Float64 = (y + h) - ((b_idx + 1) * bin_h);
 
-            r = vmath.round(vmath.clamp(mag * 255.0 * 1.5, 0.0, 255.0));
-            g = vmath.round(vmath.clamp((mag - 0.4) * 255.0 * 2.0, 0.0, 255.0));
-            b = vmath.round(vmath.clamp((0.8 - mag) * 255.0 * 1.8, 0.0, 255.0));
+            r = vmath.round(vmath.clamp((mag * 255.0) + (audio_env * 100.0), 0.0, 255.0));
+            g = vmath.round(vmath.clamp((mag * 200.0 * audio_env) - 50.0, 0.0, 255.0));
+            b = vmath.round(vmath.clamp((mag * 128.0) + (audio_env * 150.0), 0.0, 255.0));
 
             if (mag > 0.05) {
                 vglib.rect(px, py, slice_w + 0.5, bin_h + 0.5, vglib.rgba(r, g, b, 255));
@@ -60,7 +66,6 @@ fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
         };
     };
 
-    # Fundamental tracking overlay line
     prev_lx :: Float64 = x;
     prev_ly :: Float64 = y + h - 15.0;
     through s_idx :: 0..(int64(num_slices) - 1) -> loop {
@@ -80,6 +85,9 @@ fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
 
 # --- MODULE 2: REAL-TIME OSCILLOSCOPE WAVEFORM ---
 fn draw_oscilloscope(x, y, w, h, samples) {
+    const core_col = vglib.rgba(255, 110, 90, 255);
+    const glow_col = vglib.rgba(255, 110, 90, 50);
+
     vglib.rect(x, y, w, h, vglib.BLACK);
     
     cy :: Float64 = y + (h / 2.0);
@@ -97,7 +105,7 @@ fn draw_oscilloscope(x, y, w, h, samples) {
         curr_py :: Float64 = cy - (amp * (h * 0.42));
 
         if (idx > 0) {
-            vglib.line(prev_px, prev_py, curr_px, curr_py, vglib.rgba(255, 110, 90, 255));
+            draw_glow_line(prev_px, prev_py, curr_px, curr_py, core_col, glow_col);
         }
 
         prev_px = curr_px;
@@ -147,17 +155,20 @@ fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
 fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
     vglib.rect(cx - radius, cy - radius, radius * 2, radius * 2, vglib.BLACK);
 
-    through p :: 0..80 -> loop {
-        ang = (p * 4.5) + (run_time * 12.0);
+    scatter_scale = radius * 0.9;
+    ortho_scale   = radius * 0.8;
+
+    through p :: 0..120 -> loop {
+        ang = (p * 3.0) + (run_time * 12.0);
         rad = vmath.radians(ang);
 
-        p_scatter = vmath.sin(p * 17.3 + run_time * 5.0) * (audio_env * 65.0);
-        ortho_sc  = vmath.cos(p * 29.1 + run_time * 8.0) * (audio_env * 55.0);
+        p_scatter = vmath.sin(p * 17.3 + run_time * 5.0) * (audio_env * scatter_scale);
+        ortho_sc  = vmath.cos(p * 29.1 + run_time * 8.0) * (audio_env * ortho_scale);
 
         px :: Float64 = cx + (vmath.sin(rad) * p_scatter) + (vmath.cos(rad) * ortho_sc * 0.3);
         py :: Float64 = cy - (vmath.cos(rad) * p_scatter) + (vmath.sin(rad) * ortho_sc * 0.3);
 
-        vglib.circle(px, py, 1.2, vglib.rgba(170, 195, 225, 220));
+        vglib.circle(px, py, 1.5, vglib.rgba(170, 195, 225, 220));
     };
 
     vglib.line(cx + radius, cy - radius, cx + radius, cy + radius, vglib.rgba(40, 45, 55, 255));
@@ -285,14 +296,11 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
         curr_px = curr_px + step;
     }
 
-    # DYNAMIC PITCH & FREQUENCY INSPECTION READOUT (REPLACED HARDCODED PLACEHOLDER)
     safe_env = vmath.clamp(audio_env, 0.0001, 1.0);
     peak_db  = 20.0 * (vmath.log(safe_env) / 2.30258509299);
     
-    # Calculate fundamental bass frequency dynamically tracking envelope activity
     freq_hz = 37.0 + (audio_env * 12.0) + (vmath.sin(run_time * 3.0) * 1.5);
     
-    # MIDI Pitch Calculation: 69 + 12 * log2(freq / 440)
     midi_note = 69.0 + 12.0 * log2(freq_hz / 440.0);
     cents     = vmath.round((midi_note - vmath.round(midi_note)) * 100.0);
 
@@ -309,6 +317,38 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
 
     vglib.rect(box_x, box_y, box_w, box_h, vglib.rgba(20, 25, 32, 230));
     vglib.text_ex(vcr_font, readout_text, box_x + 8, box_y + 8, 10, vglib.WHITE);
+}
+
+fn draw_glow_line(x1, y1, x2, y2, core_color, glow_color) {
+    vglib.line(x1, y1, x2, y2, core_color);
+    vglib.line(x1, y1, x2, y2, glow_color); 
+}
+
+fn draw_spectral_history(x, y, w, h, spec_hist, audio_env) {
+    vglib.rect(x, y, w, h, vglib.BLACK);
+    
+    num_slices :: Float64 = spec_hist.length();
+    slice_w :: Float64 = w / num_slices;
+    
+    through s_idx :: 0..(int64(num_slices) - 1) -> loop {
+        slice = spec_hist[s_idx];
+        px :: Float64 = x + (s_idx * slice_w);
+        
+        through b_idx :: 0..31 -> loop {
+            mag = slice[b_idx];
+            
+            freq_norm = b_idx / 32.0;
+            
+            r = vmath.clamp((1.0 - freq_norm) * 200.0 + (audio_env * 55.0), 0.0, 255.0);
+            g = vmath.clamp((1.0 - freq_norm) * 255.0, 0.0, 255.0);
+            b = vmath.clamp(freq_norm * 255.0 + (audio_env * 100.0), 0.0, 255.0);
+            
+            alpha = vmath.round(vmath.clamp(mag * 255.0 * 2.0, 0.0, 255.0));
+            
+            vglib.rect(px, y + (b_idx * (h / 32.0)), slice_w, (h/32.0) - 0.5, vglib.rgba(r, g, b, alpha));
+        };
+    };
+    vglib.line(x, y, x + w, y, vglib.rgba(40, 45, 55, 255));
 }
 
 # --- MAIN ENGINE RENDER LOOP ---
@@ -334,16 +374,26 @@ while (vglib.running()) {
     wave_buf.pop_front();
     wave_buf.push(vmath.sin(run_time * 25.0) * curr_env);
 
+    bg_r = vmath.clamp(rms_val * 100.0, 0.0, 20.0);
+    bg_b = vmath.clamp(rms_val * 200.0, 0.0, 45.0);
+    vglib.clear(vglib.rgba(bg_r, 5, bg_b, 255));
+
     vglib.begin();
         vglib.clear(vglib.BLACK);
 
-        draw_spectrogram_waterfall(0, 0, 200, 300, spec_history);
+        through sy :: crt_line_pos -> loop {
+            vglib.line(0, sy, 1800, sy, vglib.rgba(0, 0, 0, 30));
+        };
+
+        draw_spectrogram_waterfall(0, 0, 200, 300, spec_history, curr_env);
         draw_oscilloscope(200, 0, 220, 300, wave_buf);
         draw_peak_lufs_meter(420, 0, 170, 300, rms_val, lufs_val);
-        draw_goniometer_scope(660, 150, 70, curr_env, run_time);
+        draw_goniometer_scope(660, 150, 110, curr_env, run_time);
         draw_analog_vu_meter(730, 0, 260, 300, curr_env);
         draw_waveform_strip(990, 0, 210, 300, wave_buf);
         draw_log_rta_spectrum(1200, 0, 600, 300, curr_env, run_time);
+
+        draw_spectral_history(0, 300, 1800, 200, spec_history, curr_env);
 
     vglib.end();
 }
