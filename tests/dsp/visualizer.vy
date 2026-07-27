@@ -109,7 +109,6 @@ fn draw_oscilloscope(x, y, w, h, samples) {
 fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
     vglib.rect(x, y, w, h, vglib.BLACK);
 
-    # Scale labels
     vglib.text_ex(vcr_font, "0",  x + 2, y + 10,  9, vglib.rgba(140, 150, 165, 255));
     vglib.text_ex(vcr_font, "6",  x + 2, y + 50,  9, vglib.rgba(140, 150, 165, 255));
     vglib.text_ex(vcr_font, "12", x + 2, y + 90,  9, vglib.rgba(140, 150, 165, 255));
@@ -117,7 +116,6 @@ fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
     vglib.text_ex(vcr_font, "36", x + 2, y + 180, 9, vglib.rgba(140, 150, 165, 255));
     vglib.text_ex(vcr_font, "50", x + 2, y + 220, 9, vglib.rgba(140, 150, 165, 255));
 
-    # Dual Stereo Bars
     bar_w :: Int64 = 14;
     b1_x :: Int64 = x + 22;
     b2_x :: Int64 = x + 40;
@@ -132,7 +130,6 @@ fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
         vglib.rect(b2_x, bar_y, bar_w, rms_h, vglib.rgba(140, 185, 225, 255));
     }
 
-    # Digital LUFS Readout Box
     lbox_x :: Int64 = x + 68;
     lbox_y :: Int64 = y + 70;
     vglib.rect(lbox_x, lbox_y, 90, 36, vglib.rgba(160, 180, 200, 255));
@@ -146,7 +143,6 @@ fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
     vglib.rect(cx - radius, cy - radius, radius * 2, radius * 2, vglib.BLACK);
 
     through p :: 0..80 -> loop {
-        # Phase phase-space polar projection
         ang = (p * 4.5) + (run_time * 12.0);
         rad = vmath.radians(ang);
 
@@ -166,19 +162,16 @@ fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
 fn draw_analog_vu_meter(x, y, w, h, level_db) {
     vglib.rect(x, y, w, h, vglib.BLACK);
 
-    # Scale arc markings
     vglib.text_ex(vcr_font, "20",  x + 35,  y + 30, 10, vglib.WHITE);
     vglib.text_ex(vcr_font, "10 7 5 4 3 2 1 0", x + 70, y + 30, 10, vglib.WHITE);
     vglib.text_ex(vcr_font, "1 2 3", x + 195, y + 30, 10, vglib.RED);
 
-    # Tick marks - RENAMED VARIABLE TO t_col TO PREVENT READONLY CONSTANT OVERWRITE
     through t :: 0..11 -> loop {
         tx :: Float64 = x + 40.0 + (t * 18.0);
         t_col = (t > 8) ? vglib.RED : vglib.WHITE;
         vglib.line(tx, y + 45, tx + 4, y + 53, t_col);
     };
 
-    # Dynamic Orange Needle Pivot
     pivot_x :: Float64 = x + 130.0;
     pivot_y :: Float64 = y + 190.0;
 
@@ -209,7 +202,6 @@ fn draw_waveform_strip(x, y, w, h, samples) {
     num_pts :: Float64 = samples.length();
     step_w  :: Float64 = w / num_pts;
 
-    # Background Filled Ghost Hull
     through idx :: 0..(int64(num_pts) - 1) -> loop {
         amp = samples[idx];
         bar_x :: Float64 = x + (idx * step_w);
@@ -218,7 +210,6 @@ fn draw_waveform_strip(x, y, w, h, samples) {
         vglib.rect(bar_x, cy - bar_h, step_w, bar_h * 2.0, vglib.rgba(140, 175, 215, 40));
     };
 
-    # Foreground Crisp Line
     prev_px :: Float64 = x;
     prev_py :: Float64 = cy;
     through idx :: 0..(int64(num_pts) - 1) -> loop {
@@ -254,7 +245,6 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
     vglib.line(x_100hz, y, x_100hz, y + h, vglib.rgba(25, 32, 42, 255));
     vglib.text_ex(vcr_font, "10kHz", x_10khz - 12, y + 10, 9, vglib.rgba(120, 130, 145, 255));
 
-    # Dual RTA Response Curves
     prev_px1 :: Float64 = x; prev_py1 :: Float64 = y + h - 20.0;
     prev_px2 :: Float64 = x; prev_py2 :: Float64 = y + h - 10.0;
 
@@ -264,7 +254,6 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
     while (curr_px <= x + w) {
         norm_x = (curr_px - x) / w;
 
-        # Logarithmic spectral shape math simulation
         f_shape = vmath.exp(-norm_x * 3.0);
         peak1 = vmath.sin(norm_x * 18.0 + run_time * 6.0) * 0.25;
         peak2 = vmath.cos(norm_x * 35.0 - run_time * 4.0) * 0.15;
@@ -285,7 +274,6 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
         curr_px = curr_px + step;
     }
 
-    # Pitch/Frequency Inspection Overlay Readout
     box_w :: Int64 = 280;
     box_h :: Int64 = 28;
     box_x :: Int64 = x + int64(w * 0.25);
@@ -307,7 +295,6 @@ while (vglib.running()) {
     rms_val  = vaudio.get_rms();
     lufs_val = vaudio.get_lufs();
 
-    # Update Spectrogram Waterfall Slices
     spec_history.pop_front();
     new_slice :: Array = [];
     through b :: 0..31 -> loop {
@@ -316,14 +303,12 @@ while (vglib.running()) {
     };
     spec_history.push(new_slice);
 
-    # Update Oscilloscope Ring Buffer
     wave_buf.pop_front();
     wave_buf.push(vmath.sin(run_time * 25.0) * curr_env);
 
     vglib.begin();
         vglib.clear(vglib.BLACK);
 
-        # Tile-by-Tile Layout Array Matching Prompt Reference Rack
         draw_spectrogram_waterfall(0, 0, 200, 300, spec_history);
         draw_oscilloscope(200, 0, 220, 300, wave_buf);
         draw_peak_lufs_meter(420, 0, 170, 300, rms_val, lufs_val);
