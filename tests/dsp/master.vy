@@ -512,7 +512,7 @@ while (vglib.running()) {
     effective_drive = (sat_on == 1) ? drive : 0.0;
     vaudio.set_dsp(effective_drive, sat_mode);
     
-    vaudio.set_reverb(decay, mix, rev_on);
+    vaudio.set_reverb(decay, mix, predelay, damping, rev_on);
 
     gr_db   = vaudio.get_gr();
     rms_val = vaudio.get_rms();
