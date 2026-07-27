@@ -1338,9 +1338,9 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("RIGHT")] = Value(262).setReadOnly();
 
     // preset colors
-    vglib[pool.intern("WHITE")]   = Value((int64_t)0xFFFFFFFF).setReadOnly();
+    vglib[pool.intern("WHITE")]   = Value((int64_t)0xFFFFFFFF);
     vglib[pool.intern("BLACK")]   = Value((int64_t)0x000000FF).setReadOnly();
-    vglib[pool.intern("RED")]     = Value((int64_t)0xFF0000FF).setReadOnly();
+    vglib[pool.intern("RED")]     = Value((int64_t)0xFF0000FF);
     vglib[pool.intern("GREEN")]   = Value((int64_t)0x00FF00FF).setReadOnly();
     vglib[pool.intern("BLUE")]    = Value((int64_t)0x0000FFFF).setReadOnly();
     vglib[pool.intern("CYAN")]    = Value((int64_t)0x00AAFFFF).setReadOnly();
