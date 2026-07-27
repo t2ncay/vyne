@@ -158,7 +158,7 @@ namespace VGLibNative {
         int fps = (int)args[2].asInt();
         std::string title = args[3].asString();
 
-        unsigned int flags = FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI;
+        unsigned int flags = FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_UNDECORATED;
 
         if (args.size() >= 5) {
             flags |= (unsigned int)args[4].asInt();
