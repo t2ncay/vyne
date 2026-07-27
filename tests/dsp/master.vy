@@ -22,22 +22,22 @@ vaudio.attach_reverb(track);
 
 # Global Playback State
 is_playing_track :: Int64 = 1;
-
 run_time = 0.0;
 active_tab :: Int64 = 0; # 0 = EQ, 1 = COMPRESSOR, 2 = SATURATOR, 3 = REVERB
 tab_glow :: Float64 = 50.0; # Animated tab bar indicator position
 prev_mouse_state = 0;
 
 # --- EQUALIZER STATE (7 BANDS) ---
-b1_f :: Float64 = 60.0;    b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
-b2_f :: Float64 = 180.0;   b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
-b3_f :: Float64 = 500.0;   b3_g :: Float64 = 2.0;   b3_q :: Float64 = 1.2;
-b4_f :: Float64 = 1200.0;  b4_g :: Float64 = -2.0;  b4_q :: Float64 = 1.0;
-b5_f :: Float64 = 3000.0;  b5_g :: Float64 = -1.5;  b5_q :: Float64 = 1.0;
-b6_f :: Float64 = 7500.0;  b6_g :: Float64 = -1.0;  b6_q :: Float64 = 0.8;
-b7_f :: Float64 = 14000.0; b7_g :: Float64 = 1.0;   b7_q :: Float64 = 0.7;
+b1_f  :: Float64 = 60.0;    b1_g :: Float64 = 3.0;   b1_q :: Float64 = 1.0;
+b2_f  :: Float64 = 180.0;   b2_g :: Float64 = -4.0;  b2_q :: Float64 = 1.4;
+b3_f  :: Float64 = 500.0;   b3_g :: Float64 = 2.0;   b3_q :: Float64 = 1.2;
+b4_f  :: Float64 = 1200.0;  b4_g :: Float64 = -2.0;  b4_q :: Float64 = 1.0;
+b5_f  :: Float64 = 3000.0;  b5_g :: Float64 = -1.5;  b5_q :: Float64 = 1.0;
+b6_f  :: Float64 = 7500.0;  b6_g :: Float64 = -1.0;  b6_q :: Float64 = 0.8;
+b7_f  :: Float64 = 14000.0; b7_g :: Float64 = 1.0;   b7_q :: Float64 = 0.7;
 eq_on :: Int64 = 1;
-active_eq_node = 0;
+
+active_eq_node :: Int64 = 0;
 
 # --- COMPRESSOR STATE ---
 thresh  :: Float64 = -18.0;
