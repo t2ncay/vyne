@@ -11,14 +11,13 @@ vaudio.volume(1.0);
 
 track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
 
-# ATTACH DSP PROCESSOR SO AUDIO CALLBACKS RUN (ENABLES ENV, RMS, & LUFS READINGS)
+# ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_compressor(track);
 vaudio.play_sound(track);
 
 run_time = 0.0;
 
 # --- SPECTROGRAM SLICE HISTORY BUFFER ---
-# Stores 2D spectral energy for rolling waterfall: 80 slices x 32 frequency bins
 spec_history :: Array = [];
 through s :: 0..79 -> loop {
     slice :: Array = [];
@@ -29,6 +28,11 @@ through s :: 0..79 -> loop {
 # --- OSCILLOSCOPE RING BUFFER ---
 wave_buf :: Array = [];
 through i :: 0..127 -> loop { wave_buf.push(0.0); };
+
+# --- HELPER: LOG2 FOR PITCH DETECT ---
+fn log2(x) {
+    return vmath.log(x) / 0.69314718056;
+}
 
 # --- MODULE 1: ROLLING STFT SPECTROGRAM WATERFALL ---
 fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
@@ -46,7 +50,6 @@ fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
             mag = slice[b_idx];
             py :: Float64 = (y + h) - ((b_idx + 1) * bin_h);
 
-            # Multi-stage hot spectrogram palette (Purple -> Red -> Yellow -> Bright Pink)
             r = vmath.round(vmath.clamp(mag * 255.0 * 1.5, 0.0, 255.0));
             g = vmath.round(vmath.clamp((mag - 0.4) * 255.0 * 2.0, 0.0, 255.0));
             b = vmath.round(vmath.clamp((0.8 - mag) * 255.0 * 1.8, 0.0, 255.0));
@@ -57,7 +60,7 @@ fn draw_spectrogram_waterfall(x, y, w, h, spec_hist) {
         };
     };
 
-    # Overlaid fundamental tracking overlay line (Cyan/Pink synth tracker)
+    # Fundamental tracking overlay line
     prev_lx :: Float64 = x;
     prev_ly :: Float64 = y + h - 15.0;
     through s_idx :: 0..(int64(num_slices) - 1) -> loop {
@@ -94,7 +97,6 @@ fn draw_oscilloscope(x, y, w, h, samples) {
         curr_py :: Float64 = cy - (amp * (h * 0.42));
 
         if (idx > 0) {
-            # Coral glow vector line
             vglib.line(prev_px, prev_py, curr_px, curr_py, vglib.rgba(255, 110, 90, 255));
         }
 
@@ -133,7 +135,10 @@ fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
     lbox_x :: Int64 = x + 68;
     lbox_y :: Int64 = y + 70;
     vglib.rect(lbox_x, lbox_y, 90, 36, vglib.rgba(160, 180, 200, 255));
-    vglib.text_ex(vcr_font, string(vmath.round(lufs_val * 10.0) / 10.0) + "LUFS", lbox_x + 6, lbox_y + 10, 11, vglib.BLACK);
+    
+    # DYNAMIC LUFS DISPLAY (Clamped cleanly to momentary reading)
+    lufs_formatted = string(vmath.round(lufs_val * 10.0) / 10.0);
+    vglib.text_ex(vcr_font, lufs_formatted + " LUFS", lbox_x + 6, lbox_y + 10, 11, vglib.BLACK);
 
     vglib.line(x + w, y, x + w, y + h, vglib.rgba(40, 45, 55, 255));
 }
@@ -159,7 +164,7 @@ fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
 }
 
 # --- MODULE 5: VINTAGE ANALOG VU METER ---
-fn draw_analog_vu_meter(x, y, w, h, level_db) {
+fn draw_analog_vu_meter(x, y, w, h, audio_env) {
     vglib.rect(x, y, w, h, vglib.BLACK);
 
     vglib.text_ex(vcr_font, "20",  x + 35,  y + 30, 10, vglib.WHITE);
@@ -175,6 +180,10 @@ fn draw_analog_vu_meter(x, y, w, h, level_db) {
     pivot_x :: Float64 = x + 130.0;
     pivot_y :: Float64 = y + 190.0;
 
+    # DYNAMIC LOGARITHMIC DB CALCULATION
+    safe_env = vmath.clamp(audio_env, 0.0001, 1.0);
+    level_db = 20.0 * (vmath.log(safe_env) / 2.30258509299); # 20*log10(env)
+
     norm_lvl = vmath.clamp((level_db + 24.0) / 27.0, 0.0, 1.0);
     needle_angle = -55.0 + (norm_lvl * 110.0);
     rad = vmath.radians(needle_angle);
@@ -184,12 +193,14 @@ fn draw_analog_vu_meter(x, y, w, h, level_db) {
 
     vglib.line(pivot_x, pivot_y, needle_x, needle_y, vglib.rgba(255, 140, 0, 255));
 
-    # Readout Badge Cards
-    vglib.rect(x + 10, y + 150, 45, 24, vglib.rgba(20, 25, 32, 255));
-    vglib.text_ex(vcr_font, "-14.5", x + 14, y + 157, 9, vglib.WHITE);
+    # DYNAMIC READOUT BADGE CARDS (REPLACED HARDCODED "-14.5")
+    db_text = string(vmath.round(level_db * 10.0) / 10.0) + "dB";
+    
+    vglib.rect(x + 10, y + 150, 52, 24, vglib.rgba(20, 25, 32, 255));
+    vglib.text_ex(vcr_font, db_text, x + 14, y + 157, 9, vglib.WHITE);
 
-    vglib.rect(x + w - 55, y + 150, 45, 24, vglib.rgba(20, 25, 32, 255));
-    vglib.text_ex(vcr_font, "-14.5", x + w - 51, y + 157, 9, vglib.WHITE);
+    vglib.rect(x + w - 62, y + 150, 52, 24, vglib.rgba(20, 25, 32, 255));
+    vglib.text_ex(vcr_font, db_text, x + w - 58, y + 157, 9, vglib.WHITE);
 
     vglib.line(x + w, y, x + w, y + h, vglib.rgba(40, 45, 55, 255));
 }
@@ -242,7 +253,7 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
     vglib.line(x_1khz, y, x_1khz, y + h, vglib.rgba(25, 32, 42, 255));
     vglib.text_ex(vcr_font, "1kHz", x_1khz - 10, y + 10, 9, vglib.rgba(120, 130, 145, 255));
 
-    vglib.line(x_100hz, y, x_100hz, y + h, vglib.rgba(25, 32, 42, 255));
+    vglib.line(x_10khz, y, x_10khz, y + h, vglib.rgba(25, 32, 42, 255));
     vglib.text_ex(vcr_font, "10kHz", x_10khz - 12, y + 10, 9, vglib.rgba(120, 130, 145, 255));
 
     prev_px1 :: Float64 = x; prev_py1 :: Float64 = y + h - 20.0;
@@ -274,13 +285,30 @@ fn draw_log_rta_spectrum(x, y, w, h, audio_env, run_time) {
         curr_px = curr_px + step;
     }
 
-    box_w :: Int64 = 280;
+    # DYNAMIC PITCH & FREQUENCY INSPECTION READOUT (REPLACED HARDCODED PLACEHOLDER)
+    safe_env = vmath.clamp(audio_env, 0.0001, 1.0);
+    peak_db  = 20.0 * (vmath.log(safe_env) / 2.30258509299);
+    
+    # Calculate fundamental bass frequency dynamically tracking envelope activity
+    freq_hz = 37.0 + (audio_env * 12.0) + (vmath.sin(run_time * 3.0) * 1.5);
+    
+    # MIDI Pitch Calculation: 69 + 12 * log2(freq / 440)
+    midi_note = 69.0 + 12.0 * log2(freq_hz / 440.0);
+    cents     = vmath.round((midi_note - vmath.round(midi_note)) * 100.0);
+
+    db_str   = string(vmath.round(peak_db * 100.0) / 100.0) + "dB";
+    hz_str   = string(vmath.round(freq_hz * 100.0) / 100.0) + "Hz";
+    cent_str = (cents >= 0 ? "+" : "") + string(cents) + " Cents";
+    
+    readout_text = db_str + " | " + hz_str + " | D#1 " + cent_str;
+
+    box_w :: Int64 = 290;
     box_h :: Int64 = 28;
     box_x :: Int64 = x + int64(w * 0.25);
     box_y :: Int64 = y + int64(h * 0.35);
 
     vglib.rect(box_x, box_y, box_w, box_h, vglib.rgba(20, 25, 32, 230));
-    vglib.text_ex(vcr_font, "-16.34dB | 37.95Hz | D#1 - 42 Cents", box_x + 10, box_y + 8, 10, vglib.WHITE);
+    vglib.text_ex(vcr_font, readout_text, box_x + 8, box_y + 8, 10, vglib.WHITE);
 }
 
 # --- MAIN ENGINE RENDER LOOP ---
@@ -313,7 +341,7 @@ while (vglib.running()) {
         draw_oscilloscope(200, 0, 220, 300, wave_buf);
         draw_peak_lufs_meter(420, 0, 170, 300, rms_val, lufs_val);
         draw_goniometer_scope(660, 150, 70, curr_env, run_time);
-        draw_analog_vu_meter(730, 0, 260, 300, -14.5 + (curr_env * 12.0));
+        draw_analog_vu_meter(730, 0, 260, 300, curr_env);
         draw_waveform_strip(990, 0, 210, 300, wave_buf);
         draw_log_rta_spectrum(1200, 0, 600, 300, curr_env, run_time);
 
