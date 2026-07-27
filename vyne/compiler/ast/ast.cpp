@@ -693,6 +693,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     static const uint32_t sizeId     = StringPool::intern("size");
     static const uint32_t pushId     = StringPool::intern("push");
     static const uint32_t popId      = StringPool::intern("pop");
+    static const uint32_t popFrontId = StringPool::intern("pop_front");
     static const uint32_t backId     = StringPool::intern("back");
     static const uint32_t deleteId   = StringPool::intern("delete");
     static const uint32_t sortId     = StringPool::intern("sort");
@@ -864,6 +865,24 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             vec.pop_back();
             
             return poppedValue;
+        }
+
+        if (methodId == popFrontId) {
+            if (target->getType() != Value::ARRAY) 
+                throw std::runtime_error("Type Error: Called method pop_front() on non-array [ line " + std::to_string(lineNumber) + " ]");
+            
+            auto& vec = target->asList();
+            
+            if (vec.empty()) 
+                throw std::runtime_error("Index Error: pop_front() from empty array [ line " + std::to_string(lineNumber) + " ]");
+            
+            if (!arguments.empty()) 
+                throw std::runtime_error("Argument Error: pop_front() expects 0 arguments [ line " + std::to_string(lineNumber) + " ]");
+
+            Value frontValue = vec.front();
+            vec.erase(vec.begin()); // Erase first element from std::vector<Value>
+            
+            return frontValue;
         }
 
         if (methodId == backId) {
