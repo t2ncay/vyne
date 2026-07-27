@@ -10,7 +10,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
-track_name :: String = "tests/assets/akira.wav";
+track_name :: String = "tests/assets/KICK MY GRAVESTONE.wav";
 track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
 vaudio.play_sound(track);
 
@@ -542,7 +542,7 @@ while (vglib.running()) {
     if (vglib.key_pressed(vglib.R)) {
         is_rendering = 1;
         
-        success = vaudio.render_offline(track_name, track_name + "_rendered.wav");
+        success = vaudio.render_offline(track_name, "rendered.wav");
         
         if (success) {
             render_status = 1;
@@ -1084,7 +1084,7 @@ while (vglib.running()) {
             render_timer = render_timer - 0.016;
             
             banner_col = (render_status == 1) ? vglib.rgba(50, 255, 120, 230) : vglib.rgba(255, 60, 60, 230);
-            banner_msg = (render_status == 1) ? "BOUNCED: rendered_output.wav" : "RENDER FAILED!";
+            banner_msg = (render_status == 1) ? "BOUNCED: " + track_name + "_rendered_output.wav" : "RENDER FAILED!";
 
             vglib.rect(400, 420, 400, 60, vglib.rgba(18, 22, 28, 240));
             vglib.line(400, 420, 800, 420, banner_col);

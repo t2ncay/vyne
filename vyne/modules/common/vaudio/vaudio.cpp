@@ -720,39 +720,46 @@ namespace VAudioNative {
         if (wave.frameCount == 0) return Value(false);
 
         WaveFormat(&wave, 48000, 32, 2);
+
         float* samples = (float*)wave.data;
-        unsigned int total_frames = wave.frameCount;
+        uint64_t input_frames = wave.frameCount;
+
+        unsigned int tail_frames = 48000 * 4; // 4 seconds tail padding
+        uint64_t total_frames = input_frames + (g_rev_enabled ? tail_frames : 0);
+
+        std::vector<float> render_buffer(total_frames * 2, 0.0f);
+        std::memcpy(render_buffer.data(), samples, input_frames * 2 * sizeof(float));
+
+        UnloadWave(wave);
 
         unsigned int block_size = 512;
-        unsigned int processed = 0;
+        uint64_t processed = 0;
 
         while (processed < total_frames) {
-            unsigned int current_frames = std::min(block_size, total_frames - processed);
-            float* block_ptr = samples + (processed * 2);
+            unsigned int current_frames = static_cast<unsigned int>(std::min<uint64_t>(block_size, total_frames - processed));
+            float* block_ptr = render_buffer.data() + (processed * 2);
 
-            if (g_eq_enabled)    EQProcessCallback(block_ptr, current_frames);
-            if (g_comp_enabled)  CompressorProcessCallback(block_ptr, current_frames);
+            if (g_eq_enabled)   EQProcessCallback(block_ptr, current_frames);
+            if (g_comp_enabled) CompressorProcessCallback(block_ptr, current_frames);
             if (g_drive > 0.0f) SaturationProcessCallback(block_ptr, current_frames);
-            if (g_rev_enabled)   ReverbProcessCallback(block_ptr, current_frames);
+            if (g_rev_enabled)  ReverbProcessCallback(block_ptr, current_frames);
 
             processed += current_frames;
         }
 
         std::ofstream out(output_path, std::ios::binary);
-        if (!out.is_open()) {
-            UnloadWave(wave);
-            return Value(false);
-        }
+        if (!out.is_open()) return Value(false);
 
         WAVHeader header;
-        header.subchunk2Size = total_frames * 2 * sizeof(float);
-        header.chunkSize = 36 + header.subchunk2Size;
+        uint64_t pcm_data_size = total_frames * 2 * sizeof(float);
+        
+        header.subchunk2Size = static_cast<uint32_t>(pcm_data_size);
+        header.chunkSize = static_cast<uint32_t>(36 + pcm_data_size);
 
         out.write(reinterpret_cast<char*>(&header), sizeof(WAVHeader));
-        out.write(reinterpret_cast<char*>(samples), header.subchunk2Size);
+        out.write(reinterpret_cast<char*>(render_buffer.data()), pcm_data_size);
         out.close();
 
-        UnloadWave(wave);
         return Value(true);
     }
 

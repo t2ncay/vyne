@@ -25,3 +25,4 @@ tests/assets/*
 *.dat
 *.obj
 *.vy.c
+*.wav
