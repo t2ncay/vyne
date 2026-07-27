@@ -323,58 +323,105 @@ fn draw_saturator_curve(x, y, d_val, m_val, is_on) {
 
 # --- REVERB 3D WIREFRAME ROOM VISUALIZER ---
 fn draw_reverb_room_3d(cx, cy, room_size, decay_val, t_time, is_on) {
-    # Dark Backing Card
-    vglib.rect(cx - 200, cy - 180, 400, 360, vglib.rgba(16, 18, 24, 255));
+    vglib.rect(cx - 200, cy - 180, 400, 360, vglib.rgba(14, 16, 22, 255));
     
-    # Outer Card Borders
     vglib.line(cx - 200, cy - 180, cx + 200, cy - 180, vglib.rgba(50, 55, 68, 255));
     vglib.line(cx + 200, cy - 180, cx + 200, cy + 180, vglib.rgba(50, 55, 68, 255));
     vglib.line(cx + 200, cy + 180, cx - 200, cy + 180, vglib.rgba(50, 55, 68, 255));
     vglib.line(cx - 200, cy + 180, cx - 200, cy - 180, vglib.rgba(50, 55, 68, 255));
 
-    glow_color = (is_on == 1) ? vglib.rgba(170, 100, 255, 255) : vglib.rgba(70, 75, 90, 255);
-    dim_color  = (is_on == 1) ? vglib.rgba(120, 60, 200, 180) : vglib.rgba(45, 50, 60, 180);
+    glow_color  = (is_on == 1) ? vglib.rgba(180, 100, 255, 255) : vglib.rgba(70, 75, 90, 255);
+    inner_color = (is_on == 1) ? vglib.rgba(0, 220, 255, 220)   : vglib.rgba(50, 60, 75, 180);
+    dim_color   = (is_on == 1) ? vglib.rgba(110, 50, 180, 140)  : vglib.rgba(40, 45, 55, 140);
+    grid_color  = (is_on == 1) ? vglib.rgba(45, 30, 70, 255)   : vglib.rgba(25, 28, 36, 255);
 
-    # 3D Room Cylinder Dimensions
-    r :: Float64 = 55.0 + (room_size * 55.0);
-    h :: Float64 = 60.0 + (decay_val * 70.0);
-    rot_angle = t_time * 8;
+    grid_y_base :: Float64 = cy + 110.0;
+    through g :: 0..5 -> loop {
+        gy :: Float64 = grid_y_base + (g * 10.0);
+        span :: Float64 = 60.0 + (g * 22.0);
+        vglib.line(cx - span, gy, cx + span, gy, grid_color);
+    };
 
-    num_pillars = 32;
-    
-    # Render Top and Bottom Ellipses & Vertical Pillars
+    through rx :: -3..3 -> loop {
+        top_rx :: Float64 = cx + (rx * 18.0);
+        bot_rx :: Float64 = cx + (rx * 42.0);
+        vglib.line(top_rx, grid_y_base, bot_rx, grid_y_base + 50.0, grid_color);
+    };
+
+    if (is_on == 1) {
+        through w :: 0..2 -> loop {
+            pulse_phase = vmath.fmod(t_time * 2.0 + (w * 0.66), 2.0);
+            wave_r :: Float64 = pulse_phase * 75.0 * (0.5 + room_size * 0.5);
+            wave_alpha = vmath.clamp((1.0 - (pulse_phase / 2.0)) * 255.0, 0.0, 255.0);
+            wave_col = vglib.rgba(160, 90, 255, vmath.round(wave_alpha));
+
+            # Render Elliptical Wavefront Ring
+            through p :: 0..11 -> loop {
+                p1 = p * 30.0; p2 = (p + 1) * 30.0;
+                rad1 = vmath.radians(p1); rad2 = vmath.radians(p2);
+                
+                wx1 :: Float64 = cx + (vmath.cos(rad1) * wave_r);
+                wy1 :: Float64 = (cy + 20.0) + (vmath.sin(rad1) * wave_r * 0.35);
+                wx2 :: Float64 = cx + (vmath.cos(rad2) * wave_r);
+                wy2 :: Float64 = (cy + 20.0) + (vmath.sin(rad2) * wave_r * 0.35);
+
+                vglib.line(wx1, wy1, wx2, wy2, wave_col);
+            };
+        };
+    }
+
+    r_outer :: Float64 = 50.0 + (room_size * 60.0);
+    r_inner :: Float64 = r_outer * 0.55;
+    h :: Float64       = 50.0 + (decay_val * 75.0);
+    rot_angle          = t_time * 10.0;
+
     through i :: 0..15 -> loop {
         a1 = (i * 22.5) + rot_angle;
         a2 = ((i + 1) * 22.5) + rot_angle;
 
-        rad1 = vmath.radians(a1);
-        rad2 = vmath.radians(a2);
+        rad1 = vmath.radians(a1); rad2 = vmath.radians(a2);
 
-        # Perspective projection Math
         cos1 = vmath.cos(rad1); sin1 = vmath.sin(rad1);
         cos2 = vmath.cos(rad2); sin2 = vmath.sin(rad2);
 
-        # Top Ring Coordinates
-        top_x1 :: Float64 = cx + (cos1 * r);
-        top_y1 :: Float64 = (cy - h) + (sin1 * r * 0.38);
-        top_x2 :: Float64 = cx + (cos2 * r);
-        top_y2 :: Float64 = (cy - h) + (sin2 * r * 0.38);
+        top_x1 :: Float64 = cx + (cos1 * r_outer);
+        top_y1 :: Float64 = (cy - h) + (sin1 * r_outer * 0.38);
+        top_x2 :: Float64 = cx + (cos2 * r_outer);
+        top_y2 :: Float64 = (cy - h) + (sin2 * r_outer * 0.38);
 
-        # Bottom Ring Coordinates
-        bot_x1 :: Float64 = cx + (cos1 * r);
-        bot_y1 :: Float64 = (cy + h) + (sin1 * r * 0.38);
-        bot_x2 :: Float64 = cx + (cos2 * r);
-        bot_y2 :: Float64 = (cy + h) + (sin2 * r * 0.38);
+        bot_x1 :: Float64 = cx + (cos1 * r_outer);
+        bot_y1 :: Float64 = (cy + h * 0.6) + (sin1 * r_outer * 0.38);
+        bot_x2 :: Float64 = cx + (cos2 * r_outer);
+        bot_y2 :: Float64 = (cy + h * 0.6) + (sin2 * r_outer * 0.38);
 
-        # Depth-based shading
+        # Inner Core Ring Coordinates (Counter-Rotating)
+        in_rad1 = vmath.radians(a1 * -1.5); in_rad2 = vmath.radians(a2 * -1.5);
+        in_x1 :: Float64 = cx + (vmath.cos(in_rad1) * r_inner);
+        in_y1 :: Float64 = cy + (vmath.sin(in_rad1) * r_inner * 0.38);
+        in_x2 :: Float64 = cx + (vmath.cos(in_rad2) * r_inner);
+        in_y2 :: Float64 = cy + (vmath.sin(in_rad2) * r_inner * 0.38);
+
         wire_col = (sin1 < 0.0) ? dim_color : glow_color;
 
         vglib.line(top_x1, top_y1, top_x2, top_y2, wire_col);
         vglib.line(bot_x1, bot_y1, bot_x2, bot_y2, wire_col);
         vglib.line(top_x1, top_y1, bot_x1, bot_y1, wire_col);
+
+        vglib.line(in_x1, in_y1, in_x2, in_y2, inner_color);
     };
 
-    vglib.text_ex(vcr_font, "3D ACOUSTIC ROOM MODEL", cx - 95, cy + 192, 11, vglib.rgba(160, 170, 185, 255));
+    core_pulse :: Float64 = 4.0 + (vmath.sin(t_time * 6.0) * 2.0);
+    vglib.circle(cx, cy, core_pulse + 2.0, vglib.BLACK);
+    vglib.circle(cx, cy, core_pulse, inner_color);
+
+    # Crosshair Reticle
+    vglib.line(cx - 12, cy, cx - 5, cy, inner_color);
+    vglib.line(cx + 5, cy, cx + 12, cy, inner_color);
+    vglib.line(cx, cy - 12, cx, cy - 5, inner_color);
+    vglib.line(cx, cy + 5, cx, cy + 12, inner_color);
+
+    # Subtitle Readout Card
+    vglib.text_ex(vcr_font, "3D ACOUSTIC SPACE & WAVEFIELD", cx - 110, cy + 192, 11, vglib.rgba(160, 170, 185, 255));
 }
 
 # --- REVERB IMPULSE DECAY ENVELOPE GRAPH ---
