@@ -3,16 +3,16 @@ module vglib;
 module vaudio;
 module vmath;
 
-vglib.init(1800, 500, 60, "VYNE MASTER VISUALIZER CONSOLE v1.1", 0);
+vglib.init(1800, 500, 60, "VYNE MASTER VISUALIZER CONSOLE v1.1", 1);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound("tests/assets/KICK MY GRAVESTONE.wav");
+track = vaudio.load_sound("tests/assets/Breakbeats.wav");
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
-vaudio.attach_compressor(track);
+vaudio.attach_analyzer(track);
 vaudio.play_sound(track);
 
 run_time = 0.0;
@@ -359,7 +359,7 @@ while (vglib.running()) {
         vaudio.play_sound(track);
     }
 
-    curr_env = vaudio.get_env();
+    curr_env = vaudio.get_analyzer_env();
     rms_val  = vaudio.get_rms();
     lufs_val = vaudio.get_lufs();
 
