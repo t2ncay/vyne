@@ -28,6 +28,7 @@
 #include <cstring>
 #include <vector>
 #include <string>
+#include <map>
 
 #include "../../../compiler/ast/ast.h"
 #include "../../../compiler/ast/value.h"
