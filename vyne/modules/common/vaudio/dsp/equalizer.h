@@ -1,10 +1,12 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <atomic>
+
+#include "shared_state.h"
+#include "lufs.h"
 
 namespace VAudioDSP {
-
-void UpdateLUFSMeasurement(float left, float right);
 
 struct Biquad {
     float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f;
@@ -52,6 +54,9 @@ struct Biquad {
 
 inline Biquad g_eq_bands[7];
 inline bool g_eq_enabled = true;
+
+inline float g_bin_peaks[64] = {0.0f};
+
 
 inline void EQProcessCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;

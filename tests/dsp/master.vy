@@ -695,6 +695,8 @@ while (vglib.running()) {
             }
 
             vglib.rect(80, 100, 1020, 520, vglib.rgba(18, 22, 30, 255));
+
+
             vglib.line(80, 100, 1100, 100, vglib.rgba(40, 48, 62, 255));
             vglib.line(1100, 100, 1100, 620, vglib.rgba(40, 48, 62, 255));
             vglib.line(1100, 620, 80, 620, vglib.rgba(40, 48, 62, 255));

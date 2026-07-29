@@ -36,7 +36,7 @@ inline float g_lufs_energy_acc = 0.0f;
 inline unsigned int g_lufs_sample_count = 0;
 inline std::atomic<float> g_current_lufs = -70.0f;
 
-inline void UpdateLUFSMeasurement(float left, float right) {
+static inline void UpdateLUFSMeasurement(float left, float right) {
     float k_left = 0.0f, k_right = 0.0f;
     g_k_filter.process(left, right, k_left, k_right);
 

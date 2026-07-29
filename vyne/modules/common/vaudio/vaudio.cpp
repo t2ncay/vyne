@@ -352,6 +352,15 @@ namespace VAudioNative {
         }
         return Value(false);
     }
+
+    Value native_get_spectrum(std::vector<Value>& args) {
+        std::vector<Value> bins;
+        bins.reserve(64);
+        for (int i = 0; i < 64; ++i) {
+            bins.emplace_back((double)VAudioDSP::g_fft_bins[i].load());
+        }
+        return Value(bins);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -393,6 +402,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("attach_eq")]         = Value(VAudioNative::native_attach_eq);
     vaudio[pool.intern("set_eq")]            = Value(VAudioNative::native_set_eq_band);
     vaudio[pool.intern("enable_eq")]         = Value(VAudioNative::native_set_eq_enabled);
+    vaudio[pool.intern("get_spectrum")]      = Value(VAudioNative::native_get_spectrum);
 
     // Analyzer
     vaudio[pool.intern("attach_analyzer")]   = Value(VAudioNative::native_attach_analyzer);
