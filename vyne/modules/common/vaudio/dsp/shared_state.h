@@ -2,6 +2,7 @@
 #include <atomic>
 
 namespace VAudioDSP {
+    inline float g_sample_rate = 48000.0f;
     inline std::atomic<float> g_analyzer_envelope = 0.0f;
     inline std::atomic<float> g_envelope          = 0.0f; 
     inline std::atomic<float> g_out_envelope      = 0.0f;

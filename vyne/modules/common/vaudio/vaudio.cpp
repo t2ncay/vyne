@@ -202,11 +202,13 @@ namespace VAudioNative {
     Value native_attach_reverb(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
         auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
-        if (handle != nullptr) {
-            AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::ReverbProcessCallback);
-            return Value(true);
+        
+        if (handle->sound.stream.sampleRate > 0) {
+            VAudioDSP::g_sample_rate = (float)handle->sound.stream.sampleRate;
         }
-        return Value(false);
+
+        AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::ReverbProcessCallback);
+        return Value(true);
     }
 
     Value native_set_reverb_params(std::vector<Value>& args) {

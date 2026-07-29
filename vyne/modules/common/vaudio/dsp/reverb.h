@@ -3,11 +3,15 @@
 #include <cmath>
 #include <algorithm>
 
+#include "shared_state.h"
+
 namespace VAudioDSP {
+
+    constexpr float M_PI = 3.14159265358979323846f;
 
     struct OnePoleLP {
         float store = 0.0f;
-        float process(float in, float coeff) {
+        inline float process(float in, float coeff) {
             store = in * (1.0f - coeff) + store * coeff;
             return store;
         }
@@ -24,13 +28,13 @@ namespace VAudioDSP {
             phase = 0.0f;
         }
 
-        float process(float input, float base_delay_samples, float mod_depth_samples, float mod_rate_hz) {
+        inline float process(float input, float base_delay_samples, float mod_depth_samples, float mod_rate_hz, float sample_rate) {
             if (buffer.empty()) return input;
 
             buffer[writeIdx] = input;
 
-            phase += (2.0f * 3.14159265f * mod_rate_hz) / 48000.0f;
-            if (phase > 2.0f * 3.14159265f) phase -= 2.0f * 3.14159265f;
+            phase += (2.0f * M_PI * mod_rate_hz) / sample_rate;
+            if (phase >= 2.0f * M_PI) phase -= 2.0f * M_PI;
 
             float current_delay = base_delay_samples + (std::sin(phase) * mod_depth_samples);
             current_delay = std::clamp(current_delay, 1.0f, (float)(buffer.size() - 2));
@@ -52,14 +56,14 @@ namespace VAudioDSP {
     struct DiffuserAllpass {
         std::vector<float> buffer;
         size_t idx = 0;
-        float feedback = 0.6f;
+        float feedback = 0.65f;
 
         void init(size_t size) {
             buffer.assign(size, 0.0f);
             idx = 0;
         }
 
-        float process(float in) {
+        inline float process(float in) {
             if (buffer.empty()) return in;
             float bufOut = buffer[idx];
             float out = -in + bufOut;
@@ -69,14 +73,15 @@ namespace VAudioDSP {
         }
     };
 
-    // Reverb State & Callback
-    inline float g_rev_decay = 0.5f;
-    inline float g_rev_mix   = 0.3f;
-    inline float g_rev_predelay_ms = 20.0f;
-    inline float g_rev_damping     = 0.4f;
+    inline float g_rev_decay = 0.65f;
+    inline float g_rev_mix   = 0.35f;
+    inline float g_rev_predelay_ms = 15.0f;
+    inline float g_rev_damping     = 0.3f;
     inline bool  g_rev_enabled     = true;
 
+    // Subsystems
     static DiffuserAllpass g_input_diffusers[4];
+    static DiffuserAllpass g_inloop_diffusers[4];
     static ModulatedDelay  g_loop_delays[4];
     static OnePoleLP       g_loop_dampers[4];
     static ModulatedDelay  g_predelay_line;
@@ -85,17 +90,22 @@ namespace VAudioDSP {
     inline void InitValhallaReverbDSP() {
         if (g_valhalla_reverb_inited) return;
 
-        g_input_diffusers[0].init(142);
-        g_input_diffusers[1].init(107);
-        g_input_diffusers[2].init(379);
-        g_input_diffusers[3].init(277);
+        g_input_diffusers[0].init(223);
+        g_input_diffusers[1].init(443);
+        g_input_diffusers[2].init(617);
+        g_input_diffusers[3].init(853);
 
-        g_loop_delays[0].init(4800);
-        g_loop_delays[1].init(4800);
-        g_loop_delays[2].init(4800);
-        g_loop_delays[3].init(4800);
+        g_inloop_diffusers[0].init(751);
+        g_inloop_diffusers[1].init(563);
+        g_inloop_diffusers[2].init(337);
+        g_inloop_diffusers[3].init(197);
 
-        g_predelay_line.init(9600);
+        g_loop_delays[0].init(19200);
+        g_loop_delays[1].init(19200);
+        g_loop_delays[2].init(19200);
+        g_loop_delays[3].init(19200);
+
+        g_predelay_line.init(19200);
 
         g_valhalla_reverb_inited = true;
     }
@@ -106,48 +116,57 @@ namespace VAudioDSP {
 
         InitValhallaReverbDSP();
 
-        float base_delays[4] = { 1357.0f, 1789.0f, 2143.0f, 2557.0f };
-        float feedback_gain = std::clamp(g_rev_decay * 0.75f, 0.0f, 0.85f);
-        float damp_coeff    = std::clamp(g_rev_damping, 0.05f, 0.92f);
+        float sample_rate = (g_sample_rate > 0.0f) ? g_sample_rate : 48000.0f;
 
-        static float loop_node[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float base_delays[4] = { 3463.0f, 4297.0f, 5107.0f, 5987.0f };
+        
+        float feedback_gain  = std::clamp(0.70f + (g_rev_decay * 0.285f), 0.0f, 0.985f);
+        
+        float damp_coeff     = std::clamp(0.15f + (g_rev_damping * 0.75f), 0.10f, 0.92f);
+
+        static float loop_node[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 
         for (unsigned int i = 0; i < frames; i++) {
             float in_l = samples[i * 2];
             float in_r = samples[i * 2 + 1];
             float mono_in = (in_l + in_r) * 0.5f;
 
-            float predelay_samples = (g_rev_predelay_ms / 1000.0f) * 48000.0f;
-            float delayed_in = g_predelay_line.process(mono_in * 0.5f, predelay_samples, 0.0f, 0.0f);
+            float predelay_samples = (g_rev_predelay_ms / 1000.0f) * sample_rate;
+            float delayed_in = g_predelay_line.process(mono_in * 0.5f, predelay_samples, 0.0f, 0.0f, sample_rate);
 
             float diff = delayed_in;
             for (int d = 0; d < 4; d++) {
                 diff = g_input_diffusers[d].process(diff);
             }
 
-            float sum = (loop_node[0] + loop_node[1] + loop_node[2] + loop_node[3]) * 0.25f;
+            float sum = (loop_node[0] + loop_node[1] + loop_node[2] + loop_node[3]) * 0.5f;
 
             float next_node[4];
             for (int j = 0; j < 4; j++) {
                 float in_to_delay = diff + (sum - loop_node[j]) * feedback_gain;
-                in_to_delay = std::tanh(in_to_delay);
-                in_to_delay = g_loop_dampers[j].process(in_to_delay, damp_coeff);
 
-                float mod_rate = 0.5f + (j * 0.15f);
-                next_node[j] = g_loop_delays[j].process(in_to_delay, base_delays[j], 2.0f, mod_rate);
+                in_to_delay = g_loop_dampers[j].process(in_to_delay, damp_coeff);
+                
+                in_to_delay = std::tanh(in_to_delay * 0.90f); 
+
+                in_to_delay = g_inloop_diffusers[j].process(in_to_delay);
+
+                float mod_rate  = 0.25f + (j * 0.17f);
+                float mod_depth = 4.5f + (j * 1.2f); 
+
+                next_node[j] = g_loop_delays[j].process(in_to_delay, base_delays[j], mod_depth, mod_rate, sample_rate);
             }
 
             for (int j = 0; j < 4; j++) loop_node[j] = next_node[j];
 
-            float wet_l = (loop_node[0] - loop_node[2]) * 0.5f;
-            float wet_r = (loop_node[1] - loop_node[3]) * 0.5f;
+            float wet_l = (loop_node[0] - loop_node[2] + loop_node[1] * 0.5f) * 0.5f;
+            float wet_r = (loop_node[1] - loop_node[3] + loop_node[0] * 0.5f) * 0.5f;
 
-            float out_l = in_l * (1.0f - g_rev_mix) + wet_l * g_rev_mix;
-            float out_r = in_r * (1.0f - g_rev_mix) + wet_r * g_rev_mix;
+            float wet_gain = std::sin(g_rev_mix * 0.5f * PI);
+            float dry_gain = std::cos(g_rev_mix * 0.5f * PI);
 
-            samples[i * 2]     = std::tanh(out_l);
-            samples[i * 2 + 1] = std::tanh(out_r);
+            samples[i * 2]     = in_l * dry_gain + wet_l * wet_gain;
+            samples[i * 2 + 1] = in_r * dry_gain + wet_r * wet_gain;
         }
     }
-
 }
