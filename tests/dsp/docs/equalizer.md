@@ -1,4 +1,4 @@
-# Audio DSP: Biquad Equalizer Architecture & Implementation
+# Biquad Equalizer Architecture & Implementation
 
 A **biquad filter** (short for _biquadratic filter_) is a second-order Infinite Impulse Response (IIR) digital filter. It contains two poles and two zeros, making it the fundamental building block for audio equalizers, parametric EQs, and crossover networks.
 
