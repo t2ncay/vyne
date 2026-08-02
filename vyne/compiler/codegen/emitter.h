@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <set>
+#include <unordered_set>
 
 #include "../../modules/common/vcore/vcore.h"
 
@@ -13,18 +13,18 @@ class C_Emitter {
     std::stringstream functionStream;
     std::stringstream mainStream;
 
-    std::set<std::string> includeSet;
+    std::unordered_set<std::string> includeSet;
 
-    std::set<std::string> declaredVars;
-    std::set<std::string> references;
+    std::unordered_set<std::string> declaredVars;
+    std::unordered_set<std::string> references;
 
-    std::set<std::string> interfaceSet; 
-    std::set<std::string> groupSet;
+    std::unordered_set<std::string> interfaceSet; 
+    std::unordered_set<std::string> groupSet;
     
-    std::set<std::string> localVars;
-    std::set<std::string> globalVars;
+    std::unordered_set<std::string> localVars;
+    std::unordered_set<std::string> globalVars;
 
-    std::set<std::string> importedFiles;
+    std::unordered_set<std::string> importedFiles;
     std::string sourceDir;
 
     int tempVarCount = 0;
@@ -59,7 +59,7 @@ public:
     std::string getSourceDir() const { return sourceDir; }
     void setSourceDir(const std::string& dir) { sourceDir = dir; }
 
-    std::set<std::string> getGlobalVars() { return globalVars; }
+    const std::unordered_set<std::string>& getGlobalVars() const { return globalVars; }
 
     void pushMainContext() {
         contextStack.emplace_back(EmitContext::MAIN);
@@ -83,28 +83,28 @@ public:
         return localVars.empty();
     }
 
-    bool isLocalDeclared(const std::string& name) {
+    bool isLocalDeclared(const std::string& name) const {
         return localVars.count(name) > 0;
     }
 
-    bool isAlreadyDeclared(const std::string& name) const {
-        return localVars.count(name) > 0 || globalVars.count(name) > 0;
+    bool isAlreadyDeclared(const std::string name) const {
+        return localVars.count(std::move(name)) > 0 || globalVars.count(std::move(name)) > 0;
     }
 
-    void registerDeclaration(const std::string& name) {
+    void registerDeclaration(std::string name) {
         if (isGlobalContext()) {
-            globalVars.insert(name);
+            globalVars.insert(std::move(name));
         } else {
-            localVars.insert(name);
+            localVars.insert(std::move(name));
         }
     }
 
-    void registerReference(const std::string& name) {
-        references.insert(name);
+    void registerReference(const std::string name) {
+        references.insert(std::move(name));
     }
 
-    bool isReference(const std::string& name) const {
-        return references.count(name) > 0;
+    bool isReference(const std::string name) const {
+        return references.count(std::move(name)) > 0;
     }
 
     void pushFunctionContext() {

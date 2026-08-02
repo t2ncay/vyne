@@ -2,13 +2,15 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include <numbers>
 
 #include "shared_state.h"
 
+#ifndef PI
+#define PI 3.14159265358979323846
+#endif
+
 namespace VAudioDSP {
-
-    constexpr float M_PI = 3.14159265358979323846f;
-
     struct OnePoleLP {
         float store = 0.0f;
         inline float process(float in, float coeff) {
