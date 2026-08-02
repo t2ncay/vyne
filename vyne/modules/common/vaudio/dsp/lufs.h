@@ -44,7 +44,7 @@ static inline void UpdateLUFSMeasurement(float left, float right) {
     g_lufs_energy_acc += (k_left * k_left) + (k_right * k_right);
     g_lufs_sample_count++;
 
-    if (g_lufs_sample_count >= 19200) { // ~400ms window at 48kHz
+    if (g_lufs_sample_count >= 19200) { // ~400ms window at 48kHz ( for dsp )
         float mean_square = g_lufs_energy_acc / (float)g_lufs_sample_count;
         
         if (mean_square > 1e-10f) {
