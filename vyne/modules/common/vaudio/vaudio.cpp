@@ -202,11 +202,13 @@ namespace VAudioNative {
     Value native_attach_reverb(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
         auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
-        if (handle != nullptr) {
-            AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::ReverbProcessCallback);
-            return Value(true);
+        
+        if (handle->sound.stream.sampleRate > 0) {
+            VAudioDSP::g_sample_rate = (float)handle->sound.stream.sampleRate;
         }
-        return Value(false);
+
+        AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::ReverbProcessCallback);
+        return Value(true);
     }
 
     Value native_set_reverb_params(std::vector<Value>& args) {
@@ -352,6 +354,15 @@ namespace VAudioNative {
         }
         return Value(false);
     }
+
+    Value native_get_spectrum(std::vector<Value>& args) {
+        std::vector<Value> bins;
+        bins.reserve(64);
+        for (int i = 0; i < 64; ++i) {
+            bins.emplace_back((double)VAudioDSP::g_fft_bins[i].load());
+        }
+        return Value(bins);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -393,6 +404,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("attach_eq")]         = Value(VAudioNative::native_attach_eq);
     vaudio[pool.intern("set_eq")]            = Value(VAudioNative::native_set_eq_band);
     vaudio[pool.intern("enable_eq")]         = Value(VAudioNative::native_set_eq_enabled);
+    vaudio[pool.intern("get_spectrum")]      = Value(VAudioNative::native_get_spectrum);
 
     // Analyzer
     vaudio[pool.intern("attach_analyzer")]   = Value(VAudioNative::native_attach_analyzer);
