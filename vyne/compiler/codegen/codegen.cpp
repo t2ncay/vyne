@@ -131,7 +131,6 @@ std::string IfNode::getCExpr(C_Emitter& e) const {
 }
 
 void WhileNode::compile(C_Emitter& e) const {
-    // Evaluate condition inside the loop so it re-evaluates each iteration
     e.emitBlockOpen("while (1) {");
     std::string cond = condition->getCExpr(e);
     e.emit("if (!vyne_is_truthy(" + cond + ")) break;");

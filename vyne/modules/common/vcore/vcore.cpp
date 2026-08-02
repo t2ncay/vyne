@@ -1,13 +1,9 @@
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
     #include <process.h>
-    #include <windows.h>
-    #include <psapi.h>
-    #define getpid _getpid
-#elif __linux__
+#else
     #include <unistd.h>
-    #include <fstream>
-#elif __APPLE__
-    #include <mach/mach.h>
+    #include <sys/types.h>
+    #include <sys/wait.h>
 #endif
 
 #include "vcore.h"

@@ -6,12 +6,12 @@
 #include <thread>
 
 // Platformaya uyğun başlıqlar
-#ifdef _WIN32
+#if defined(_WIN32) || defined(_WIN64)
     #include <process.h>
     #include <windows.h>
     #include <psapi.h>
     #define getpid _getpid
-#else
+#elif defined(__linux__) || defined(__APPLE__)
     #include <unistd.h>
     #include <sys/resource.h>
 #endif

@@ -19,12 +19,12 @@ CXXFLAGS = -std=c++23 -O3 -I. \
             $(RAYLIB_INCLUDE) \
            -I./lsp/backend/src -I./lsp/backend/include \
            -DCPPHTTPLIB_OPENSSL_SUPPORT
-CXXFLAGS += -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
     URAGE_LIB = urage.dll
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
+    RAYLIB_LIB_PATH = -L./vendor/raylib/lib
     LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH) -static -static-libgcc -static-libstdc++
     LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread
     MKDIR_P = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
@@ -38,7 +38,8 @@ else
     TARGET = $(TARGET_BASE)
     URAGE_LIB = liburage.so
     URAGE_CFLAGS = -shared -fPIC
-    LDFLAGS = -lssl -lcrypto -ldl -pthread $(RAYLIB_LIB_PATH)
+    # Don't use RAYLIB_LIB_PATH here if vendor/ contains a Windows .a file
+    LDFLAGS = -lssl -lcrypto -ldl -pthread
     LDFLAGS += -lraylib -lGL -lm -lrt -lX11
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
