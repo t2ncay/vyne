@@ -4,19 +4,19 @@
 #include <atomic>
 
 #include "shared_state.h"
+#include "lufs.h"
 
 namespace VAudioDSP {
     inline void AnalyzerProcessCallback(void *buffer, unsigned int frames) {
         float *samples = (float *)buffer;
-        float sample_rate = 48000.0f;
-        float alpha_attack = std::exp(-1.0f / (0.001f * 15.0f * sample_rate));
-        float alpha_release = std::exp(-1.0f / (0.001f * 120.0f * sample_rate));
+        float alpha_attack = std::exp(-1.0f / (0.001f * 15.0f * g_sample_rate));
+        float alpha_release = std::exp(-1.0f / (0.001f * 120.0f * g_sample_rate));
 
         for (unsigned int i = 0; i < frames; i++) {
             float left = samples[i * 2];
             float right = samples[i * 2 + 1];
 
-            VAudioDSP::UpdateLUFSMeasurement(left, right);
+            UpdateLUFSMeasurement(left, right);
             
             float peak = std::max(std::abs(left), std::abs(right));
             
