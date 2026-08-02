@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <cmath>
+#include <atomic>
 
 namespace VAudioDSP {
 

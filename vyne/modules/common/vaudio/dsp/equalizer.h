@@ -12,12 +12,12 @@ struct Biquad {
     float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f, a1 = 0.0f, a2 = 0.0f;
     float x1 = 0.0f, x2 = 0.0f, y1 = 0.0f, y2 = 0.0f;
 
-    void setPeaking(float freq, float Q, float gainDb, float samplerate = 48000.0f) {
+    void setPeaking(float freq, float Q, float gainDb) {
         if (freq < 20.0f) freq = 20.0f;
-        if (freq > samplerate * 0.49f) freq = samplerate * 0.49f;
+        if (freq > g_sample_rate * 0.49f) freq = g_sample_rate * 0.49f;
 
         float A = std::pow(10.0f, gainDb / 40.0f);
-        float omega = 2.0f * 3.1415926535f * freq / samplerate;
+        float omega = 2.0f * 3.1415926535f * freq / g_sample_rate;
         float alpha = std::sin(omega) / (2.0f * std::max(Q, 0.1f));
 
         float norm = 1.0f + alpha / A;
