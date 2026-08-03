@@ -884,7 +884,7 @@ public:
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     
-    void compile(C_Emitter& e) const override {}
+    void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
 };
 
