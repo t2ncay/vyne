@@ -26,3 +26,5 @@ tests/assets/*
 *.obj
 *.vy.c
 *.wav
+array_test
+builtincall_test

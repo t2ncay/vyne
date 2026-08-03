@@ -5,8 +5,9 @@ ruleset {
 x = [];
 a = 5;
 b = 7;
-c = 8;
-d=5;
+
+zirt :: Array = 1..5;
 
 x.push(a,b);
 out(x);
+out(zirt);

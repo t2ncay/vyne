@@ -242,6 +242,41 @@ static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
     return false;
 };
 
+// ranges
+
+static inline VyneValue vyne_range_create(VyneValue start_val, VyneValue end_val) {
+    if ((start_val.type == V_INT64 || start_val.type == V_FLOAT64) &&
+        (end_val.type == V_INT64 || end_val.type == V_FLOAT64)) {
+
+        if (start_val.type == V_INT64 && end_val.type == V_INT64) {
+            int64_t start = start_val.as.i64;
+            int64_t end   = end_val.as.i64;
+
+            if (start <= end) {
+                int count = (int)(end - start + 1);
+                VyneValue res = vyne_array_create(0);
+                for (int64_t i = start; i <= end; ++i) {
+                    vyne_array_push(res, vyne_int(i));
+                }
+                return res;
+            }
+        } else {
+            double start = (start_val.type == V_FLOAT64) ? start_val.as.f64 : (double)start_val.as.i64;
+            double end   = (end_val.type == V_FLOAT64)   ? end_val.as.f64   : (double)end_val.as.i64;
+
+            if (start <= end) {
+                VyneValue res = vyne_array_create(0);
+                for (double i = start; i <= end; ++i) {
+                    vyne_array_push(res, vyne_float(i));
+                }
+                return res;
+            }
+        }
+    }
+
+    return vyne_array_create(0);
+}
+
 // interfaces
 
 static inline VyneValue vyne_struct_get(VyneValue s_val, uint32_t field_id) {

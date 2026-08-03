@@ -884,10 +884,18 @@ std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 std::string DeployNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void RangeNode::compile(C_Emitter& e) const {
-    e.emit("/* range — not yet supported in codegen */");
+std::string RangeNode::getCExpr(C_Emitter& e) const {
+    if (!left || !right) return "vyne_null()";
+    std::string l = left->getCExpr(e);
+    std::string r = right->getCExpr(e);
+    std::string temp = e.newTemp("rng");
+    e.emit("VyneValue " + temp + " = vyne_range_create(" + l + ", " + r + ");");
+    return temp;
 }
-std::string RangeNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void RangeNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 std::string EnumNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 void EnumNode::compile(C_Emitter& e) const {
