@@ -20,7 +20,7 @@ namespace VAudioDSP {
             
             float peak = std::max(std::abs(left), std::abs(right));
             
-            float current_env = g_analyzer_envelope.load();
+            float current_env = g_analyzer_envelope.load(std::memory_order_relaxed);
             if (peak > current_env) {
                 g_analyzer_envelope.store(alpha_attack * current_env + (1.0f - alpha_attack) * peak);
             } else {
