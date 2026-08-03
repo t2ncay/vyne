@@ -880,12 +880,15 @@ public:
 class DeployNode : public ASTNode {
     std::string moduleName;
 public:
-    DeployNode(std::string name) : ASTNode(NodeType::DEPLOY), moduleName(std::move(name)) {}
+    DeployNode(std::string name) 
+        : ASTNode(NodeType::DEPLOY), moduleName(std::move(name)) {}
 
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+
+    const std::string& getModuleName() const { return moduleName; }
 };
 
 class DismissNode : public ASTNode {

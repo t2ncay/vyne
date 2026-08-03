@@ -882,7 +882,14 @@ std::string ImportNode::getCExpr(C_Emitter& e) const {
 void DismissNode::compile(C_Emitter& e) const {}
 std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-std::string DeployNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+void DeployNode::compile(C_Emitter& e) const {
+    e.emit("vyne_deploy_module(\"" + moduleName + "\");");
+}
+
+std::string DeployNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()";
+}
 
 std::string RangeNode::getCExpr(C_Emitter& e) const {
     if (!left || !right) return "vyne_null()";
