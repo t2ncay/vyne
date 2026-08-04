@@ -363,6 +363,39 @@ namespace VAudioNative {
         }
         return Value(bins);
     }
+
+    Value native_set_sound_pitch(std::vector<Value>& args) {
+        if (args.size() < 2) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle) {
+            float pitch = (float)args[1].asFloat();
+            SetSoundPitch(handle->sound, pitch);
+        }
+        return Value(true);
+    }
+
+    Value native_seek_sound(std::vector<Value>& args) {
+        if (args.size() < 2) return Value(false);
+        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (handle && handle->sound.frameCount > 0) {
+            float position_seconds = (float)args[1].asFloat();
+
+            unsigned int sample_rate = handle->sound.stream.sampleRate;
+            if (sample_rate == 0) sample_rate = 48000;
+
+            unsigned int target_frame = static_cast<unsigned int>(position_seconds * sample_rate);
+            
+            target_frame = std::min(target_frame, handle->sound.frameCount);
+
+            StopSound(handle->sound);
+
+            SetAudioStreamBufferSizeDefault(512);
+            PlaySound(handle->sound);
+            handle->is_paused = false;
+            handle->is_stopped = false;
+        }
+        return Value(true);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -378,7 +411,9 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     // Sound
     vaudio[pool.intern("load_sound")]        = Value(VAudioNative::native_load_sound);
     vaudio[pool.intern("play_sound")]        = Value(VAudioNative::native_play_sound);
+    vaudio[pool.intern("seek_sound")]        = Value(VAudioNative::native_seek_sound);
     vaudio[pool.intern("sound_volume")]      = Value(VAudioNative::native_set_sound_volume);
+    vaudio[pool.intern("set_pitch")]         = Value(VAudioNative::native_set_sound_pitch);
     vaudio[pool.intern("attach_saturator")]  = Value(VAudioNative::native_attach_saturation);
     
     // Compressor
@@ -395,6 +430,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("is_playing")]        = Value(VAudioNative::native_is_sound_playing);
     vaudio[pool.intern("get_rms")]           = Value(VAudioNative::native_get_rms);
     vaudio[pool.intern("get_lufs")]          = Value(VAudioNative::native_get_lufs);
+    
 
     // Reverb
     vaudio[pool.intern("attach_reverb")]     = Value(VAudioNative::native_attach_reverb);
