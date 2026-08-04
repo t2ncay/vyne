@@ -1,4 +1,4 @@
-ruleset { dynamic_casting };
+ruleset { warnings, dynamic_casting };
 module vglib;
 module vaudio;
 module vmath;
@@ -11,7 +11,7 @@ vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound(configs.Audios.osamason_1300);
+track = vaudio.load_sound(configs.Audios.cigerlerim);
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_analyzer(track);
