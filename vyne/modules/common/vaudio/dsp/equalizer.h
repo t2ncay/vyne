@@ -44,6 +44,22 @@ struct Biquad {
         a2 = (1.0f - alpha) / a0;
     }
 
+    void setLowPass(float freq, float Q, float samplerate = 48000.0f) {
+        if (freq < 20.0f) freq = 20.0f;
+        if (freq > samplerate * 0.49f) freq = samplerate * 0.49f;
+
+        float omega = 2.0f * 3.1415926535f * freq / samplerate;
+        float alpha = std::sin(omega) / (2.0f * std::max(Q, 0.1f));
+        float cos_w = std::cos(omega);
+
+        float a0 = 1.0f + alpha;
+        b0 = ((1.0f - cos_w) / 2.0f) / a0;
+        b1 = (1.0f - cos_w) / a0;
+        b2 = ((1.0f - cos_w) / 2.0f) / a0;
+        a1 = (-2.0f * cos_w) / a0;
+        a2 = (1.0f - alpha) / a0;
+    }
+
     float process(float sample) {
         float out = b0 * sample + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
         x2 = x1; x1 = sample;

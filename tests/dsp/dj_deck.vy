@@ -129,16 +129,22 @@ while (vglib.running()) {
         if (deck_b_pos > 1.0) { deck_b_pos = 0.0; }
     }
 
-    # Keyboard Controls
+    # Keyboard controls cleanly pausing/resuming without buffer stutter
     if (vglib.key_pressed(vglib.Q)) {
         deck_a_play = (deck_a_play == 1) ? 0 : 1;
-        if (deck_a_play == 1) { vaudio.play_stream(deck_a_track); }
-        else { vaudio.pause_sound(deck_a_track); }
+        if (deck_a_play == 1) { 
+            vaudio.resume_stream(deck_a_track); 
+        } else { 
+            vaudio.pause_stream(deck_a_track); 
+        }
     }
     if (vglib.key_pressed(vglib.P)) {
         deck_b_play = (deck_b_play == 1) ? 0 : 1;
-        if (deck_b_play == 1) { vaudio.play_stream(deck_b_track); }
-        else { vaudio.pause_sound(deck_b_track); }
+        if (deck_b_play == 1) { 
+            vaudio.resume_stream(deck_b_track); 
+        } else { 
+            vaudio.pause_stream(deck_b_track); 
+        }
     }
 
     # Crossfader Keyboard Adjustments

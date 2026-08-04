@@ -223,26 +223,38 @@ namespace VAudioNative {
     
     Value native_attach_eq(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
+        
+        Music* m = reinterpret_cast<Music*>(args[0].asInt());
+        if (m != nullptr && m->stream.buffer != nullptr) {
+            AttachAudioStreamProcessor(m->stream, VAudioDSP::EQProcessCallback);
+            return Value(true);
+        }
+
         auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
         if (handle != nullptr) {
             AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::EQProcessCallback);
             return Value(true);
         }
+
         return Value(false);
     }
 
     Value native_set_eq_band(std::vector<Value>& args) {
         if (args.size() < 4) return Value(false);
-        int bandIdx = (int)args[0].asInt();
-        float freq  = (float)args[1].asFloat();
-        float gain  = (float)args[2].asFloat();
-        float q     = (float)args[3].asFloat();
+        int bandIdx   = (int)args[0].asInt();
+        float freq    = (float)args[1].asFloat();
+        float gain_or_type = (float)args[2].asFloat(); // Mode (0=LP, 1=HP, 2=Peaking) or Gain
+        float q       = (float)args[3].asFloat();
 
         if (bandIdx >= 0 && bandIdx < 7) {
-            if (bandIdx == 0) {
-                VAudioDSP::g_eq_bands[bandIdx].setHighPass(freq, q);
+            if (args.size() >= 5) {
+                int mode = (int)args[4].asInt(); // 0 = LPF, 1 = HPF, 2 = Peaking
+                if (mode == 0)      VAudioDSP::g_eq_bands[bandIdx].setLowPass(freq, q);
+                else if (mode == 1) VAudioDSP::g_eq_bands[bandIdx].setHighPass(freq, q);
+                else                VAudioDSP::g_eq_bands[bandIdx].setPeaking(freq, q, gain_or_type);
             } else {
-                VAudioDSP::g_eq_bands[bandIdx].setPeaking(freq, q, gain);
+                if (bandIdx == 0) VAudioDSP::g_eq_bands[bandIdx].setHighPass(freq, q);
+                else              VAudioDSP::g_eq_bands[bandIdx].setPeaking(freq, q, gain_or_type);
             }
         }
         return Value(true);
@@ -407,6 +419,36 @@ namespace VAudioNative {
         }
         return Value(false);
     }
+
+    // --- STREAM CONTROL FUNCTIONS ---
+    Value native_pause_stream(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Music* m = reinterpret_cast<Music*>(args[0].asInt());
+        if (m != nullptr && m->stream.buffer != nullptr) {
+            PauseMusicStream(*m);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_resume_stream(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Music* m = reinterpret_cast<Music*>(args[0].asInt());
+        if (m != nullptr && m->stream.buffer != nullptr) {
+            ResumeMusicStream(*m);
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_is_stream_playing(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        Music* m = reinterpret_cast<Music*>(args[0].asInt());
+        if (m != nullptr && m->stream.buffer != nullptr) {
+            return Value(IsMusicStreamPlaying(*m));
+        }
+        return Value(false);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -438,6 +480,9 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("play_stream")]       = Value(VAudioNative::native_play_stream);
     vaudio[pool.intern("update_stream")]     = Value(VAudioNative::native_update_stream);
     vaudio[pool.intern("seek_stream")]       = Value(VAudioNative::native_seek_stream);
+    vaudio[pool.intern("pause_stream")]      = Value(VAudioNative::native_pause_stream);
+    vaudio[pool.intern("resume_stream")]     = Value(VAudioNative::native_resume_stream);
+    vaudio[pool.intern("is_stream_playing")] = Value(VAudioNative::native_is_stream_playing);
     vaudio[pool.intern("set_dsp")]           = Value(VAudioNative::native_set_dsp_params);
     vaudio[pool.intern("is_playing")]        = Value(VAudioNative::native_is_sound_playing);
     vaudio[pool.intern("get_rms")]           = Value(VAudioNative::native_get_rms);
