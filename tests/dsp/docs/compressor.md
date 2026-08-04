@@ -9,8 +9,8 @@ A **dynamic range compressor** reduces the dynamic range of an audio signal by a
 The compressor system consists of four primary stages operating in sequence:
 
 Input x[n] ---> [ Detection Stage ] ---> [ Envelope Follower ] ---> [ Gain Computer ] ---> [ Makeup Gain ] ---> Output y[n]
-                       |                                                   |
-                       +-------------------> (Sidechain Path) -------------+
+| |
++-------------------> (Sidechain Path) -------------+
 
 1. **Detection Stage**: Measures signal amplitude using **Peak** or **RMS** (Root Mean Square) algorithms.
 2. **Envelope Follower**: Applies time-constant filtering (**Attack** and **Release**) to smooth detection energy.
@@ -30,11 +30,13 @@ $$\alpha = \exp\left(-\frac{1}{0.001 \cdot t_{\text{ms}} \cdot F_s}\right)$$
 ### B. Level Detection Modes
 
 #### Peak Detection
+
 Extracts absolute instantaneous peak amplitude from stereo channels:
 
 $$x_{\text{peak}}[n] = \max(|x_L[n]|, |x_R[n]|)$$
 
 #### RMS Detection
+
 Calculates the smoothed root-mean-square energy over an integration window:
 
 $$P[n] = 0.5 \cdot \left( x_L^2[n] + x_R^2[n] \right)$$
@@ -48,8 +50,8 @@ $$x_{\text{rms}}[n] = \sqrt{\max(S_{\text{rms}}[n], 10^{-12})}$$
 Applies decoupled attack and release time constants to smooth detector transitions:
 
 $$
-E[n] = 
-\begin{cases} 
+E[n] =
+\begin{cases}
 \alpha_a \cdot E[n-1] + (1 - \alpha_a) \cdot x_{\text{det}}[n], & \text{if } x_{\text{det}}[n] > E[n-1] \text{ (Attack)} \\
 \alpha_r \cdot E[n-1] + (1 - \alpha_r) \cdot x_{\text{det}}[n], & \text{if } x_{\text{det}}[n] \le E[n-1] \text{ (Release)}
 \end{cases}
@@ -66,6 +68,7 @@ $$\Delta_{\text{dB}}[n] = \max(E_{\text{dB}}[n] - T_{\text{dB}}, 0)$$
 $$G_{\text{dB}}[n] = \Delta_{\text{dB}}[n] \cdot \left(1 - \frac{1}{R}\right)$$
 
 Where:
+
 - $T_{\text{dB}}$ is the **Threshold** in decibels.
 - $R$ is the compression **Ratio** ($R : 1$).
 
