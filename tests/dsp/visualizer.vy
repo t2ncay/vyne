@@ -118,7 +118,8 @@ fn draw_oscilloscope(x, y, w, h, samples) {
 }
 
 # --- MODULE 3: DUAL STEREO RMS METER & DIGITAL LUFS READOUT ---
-fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
+# --- MODULE 3: DUAL STEREO RMS METER, DIGITAL LUFS & PHASE CORRELATION ---
+fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val, audio_env, run_time) {
     vglib.rect(x, y, w, h, vglib.BLACK);
 
     vglib.text_ex(vcr_font, "0",  x + 2, y + 10,  9, vglib.rgba(140, 150, 165, 255));
@@ -142,20 +143,46 @@ fn draw_peak_lufs_meter(x, y, w, h, rms_val, lufs_val) {
         vglib.rect(b2_x, bar_y, bar_w, rms_h, vglib.rgba(140, 185, 225, 255));
     }
 
+    # LUFS BADGE
     lbox_x :: Int64 = x + 68;
-    lbox_y :: Int64 = y + 70;
+    lbox_y :: Int64 = y + 40;
     vglib.rect(lbox_x, lbox_y, 90, 36, vglib.rgba(160, 180, 200, 255));
     
-    # DYNAMIC LUFS DISPLAY (Clamped cleanly to momentary reading)
     lufs_formatted = string(vmath.round(lufs_val * 10.0) / 10.0);
     vglib.text_ex(vcr_font, lufs_formatted + " LUFS", lbox_x + 6, lbox_y + 10, 11, vglib.BLACK);
+
+    # INTEGRATED PHASE CORRELATION BAR (Y = 160 to 180)
+    pc_x :: Int64 = x + 68;
+    pc_y :: Int64 = y + 160;
+    pc_w :: Int64 = 90;
+    pc_h :: Int64 = 20;
+
+    vglib.rect(pc_x, pc_y, pc_w, pc_h, vglib.rgba(12, 15, 20, 255));
+    
+    cx :: Float64 = pc_x + (pc_w / 2.0);
+    vglib.line(cx, pc_y + 2, cx, pc_y + pc_h - 2, vglib.rgba(100, 110, 125, 255));
+
+    vglib.text_ex(vcr_font, "-1", pc_x + 2, pc_y - 12, 8, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "0",  cx - 2,   pc_y - 12, 8, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "+1", pc_x + pc_w - 14, pc_y - 12, 8, vglib.rgba(140, 150, 165, 255));
+
+    corr_val = vmath.clamp(0.65 + (vmath.sin(run_time * 4.0) * 0.35 * audio_env), -1.0, 1.0);
+    corr_x :: Float64 = cx + (corr_val * (pc_w * 0.45));
+
+    col = (corr_val < 0.0) ? vglib.RED : vglib.rgba(140, 215, 175, 255);
+    if (corr_val >= 0.0) {
+        vglib.rect(cx, pc_y + 3, corr_x - cx, pc_h - 6, col);
+    } else {
+        vglib.rect(corr_x, pc_y + 3, cx - corr_x, pc_h - 6, col);
+    }
+
+    vglib.text_ex(vcr_font, "PHASE", pc_x + 26, pc_y + pc_h + 4, 8, vglib.rgba(120, 130, 145, 255));
 
     vglib.line(x + w, y, x + w, y + h, vglib.rgba(40, 45, 55, 255));
 }
 
 # --- MODULE 4: GONIOMETER STEREO PHASE VECTOR SCOPE ---
 fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
-    vglib.rect(cx - radius, cy - radius, radius * 2, radius * 2, vglib.BLACK);
 
     scatter_scale = radius * 0.9;
     ortho_scale   = radius * 0.8;
@@ -355,6 +382,34 @@ fn draw_spectral_history(x, y, w, h, spec_hist, audio_env) {
     vglib.line(x, y, x + w, y, vglib.rgba(40, 45, 55, 255));
 }
 
+# --- MODULE: PHASE CORRELATION METER ---
+fn draw_phase_correlation(x, y, w, h, curr_env, run_time) {
+    vglib.rect(x, y, w, h, vglib.BLACK);
+    
+    # Scale background & zero tick line
+    cy :: Float64 = y + (h / 2.0);
+    cx :: Float64 = x + (w / 2.0);
+    vglib.line(cx, y + 2, cx, y + h - 2, vglib.rgba(100, 110, 125, 255));
+
+    vglib.text_ex(vcr_font, "-1", x + 5, y + 3, 9, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "0", cx - 3, y + 3, 9, vglib.rgba(140, 150, 165, 255));
+    vglib.text_ex(vcr_font, "+1", x + w - 18, y + 3, 9, vglib.rgba(140, 150, 165, 255));
+
+    # Simulated correlation value between -1.0 and 1.0
+    corr_val = vmath.clamp(0.65 + (vmath.sin(run_time * 4.0) * 0.35 * curr_env), -1.0, 1.0);
+    corr_x :: Float64 = cx + (corr_val * (w * 0.45));
+
+    # Active bar indicator
+    col = (corr_val < 0.0) ? vglib.RED : vglib.rgba(140, 215, 175, 255);
+    if (corr_val >= 0.0) {
+        vglib.rect(cx, y + 14, corr_x - cx, h - 18, col);
+    } else {
+        vglib.rect(corr_x, y + 14, cx - corr_x, h - 18, col);
+    }
+
+    vglib.line(x + w, y, x + w, y + h, vglib.rgba(40, 45, 55, 255));
+}
+
 # --- MAIN ENGINE RENDER LOOP ---
 while (vglib.running()) {
     run_time = run_time + 0.016;
@@ -391,7 +446,7 @@ while (vglib.running()) {
 
         draw_spectrogram_waterfall(0, 0, 200, 300, spec_history, curr_env);
         draw_oscilloscope(200, 0, 220, 300, wave_buf);
-        draw_peak_lufs_meter(420, 0, 170, 300, rms_val, lufs_val);
+        draw_peak_lufs_meter(420, 0, 170, 300, rms_val, lufs_val, curr_env, run_time);
         draw_goniometer_scope(660, 150, 110, curr_env, run_time);
         draw_analog_vu_meter(730, 0, 260, 300, curr_env);
         draw_waveform_strip(990, 0, 210, 300, wave_buf);
