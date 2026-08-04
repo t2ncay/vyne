@@ -1,0 +1,425 @@
+ruleset { dynamic_casting };
+module vglib;
+module vaudio;
+module vmath;
+
+use "configs/config.vy";
+
+vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0", 0);
+vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
+
+is_ready = vaudio.init_audio();
+vaudio.volume(1.0);
+
+# Load Deck Audio Tracks
+deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
+deck_b_track = vaudio.play_stream(configs.Audios.cigerlerim);
+
+run_time = 0.0;
+prev_mouse_state = 0;
+
+# --- GLOBAL DJ MIXER STATE ---
+crossfader_pos :: Float64 = 0.5;   # 0.0 = Deck A Only, 1.0 = Deck B Only
+master_volume  :: Float64 = 1.0;
+active_knob    :: Int64   = 0;     # Active dragged UI knob ID
+active_deck    :: Int64   = 0;     # 0 = Deck A, 1 = Deck B
+
+# --- DECK A STATE ---
+deck_a_play    :: Int64   = 0;
+deck_a_bpm     :: Float64 = 130.0;
+deck_a_pitch   :: Float64 = 0.0;   # Semitones (-12 to +12)
+deck_a_pos     :: Float64 = 0.0;   # Normalized playhead [0..1]
+deck_a_eq_hi   :: Float64 = 0.0;   # dB gain (-12 to +12)
+deck_a_eq_mid  :: Float64 = 0.0;
+deck_a_eq_low  :: Float64 = 0.0;
+deck_a_filter  :: Float64 = 0.0;   # -1.0 (LPF) to +1.0 (HPF)
+deck_a_vol     :: Float64 = 0.85;
+
+# --- DECK B STATE ---
+deck_b_play    :: Int64   = 0;
+deck_b_bpm     :: Float64 = 128.0;
+deck_b_pitch   :: Float64 = 0.0;
+deck_b_pos     :: Float64 = 0.0;
+deck_b_eq_hi   :: Float64 = 0.0;
+deck_b_eq_mid  :: Float64 = 0.0;
+deck_b_eq_low  :: Float64 = 0.0;
+deck_b_filter  :: Float64 = 0.0;
+deck_b_vol     :: Float64 = 0.85;
+
+# --- HOT CUE ARRAYS (8 CUES PER DECK) ---
+cues_a :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
+cues_b :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
+
+# --- DYNAMIC WAVEFORM PEAK BUFFERS ---
+wave_peaks_a :: Array = [];
+wave_peaks_b :: Array = [];
+through i :: 0..149 -> loop {
+    wave_peaks_a.push(vmath.abs((vmath.sin(i * 0.1) * 0.5) + (vmath.cos(i * 0.3) * 0.3)));
+    wave_peaks_b.push(vmath.abs((vmath.cos(i * 0.12) * 0.6) + (vmath.sin(i * 0.25) * 0.2)));
+};
+
+# --- UI HELPER: ROTARY CONTROL KNOB ---
+fn draw_dj_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active) {
+    radius_base = 32.0;
+    if (is_hovered) { radius_base = 35.0; }
+    if (is_active)  { radius_base = 37.0; }
+
+    vglib.circle(x, y, radius_base, vglib.BLACK);
+    
+    if (is_active) {
+        vglib.circle(x, y, radius_base - 2.0, color);
+    } else {
+        vglib.circle(x, y, radius_base - 3.0, vglib.rgba(45, 48, 58, 255));
+    }
+
+    vglib.circle(x, y, 24.0, vglib.rgba(20, 22, 28, 255));
+    vglib.circle(x, y, 15.0, vglib.rgba(30, 34, 42, 255));
+    
+    angle = (val_norm * 270.0) - 135.0;
+    rad = vmath.radians(angle);
+    
+    line_x :: Float64 = x + vmath.sin(rad) * 21.0;
+    line_y :: Float64 = y - vmath.cos(rad) * 21.0;
+    
+    vglib.line(x, y, line_x, line_y, color);
+    vglib.circle(line_x, line_y, 3.0, color);
+    
+    label_col = is_hovered ? vglib.rgba(0, 230, 255, 255) : vglib.rgba(160, 170, 185, 255);
+    vglib.text_ex(vcr_font, name, x - 20, y + 38, 10, label_col);
+    vglib.text_ex(vcr_font, display_val, x - 16, y - 4, 9, color);
+}
+
+# --- UI HELPER: HOT CUE PAD ---
+fn draw_hot_cue_pad(id, x, y, w, h, pad_color, is_active, is_hovered, cue_time) {
+    bg_col   = is_active ? pad_color : vglib.rgba(24, 28, 36, 255);
+    rim_col  = is_active ? vglib.WHITE : (is_hovered ? pad_color : vglib.rgba(50, 58, 72, 255));
+    text_col = is_active ? vglib.BLACK : vglib.WHITE;
+
+    vglib.rect(x, y, w, h, bg_col);
+    vglib.line(x, y, x + w, y, rim_col);
+    vglib.line(x + w, y, x + w, y + h, rim_col);
+    vglib.line(x + w, y + h, x, y + h, rim_col);
+    vglib.line(x, y + h, x, y, rim_col);
+
+    vglib.text_ex(vcr_font, "CUE " + string(id + 1), x + 10, y + 10, 11, text_col);
+    
+    sec_str = string(vmath.round(cue_time * 180.0 * 10.0) / 10.0) + "s";
+    sub_col = is_active ? vglib.BLACK : vglib.rgba(140, 150, 165, 255);
+    vglib.text_ex(vcr_font, sec_str, x + 10, y + 28, 9, sub_col);
+}
+
+# --- MAIN DJ WORKSTATION RENDER LOOP ---
+while (vglib.running()) {
+    run_time = run_time + 0.016;
+
+    vaudio.update_stream(deck_a_track);
+    vaudio.update_stream(deck_b_track);
+
+    m = vglib.mouse_pos();
+    md = vglib.mouse_delta();
+    mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
+
+    # Update Playheads
+    if (deck_a_play == 1) {
+        deck_a_pos = deck_a_pos + 0.0004 * (deck_a_bpm / 130.0);
+        if (deck_a_pos > 1.0) { deck_a_pos = 0.0; }
+    }
+    if (deck_b_play == 1) {
+        deck_b_pos = deck_b_pos + 0.0004 * (deck_b_bpm / 128.0);
+        if (deck_b_pos > 1.0) { deck_b_pos = 0.0; }
+    }
+
+    # Keyboard Controls
+    if (vglib.key_pressed(vglib.Q)) {
+        deck_a_play = (deck_a_play == 1) ? 0 : 1;
+        if (deck_a_play == 1) { vaudio.play_stream(deck_a_track); }
+        else { vaudio.pause_sound(deck_a_track); }
+    }
+    if (vglib.key_pressed(vglib.P)) {
+        deck_b_play = (deck_b_play == 1) ? 0 : 1;
+        if (deck_b_play == 1) { vaudio.play_stream(deck_b_track); }
+        else { vaudio.pause_sound(deck_b_track); }
+    }
+
+    # Crossfader Keyboard Adjustments
+    if (vglib.key_down(vglib.LEFT))  { crossfader_pos = vmath.clamp(crossfader_pos - 0.01, 0.0, 1.0); }
+    if (vglib.key_down(vglib.RIGHT)) { crossfader_pos = vmath.clamp(crossfader_pos + 0.01, 0.0, 1.0); }
+
+    # --- MOUSE INTERACTION DETECTIONS ---
+    if (mouse_click && prev_mouse_state == 0) {
+        # 1. Deck A Play/Cue Buttons
+        if (m[0] >= 50 && m[0] <= 140 && m[1] >= 20 && m[1] <= 52) {
+            deck_a_play = (deck_a_play == 1) ? 0 : 1;
+            if (deck_a_play == 1) { vaudio.play_stream(deck_a_track); }
+            else { vaudio.pause_sound(deck_a_track); }
+        }
+
+        # 2. Deck B Play/Cue Buttons
+        if (m[0] >= 1260 && m[0] <= 1350 && m[1] >= 20 && m[1] <= 52) {
+            deck_b_play = (deck_b_play == 1) ? 0 : 1;
+            if (deck_b_play == 1) { vaudio.play_stream(deck_b_track); }
+            else { vaudio.pause_sound(deck_b_track); }
+        }
+
+        # 3. SYNC Button (Sync Deck B to Deck A BPM & Pitch)
+        if (m[0] >= 650 && m[0] <= 750 && m[1] >= 20 && m[1] <= 52) {
+            deck_b_bpm   = deck_a_bpm;
+            deck_b_pitch = deck_a_pitch;
+        }
+
+        # 4. Hot Cue Pads - Deck A (Left Grid)
+        through p :: 0..7 -> loop {
+            row :: Int64 = p / 4; col :: Int64 = p % 4;
+            px :: Int64 = 50 + (col * 140);
+            py :: Int64 = 580 + (row * 65);
+            if (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55) {
+                deck_a_pos = cues_a[p];
+                
+                # Seek streaming buffer directly to target timestamp
+                target_sec :: Float64 = deck_a_pos * 180.0;
+                vaudio.seek_stream(deck_a_track, target_sec);
+                
+                deck_a_play = 1;
+            }
+        };
+
+        # 5. Hot Cue Pads - Deck B (Right Grid)
+        through p :: 0..7 -> loop {
+            row :: Int64 = p / 4; col :: Int64 = p % 4;
+            px :: Int64 = 760 + (col * 140);
+            py :: Int64 = 580 + (row * 65);
+            if (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55) {
+                deck_b_pos = cues_b[p];
+                
+                # Seek streaming buffer directly to target timestamp
+                target_sec :: Float64 = deck_b_pos * 180.0;
+                vaudio.seek_stream(deck_b_track, target_sec);
+                
+                deck_b_play = 1;
+            }
+        };
+    }
+
+    # --- KNOB & CROSSFADER DRAGGING ---
+    ha_pitch = vmath.hypot(m[0] - 100, m[1] - 460) < 32;
+    ha_hi    = vmath.hypot(m[0] - 200, m[1] - 460) < 32;
+    ha_mid   = vmath.hypot(m[0] - 300, m[1] - 460) < 32;
+    ha_low   = vmath.hypot(m[0] - 400, m[1] - 460) < 32;
+    ha_flt   = vmath.hypot(m[0] - 500, m[1] - 460) < 32;
+
+    hb_pitch = vmath.hypot(m[0] - 900, m[1] - 460) < 32;
+    hb_hi    = vmath.hypot(m[0] - 1000, m[1] - 460) < 32;
+    hb_mid   = vmath.hypot(m[0] - 1100, m[1] - 460) < 32;
+    hb_low   = vmath.hypot(m[0] - 1200, m[1] - 460) < 32;
+    hb_flt   = vmath.hypot(m[0] - 1300, m[1] - 460) < 32;
+
+    is_xfader = (m[0] >= 500 && m[0] <= 900 && m[1] >= 750 && m[1] <= 810);
+
+    if (mouse_click) {
+        if (active_knob == 0) {
+            if (ha_pitch) { active_knob = 1; }
+            if (ha_hi)    { active_knob = 2; }
+            if (ha_mid)   { active_knob = 3; }
+            if (ha_low)   { active_knob = 4; }
+            if (ha_flt)   { active_knob = 5; }
+
+            if (hb_pitch) { active_knob = 6; }
+            if (hb_hi)    { active_knob = 7; }
+            if (hb_mid)   { active_knob = 8; }
+            if (hb_low)   { active_knob = 9; }
+            if (hb_flt)   { active_knob = 10; }
+
+            if (is_xfader) { active_knob = 11; }
+        }
+
+        delta = md[1] * 0.3;
+        if (active_knob == 1) { deck_a_pitch = vmath.clamp(deck_a_pitch - (delta * 0.2), -12.0, 12.0); }
+        if (active_knob == 2) { deck_a_eq_hi  = vmath.clamp(deck_a_eq_hi - delta, -12.0, 12.0); }
+        if (active_knob == 3) { deck_a_eq_mid = vmath.clamp(deck_a_eq_mid - delta, -12.0, 12.0); }
+        if (active_knob == 4) { deck_a_eq_low = vmath.clamp(deck_a_eq_low - delta, -12.0, 12.0); }
+        if (active_knob == 5) { deck_a_filter = vmath.clamp(deck_a_filter - (delta * 0.02), -1.0, 1.0); }
+
+        if (active_knob == 6) { deck_b_pitch = vmath.clamp(deck_b_pitch - (delta * 0.2), -12.0, 12.0); }
+        if (active_knob == 7) { deck_b_eq_hi  = vmath.clamp(deck_b_eq_hi - delta, -12.0, 12.0); }
+        if (active_knob == 8) { deck_b_eq_mid = vmath.clamp(deck_b_eq_mid - delta, -12.0, 12.0); }
+        if (active_knob == 9) { deck_b_eq_low = vmath.clamp(deck_b_eq_low - delta, -12.0, 12.0); }
+        if (active_knob == 10){ deck_b_filter = vmath.clamp(deck_b_filter - (delta * 0.02), -1.0, 1.0); }
+
+        if (active_knob == 11){ crossfader_pos = vmath.clamp((m[0] - 520.0) / 360.0, 0.0, 1.0); }
+    } else {
+        active_knob = 0;
+    }
+
+    prev_mouse_state = mouse_click ? 1 : 0;
+
+    # Apply Real-Time Pitch Engine Shifts
+    vaudio.set_pitch(deck_a_track, vmath.pow(2.0, deck_a_pitch / 12.0));
+    vaudio.set_pitch(deck_b_track, vmath.pow(2.0, deck_b_pitch / 12.0));
+
+    # Apply Equal Power Crossfader Gains
+    gain_a = vmath.cos(crossfader_pos * 0.5 * 3.14159265);
+    gain_b = vmath.sin(crossfader_pos * 0.5 * 3.14159265);
+    vaudio.sound_volume(deck_a_track, deck_a_vol * gain_a);
+    vaudio.sound_volume(deck_b_track, deck_b_vol * gain_b);
+
+    vglib.begin();
+        vglib.clear(vglib.rgba(14, 16, 22, 255));
+
+        # ====================================================================
+        # TOP HEADER: DECK TITLES & SYNC BAR
+        # ====================================================================
+        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 50, 26, 14, vglib.rgba(0, 220, 255, 255));
+        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 980, 26, 14, vglib.rgba(255, 90, 180, 255));
+
+        # Deck A Play Pill
+        btn_a_col = (deck_a_play == 1) ? vglib.rgba(50, 255, 120, 255) : vglib.rgba(35, 42, 54, 255);
+        vglib.rect(50, 20, 90, 32, btn_a_col);
+        vglib.text_ex(vcr_font, (deck_a_play == 1 ? "PAUSE" : "PLAY A"), 62, 30, 11, (deck_a_play == 1 ? vglib.BLACK : vglib.WHITE));
+
+        # Master SYNC Button
+        vglib.rect(650, 20, 100, 32, vglib.rgba(255, 160, 40, 255));
+        vglib.text_ex(vcr_font, "BEAT SYNC", 662, 30, 11, vglib.BLACK);
+
+        # Deck B Play Pill
+        btn_b_col = (deck_b_play == 1) ? vglib.rgba(50, 255, 120, 255) : vglib.rgba(35, 42, 54, 255);
+        vglib.rect(1260, 20, 90, 32, btn_b_col);
+        vglib.text_ex(vcr_font, (deck_b_play == 1 ? "PAUSE" : "PLAY B"), 1272, 30, 11, (deck_b_play == 1 ? vglib.BLACK : vglib.WHITE));
+
+        vglib.line(50, 62, 1350, 62, vglib.rgba(45, 52, 66, 255));
+
+        # ====================================================================
+        # DUAL TRACK OVERVIEW WAVEFORMS (DECK A LEFT, DECK B RIGHT)
+        # ====================================================================
+        # Deck A Overview Box
+        vglib.rect(50, 80, 630, 160, vglib.rgba(18, 20, 28, 255));
+        vglib.line(50, 80, 680, 80, vglib.rgba(0, 220, 255, 255));
+
+        num_pk_a = wave_peaks_a.length();
+        step_w_a :: Float64 = 630.0 / num_pk_a;
+        through idx :: 0..(int64(num_pk_a) - 1) -> loop {
+            pk = wave_peaks_a[idx];
+            px :: Float64 = 50.0 + (idx * step_w_a);
+            ph :: Float64 = pk * 60.0;
+            vglib.rect(px, 160.0 - ph, step_w_a - 0.5, ph * 2.0, vglib.rgba(0, 200, 240, 180));
+        };
+        ph_a_x :: Float64 = 50.0 + (deck_a_pos * 630.0);
+        vglib.line(ph_a_x, 80, ph_a_x, 240, vglib.WHITE);
+
+        # Deck B Overview Box
+        vglib.rect(720, 80, 630, 160, vglib.rgba(18, 20, 28, 255));
+        vglib.line(720, 80, 1350, 80, vglib.rgba(255, 90, 180, 255));
+
+        num_pk_b = wave_peaks_b.length();
+        step_w_b :: Float64 = 630.0 / num_pk_b;
+        through idx :: 0..(int64(num_pk_b) - 1) -> loop {
+            pk = wave_peaks_b[idx];
+            px :: Float64 = 720.0 + (idx * step_w_b);
+            ph :: Float64 = pk * 60.0;
+            vglib.rect(px, 160.0 - ph, step_w_b - 0.5, ph * 2.0, vglib.rgba(255, 80, 170, 180));
+        };
+        ph_b_x :: Float64 = 720.0 + (deck_b_pos * 630.0);
+        vglib.line(ph_b_x, 80, ph_b_x, 240, vglib.WHITE);
+
+        # ====================================================================
+        # ZOOMED BEATMATCHING / PHASE WAVEFORM STRIP
+        # ====================================================================
+        vglib.rect(50, 260, 1300, 120, vglib.rgba(10, 12, 16, 255));
+        vglib.line(50, 320, 1350, 320, vglib.rgba(45, 52, 66, 255));
+        vglib.text_ex(vcr_font, "REAL-TIME BEATMATCH PHASE SCOPE", 65, 270, 11, vglib.rgba(160, 170, 185, 255));
+
+        # Render Phase Overlay Lines
+        prev_zx_a :: Float64 = 50.0; prev_zy_a :: Float64 = 320.0;
+        prev_zx_b :: Float64 = 50.0; prev_zy_b :: Float64 = 320.0;
+        z_step :: Float64 = 8.0; curr_zx :: Float64 = 50.0;
+
+        while (curr_zx <= 1350.0) {
+            norm_z = (curr_zx - 50.0) / 1300.0;
+            za = vmath.sin(norm_z * 50.0 + run_time * 8.0) * 40.0;
+            zb = vmath.sin(norm_z * 49.0 + run_time * 7.8) * 40.0;
+
+            curr_zy_a :: Float64 = 320.0 - za;
+            curr_zy_b :: Float64 = 320.0 - zb;
+
+            if (curr_zx > 50.0) {
+                vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, vglib.rgba(0, 220, 255, 200));
+                vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, vglib.rgba(255, 90, 180, 200));
+            }
+            prev_zx_a = curr_zx; prev_zy_a = curr_zy_a;
+            prev_zx_b = curr_zx; prev_zy_b = curr_zy_b;
+            curr_zx = curr_zx + z_step;
+        }
+
+        # ====================================================================
+        # DUAL CHANNEL EQ & PITCH CONTROL RACK
+        # ====================================================================
+        pa_norm = (deck_a_pitch + 12.0) / 24.0;
+        pa_str  = (deck_a_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_a_pitch * 10.0) / 10.0) + "st";
+
+        pb_norm = (deck_b_pitch + 12.0) / 24.0;
+        pb_str  = (deck_b_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_b_pitch * 10.0) / 10.0) + "st";
+
+        # Deck A Knobs (Left)
+        draw_dj_knob("PITCH A", 100, 460, pa_norm, pa_str, vglib.rgba(0, 220, 255, 255), ha_pitch, active_knob == 1);
+        draw_dj_knob("HIGH", 200, 460, (deck_a_eq_hi + 12.0) / 24.0, string(vmath.round(deck_a_eq_hi)) + "dB", vglib.rgba(255, 200, 50, 255), ha_hi, active_knob == 2);
+        draw_dj_knob("MID", 300, 460, (deck_a_eq_mid + 12.0) / 24.0, string(vmath.round(deck_a_eq_mid)) + "dB", vglib.rgba(255, 200, 50, 255), ha_mid, active_knob == 3);
+        draw_dj_knob("LOW", 400, 460, (deck_a_eq_low + 12.0) / 24.0, string(vmath.round(deck_a_eq_low)) + "dB", vglib.rgba(255, 200, 50, 255), ha_low, active_knob == 4);
+        draw_dj_knob("FILTER", 500, 460, (deck_a_filter + 1.0) / 2.0, string(vmath.round(deck_a_filter * 100.0)) + "%", vglib.rgba(50, 230, 120, 255), ha_flt, active_knob == 5);
+
+        # Deck B Knobs (Right)
+        draw_dj_knob("PITCH B", 900, 460, pb_norm, pb_str, vglib.rgba(255, 90, 180, 255), hb_pitch, active_knob == 6);
+        draw_dj_knob("HIGH", 1000, 460, (deck_b_eq_hi + 12.0) / 24.0, string(vmath.round(deck_b_eq_hi)) + "dB", vglib.rgba(255, 200, 50, 255), hb_hi, active_knob == 7);
+        draw_dj_knob("MID", 1100, 460, (deck_b_eq_mid + 12.0) / 24.0, string(vmath.round(deck_b_eq_mid)) + "dB", vglib.rgba(255, 200, 50, 255), hb_mid, active_knob == 8);
+        draw_dj_knob("LOW", 1200, 460, (deck_b_eq_low + 12.0) / 24.0, string(vmath.round(deck_b_eq_low)) + "dB", vglib.rgba(255, 200, 50, 255), hb_low, active_knob == 9);
+        draw_dj_knob("FILTER", 1300, 460, (deck_b_filter + 1.0) / 2.0, string(vmath.round(deck_b_filter * 100.0)) + "%", vglib.rgba(50, 230, 120, 255), hb_flt, active_knob == 10);
+
+        # Center Status Readout Card
+        vglib.rect(630, 415, 140, 95, vglib.rgba(18, 22, 30, 255));
+        vglib.text_ex(vcr_font, "MASTER BUS", 652, 430, 11, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, "XFADE: " + string(vmath.round(crossfader_pos * 100.0)) + "%", 652, 455, 11, vglib.WHITE);
+        vglib.text_ex(vcr_font, "MASTER OUT", 655, 480, 10, vglib.rgba(50, 255, 120, 255));
+
+        # ====================================================================
+        # HOT CUE BANKS & CENTER HARDWARE CROSSFADER
+        # ====================================================================
+        # Deck A Hot Cues (8 Pads)
+        c_cyan = vglib.rgba(0, 220, 255, 255);
+        through p :: 0..7 -> loop {
+            row :: Int64 = p / 4; col :: Int64 = p % 4;
+            px :: Int64 = 50 + (col * 140); py :: Int64 = 580 + (row * 65);
+            is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
+            draw_hot_cue_pad(p, px, py, 130, 55, c_cyan, false, is_hov, cues_a[p]);
+        };
+
+        # Deck B Hot Cues (8 Pads)
+        c_pink = vglib.rgba(255, 90, 180, 255);
+        through p :: 0..7 -> loop {
+            row :: Int64 = p / 4; col :: Int64 = p % 4;
+            px :: Int64 = 760 + (col * 140); py :: Int64 = 580 + (row * 65);
+            is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
+            draw_hot_cue_pad(p, px, py, 130, 55, c_pink, false, is_hov, cues_b[p]);
+        };
+
+        # Center Hardware Crossfader Track
+        vglib.rect(500, 770, 400, 20, vglib.rgba(20, 24, 32, 255));
+        vglib.line(500, 780, 900, 780, vglib.rgba(50, 58, 72, 255));
+        vglib.line(700, 765, 700, 795, vglib.rgba(100, 110, 130, 255)); # Center Notch
+
+        # Moving Crossfader Handle
+        handle_x :: Float64 = 500.0 + (crossfader_pos * 360.0);
+        vglib.rect(handle_x, 755, 40, 50, vglib.rgba(220, 230, 245, 255));
+        vglib.rect(handle_x + 18, 760, 4, 40, vglib.BLACK);
+
+        vglib.text_ex(vcr_font, "DECK A", 500, 800, 11, c_cyan);
+        vglib.text_ex(vcr_font, "CROSSFADER", 652, 800, 11, vglib.WHITE);
+        vglib.text_ex(vcr_font, "DECK B", 845, 800, 11, c_pink);
+
+        # ====================================================================
+        # FOOTER STATUS BAR
+        # ====================================================================
+        vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0 | DUAL DECK PRO DJ CONSOLE", 450, 860, 12, vglib.rgba(120, 130, 150, 255));
+
+    vglib.end();
+}
+
+vaudio.close_audio();
+vglib.close();

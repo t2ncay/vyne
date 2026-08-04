@@ -12,7 +12,9 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 track_name :: String = "tests/assetts/cigerlerim.mp3";
-track = vaudio.load_sound(configs.Audios.ariana_bunny);
+
+# 1. SWITCH LOAD TO PLAY_STREAM FOR AUDIO STREAMING
+track = vaudio.play_stream(configs.Audios.osamason_1300);
 
 run_time = 0.0;
 prev_mouse_state = 0;
@@ -30,7 +32,6 @@ track_duration :: Float64 = 180.0; # Total track length in seconds (simulated)
 playhead_pos   :: Float64 = 0.15;  # Normalized playhead position [0.0 .. 1.0]
 
 # --- 8-PAD SLICE BANK ARRAYS ---
-# Stores normalized start position [0..1], end position [0..1], and trigger state
 pad_start :: Array = [];
 pad_end   :: Array = [];
 pad_muted :: Array = [];
@@ -48,7 +49,6 @@ through p :: 0..7 -> loop {
 # --- DYNAMIC WAVEFORM PEAK BUFFER ---
 wave_peaks :: Array = [];
 through i :: 0..299 -> loop {
-    # Generate realistic sample envelope contour
     val = (vmath.sin(i * 0.08) * 0.4) + (vmath.cos(i * 0.23) * 0.35) + (vmath.sin(i * 0.51) * 0.25);
     wave_peaks.push(vmath.abs(val));
 };
@@ -96,11 +96,9 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
     vglib.line(x + w, y + h, x, y + h, rim_col);
     vglib.line(x, y + h, x, y, rim_col);
 
-    # Pad Header & ID
     pad_str = "PAD " + string(id + 1);
     vglib.text_ex(vcr_font, pad_str, x + 12, y + 12, 13, text_col);
 
-    # Cue Point Time Markers
     start_sec = vmath.round(start_t * track_duration * 10.0) / 10.0;
     end_sec   = vmath.round(end_t * track_duration * 10.0) / 10.0;
     range_str = string(start_sec) + "s - " + string(end_sec) + "s";
@@ -108,7 +106,6 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
     sub_col = is_active ? vglib.BLACK : vglib.rgba(140, 150, 165, 255);
     vglib.text_ex(vcr_font, range_str, x + 12, y + 36, 10, sub_col);
 
-    # Trigger Status Pill
     if (is_active) {
         vglib.rect(x + w - 45, y + 10, 35, 16, vglib.BLACK);
         vglib.text_ex(vcr_font, "PLAY", x + w - 40, y + 13, 9, vglib.rgba(50, 255, 120, 255));
@@ -118,6 +115,9 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
 # --- MAIN SAMPLER ENGINE RENDER LOOP ---
 while (vglib.running()) {
     run_time = run_time + 0.016;
+
+    # 2. UPDATE STREAM EVERY FRAME
+    vaudio.update_stream(track);
 
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
@@ -133,34 +133,32 @@ while (vglib.running()) {
 
     # --- MOUSE CLICK DETECTIONS ---
     if (mouse_click && prev_mouse_state == 0) {
-        # 1. Slice Mode Switching Bar (Top Right)
+        # 1. Slice Mode Switching Bar
         if (m[1] >= 20 && m[1] <= 52) {
-            if (m[0] >= 800 && m[0] <= 920) { slice_mode = 0; } # MANUAL
-            if (m[0] >= 930 && m[0] <= 1050) {                 # CHOP (EQUAL)
+            if (m[0] >= 800 && m[0] <= 920) { slice_mode = 0; }
+            if (m[0] >= 930 && m[0] <= 1050) {
                 slice_mode = 1;
                 through p :: 0..7 -> loop {
                     pad_start[p] = p * 0.125;
                     pad_end[p]   = (p + 1) * 0.125;
                 };
             }
-            if (m[0] >= 1060 && m[0] <= 1180) { slice_mode = 2; } # TRANSIENT
+            if (m[0] >= 1060 && m[0] <= 1180) { slice_mode = 2; }
         }
 
-        # 2. Clicking Main Overview Waveform to Set Playhead / Trigger Pad
+        # 2. Clicking Main Overview Waveform
         if (m[0] >= 50 && m[0] <= 1350 && m[1] >= 80 && m[1] <= 240) {
             norm_click = (m[0] - 50.0) / 1300.0;
             playhead_pos = norm_click;
             
-            # Select pad matching clicked range
             through p :: 0..7 -> loop {
                 if (norm_click >= pad_start[p] && norm_click <= pad_end[p]) {
                     active_pad = p;
                 }
             };
 
-            if (vaudio.is_playing(track) == 0) {
-                vaudio.play_sound(track);
-            }
+            target_sec :: Float64 = playhead_pos * track_duration;
+            vaudio.seek_stream(track, target_sec);
         }
 
         # 3. MPC Pad Grid Interaction (8 Pads)
@@ -178,8 +176,8 @@ while (vglib.running()) {
                 
                 start_seconds :: Float64 = pad_start[p] * track_duration;
                 
-                vaudio.seek_sound(track, start_seconds);
-                vaudio.play_sound(track);
+                # 3. SEEK STREAM DIRECTLY TO TARGET TIMESTAMP
+                vaudio.seek_stream(track, start_seconds);
             }
         };
     }
@@ -209,19 +207,15 @@ while (vglib.running()) {
 
     prev_mouse_state = mouse_click ? 1 : 0;
 
-    # Dynamic Audio Engine Parameter Updates
     vaudio.set_pitch(track, vmath.pow(2.0, pitch_shift / 12.0));
 
     vglib.begin();
-        vglib.clear(vglib.rgba(14, 16, 22, 255)); # Dark chassis background
+        vglib.clear(vglib.rgba(14, 16, 22, 255));
 
-        # ====================================================================
-        # HEADER BAR: METADATA & CHOP CONTROLS
-        # ====================================================================
+        # HEADER BAR
         vglib.text_ex(vcr_font, "VYNE SERATO SAMPLER", 50, 26, 18, vglib.WHITE);
         vglib.text_ex(vcr_font, "KEY: Fm | BPM: 130.0", 300, 28, 12, vglib.rgba(0, 220, 255, 255));
 
-        # Slice Mode Selector Buttons
         mode0_col = (slice_mode == 0) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
         mode1_col = (slice_mode == 1) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
         mode2_col = (slice_mode == 2) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
@@ -237,25 +231,22 @@ while (vglib.running()) {
 
         vglib.line(50, 62, 1350, 62, vglib.rgba(45, 52, 66, 255));
 
-        # ====================================================================
-        # MODULE 1: FULL TRACK OVERVIEW WAVEFORM DISPLAY & SLICE REGIONS
-        # ====================================================================
+        # MODULE 1: FULL TRACK OVERVIEW WAVEFORM
         vglib.rect(50, 80, 1300, 160, vglib.rgba(18, 20, 28, 255));
         vglib.line(50, 80, 1350, 80, vglib.rgba(50, 58, 72, 255));
         vglib.line(1350, 80, 1350, 240, vglib.rgba(50, 58, 72, 255));
         vglib.line(1350, 240, 50, 240, vglib.rgba(50, 58, 72, 255));
         vglib.line(50, 240, 50, 80, vglib.rgba(50, 58, 72, 255));
 
-        # 8 Color-Coded Slice Regions
         pad_colors :: Array = [
-            vglib.rgba(255, 70, 70, 255),   # Pad 1 Red
-            vglib.rgba(255, 160, 40, 255),  # Pad 2 Orange
-            vglib.rgba(255, 220, 50, 255),  # Pad 3 Gold
-            vglib.rgba(50, 230, 120, 255),  # Pad 4 Green
-            vglib.rgba(0, 220, 255, 255),   # Pad 5 Cyan
-            vglib.rgba(160, 90, 255, 255),  # Pad 6 Purple
-            vglib.rgba(255, 100, 200, 255), # Pad 7 Pink
-            vglib.rgba(180, 210, 245, 255)  # Pad 8 Ice
+            vglib.rgba(255, 70, 70, 255),
+            vglib.rgba(255, 160, 40, 255),
+            vglib.rgba(255, 220, 50, 255),
+            vglib.rgba(50, 230, 120, 255),
+            vglib.rgba(0, 220, 255, 255),
+            vglib.rgba(160, 90, 255, 255),
+            vglib.rgba(255, 100, 200, 255),
+            vglib.rgba(180, 210, 245, 255)
         ];
 
         through p :: 0..7 -> loop {
@@ -266,18 +257,15 @@ while (vglib.running()) {
             rw :: Float64 = (p_en - p_st) * 1300.0;
             p_col = pad_colors[p];
 
-            # Active Pad Highlight Region
             if (p == active_pad) {
                 vglib.rect(rx, 81, rw, 158, vglib.rgba(255, 255, 255, 25));
             }
 
-            # Slice Region Start Flag Line
             vglib.line(rx, 80, rx, 240, p_col);
             vglib.rect(rx, 80, 24, 16, p_col);
             vglib.text_ex(vcr_font, string(p + 1), rx + 8, 83, 11, vglib.BLACK);
         };
 
-        # Waveform Peaks Rendering
         num_peaks :: Float64 = wave_peaks.length();
         step_w    :: Float64 = 1300.0 / num_peaks;
         cy        :: Float64 = 160.0;
@@ -287,7 +275,6 @@ while (vglib.running()) {
             px :: Float64 = 50.0 + (idx * step_w);
             ph :: Float64 = pk * 65.0;
 
-            # Determine pad color for peak slice
             norm_x = idx / num_peaks;
             peak_col = vglib.rgba(120, 135, 160, 180);
             through p :: 0..7 -> loop {
@@ -299,14 +286,11 @@ while (vglib.running()) {
             vglib.rect(px, cy - ph, step_w - 0.5, ph * 2.0, peak_col);
         };
 
-        # Playhead Needle Line
         ph_x :: Float64 = 50.0 + (playhead_pos * 1300.0);
         vglib.line(ph_x, 80, ph_x, 240, vglib.WHITE);
         vglib.circle(ph_x, 80, 5.0, vglib.WHITE);
 
-        # ====================================================================
-        # MODULE 2: ZOOMED ACTIVE SLICE DETAIL WAVEFORM
-        # ====================================================================
+        # MODULE 2: ZOOMED ACTIVE SLICE WAVEFORM
         vglib.rect(50, 260, 1300, 140, vglib.rgba(10, 12, 16, 255));
         vglib.line(50, 260, 1350, 260, vglib.rgba(45, 52, 66, 255));
         vglib.line(1350, 260, 1350, 400, vglib.rgba(45, 52, 66, 255));
@@ -316,7 +300,6 @@ while (vglib.running()) {
         act_col = pad_colors[active_pad];
         vglib.text_ex(vcr_font, "ZOOMED SLICE VIEW - PAD " + string(active_pad + 1), 65, 272, 11, act_col);
 
-        # Render High-Resolution Zoomed Waveform
         prev_zx :: Float64 = 50.0;
         prev_zy :: Float64 = 330.0;
         z_step  :: Float64 = 10.0;
@@ -335,12 +318,9 @@ while (vglib.running()) {
             curr_zx = curr_zx + z_step;
         }
 
-        # Zero-Crossing Center Axis
         vglib.line(50, 330, 1350, 330, vglib.rgba(35, 42, 54, 255));
 
-        # ====================================================================
-        # MODULE 3: SAMPLE PITCH, TIME STRETCH & ENVELOPE CONTROLS
-        # ====================================================================
+        # MODULE 3: CONTROLS
         p_norm   = (pitch_shift + 12.0) / 24.0;
         s_norm   = (speed_rate - 0.5) / 1.5;
         a_norm   = (attack_ms - 0.1) / 99.9;
@@ -356,7 +336,6 @@ while (vglib.running()) {
         draw_sampler_knob("ATTACK", 400, 470, a_norm, a_str, vglib.rgba(50, 230, 120, 255), hk3, active_knob == 3);
         draw_sampler_knob("RELEASE", 540, 470, r_norm, r_str, vglib.rgba(160, 90, 255, 255), hk4, active_knob == 4);
 
-        # Parameters Card Box
         vglib.rect(680, 425, 670, 95, vglib.rgba(18, 22, 30, 255));
         vglib.line(680, 425, 1350, 425, vglib.rgba(45, 52, 66, 255));
         vglib.line(1350, 425, 1350, 520, vglib.rgba(45, 52, 66, 255));
@@ -371,9 +350,7 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, info_str, 700, 462, 13, act_col);
         vglib.text_ex(vcr_font, "ALGORITHM: VYNE TIME-STRETCH v1.0 (FORMANT PRESERVED)", 700, 490, 10, vglib.rgba(100, 110, 130, 255));
 
-        # ====================================================================
-        # MODULE 4: 8-PAD MPC SAMPLER BANK GRID
-        # ====================================================================
+        # MODULE 4: MPC PAD GRID
         pad_w :: Int64 = 300;
         pad_h :: Int64 = 85;
 
@@ -390,9 +367,6 @@ while (vglib.running()) {
             draw_mpc_pad(p, px, py, pad_w, pad_h, pad_colors[p], is_act, is_hov, pad_start[p], pad_end[p]);
         };
 
-        # ====================================================================
-        # FOOTER STATUS BAR
-        # ====================================================================
         vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v1.0.0 | SERATO SAMPLE DSP ENGINE", 460, 860, 12, vglib.rgba(120, 130, 150, 255));
 
     vglib.end();

@@ -396,6 +396,17 @@ namespace VAudioNative {
         }
         return Value(true);
     }
+
+    Value native_seek_stream(std::vector<Value>& args) {
+        if (args.size() < 2) return Value(false);
+        Music* m = reinterpret_cast<Music*>(args[0].asInt());
+        if (m != nullptr && m->stream.buffer != nullptr) {
+            float position_seconds = (float)args[1].asFloat();
+            SeekMusicStream(*m, position_seconds);
+            return Value(true);
+        }
+        return Value(false);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -426,6 +437,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     // Stream
     vaudio[pool.intern("play_stream")]       = Value(VAudioNative::native_play_stream);
     vaudio[pool.intern("update_stream")]     = Value(VAudioNative::native_update_stream);
+    vaudio[pool.intern("seek_stream")]       = Value(VAudioNative::native_seek_stream);
     vaudio[pool.intern("set_dsp")]           = Value(VAudioNative::native_set_dsp_params);
     vaudio[pool.intern("is_playing")]        = Value(VAudioNative::native_is_sound_playing);
     vaudio[pool.intern("get_rms")]           = Value(VAudioNative::native_get_rms);
