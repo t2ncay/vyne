@@ -68,6 +68,28 @@ struct Biquad {
     }
 };
 
+struct EqualizerState {
+    Biquad bands[7];
+    bool enabled = true;
+
+    void process(float* samples, unsigned int frames) {
+        if (!enabled) return;
+
+        for (unsigned int i = 0; i < frames; i++) {
+            float left  = samples[i * 2];
+            float right = samples[i * 2 + 1];
+
+            for (int b = 0; b < 7; b++) {
+                left = bands[b].process(left);
+                right = bands[b].process(right);
+            }
+
+            samples[i * 2]     = std::clamp(left, -1.0f, 1.0f);
+            samples[i * 2 + 1] = std::clamp(right, -1.0f, 1.0f);
+        }
+    }
+};
+
 inline Biquad g_eq_bands[7];
 inline bool g_eq_enabled = true;
 

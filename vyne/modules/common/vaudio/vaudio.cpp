@@ -24,6 +24,21 @@ struct VAudioSoundHandle {
     bool is_stopped = false;
 };
 
+struct VAudioStreamHandle {
+    Music music;
+    VAudioDSP::EqualizerState eq;
+    VAudioDSP::BPMDetector bpm_detector; // <-- Instance per stream handle
+    bool is_paused = false;
+};
+
+void StreamBPMProcessorCallback(void *buffer, unsigned int frames, void *user_data) {
+    float *samples = (float *)buffer;
+    auto *handle = static_cast<VAudioStreamHandle*>(user_data);
+    if (handle != nullptr) {
+        handle->bpm_detector.processBlock(samples, frames);
+    }
+}
+
 namespace VAudioNative {
     // --- BASIC DEVICE CONTROL ---
     Value native_init_audio(std::vector<Value>& args) {
@@ -127,24 +142,26 @@ namespace VAudioNative {
         if (args.empty()) throw std::runtime_error("play_stream() requires path");
         std::string path = args[0].asString();
         
-        Music* mPtr = new Music();
-        *mPtr = LoadMusicStream(path.c_str());
+        auto* handle = new VAudioStreamHandle();
+        handle->music = LoadMusicStream(path.c_str());
         
-        if (mPtr->stream.buffer == NULL) {
-            delete mPtr;
+        if (handle->music.stream.buffer == NULL) {
+            delete handle;
             throw std::runtime_error("Audio Error: Failed to load stream at " + path);
         }
 
-        mPtr->looping = true;
-        PlayMusicStream(*mPtr);
+        handle->music.looping = true;
+        PlayMusicStream(handle->music);
 
-        return Value(reinterpret_cast<int64_t>(mPtr));
+        return Value(reinterpret_cast<int64_t>(handle));
     }
 
     Value native_update_stream(std::vector<Value>& args) {
         if (args.empty()) return Value();
-        Music* m = reinterpret_cast<Music*>(args[0].asInt());
-        if (m != nullptr && m->stream.buffer != nullptr) UpdateMusicStream(*m);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            UpdateMusicStream(handle->music);
+        }
         return Value();
     }
 
@@ -423,9 +440,9 @@ namespace VAudioNative {
     // --- STREAM CONTROL FUNCTIONS ---
     Value native_pause_stream(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Music* m = reinterpret_cast<Music*>(args[0].asInt());
-        if (m != nullptr && m->stream.buffer != nullptr) {
-            PauseMusicStream(*m);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            PauseMusicStream(handle->music);
             return Value(true);
         }
         return Value(false);
@@ -433,14 +450,13 @@ namespace VAudioNative {
 
     Value native_resume_stream(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        Music* m = reinterpret_cast<Music*>(args[0].asInt());
-        if (m != nullptr && m->stream.buffer != nullptr) {
-            ResumeMusicStream(*m);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            ResumeMusicStream(handle->music);
             return Value(true);
         }
         return Value(false);
     }
-
     Value native_is_stream_playing(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
         Music* m = reinterpret_cast<Music*>(args[0].asInt());
@@ -448,6 +464,28 @@ namespace VAudioNative {
             return Value(IsMusicStreamPlaying(*m));
         }
         return Value(false);
+    }
+
+    // --- NATIVE BPM FUNCTIONS ---
+    Value native_attach_bpm_detector(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            AttachAudioStreamProcessor(handle->music.stream, [](void* buffer, unsigned int frames) {
+                // Processing callback logic here or via stream lookup map
+            });
+            return Value(true);
+        }
+        return Value(false);
+    }
+
+    Value native_get_bpm(std::vector<Value>& args) {
+        if (args.empty()) return Value(120.0);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr) {
+            return Value((double)handle->bpm_detector.calculated_bpm);
+        }
+        return Value(120.0);
     }
 }
 
@@ -487,7 +525,8 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("is_playing")]        = Value(VAudioNative::native_is_sound_playing);
     vaudio[pool.intern("get_rms")]           = Value(VAudioNative::native_get_rms);
     vaudio[pool.intern("get_lufs")]          = Value(VAudioNative::native_get_lufs);
-    
+    vaudio[pool.intern("attach_bpm")]        = Value(VAudioNative::native_attach_bpm_detector);
+    vaudio[pool.intern("get_bpm")]           = Value(VAudioNative::native_get_bpm);
 
     // Reverb
     vaudio[pool.intern("attach_reverb")]     = Value(VAudioNative::native_attach_reverb);
