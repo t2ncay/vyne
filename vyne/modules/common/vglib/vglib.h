@@ -2,23 +2,17 @@
 
 #if defined(_WIN32)
     #ifndef WIN32_LEAN_AND_MEAN
-        #define WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
     #endif
-    
-    #undef RED
-    #undef GREEN
-    #undef YELLOW
-    #undef BLUE
-    #undef MAGENTA
 
-    #define NOGDI 
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+
+    #define NOGDI
+    #define NOUSER
+
     #include <windows.h>
-    #undef Rectangle
-    #undef CloseWindow
-    #undef ShowCursor
-    #undef LoadImage
-    #undef DrawText
-    #undef PlaySound
 #endif
 
 #include "../../../../vendor/raylib/include/raylib.h"

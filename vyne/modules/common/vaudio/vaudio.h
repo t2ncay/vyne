@@ -12,6 +12,10 @@
     #undef MAGENTA
 
     #define NOGDI 
+    #define WIN32_LEAN_AND_MEAN
+    #define NOMINMAX
+    #define NOGDI
+    #define NOUSER
     #include <windows.h>
     #undef Rectangle
     #undef CloseWindow

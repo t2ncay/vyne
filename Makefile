@@ -18,7 +18,7 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
 CXXFLAGS = -std=c++23 -O3 -I. \
             $(RAYLIB_INCLUDE) \
            -I./lsp/backend/src -I./lsp/backend/include \
-           -DCPPHTTPLIB_OPENSSL_SUPPORT
+           -DCPPHTTPLIB_OPENSSL_SUPPORT -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
@@ -27,11 +27,10 @@ ifeq ($(OS),Windows_NT)
     RAYLIB_LIB_PATH = -L./vendor/raylib/lib
     LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH) -static -static-libgcc -static-libstdc++
     LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread
-    MKDIR_P = if not exist "$(subst /,\,$(1))" mkdir "$(subst /,\,$(1))"
-    RM = if exist $(BUILD_DIR) rd /s /q $(BUILD_DIR)
-    DEL = if exist $(TARGET) del /f /q $(TARGET)
-    DEL_URAGE = if exist $(URAGE_LIB) del /f /q $(URAGE_LIB)
-    SHELL := cmd.exe
+    MKDIR_P = mkdir -p $(1)
+    RM = rm -rf $(BUILD_DIR)
+    DEL = rm -f $(TARGET)
+    DEL_URAGE = rm -f $(URAGE_LIB)
     
 else
 

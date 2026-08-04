@@ -35,8 +35,8 @@ namespace VAudioDSP {
 
             buffer[writeIdx] = input;
 
-            phase += (2.0f * M_PI * mod_rate_hz) / sample_rate;
-            if (phase >= 2.0f * M_PI) phase -= 2.0f * M_PI;
+            phase += (2.0f * PI * mod_rate_hz) / sample_rate;
+            if (phase >= 2.0f * PI) phase -= 2.0f * PI;
 
             float current_delay = base_delay_samples + (std::sin(phase) * mod_depth_samples);
             current_delay = std::clamp(current_delay, 1.0f, (float)(buffer.size() - 2));
