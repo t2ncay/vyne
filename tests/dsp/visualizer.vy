@@ -11,13 +11,14 @@ vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound(configs.Audios.cigerlerim);
+track = vaudio.load_sound(configs.Audios.osamason_1300);
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_analyzer(track);
 vaudio.play_sound(track);
 
-run_time = 0.0;
+# --- GLOBAL STATE VARIABLES ---
+run_time :: Float64 = 0.0;
 
 # --- CRT LINE POSITIONS ---
 crt_line_pos :: Array = [];
