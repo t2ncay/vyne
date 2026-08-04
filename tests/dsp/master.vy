@@ -72,12 +72,12 @@ mix      :: Float64 = 0.35;
 predelay :: Float64 = 20.0;
 damping  :: Float64 = 0.30;
 rev_on   :: Int64   = 0;
-active_rev_knob = 0;
+active_rev_knob     = 0;
 
 # --- RENDER NOTIFICATION STATE ---
-is_rendering   :: Int64 = 0;
+is_rendering   :: Int64   = 0;
 render_timer   :: Float64 = 0.0;
-render_status  :: Int64 = 0; # 0 = Idle, 1 = Success, -1 = Error
+render_status  :: Int64   = 0; # 0 = Idle, 1 = Success, -1 = Error
 
 # --- MASTER METER ANIMATION STATE ---
 peak_hold :: Float64 = 0.0;
