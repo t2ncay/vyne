@@ -9,6 +9,7 @@ group :: configs Fonts {
 group :: configs Audios {
     cigerlerim = "tests/assets/cigerlerim.mp3";
     breakbeats = "tests/assets/Breakbeats.wav";
+    osamason_1300 = "tests/assets/1300_sk_wh.mp3";
 };
 
 deploy configs;

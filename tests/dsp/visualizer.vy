@@ -11,7 +11,7 @@ vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound(configs.Audios.cigerlerim);
+track = vaudio.load_sound(configs.Audios.osamason_1300);
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_analyzer(track);
@@ -355,30 +355,60 @@ fn draw_glow_line(x1, y1, x2, y2, core_color, glow_color) {
     vglib.line(x1, y1, x2, y2, glow_color); 
 }
 
-fn draw_spectral_history(x, y, w, h, spec_hist, audio_env) {
+# --- MODULE: DYNAMIC LSD / DREAMY SPECTRAL HISTORY WATERFALL ---
+fn draw_spectral_history(x, y, w, h, spec_hist, audio_env, run_time) {
     vglib.rect(x, y, w, h, vglib.BLACK);
     
     num_slices :: Float64 = spec_hist.length();
-    slice_w :: Float64 = w / num_slices;
-    
+    slice_w    :: Float64 = w / num_slices;
+    bin_h      :: Float64 = h / 32.0;
+
     through s_idx :: 0..(int64(num_slices) - 1) -> loop {
         slice = spec_hist[s_idx];
         px :: Float64 = x + (s_idx * slice_w);
         
+        # 1. EXTRACT BASS ENERGY FROM LOW BINS (BINS 0 TO 3)
+        bass_energy = (slice[0] + slice[1] + slice[2] + slice[3]) / 4.0;
+        
+        # Blend factor: 0.0 = Dreamy Pastel, 1.0 = Acidic RGB Trip
+        acid_blend  = vmath.clamp((bass_energy * 2.2) + (audio_env * 0.8), 0.0, 1.0);
+
         through b_idx :: 0..31 -> loop {
             mag = slice[b_idx];
-            
             freq_norm = b_idx / 32.0;
+            py :: Float64 = y + (b_idx * bin_h);
+
+            # --- PALETTE A: DREAMY / CHILL (Deep purples, cyans, soft pinks) ---
+            dream_r = (1.0 - freq_norm) * 120.0 + (mag * 80.0);
+            dream_g = (1.0 - freq_norm) * 160.0 + (freq_norm * 90.0);
+            dream_b = 200.0 + (freq_norm * 55.0);
+
+            # --- PALETTE B: ACIDIC / LSD TRIP (Aggressive oscillating RGB, Neon Green/Pink) ---
+            # Phase-shifted sines based on bin index + run_time create rapid rainbow shifting
+            acid_r = vmath.sin(run_time * 12.0 + (b_idx * 0.4)) * 127.0 + 128.0;
+            acid_g = vmath.cos(run_time * 10.0 - (b_idx * 0.3)) * 127.0 + 128.0;
+            acid_b = vmath.sin(run_time * 15.0 + (s_idx * 0.1)) * 127.0 + 128.0;
+
+            # Inject intense audio reactivity into the acid channel
+            acid_r = vmath.clamp((acid_r * 0.6) + (mag * 200.0), 0.0, 255.0);
+            acid_g = vmath.clamp((acid_g * 0.6) + (mag * 255.0 * (1.0 - freq_norm)), 0.0, 255.0);
+            acid_b = vmath.clamp((acid_b * 0.6) + (mag * 180.0), 0.0, 255.0);
+
+            # --- INTERPOLATE BETWEEN PALETTES BASED ON BASS/ACID BLEND ---
+            r = vmath.round(vmath.clamp(dream_r * (1.0 - acid_blend) + (acid_r * acid_blend), 0.0, 255.0));
+            g = vmath.round(vmath.clamp(dream_g * (1.0 - acid_blend) + (acid_g * acid_blend), 0.0, 255.0));
+            b = vmath.round(vmath.clamp(dream_b * (1.0 - acid_blend) + (acid_b * acid_blend), 0.0, 255.0));
+
+            # Dynamic Alpha Boost: Acid mode gets intense full opacity; Dreamy gets soft glow
+            base_alpha = (acid_blend > 0.4) ? 2.5 : 1.4;
+            alpha = vmath.round(vmath.clamp(mag * 255.0 * base_alpha, 0.0, 255.0));
             
-            r = vmath.clamp((1.0 - freq_norm) * 200.0 + (audio_env * 55.0), 0.0, 255.0);
-            g = vmath.clamp((1.0 - freq_norm) * 255.0, 0.0, 255.0);
-            b = vmath.clamp(freq_norm * 255.0 + (audio_env * 100.0), 0.0, 255.0);
-            
-            alpha = vmath.round(vmath.clamp(mag * 255.0 * 2.0, 0.0, 255.0));
-            
-            vglib.rect(px, y + (b_idx * (h / 32.0)), slice_w, (h/32.0) - 0.5, vglib.rgba(r, g, b, alpha));
+            if (alpha > 5) {
+                vglib.rect(px, py, slice_w + 0.5, bin_h - 0.5, vglib.rgba(r, g, b, alpha));
+            }
         };
     };
+    
     vglib.line(x, y, x + w, y, vglib.rgba(40, 45, 55, 255));
 }
 
@@ -452,8 +482,7 @@ while (vglib.running()) {
         draw_waveform_strip(990, 0, 210, 300, wave_buf);
         draw_log_rta_spectrum(1200, 0, 600, 300, curr_env, run_time);
 
-        draw_spectral_history(0, 300, 1800, 200, spec_history, curr_env);
-
+        draw_spectral_history(0, 300, 1800, 200, spec_history, curr_env, run_time);
     vglib.end();
 }
 
