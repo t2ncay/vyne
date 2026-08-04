@@ -142,7 +142,7 @@ fn draw_make_up_button(x, y, is_active, active_color) {
     vglib.text_ex(vcr_font, label, x + 10, y + 9, 13, vglib.BLACK);
 }
 
-# --- PRO-Q EQ HELPER FUNCTIONS ---
+# --- helper functions for equalizer ---
 fn freq_to_x(f) {
     log_min = 1.30103; log_max = 4.30103;
     log_val = vmath.log(vmath.clamp(f, 20.0, 20000.0)) / 2.302585;
