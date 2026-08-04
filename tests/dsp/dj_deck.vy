@@ -15,6 +15,9 @@ vaudio.volume(1.0);
 deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
 deck_b_track = vaudio.play_stream(configs.Audios.cigerlerim);
 
+vaudio.attach_bpm(deck_a_track);
+vaudio.attach_bpm(deck_b_track);
+
 run_time = 0.0;
 prev_mouse_state = 0;
 
@@ -115,6 +118,9 @@ while (vglib.running()) {
     vaudio.update_stream(deck_a_track);
     vaudio.update_stream(deck_b_track);
 
+    deck_a_bpm = vaudio.get_bpm(deck_a_track);
+    deck_b_bpm = vaudio.get_bpm(deck_b_track);
+
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
     mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
@@ -130,6 +136,9 @@ while (vglib.running()) {
     }
 
     # Keyboard controls cleanly pausing/resuming without buffer stutter
+    if (vglib.key_pressed(vglib.SPACE)) {
+        deck_b_bpm = deck_a_bpm;
+    }
     if (vglib.key_pressed(vglib.Q)) {
         deck_a_play = (deck_a_play == 1) ? 0 : 1;
         if (deck_a_play == 1) { 
@@ -274,8 +283,8 @@ while (vglib.running()) {
         # ====================================================================
         # TOP HEADER: DECK TITLES & SYNC BAR
         # ====================================================================
-        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 50, 26, 14, vglib.rgba(0, 220, 255, 255));
-        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 980, 26, 14, vglib.rgba(255, 90, 180, 255));
+        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 150, 26, 14, vglib.rgba(0, 220, 255, 255));
+        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 950, 26, 14, vglib.rgba(255, 90, 180, 255));
 
         # Deck A Play Pill
         btn_a_col = (deck_a_play == 1) ? vglib.rgba(50, 255, 120, 255) : vglib.rgba(35, 42, 54, 255);
