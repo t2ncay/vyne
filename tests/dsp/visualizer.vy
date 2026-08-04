@@ -180,9 +180,11 @@ fn draw_goniometer_scope(cx, cy, radius, audio_env, run_time) {
 fn draw_analog_vu_meter(x, y, w, h, audio_env) {
     vglib.rect(x, y, w, h, vglib.BLACK);
 
-    vglib.text_ex(vcr_font, "20",  x + 35,  y + 30, 10, vglib.WHITE);
-    vglib.text_ex(vcr_font, "10 7 5 4 3 2 1 0", x + 70, y + 30, 10, vglib.WHITE);
-    vglib.text_ex(vcr_font, "1 2 3", x + 195, y + 30, 10, vglib.RED);
+    # Scale Labels: Split to prevent collision between '0' and '+1'
+    vglib.text_ex(vcr_font, "20", x + 35, y + 30, 10, vglib.WHITE);
+    vglib.text_ex(vcr_font, "10 7 5 4 3 2 1", x + 68, y + 30, 10, vglib.WHITE);
+    vglib.text_ex(vcr_font, "0", x + 180, y + 30, 10, vglib.WHITE);
+    vglib.text_ex(vcr_font, "1 2 3", x + 196, y + 30, 10, vglib.RED);
 
     through t :: 0..11 -> loop {
         tx :: Float64 = x + 40.0 + (t * 18.0);
@@ -206,7 +208,7 @@ fn draw_analog_vu_meter(x, y, w, h, audio_env) {
 
     vglib.line(pivot_x, pivot_y, needle_x, needle_y, vglib.rgba(255, 140, 0, 255));
 
-    # DYNAMIC READOUT BADGE CARDS (REPLACED HARDCODED "-14.5")
+    # DYNAMIC READOUT BADGE CARDS
     db_text = string(vmath.round(level_db * 10.0) / 10.0) + "dB";
     
     vglib.rect(x + 10, y + 150, 52, 24, vglib.rgba(20, 25, 32, 255));

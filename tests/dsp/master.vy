@@ -3,15 +3,17 @@ module vglib;
 module vaudio;
 module vmath;
 
+use "configs/config.vy";
+
 vglib.init(1200, 900, 60, "VYNE MASTER STUDIO RACK v1.0", 0);
-vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
+vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # load audio track
 track_name :: String = "tests/assetts/cigerlerim.mp3";
-track = vaudio.load_sound("tests/assets/cigerlerim.mp3");
+track = vaudio.load_sound(configs.Audios.cigerlerim);
 vaudio.play_sound(track);
 
 # --- attaching the chain here, the order matters btw ---
@@ -69,7 +71,7 @@ decay    :: Float64 = 0.85;
 mix      :: Float64 = 0.35;
 predelay :: Float64 = 20.0;
 damping  :: Float64 = 0.30;
-rev_on   :: Int64   = 1;
+rev_on   :: Int64   = 0;
 active_rev_knob = 0;
 
 # --- RENDER NOTIFICATION STATE ---
