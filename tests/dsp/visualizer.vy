@@ -3,13 +3,15 @@ module vglib;
 module vaudio;
 module vmath;
 
+use "configs/config.vy";
+
 vglib.init(1800, 500, 60, "VYNE MASTER VISUALIZER CONSOLE v1.1", 1);
-vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
+vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound("tests/assets/cigerlerim.mp3");
+track = vaudio.load_sound(configs.Audios.cigerlerim);
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_analyzer(track);
