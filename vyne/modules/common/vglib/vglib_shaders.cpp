@@ -80,4 +80,31 @@ Value native_draw_render_texture(std::vector<Value>& args) {
     return Value();
 }
 
+Value native_draw_canvas_scaled(std::vector<Value>& args) {
+    if (args.empty()) throw std::runtime_error("draw_canvas_scaled() requires target_ptr");
+
+    RenderTexture2D* target = reinterpret_cast<RenderTexture2D*>(args[0].asInt());
+    if (!target) return Value();
+
+    float screenWidth  = static_cast<float>(GetScreenWidth());
+    float screenHeight = static_cast<float>(GetScreenHeight());
+    float targetWidth  = static_cast<float>(target->texture.width);
+    float targetHeight = static_cast<float>(target->texture.height);
+
+    float scale = std::min(screenWidth / targetWidth, screenHeight / targetHeight);
+
+    float renderWidth  = targetWidth * scale;
+    float renderHeight = targetHeight * scale;
+
+    float offsetX = (screenWidth - renderWidth) * 0.5f;
+    float offsetY = (screenHeight - renderHeight) * 0.5f;
+
+    Rectangle source = { 0.0f, 0.0f, targetWidth, -targetHeight };
+    Rectangle dest   = { offsetX, offsetY, renderWidth, renderHeight };
+
+    DrawTexturePro(target->texture, source, dest, { 0.0f, 0.0f }, 0.0f, WHITE);
+
+    return Value(std::vector<Value>{ Value((double)scale), Value((double)offsetX), Value((double)offsetY) });
+}
+
 } // namespace VGLibNative

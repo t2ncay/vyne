@@ -116,4 +116,68 @@ Value native_measure_text_ex(std::vector<Value>& args) {
     return Value(std::vector<Value>{ Value(size.x), Value(size.y) });
 }
 
+Value native_draw_phase_scope(std::vector<Value>& args) {
+    if (args.size() < 8) {
+        throw std::runtime_error("draw_phase_scope() requires x_start, x_end, y_center, phase_a, phase_b, intensity, play_a, play_b");
+    }
+
+    float x_start   = static_cast<float>(args[0].asFloat());
+    float x_end     = static_cast<float>(args[1].asFloat());
+    float y_center  = static_cast<float>(args[2].asFloat());
+    float phase_a   = static_cast<float>(args[3].asFloat());
+    float phase_b   = static_cast<float>(args[4].asFloat());
+    float intensity = static_cast<float>(args[5].asFloat());
+    bool  play_a    = args[6].isTruthy();
+    bool  play_b    = args[7].isTruthy();
+
+    float wave_freq  = 15.0f + (intensity * 20.0f);
+    float wave_amp   = 8.0f  + (intensity * 30.0f);
+    float z_step     = 6.0f;
+
+    float prev_zx   = x_start;
+    float prev_zy_a = y_center;
+    float prev_zy_b = y_center;
+
+    Color col_deck_a = { 0, 240, 255, 255 };
+    Color col_deck_b = { 255, 45, 120, 255 };
+    Color glow_a     = { 0, 180, 220, 80 };
+    Color glow_b     = { 200, 30, 90, 80 };
+
+    float total_width = x_end - x_start;
+
+    for (float curr_zx = x_start; curr_zx <= x_end; curr_zx += z_step) {
+        float norm_z = (curr_zx - x_start) / total_width;
+
+        float za = std::sin(norm_z * wave_freq + phase_a) * wave_amp;
+        float zb = std::sin(norm_z * (wave_freq * 0.98f) + phase_b) * wave_amp;
+
+        if (intensity > 0.8f) {
+            za += std::sin(norm_z * wave_freq * 1.5f + phase_a) * wave_amp * 0.12f;
+            zb += std::cos(norm_z * wave_freq * 1.5f + phase_b) * wave_amp * 0.12f;
+        }
+
+        float curr_zy_a = y_center - za;
+        float curr_zy_b = y_center - zb;
+
+        if (curr_zx > x_start) {
+            if (play_a || (!play_a && !play_b)) {
+                DrawLineV({ prev_zx, prev_zy_a - 1.0f }, { curr_zx, curr_zy_a - 1.0f }, glow_a);
+                DrawLineV({ prev_zx, prev_zy_a + 1.0f }, { curr_zx, curr_zy_a + 1.0f }, glow_a);
+                DrawLineV({ prev_zx, prev_zy_a }, { curr_zx, curr_zy_a }, col_deck_a);
+            }
+            if (play_b) {
+                DrawLineV({ prev_zx, prev_zy_b - 1.0f }, { curr_zx, curr_zy_b - 1.0f }, glow_b);
+                DrawLineV({ prev_zx, prev_zy_b + 1.0f }, { curr_zx, curr_zy_b + 1.0f }, glow_b);
+                DrawLineV({ prev_zx, prev_zy_b }, { curr_zx, curr_zy_b }, col_deck_b);
+            }
+        }
+
+        prev_zx = curr_zx;
+        prev_zy_a = curr_zy_a;
+        prev_zy_b = curr_zy_b;
+    }
+
+    return Value();
+}
+
 } // namespace VGLibNative

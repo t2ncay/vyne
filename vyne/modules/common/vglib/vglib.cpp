@@ -77,6 +77,8 @@ namespace VGLibNative {
     Value native_upload_persistent_group(std::vector<Value>& args);
     Value native_draw_persistent_group(std::vector<Value>& args);
     Value get_mouse_wheel(std::vector<Value>& args);
+    Value native_draw_phase_scope(std::vector<Value>& args);
+    Value native_draw_canvas_scaled(std::vector<Value>& args);
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -162,6 +164,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("upload_persistent_group")] = Value(VGLibNative::native_upload_persistent_group);
     vglib[pool.intern("draw_persistent_group")] = Value(VGLibNative::native_draw_persistent_group);
     vglib[pool.intern("mouse_wheel")] = Value(VGLibNative::get_mouse_wheel);
+    vglib[pool.intern("draw_phase_scope")] = Value(VGLibNative::native_draw_phase_scope);
+    vglib[pool.intern("draw_canvas_scaled")] = Value(VGLibNative::native_draw_canvas_scaled);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
