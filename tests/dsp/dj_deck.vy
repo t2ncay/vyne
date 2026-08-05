@@ -391,7 +391,7 @@ while (vglib.running()) {
         # ====================================================================
         vglib.rect(590, 400, 220, 270, vglib.rgba(18, 22, 30, 255));
         vglib.line(590, 400, 810, 400, vglib.rgba(50, 58, 72, 255));
-        vglib.text_ex(vcr_font, "MASTER FX BUS", 652, 412, 11, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, "MASTER FX BUS", 645, 412, 11, vglib.rgba(160, 170, 185, 255));
 
         # LUFS Readout Header
         lufs_val = vaudio.get_lufs();
@@ -404,7 +404,7 @@ while (vglib.running()) {
 
         # FX Unit Selectors
         vglib.line(600, 485, 800, 485, vglib.rgba(45, 52, 66, 255));
-        vglib.text_ex(vcr_font, "EFFECT SELECTOR", 645, 498, 10, vglib.WHITE);
+        vglib.text_ex(vcr_font, "EFFECT SELECTOR", 640, 498, 10, vglib.WHITE);
 
         btn_off_c  = (active_fx_unit == 0) ? vglib.rgba(255, 60, 60, 255) : vglib.rgba(35, 42, 54, 255);
         btn_comp_c = (active_fx_unit == 1) ? vglib.rgba(255, 160, 40, 255) : vglib.rgba(35, 42, 54, 255);
@@ -412,10 +412,10 @@ while (vglib.running()) {
         btn_rev_c  = (active_fx_unit == 3) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(35, 42, 54, 255);
 
 
-        vglib.rect(610, 520, 35, 25, btn_off_c);  vglib.text_ex(vcr_font, "OFF", 616, 528, 9, vglib.WHITE);
-        vglib.rect(650, 520, 35, 25, btn_comp_c); vglib.text_ex(vcr_font, "CMP", 656, 528, 9, vglib.WHITE);
-        vglib.rect(690, 520, 35, 25, btn_sat_c);  vglib.text_ex(vcr_font, "SAT", 696, 528, 9, vglib.WHITE);
-        vglib.rect(730, 520, 35, 25, btn_rev_c);  vglib.text_ex(vcr_font, "REV", 736, 528, 9, vglib.WHITE);
+        vglib.rect(620, 520, 35, 25, btn_off_c);  vglib.text_ex(vcr_font, "OFF", 626, 528, 9, vglib.WHITE);
+        vglib.rect(660, 520, 35, 25, btn_comp_c); vglib.text_ex(vcr_font, "CMP", 666, 528, 9, vglib.WHITE);
+        vglib.rect(700, 520, 35, 25, btn_sat_c);  vglib.text_ex(vcr_font, "SAT", 706, 528, 9, vglib.WHITE);
+        vglib.rect(740, 520, 35, 25, btn_rev_c);  vglib.text_ex(vcr_font, "REV", 746, 528, 9, vglib.WHITE);
 
         # Center Dedicated Dynamic FX Parameter Knob
         fx_norm :: Float64 = 0.0;
