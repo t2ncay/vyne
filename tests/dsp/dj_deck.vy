@@ -453,9 +453,9 @@ while (vglib.running()) {
         vglib.rect(handle_x, 755, 40, 50, vglib.rgba(220, 230, 245, 255));
         vglib.rect(handle_x + 18, 760, 4, 40, vglib.BLACK);
 
-        vglib.text_ex(vcr_font, "DECK A", 500, 800, 11, c_cyan);
-        vglib.text_ex(vcr_font, "CROSSFADER", 652, 800, 11, vglib.WHITE);
-        vglib.text_ex(vcr_font, "DECK B", 845, 800, 11, c_pink);
+        vglib.text_ex(vcr_font, "DECK A", 500, 820, 11, c_cyan);
+        vglib.text_ex(vcr_font, "CROSSFADER", 652, 820, 11, vglib.WHITE);
+        vglib.text_ex(vcr_font, "DECK B", 845, 820, 11, c_pink);
 
         vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0 | DUAL DECK PRO DJ CONSOLE WITH MASTER DSP", 380, 860, 12, vglib.rgba(120, 130, 150, 255));
 
