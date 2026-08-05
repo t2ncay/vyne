@@ -5,7 +5,7 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - SMOOTH PHASE SCOPE & 3-BAND EQ", 0);
+vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - CYBERPUNK EDITION", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
@@ -39,6 +39,7 @@ prev_mouse_state      :: Int64   = 0;
 smooth_lufs_intensity :: Float64 = 0.0;
 scope_phase_a         :: Float64 = 0.0;
 scope_phase_b         :: Float64 = 0.0;
+peak_hold_rms         :: Float64 = 0.0;
 
 # --- GLOBAL DJ MIXER STATE ---
 crossfader_pos :: Float64 = 0.5;   # 0.0 = Deck A Only, 1.0 = Deck B Only
@@ -74,6 +75,14 @@ deck_b_eq_low  :: Float64 = 0.0;
 deck_b_filter  :: Float64 = 0.0;
 deck_b_vol     :: Float64 = 0.85;
 
+# --- COLOR PALETTE DEFINITIONS ---
+COLOR_BG       = vglib.rgba(10, 11, 15, 255);    # Deep Obsidian
+COLOR_CARD     = vglib.rgba(18, 22, 30, 255);    # Panel Cards
+COLOR_CARD_RIM = vglib.rgba(40, 48, 64, 255);    # Subtle Borders
+COLOR_DECK_A   = vglib.rgba(0, 240, 255, 255);   # Electric Cyan
+COLOR_DECK_B   = vglib.rgba(255, 45, 120, 255);  # Neon Sunset Pink
+COLOR_AMBER    = vglib.rgba(255, 170, 0, 255);   # FX / Parameter Amber
+
 # --- HOT CUES & PEAK BUFFERS ---
 cues_a :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
 cues_b :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
@@ -85,23 +94,46 @@ through i :: 0..149 -> loop {
     wave_peaks_b.push(vmath.abs((vmath.cos(i * 0.12) * 0.6) + (vmath.sin(i * 0.25) * 0.2)));
 };
 
-# --- UI HELPER: ROTARY CONTROL KNOB ---
+# --- UI HELPER: ROTARY KNOB WITH FIXED BORDER SIZE (NO GREEN HOVER) ---
 fn draw_dj_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active) {
     radius_base = 32.0;
-    if (is_hovered) { radius_base = 35.0; }
-    if (is_active)  { radius_base = 37.0; }
+    if (is_active) { radius_base = 34.0; } # Tighter active state, zero hover growth
 
+    # Outer Housing
     vglib.circle(x, y, radius_base, vglib.BLACK);
     
+    # Outer Active Ring
     if (is_active) {
-        vglib.circle(x, y, radius_base - 2.0, color);
+        vglib.circle(x, y, radius_base - 1.5, color);
     } else {
-        vglib.circle(x, y, radius_base - 3.0, vglib.rgba(45, 48, 58, 255));
+        vglib.circle(x, y, radius_base - 2.0, vglib.rgba(35, 40, 52, 255));
     }
 
-    vglib.circle(x, y, 24.0, vglib.rgba(20, 22, 28, 255));
-    vglib.circle(x, y, 15.0, vglib.rgba(30, 34, 42, 255));
+    # Inner Knob Face
+    vglib.circle(x, y, 24.0, vglib.rgba(16, 18, 24, 255));
+    vglib.circle(x, y, 15.0, vglib.rgba(26, 30, 38, 255));
     
+    # Solid Value Arc (Continuous Radial Band)
+    arc_steps :: Int64 = int64(val_norm * 40.0);
+    if (arc_steps > 0) {
+        prev_ax :: Float64 = x + vmath.sin(vmath.radians(-135.0)) * 20.0;
+        prev_ay :: Float64 = y - vmath.cos(vmath.radians(-135.0)) * 20.0;
+
+        through a :: 1..40 -> loop {
+            if (a <= arc_steps) {
+                ang = ((a / 40.0) * 270.0) - 135.0;
+                rad = vmath.radians(ang);
+                curr_ax :: Float64 = x + vmath.sin(rad) * 20.0;
+                curr_ay :: Float64 = y - vmath.cos(rad) * 20.0;
+
+                vglib.line(prev_ax, prev_ay, curr_ax, curr_ay, color);
+                prev_ax = curr_ax;
+                prev_ay = curr_ay;
+            }
+        };
+    }
+
+    # Center Pointer Needle
     angle = (val_norm * 270.0) - 135.0;
     rad = vmath.radians(angle);
     
@@ -109,16 +141,17 @@ fn draw_dj_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active)
     line_y :: Float64 = y - vmath.cos(rad) * 21.0;
     
     vglib.line(x, y, line_x, line_y, color);
-    vglib.circle(line_x, line_y, 3.0, color);
+    vglib.circle(line_x, line_y, 2.5, color);
     
-    label_col = is_hovered ? vglib.rgba(0, 230, 255, 255) : vglib.rgba(160, 170, 185, 255);
+    label_col = is_hovered ? COLOR_DECK_A : vglib.rgba(160, 170, 185, 255);
     vglib.text_ex(vcr_font, name, x - 20, y + 38, 10, label_col);
     vglib.text_ex(vcr_font, display_val, x - 16, y - 4, 9, color);
 }
 
+# --- UI HELPER: MPC CUE PAD ---
 fn draw_hot_cue_pad(id, x, y, w, h, pad_color, is_active, is_hovered, cue_time) {
-    bg_col   = is_active ? pad_color : vglib.rgba(24, 28, 36, 255);
-    rim_col  = is_active ? vglib.WHITE : (is_hovered ? pad_color : vglib.rgba(50, 58, 72, 255));
+    bg_col   = is_active ? pad_color : vglib.rgba(20, 24, 32, 255);
+    rim_col  = is_active ? vglib.WHITE : (is_hovered ? pad_color : vglib.rgba(45, 52, 66, 255));
     text_col = is_active ? vglib.BLACK : vglib.WHITE;
 
     vglib.rect(x, y, w, h, bg_col);
@@ -313,67 +346,79 @@ while (vglib.running()) {
     }
 
     vglib.begin();
-        vglib.clear(vglib.rgba(14, 16, 22, 255));
+        vglib.clear(COLOR_BG);
 
-        # TOP HEADER
-        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 150, 26, 14, vglib.rgba(0, 220, 255, 255));
-        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 950, 26, 14, vglib.rgba(255, 90, 180, 255));
+        # TOP HEADER BAR
+        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 150, 26, 14, COLOR_DECK_A);
+        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 950, 26, 14, COLOR_DECK_B);
 
-        btn_a_col = (deck_a_play == 1) ? vglib.rgba(50, 255, 120, 255) : vglib.rgba(35, 42, 54, 255);
+        btn_a_col = (deck_a_play == 1) ? COLOR_DECK_A : vglib.rgba(35, 42, 54, 255);
         vglib.rect(50, 20, 90, 32, btn_a_col);
         vglib.text_ex(vcr_font, (deck_a_play == 1 ? "PAUSE" : "PLAY A"), 62, 30, 11, (deck_a_play == 1 ? vglib.BLACK : vglib.WHITE));
 
-        vglib.rect(650, 20, 100, 32, vglib.rgba(255, 160, 40, 255));
+        vglib.rect(650, 20, 100, 32, COLOR_AMBER);
         vglib.text_ex(vcr_font, "BEAT SYNC", 662, 30, 11, vglib.BLACK);
 
-        btn_b_col = (deck_b_play == 1) ? vglib.rgba(50, 255, 120, 255) : vglib.rgba(35, 42, 54, 255);
+        btn_b_col = (deck_b_play == 1) ? COLOR_DECK_B : vglib.rgba(35, 42, 54, 255);
         vglib.rect(1260, 20, 90, 32, btn_b_col);
         vglib.text_ex(vcr_font, (deck_b_play == 1 ? "PAUSE" : "PLAY B"), 1272, 30, 11, (deck_b_play == 1 ? vglib.BLACK : vglib.WHITE));
 
-        vglib.line(50, 62, 1350, 62, vglib.rgba(45, 52, 66, 255));
+        vglib.line(50, 62, 1350, 62, COLOR_CARD_RIM);
 
-        # WAVEFORMS
-        vglib.rect(50, 80, 630, 160, vglib.rgba(18, 20, 28, 255));
-        vglib.line(50, 80, 680, 80, vglib.rgba(0, 220, 255, 255));
+        # WAVEFORM OVERVIEW CARDS
+        vglib.rect(50, 80, 630, 160, COLOR_CARD);
+        vglib.line(50, 80, 680, 80, COLOR_DECK_A);
+        vglib.line(50, 240, 680, 240, COLOR_CARD_RIM);
+        vglib.line(50, 80, 50, 240, COLOR_CARD_RIM);
+        vglib.line(680, 80, 680, 240, COLOR_CARD_RIM);
 
         num_pk_a = wave_peaks_a.length(); step_w_a :: Float64 = 630.0 / num_pk_a;
         through idx :: 0..(int64(num_pk_a) - 1) -> loop {
             pk = wave_peaks_a[idx]; px :: Float64 = 50.0 + (idx * step_w_a); ph :: Float64 = pk * 60.0;
-            vglib.rect(px, 160.0 - ph, step_w_a - 0.5, ph * 2.0, vglib.rgba(0, 200, 240, 180));
+            bar_col = (idx % 2 == 0) ? COLOR_DECK_A : COLOR_AMBER;
+            vglib.rect(px, 160.0 - ph, step_w_a - 0.5, ph * 2.0, bar_col);
         };
         ph_a_x :: Float64 = 50.0 + (deck_a_pos * 630.0);
         vglib.line(ph_a_x, 80, ph_a_x, 240, vglib.WHITE);
+        vglib.circle(ph_a_x, 80, 4.0, COLOR_DECK_A);
 
-        vglib.rect(720, 80, 630, 160, vglib.rgba(18, 20, 28, 255));
-        vglib.line(720, 80, 1350, 80, vglib.rgba(255, 90, 180, 255));
+        vglib.rect(720, 80, 630, 160, COLOR_CARD);
+        vglib.line(720, 80, 1350, 80, COLOR_DECK_B);
+        vglib.line(720, 240, 1350, 240, COLOR_CARD_RIM);
+        vglib.line(720, 80, 720, 240, COLOR_CARD_RIM);
+        vglib.line(1350, 80, 1350, 240, COLOR_CARD_RIM);
 
         num_pk_b = wave_peaks_b.length(); step_w_b :: Float64 = 630.0 / num_pk_b;
         through idx :: 0..(int64(num_pk_b) - 1) -> loop {
             pk = wave_peaks_b[idx]; px :: Float64 = 720.0 + (idx * step_w_b); ph :: Float64 = pk * 60.0;
-            vglib.rect(px, 160.0 - ph, step_w_b - 0.5, ph * 2.0, vglib.rgba(255, 80, 170, 180));
+            bar_col = (idx % 2 == 0) ? COLOR_DECK_B : COLOR_AMBER;
+            vglib.rect(px, 160.0 - ph, step_w_b - 0.5, ph * 2.0, bar_col);
         };
         ph_b_x :: Float64 = 720.0 + (deck_b_pos * 630.0);
         vglib.line(ph_b_x, 80, ph_b_x, 240, vglib.WHITE);
+        vglib.circle(ph_b_x, 80, 4.0, COLOR_DECK_B);
 
         # ====================================================================
-        # REAL-TIME BEATMATCH PHASE SCOPE (BUTTER-SMOOTH EXPONENTIAL SMOOTHING)
+        # REAL-TIME BEATMATCH PHASE SCOPE (ANALOG PHOSPHOR CRT GLOW)
         # ====================================================================
-        vglib.rect(50, 260, 1300, 120, vglib.rgba(10, 12, 16, 255));
-        vglib.line(50, 320, 1350, 320, vglib.rgba(45, 52, 66, 255));
+        vglib.rect(50, 260, 1300, 120, vglib.rgba(8, 10, 14, 255));
+        vglib.line(50, 260, 1350, 260, COLOR_CARD_RIM);
+        vglib.line(1350, 260, 1350, 380, COLOR_CARD_RIM);
+        vglib.line(1350, 380, 50, 380, COLOR_CARD_RIM);
+        vglib.line(50, 380, 50, 260, COLOR_CARD_RIM);
+
+        vglib.line(50, 320, 1350, 320, vglib.rgba(35, 42, 54, 255));
         vglib.text_ex(vcr_font, "REAL-TIME BEATMATCH PHASE SCOPE", 65, 270, 11, vglib.rgba(160, 170, 185, 255));
 
         raw_lufs = vaudio.get_lufs();
         target_intensity :: Float64 = vmath.clamp((raw_lufs + 70.0) / 70.0, 0.0, 1.0);
 
-        # Exponential Smoothing (Interpolates discrete C++ atomic updates)
         smooth_lufs_intensity = smooth_lufs_intensity + (target_intensity - smooth_lufs_intensity) * 0.1;
 
-        # Map Smoothed Intensity to Oscillators
         wave_freq  :: Float64 = 15.0 + (smooth_lufs_intensity * 20.0);
         wave_speed :: Float64 = 2.0  + (smooth_lufs_intensity * 4.0);
         wave_amp   :: Float64 = 8.0  + (smooth_lufs_intensity * 30.0);
 
-        # Continuous Phase Accumulation via Delta Time
         dt :: Float64 = 0.016;
         scope_phase_a = scope_phase_a + (dt * wave_speed);
         scope_phase_b = scope_phase_b + (dt * wave_speed * 0.96);
@@ -388,7 +433,6 @@ while (vglib.running()) {
             za = vmath.sin(norm_z * wave_freq + scope_phase_a) * wave_amp;
             zb = vmath.sin(norm_z * (wave_freq * 0.98) + scope_phase_b) * wave_amp;
 
-            # Subtle harmonic blend on high loudness
             if (smooth_lufs_intensity > 0.8) {
                 za = za + (vmath.sin(norm_z * wave_freq * 1.5 + scope_phase_a) * wave_amp * 0.12);
                 zb = zb + (vmath.cos(norm_z * wave_freq * 1.5 + scope_phase_b) * wave_amp * 0.12);
@@ -399,10 +443,14 @@ while (vglib.running()) {
 
             if (curr_zx > 50.0) {
                 if (deck_a_play == 1 || (deck_a_play == 0 && deck_b_play == 0)) {
-                    vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, vglib.rgba(0, 220, 255, 200));
+                    vglib.line(prev_zx_a, prev_zy_a - 1.0, curr_zx, curr_zy_a - 1.0, vglib.rgba(0, 180, 220, 80));
+                    vglib.line(prev_zx_a, prev_zy_a + 1.0, curr_zx, curr_zy_a + 1.0, vglib.rgba(0, 180, 220, 80));
+                    vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, COLOR_DECK_A);
                 }
                 if (deck_b_play == 1) {
-                    vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, vglib.rgba(255, 90, 180, 200));
+                    vglib.line(prev_zx_b, prev_zy_b - 1.0, curr_zx, curr_zy_b - 1.0, vglib.rgba(200, 30, 90, 80));
+                    vglib.line(prev_zx_b, prev_zy_b + 1.0, curr_zx, curr_zy_b + 1.0, vglib.rgba(200, 30, 90, 80));
+                    vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, COLOR_DECK_B);
                 }
             }
             
@@ -415,40 +463,53 @@ while (vglib.running()) {
         pa_norm = (deck_a_pitch + 12.0) / 24.0; pa_str = (deck_a_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_a_pitch * 10.0) / 10.0) + "st";
         pb_norm = (deck_b_pitch + 12.0) / 24.0; pb_str = (deck_b_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_b_pitch * 10.0) / 10.0) + "st";
 
-        draw_dj_knob("PITCH A", 100, 460, pa_norm, pa_str, vglib.rgba(0, 220, 255, 255), ha_pitch, active_knob == 1);
-        draw_dj_knob("HIGH", 200, 460, (deck_a_eq_hi + 12.0) / 24.0, string(vmath.round(deck_a_eq_hi)) + "dB", vglib.rgba(255, 200, 50, 255), ha_hi, active_knob == 2);
-        draw_dj_knob("MID", 300, 460, (deck_a_eq_mid + 12.0) / 24.0, string(vmath.round(deck_a_eq_mid)) + "dB", vglib.rgba(255, 200, 50, 255), ha_mid, active_knob == 3);
-        draw_dj_knob("LOW", 400, 460, (deck_a_eq_low + 12.0) / 24.0, string(vmath.round(deck_a_eq_low)) + "dB", vglib.rgba(255, 200, 50, 255), ha_low, active_knob == 4);
-        draw_dj_knob("FILTER", 500, 460, (deck_a_filter + 1.0) / 2.0, string(vmath.round(deck_a_filter * 100.0)) + "%", vglib.rgba(50, 230, 120, 255), ha_flt, active_knob == 5);
+        draw_dj_knob("PITCH A", 100, 460, pa_norm, pa_str, COLOR_DECK_A, ha_pitch, active_knob == 1);
+        draw_dj_knob("HIGH", 200, 460, (deck_a_eq_hi + 12.0) / 24.0, string(vmath.round(deck_a_eq_hi)) + "dB", COLOR_AMBER, ha_hi, active_knob == 2);
+        draw_dj_knob("MID", 300, 460, (deck_a_eq_mid + 12.0) / 24.0, string(vmath.round(deck_a_eq_mid)) + "dB", COLOR_AMBER, ha_mid, active_knob == 3);
+        draw_dj_knob("LOW", 400, 460, (deck_a_eq_low + 12.0) / 24.0, string(vmath.round(deck_a_eq_low)) + "dB", COLOR_AMBER, ha_low, active_knob == 4);
+        draw_dj_knob("FILTER", 500, 460, (deck_a_filter + 1.0) / 2.0, string(vmath.round(deck_a_filter * 100.0)) + "%", COLOR_DECK_A, ha_flt, active_knob == 5);
 
-        draw_dj_knob("PITCH B", 900, 460, pb_norm, pb_str, vglib.rgba(255, 90, 180, 255), hb_pitch, active_knob == 6);
-        draw_dj_knob("HIGH", 1000, 460, (deck_b_eq_hi + 12.0) / 24.0, string(vmath.round(deck_b_eq_hi)) + "dB", vglib.rgba(255, 200, 50, 255), hb_hi, active_knob == 7);
-        draw_dj_knob("MID", 1100, 460, (deck_b_eq_mid + 12.0) / 24.0, string(vmath.round(deck_b_eq_mid)) + "dB", vglib.rgba(255, 200, 50, 255), hb_mid, active_knob == 8);
-        draw_dj_knob("LOW", 1200, 460, (deck_b_eq_low + 12.0) / 24.0, string(vmath.round(deck_b_eq_low)) + "dB", vglib.rgba(255, 200, 50, 255), hb_low, active_knob == 9);
-        draw_dj_knob("FILTER", 1300, 460, (deck_b_filter + 1.0) / 2.0, string(vmath.round(deck_b_filter * 100.0)) + "%", vglib.rgba(50, 230, 120, 255), hb_flt, active_knob == 10);
+        draw_dj_knob("PITCH B", 900, 460, pb_norm, pb_str, COLOR_DECK_B, hb_pitch, active_knob == 6);
+        draw_dj_knob("HIGH", 1000, 460, (deck_b_eq_hi + 12.0) / 24.0, string(vmath.round(deck_b_eq_hi)) + "dB", COLOR_AMBER, hb_hi, active_knob == 7);
+        draw_dj_knob("MID", 1100, 460, (deck_b_eq_mid + 12.0) / 24.0, string(vmath.round(deck_b_eq_mid)) + "dB", COLOR_AMBER, hb_mid, active_knob == 8);
+        draw_dj_knob("LOW", 1200, 460, (deck_b_eq_low + 12.0) / 24.0, string(vmath.round(deck_b_eq_low)) + "dB", COLOR_AMBER, hb_low, active_knob == 9);
+        draw_dj_knob("FILTER", 1300, 460, (deck_b_filter + 1.0) / 2.0, string(vmath.round(deck_b_filter * 100.0)) + "%", COLOR_DECK_B, hb_flt, active_knob == 10);
 
         # ====================================================================
         # CENTER MASTER STATUS & PIONEER EFX UNIT RACK CARD
         # ====================================================================
-        vglib.rect(590, 400, 220, 300, vglib.rgba(18, 22, 30, 255));
-        vglib.line(590, 400, 810, 400, vglib.rgba(50, 58, 72, 255));
+        vglib.rect(590, 400, 220, 300, COLOR_CARD);
+        vglib.line(590, 400, 810, 400, (active_fx_unit != 0) ? COLOR_AMBER : COLOR_CARD_RIM);
+        vglib.line(810, 400, 810, 700, COLOR_CARD_RIM);
+        vglib.line(810, 700, 590, 700, COLOR_CARD_RIM);
+        vglib.line(590, 700, 590, 400, COLOR_CARD_RIM);
+
         vglib.text_ex(vcr_font, "MASTER FX BUS", 645, 412, 11, vglib.rgba(160, 170, 185, 255));
 
         # LUFS Readout Header
         lufs_val = vaudio.get_lufs();
-        vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", 660, 432, 14, vglib.rgba(50, 255, 120, 255));
+        vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", 660, 432, 14, COLOR_AMBER);
 
-        # Real-time Master VU Meter Bars
+        # Real-time Master VU Meter Bars + Peak Hold Line
         rms_val = vaudio.get_rms();
+        if (rms_val > peak_hold_rms) {
+            peak_hold_rms = rms_val;
+        } else {
+            peak_hold_rms = peak_hold_rms - 0.005; # Slow decay
+        }
+
         vglib.rect(610, 460, 180, 10, vglib.rgba(28, 32, 42, 255));
-        vglib.rect(610, 460, rms_val * 180.0, 10, vglib.rgba(0, 230, 255, 255));
+        vglib.rect(610, 460, rms_val * 180.0, 10, COLOR_DECK_A);
+        
+        peak_x :: Float64 = 610.0 + (peak_hold_rms * 180.0);
+        vglib.rect(peak_x, 458, 2, 14, COLOR_DECK_B);
 
         # FX Unit Selectors
-        vglib.line(600, 485, 800, 485, vglib.rgba(45, 52, 66, 255));
+        vglib.line(600, 485, 800, 485, COLOR_CARD_RIM);
         vglib.text_ex(vcr_font, "EFFECT SELECTOR", 640, 498, 10, vglib.WHITE);
 
         btn_off_c  = (active_fx_unit == 0) ? vglib.rgba(255, 60, 60, 255) : vglib.rgba(35, 42, 54, 255);
-        btn_comp_c = (active_fx_unit == 1) ? vglib.rgba(255, 160, 40, 255) : vglib.rgba(35, 42, 54, 255);
+        btn_comp_c = (active_fx_unit == 1) ? COLOR_AMBER : vglib.rgba(35, 42, 54, 255);
         btn_sat_c  = (active_fx_unit == 2) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(35, 42, 54, 255);
         btn_rev_c  = (active_fx_unit == 3) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(35, 42, 54, 255);
 
@@ -469,33 +530,31 @@ while (vglib.running()) {
         draw_dj_knob("PARAM", 700, 620, fx_norm, fx_str, fx_col, h_fx_knob, active_knob == 12);
 
         # HOT CUE BANKS & CROSSFADER
-        c_cyan = vglib.rgba(0, 220, 255, 255);
         through p :: 0..7 -> loop {
             row :: Int64 = p / 4; col :: Int64 = p % 4;
             px :: Int64 = 30 + (col * 140); py :: Int64 = 580 + (row * 65);
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
-            draw_hot_cue_pad(p, px, py, 130, 55, c_cyan, false, is_hov, cues_a[p]);
+            draw_hot_cue_pad(p, px, py, 130, 55, COLOR_DECK_A, false, is_hov, cues_a[p]);
         };
 
-        c_pink = vglib.rgba(255, 90, 180, 255);
         through p :: 0..7 -> loop {
             row :: Int64 = p / 4; col :: Int64 = p % 4;
             px :: Int64 = 820 + (col * 140); py :: Int64 = 580 + (row * 65);
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
-            draw_hot_cue_pad(p, px, py, 130, 55, c_pink, false, is_hov, cues_b[p]);
+            draw_hot_cue_pad(p, px, py, 130, 55, COLOR_DECK_B, false, is_hov, cues_b[p]);
         };
 
         vglib.rect(500, 770, 400, 20, vglib.rgba(20, 24, 32, 255));
-        vglib.line(500, 780, 900, 780, vglib.rgba(50, 58, 72, 255));
+        vglib.line(500, 780, 900, 780, COLOR_CARD_RIM);
         vglib.line(700, 765, 700, 795, vglib.rgba(100, 110, 130, 255));
 
         handle_x :: Float64 = 500.0 + (crossfader_pos * 360.0);
         vglib.rect(handle_x, 755, 40, 50, vglib.rgba(220, 230, 245, 255));
         vglib.rect(handle_x + 18, 760, 4, 40, vglib.BLACK);
 
-        vglib.text_ex(vcr_font, "DECK A", 500, 820, 11, c_cyan);
+        vglib.text_ex(vcr_font, "DECK A", 500, 820, 11, COLOR_DECK_A);
         vglib.text_ex(vcr_font, "CROSSFADER", 652, 820, 11, vglib.WHITE);
-        vglib.text_ex(vcr_font, "DECK B", 845, 820, 11, c_pink);
+        vglib.text_ex(vcr_font, "DECK B", 845, 820, 11, COLOR_DECK_B);
 
         vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0 | DUAL DECK PRO DJ CONSOLE WITH MASTER DSP", 380, 860, 12, vglib.rgba(120, 130, 150, 255));
 
