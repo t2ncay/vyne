@@ -15,7 +15,7 @@ vaudio.volume(1.0);
 deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
 deck_b_track = vaudio.play_stream(configs.Audios.ikit1bb);
 
-# --- ATTACH DSP ENGINE CHAINS (TRACK-SPECIFIC ATTACHMENTS) ---
+# --- ATTACH DSP ENGINE CHAINS ---
 vaudio.attach_bpm(deck_a_track);
 vaudio.attach_bpm(deck_b_track);
 
@@ -44,7 +44,7 @@ peak_hold_rms         :: Float64 = 0.0;
 # --- GLOBAL DJ MIXER STATE ---
 crossfader_pos :: Float64 = 0.5;   # 0.0 = Deck A Only, 1.0 = Deck B Only
 master_volume  :: Float64 = 1.0;
-active_knob    :: Int64   = 0;     # Active dragged UI knob ID
+active_knob    :: Int64   = 0;     # Active dragged UI element ID
 active_deck    :: Int64   = 0;     # 0 = Deck A, 1 = Deck B
 
 # --- SEPARATE FX RACK STATE PER DECK ---
@@ -63,6 +63,7 @@ deck_a_play    :: Int64   = 0;
 deck_a_bpm     :: Float64 = 130.0;
 deck_a_pitch   :: Float64 = 0.0;
 deck_a_pos     :: Float64 = 0.0;
+deck_a_gain    :: Float64 = 1.0;   # Trim Gain [0.0 .. 2.0]
 deck_a_eq_hi   :: Float64 = 0.0;
 deck_a_eq_mid  :: Float64 = 0.0;
 deck_a_eq_low  :: Float64 = 0.0;
@@ -74,6 +75,7 @@ deck_b_play    :: Int64   = 0;
 deck_b_bpm     :: Float64 = 128.0;
 deck_b_pitch   :: Float64 = 0.0;
 deck_b_pos     :: Float64 = 0.0;
+deck_b_gain    :: Float64 = 1.0;   # Trim Gain [0.0 .. 2.0]
 deck_b_eq_hi   :: Float64 = 0.0;
 deck_b_eq_mid  :: Float64 = 0.0;
 deck_b_eq_low  :: Float64 = 0.0;
@@ -146,6 +148,34 @@ fn draw_dj_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active)
     label_col = is_hovered ? COLOR_DECK_A : vglib.rgba(160, 170, 185, 255);
     vglib.text_ex(vcr_font, name, x - 20, y + 38, 10, label_col);
     vglib.text_ex(vcr_font, display_val, x - 16, y - 4, 9, color);
+}
+
+# --- UI HELPER: HORIZONTAL GAIN SLIDER BAR AT Y = 530 ---
+fn draw_gain_slider_bar(label, x, y, width, gain_val, accent_color, is_active) {
+    norm_val = gain_val / 2.0; # 0.0..2.0 mapped to 0.0..1.0
+    
+    # Outer Card Frame
+    vglib.rect(x, y, width, 24, vglib.rgba(18, 22, 30, 255));
+    vglib.line(x, y, x + width, y, COLOR_CARD_RIM);
+    vglib.line(x + width, y, x + width, y + 24, COLOR_CARD_RIM);
+    vglib.line(x + width, y + 24, x, y + 24, COLOR_CARD_RIM);
+    vglib.line(x, y + 24, x, y, COLOR_CARD_RIM);
+
+    # Rail Background & Active Track (Rail Width = 50px)
+    vglib.rect(x + 55, y + 9, 50, 6, vglib.rgba(30, 36, 48, 255));
+    track_w :: Float64 = 50.0 * norm_val;
+    vglib.rect(x + 55, y + 9, track_w, 6, accent_color);
+
+    # Slider Handle Thumb
+    thumb_x :: Float64 = x + 55.0 + track_w;
+    thumb_col = is_active ? vglib.WHITE : accent_color;
+    vglib.rect(thumb_x - 4.0, y + 4, 8, 16, thumb_col);
+    vglib.line(thumb_x, y + 6, thumb_x, y + 18, vglib.BLACK);
+
+    # Labels
+    vglib.text_ex(vcr_font, label, x + 8, y + 7, 9, vglib.rgba(160, 170, 185, 255));
+    val_str = string(vmath.round(gain_val * 100.0)) + "%";
+    vglib.text_ex(vcr_font, val_str, x + width - 38, y + 7, 9, accent_color);
 }
 
 # --- UI HELPER: MPC CUE PAD ---
@@ -259,7 +289,10 @@ while (vglib.running()) {
         };
     }
 
-    # --- KNOB & CROSSFADER DRAGGING ---
+    # --- SYNCHRONIZED HITBOX & BOUNDARY DETECTIONS ---
+    is_gain_a = (m[0] >= 230 && m[0] <= 380 && m[1] >= 525 && m[1] <= 555);
+    is_gain_b = (m[0] >= 1030 && m[0] <= 1180 && m[1] >= 525 && m[1] <= 555);
+
     ha_pitch = vmath.hypot(m[0] - 100, m[1] - 460) < 32;
     ha_hi    = vmath.hypot(m[0] - 200, m[1] - 460) < 32;
     ha_mid   = vmath.hypot(m[0] - 300, m[1] - 460) < 32;
@@ -278,17 +311,19 @@ while (vglib.running()) {
 
     if (mouse_click) {
         if (active_knob == 0) {
-            if (ha_pitch) { active_knob = 1; }
-            if (ha_hi)    { active_knob = 2; }
-            if (ha_mid)   { active_knob = 3; }
-            if (ha_low)   { active_knob = 4; }
-            if (ha_flt)   { active_knob = 5; }
+            if (is_gain_a) { active_knob = 14; }
+            if (is_gain_b) { active_knob = 15; }
+            if (ha_pitch)  { active_knob = 1; }
+            if (ha_hi)     { active_knob = 2; }
+            if (ha_mid)    { active_knob = 3; }
+            if (ha_low)    { active_knob = 4; }
+            if (ha_flt)    { active_knob = 5; }
 
-            if (hb_pitch) { active_knob = 6; }
-            if (hb_hi)    { active_knob = 7; }
-            if (hb_mid)   { active_knob = 8; }
-            if (hb_low)   { active_knob = 9; }
-            if (hb_flt)   { active_knob = 10; }
+            if (hb_pitch)  { active_knob = 6; }
+            if (hb_hi)     { active_knob = 7; }
+            if (hb_mid)    { active_knob = 8; }
+            if (hb_low)    { active_knob = 9; }
+            if (hb_flt)    { active_knob = 10; }
 
             if (h_fx_knob_a) { active_knob = 12; }
             if (h_fx_knob_b) { active_knob = 13; }
@@ -296,17 +331,21 @@ while (vglib.running()) {
         }
 
         delta = md[1] * 0.3;
-        if (active_knob == 1) { deck_a_pitch = vmath.clamp(deck_a_pitch - (delta * 0.2), -12.0, 12.0); }
-        if (active_knob == 2) { deck_a_eq_hi  = vmath.clamp(deck_a_eq_hi - delta, -12.0, 12.0); }
-        if (active_knob == 3) { deck_a_eq_mid = vmath.clamp(deck_a_eq_mid - delta, -12.0, 12.0); }
-        if (active_knob == 4) { deck_a_eq_low = vmath.clamp(deck_a_eq_low - delta, -12.0, 12.0); }
-        if (active_knob == 5) { deck_a_filter = vmath.clamp(deck_a_filter - (delta * 0.02), -1.0, 1.0); }
+        # Synchronized Slider Dragging Offsets
+        if (active_knob == 14) { deck_a_gain = vmath.clamp(((m[0] - 285.0) / 50.0) * 2.0, 0.0, 2.0); }
+        if (active_knob == 15) { deck_b_gain = vmath.clamp(((m[0] - 1085.0) / 50.0) * 2.0, 0.0, 2.0); }
 
-        if (active_knob == 6) { deck_b_pitch = vmath.clamp(deck_b_pitch - (delta * 0.2), -12.0, 12.0); }
-        if (active_knob == 7) { deck_b_eq_hi  = vmath.clamp(deck_b_eq_hi - delta, -12.0, 12.0); }
-        if (active_knob == 8) { deck_b_eq_mid = vmath.clamp(deck_b_eq_mid - delta, -12.0, 12.0); }
-        if (active_knob == 9) { deck_b_eq_low = vmath.clamp(deck_b_eq_low - delta, -12.0, 12.0); }
-        if (active_knob == 10){ deck_b_filter = vmath.clamp(deck_b_filter - (delta * 0.02), -1.0, 1.0); }
+        if (active_knob == 1)  { deck_a_pitch = vmath.clamp(deck_a_pitch - (delta * 0.2), -12.0, 12.0); }
+        if (active_knob == 2)  { deck_a_eq_hi  = vmath.clamp(deck_a_eq_hi - delta, -12.0, 12.0); }
+        if (active_knob == 3)  { deck_a_eq_mid = vmath.clamp(deck_a_eq_mid - delta, -12.0, 12.0); }
+        if (active_knob == 4)  { deck_a_eq_low = vmath.clamp(deck_a_eq_low - delta, -12.0, 12.0); }
+        if (active_knob == 5)  { deck_a_filter = vmath.clamp(deck_a_filter - (delta * 0.02), -1.0, 1.0); }
+
+        if (active_knob == 6)  { deck_b_pitch = vmath.clamp(deck_b_pitch - (delta * 0.2), -12.0, 12.0); }
+        if (active_knob == 7)  { deck_b_eq_hi  = vmath.clamp(deck_b_eq_hi - delta, -12.0, 12.0); }
+        if (active_knob == 8)  { deck_b_eq_mid = vmath.clamp(deck_b_eq_mid - delta, -12.0, 12.0); }
+        if (active_knob == 9)  { deck_b_eq_low = vmath.clamp(deck_b_eq_low - delta, -12.0, 12.0); }
+        if (active_knob == 10) { deck_b_filter = vmath.clamp(deck_b_filter - (delta * 0.02), -1.0, 1.0); }
 
         if (active_knob == 12) {
             if (active_fx_unit_a == 1) { fx_comp_thresh_a = vmath.clamp(fx_comp_thresh_a - delta, -30.0, 0.0); }
@@ -331,10 +370,11 @@ while (vglib.running()) {
     vaudio.set_pitch(deck_a_track, vmath.pow(2.0, deck_a_pitch / 12.0));
     vaudio.set_pitch(deck_b_track, vmath.pow(2.0, deck_b_pitch / 12.0));
 
+    # Gain-scaled crossfader volume
     gain_a = vmath.cos(crossfader_pos * 0.5 * 3.14159265);
     gain_b = vmath.sin(crossfader_pos * 0.5 * 3.14159265);
-    vaudio.sound_volume(deck_a_track, deck_a_vol * gain_a);
-    vaudio.sound_volume(deck_b_track, deck_b_vol * gain_b);
+    vaudio.sound_volume(deck_a_track, deck_a_vol * deck_a_gain * gain_a);
+    vaudio.sound_volume(deck_b_track, deck_b_vol * deck_b_gain * gain_b);
 
     # --- 3-BAND DUAL DECK CROSSFADED EQ ROUTING ---
     active_low_gain  = (deck_a_eq_low  * (1.0 - crossfader_pos)) + (deck_b_eq_low  * crossfader_pos);
@@ -345,7 +385,7 @@ while (vglib.running()) {
     vaudio.set_eq(2, 1000.0, active_mid_gain, 1.0);
     vaudio.set_eq(3, 8000.0, active_hi_gain,  1.0);
 
-    # --- STREAM-ISOLATED SINGLE-PASS DSP EVALUATION (PREVENTS GLOBAL BUFFER OVERWRITE) ---
+    # --- STREAM-ISOLATED SINGLE-PASS DSP EVALUATION ---
     cur_unit  = (crossfader_pos < 0.5) ? active_fx_unit_a : active_fx_unit_b;
     cur_thresh= (crossfader_pos < 0.5) ? fx_comp_thresh_a : fx_comp_thresh_b;
     cur_drive = (crossfader_pos < 0.5) ? fx_drive_a       : fx_drive_b;
@@ -491,6 +531,10 @@ while (vglib.running()) {
         draw_dj_knob("MID", 1100, 460, (deck_b_eq_mid + 12.0) / 24.0, string(vmath.round(deck_b_eq_mid)) + "dB", COLOR_AMBER, hb_mid, active_knob == 8);
         draw_dj_knob("LOW", 1200, 460, (deck_b_eq_low + 12.0) / 24.0, string(vmath.round(deck_b_eq_low)) + "dB", COLOR_AMBER, hb_low, active_knob == 9);
         draw_dj_knob("FILTER", 1300, 460, (deck_b_filter + 1.0) / 2.0, string(vmath.round(deck_b_filter * 100.0)) + "%", COLOR_DECK_B, hb_flt, active_knob == 10);
+
+        # --- HORIZONTAL GAIN SLIDERS AT Y = 530 ---
+        draw_gain_slider_bar("GAIN A", 230, 530, 150, deck_a_gain, COLOR_DECK_A, active_knob == 14);
+        draw_gain_slider_bar("GAIN B", 1030, 530, 150, deck_b_gain, COLOR_DECK_B, active_knob == 15);
 
         # CENTER MASTER STATUS & DUAL DECK EFX UNIT RACK CARD
         vglib.rect(590, 400, 220, 300, COLOR_CARD);
