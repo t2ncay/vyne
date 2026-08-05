@@ -5,7 +5,7 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - CYBERPUNK EDITION", 0);
+vglib.init(1400, 900, 60, "VYNE DJ CONSOLE v2.0", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
