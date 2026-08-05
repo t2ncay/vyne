@@ -8,6 +8,14 @@ use "configs/config.vy";
 vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - DUAL DSP ROUTING", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
+# canvas for upscaling 
+canvas = vglib.load_render_texture(1400, 900);
+
+# canvas transformation state
+scale    :: Float64 = 1.0;
+offset_x :: Float64 = 0.0;
+offset_y :: Float64 = 0.0;
+
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
@@ -484,37 +492,7 @@ while (vglib.running()) {
         prev_zx_b :: Float64 = 50.0; prev_zy_b :: Float64 = 320.0;
         z_step    :: Float64 = 6.0;  curr_zx :: Float64 = 50.0;
 
-        while (curr_zx <= 1350.0) {
-            norm_z = (curr_zx - 50.0) / 1300.0;
-
-            za = vmath.sin(norm_z * wave_freq + scope_phase_a) * wave_amp;
-            zb = vmath.sin(norm_z * (wave_freq * 0.98) + scope_phase_b) * wave_amp;
-
-            if (smooth_lufs_intensity > 0.8) {
-                za = za + (vmath.sin(norm_z * wave_freq * 1.5 + scope_phase_a) * wave_amp * 0.12);
-                zb = zb + (vmath.cos(norm_z * wave_freq * 1.5 + scope_phase_b) * wave_amp * 0.12);
-            }
-
-            curr_zy_a :: Float64 = 320.0 - za; 
-            curr_zy_b :: Float64 = 320.0 - zb;
-
-            if (curr_zx > 50.0) {
-                if (deck_a_play == 1 || (deck_a_play == 0 && deck_b_play == 0)) {
-                    vglib.line(prev_zx_a, prev_zy_a - 1.0, curr_zx, curr_zy_a - 1.0, vglib.rgba(0, 180, 220, 80));
-                    vglib.line(prev_zx_a, prev_zy_a + 1.0, curr_zx, curr_zy_a + 1.0, vglib.rgba(0, 180, 220, 80));
-                    vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, COLOR_DECK_A);
-                }
-                if (deck_b_play == 1) {
-                    vglib.line(prev_zx_b, prev_zy_b - 1.0, curr_zx, curr_zy_b - 1.0, vglib.rgba(200, 30, 90, 80));
-                    vglib.line(prev_zx_b, prev_zy_b + 1.0, curr_zx, curr_zy_b + 1.0, vglib.rgba(200, 30, 90, 80));
-                    vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, COLOR_DECK_B);
-                }
-            }
-            
-            prev_zx_a = curr_zx; prev_zy_a = curr_zy_a;
-            prev_zx_b = curr_zx; prev_zy_b = curr_zy_b;
-            curr_zx = curr_zx + z_step;
-        }
+        vglib.draw_phase_scope(50.0, 1350.0, 320.0, scope_phase_a, scope_phase_b, smooth_lufs_intensity, deck_a_play == 1, deck_b_play == 1);
 
         # DUAL CHANNEL EQ RACK
         pa_norm = (deck_a_pitch + 12.0) / 24.0; pa_str = (deck_a_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_a_pitch * 10.0) / 10.0) + "st";
