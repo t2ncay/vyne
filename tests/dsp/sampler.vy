@@ -5,45 +5,44 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE SERATO SAMPLER CONSOLE v1.0", 0);
+# TODO FIX THE SLICING FOR BPM CHOP MODE, IT'S NOT ACCURATE AND NEEDS TO BE REWORKED
+
+vglib.init(1400, 900, 60, "VYNE SERATO SAMPLER CONSOLE v2.0 - 10-PAD BPM ENGINE", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track_name :: String = "tests/assetts/cigerlerim.mp3";
-
-# 1. SWITCH LOAD TO PLAY_STREAM FOR AUDIO STREAMING
+# Load Audio Track
 track = vaudio.play_stream(configs.Audios.osamason_1300);
+vaudio.attach_bpm(track);
 
 run_time = 0.0;
 prev_mouse_state = 0;
 
 # --- SAMPLER ENGINE STATE ---
-pitch_shift  :: Float64 = 0.0;   # -12 to +12 semitones
-speed_rate   :: Float64 = 1.0;   # 0.5x to 2.0x time stretch
-attack_ms    :: Float64 = 5.0;   # Envelope attack
-release_ms   :: Float64 = 150.0; # Envelope release
-slice_mode   :: Int64   = 1;     # 0 = MANUAL, 1 = EQUAL CHOP (8 PADS), 2 = TRANSIENT
-active_pad   :: Int64   = 0;     # 0 to 7 active triggering pad
-active_knob  :: Int64   = 0;     # Dragged parameter knob
+pitch_shift    :: Float64 = 0.0;   # -12 to +12 semitones
+speed_rate     :: Float64 = 1.0;   # 0.5x to 2.0x time stretch
+attack_ms      :: Float64 = 5.0;   # Envelope attack
+release_ms     :: Float64 = 150.0; # Envelope release
+slice_mode     :: Int64   = 1;     # 0 = MANUAL, 1 = BPM CHOP (10 PADS), 2 = TRANSIENT
+active_pad     :: Int64   = 0;     # 0 to 9 active pad
+active_knob    :: Int64   = 0;     # Dragged parameter knob
 
-track_duration :: Float64 = 180.0; # Total track length in seconds (simulated)
-playhead_pos   :: Float64 = 0.15;  # Normalized playhead position [0.0 .. 1.0]
+track_duration :: Float64 = 180.0; # Total track length in seconds
+playhead_pos   :: Float64 = 0.0;   # Normalized playhead position [0.0 .. 1.0]
 
-# --- 8-PAD SLICE BANK ARRAYS ---
+# --- 10-PAD SLICE BANK ARRAYS ---
+num_pads  :: Int64 = 10;
 pad_start :: Array = [];
 pad_end   :: Array = [];
-pad_muted :: Array = [];
-pad_solo  :: Array = [];
 
-through p :: 0..7 -> loop {
-    start_p :: Float64 = p * 0.125;
-    end_p   :: Float64 = (p + 1) * 0.125;
+# Initial Equal Slice Division for 10 Pads
+through p :: 0..9 -> loop {
+    start_p :: Float64 = p * (1.0 / float64(num_pads));
+    end_p   :: Float64 = (p + 1) * (1.0 / float64(num_pads));
     pad_start.push(start_p);
     pad_end.push(end_p);
-    pad_muted.push(0);
-    pad_solo.push(0);
 };
 
 # --- DYNAMIC WAVEFORM PEAK BUFFER ---
@@ -97,18 +96,18 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
     vglib.line(x, y + h, x, y, rim_col);
 
     pad_str = "PAD " + string(id + 1);
-    vglib.text_ex(vcr_font, pad_str, x + 12, y + 12, 13, text_col);
+    vglib.text_ex(vcr_font, pad_str, x + 10, y + 10, 12, text_col);
 
     start_sec = vmath.round(start_t * track_duration * 10.0) / 10.0;
     end_sec   = vmath.round(end_t * track_duration * 10.0) / 10.0;
     range_str = string(start_sec) + "s - " + string(end_sec) + "s";
     
     sub_col = is_active ? vglib.BLACK : vglib.rgba(140, 150, 165, 255);
-    vglib.text_ex(vcr_font, range_str, x + 12, y + 36, 10, sub_col);
+    vglib.text_ex(vcr_font, range_str, x + 10, y + 30, 9, sub_col);
 
     if (is_active) {
-        vglib.rect(x + w - 45, y + 10, 35, 16, vglib.BLACK);
-        vglib.text_ex(vcr_font, "PLAY", x + w - 40, y + 13, 9, vglib.rgba(50, 255, 120, 255));
+        vglib.rect(x + w - 40, y + 8, 32, 14, vglib.BLACK);
+        vglib.text_ex(vcr_font, "PLAY", x + w - 36, y + 10, 8, vglib.rgba(50, 255, 120, 255));
     }
 }
 
@@ -116,19 +115,25 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
 while (vglib.running()) {
     run_time = run_time + 0.016;
 
-    # 2. UPDATE STREAM EVERY FRAME
+    # 1. UPDATE STREAM
     vaudio.update_stream(track);
+
+    # Get Dynamic BPM
+    detected_bpm :: Float64 = vaudio.get_bpm(track);
+    if (detected_bpm <= 0.0) { detected_bpm = 130.0; }
 
     m = vglib.mouse_pos();
     md = vglib.mouse_delta();
     mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
 
-    # Update Simulated Playhead Movement
-    if (vaudio.is_playing(track) == 1) {
-        playhead_pos = playhead_pos + (0.0003 * speed_rate);
-        if (playhead_pos > pad_end[active_pad]) {
-            playhead_pos = pad_start[active_pad];
-        }
+    # 2. UPDATE PLAYHEAD & LOOP BOUNDARIES PER ACTIVE SLICE
+    playhead_pos = playhead_pos + (0.0003 * speed_rate);
+    if (playhead_pos >= pad_end[active_pad]) {
+        # Loop boundary reached: Seek back to pad start timestamp and resume
+        playhead_pos = pad_start[active_pad];
+        start_seconds :: Float64 = pad_start[active_pad] * track_duration;
+        vaudio.seek_stream(track, start_seconds);
+        vaudio.resume_stream(track);
     }
 
     # --- MOUSE CLICK DETECTIONS ---
@@ -138,9 +143,20 @@ while (vglib.running()) {
             if (m[0] >= 800 && m[0] <= 920) { slice_mode = 0; }
             if (m[0] >= 930 && m[0] <= 1050) {
                 slice_mode = 1;
-                through p :: 0..7 -> loop {
-                    pad_start[p] = p * 0.125;
-                    pad_end[p]   = (p + 1) * 0.125;
+                
+                # RE-CALCULATE 10 SLICES BASED ON BPM AND INPUT DURATION
+                sec_per_beat   :: Float64 = 60.0 / detected_bpm;
+                beats_per_pad  :: Float64 = 4.0; # 1 bar per chop (4 beats)
+                pad_len_sec    :: Float64 = beats_per_pad * sec_per_beat;
+                pad_len_norm   :: Float64 = pad_len_sec / track_duration;
+
+                through p :: 0..9 -> loop {
+                    st_norm :: Float64 = p * pad_len_norm;
+                    en_norm :: Float64 = (p + 1) * pad_len_norm;
+                    if (en_norm > 1.0) { en_norm = 1.0; }
+                    
+                    pad_start[p] = st_norm;
+                    pad_end[p]   = en_norm;
                 };
             }
             if (m[0] >= 1060 && m[0] <= 1180) { slice_mode = 2; }
@@ -151,7 +167,7 @@ while (vglib.running()) {
             norm_click = (m[0] - 50.0) / 1300.0;
             playhead_pos = norm_click;
             
-            through p :: 0..7 -> loop {
+            through p :: 0..9 -> loop {
                 if (norm_click >= pad_start[p] && norm_click <= pad_end[p]) {
                     active_pad = p;
                 }
@@ -159,25 +175,26 @@ while (vglib.running()) {
 
             target_sec :: Float64 = playhead_pos * track_duration;
             vaudio.seek_stream(track, target_sec);
+            vaudio.resume_stream(track);
         }
 
-        # 3. MPC Pad Grid Interaction (8 Pads)
-        pad_w :: Int64 = 300;
+        # 3. MPC 10-PAD GRID INTERACTION (2 Rows of 5)
+        pad_w :: Int64 = 250;
         pad_h :: Int64 = 85;
-        through p :: 0..7 -> loop {
-            row :: Int64 = p / 4;
-            col :: Int64 = p % 4;
-            px :: Int64 = 50 + (col * 325);
+        through p :: 0..9 -> loop {
+            row :: Int64 = p / 5;
+            col :: Int64 = p % 5;
+            px :: Int64 = 50 + (col * 262);
             py :: Int64 = 580 + (row * 105);
 
             if (m[0] >= px && m[0] <= px + pad_w && m[1] >= py && m[1] <= py + pad_h) {
                 active_pad = p;
                 playhead_pos = pad_start[p];
                 
+                # CUT/SEEK TO TARGET TIMESTAMP & RESUME
                 start_seconds :: Float64 = pad_start[p] * track_duration;
-                
-                # 3. SEEK STREAM DIRECTLY TO TARGET TIMESTAMP
                 vaudio.seek_stream(track, start_seconds);
+                vaudio.resume_stream(track);
             }
         };
     }
@@ -214,7 +231,8 @@ while (vglib.running()) {
 
         # HEADER BAR
         vglib.text_ex(vcr_font, "VYNE SERATO SAMPLER", 50, 26, 18, vglib.WHITE);
-        vglib.text_ex(vcr_font, "KEY: Fm | BPM: 130.0", 300, 28, 12, vglib.rgba(0, 220, 255, 255));
+        bpm_str = "KEY: Fm | BPM: " + string(vmath.round(detected_bpm * 10.0) / 10.0);
+        vglib.text_ex(vcr_font, bpm_str, 300, 28, 12, vglib.rgba(0, 220, 255, 255));
 
         mode0_col = (slice_mode == 0) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
         mode1_col = (slice_mode == 1) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
@@ -224,7 +242,7 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "MANUAL", 830, 30, 11, (slice_mode == 0) ? vglib.BLACK : vglib.WHITE);
 
         vglib.rect(930, 20, 120, 32, mode1_col);
-        vglib.text_ex(vcr_font, "CHOP (8)", 952, 30, 11, (slice_mode == 1) ? vglib.BLACK : vglib.WHITE);
+        vglib.text_ex(vcr_font, "CHOP (10)", 950, 30, 11, (slice_mode == 1) ? vglib.BLACK : vglib.WHITE);
 
         vglib.rect(1060, 20, 120, 32, mode2_col);
         vglib.text_ex(vcr_font, "TRANSIENT", 1076, 30, 11, (slice_mode == 2) ? vglib.BLACK : vglib.WHITE);
@@ -239,17 +257,14 @@ while (vglib.running()) {
         vglib.line(50, 240, 50, 80, vglib.rgba(50, 58, 72, 255));
 
         pad_colors :: Array = [
-            vglib.rgba(255, 70, 70, 255),
-            vglib.rgba(255, 160, 40, 255),
-            vglib.rgba(255, 220, 50, 255),
-            vglib.rgba(50, 230, 120, 255),
-            vglib.rgba(0, 220, 255, 255),
-            vglib.rgba(160, 90, 255, 255),
-            vglib.rgba(255, 100, 200, 255),
-            vglib.rgba(180, 210, 245, 255)
+            vglib.rgba(255, 70, 70, 255),   vglib.rgba(255, 130, 40, 255),
+            vglib.rgba(255, 190, 40, 255),  vglib.rgba(255, 230, 50, 255),
+            vglib.rgba(100, 230, 80, 255),  vglib.rgba(50, 230, 160, 255),
+            vglib.rgba(0, 220, 255, 255),   vglib.rgba(120, 120, 255, 255),
+            vglib.rgba(180, 90, 255, 255),  vglib.rgba(255, 100, 200, 255)
         ];
 
-        through p :: 0..7 -> loop {
+        through p :: 0..9 -> loop {
             p_st :: Float64 = pad_start[p];
             p_en :: Float64 = pad_end[p];
 
@@ -262,8 +277,8 @@ while (vglib.running()) {
             }
 
             vglib.line(rx, 80, rx, 240, p_col);
-            vglib.rect(rx, 80, 24, 16, p_col);
-            vglib.text_ex(vcr_font, string(p + 1), rx + 8, 83, 11, vglib.BLACK);
+            vglib.rect(rx, 80, 20, 16, p_col);
+            vglib.text_ex(vcr_font, string(p + 1), rx + 6, 83, 10, vglib.BLACK);
         };
 
         num_peaks :: Float64 = wave_peaks.length();
@@ -277,7 +292,7 @@ while (vglib.running()) {
 
             norm_x = idx / num_peaks;
             peak_col = vglib.rgba(120, 135, 160, 180);
-            through p :: 0..7 -> loop {
+            through p :: 0..9 -> loop {
                 if (norm_x >= pad_start[p] && norm_x <= pad_end[p]) {
                     peak_col = pad_colors[p];
                 }
@@ -350,24 +365,24 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, info_str, 700, 462, 13, act_col);
         vglib.text_ex(vcr_font, "ALGORITHM: VYNE TIME-STRETCH v1.0 (FORMANT PRESERVED)", 700, 490, 10, vglib.rgba(100, 110, 130, 255));
 
-        # MODULE 4: MPC PAD GRID
-        pad_w :: Int64 = 300;
+        # MODULE 4: MPC 10-PAD GRID
+        pad_w :: Int64 = 250;
         pad_h :: Int64 = 85;
 
-        through p :: 0..7 -> loop {
-            row :: Int64 = p / 4;
-            col :: Int64 = p % 4;
+        through p :: 0..9 -> loop {
+            row :: Int64 = p / 5;
+            col :: Int64 = p % 5;
 
-            px :: Int64 = 50 + (col * 325);
+            px :: Int64 = 50 + (col * 262);
             py :: Int64 = 580 + (row * 105);
 
-            is_act = (p == active_pad) && (vaudio.is_playing(track) == 1);
+            is_act = (p == active_pad) && (vaudio.is_stream_playing(track) == 1);
             is_hov = (m[0] >= px && m[0] <= px + pad_w && m[1] >= py && m[1] <= py + pad_h);
             
             draw_mpc_pad(p, px, py, pad_w, pad_h, pad_colors[p], is_act, is_hov, pad_start[p], pad_end[p]);
         };
 
-        vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v1.0.0 | SERATO SAMPLE DSP ENGINE", 460, 860, 12, vglib.rgba(120, 130, 150, 255));
+        vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0", 460, 860, 12, vglib.rgba(120, 130, 150, 255));
 
     vglib.end();
 }
