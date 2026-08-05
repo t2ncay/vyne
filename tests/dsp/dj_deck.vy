@@ -5,7 +5,7 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - DUAL DSP ROUTING", 0);
+vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 # canvas for upscaling 
@@ -22,6 +22,10 @@ vaudio.volume(1.0);
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
 deck_b_track = vaudio.play_stream(configs.Audios.ikit1bb);
+
+# catch peaks directly after loading the tracks
+wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
+wave_peaks_b :: Array = vaudio.get_waveform(deck_b_track, 150);
 
 # --- ATTACH DSP ENGINE CHAINS ---
 vaudio.attach_bpm(deck_a_track);
@@ -102,13 +106,8 @@ COLOR_AMBER    = vglib.rgba(255, 170, 0, 255);   # FX / Parameter Amber
 cues_a :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
 cues_b :: Array = [0.00, 0.12, 0.25, 0.37, 0.50, 0.62, 0.75, 0.87];
 
-wave_peaks_a :: Array = [];
-wave_peaks_b :: Array = [];
-through i :: 0..149 -> loop {
-    wave_peaks_a.push(vmath.abs((vmath.sin(i * 0.1) * 0.5) + (vmath.cos(i * 0.3) * 0.3)));
-    wave_peaks_b.push(vmath.abs((vmath.cos(i * 0.12) * 0.6) + (vmath.sin(i * 0.25) * 0.2)));
-};
-
+wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
+wave_peaks_b :: Array = vaudio.get_waveform(deck_b_track, 150);
 # --- UI HELPER: ROTARY KNOB WITH FIXED BORDER SIZE ---
 fn draw_dj_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active) {
     radius_base = 32.0;
@@ -527,6 +526,13 @@ while (vglib.running()) {
         # LUFS Readout Header
         lufs_val = vaudio.get_lufs();
         vglib.text_ex(vcr_font, string(vmath.round(lufs_val)) + " LUFS", 660, 432, 14, COLOR_AMBER);
+
+        # spectrum analyzer
+        vglib.rect(605, 740, 190, 30, vglib.rgba(12, 14, 20, 255));
+        vglib.draw_spectrum_analyzer(605.0, 740.0, 190.0, 30.0, 20, run_time, smooth_lufs_intensity);
+
+        # section separator
+        vglib.line(600, 482, 800, 482, COLOR_CARD_RIM);
 
         # Master VU Meter Bars
         rms_val = vaudio.get_rms();
