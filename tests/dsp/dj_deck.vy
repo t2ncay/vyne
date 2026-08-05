@@ -5,7 +5,7 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - MASTER FX EDITION", 0);
+vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - DYNAMIC PHASE SCOPE", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
@@ -15,7 +15,7 @@ vaudio.volume(1.0);
 deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
 deck_b_track = vaudio.play_stream(configs.Audios.cigerlerim);
 
-# --- ATTACH FULL DSP ENGINE CHAINS TO BOTH DECKS ---
+# --- ATTACH DSP ENGINE CHAINS ---
 vaudio.attach_bpm(deck_a_track);
 vaudio.attach_bpm(deck_b_track);
 
@@ -287,7 +287,7 @@ while (vglib.running()) {
     vaudio.sound_volume(deck_b_track, deck_b_vol * gain_b);
 
     active_low_gain = (deck_a_eq_low * (1.0 - crossfader_pos)) + (deck_b_eq_low * crossfader_pos);
-    vaudio.set_eq(1, 100.0, active_low_gain, 1.0);
+    vaudio.set_eq(1, 35.0, active_low_gain, 1.0);
 
     # Set FX Rack Parameters to Engine
     if (active_fx_unit == 1) {
@@ -346,25 +346,60 @@ while (vglib.running()) {
         ph_b_x :: Float64 = 720.0 + (deck_b_pos * 630.0);
         vglib.line(ph_b_x, 80, ph_b_x, 240, vglib.WHITE);
 
-        # ZOOMED BEAT MATCH SCOPE
+        # ====================================================================
+        # REAL-TIME BEATMATCH PHASE SCOPE (SMOOTH LUFS REACTIVE)
+        # ====================================================================
         vglib.rect(50, 260, 1300, 120, vglib.rgba(10, 12, 16, 255));
         vglib.line(50, 320, 1350, 320, vglib.rgba(45, 52, 66, 255));
         vglib.text_ex(vcr_font, "REAL-TIME BEATMATCH PHASE SCOPE", 65, 270, 11, vglib.rgba(160, 170, 185, 255));
 
+        # Get Live Master LUFS (-70.0 dB to 0.0 dB)
+        raw_lufs = vaudio.get_lufs();
+        
+        # Normalize LUFS intensity factor (0.0 = silence, 1.0 = loud)
+        lufs_intensity :: Float64 = vmath.clamp((raw_lufs + 70.0) / 70.0, 0.0, 1.0);
+
+        # --- SMOOOTHER MULTIPLIERS ---
+        wave_freq  :: Float64 = 15.0 + (lufs_intensity * 25.0);  # Smooth sine wave density
+        wave_speed :: Float64 = 3.0  + (lufs_intensity * 5.0);   # Gentle phase scrolling speed
+        wave_amp   :: Float64 = 10.0 + (lufs_intensity * 28.0);  # Dynamic amplitude scaling
+        
         prev_zx_a :: Float64 = 50.0; prev_zy_a :: Float64 = 320.0;
         prev_zx_b :: Float64 = 50.0; prev_zy_b :: Float64 = 320.0;
-        z_step :: Float64 = 8.0; curr_zx :: Float64 = 50.0;
+        z_step    :: Float64 = 6.0;  curr_zx :: Float64 = 50.0;
 
         while (curr_zx <= 1350.0) {
             norm_z = (curr_zx - 50.0) / 1300.0;
-            za = vmath.sin(norm_z * 50.0 + run_time * 8.0) * 40.0;
-            zb = vmath.sin(norm_z * 49.0 + run_time * 7.8) * 40.0;
-            curr_zy_a :: Float64 = 320.0 - za; curr_zy_b :: Float64 = 320.0 - zb;
+
+            # 1. Deck A Wave
+            za = vmath.sin(norm_z * wave_freq + run_time * wave_speed) * wave_amp;
+            
+            # Subtle secondary harmonic only at peak loudness (> -10 LUFS)
+            if (lufs_intensity > 0.85) {
+                za = za + (vmath.sin(norm_z * wave_freq * 1.5) * wave_amp * 0.15);
+            }
+
+            # 2. Deck B Wave (Slightly offset for beatmatching visualization)
+            zb = vmath.sin(norm_z * (wave_freq * 0.98) + run_time * (wave_speed * 0.95)) * wave_amp;
+            if (lufs_intensity > 0.85) {
+                zb = zb + (vmath.cos(norm_z * wave_freq * 1.5) * wave_amp * 0.15);
+            }
+
+            curr_zy_a :: Float64 = 320.0 - za; 
+            curr_zy_b :: Float64 = 320.0 - zb;
 
             if (curr_zx > 50.0) {
-                vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, vglib.rgba(0, 220, 255, 200));
-                vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, vglib.rgba(255, 90, 180, 200));
+                # Draw Deck A (Cyan)
+                if (deck_a_play == 1 || (deck_a_play == 0 && deck_b_play == 0)) {
+                    vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, vglib.rgba(0, 220, 255, 200));
+                }
+                
+                # Draw Deck B (Pink) - overlaid when playing
+                if (deck_b_play == 1) {
+                    vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, vglib.rgba(255, 90, 180, 200));
+                }
             }
+            
             prev_zx_a = curr_zx; prev_zy_a = curr_zy_a;
             prev_zx_b = curr_zx; prev_zy_b = curr_zy_b;
             curr_zx = curr_zx + z_step;
@@ -389,7 +424,7 @@ while (vglib.running()) {
         # ====================================================================
         # CENTER MASTER STATUS & PIONEER EFX UNIT RACK CARD
         # ====================================================================
-        vglib.rect(590, 400, 220, 270, vglib.rgba(18, 22, 30, 255));
+        vglib.rect(590, 400, 220, 300, vglib.rgba(18, 22, 30, 255));
         vglib.line(590, 400, 810, 400, vglib.rgba(50, 58, 72, 255));
         vglib.text_ex(vcr_font, "MASTER FX BUS", 645, 412, 11, vglib.rgba(160, 170, 185, 255));
 
@@ -410,7 +445,6 @@ while (vglib.running()) {
         btn_comp_c = (active_fx_unit == 1) ? vglib.rgba(255, 160, 40, 255) : vglib.rgba(35, 42, 54, 255);
         btn_sat_c  = (active_fx_unit == 2) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(35, 42, 54, 255);
         btn_rev_c  = (active_fx_unit == 3) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(35, 42, 54, 255);
-
 
         vglib.rect(620, 520, 35, 25, btn_off_c);  vglib.text_ex(vcr_font, "OFF", 626, 528, 9, vglib.WHITE);
         vglib.rect(660, 520, 35, 25, btn_comp_c); vglib.text_ex(vcr_font, "CMP", 666, 528, 9, vglib.WHITE);
