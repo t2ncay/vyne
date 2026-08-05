@@ -5,14 +5,14 @@ module vmath;
 
 use "configs/config.vy";
 
-vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - DYNAMIC PHASE SCOPE", 0);
+vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.0 - SMOOTH PHASE SCOPE & 3-BAND EQ", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
+deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
 deck_b_track = vaudio.play_stream(configs.Audios.cigerlerim);
 
 # --- ATTACH DSP ENGINE CHAINS ---
@@ -34,8 +34,11 @@ vaudio.attach_reverb(deck_b_track);
 vaudio.enable_eq(2);
 
 # --- INITIALIZE GLOBAL STATE VARIABLES ---
-run_time         :: Float64 = 0.0;
-prev_mouse_state :: Int64   = 0;
+run_time              :: Float64 = 0.0;
+prev_mouse_state      :: Int64   = 0;
+smooth_lufs_intensity :: Float64 = 0.0;
+scope_phase_a         :: Float64 = 0.0;
+scope_phase_b         :: Float64 = 0.0;
 
 # --- GLOBAL DJ MIXER STATE ---
 crossfader_pos :: Float64 = 0.5;   # 0.0 = Deck A Only, 1.0 = Deck B Only
@@ -154,7 +157,7 @@ while (vglib.running()) {
         if (deck_b_pos > 1.0) { deck_b_pos = 0.0; }
     }
 
-    # Controls
+    # Keyboard Controls
     if (vglib.key_pressed(vglib.SPACE)) { deck_b_bpm = deck_a_bpm; }
     if (vglib.key_pressed(vglib.Q)) {
         deck_a_play = (deck_a_play == 1) ? 0 : 1;
@@ -286,8 +289,14 @@ while (vglib.running()) {
     vaudio.sound_volume(deck_a_track, deck_a_vol * gain_a);
     vaudio.sound_volume(deck_b_track, deck_b_vol * gain_b);
 
-    active_low_gain = (deck_a_eq_low * (1.0 - crossfader_pos)) + (deck_b_eq_low * crossfader_pos);
-    vaudio.set_eq(1, 35.0, active_low_gain, 1.0);
+    # --- 3-BAND DUAL DECK CROSSFADED EQ ROUTING ---
+    active_low_gain  = (deck_a_eq_low  * (1.0 - crossfader_pos)) + (deck_b_eq_low  * crossfader_pos);
+    active_mid_gain  = (deck_a_eq_mid  * (1.0 - crossfader_pos)) + (deck_b_eq_mid  * crossfader_pos);
+    active_hi_gain   = (deck_a_eq_hi   * (1.0 - crossfader_pos)) + (deck_b_eq_hi   * crossfader_pos);
+
+    vaudio.set_eq(1, 100.0,  active_low_gain, 1.0); # Band 1: Low Cut/Boost (100 Hz)
+    vaudio.set_eq(2, 1000.0, active_mid_gain, 1.0); # Band 2: Mid Cut/Boost (1 kHz)
+    vaudio.set_eq(3, 8000.0, active_hi_gain,  1.0); # Band 3: High Cut/Boost (8 kHz)
 
     # Set FX Rack Parameters to Engine
     if (active_fx_unit == 1) {
@@ -347,23 +356,28 @@ while (vglib.running()) {
         vglib.line(ph_b_x, 80, ph_b_x, 240, vglib.WHITE);
 
         # ====================================================================
-        # REAL-TIME BEATMATCH PHASE SCOPE (SMOOTH LUFS REACTIVE)
+        # REAL-TIME BEATMATCH PHASE SCOPE (BUTTER-SMOOTH EXPONENTIAL SMOOTHING)
         # ====================================================================
         vglib.rect(50, 260, 1300, 120, vglib.rgba(10, 12, 16, 255));
         vglib.line(50, 320, 1350, 320, vglib.rgba(45, 52, 66, 255));
         vglib.text_ex(vcr_font, "REAL-TIME BEATMATCH PHASE SCOPE", 65, 270, 11, vglib.rgba(160, 170, 185, 255));
 
-        # Get Live Master LUFS (-70.0 dB to 0.0 dB)
         raw_lufs = vaudio.get_lufs();
-        
-        # Normalize LUFS intensity factor (0.0 = silence, 1.0 = loud)
-        lufs_intensity :: Float64 = vmath.clamp((raw_lufs + 70.0) / 70.0, 0.0, 1.0);
+        target_intensity :: Float64 = vmath.clamp((raw_lufs + 70.0) / 70.0, 0.0, 1.0);
 
-        # --- SMOOOTHER MULTIPLIERS ---
-        wave_freq  :: Float64 = 15.0 + (lufs_intensity * 25.0);  # Smooth sine wave density
-        wave_speed :: Float64 = 3.0  + (lufs_intensity * 5.0);   # Gentle phase scrolling speed
-        wave_amp   :: Float64 = 10.0 + (lufs_intensity * 28.0);  # Dynamic amplitude scaling
-        
+        # Exponential Smoothing (Interpolates discrete C++ atomic updates)
+        smooth_lufs_intensity = smooth_lufs_intensity + (target_intensity - smooth_lufs_intensity) * 0.1;
+
+        # Map Smoothed Intensity to Oscillators
+        wave_freq  :: Float64 = 15.0 + (smooth_lufs_intensity * 20.0);
+        wave_speed :: Float64 = 2.0  + (smooth_lufs_intensity * 4.0);
+        wave_amp   :: Float64 = 8.0  + (smooth_lufs_intensity * 30.0);
+
+        # Continuous Phase Accumulation via Delta Time
+        dt :: Float64 = 0.016;
+        scope_phase_a = scope_phase_a + (dt * wave_speed);
+        scope_phase_b = scope_phase_b + (dt * wave_speed * 0.96);
+
         prev_zx_a :: Float64 = 50.0; prev_zy_a :: Float64 = 320.0;
         prev_zx_b :: Float64 = 50.0; prev_zy_b :: Float64 = 320.0;
         z_step    :: Float64 = 6.0;  curr_zx :: Float64 = 50.0;
@@ -371,30 +385,22 @@ while (vglib.running()) {
         while (curr_zx <= 1350.0) {
             norm_z = (curr_zx - 50.0) / 1300.0;
 
-            # 1. Deck A Wave
-            za = vmath.sin(norm_z * wave_freq + run_time * wave_speed) * wave_amp;
-            
-            # Subtle secondary harmonic only at peak loudness (> -10 LUFS)
-            if (lufs_intensity > 0.85) {
-                za = za + (vmath.sin(norm_z * wave_freq * 1.5) * wave_amp * 0.15);
-            }
+            za = vmath.sin(norm_z * wave_freq + scope_phase_a) * wave_amp;
+            zb = vmath.sin(norm_z * (wave_freq * 0.98) + scope_phase_b) * wave_amp;
 
-            # 2. Deck B Wave (Slightly offset for beatmatching visualization)
-            zb = vmath.sin(norm_z * (wave_freq * 0.98) + run_time * (wave_speed * 0.95)) * wave_amp;
-            if (lufs_intensity > 0.85) {
-                zb = zb + (vmath.cos(norm_z * wave_freq * 1.5) * wave_amp * 0.15);
+            # Subtle harmonic blend on high loudness
+            if (smooth_lufs_intensity > 0.8) {
+                za = za + (vmath.sin(norm_z * wave_freq * 1.5 + scope_phase_a) * wave_amp * 0.12);
+                zb = zb + (vmath.cos(norm_z * wave_freq * 1.5 + scope_phase_b) * wave_amp * 0.12);
             }
 
             curr_zy_a :: Float64 = 320.0 - za; 
             curr_zy_b :: Float64 = 320.0 - zb;
 
             if (curr_zx > 50.0) {
-                # Draw Deck A (Cyan)
                 if (deck_a_play == 1 || (deck_a_play == 0 && deck_b_play == 0)) {
                     vglib.line(prev_zx_a, prev_zy_a, curr_zx, curr_zy_a, vglib.rgba(0, 220, 255, 200));
                 }
-                
-                # Draw Deck B (Pink) - overlaid when playing
                 if (deck_b_play == 1) {
                     vglib.line(prev_zx_b, prev_zy_b, curr_zx, curr_zy_b, vglib.rgba(255, 90, 180, 200));
                 }
