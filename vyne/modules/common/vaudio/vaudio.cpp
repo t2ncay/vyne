@@ -22,13 +22,15 @@ struct VAudioSoundHandle {
     Sound sound;
     bool is_paused = false;
     bool is_stopped = false;
+    std::string path;
 };
 
 struct VAudioStreamHandle {
     Music music;
     VAudioDSP::EqualizerState eq;
-    VAudioDSP::BPMDetector bpm_detector; // <-- Instance per stream handle
+    VAudioDSP::BPMDetector bpm_detector;
     bool is_paused = false;
+    std::string path;
 };
 
 void StreamBPMProcessorCallback(void *buffer, unsigned int frames, void *user_data) {
@@ -37,6 +39,36 @@ void StreamBPMProcessorCallback(void *buffer, unsigned int frames, void *user_da
     if (handle != nullptr) {
         handle->bpm_detector.processBlock(samples, frames);
     }
+}
+
+std::vector<float> extract_track_waveform_peaks(const float* pcm_samples, uint64_t total_frames, int channels, int target_bins) {
+    std::vector<float> peaks(target_bins, 0.0f);
+    if (!pcm_samples || total_frames == 0 || target_bins <= 0) return peaks;
+
+    uint64_t frames_per_bin = total_frames / target_bins;
+    float max_peak_overall = 0.0001f;
+
+    for (int bin = 0; bin < target_bins; bin++) {
+        uint64_t start_frame = bin * frames_per_bin;
+        uint64_t end_frame = (bin == target_bins - 1) ? total_frames : (bin + 1) * frames_per_bin;
+
+        float bin_max = 0.0f;
+        for (uint64_t f = start_frame; f < end_frame; f++) {
+            for (int ch = 0; ch < channels; ch++) {
+                float abs_sample = std::abs(pcm_samples[f * channels + ch]);
+                if (abs_sample > bin_max) bin_max = abs_sample;
+            }
+        }
+
+        peaks[bin] = bin_max;
+        if (bin_max > max_peak_overall) max_peak_overall = bin_max;
+    }
+
+    for (int bin = 0; bin < target_bins; bin++) {
+        peaks[bin] /= max_peak_overall;
+    }
+
+    return peaks;
 }
 
 namespace VAudioNative {
@@ -71,6 +103,7 @@ namespace VAudioNative {
         
         auto* handle = new VAudioSoundHandle();
         handle->sound = LoadSound(path.c_str());
+        handle->path = path;
 
         if (handle->sound.frameCount == 0) {
             delete handle;
@@ -144,7 +177,8 @@ namespace VAudioNative {
         
         auto* handle = new VAudioStreamHandle();
         handle->music = LoadMusicStream(path.c_str());
-        
+        handle->path = path;
+
         if (handle->music.stream.buffer == NULL) {
             delete handle;
             throw std::runtime_error("Audio Error: Failed to load stream at " + path);
@@ -495,6 +529,58 @@ namespace VAudioNative {
         }
         return Value(120.0);
     }
+
+    Value native_get_waveform(std::vector<Value>& args) {
+        if (args.empty()) throw std::runtime_error("get_waveform() requires path or handle");
+
+        std::string file_path;
+        int target_bins = (args.size() > 1) ? static_cast<int>(args[1].asInt()) : 150;
+
+        if (args[0].type == VType::String) {
+            file_path = args[0].asString();
+        } 
+        else if (args[0].type == VType::Int64) {
+            int64_t ptr = args[0].asInt();
+            if (ptr != 0) {
+                auto* stream_handle = reinterpret_cast<VAudioStreamHandle*>(ptr);
+                if (stream_handle && !stream_handle->path.empty()) {
+                    file_path = stream_handle->path;
+                } else {
+                    auto* sound_handle = reinterpret_cast<VAudioSoundHandle*>(ptr);
+                    if (sound_handle && !sound_handle->path.empty()) {
+                        file_path = sound_handle->path;
+                    }
+                }
+            }
+        }
+
+        if (file_path.empty()) return Value(std::vector<Value>{});
+
+        Wave wave = LoadWave(file_path.c_str());
+        if (wave.frameCount == 0) return Value(std::vector<Value>{});
+
+        WaveFormat(&wave, 48000, 32, 2);
+
+        float* pcm_data = static_cast<float*>(wave.data);
+        uint64_t total_frames = wave.frameCount;
+
+        std::vector<float> raw_peaks = extract_track_waveform_peaks(
+            pcm_data,
+            total_frames,
+            2,
+            target_bins
+        );
+
+        UnloadWave(wave);
+
+        std::vector<Value> vyne_array;
+        vyne_array.reserve(target_bins);
+        for (float peak : raw_peaks) {
+            vyne_array.push_back(Value(static_cast<double>(peak)));
+        }
+
+        return Value(vyne_array);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -535,6 +621,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("get_lufs")]          = Value(VAudioNative::native_get_lufs);
     vaudio[pool.intern("attach_bpm")]        = Value(VAudioNative::native_attach_bpm_detector);
     vaudio[pool.intern("get_bpm")]           = Value(VAudioNative::native_get_bpm);
+    vaudio[pool.intern("get_waveform")] = Value(VAudioNative::native_get_waveform);
 
     // Reverb
     vaudio[pool.intern("attach_reverb")]     = Value(VAudioNative::native_attach_reverb);
