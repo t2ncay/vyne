@@ -291,7 +291,7 @@ while (vglib.running()) {
 
     # Set FX Rack Parameters to Engine
     if (active_fx_unit == 1) {
-        vaudio.set_compressor(fx_comp_thresh, 4.0, 10.0, 100.0, 0.0, 1, 1);
+        vaudio.set_compressor(fx_comp_thresh, 4.0, 30.0, 400.0, 0.0, 1, 1);
         vaudio.set_dsp(0.0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
     } if (active_fx_unit == 2) {
         vaudio.set_dsp(fx_drive, 4); # Tube Warmth Mode
