@@ -5,20 +5,27 @@ module vmath;
 
 use "configs/config.vy";
 
-# TODO FIX THE SLICING FOR BPM CHOP MODE, IT'S NOT ACCURATE AND NEEDS TO BE REWORKED
-
-vglib.init(1400, 900, 60, "VYNE SERATO SAMPLER CONSOLE v2.0 - 10-PAD BPM ENGINE", 0);
+vglib.init(1400, 900, 60, "VYNE SAMPLER CONSOLE v2.0", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Audio Track
-track = vaudio.play_stream(configs.Audios.osamason_1300);
+track = vaudio.play_stream(configs.Audios.ikit1bb);
 vaudio.attach_bpm(track);
 
-run_time = 0.0;
-prev_mouse_state = 0;
+# --- COLOR PALETTE DEFINITIONS (MATCHED TO DJ DECK CONSOLE) ---
+COLOR_BG       = vglib.rgba(10, 11, 15, 255);    # Deep Obsidian
+COLOR_CARD     = vglib.rgba(18, 22, 30, 255);    # Panel Cards
+COLOR_CARD_RIM = vglib.rgba(40, 48, 64, 255);    # Subtle Borders
+COLOR_DECK_A   = vglib.rgba(0, 240, 255, 255);   # Electric Cyan
+COLOR_DECK_B   = vglib.rgba(255, 45, 120, 255);  # Neon Sunset Pink
+COLOR_AMBER    = vglib.rgba(255, 170, 0, 255);   # FX / Parameter Amber
+
+run_time              :: Float64 = 0.0;
+prev_mouse_state      :: Int64   = 0;
+smooth_lufs_intensity :: Float64 = 0.0;
 
 # --- SAMPLER ENGINE STATE ---
 pitch_shift    :: Float64 = 0.0;   # -12 to +12 semitones
@@ -52,23 +59,54 @@ through i :: 0..299 -> loop {
     wave_peaks.push(vmath.abs(val));
 };
 
-# --- UI HELPER: ROTARY CONTROL KNOB ---
+pad_colors :: Array = [
+    vglib.rgba(255, 70, 70, 255),   vglib.rgba(255, 130, 40, 255),
+    COLOR_AMBER,                    vglib.rgba(255, 230, 50, 255),
+    vglib.rgba(0, 200, 240, 255),   COLOR_DECK_A,
+    vglib.rgba(120, 120, 255, 255), COLOR_DECK_B,
+    vglib.rgba(180, 90, 255, 255),  vglib.rgba(255, 100, 200, 255)
+];
+
+# --- REFACTORED UI HELPER: ROTARY KNOB WITH SOLID ARC TRACKING ---
 fn draw_sampler_knob(name, x, y, val_norm, display_val, color, is_hovered, is_active) {
     radius_base = 36.0;
-    if (is_hovered) { radius_base = 39.0; }
-    if (is_active)  { radius_base = 41.0; }
+    if (is_active) { radius_base = 38.0; } # Tighter active state, zero hover growth
 
+    # Outer Housing
     vglib.circle(x, y, radius_base, vglib.BLACK);
     
+    # Outer Active Ring
     if (is_active) {
-        vglib.circle(x, y, radius_base - 2.0, color);
+        vglib.circle(x, y, radius_base - 1.5, color);
     } else {
-        vglib.circle(x, y, radius_base - 3.0, vglib.rgba(45, 48, 58, 255));
+        vglib.circle(x, y, radius_base - 2.0, vglib.rgba(35, 40, 52, 255));
     }
 
-    vglib.circle(x, y, 28.0, vglib.rgba(20, 22, 28, 255));
-    vglib.circle(x, y, 18.0, vglib.rgba(30, 34, 42, 255));
+    # Inner Knob Face
+    vglib.circle(x, y, 28.0, vglib.rgba(16, 18, 24, 255));
+    vglib.circle(x, y, 18.0, vglib.rgba(26, 30, 38, 255));
     
+    # Solid Value Arc (Continuous Radial Band)
+    arc_steps :: Int64 = int64(val_norm * 40.0);
+    if (arc_steps > 0) {
+        prev_ax :: Float64 = x + vmath.sin(vmath.radians(-135.0)) * 23.0;
+        prev_ay :: Float64 = y - vmath.cos(vmath.radians(-135.0)) * 23.0;
+
+        through a :: 1..40 -> loop {
+            if (a <= arc_steps) {
+                ang = ((a / 40.0) * 270.0) - 135.0;
+                rad = vmath.radians(ang);
+                curr_ax :: Float64 = x + vmath.sin(rad) * 23.0;
+                curr_ay :: Float64 = y - vmath.cos(rad) * 23.0;
+
+                vglib.line(prev_ax, prev_ay, curr_ax, curr_ay, color);
+                prev_ax = curr_ax;
+                prev_ay = curr_ay;
+            }
+        };
+    }
+
+    # Center Pointer Needle
     angle = (val_norm * 270.0) - 135.0;
     rad = vmath.radians(angle);
     
@@ -76,17 +114,17 @@ fn draw_sampler_knob(name, x, y, val_norm, display_val, color, is_hovered, is_ac
     line_y :: Float64 = y - vmath.cos(rad) * 25.0;
     
     vglib.line(x, y, line_x, line_y, color);
-    vglib.circle(line_x, line_y, 3.5, color);
+    vglib.circle(line_x, line_y, 3.0, color);
     
-    label_col = is_hovered ? vglib.rgba(0, 230, 255, 255) : vglib.WHITE;
+    label_col = is_hovered ? COLOR_DECK_A : vglib.rgba(160, 170, 185, 255);
     vglib.text_ex(vcr_font, name, x - 22, y + 42, 11, label_col);
     vglib.text_ex(vcr_font, display_val, x - 18, y - 4, 10, color);
 }
 
-# --- UI HELPER: MPC PAD BUTTON ---
+# --- REFACTORED UI HELPER: MPC PAD BUTTON ---
 fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t) {
-    bg_col   = is_active ? pad_color : vglib.rgba(24, 28, 36, 255);
-    rim_col  = is_active ? vglib.WHITE : (is_hovered ? pad_color : vglib.rgba(50, 58, 72, 255));
+    bg_col   = is_active ? pad_color : vglib.rgba(20, 24, 32, 255);
+    rim_col  = is_active ? vglib.WHITE : (is_hovered ? pad_color : COLOR_CARD_RIM);
     text_col = is_active ? vglib.BLACK : vglib.WHITE;
 
     vglib.rect(x, y, w, h, bg_col);
@@ -107,7 +145,7 @@ fn draw_mpc_pad(id, x, y, w, h, pad_color, is_active, is_hovered, start_t, end_t
 
     if (is_active) {
         vglib.rect(x + w - 40, y + 8, 32, 14, vglib.BLACK);
-        vglib.text_ex(vcr_font, "PLAY", x + w - 36, y + 10, 8, vglib.rgba(50, 255, 120, 255));
+        vglib.text_ex(vcr_font, "PLAY", x + w - 36, y + 10, 8, COLOR_DECK_A);
     }
 }
 
@@ -129,7 +167,6 @@ while (vglib.running()) {
     # 2. UPDATE PLAYHEAD & LOOP BOUNDARIES PER ACTIVE SLICE
     playhead_pos = playhead_pos + (0.0003 * speed_rate);
     if (playhead_pos >= pad_end[active_pad]) {
-        # Loop boundary reached: Seek back to pad start timestamp and resume
         playhead_pos = pad_start[active_pad];
         start_seconds :: Float64 = pad_start[active_pad] * track_duration;
         vaudio.seek_stream(track, start_seconds);
@@ -144,7 +181,6 @@ while (vglib.running()) {
             if (m[0] >= 930 && m[0] <= 1050) {
                 slice_mode = 1;
                 
-                # RE-CALCULATE 10 SLICES BASED ON BPM AND INPUT DURATION
                 sec_per_beat   :: Float64 = 60.0 / detected_bpm;
                 beats_per_pad  :: Float64 = 4.0; # 1 bar per chop (4 beats)
                 pad_len_sec    :: Float64 = beats_per_pad * sec_per_beat;
@@ -191,7 +227,6 @@ while (vglib.running()) {
                 active_pad = p;
                 playhead_pos = pad_start[p];
                 
-                # CUT/SEEK TO TARGET TIMESTAMP & RESUME
                 start_seconds :: Float64 = pad_start[p] * track_duration;
                 vaudio.seek_stream(track, start_seconds);
                 vaudio.resume_stream(track);
@@ -227,16 +262,16 @@ while (vglib.running()) {
     vaudio.set_pitch(track, vmath.pow(2.0, pitch_shift / 12.0));
 
     vglib.begin();
-        vglib.clear(vglib.rgba(14, 16, 22, 255));
+        vglib.clear(COLOR_BG);
 
         # HEADER BAR
         vglib.text_ex(vcr_font, "VYNE SERATO SAMPLER", 50, 26, 18, vglib.WHITE);
         bpm_str = "KEY: Fm | BPM: " + string(vmath.round(detected_bpm * 10.0) / 10.0);
-        vglib.text_ex(vcr_font, bpm_str, 300, 28, 12, vglib.rgba(0, 220, 255, 255));
+        vglib.text_ex(vcr_font, bpm_str, 300, 28, 12, COLOR_DECK_A);
 
-        mode0_col = (slice_mode == 0) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
-        mode1_col = (slice_mode == 1) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
-        mode2_col = (slice_mode == 2) ? vglib.rgba(0, 220, 255, 255) : vglib.rgba(30, 36, 48, 255);
+        mode0_col = (slice_mode == 0) ? COLOR_DECK_A : vglib.rgba(30, 36, 48, 255);
+        mode1_col = (slice_mode == 1) ? COLOR_DECK_A : vglib.rgba(30, 36, 48, 255);
+        mode2_col = (slice_mode == 2) ? COLOR_DECK_A : vglib.rgba(30, 36, 48, 255);
 
         vglib.rect(800, 20, 120, 32, mode0_col);
         vglib.text_ex(vcr_font, "MANUAL", 830, 30, 11, (slice_mode == 0) ? vglib.BLACK : vglib.WHITE);
@@ -247,22 +282,14 @@ while (vglib.running()) {
         vglib.rect(1060, 20, 120, 32, mode2_col);
         vglib.text_ex(vcr_font, "TRANSIENT", 1076, 30, 11, (slice_mode == 2) ? vglib.BLACK : vglib.WHITE);
 
-        vglib.line(50, 62, 1350, 62, vglib.rgba(45, 52, 66, 255));
+        vglib.line(50, 62, 1350, 62, COLOR_CARD_RIM);
 
         # MODULE 1: FULL TRACK OVERVIEW WAVEFORM
-        vglib.rect(50, 80, 1300, 160, vglib.rgba(18, 20, 28, 255));
-        vglib.line(50, 80, 1350, 80, vglib.rgba(50, 58, 72, 255));
-        vglib.line(1350, 80, 1350, 240, vglib.rgba(50, 58, 72, 255));
-        vglib.line(1350, 240, 50, 240, vglib.rgba(50, 58, 72, 255));
-        vglib.line(50, 240, 50, 80, vglib.rgba(50, 58, 72, 255));
-
-        pad_colors :: Array = [
-            vglib.rgba(255, 70, 70, 255),   vglib.rgba(255, 130, 40, 255),
-            vglib.rgba(255, 190, 40, 255),  vglib.rgba(255, 230, 50, 255),
-            vglib.rgba(100, 230, 80, 255),  vglib.rgba(50, 230, 160, 255),
-            vglib.rgba(0, 220, 255, 255),   vglib.rgba(120, 120, 255, 255),
-            vglib.rgba(180, 90, 255, 255),  vglib.rgba(255, 100, 200, 255)
-        ];
+        vglib.rect(50, 80, 1300, 160, COLOR_CARD);
+        vglib.line(50, 80, 1350, 80, COLOR_CARD_RIM);
+        vglib.line(1350, 80, 1350, 240, COLOR_CARD_RIM);
+        vglib.line(1350, 240, 50, 240, COLOR_CARD_RIM);
+        vglib.line(50, 240, 50, 80, COLOR_CARD_RIM);
 
         through p :: 0..9 -> loop {
             p_st :: Float64 = pad_start[p];
@@ -303,14 +330,14 @@ while (vglib.running()) {
 
         ph_x :: Float64 = 50.0 + (playhead_pos * 1300.0);
         vglib.line(ph_x, 80, ph_x, 240, vglib.WHITE);
-        vglib.circle(ph_x, 80, 5.0, vglib.WHITE);
+        vglib.circle(ph_x, 80, 5.0, COLOR_DECK_A);
 
-        # MODULE 2: ZOOMED ACTIVE SLICE WAVEFORM
-        vglib.rect(50, 260, 1300, 140, vglib.rgba(10, 12, 16, 255));
-        vglib.line(50, 260, 1350, 260, vglib.rgba(45, 52, 66, 255));
-        vglib.line(1350, 260, 1350, 400, vglib.rgba(45, 52, 66, 255));
-        vglib.line(1350, 400, 50, 400, vglib.rgba(45, 52, 66, 255));
-        vglib.line(50, 400, 50, 260, vglib.rgba(45, 52, 66, 255));
+        # MODULE 2: ZOOMED ACTIVE SLICE WAVEFORM (CRT GLOW EFFECT)
+        vglib.rect(50, 260, 1300, 140, vglib.rgba(8, 10, 14, 255));
+        vglib.line(50, 260, 1350, 260, COLOR_CARD_RIM);
+        vglib.line(1350, 260, 1350, 400, COLOR_CARD_RIM);
+        vglib.line(1350, 400, 50, 400, COLOR_CARD_RIM);
+        vglib.line(50, 400, 50, 260, COLOR_CARD_RIM);
 
         act_col = pad_colors[active_pad];
         vglib.text_ex(vcr_font, "ZOOMED SLICE VIEW - PAD " + string(active_pad + 1), 65, 272, 11, act_col);
@@ -326,6 +353,10 @@ while (vglib.running()) {
             curr_zy :: Float64 = 330.0 - z_amp;
 
             if (curr_zx > 50.0) {
+                # Phosphor Glow Overlay
+                vglib.line(prev_zx, prev_zy - 1.0, curr_zx, curr_zy - 1.0, vglib.rgba(0, 180, 220, 60));
+                vglib.line(prev_zx, prev_zy + 1.0, curr_zx, curr_zy + 1.0, vglib.rgba(0, 180, 220, 60));
+                # Core Line
                 vglib.line(prev_zx, prev_zy, curr_zx, curr_zy, act_col);
             }
             prev_zx = curr_zx;
@@ -346,16 +377,16 @@ while (vglib.running()) {
         a_str = string(vmath.round(attack_ms)) + "ms";
         r_str = string(vmath.round(release_ms)) + "ms";
 
-        draw_sampler_knob("PITCH", 120, 470, p_norm, p_str, vglib.rgba(0, 220, 255, 255), hk1, active_knob == 1);
-        draw_sampler_knob("SPEED", 260, 470, s_norm, s_str, vglib.rgba(255, 160, 40, 255), hk2, active_knob == 2);
-        draw_sampler_knob("ATTACK", 400, 470, a_norm, a_str, vglib.rgba(50, 230, 120, 255), hk3, active_knob == 3);
-        draw_sampler_knob("RELEASE", 540, 470, r_norm, r_str, vglib.rgba(160, 90, 255, 255), hk4, active_knob == 4);
+        draw_sampler_knob("PITCH", 120, 470, p_norm, p_str, COLOR_DECK_A, hk1, active_knob == 1);
+        draw_sampler_knob("SPEED", 260, 470, s_norm, s_str, COLOR_AMBER, hk2, active_knob == 2);
+        draw_sampler_knob("ATTACK", 400, 470, a_norm, a_str, COLOR_DECK_A, hk3, active_knob == 3);
+        draw_sampler_knob("RELEASE", 540, 470, r_norm, r_str, COLOR_DECK_B, hk4, active_knob == 4);
 
-        vglib.rect(680, 425, 670, 95, vglib.rgba(18, 22, 30, 255));
-        vglib.line(680, 425, 1350, 425, vglib.rgba(45, 52, 66, 255));
-        vglib.line(1350, 425, 1350, 520, vglib.rgba(45, 52, 66, 255));
-        vglib.line(1350, 520, 680, 520, vglib.rgba(45, 52, 66, 255));
-        vglib.line(680, 520, 680, 425, vglib.rgba(45, 52, 66, 255));
+        vglib.rect(680, 425, 670, 95, COLOR_CARD);
+        vglib.line(680, 425, 1350, 425, COLOR_CARD_RIM);
+        vglib.line(1350, 425, 1350, 520, COLOR_CARD_RIM);
+        vglib.line(1350, 520, 680, 520, COLOR_CARD_RIM);
+        vglib.line(680, 520, 680, 425, COLOR_CARD_RIM);
 
         vglib.text_ex(vcr_font, "ACTIVE CUE INFO", 700, 440, 11, vglib.rgba(160, 170, 185, 255));
         st_val = vmath.round(pad_start[active_pad] * track_duration * 100.0) / 100.0;
@@ -382,7 +413,7 @@ while (vglib.running()) {
             draw_mpc_pad(p, px, py, pad_w, pad_h, pad_colors[p], is_act, is_hov, pad_start[p], pad_end[p]);
         };
 
-        vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0", 460, 860, 12, vglib.rgba(120, 130, 150, 255));
+        vglib.text_ex(vcr_font, "VYNE AUDIO ENGINE v2.0.0 | PRO SAMPLER & TIME-STRETCH ENGINE", 380, 860, 12, vglib.rgba(120, 130, 150, 255));
 
     vglib.end();
 }
