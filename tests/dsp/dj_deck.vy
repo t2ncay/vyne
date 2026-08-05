@@ -13,7 +13,7 @@ vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
-deck_b_track = vaudio.play_stream(configs.Audios.cigerlerim);
+deck_b_track = vaudio.play_stream(configs.Audios.ikit1bb);
 
 # --- ATTACH DSP ENGINE CHAINS ---
 vaudio.attach_bpm(deck_a_track);
@@ -349,7 +349,7 @@ while (vglib.running()) {
         vglib.clear(COLOR_BG);
 
         # TOP HEADER BAR
-        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 150, 26, 14, COLOR_DECK_A);
+        vglib.text_ex(vcr_font, "DECK A: 2T1BB - 130BPM", 150, 26, 14, COLOR_DECK_A);
         vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 950, 26, 14, COLOR_DECK_B);
 
         btn_a_col = (deck_a_play == 1) ? COLOR_DECK_A : vglib.rgba(35, 42, 54, 255);
