@@ -294,7 +294,7 @@ while (vglib.running()) {
         vaudio.set_compressor(fx_comp_thresh, 4.0, 10.0, 100.0, 0.0, 1, 1);
         vaudio.set_dsp(0.0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
     } if (active_fx_unit == 2) {
-        vaudio.set_dsp(fx_drive, 0); # Tube Warmth Mode
+        vaudio.set_dsp(fx_drive, 4); # Tube Warmth Mode
         vaudio.set_compressor(0.0, 1.0, 10.0, 100.0, 0.0, 0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
     } if (active_fx_unit == 3) {
         vaudio.set_reverb(0.80, fx_rev_mix, 20.0, 0.3, 1);
@@ -411,6 +411,7 @@ while (vglib.running()) {
         btn_sat_c  = (active_fx_unit == 2) ? vglib.rgba(255, 90, 90, 255) : vglib.rgba(35, 42, 54, 255);
         btn_rev_c  = (active_fx_unit == 3) ? vglib.rgba(160, 90, 255, 255) : vglib.rgba(35, 42, 54, 255);
 
+
         vglib.rect(610, 520, 35, 25, btn_off_c);  vglib.text_ex(vcr_font, "OFF", 616, 528, 9, vglib.WHITE);
         vglib.rect(650, 520, 35, 25, btn_comp_c); vglib.text_ex(vcr_font, "CMP", 656, 528, 9, vglib.WHITE);
         vglib.rect(690, 520, 35, 25, btn_sat_c);  vglib.text_ex(vcr_font, "SAT", 696, 528, 9, vglib.WHITE);
@@ -431,7 +432,7 @@ while (vglib.running()) {
         c_cyan = vglib.rgba(0, 220, 255, 255);
         through p :: 0..7 -> loop {
             row :: Int64 = p / 4; col :: Int64 = p % 4;
-            px :: Int64 = 50 + (col * 140); py :: Int64 = 580 + (row * 65);
+            px :: Int64 = 30 + (col * 140); py :: Int64 = 580 + (row * 65);
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
             draw_hot_cue_pad(p, px, py, 130, 55, c_cyan, false, is_hov, cues_a[p]);
         };
@@ -439,7 +440,7 @@ while (vglib.running()) {
         c_pink = vglib.rgba(255, 90, 180, 255);
         through p :: 0..7 -> loop {
             row :: Int64 = p / 4; col :: Int64 = p % 4;
-            px :: Int64 = 760 + (col * 140); py :: Int64 = 580 + (row * 65);
+            px :: Int64 = 820 + (col * 140); py :: Int64 = 580 + (row * 65);
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
             draw_hot_cue_pad(p, px, py, 130, 55, c_pink, false, is_hov, cues_b[p]);
         };

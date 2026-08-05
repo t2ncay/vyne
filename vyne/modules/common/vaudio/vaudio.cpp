@@ -175,11 +175,19 @@ namespace VAudioNative {
 
     Value native_attach_saturation(std::vector<Value>& args) {
         if (args.empty()) return Value(false);
-        auto* handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
-        if (handle != nullptr) {
-            AttachAudioStreamProcessor(handle->sound.stream, VAudioDSP::SaturationProcessCallback);
+
+        auto* stream_handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (stream_handle != nullptr && stream_handle->music.stream.buffer != nullptr) {
+            AttachAudioStreamProcessor(stream_handle->music.stream, VAudioDSP::SaturationProcessCallback);
             return Value(true);
         }
+
+        auto* sound_handle = reinterpret_cast<VAudioSoundHandle*>(args[0].asInt());
+        if (sound_handle != nullptr && sound_handle->sound.stream.buffer != nullptr) {
+            AttachAudioStreamProcessor(sound_handle->sound.stream, VAudioDSP::SaturationProcessCallback);
+            return Value(true);
+        }
+
         return Value(false);
     }
 

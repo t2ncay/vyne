@@ -13,6 +13,8 @@ inline int   g_sampleCounter[2] = { 0, 0 };
 inline float g_lpfState[2] = { 0.0f, 0.0f };
 
 inline void SaturationProcessCallback(void *buffer, unsigned int frames) {
+    if (g_drive <= 0.0f) return;
+    
     float *samples = (float *)buffer;
     float gain = 1.0f + (g_drive * 3.0f);
     float makeup = 1.0f / std::sqrt(gain);
