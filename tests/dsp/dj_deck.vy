@@ -33,8 +33,9 @@ vaudio.attach_reverb(deck_b_track);
 
 vaudio.enable_eq(2);
 
-run_time = 0.0;
-prev_mouse_state = 0;
+# --- INITIALIZE GLOBAL STATE VARIABLES ---
+run_time         :: Int64 = 0.0;
+prev_mouse_state :: Int64 = 0;
 
 # --- GLOBAL DJ MIXER STATE ---
 crossfader_pos :: Float64 = 0.5;   # 0.0 = Deck A Only, 1.0 = Deck B Only
