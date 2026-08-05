@@ -79,6 +79,7 @@ namespace VGLibNative {
     Value get_mouse_wheel(std::vector<Value>& args);
     Value native_draw_phase_scope(std::vector<Value>& args);
     Value native_draw_canvas_scaled(std::vector<Value>& args);
+    Value native_draw_spectrum_analyzer(std::vector<Value>& args);
 }
 
 void setupVGLib(SymbolContainer& env, StringPool& pool) {
@@ -166,6 +167,7 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("mouse_wheel")] = Value(VGLibNative::get_mouse_wheel);
     vglib[pool.intern("draw_phase_scope")] = Value(VGLibNative::native_draw_phase_scope);
     vglib[pool.intern("draw_canvas_scaled")] = Value(VGLibNative::native_draw_canvas_scaled);
+    vglib[pool.intern("draw_spectrum_analyzer")] = Value(VGLibNative::native_draw_spectrum_analyzer);
 
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();

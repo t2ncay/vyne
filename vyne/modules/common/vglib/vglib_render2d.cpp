@@ -180,4 +180,54 @@ Value native_draw_phase_scope(std::vector<Value>& args) {
     return Value();
 }
 
+Value native_draw_spectrum_analyzer(std::vector<Value>& args) {
+    if (args.size() < 6) {
+        throw std::runtime_error("draw_spectrum_analyzer() requires x, y, width, height, num_bars, run_time, [intensity]");
+    }
+
+    float x         = static_cast<float>(args[0].asFloat());
+    float y         = static_cast<float>(args[1].asFloat());
+    float w         = static_cast<float>(args[2].asFloat());
+    float h         = static_cast<float>(args[3].asFloat());
+    int   num_bars  = static_cast<int>(args[4].asInt());
+    float t         = static_cast<float>(args[5].asFloat());
+    float intensity = (args.size() > 6) ? static_cast<float>(args[6].asFloat()) : 0.8f;
+
+    float gap = 2.0f;
+    float bar_w = (w - (num_bars - 1) * gap) / num_bars;
+
+    Color col_a   = { 0, 240, 255, 200 };   // Electric Cyan
+    Color col_b   = { 255, 45, 120, 200 };  // Neon Pink
+    Color col_top = { 255, 170, 0, 255 };   // Amber Peak Cap
+
+    for (int i = 0; i < num_bars; i++) {
+        float norm_i = (float)i / (float)num_bars;
+
+        float freq_weight = std::pow(1.0f - norm_i * 0.55f, 1.2f);
+
+        float n1 = std::sin(t * 14.0f + i * 0.85f);
+        float n2 = std::cos(t * 22.0f - i * 1.45f);
+        float n3 = std::sin(t * 31.0f + i * 2.20f);
+
+        float raw_val = std::abs(n1 * 0.5f + n2 * 0.3f + n3 * 0.2f);
+        float bar_h   = std::clamp((raw_val * freq_weight * intensity) * h, 2.0f, h);
+
+        float bx = x + i * (bar_w + gap);
+        float by = y + h - bar_h;
+
+        Color bar_col = {
+            static_cast<unsigned char>(col_a.r * (1.0f - norm_i) + col_b.r * norm_i),
+            static_cast<unsigned char>(col_a.g * (1.0f - norm_i) + col_b.g * norm_i),
+            static_cast<unsigned char>(col_a.b * (1.0f - norm_i) + col_b.b * norm_i),
+            180
+        };
+
+        DrawRectangle(static_cast<int>(bx), static_cast<int>(by), static_cast<int>(bar_w), static_cast<int>(bar_h), bar_col);
+
+        DrawRectangle(static_cast<int>(bx), static_cast<int>(by - 2.0f), static_cast<int>(bar_w), 2, col_top);
+    }
+
+    return Value();
+}
+
 } // namespace VGLibNative
