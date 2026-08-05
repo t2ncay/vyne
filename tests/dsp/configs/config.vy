@@ -11,6 +11,7 @@ group :: configs Audios {
     breakbeats = "tests/assets/Breakbeats.wav";
     osamason_1300 = "tests/assets/1300_sk_wh.mp3";
     ariana_bunny = "tests/assets/buni.mp3";
+    Breakbeats = "tests/assets/Breakbeats.mp3";
 };
 
 deploy configs;
