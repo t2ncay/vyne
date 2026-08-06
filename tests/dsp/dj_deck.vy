@@ -18,7 +18,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
+deck_a_track = vaudio.play_stream(configs.Audios.kendall);
 deck_b_track = vaudio.play_stream(configs.Audios.trap_jump);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
