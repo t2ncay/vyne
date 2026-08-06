@@ -594,6 +594,49 @@ namespace VAudioNative {
         }
         return Value(0.0);
     }
+
+    Value native_get_eq_peaks(std::vector<Value>& args) {
+        int max_low_bin = 3;
+        float max_low_val = -1.0f;
+        for (int b = 0; b <= 9; ++b) {
+            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
+            if (val > max_low_val) {
+                max_low_val = val;
+                max_low_bin = b;
+            }
+        }
+
+        int max_mid_bin = 20;
+        float max_mid_val = -1.0f;
+        for (int b = 10; b <= 35; ++b) {
+            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
+            if (val > max_mid_val) {
+                max_mid_val = val;
+                max_mid_bin = b;
+            }
+        }
+
+        int max_hi_bin = 48;
+        float max_hi_val = -1.0f;
+        for (int b = 36; b <= 63; ++b) {
+            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
+            if (val > max_hi_val) {
+                max_hi_val = val;
+                max_hi_bin = b;
+            }
+        }
+
+        auto bin_to_freq = [](int bin) -> double {
+            return 20.0 * std::pow(1000.0, static_cast<double>(bin) / 63.0);
+        };
+
+        std::vector<Value> res;
+        res.reserve(3);
+        res.emplace_back(bin_to_freq(max_low_bin));
+        res.emplace_back(bin_to_freq(max_mid_bin));
+        res.emplace_back(bin_to_freq(max_hi_bin));
+        return Value(res);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -649,6 +692,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
 
     // Analyzer
     vaudio[pool.intern("attach_analyzer")]   = Value(VAudioNative::native_attach_analyzer);
+    vaudio[pool.intern("get_eq_peaks")]      = Value(VAudioNative::native_get_eq_peaks);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);

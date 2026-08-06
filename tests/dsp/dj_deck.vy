@@ -21,7 +21,7 @@ vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
-deck_b_track = vaudio.play_stream(configs.Audios.ikit1bb);
+deck_b_track = vaudio.play_stream(configs.Audios.eternal_sunshine);
 
 # catch peaks directly after loading the tracks
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
@@ -69,6 +69,11 @@ active_fx_unit_b :: Int64   = 0;     # 0 = OFF, 1 = COMP, 2 = SAT, 3 = REV
 fx_drive_b       :: Float64 = 0.25;  # Saturator Drive
 fx_comp_thresh_b :: Float64 = -12.0; # Compressor Threshold
 fx_rev_mix_b     :: Float64 = 0.30;  # Reverb Mix
+
+# --- DYNAMIC EQ PEAK FREQUENCY TRACKER STATE ---
+track_low_freq :: Float64 = 100.0;
+track_mid_freq :: Float64 = 1000.0;
+track_hi_freq  :: Float64 = 8000.0;
 
 # --- DECK A STATE ---
 deck_a_play    :: Int64   = 0;
@@ -376,14 +381,22 @@ while (vglib.running()) {
     vaudio.sound_volume(deck_a_track, deck_a_vol * deck_a_gain * gain_a);
     vaudio.sound_volume(deck_b_track, deck_b_vol * deck_b_gain * gain_b);
 
-    # --- 3-BAND DUAL DECK CROSSFADED EQ ROUTING ---
+    # --- PEAK CATCHER & EQ TONAL SHAPING ---
+    peaks :: Array = vaudio.get_eq_peaks(); # Returns [low_freq, mid_freq, hi_freq]
+    if (peaks.length() >= 3) {
+        track_low_freq = track_low_freq + (peaks[0] - track_low_freq) * 0.15;
+        track_mid_freq = track_mid_freq + (peaks[1] - track_mid_freq) * 0.15;
+        track_hi_freq  = track_hi_freq  + (peaks[2] - track_hi_freq)  * 0.15;
+    }
+
     active_low_gain  = (deck_a_eq_low  * (1.0 - crossfader_pos)) + (deck_b_eq_low  * crossfader_pos);
     active_mid_gain  = (deck_a_eq_mid  * (1.0 - crossfader_pos)) + (deck_b_eq_mid  * crossfader_pos);
     active_hi_gain   = (deck_a_eq_hi   * (1.0 - crossfader_pos)) + (deck_b_eq_hi   * crossfader_pos);
 
-    vaudio.set_eq(1, 100.0,  active_low_gain, 1.0);
-    vaudio.set_eq(2, 1000.0, active_mid_gain, 1.0);
-    vaudio.set_eq(3, 8000.0, active_hi_gain,  1.0);
+    wide_q :: Float64 = 0.55;
+    vaudio.set_eq(1, track_low_freq, active_low_gain, wide_q, 2);
+    vaudio.set_eq(2, track_mid_freq, active_mid_gain, wide_q, 2);
+    vaudio.set_eq(3, track_hi_freq,  active_hi_gain,  wide_q, 2);
 
     # --- STREAM-ISOLATED SINGLE-PASS DSP EVALUATION ---
     cur_unit  = (crossfader_pos < 0.5) ? active_fx_unit_a : active_fx_unit_b;
