@@ -18,7 +18,7 @@ inline bool  g_comp_enabled     = true;
 inline bool  g_comp_auto_makeup = true;
 
 inline int   g_comp_detection_mode = 1; 
-inline float g_comp_rms_window_ms  = 30.0f; // Typical RMS window (10ms - 50ms)
+inline float g_comp_rms_window_ms  = 30.0f; // some fuckass article says 30ms is a good RMS window for compressors
 
 inline void CompressorProcessCallback(void *buffer, unsigned int frames) {
     if(!buffer || frames == 0) return;
