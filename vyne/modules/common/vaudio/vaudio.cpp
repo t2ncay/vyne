@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <fstream>
 #include <stdexcept>
+#include <mutex>
 
 #include "dsp/equalizer.h"
 #include "dsp/compressor.h"
@@ -33,11 +34,17 @@ struct VAudioStreamHandle {
     std::string path;
 };
 
-void StreamBPMProcessorCallback(void *buffer, unsigned int frames, void *user_data) {
+static std::unordered_map<rAudioBuffer*, VAudioStreamHandle*> g_stream_registry;
+static std::mutex g_stream_mutex;
+
+void StreamBPMProcessorCallback(void *buffer, unsigned int frames) {
     float *samples = (float *)buffer;
-    auto *handle = static_cast<VAudioStreamHandle*>(user_data);
-    if (handle != nullptr) {
-        handle->bpm_detector.processBlock(samples, frames);
+    
+    std::lock_guard<std::mutex> lock(g_stream_mutex);
+    for (auto& [buf_ptr, handle] : g_stream_registry) {
+        if (handle != nullptr && !handle->is_paused) {
+            handle->bpm_detector.processBlock(samples, frames);
+        }
     }
 }
 
@@ -513,9 +520,13 @@ namespace VAudioNative {
         if (args.empty()) return Value(false);
         auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
         if (handle != nullptr && handle->music.stream.buffer != nullptr) {
-            AttachAudioStreamProcessor(handle->music.stream, [](void* buffer, unsigned int frames) {
-                // Processing callback logic here or via stream lookup map
-            });
+            
+            {
+                std::lock_guard<std::mutex> lock(g_stream_mutex);
+                g_stream_registry[handle->music.stream.buffer] = handle;
+            }
+
+            AttachAudioStreamProcessor(handle->music.stream, StreamBPMProcessorCallback);
             return Value(true);
         }
         return Value(false);
@@ -525,7 +536,8 @@ namespace VAudioNative {
         if (args.empty()) return Value(120.0);
         auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
         if (handle != nullptr) {
-            return Value((double)handle->bpm_detector.calculated_bpm);
+            float detected = handle->bpm_detector.calculated_bpm;
+            return Value(detected > 0.0f ? (double)detected : 120.0);
         }
         return Value(120.0);
     }
