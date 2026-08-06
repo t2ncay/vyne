@@ -21,7 +21,7 @@ vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
-deck_b_track = vaudio.play_stream(configs.Audios.eternal_sunshine);
+deck_b_track = vaudio.play_stream(configs.Audios.trap_jump);
 
 # catch peaks directly after loading the tracks
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
@@ -393,7 +393,8 @@ while (vglib.running()) {
     active_mid_gain  = (deck_a_eq_mid  * (1.0 - crossfader_pos)) + (deck_b_eq_mid  * crossfader_pos);
     active_hi_gain   = (deck_a_eq_hi   * (1.0 - crossfader_pos)) + (deck_b_eq_hi   * crossfader_pos);
 
-    wide_q :: Float64 = 0.55;
+    # curve Q factor for EQ bands
+    wide_q :: Float64 = 0.5;
     vaudio.set_eq(1, track_low_freq, active_low_gain, wide_q, 2);
     vaudio.set_eq(2, track_mid_freq, active_mid_gain, wide_q, 2);
     vaudio.set_eq(3, track_hi_freq,  active_hi_gain,  wide_q, 2);

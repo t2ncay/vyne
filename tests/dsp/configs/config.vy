@@ -15,6 +15,7 @@ group :: configs Audios {
     never_fade_away :: String = "tests/assets/Never Fade Away.mp3";
     ikit1bb           :: String = "tests/assets/2t1bb.mp3";
     eternal_sunshine  :: String = "tests/assets/eternal_sunshine.mp3";
+    trap_jump         :: String = "tests/assets/trap_jump.mp3";
 };
 
 deploy configs;
