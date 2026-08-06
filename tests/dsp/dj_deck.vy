@@ -409,9 +409,9 @@ while (vglib.running()) {
         vaudio.set_dsp(0.0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
     } if (cur_unit == 2) {
         vaudio.set_dsp(cur_drive, 4);
-        vaudio.set_compressor(0.0, 1.0, 10.0, 100.0, 0.0, 0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
+        vaudio.set_compressor(0.0, 1.0, 0.0, 100.0, 0.0, 0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0);
     } if (cur_unit == 3) {
-        vaudio.set_reverb(0.80, cur_rev, 20.0, 0.3, 1);
+        vaudio.set_reverb(0.15, cur_rev, 20.0, 0.3, 1);
         vaudio.set_dsp(0.0, 0); vaudio.set_compressor(0.0, 1.0, 10.0, 100.0, 0.0, 0, 0);
     } if (cur_unit == 0) {
         vaudio.set_dsp(0.0, 0); vaudio.set_reverb(0.0, 0.0, 0.0, 0.0, 0); vaudio.set_compressor(0.0, 1.0, 10.0, 100.0, 0.0, 0, 0);
