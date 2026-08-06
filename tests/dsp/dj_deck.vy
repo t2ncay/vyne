@@ -18,7 +18,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.kendall);
+deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
 deck_b_track = vaudio.play_stream(configs.Audios.trap_jump);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
@@ -510,8 +510,10 @@ while (vglib.running()) {
         vglib.clear(COLOR_BG);
 
         # TOP HEADER BAR
-        vglib.text_ex(vcr_font, "DECK A: NEVER FADE AWAY - 130BPM", 150, 26, 14, COLOR_DECK_A);
-        vglib.text_ex(vcr_font, "DECK B: DEPRESSION - 128BPM", 950, 26, 14, COLOR_DECK_B);
+        header_a_str = "DECK A: NEVER FADE AWAY - " + string(vmath.round(deck_a_bpm)) + "BPM";
+        header_b_str = "DECK B: DEPRESSION - " + string(vmath.round(deck_b_bpm)) + "BPM";
+        vglib.text_ex(vcr_font, header_a_str, 150, 26, 14, COLOR_DECK_A);
+        vglib.text_ex(vcr_font, header_b_str, 950, 26, 14, COLOR_DECK_B);
 
         btn_a_col = (deck_a_play == 1) ? COLOR_DECK_A : vglib.rgba(35, 42, 54, 255);
         vglib.rect(50, 20, 90, 32, btn_a_col);
