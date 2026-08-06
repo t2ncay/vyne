@@ -20,7 +20,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.osamason_1300);
+deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
 deck_b_track = vaudio.play_stream(configs.Audios.ikit1bb);
 
 # catch peaks directly after loading the tracks
@@ -217,15 +217,8 @@ while (vglib.running()) {
     md = vglib.mouse_delta();
     mouse_click = vglib.mouse_down(vglib.MOUSE_LEFT);
 
-    # Update Playheads
-    if (deck_a_play == 1) {
-        deck_a_pos = deck_a_pos + 0.0004 * (deck_a_bpm / 130.0);
-        if (deck_a_pos > 1.0) { deck_a_pos = 0.0; }
-    }
-    if (deck_b_play == 1) {
-        deck_b_pos = deck_b_pos + 0.0004 * (deck_b_bpm / 128.0);
-        if (deck_b_pos > 1.0) { deck_b_pos = 0.0; }
-    }
+    if (deck_a_play == 1) { deck_a_pos = vaudio.get_stream_pos(deck_a_track); }
+    if (deck_b_play == 1) { deck_b_pos = vaudio.get_stream_pos(deck_b_track); }
 
     # Keyboard Controls
     if (vglib.key_pressed(vglib.SPACE)) { deck_b_bpm = deck_a_bpm; }
@@ -415,8 +408,8 @@ while (vglib.running()) {
         vglib.clear(COLOR_BG);
 
         # TOP HEADER BAR
-        vglib.text_ex(vcr_font, "DECK A: OSAMASON - 130BPM", 150, 26, 14, COLOR_DECK_A);
-        vglib.text_ex(vcr_font, "DECK B: CIGERLERIM - 128BPM", 950, 26, 14, COLOR_DECK_B);
+        vglib.text_ex(vcr_font, "DECK A: NEVER FADE AWAY - 130BPM", 150, 26, 14, COLOR_DECK_A);
+        vglib.text_ex(vcr_font, "DECK B: DEPRESSION - 128BPM", 950, 26, 14, COLOR_DECK_B);
 
         btn_a_col = (deck_a_play == 1) ? COLOR_DECK_A : vglib.rgba(35, 42, 54, 255);
         vglib.rect(50, 20, 90, 32, btn_a_col);

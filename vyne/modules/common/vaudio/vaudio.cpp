@@ -581,6 +581,19 @@ namespace VAudioNative {
 
         return Value(vyne_array);
     }
+
+    Value native_get_stream_pos(std::vector<Value>& args) {
+        if (args.empty()) return Value(0.0);
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            float time_played = GetMusicTimePlayed(handle->music);
+            float total_time = GetMusicTimeLength(handle->music);
+            if (total_time > 0.0f) {
+                return Value((double)(time_played / total_time));
+            }
+        }
+        return Value(0.0);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -621,7 +634,8 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     vaudio[pool.intern("get_lufs")]          = Value(VAudioNative::native_get_lufs);
     vaudio[pool.intern("attach_bpm")]        = Value(VAudioNative::native_attach_bpm_detector);
     vaudio[pool.intern("get_bpm")]           = Value(VAudioNative::native_get_bpm);
-    vaudio[pool.intern("get_waveform")] = Value(VAudioNative::native_get_waveform);
+    vaudio[pool.intern("get_waveform")]      = Value(VAudioNative::native_get_waveform);
+    vaudio[pool.intern("get_stream_pos")]    = Value(VAudioNative::native_get_stream_pos);
 
     // Reverb
     vaudio[pool.intern("attach_reverb")]     = Value(VAudioNative::native_attach_reverb);
