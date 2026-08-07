@@ -510,8 +510,8 @@ while (vglib.running()) {
         vglib.clear(COLOR_BG);
 
         # TOP HEADER BAR
-        header_a_str = "DECK A: NEVER FADE AWAY - " + string(vmath.round(deck_a_bpm)) + "BPM";
-        header_b_str = "DECK B: DEPRESSION - " + string(vmath.round(deck_b_bpm)) + "BPM";
+        header_a_str = "DECK A: VANISHED - " + string(vmath.round(deck_a_bpm)) + "BPM";
+        header_b_str = "DECK B: CRIMEWAVE - " + string(vmath.round(deck_b_bpm)) + "BPM";
         vglib.text_ex(vcr_font, header_a_str, 150, 26, 14, COLOR_DECK_A);
         vglib.text_ex(vcr_font, header_b_str, 950, 26, 14, COLOR_DECK_B);
 
