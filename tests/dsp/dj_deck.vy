@@ -8,8 +8,6 @@ use "configs/config.vy";
 vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.1", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 
-canvas = vglib.load_render_texture(1400, 900);
-
 scale    :: Float64 = 1.0;
 offset_x :: Float64 = 0.0;
 offset_y :: Float64 = 0.0;
