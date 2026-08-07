@@ -112,12 +112,12 @@ brake_b_speed   :: Float64 = 1.0;
 loop_a_active :: Int64   = 0;      # 0 = OFF, 1 = ON
 loop_a_beats  :: Float64 = 4.0;    # Default 4 beats
 loop_a_start  :: Float64 = 0.0;
-nudge_a       :: Float64 = 0.0;    # Micro pitch bend modifier
+nudge_a       :: Float64 = 0.0;    # Dynamic pitch bend modifier
 
 loop_b_active :: Int64   = 0;      # 0 = OFF, 1 = ON
 loop_b_beats  :: Float64 = 4.0;    # Default 4 beats
 loop_b_start  :: Float64 = 0.0;
-nudge_b       :: Float64 = 0.0;    # Micro pitch bend modifier
+nudge_b       :: Float64 = 0.0;    # Dynamic pitch bend modifier
 
 # --- COLOR PALETTE DEFINITIONS ---
 COLOR_BG       = vglib.rgba(10, 11, 15, 255);
@@ -251,6 +251,35 @@ while (vglib.running()) {
     if (vglib.key_down(vglib.LEFT))  { crossfader_pos = vmath.clamp(crossfader_pos - 0.01, 0.0, 1.0); }
     if (vglib.key_down(vglib.RIGHT)) { crossfader_pos = vmath.clamp(crossfader_pos + 0.01, 0.0, 1.0); }
 
+    # Reset pitch nudge offset per frame for hold mode
+    nudge_a = 0.0;
+    nudge_b = 0.0;
+
+    # Keyboard Pitch Nudge Holding (A/S for Deck A, K/L for Deck B)
+    if (vglib.key_down(vglib.A)) { 
+        nudge_hold_time_a = nudge_hold_time_a + 0.016;
+        nudge_a = -vmath.clamp(0.02 + (nudge_hold_time_a * 0.05), 0.02, 0.08); 
+    } else {
+        nudge_hold_time_a = 0.0;
+    }
+    if (vglib.key_down(vglib.S)) { nudge_a =  0.04; }
+    if (vglib.key_down(vglib.K)) { nudge_b = -0.04; }
+    if (vglib.key_down(vglib.L)) { nudge_b =  0.04; }
+
+    # On-screen Button Mouse-Hold Detection
+    if (mouse_click) {
+        # Deck A Nudge (-) and (+) held with mouse
+        if (m[1] >= 780 && m[1] <= 815) {
+            if (m[0] >= 30  && m[0] <= 90)  { nudge_a = -0.04; }
+            if (m[0] >= 95  && m[0] <= 155) { nudge_a =  0.04; }
+        }
+        # Deck B Nudge (-) and (+) held with mouse
+        if (m[1] >= 780 && m[1] <= 815) {
+            if (m[0] >= 1215 && m[0] <= 1275) { nudge_b = -0.04; }
+            if (m[0] >= 1280 && m[0] <= 1340) { nudge_b =  0.04; }
+        }
+    }
+
     # --- MOUSE INTERACTION DETECTIONS ---
     if (mouse_click && prev_mouse_state == 0) {
         if (m[0] >= 50 && m[0] <= 140 && m[1] >= 20 && m[1] <= 52) {
@@ -326,7 +355,7 @@ while (vglib.running()) {
             }
         };
 
-        # --- DECK A AUTO-LOOP & NUDGE HITBOXES (BOTTOM LEFT) ---
+        # --- DECK A AUTO-LOOP HITBOXES (BOTTOM LEFT) ---
         if (m[1] >= 745 && m[1] <= 775) {
             if (m[0] >= 30  && m[0] <= 80)  { loop_a_beats = 1.0; }
             if (m[0] >= 85  && m[0] <= 135) { loop_a_beats = 2.0; }
@@ -339,12 +368,8 @@ while (vglib.running()) {
                 if (loop_a_active == 1) { loop_a_start = deck_a_pos * 180.0; }
             }
         }
-        if (m[1] >= 780 && m[1] <= 815) {
-            if (m[0] >= 30  && m[0] <= 90)  { nudge_a = -0.05; }
-            if (m[0] >= 95  && m[0] <= 155) { nudge_a =  0.05; }
-        }
 
-        # --- DECK B AUTO-LOOP & NUDGE HITBOXES (BOTTOM RIGHT) ---
+        # --- DECK B AUTO-LOOP HITBOXES (BOTTOM RIGHT) ---
         if (m[1] >= 745 && m[1] <= 775) {
             if (m[0] >= 1000 && m[0] <= 1050) { loop_b_beats = 1.0; }
             if (m[0] >= 1055 && m[0] <= 1105) { loop_b_beats = 2.0; }
@@ -356,10 +381,6 @@ while (vglib.running()) {
                 loop_b_active = (loop_b_active == 1) ? 0 : 1;
                 if (loop_b_active == 1) { loop_b_start = deck_b_pos * 180.0; }
             }
-        }
-        if (m[1] >= 780 && m[1] <= 815) {
-            if (m[0] >= 1215 && m[0] <= 1275) { nudge_b = -0.05; }
-            if (m[0] >= 1280 && m[0] <= 1340) { nudge_b =  0.05; }
         }
     }
 
@@ -435,10 +456,6 @@ while (vglib.running()) {
             vaudio.seek_stream(deck_b_track, loop_b_start);
         }
     }
-
-    # Decay pitch nudge micro-adjustments back to 0
-    nudge_a = nudge_a * 0.85;
-    nudge_b = nudge_b * 0.85;
 
     # --- SYNCHRONIZED HITBOX & BOUNDARY DETECTIONS ---
     is_gain_a = (m[0] >= 230 && m[0] <= 380 && m[1] >= 525 && m[1] <= 555);
@@ -883,22 +900,22 @@ while (vglib.running()) {
         vglib.rect(310, 745, 60, 28, btn_loop_a);
         vglib.text_ex(vcr_font, (loop_a_active == 1 ? "LOOP ON" : "LOOP"), 316, 753, 8, (loop_a_active == 1 ? vglib.BLACK : vglib.WHITE));
 
-        # --- DECK B DYNAMIC NUDGE INDICATORS ---
-        btn_nudge_neg_b = (nudge_b < -0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
-        btn_nudge_pos_b = (nudge_b >  0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        # --- DECK A DYNAMIC NUDGE INDICATORS ---
+        btn_nudge_neg_a = (nudge_a < -0.005) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+        btn_nudge_pos_a = (nudge_a >  0.005) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
 
         # NUDGE - Button
-        vglib.rect(1215, 780, 60, 35, btn_nudge_neg_b);
-        vglib.text_ex(vcr_font, "NUDGE-", 1223, 792, 8, (nudge_b < -0.005 ? vglib.BLACK : COLOR_DECK_B));
+        vglib.rect(30, 780, 60, 35, btn_nudge_neg_a);
+        vglib.text_ex(vcr_font, "NUDGE-", 38, 792, 8, (nudge_a < -0.005 ? vglib.BLACK : COLOR_DECK_A));
 
         # NUDGE + Button
-        vglib.rect(1280, 780, 60, 35, btn_nudge_pos_b);
-        vglib.text_ex(vcr_font, "NUDGE+", 1288, 792, 8, (nudge_b > 0.005 ? vglib.BLACK : COLOR_DECK_B));
+        vglib.rect(95, 780, 60, 35, btn_nudge_pos_a);
+        vglib.text_ex(vcr_font, "NUDGE+", 103, 792, 8, (nudge_a > 0.005 ? vglib.BLACK : COLOR_DECK_A));
 
-        # Optional Active Bend % Readout Indicator above buttons
-        if (vmath.abs(nudge_b) > 0.001) {
-            bend_pct_b = string(vmath.round(nudge_b * 100.0)) + "%";
-            vglib.text_ex(vcr_font, "BEND: " + bend_pct_b, 1215, 768, 8, COLOR_AMBER);
+        # Active Bend % Readout Indicator
+        if (vmath.abs(nudge_a) > 0.001) {
+            bend_pct_a = string(vmath.round(nudge_a * 100.0)) + "%";
+            vglib.text_ex(vcr_font, "BEND: " + bend_pct_a, 30, 768, 8, COLOR_AMBER);
         }
 
         sec_a_tot  = int64(deck_a_pos * 180.0);
@@ -955,11 +972,23 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "ELAPSED: " + time_b_str, 1010, 786, 9, COLOR_DECK_B);
         vglib.text_ex(vcr_font, "REMAIN : " + rem_b_str, 1010, 800, 9, vglib.rgba(140, 150, 165, 255));
 
-        vglib.rect(1215, 780, 60, 35, vglib.rgba(28, 34, 46, 255));
-        vglib.text_ex(vcr_font, "NUDGE-", 1223, 792, 8, COLOR_DECK_B);
+        # --- DECK B DYNAMIC NUDGE INDICATORS ---
+        btn_nudge_neg_b = (nudge_b < -0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_nudge_pos_b = (nudge_b >  0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
 
-        vglib.rect(1280, 780, 60, 35, vglib.rgba(28, 34, 46, 255));
-        vglib.text_ex(vcr_font, "NUDGE+", 1288, 792, 8, COLOR_DECK_B);
+        # NUDGE - Button
+        vglib.rect(1215, 780, 60, 35, btn_nudge_neg_b);
+        vglib.text_ex(vcr_font, "NUDGE-", 1223, 792, 8, (nudge_b < -0.005 ? vglib.BLACK : COLOR_DECK_B));
+
+        # NUDGE + Button
+        vglib.rect(1280, 780, 60, 35, btn_nudge_pos_b);
+        vglib.text_ex(vcr_font, "NUDGE+", 1288, 792, 8, (nudge_b > 0.005 ? vglib.BLACK : COLOR_DECK_B));
+
+        # Active Bend % Readout Indicator
+        if (vmath.abs(nudge_b) > 0.001) {
+            bend_pct_b = string(vmath.round(nudge_b * 100.0)) + "%";
+            vglib.text_ex(vcr_font, "BEND: " + bend_pct_b, 1215, 768, 8, COLOR_AMBER);
+        }
 
         # CROSSFADER
         vglib.rect(500, 770, 400, 20, vglib.rgba(20, 24, 32, 255));
