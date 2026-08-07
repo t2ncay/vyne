@@ -22,6 +22,7 @@ group :: configs Audios {
     vanished          :: String = "tests/assets/vanished.mp3";
     crimewave         :: String = "tests/assets/crimewave.mp3";
     when_the_sun_hits :: String = "tests/assets/when_the_sun_hits.mp3";
+    back2basics       :: String = "tests/assets/back2basics.mp3";
 };
 
 deploy configs;
