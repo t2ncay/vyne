@@ -18,7 +18,7 @@ vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.vanished);
-deck_b_track = vaudio.play_stream(configs.Audios.crimewave);
+deck_b_track = vaudio.play_stream(configs.Audios.when_the_sun_hits);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
 wave_peaks_b :: Array = vaudio.get_waveform(deck_b_track, 150);
@@ -95,14 +95,16 @@ deck_b_eq_low  :: Float64 = 0.0;
 deck_b_filter  :: Float64 = 0.0;
 deck_b_vol     :: Float64 = 0.85;
 
-# --- PERFORMANCE ROLL & VINYL BRAKE STATE ---
+# --- PERFORMANCE ROLL & VINYL BRAKE STATE (WITH SLIP TIMERS) ---
 roll_a_active   :: Int64   = 0;     # 0=OFF, 1=1/4, 2=1/8, 3=1/16
 roll_a_start_s  :: Float64 = 0.0;
+roll_a_slip_s   :: Float64 = 0.0;   # Phantom timeline position for Slip Mode
 brake_a_active  :: Int64   = 0;
 brake_a_speed   :: Float64 = 1.0;
 
 roll_b_active   :: Int64   = 0;     # 0=OFF, 1=1/4, 2=1/8, 3=1/16
 roll_b_start_s  :: Float64 = 0.0;
+roll_b_slip_s   :: Float64 = 0.0;   # Phantom timeline position for Slip Mode
 brake_b_active  :: Int64   = 0;
 brake_b_speed   :: Float64 = 1.0;
 
@@ -273,6 +275,7 @@ while (vglib.running()) {
         through col :: 0..3 -> loop {
             px :: Int64 = 30 + (col * 140); py :: Int64 = 580;
             if (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55) {
+                if (roll_a_active == 0) { roll_a_slip_s = deck_a_pos * 180.0; }
                 if (col == 0) { roll_a_active = 1; roll_a_start_s = deck_a_pos * 180.0; }
                 if (col == 1) { roll_a_active = 2; roll_a_start_s = deck_a_pos * 180.0; }
                 if (col == 2) { roll_a_active = 3; roll_a_start_s = deck_a_pos * 180.0; }
@@ -294,6 +297,7 @@ while (vglib.running()) {
         through col :: 0..3 -> loop {
             px :: Int64 = 820 + (col * 140); py :: Int64 = 580;
             if (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55) {
+                if (roll_b_active == 0) { roll_b_slip_s = deck_b_pos * 180.0; }
                 if (col == 0) { roll_b_active = 1; roll_b_start_s = deck_b_pos * 180.0; }
                 if (col == 1) { roll_b_active = 2; roll_b_start_s = deck_b_pos * 180.0; }
                 if (col == 2) { roll_b_active = 3; roll_b_start_s = deck_b_pos * 180.0; }
@@ -312,13 +316,21 @@ while (vglib.running()) {
         };
     }
 
+    # --- MOUSE RELEASE HANDLER (RESTORES SLIP TIMELINE) ---
     if (!mouse_click) {
-        roll_a_active = 0;
-        roll_b_active = 0;
+        if (roll_a_active > 0) {
+            vaudio.seek_stream(deck_a_track, roll_a_slip_s);
+            roll_a_active = 0;
+        }
+        if (roll_b_active > 0) {
+            vaudio.seek_stream(deck_b_track, roll_b_slip_s);
+            roll_b_active = 0;
+        }
     }
 
     # --- BEAT ROLL & VINYL BRAKE REAL-TIME EVALUATION ---
     if (roll_a_active > 0 && deck_a_play == 1) {
+        roll_a_slip_s = roll_a_slip_s + 0.016; # Advance background phantom position
         div :: Float64 = (roll_a_active == 1) ? 4.0 : ((roll_a_active == 2) ? 8.0 : 16.0);
         step_s :: Float64 = (60.0 / deck_a_bpm) * (4.0 / div);
         curr_s :: Float64 = deck_a_pos * 180.0;
@@ -328,6 +340,7 @@ while (vglib.running()) {
     }
 
     if (roll_b_active > 0 && deck_b_play == 1) {
+        roll_b_slip_s = roll_b_slip_s + 0.016; # Advance background phantom position
         div :: Float64 = (roll_b_active == 1) ? 4.0 : ((roll_b_active == 2) ? 8.0 : 16.0);
         step_s :: Float64 = (60.0 / deck_b_bpm) * (4.0 / div);
         curr_s :: Float64 = deck_b_pos * 180.0;
@@ -446,7 +459,6 @@ while (vglib.running()) {
 
     # --- DYNAMIC EQ & BIPOLAR FILTER SWITCHING ---
     peaks :: Array = vaudio.get_eq_peaks();
-    #out(vcolors.green("EQ Peaks: " + string(peaks)));
     if (peaks.length() >= 3) {
         track_low_freq = track_low_freq + (peaks[0] - track_low_freq) * 0.15;
         track_mid_freq = track_mid_freq + (peaks[1] - track_mid_freq) * 0.15;

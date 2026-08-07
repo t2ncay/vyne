@@ -21,6 +21,7 @@ group :: configs Audios {
     salam_verdim      :: String = "tests/assets/salam verdim.mp3";
     vanished          :: String = "tests/assets/vanished.mp3";
     crimewave         :: String = "tests/assets/crimewave.mp3";
+    when_the_sun_hits :: String = "tests/assets/when_the_sun_hits.mp3";
 };
 
 deploy configs;
