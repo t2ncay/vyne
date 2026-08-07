@@ -19,6 +19,8 @@ group :: configs Audios {
     kendall           :: String = "tests/assets/kendall.mp3";
     night_city        :: String = "tests/assets/night city.mp3";
     salam_verdim      :: String = "tests/assets/salam verdim.mp3";
+    vanished          :: String = "tests/assets/vanished.mp3";
+    crimewave         :: String = "tests/assets/crimewave.mp3";
 };
 
 deploy configs;
