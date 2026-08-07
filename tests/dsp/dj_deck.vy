@@ -446,7 +446,7 @@ while (vglib.running()) {
 
     # --- DYNAMIC EQ & BIPOLAR FILTER SWITCHING ---
     peaks :: Array = vaudio.get_eq_peaks();
-    out(vcolors.green("EQ Peaks: " + string(peaks)));
+    #out(vcolors.green("EQ Peaks: " + string(peaks)));
     if (peaks.length() >= 3) {
         track_low_freq = track_low_freq + (peaks[0] - track_low_freq) * 0.15;
         track_mid_freq = track_mid_freq + (peaks[1] - track_mid_freq) * 0.15;
@@ -702,6 +702,54 @@ while (vglib.running()) {
         if (active_fx_unit_b == 3) { fx_norm_b = fx_rev_mix_b; fx_str_b = string(vmath.round(fx_rev_mix_b * 100.0)) + "%"; fx_col_b = btn_rev_b; }
 
         draw_dj_knob("PARAM B", 750, 640, fx_norm_b, fx_str_b, COLOR_DECK_B, h_fx_knob_b, active_knob == 13);
+
+        # --- CENTER MINI MONITORING PANEL (RMS dB + GAIN REDUCTION) ---
+        mon_x :: Float64 = 648.0;
+        mon_y :: Float64 = 505.0;
+        mon_w :: Float64 = 104.0;
+        mon_h :: Float64 = 97.0;
+
+        # Fetch Real-Time Data from C++ Audio Engine
+        raw_rms :: Float64 = vaudio.get_rms();  # 0.0 to 1.0 (Mapped -60dB to 0dB)
+        raw_gr  :: Float64 = vaudio.get_gr();   # 0.0 to 24.0+ dB Reduction
+
+        # Convert normalized RMS to true dB readout
+        rms_db :: Float64 = (raw_rms * 60.0) - 60.0;
+        rms_str = (rms_db <= -59.0) ? "-INF" : (string(vmath.round(rms_db)) + "dB");
+
+        # --- 1. MINI RMS METER ROW ---
+        vglib.text_ex(vcr_font, "RMS", mon_x + 6, mon_y + 8, 8, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, rms_str, mon_x + mon_w - 36, mon_y + 8, 8, COLOR_DECK_A);
+
+        vglib.rect(mon_x + 6, mon_y + 20, 92, 10, vglib.rgba(24, 28, 36, 255));
+        
+        rms_bar_w :: Float64 = vmath.clamp(raw_rms * 92.0, 0.0, 92.0);
+        rms_col = (raw_rms > 0.85) ? COLOR_AMBER : ((raw_rms >= 0.95) ? vglib.rgba(255, 50, 50, 255) : COLOR_DECK_A);
+        
+        if (rms_bar_w > 1.0) {
+            vglib.rect(mon_x + 6, mon_y + 20, rms_bar_w, 10, rms_col);
+        }
+
+        # --- 2. MINI GAIN REDUCTION (GR) METER ROW ---
+        gr_db_str = (raw_gr < 0.1) ? "0.0dB" : ("-" + string(vmath.round(raw_gr * 10.0) / 10.0) + "dB");
+        gr_col = (raw_gr > 0.5) ? vglib.rgba(255, 60, 60, 255) : vglib.rgba(100, 110, 130, 255);
+
+        vglib.text_ex(vcr_font, "GR", mon_x + 6, mon_y + 38, 8, vglib.rgba(160, 170, 185, 255));
+        vglib.text_ex(vcr_font, gr_db_str, mon_x + mon_w - 42, mon_y + 38, 8, gr_col);
+
+        vglib.rect(mon_x + 6, mon_y + 50, 92, 10, vglib.rgba(24, 28, 36, 255));
+
+        # Gain Reduction fills rightwards in glowing red/amber when compressor clamps down
+        gr_bar_w :: Float64 = vmath.clamp((raw_gr / 18.0) * 92.0, 0.0, 92.0);
+        if (gr_bar_w > 1.0) {
+            vglib.rect(mon_x + 6, mon_y + 50, gr_bar_w, 10, vglib.rgba(255, 60, 60, 255));
+        }
+
+        # Status Footer Indicator
+        comp_active = (active_fx_unit_a == 1 || active_fx_unit_b == 1);
+        status_txt  = comp_active ? "COMP ACTIVE" : "BYPASSED";
+        status_col  = comp_active ? COLOR_AMBER : vglib.rgba(80, 90, 105, 255);
+        vglib.text_ex(vcr_font, status_txt, mon_x + 16, mon_y + 74, 8, status_col);
 
         # --- DECK A DUAL PERFORMANCE PAD BANK ---
         # Top Row: Performance Roll / Brake
