@@ -18,7 +18,7 @@ vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
 deck_a_track = vaudio.play_stream(configs.Audios.vanished);
-deck_b_track = vaudio.play_stream(configs.Audios.when_the_sun_hits);
+deck_b_track = vaudio.play_stream(configs.Audios.trap_jump);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
 wave_peaks_b :: Array = vaudio.get_waveform(deck_b_track, 150);
@@ -255,16 +255,34 @@ while (vglib.running()) {
     nudge_a = 0.0;
     nudge_b = 0.0;
 
-    # Keyboard Pitch Nudge Holding (A/S for Deck A, K/L for Deck B)
-    if (vglib.key_down(vglib.A)) { 
+    # --- PITCH NUDGE INPUT BOLEANS (KEYBOARD & MOUSE) ---
+    is_nudge_y = mouse_click && (m[1] >= 780 && m[1] <= 815);
+
+    nudge_a_neg_down = vglib.key_down(vglib.A) || (is_nudge_y && m[0] >= 30   && m[0] <= 90);
+    nudge_a_pos_down = vglib.key_down(vglib.S) || (is_nudge_y && m[0] >= 95   && m[0] <= 155);
+
+    nudge_b_neg_down = vglib.key_down(vglib.K) || (is_nudge_y && m[0] >= 1215 && m[0] <= 1275);
+    nudge_b_pos_down = vglib.key_down(vglib.L) || (is_nudge_y && m[0] >= 1280 && m[0] <= 1340);
+
+    # --- DECK A DYNAMIC RAMPING ---
+    if (nudge_a_neg_down || nudge_a_pos_down) {
         nudge_hold_time_a = nudge_hold_time_a + 0.016;
-        nudge_a = -vmath.clamp(0.02 + (nudge_hold_time_a * 0.05), 0.02, 0.08); 
+        bend_a = vmath.clamp(0.02 + (nudge_hold_time_a * 0.05), 0.02, 0.08);
+        nudge_a = nudge_a_neg_down ? -bend_a : bend_a;
     } else {
         nudge_hold_time_a = 0.0;
+        nudge_a = 0.0;
     }
-    if (vglib.key_down(vglib.S)) { nudge_a =  0.04; }
-    if (vglib.key_down(vglib.K)) { nudge_b = -0.04; }
-    if (vglib.key_down(vglib.L)) { nudge_b =  0.04; }
+
+    # --- DECK B DYNAMIC RAMPING ---
+    if (nudge_b_neg_down || nudge_b_pos_down) {
+        nudge_hold_time_b = nudge_hold_time_b + 0.016;
+        bend_b = vmath.clamp(0.02 + (nudge_hold_time_b * 0.05), 0.02, 0.08);
+        nudge_b = nudge_b_neg_down ? -bend_b : bend_b;
+    } else {
+        nudge_hold_time_b = 0.0;
+        nudge_b = 0.0;
+    }
 
     # On-screen Button Mouse-Hold Detection
     if (mouse_click) {
