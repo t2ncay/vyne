@@ -90,61 +90,58 @@ struct EqualizerState {
     }
 };
 
-inline Biquad g_eq_bands[7];
-inline bool g_eq_enabled = true;
-
-inline float g_bin_peaks[64] = {0.0f};
-inline float g_bin_weights[64];
-inline bool g_spectrum_initialized = false;
-
-inline void InitSpectrumLookup() {
-    if (g_spectrum_initialized) return;
-    for (int bin = 0; bin < 64; bin++) {
-        g_bin_weights[bin] = 1.0f + (1.0f - static_cast<float>(bin) / 63.0f) * 0.5f;
-    }
-    g_spectrum_initialized = true;
-}
+inline Biquad g_eq_bands[7];          // Main 7-Band EQ Biquad Chain
+inline Biquad g_bp_tracker[7];        // 7 Bandpass Filters for Peak Tracking
+inline std::atomic<float> g_peak_envs[7]; // 7 Real-time Energy Envelopes
+inline bool g_eq_enabled = true;      //[cite: 34]
 
 inline void EQProcessCallback(void *buffer, unsigned int frames) {
-    InitSpectrumLookup();
+    float *samples = (float *)buffer;  //[cite: 34]
 
-    float *samples = (float *)buffer;
+    // Initialize 7 ISO Center-Frequency Bandpass Trackers
+    static bool filters_inited = false;
+    if (!filters_inited) {
+        float iso_freqs[7] = {60.0f, 150.0f, 400.0f, 1000.0f, 2500.0f, 6000.0f, 14000.0f};
+        for (int b = 0; b < 7; b++) {
+            g_bp_tracker[b].setPeaking(iso_freqs[b], 1.2f, 6.0f);
+        }
+        filters_inited = true;
+    }
 
-    const float attack = 0.35f;
-    const float release = 0.08f;
+    const float attack = 0.25f;
+    const float release = 0.05f;
+    static float local_envs[7] = {0.0f};
 
     for (unsigned int i = 0; i < frames; i++) {
-        float left  = samples[i * 2];
-        float right = samples[i * 2 + 1];
+        float left  = samples[i * 2];      //[cite: 34]
+        float right = samples[i * 2 + 1];  //[cite: 34]
 
-        UpdateLUFSMeasurement(left, right);
+        UpdateLUFSMeasurement(left, right); //[cite: 34]
 
-        if (g_eq_enabled) {
+        // --- PROCESS ALL 7 BIQUAD BANDS IN SERIES ---
+        if (g_eq_enabled) { //[cite: 34]
             for (int b = 0; b < 7; b++) {
-                left = g_eq_bands[b].process(left);
-            }
-            for (int b = 0; b < 7; b++) {
-                right = g_eq_bands[b].process(right);
+                left  = g_eq_bands[b].process(left);   //[cite: 34]
+                right = g_eq_bands[b].process(right);  //[cite: 34]
             }
         }
 
-        float mono = std::abs(left + right) * 0.5f;
-        for (int bin = 0; bin < 64; bin++) {
-            float current_mag = mono * g_bin_weights[bin];
+        float mono = (left + right) * 0.5f;
 
-            if (current_mag > g_bin_peaks[bin]) {
-                g_bin_peaks[bin] += (current_mag - g_bin_peaks[bin]) * attack;
-            } else {
-                g_bin_peaks[bin] -= (g_bin_peaks[bin] - current_mag) * release;
-            }
+        // --- TRACK ENERGIES ACROSS ALL 7 BANDS ---
+        for (int b = 0; b < 7; b++) {
+            float band_sig = std::abs(g_bp_tracker[b].process(mono));
+            local_envs[b] += (band_sig - local_envs[b]) * (band_sig > local_envs[b] ? attack : release);
         }
 
-        samples[i * 2]     = std::clamp(left, -1.0f, 1.0f);
-        samples[i * 2 + 1] = std::clamp(right, -1.0f, 1.0f);
+        samples[i * 2]     = std::clamp(left, -1.0f, 1.0f);   //[cite: 34]
+        samples[i * 2 + 1] = std::clamp(right, -1.0f, 1.0f);  //[cite: 34]
     }
 
-    for (int bin = 0; bin < 64; bin++) {
-        g_fft_bins[bin].store(std::clamp(g_bin_peaks[bin], 0.0f, 1.0f), std::memory_order_relaxed);
+    // Store all 7 normalized energy levels atomically
+    for (int b = 0; b < 7; b++) {
+        g_peak_envs[b].store(local_envs[b], std::memory_order_relaxed);
     }
 }
+
 } // namespace VAudioDSP

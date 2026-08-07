@@ -608,45 +608,28 @@ namespace VAudioNative {
     }
 
     Value native_get_eq_peaks(std::vector<Value>& args) {
-        int max_low_bin = 3;
-        float max_low_val = -1.0f;
-        for (int b = 0; b <= 9; ++b) {
-            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
-            if (val > max_low_val) {
-                max_low_val = val;
-                max_low_bin = b;
-            }
+        float envs[7];
+        for (int b = 0; b < 7; b++) {
+            envs[b] = VAudioDSP::g_peak_envs[b].load(std::memory_order_relaxed);
         }
 
-        int max_mid_bin = 20;
-        float max_mid_val = -1.0f;
-        for (int b = 10; b <= 35; ++b) {
-            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
-            if (val > max_mid_val) {
-                max_mid_val = val;
-                max_mid_bin = b;
-            }
-        }
+        float freqs[7] = {60.0f, 150.0f, 400.0f, 1000.0f, 2500.0f, 6000.0f, 14000.0f};
 
-        int max_hi_bin = 48;
-        float max_hi_val = -1.0f;
-        for (int b = 36; b <= 63; ++b) {
-            float val = VAudioDSP::g_fft_bins[b].load(std::memory_order_relaxed);
-            if (val > max_hi_val) {
-                max_hi_val = val;
-                max_hi_bin = b;
-            }
-        }
+        float low_energy = envs[0] + envs[1] + 1e-6f;
+        float low_hz = (envs[0] * freqs[0] + envs[1] * freqs[1]) / low_energy;
 
-        auto bin_to_freq = [](int bin) -> double {
-            return 20.0 * std::pow(1000.0, static_cast<double>(bin) / 63.0);
-        };
+        float mid_energy = envs[2] + envs[3] + envs[4] + 1e-6f;
+        float mid_hz = (envs[2] * freqs[2] + envs[3] * freqs[3] + envs[4] * freqs[4]) / mid_energy;
+
+        float hi_energy = envs[5] + envs[6] + 1e-6f;
+        float hi_hz = (envs[5] * freqs[5] + envs[6] * freqs[6]) / hi_energy;
 
         std::vector<Value> res;
         res.reserve(3);
-        res.emplace_back(bin_to_freq(max_low_bin));
-        res.emplace_back(bin_to_freq(max_mid_bin));
-        res.emplace_back(bin_to_freq(max_hi_bin));
+        res.emplace_back((double)low_hz);
+        res.emplace_back((double)mid_hz);
+        res.emplace_back((double)hi_hz);
+        
         return Value(res);
     }
 }

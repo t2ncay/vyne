@@ -4,6 +4,7 @@ module vaudio;
 module vmath;
 
 use "configs/config.vy";
+use lib "vcolors.vy";
 
 vglib.init(1400, 900, 60, "VYNE PRO DJ CONSOLE v2.1", 0);
 vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
@@ -16,8 +17,8 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.never_fade_away);
-deck_b_track = vaudio.play_stream(configs.Audios.trap_jump);
+deck_a_track = vaudio.play_stream(configs.Audios.vanished);
+deck_b_track = vaudio.play_stream(configs.Audios.crimewave);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
 wave_peaks_b :: Array = vaudio.get_waveform(deck_b_track, 150);
@@ -445,6 +446,7 @@ while (vglib.running()) {
 
     # --- DYNAMIC EQ & BIPOLAR FILTER SWITCHING ---
     peaks :: Array = vaudio.get_eq_peaks();
+    out(vcolors.green("EQ Peaks: " + string(peaks)));
     if (peaks.length() >= 3) {
         track_low_freq = track_low_freq + (peaks[0] - track_low_freq) * 0.15;
         track_mid_freq = track_mid_freq + (peaks[1] - track_mid_freq) * 0.15;
@@ -581,6 +583,32 @@ while (vglib.running()) {
         scope_phase_b = scope_phase_b + (dt * wave_speed * 0.96);
 
         vglib.draw_phase_scope(50.0, 1350.0, 320.0, scope_phase_a, scope_phase_b, smooth_lufs_intensity, deck_a_play == 1, deck_b_play == 1);
+        
+        # --- SCROLLING BACKGROUND GRAY WAVEFORM (130 BARS - ZOOMED SLICE) ---
+        bg_wave_col = vglib.rgba(160, 170, 185, 30);
+        num_scope_bars :: Int64 = 130;
+        bar_w :: Float64 = 10.0;        # 1300px width / 130 bars = 10px per bar
+        window_size :: Float64 = 15.0;  # Zooms into a slice of 15 peaks across the scope
+
+        scroll_speed :: Float64 = (deck_a_play == 1 || deck_b_play == 1) ? 1.5 : 0.2;
+        scroll_offset :: Float64 = run_time * scroll_speed;
+
+        active_peaks = (crossfader_pos < 0.5) ? wave_peaks_a : wave_peaks_b;
+        total_pks = active_peaks.length();
+
+        if (total_pks > 0) {
+            through b :: 0..129 -> loop {
+                sample_float :: Float64 = scroll_offset + ((b / 130.0) * window_size);
+                sample_idx = int64(sample_float) % total_pks;
+                
+                pk_val = active_peaks[sample_idx];
+                
+                bar_x :: Float64 = 50.0 + (b * bar_w);
+                bar_h :: Float64 = pk_val * 48.0;
+
+                vglib.rect(bar_x + 1.0, 320.0 - bar_h, bar_w - 2.0, bar_h * 2.0, bg_wave_col);
+            };
+        }
 
         # DUAL CHANNEL EQ RACK
         pa_norm = (deck_a_pitch + 12.0) / 24.0; pa_str = (deck_a_pitch >= 0.0 ? "+" : "") + string(vmath.round(deck_a_pitch * 10.0) / 10.0) + "st";
