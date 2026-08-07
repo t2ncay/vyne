@@ -108,6 +108,17 @@ roll_b_slip_s   :: Float64 = 0.0;   # Phantom timeline position for Slip Mode
 brake_b_active  :: Int64   = 0;
 brake_b_speed   :: Float64 = 1.0;
 
+# --- AUTO-LOOP & PITCH NUDGE STATE ---
+loop_a_active :: Int64   = 0;      # 0 = OFF, 1 = ON
+loop_a_beats  :: Float64 = 4.0;    # Default 4 beats
+loop_a_start  :: Float64 = 0.0;
+nudge_a       :: Float64 = 0.0;    # Micro pitch bend modifier
+
+loop_b_active :: Int64   = 0;      # 0 = OFF, 1 = ON
+loop_b_beats  :: Float64 = 4.0;    # Default 4 beats
+loop_b_start  :: Float64 = 0.0;
+nudge_b       :: Float64 = 0.0;    # Micro pitch bend modifier
+
 # --- COLOR PALETTE DEFINITIONS ---
 COLOR_BG       = vglib.rgba(10, 11, 15, 255);
 COLOR_CARD     = vglib.rgba(18, 22, 30, 255);
@@ -314,6 +325,42 @@ while (vglib.running()) {
                 deck_b_play = 1;
             }
         };
+
+        # --- DECK A AUTO-LOOP & NUDGE HITBOXES (BOTTOM LEFT) ---
+        if (m[1] >= 745 && m[1] <= 775) {
+            if (m[0] >= 30  && m[0] <= 80)  { loop_a_beats = 1.0; }
+            if (m[0] >= 85  && m[0] <= 135) { loop_a_beats = 2.0; }
+            if (m[0] >= 140 && m[0] <= 190) { loop_a_beats = 4.0; }
+            if (m[0] >= 195 && m[0] <= 245) { loop_a_beats = 8.0; }
+            if (m[0] >= 250 && m[0] <= 300) { loop_a_beats = 16.0; }
+            
+            if (m[0] >= 310 && m[0] <= 370) {
+                loop_a_active = (loop_a_active == 1) ? 0 : 1;
+                if (loop_a_active == 1) { loop_a_start = deck_a_pos * 180.0; }
+            }
+        }
+        if (m[1] >= 780 && m[1] <= 815) {
+            if (m[0] >= 30  && m[0] <= 90)  { nudge_a = -0.05; }
+            if (m[0] >= 95  && m[0] <= 155) { nudge_a =  0.05; }
+        }
+
+        # --- DECK B AUTO-LOOP & NUDGE HITBOXES (BOTTOM RIGHT) ---
+        if (m[1] >= 745 && m[1] <= 775) {
+            if (m[0] >= 1000 && m[0] <= 1050) { loop_b_beats = 1.0; }
+            if (m[0] >= 1055 && m[0] <= 1105) { loop_b_beats = 2.0; }
+            if (m[0] >= 1110 && m[0] <= 1160) { loop_b_beats = 4.0; }
+            if (m[0] >= 1165 && m[0] <= 1215) { loop_b_beats = 8.0; }
+            if (m[0] >= 1220 && m[0] <= 1270) { loop_b_beats = 16.0; }
+            
+            if (m[0] >= 1280 && m[0] <= 1340) {
+                loop_b_active = (loop_b_active == 1) ? 0 : 1;
+                if (loop_b_active == 1) { loop_b_start = deck_b_pos * 180.0; }
+            }
+        }
+        if (m[1] >= 780 && m[1] <= 815) {
+            if (m[0] >= 1215 && m[0] <= 1275) { nudge_b = -0.05; }
+            if (m[0] >= 1280 && m[0] <= 1340) { nudge_b =  0.05; }
+        }
     }
 
     # --- MOUSE RELEASE HANDLER (RESTORES SLIP TIMELINE) ---
@@ -370,6 +417,28 @@ while (vglib.running()) {
             brake_b_speed = 1.0;
         }
     }
+
+    # Auto-Loop Evaluation for Deck A
+    if (loop_a_active == 1 && deck_a_play == 1) {
+        loop_dur_s :: Float64 = (60.0 / deck_a_bpm) * loop_a_beats;
+        curr_s_a   :: Float64 = deck_a_pos * 180.0;
+        if (curr_s_a - loop_a_start >= loop_dur_s || curr_s_a < loop_a_start) {
+            vaudio.seek_stream(deck_a_track, loop_a_start);
+        }
+    }
+
+    # Auto-Loop Evaluation for Deck B
+    if (loop_b_active == 1 && deck_b_play == 1) {
+        loop_dur_s :: Float64 = (60.0 / deck_b_bpm) * loop_b_beats;
+        curr_s_b   :: Float64 = deck_b_pos * 180.0;
+        if (curr_s_b - loop_b_start >= loop_dur_s || curr_s_b < loop_b_start) {
+            vaudio.seek_stream(deck_b_track, loop_b_start);
+        }
+    }
+
+    # Decay pitch nudge micro-adjustments back to 0
+    nudge_a = nudge_a * 0.85;
+    nudge_b = nudge_b * 0.85;
 
     # --- SYNCHRONIZED HITBOX & BOUNDARY DETECTIONS ---
     is_gain_a = (m[0] >= 230 && m[0] <= 380 && m[1] >= 525 && m[1] <= 555);
@@ -447,9 +516,9 @@ while (vglib.running()) {
 
     prev_mouse_state = mouse_click ? 1 : 0;
 
-    # Apply Pitch with Vinyl Brake Multiplier
-    vaudio.set_pitch(deck_a_track, vmath.pow(2.0, deck_a_pitch / 12.0) * brake_a_speed);
-    vaudio.set_pitch(deck_b_track, vmath.pow(2.0, deck_b_pitch / 12.0) * brake_b_speed);
+    # Apply Pitch with Vinyl Brake Multiplier and Micro Pitch Nudge
+    vaudio.set_pitch(deck_a_track, (vmath.pow(2.0, deck_a_pitch / 12.0) + nudge_a) * brake_a_speed);
+    vaudio.set_pitch(deck_b_track, (vmath.pow(2.0, deck_b_pitch / 12.0) + nudge_b) * brake_b_speed);
 
     # Gain-scaled crossfader volume
     gain_a = vmath.cos(crossfader_pos * 0.5 * 3.14159265);
@@ -721,28 +790,22 @@ while (vglib.running()) {
         mon_w :: Float64 = 104.0;
         mon_h :: Float64 = 97.0;
 
-        # Fetch Real-Time Data from C++ Audio Engine
-        raw_rms :: Float64 = vaudio.get_rms();  # 0.0 to 1.0 (Mapped -60dB to 0dB)
-        raw_gr  :: Float64 = vaudio.get_gr();   # 0.0 to 24.0+ dB Reduction
+        raw_rms :: Float64 = vaudio.get_rms();
+        raw_gr  :: Float64 = vaudio.get_gr();
 
-        # Convert normalized RMS to true dB readout
         rms_db :: Float64 = (raw_rms * 60.0) - 60.0;
         rms_str = (rms_db <= -59.0) ? "-INF" : (string(vmath.round(rms_db)) + "dB");
 
-        # --- 1. MINI RMS METER ROW ---
         vglib.text_ex(vcr_font, "RMS", mon_x + 6, mon_y + 8, 8, vglib.rgba(160, 170, 185, 255));
         vglib.text_ex(vcr_font, rms_str, mon_x + mon_w - 36, mon_y + 8, 8, COLOR_DECK_A);
 
         vglib.rect(mon_x + 6, mon_y + 20, 92, 10, vglib.rgba(24, 28, 36, 255));
-        
         rms_bar_w :: Float64 = vmath.clamp(raw_rms * 92.0, 0.0, 92.0);
         rms_col = (raw_rms > 0.85) ? COLOR_AMBER : ((raw_rms >= 0.95) ? vglib.rgba(255, 50, 50, 255) : COLOR_DECK_A);
-        
         if (rms_bar_w > 1.0) {
             vglib.rect(mon_x + 6, mon_y + 20, rms_bar_w, 10, rms_col);
         }
 
-        # --- 2. MINI GAIN REDUCTION (GR) METER ROW ---
         gr_db_str = (raw_gr < 0.1) ? "0.0dB" : ("-" + string(vmath.round(raw_gr * 10.0) / 10.0) + "dB");
         gr_col = (raw_gr > 0.5) ? vglib.rgba(255, 60, 60, 255) : vglib.rgba(100, 110, 130, 255);
 
@@ -750,21 +813,17 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, gr_db_str, mon_x + mon_w - 42, mon_y + 38, 8, gr_col);
 
         vglib.rect(mon_x + 6, mon_y + 50, 92, 10, vglib.rgba(24, 28, 36, 255));
-
-        # Gain Reduction fills rightwards in glowing red/amber when compressor clamps down
         gr_bar_w :: Float64 = vmath.clamp((raw_gr / 18.0) * 92.0, 0.0, 92.0);
         if (gr_bar_w > 1.0) {
             vglib.rect(mon_x + 6, mon_y + 50, gr_bar_w, 10, vglib.rgba(255, 60, 60, 255));
         }
 
-        # Status Footer Indicator
         comp_active = (active_fx_unit_a == 1 || active_fx_unit_b == 1);
         status_txt  = comp_active ? "COMP ACTIVE" : "BYPASSED";
         status_col  = comp_active ? COLOR_AMBER : vglib.rgba(80, 90, 105, 255);
         vglib.text_ex(vcr_font, status_txt, mon_x + 16, mon_y + 74, 8, status_col);
 
         # --- DECK A DUAL PERFORMANCE PAD BANK ---
-        # Top Row: Performance Roll / Brake
         through col :: 0..3 -> loop {
             px :: Int64 = 30 + (col * 140); py :: Int64 = 580;
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
@@ -774,7 +833,6 @@ while (vglib.running()) {
             if (col == 3) { draw_perf_pad("BRAKE", "STOP RAMP", px, py, 130, 55, vglib.rgba(255, 60, 60, 255), brake_a_active == 1, is_hov); }
         };
 
-        # Bottom Row: Hot Cues 1..4
         through col :: 0..3 -> loop {
             px :: Int64 = 30 + (col * 140); py :: Int64 = 645;
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
@@ -783,7 +841,6 @@ while (vglib.running()) {
         };
 
         # --- DECK B DUAL PERFORMANCE PAD BANK ---
-        # Top Row: Performance Roll / Brake
         through col :: 0..3 -> loop {
             px :: Int64 = 820 + (col * 140); py :: Int64 = 580;
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
@@ -793,13 +850,116 @@ while (vglib.running()) {
             if (col == 3) { draw_perf_pad("BRAKE", "STOP RAMP", px, py, 130, 55, vglib.rgba(255, 60, 60, 255), brake_b_active == 1, is_hov); }
         };
 
-        # Bottom Row: Hot Cues 1..4
         through col :: 0..3 -> loop {
             px :: Int64 = 820 + (col * 140); py :: Int64 = 645;
             is_hov = (m[0] >= px && m[0] <= px + 130 && m[1] >= py && m[1] <= py + 55);
             sec_str = string(vmath.round(cues_b[col] * 180.0 * 10.0) / 10.0) + "s";
             draw_perf_pad("CUE " + string(col + 1), sec_str, px, py, 130, 55, COLOR_DECK_B, false, is_hov);
         };
+
+        # --- BOTTOM LEFT CARD: DECK A AUTO-LOOP & TIMECODE UTILITY ---
+        vglib.rect(30, 720, 440, 110, COLOR_CARD);
+        vglib.line(30, 720, 470, 720, loop_a_active == 1 ? COLOR_AMBER : COLOR_CARD_RIM);
+        vglib.line(470, 720, 470, 830, COLOR_CARD_RIM);
+        vglib.line(470, 830, 30, 830, COLOR_CARD_RIM);
+        vglib.line(30, 830, 30, 720, COLOR_CARD_RIM);
+
+        vglib.text_ex(vcr_font, "DECK A AUTO-LOOP & TIMECODE", 40, 725, 9, vglib.rgba(160, 170, 185, 255));
+
+        btn_l1 = (loop_a_beats == 1.0) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+        btn_l2 = (loop_a_beats == 2.0) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+        btn_l4 = (loop_a_beats == 4.0) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+        btn_l8 = (loop_a_beats == 8.0) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+        btn_l16= (loop_a_beats == 16.0) ? COLOR_DECK_A : vglib.rgba(28, 34, 46, 255);
+
+        vglib.rect(30,  745, 50, 28, btn_l1);  vglib.text_ex(vcr_font, "1BT", 45,  753, 9, (loop_a_beats == 1.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(85,  745, 50, 28, btn_l2);  vglib.text_ex(vcr_font, "2BT", 100, 753, 9, (loop_a_beats == 2.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(140, 745, 50, 28, btn_l4);  vglib.text_ex(vcr_font, "4BT", 155, 753, 9, (loop_a_beats == 4.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(195, 745, 50, 28, btn_l8);  vglib.text_ex(vcr_font, "8BT", 210, 753, 9, (loop_a_beats == 8.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(250, 745, 50, 28, btn_l16); vglib.text_ex(vcr_font, "16B", 262, 753, 9, (loop_a_beats == 16.0 ? vglib.BLACK : vglib.WHITE));
+
+        # Loop Toggle Switch
+        btn_loop_a = (loop_a_active == 1) ? COLOR_AMBER : vglib.rgba(40, 48, 64, 255);
+        vglib.rect(310, 745, 60, 28, btn_loop_a);
+        vglib.text_ex(vcr_font, (loop_a_active == 1 ? "LOOP ON" : "LOOP"), 316, 753, 8, (loop_a_active == 1 ? vglib.BLACK : vglib.WHITE));
+
+        # --- DECK B DYNAMIC NUDGE INDICATORS ---
+        btn_nudge_neg_b = (nudge_b < -0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_nudge_pos_b = (nudge_b >  0.005) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+
+        # NUDGE - Button
+        vglib.rect(1215, 780, 60, 35, btn_nudge_neg_b);
+        vglib.text_ex(vcr_font, "NUDGE-", 1223, 792, 8, (nudge_b < -0.005 ? vglib.BLACK : COLOR_DECK_B));
+
+        # NUDGE + Button
+        vglib.rect(1280, 780, 60, 35, btn_nudge_pos_b);
+        vglib.text_ex(vcr_font, "NUDGE+", 1288, 792, 8, (nudge_b > 0.005 ? vglib.BLACK : COLOR_DECK_B));
+
+        # Optional Active Bend % Readout Indicator above buttons
+        if (vmath.abs(nudge_b) > 0.001) {
+            bend_pct_b = string(vmath.round(nudge_b * 100.0)) + "%";
+            vglib.text_ex(vcr_font, "BEND: " + bend_pct_b, 1215, 768, 8, COLOR_AMBER);
+        }
+
+        sec_a_tot  = int64(deck_a_pos * 180.0);
+        min_a      = sec_a_tot / 60;
+        sec_a      = sec_a_tot % 60;
+        time_a_str = (min_a < 10 ? "0" : "") + string(min_a) + ":" + (sec_a < 10 ? "0" : "") + string(sec_a);
+
+        rem_a_tot  = 180 - sec_a_tot;
+        rmin_a     = rem_a_tot / 60;
+        rsec_a     = rem_a_tot % 60;
+        rem_a_str  = "-" + (rmin_a < 10 ? "0" : "") + string(rmin_a) + ":" + (rsec_a < 10 ? "0" : "") + string(rsec_a);
+
+        vglib.rect(170, 780, 200, 35, vglib.rgba(10, 12, 16, 255));
+        vglib.text_ex(vcr_font, "ELAPSED: " + time_a_str, 180, 786, 9, COLOR_DECK_A);
+        vglib.text_ex(vcr_font, "REMAIN : " + rem_a_str, 180, 800, 9, vglib.rgba(140, 150, 165, 255));
+
+        # --- BOTTOM RIGHT CARD: DECK B AUTO-LOOP & TIMECODE UTILITY ---
+        vglib.rect(930, 720, 440, 110, COLOR_CARD);
+        vglib.line(930, 720, 1370, 720, loop_b_active == 1 ? COLOR_AMBER : COLOR_CARD_RIM);
+        vglib.line(1370, 720, 1370, 830, COLOR_CARD_RIM);
+        vglib.line(1370, 830, 930, 830, COLOR_CARD_RIM);
+        vglib.line(930, 830, 930, 720, COLOR_CARD_RIM);
+
+        vglib.text_ex(vcr_font, "DECK B AUTO-LOOP & TIMECODE", 940, 725, 9, vglib.rgba(160, 170, 185, 255));
+
+        btn_bl1 = (loop_b_beats == 1.0) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_bl2 = (loop_b_beats == 2.0) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_bl4 = (loop_b_beats == 4.0) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_bl8 = (loop_b_beats == 8.0) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+        btn_bl16= (loop_b_beats == 16.0) ? COLOR_DECK_B : vglib.rgba(28, 34, 46, 255);
+
+        vglib.rect(1000, 745, 50, 28, btn_bl1);  vglib.text_ex(vcr_font, "1BT", 1015, 753, 9, (loop_b_beats == 1.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(1055, 745, 50, 28, btn_bl2);  vglib.text_ex(vcr_font, "2BT", 1070, 753, 9, (loop_b_beats == 2.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(1110, 745, 50, 28, btn_bl4);  vglib.text_ex(vcr_font, "4BT", 1125, 753, 9, (loop_b_beats == 4.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(1165, 745, 50, 28, btn_bl8);  vglib.text_ex(vcr_font, "8BT", 1180, 753, 9, (loop_b_beats == 8.0 ? vglib.BLACK : vglib.WHITE));
+        vglib.rect(1220, 745, 50, 28, btn_bl16); vglib.text_ex(vcr_font, "16B", 1232, 753, 9, (loop_b_beats == 16.0 ? vglib.BLACK : vglib.WHITE));
+
+        # Loop Toggle Switch
+        btn_loop_b = (loop_b_active == 1) ? COLOR_AMBER : vglib.rgba(40, 48, 64, 255);
+        vglib.rect(1280, 745, 60, 28, btn_loop_b);
+        vglib.text_ex(vcr_font, (loop_b_active == 1 ? "LOOP ON" : "LOOP"), 1286, 753, 8, (loop_b_active == 1 ? vglib.BLACK : vglib.WHITE));
+
+        sec_b_tot  = int64(deck_b_pos * 180.0);
+        min_b      = sec_b_tot / 60;
+        sec_b      = sec_b_tot % 60;
+        time_b_str = (min_b < 10 ? "0" : "") + string(min_b) + ":" + (sec_b < 10 ? "0" : "") + string(sec_b);
+
+        rem_b_tot  = 180 - sec_b_tot;
+        rmin_b     = rem_b_tot / 60;
+        rsec_b     = rem_b_tot % 60;
+        rem_b_str  = "-" + (rmin_b < 10 ? "0" : "") + string(rmin_b) + ":" + (rsec_b < 10 ? "0" : "") + string(rsec_b);
+
+        vglib.rect(1000, 780, 200, 35, vglib.rgba(10, 12, 16, 255));
+        vglib.text_ex(vcr_font, "ELAPSED: " + time_b_str, 1010, 786, 9, COLOR_DECK_B);
+        vglib.text_ex(vcr_font, "REMAIN : " + rem_b_str, 1010, 800, 9, vglib.rgba(140, 150, 165, 255));
+
+        vglib.rect(1215, 780, 60, 35, vglib.rgba(28, 34, 46, 255));
+        vglib.text_ex(vcr_font, "NUDGE-", 1223, 792, 8, COLOR_DECK_B);
+
+        vglib.rect(1280, 780, 60, 35, vglib.rgba(28, 34, 46, 255));
+        vglib.text_ex(vcr_font, "NUDGE+", 1288, 792, 8, COLOR_DECK_B);
 
         # CROSSFADER
         vglib.rect(500, 770, 400, 20, vglib.rgba(20, 24, 32, 255));
