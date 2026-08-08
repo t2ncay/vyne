@@ -66,12 +66,13 @@ clip_durs   :: Array = [12.0, 10.0, 14.0, 8.0]; # Clip Durations in seconds
 dragged_clip   :: Int64   = -1;
 drag_offset_x  :: Float64 = 0.0;
 
-# Attach Hardware DSP Chains to Every Track
+# Attach Hardware DSP Chains & True Peak Limiter to Every Track
 through t :: 0..3 -> loop {
     vaudio.attach_eq(track_streams[t]);
     vaudio.attach_compressor(track_streams[t]);
     vaudio.attach_saturator(track_streams[t]);
     vaudio.attach_reverb(track_streams[t]);
+    vaudio.attach_master_limiter(track_streams[t]); # Attached master true-peak limiter
     
     # Start all streams paused
     vaudio.pause_stream(track_streams[t]);
@@ -230,9 +231,8 @@ while (vglib.running()) {
             }
         }
 
-        # Master Headroom Scaling (0.25 factor ensures 4 summed tracks stay clean under 0 dBFS)
-        headroom_scale = 0.25;
-        vol = (track_mutes[t] == 1) ? 0.0 : (track_gains[t] * headroom_scale);
+        # Track Volume Gain (Full volume output; Master Limiter handles peak protection)
+        vol = (track_mutes[t] == 1) ? 0.0 : track_gains[t];
         vaudio.sound_volume(track_streams[t], vol);
     };
 

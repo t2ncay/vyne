@@ -632,6 +632,17 @@ namespace VAudioNative {
         
         return Value(res);
     }
+
+    Value native_attach_master_limiter(std::vector<Value>& args) {
+        if (args.empty()) return Value(false);
+        
+        auto* handle = reinterpret_cast<VAudioStreamHandle*>(args[0].asInt());
+        if (handle != nullptr && handle->music.stream.buffer != nullptr) {
+            AttachAudioStreamProcessor(handle->music.stream, VAudioDSP::TruePeakLimiterCallback);
+            return Value(true);
+        }
+        return Value(false);
+    }
 }
 
 void setupVAudio(SymbolContainer& env, StringPool& pool) {
@@ -688,6 +699,7 @@ void setupVAudio(SymbolContainer& env, StringPool& pool) {
     // Analyzer
     vaudio[pool.intern("attach_analyzer")]   = Value(VAudioNative::native_attach_analyzer);
     vaudio[pool.intern("get_eq_peaks")]      = Value(VAudioNative::native_get_eq_peaks);
+    vaudio[pool.intern("attach_master_limiter")] = Value(VAudioNative::native_attach_master_limiter);
 
     // 3D
     vaudio[pool.intern("sound_3d")]          = Value(VAudioNative::native_set_sound_3d);

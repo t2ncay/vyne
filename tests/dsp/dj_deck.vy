@@ -17,7 +17,7 @@ is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
 # Load Deck Audio Tracks
-deck_a_track = vaudio.play_stream(configs.Audios.vanished);
+deck_a_track = vaudio.play_stream(configs.Audios.ikit1bb);
 deck_b_track = vaudio.play_stream(configs.Audios.back2basics);
 
 wave_peaks_a :: Array = vaudio.get_waveform(deck_a_track, 150);
@@ -38,6 +38,9 @@ vaudio.attach_saturator(deck_b_track);
 
 vaudio.attach_reverb(deck_a_track);
 vaudio.attach_reverb(deck_b_track);
+
+vaudio.attach_master_limiter(deck_a_track);
+vaudio.attach_master_limiter(deck_b_track);
 
 vaudio.enable_eq(2);
 
