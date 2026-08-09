@@ -116,18 +116,19 @@ fn parse_input(raw :: String) -> Array {
 # ====================================================================
 # SOURCE CODE ANALYZER (ANALYZE <FILE.VY>)
 # ====================================================================
-fn cmd_analyze(args :: String, logs :: Array) {
+fn cmd_analyze(args :: String) -> Array {
+    results :: Array = [];
     target = clean_str(args);
 
     if (target == "") {
-        logs.push("[ERROR]: Usage: analyze <filename.vy>");
-        return null;
+        results.push("[ERROR]: Usage: analyze <filename.vy>");
+        return results;
     }
 
     if (!vfs.exists(target)) {
-        logs.push("[ERROR]: Target file '" + target + "' not found.");
-        logs.push("  [CWD]: " + string(vfs.pwd()));
-        return null;
+        results.push("[ERROR]: Target file '" + target + "' not found.");
+        results.push("  [CWD]: " + string(vfs.pwd()));
+        return results;
     }
 
     source          :: String = vfs.read(target);
@@ -148,7 +149,7 @@ fn cmd_analyze(args :: String, logs :: Array) {
     current_line :: String = "";
 
     through i :: 0..(source.length() - 1) -> loop {
-        ch = source[i];
+        ch = source.substr(i, 1);
 
         if (ch == "\n" || i == (source.length() - 1)) {
             if (ch != "\n" && ch != "\r") { 
@@ -194,34 +195,35 @@ fn cmd_analyze(args :: String, logs :: Array) {
         comment_ratio = vmath.round((float64(comment_lines) / float64(line_count)) * 100.0);
     }
 
-    logs.push("==================================================");
-    logs.push(" [ANALYSIS REPORT]: " + target);
-    logs.push("--------------------------------------------------");
-    logs.push("  FILE SIZE:        " + string(file_bytes) + " bytes");
-    logs.push("  TOTAL LINES:      " + string(line_count));
-    logs.push("  EFFECTIVE LOC:    " + string(code_lines));
-    logs.push("  COMMENTS (#):     " + string(comment_lines) + " (" + string(comment_ratio) + "%)");
-    logs.push("  BLANK LINES:      " + string(blank_lines));
-    logs.push("--------------------------------------------------");
-    logs.push("  FUNCTIONS (fn):   " + string(fn_count));
-    logs.push("  INTERFACES:       " + string(interface_count));
-    logs.push("  IMPORTS/MODULES:  " + string(module_count));
-    logs.push("  LOOPS (while/for):" + string(loop_count));
-    logs.push("  BRANCHES (if):    " + string(if_count));
-    logs.push("  CYCLOMATIC CPLX:  " + string(decision_points));
-    logs.push("==================================================");
-    return null;
+    results.push("==================================================");
+    results.push(" [ANALYSIS REPORT]: " + target);
+    results.push("--------------------------------------------------");
+    results.push("  FILE SIZE:        " + string(file_bytes) + " bytes");
+    results.push("  TOTAL LINES:      " + string(line_count));
+    results.push("  EFFECTIVE LOC:    " + string(code_lines));
+    results.push("  COMMENTS (#):     " + string(comment_lines) + " (" + string(comment_ratio) + "%)");
+    results.push("  BLANK LINES:      " + string(blank_lines));
+    results.push("--------------------------------------------------");
+    results.push("  FUNCTIONS (fn):   " + string(fn_count));
+    results.push("  INTERFACES:       " + string(interface_count));
+    results.push("  IMPORTS/MODULES:  " + string(module_count));
+    results.push("  LOOPS (while/for):" + string(loop_count));
+    results.push("  BRANCHES (if):    " + string(if_count));
+    results.push("  CYCLOMATIC CPLX:  " + string(decision_points));
+    results.push("==================================================");
+    return results;
 }
 
 # ====================================================================
 # COMMAND DISPATCH ROUTER
 # ====================================================================
 fn dispatch_command(raw_input :: String) {
-    if (raw_input == "") { return null; }
+    clean_cmd = clean_str(raw_input);
+    if (clean_cmd == "") { return null; }
 
-    history_logs.push("> " + raw_input);
+    history_logs.push("> " + clean_cmd);
 
-    parsed = parse_input(raw_input);
+    parsed = parse_input(clean_cmd);
     cmd  = parsed[0];
     args = parsed[1];
 
@@ -259,13 +261,30 @@ fn dispatch_command(raw_input :: String) {
         history_logs.push(args);
     } else if (cmd == "clear") {
         history_logs.clear();
+        scroll_y = 0.0;
+        history_logs :: Array = [
+            "[SYSTEM]: VYNE OS KERNEL INITIALIZED",
+            "[SYSTEM]: MOUNTING VCORE MODULE (PID: " + string(vcore.pid) + ")",
+            "[SYSTEM]: GRAPHICS ENGINE READY - VGLIB v0.0.4-alpha",
+            "Type 'help' to see available terminal commands.",
+            "--------------------------------------------------"
+        ];
     } else if (cmd == "exit") {
         vglib.close();
     } else if (cmd == "analyze") {
-        cmd_analyze(args, history_logs);
+        lines = cmd_analyze(args);
+        through line :: lines -> loop {
+            history_logs.push(line);
+        };
     } else {
         history_logs.push("[ERROR]: Unrecognized command '" + cmd + "'");
     }
+
+    # Auto-scroll to show latest outputs at the bottom
+    if (history_logs.length() > 24) {
+        scroll_y = float64(history_logs.length() - 24) * 22.0;
+    }
+
     return null;
 }
 
