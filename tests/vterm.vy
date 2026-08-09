@@ -56,12 +56,19 @@ COLOR_CYAN  = vglib.rgba(0, 240, 255, 255);
 vglib.init(1280, 800, 60, "VYNE ADVANCED SYSTEM TERMINAL v2.4", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
+# --- TERMINAL & 3D VIEWPORT STATE ---
 command_input  :: String  = "";
 cursor_blink   :: Float64 = 0.0;
 scroll_y       :: Float64 = 0.0;
 donut_angle_a  :: Float64 = 0.0;
 donut_angle_b  :: Float64 = 0.0;
 run_time       :: Float64 = 0.0;
+
+# 3D Model Viewport Handles
+active_3d_model :: Int64   = 0;
+active_model_name::String  = "";
+model_rot_y     :: Float64 = 0.0;
+camera_3d       :: Int64   = vglib.camera(45.0);
 
 history_logs :: Array = [
     "[SYSTEM]: VYNE OS KERNEL INITIALIZED",
@@ -71,7 +78,7 @@ history_logs :: Array = [
     "--------------------------------------------------"
 ];
 
-# --- STRING SANITIZER (Strips quotes, spaces, tabs, and \r) ---
+# --- STRING SANITIZER ---
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -114,7 +121,7 @@ fn parse_input(raw :: String) -> Array {
 }
 
 # ====================================================================
-# SOURCE CODE ANALYZER (ANALYZE <FILE.VY>)
+# SOURCE CODE ANALYZER
 # ====================================================================
 fn cmd_analyze(args :: String) -> Array {
     results :: Array = [];
@@ -215,6 +222,82 @@ fn cmd_analyze(args :: String) -> Array {
 }
 
 # ====================================================================
+# FAST 3D MESH INSPECTOR & ANALYZER (RENDER3D <FILE.OBJ>)
+# ====================================================================
+fn cmd_render3d(args :: String) -> Array {
+    results :: Array = [];
+    target = clean_str(args);
+
+    if (target == "") {
+        results.push("[ERROR]: Usage: render3d <model.obj>");
+        return results;
+    }
+
+    if (!vfs.exists(target)) {
+        results.push("[ERROR]: Model file '" + target + "' not found.");
+        return results;
+    }
+
+    file_bytes :: Int64 = vfs.file_size(target);
+
+    # 1. Load Native Model directly into GPU (Compiled C++ Raylib Engine)
+    model_ptr = vglib.load_model(target);
+    if (model_ptr == 0) {
+        results.push("[ERROR]: Failed to compile 3D model geometry.");
+        return results;
+    }
+
+    active_3d_model   = model_ptr;
+    active_model_name = vfs.filename(target);
+
+    # 2. Fast O(N) Index Windowing Telemetry (No character-by-character string concatenation)
+    v_count  :: Int64 = 0;
+    vt_count :: Int64 = 0;
+    vn_count :: Int64 = 0;
+    f_count  :: Int64 = 0;
+
+    obj_data :: String = vfs.read(target);
+    data_len :: Int64  = obj_data.length();
+    line_start :: Int64 = 0;
+
+    through i :: 0..(data_len - 1) -> loop {
+        ch = obj_data.substr(i, 1);
+
+        if (ch == "\n" || i == (data_len - 1)) {
+            line_len :: Int64 = (ch == "\n") ? (i - line_start) : (i - line_start + 1);
+
+            if (line_len >= 2) {
+                # Slice prefix directly from source string without assembling current_line
+                p3 = obj_data.substr(line_start, 3);
+                p2 = p3.substr(0, 2);
+
+                if (p2 == "v ")  { v_count++; }
+                if (p2 == "f ")  { f_count++; }
+                if (p3 == "vt ") { vt_count++; }
+                if (p3 == "vn ") { vn_count++; }
+            }
+
+            line_start = i + 1;
+        }
+    };
+
+    results.push("==================================================");
+    results.push(" [3D MESH INSPECTOR]: " + active_model_name);
+    results.push("--------------------------------------------------");
+    results.push("  FILE SIZE:        " + string(file_bytes) + " bytes");
+    results.push("  VERTICES (v):     " + string(v_count));
+    results.push("  TEXTURE COORDS:   " + string(vt_count));
+    results.push("  NORMALS (vn):     " + string(vn_count));
+    results.push("  POLYGONS (f):     " + string(f_count));
+    results.push("--------------------------------------------------");
+    results.push(" [STATUS]: Model loaded to GPU Viewport Panel!");
+    results.push(" Use 'unload3d' to close 3D renderer.");
+    results.push("==================================================");
+
+    return results;
+}
+
+# ====================================================================
 # COMMAND DISPATCH ROUTER
 # ====================================================================
 fn dispatch_command(raw_input :: String) {
@@ -230,7 +313,9 @@ fn dispatch_command(raw_input :: String) {
     if (cmd == "help") {
         history_logs.push("AVAILABLE COMMANDS:");
         history_logs.push("  help             - Show command roster");
-        history_logs.push("  analyze <file>   - Run static analysis on a .vy source file");
+        history_logs.push("  analyze <file>   - Static analysis on .vy script");
+        history_logs.push("  render3d <file>  - Analyze & render 3D .obj mesh in viewport");
+        history_logs.push("  unload3d         - Unload 3D mesh and return to ASCII donut");
         history_logs.push("  sysinfo          - Display hardware & architecture specs");
         history_logs.push("  memory           - Print resident physical RAM usage");
         history_logs.push("  uptime           - Show active session duration");
@@ -262,7 +347,7 @@ fn dispatch_command(raw_input :: String) {
     } else if (cmd == "clear") {
         history_logs.clear();
         scroll_y = 0.0;
-        history_logs :: Array = [
+        history_logs = [
             "[SYSTEM]: VYNE OS KERNEL INITIALIZED",
             "[SYSTEM]: MOUNTING VCORE MODULE (PID: " + string(vcore.pid) + ")",
             "[SYSTEM]: GRAPHICS ENGINE READY - VGLIB v0.0.4-alpha",
@@ -273,14 +358,18 @@ fn dispatch_command(raw_input :: String) {
         vglib.close();
     } else if (cmd == "analyze") {
         lines = cmd_analyze(args);
-        through line :: lines -> loop {
-            history_logs.push(line);
-        };
+        through line :: lines -> loop { history_logs.push(line); };
+    } else if (cmd == "render3d") {
+        lines = cmd_render3d(args);
+        through line :: lines -> loop { history_logs.push(line); };
+    } else if (cmd == "unload3d") {
+        active_3d_model = 0;
+        active_model_name = "";
+        history_logs.push("[3D]: Viewport reset to default co-processor.");
     } else {
         history_logs.push("[ERROR]: Unrecognized command '" + cmd + "'");
     }
 
-    # Auto-scroll to show latest outputs at the bottom
     if (history_logs.length() > 24) {
         scroll_y = float64(history_logs.length() - 24) * 22.0;
     }
@@ -297,6 +386,7 @@ while (vglib.running()) {
 
     donut_angle_a = donut_angle_a + 0.04;
     donut_angle_b = donut_angle_b + 0.02;
+    model_rot_y   = model_rot_y + 1.2;
 
     wheel = vglib.mouse_wheel();
     if (wheel != 0.0) {
@@ -323,12 +413,13 @@ while (vglib.running()) {
     vglib.begin();
         vglib.clear(active_theme.bg);
 
+        # Header Status Bar
         vglib.rect(0, 0, 1280, 40, active_theme.panel);
         vglib.line(0, 40, 1280, 40, active_theme.border);
-
         vglib.text_ex(vcr_font, "VYNE SYSTEM TERMINAL v2.4", 16, 12, 14, active_theme.text);
         vglib.text_ex(vcr_font, "TIME: " + vcore.now(), 450, 12, 12, active_theme.dim);
 
+        # Terminal History Buffer (Left Panel)
         vglib.rect(20, 60, 820, 660, active_theme.panel);
         vglib.line(20, 60, 840, 60, active_theme.border);
         vglib.line(840, 60, 840, 720, active_theme.border);
@@ -352,14 +443,16 @@ while (vglib.running()) {
             }
         };
 
+        # Input Prompt Line
         vglib.line(20, 675, 840, 675, active_theme.border);
         vglib.text_ex(vcr_font, "vyne@root:~$ " + command_input, 35, 690, 12, active_theme.text);
 
         if (vmath.fmod(cursor_blink, 0.8) > 0.4) {
-            cursor_x :: Float64 = 160.0 + (command_input.length() * 9.5);
+            cursor_x :: Float64 = 165.0 + (command_input.length() * 9.5);
             vglib.rect(cursor_x, 690, 8, 14, active_theme.text);
         }
 
+        # Telemetry & 3D Viewport Panel (Right Panel)
         vglib.rect(870, 60, 390, 660, active_theme.panel);
         vglib.line(870, 60, 1260, 60, active_theme.border);
         vglib.line(1260, 60, 1260, 720, active_theme.border);
@@ -381,10 +474,27 @@ while (vglib.running()) {
         vglib.rect(890, 205, bar_fill, 12, active_theme.text);
 
         vglib.line(890, 240, 1240, 240, active_theme.border);
-        vglib.text_ex(vcr_font, "MATH CO-PROCESSOR [DONUT.C]", 890, 255, 11, COLOR_CYAN);
 
-        vglib.donut(donut_angle_a, donut_angle_b);
+        # DYNAMIC VIEWPORT MODE SWITCHER (3D Mesh vs ASCII Donut)
+        if (active_3d_model != 0) {
+            vglib.text_ex(vcr_font, "3D GPU VIEWPORT [" + active_model_name + "]", 890, 255, 11, COLOR_GREEN);
+            
+            # Position 3D Camera for Panel Orbiting
+            cam_x = vmath.sin(model_rot_y * 0.02) * 6.0;
+            cam_z = vmath.cos(model_rot_y * 0.02) * 6.0;
+            vglib.set_pos(camera_3d, cam_x, 3.5, cam_z);
 
+            # Render 3D Scene
+            vglib.begin3d(camera_3d);
+                vglib.grid(10, 1.0);
+                vglib.draw_model(active_3d_model, 0.0, 0.0, 0.0, 1.0, COLOR_CYAN);
+            vglib.end3d();
+        } else {
+            vglib.text_ex(vcr_font, "MATH CO-PROCESSOR [DONUT.C]", 890, 255, 11, COLOR_CYAN);
+            vglib.donut(donut_angle_a, donut_angle_b);
+        }
+
+        # Footer Status Strip
         vglib.rect(0, 740, 1280, 60, vglib.rgba(16, 12, 10, 255));
         vglib.line(0, 740, 1280, 740, active_theme.border);
         vglib.text_ex(vcr_font, "STATUS: ONLINE | INPUT: UTF8-ACTIVE | SCROLL: " + string(vmath.round(scroll_y)), 20, 762, 10, active_theme.dim);
