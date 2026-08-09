@@ -12,26 +12,25 @@ class ASTNode;
 class ProgramNode;
 class StringPool;
 
-
 Token Parser::getNextToken() {
     if (pos < tokens.size()) {
         return tokens[pos++];
     }
-    return Token(VTokenType::End, 0, 0, "");
+    return Token();
 }
 
 Token Parser::peekToken() {
     if (pos < tokens.size()) {
         return tokens[pos];
     }
-    return Token(VTokenType::End, 0, 0, "");
+    return Token();
 }
 
 Token Parser::lookAhead(int distance) {
     if (pos + distance < tokens.size()) {
         return tokens[pos + distance];
     }
-    return Token(VTokenType::End, 0, 0, "");
+    return Token();
 }
 
 Token Parser::consume(VTokenType expected) {
@@ -1163,7 +1162,14 @@ std::unique_ptr<ASTNode> Parser::parseReturnStatement() {
     int line = peekToken().line;
     consume(VTokenType::Return);
     
-    auto expr = parseExpression();
+    std::unique_ptr<ASTNode> expr = nullptr;
+
+    if (peekToken().type == VTokenType::Semicolon) {
+        expr = std::make_unique<NullNode>();
+    } else {
+        expr = parseExpression();
+    }
+    
     consumeSemicolon();
     
     auto node = std::make_unique<ReturnNode>(std::move(expr));

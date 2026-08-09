@@ -17,7 +17,11 @@ Value native_is_key_pressed(std::vector<Value>& args) {
 // --- ADD NEW NATIVE INPUT BINDINGS ---
 Value native_get_char_pressed(std::vector<Value>& args) {
     int key = GetCharPressed();
-    return Value(static_cast<int64_t>(key));
+    if (key == 0) return Value("");
+
+    int byteSize = 0;
+    const char* utf8Char = CodepointToUTF8(key, &byteSize);
+    return Value(std::string(utf8Char, byteSize));
 }
 
 Value native_get_key_pressed(std::vector<Value>& args) {
