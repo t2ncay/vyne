@@ -210,5 +210,5 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("build")]           = Value(std::string(__DATE__) + " " + std::string(__TIME__)).setReadOnly();
     vcore[pool.intern("processor_count")] = Value(std::thread::hardware_concurrency());
     vcore[pool.intern("pid")]             = Value(static_cast<double>(getpid()));
-    vcore[pool.intern("memory_usage")]    = Value(getPhysicalMemoryUsage()).setReadOnly();
+    vcore[pool.intern("memory_usage")]    = Value(getPhysicalMemoryUsage());
 }

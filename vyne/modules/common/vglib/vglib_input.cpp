@@ -14,6 +14,17 @@ Value native_is_key_pressed(std::vector<Value>& args) {
     return Value(IsKeyPressed(key));
 }
 
+// --- ADD NEW NATIVE INPUT BINDINGS ---
+Value native_get_char_pressed(std::vector<Value>& args) {
+    int key = GetCharPressed();
+    return Value(static_cast<int64_t>(key));
+}
+
+Value native_get_key_pressed(std::vector<Value>& args) {
+    int key = GetKeyPressed();
+    return Value(static_cast<int64_t>(key));
+}
+
 Value native_is_mouse_button_down(std::vector<Value>& args) {
     if (args.empty()) return Value(false);
     int button = (int)args[0].asInt();

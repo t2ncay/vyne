@@ -21,6 +21,8 @@ namespace VGLibNative {
     Value native_end_3d_mode(std::vector<Value>& args);
     Value native_is_key_down(std::vector<Value>& args);
     Value native_is_key_pressed(std::vector<Value>& args);
+    Value native_get_char_pressed(std::vector<Value>& args);
+    Value native_get_key_pressed(std::vector<Value>& args);
     Value native_is_mouse_button_down(std::vector<Value>& args);
     Value native_rgba(std::vector<Value>& args);
     Value native_draw_plane(std::vector<Value>& args);
@@ -107,9 +109,14 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("camera")]     = Value(VGLibNative::native_init_3d_camera);
     vglib[pool.intern("begin3d")]    = Value(VGLibNative::native_begin_3d_mode);
     vglib[pool.intern("end3d")]      = Value(VGLibNative::native_end_3d_mode);
-    vglib[pool.intern("key_down")]   = Value(VGLibNative::native_is_key_down);
-    vglib[pool.intern("key_pressed")] = Value(VGLibNative::native_is_key_pressed);
-    vglib[pool.intern("mouse_down")]  = Value(VGLibNative::native_is_mouse_button_down);
+    vglib[pool.intern("key_down")]     = Value(VGLibNative::native_is_key_down);
+    vglib[pool.intern("key_pressed")]  = Value(VGLibNative::native_is_key_pressed);
+    vglib[pool.intern("get_char")]     = Value(VGLibNative::native_get_char_pressed);
+    vglib[pool.intern("get_key")]      = Value(VGLibNative::native_get_key_pressed);
+    vglib[pool.intern("mouse_down")]   = Value(VGLibNative::native_is_mouse_button_down);
+    vglib[pool.intern("mouse_pos")]    = Value(VGLibNative::native_get_mouse_pos);
+    vglib[pool.intern("mouse_delta")]  = Value(VGLibNative::native_get_mouse_delta);
+    vglib[pool.intern("mouse_wheel")]  = Value(VGLibNative::get_mouse_wheel);
     vglib[pool.intern("rgba")]        = Value(VGLibNative::native_rgba);
     vglib[pool.intern("plane")]       = Value(VGLibNative::native_draw_plane);
     vglib[pool.intern("clear_gradient")]   = Value(VGLibNative::native_clear_gradient);
@@ -172,7 +179,8 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     // VGLib properties
     vglib[pool.intern("version")]  = Value("v0.0.4-alpha").setReadOnly();
 
-    // Numbers
+    // Numbers (0-9)
+    vglib[pool.intern("ZERO")]   = Value(48).setReadOnly();
     vglib[pool.intern("ONE")]    = Value(49).setReadOnly();
     vglib[pool.intern("TWO")]    = Value(50).setReadOnly();
     vglib[pool.intern("THREE")]  = Value(51).setReadOnly();
@@ -181,44 +189,77 @@ void setupVGLib(SymbolContainer& env, StringPool& pool) {
     vglib[pool.intern("SIX")]    = Value(54).setReadOnly();
     vglib[pool.intern("SEVEN")]  = Value(55).setReadOnly();
     vglib[pool.intern("EIGHT")]  = Value(56).setReadOnly();
+    vglib[pool.intern("NINE")]   = Value(57).setReadOnly();
 
-    // Editor movement keys
-    vglib[pool.intern("I")] = Value(73).setReadOnly();
-    vglib[pool.intern("K")] = Value(75).setReadOnly();
-    vglib[pool.intern("J")] = Value(74).setReadOnly();
-    vglib[pool.intern("L")] = Value(76).setReadOnly();
-    vglib[pool.intern("U")] = Value(85).setReadOnly();
-    vglib[pool.intern("O")] = Value(79).setReadOnly();
-    vglib[pool.intern("Q")] = Value(81).setReadOnly();
-    vglib[pool.intern("E")] = Value(69).setReadOnly();
-    vglib[pool.intern("R")] = Value(82).setReadOnly();
-    vglib[pool.intern("P")] = Value(80).setReadOnly();
-    vglib[pool.intern("B")] = Value(66).setReadOnly();
-    vglib[pool.intern("M")] = Value(77).setReadOnly();
-
-    // Misc keys
-    vglib[pool.intern("BACKSPACE")]  = Value(259).setReadOnly();
-    vglib[pool.intern("SPACE")]      = Value(32).setReadOnly();
-    vglib[pool.intern("ENTER")]      = Value(257).setReadOnly();
-    vglib[pool.intern("ESCAPE")]     = Value(256).setReadOnly();
-    vglib[pool.intern("LEFT_SHIFT")] = Value(340).setReadOnly();
-    vglib[pool.intern("LEFT_CTRL")]  = Value(341).setReadOnly();
-    
-    // WASD
-    vglib[pool.intern("W")] = Value(87).setReadOnly();
+    // Alphabet (A-Z)
     vglib[pool.intern("A")] = Value(65).setReadOnly();
-    vglib[pool.intern("S")] = Value(83).setReadOnly();
+    vglib[pool.intern("B")] = Value(66).setReadOnly();
+    vglib[pool.intern("C")] = Value(67).setReadOnly();
     vglib[pool.intern("D")] = Value(68).setReadOnly();
+    vglib[pool.intern("E")] = Value(69).setReadOnly();
+    vglib[pool.intern("F")] = Value(70).setReadOnly();
+    vglib[pool.intern("G")] = Value(71).setReadOnly();
+    vglib[pool.intern("H")] = Value(72).setReadOnly();
+    vglib[pool.intern("I")] = Value(73).setReadOnly();
+    vglib[pool.intern("J")] = Value(74).setReadOnly();
+    vglib[pool.intern("K")] = Value(75).setReadOnly();
+    vglib[pool.intern("L")] = Value(76).setReadOnly();
+    vglib[pool.intern("M")] = Value(77).setReadOnly();
+    vglib[pool.intern("N")] = Value(78).setReadOnly();
+    vglib[pool.intern("O")] = Value(79).setReadOnly();
+    vglib[pool.intern("P")] = Value(80).setReadOnly();
+    vglib[pool.intern("Q")] = Value(81).setReadOnly();
+    vglib[pool.intern("R")] = Value(82).setReadOnly();
+    vglib[pool.intern("S")] = Value(83).setReadOnly();
+    vglib[pool.intern("T")] = Value(84).setReadOnly();
+    vglib[pool.intern("U")] = Value(85).setReadOnly();
+    vglib[pool.intern("V")] = Value(86).setReadOnly();
+    vglib[pool.intern("W")] = Value(87).setReadOnly();
+    vglib[pool.intern("X")] = Value(88).setReadOnly();
+    vglib[pool.intern("Y")] = Value(89).setReadOnly();
+    vglib[pool.intern("Z")] = Value(90).setReadOnly();
 
-    // Mouse buttons
-    vglib[pool.intern("MOUSE_LEFT")]  = Value(0).setReadOnly();
-    vglib[pool.intern("MOUSE_RIGHT")] = Value(1).setReadOnly();
+    // Control & Navigation
+    vglib[pool.intern("BACKSPACE")]   = Value(259).setReadOnly();
+    vglib[pool.intern("TAB")]         = Value(258).setReadOnly();
+    vglib[pool.intern("ENTER")]       = Value(257).setReadOnly();
+    vglib[pool.intern("ESCAPE")]      = Value(256).setReadOnly();
+    vglib[pool.intern("SPACE")]       = Value(32).setReadOnly();
+    vglib[pool.intern("DELETE")]      = Value(261).setReadOnly();
+    vglib[pool.intern("CAPS_LOCK")]   = Value(280).setReadOnly();
 
-    // Arrows
+    // Modifier Keys
+    vglib[pool.intern("LEFT_SHIFT")]  = Value(340).setReadOnly();
+    vglib[pool.intern("LEFT_CTRL")]   = Value(341).setReadOnly();
+    vglib[pool.intern("LEFT_ALT")]    = Value(342).setReadOnly();
+    vglib[pool.intern("RIGHT_SHIFT")] = Value(344).setReadOnly();
+    vglib[pool.intern("RIGHT_CTRL")]  = Value(345).setReadOnly();
+    vglib[pool.intern("RIGHT_ALT")]   = Value(346).setReadOnly();
+
+    // Arrow Navigation
     vglib[pool.intern("UP")]    = Value(265).setReadOnly();
     vglib[pool.intern("DOWN")]  = Value(264).setReadOnly();
     vglib[pool.intern("LEFT")]  = Value(263).setReadOnly();
     vglib[pool.intern("RIGHT")] = Value(262).setReadOnly();
+
+    // Function Keys
+    vglib[pool.intern("F1")]  = Value(290).setReadOnly();
+    vglib[pool.intern("F2")]  = Value(291).setReadOnly();
+    vglib[pool.intern("F3")]  = Value(292).setReadOnly();
+    vglib[pool.intern("F4")]  = Value(293).setReadOnly();
+    vglib[pool.intern("F5")]  = Value(294).setReadOnly();
+    vglib[pool.intern("F6")]  = Value(295).setReadOnly();
+    vglib[pool.intern("F7")]  = Value(296).setReadOnly();
+    vglib[pool.intern("F8")]  = Value(297).setReadOnly();
+    vglib[pool.intern("F9")]  = Value(298).setReadOnly();
+    vglib[pool.intern("F10")] = Value(299).setReadOnly();
+    vglib[pool.intern("F11")] = Value(300).setReadOnly();
+    vglib[pool.intern("F12")] = Value(301).setReadOnly();
+
+    // Mouse
+    vglib[pool.intern("MOUSE_LEFT")]   = Value(0).setReadOnly();
+    vglib[pool.intern("MOUSE_RIGHT")]  = Value(1).setReadOnly();
+    vglib[pool.intern("MOUSE_MIDDLE")] = Value(2).setReadOnly();
 
     // Preset colors
     vglib[pool.intern("WHITE")]   = Value((int64_t)0xFFFFFFFF);
