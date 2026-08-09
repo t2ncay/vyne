@@ -701,9 +701,33 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     static const uint32_t clearId    = StringPool::intern("clear");
     static const uint32_t placeAllId = StringPool::intern("place_all");
     static const uint32_t fieldsId   = StringPool::intern("fields");
+    static const uint32_t substrId   = StringPool::intern("substr");
 
     if (receiverVal.getType() == Value::STRING) {
         std::string str = receiverVal.asString();
+
+        if (methodId == substrId) {
+            if (arguments.empty()) {
+                throw std::runtime_error("substr() expects at least 1 argument (start index) [ line " + std::to_string(lineNumber) + " ]");
+            }
+
+            int64_t start = arguments[0]->evaluate(env, currentGroupId).asInt();
+            size_t strLen = str.length();
+
+            if (start < 0 || static_cast<size_t>(start) > strLen) {
+                throw std::runtime_error("Index Error: Out of bounds in substr() [ line " + std::to_string(lineNumber) + " ]");
+            }
+
+            if (arguments.size() >= 2) {
+                int64_t count = arguments[1]->evaluate(env, currentGroupId).asInt();
+                if (count < 0) {
+                    throw std::runtime_error("Argument Error: Length cannot be negative in substr() [ line " + std::to_string(lineNumber) + " ]");
+                }
+                return Value(str.substr(static_cast<size_t>(start), static_cast<size_t>(count)));
+            }
+
+            return Value(str.substr(static_cast<size_t>(start)));
+        }
 
         if (methodId == replaceId) {
             if (arguments.size() < 2) throw std::runtime_error("replace() expects 2 arguments");
