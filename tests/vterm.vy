@@ -222,14 +222,14 @@ fn cmd_analyze(args :: String) -> Array {
 }
 
 # ====================================================================
-# FAST 3D MESH INSPECTOR & ANALYZER (RENDER3D <FILE.OBJ>)
+# 3D MESH FILE ANALYZER & INSPECTOR (INSPECT3D <FILE.OBJ>)
 # ====================================================================
-fn cmd_render3d(args :: String) -> Array {
+fn cmd_inspect3d(args :: String) -> Array {
     results :: Array = [];
     target = clean_str(args);
 
     if (target == "") {
-        results.push("[ERROR]: Usage: render3d <model.obj>");
+        results.push("[ERROR]: Usage: inspect3d <model.obj>");
         return results;
     }
 
@@ -238,27 +238,21 @@ fn cmd_render3d(args :: String) -> Array {
         return results;
     }
 
-    file_bytes :: Int64 = vfs.file_size(target);
+    file_bytes :: Int64   = vfs.file_size(target);
+    file_mb    :: Float64 = vmath.round((float64(file_bytes) / (1024.0 * 1024.0)) * 100.0) / 100.0;
 
-    # 1. Load Native Model directly into GPU (Compiled C++ Raylib Engine)
-    model_ptr = vglib.load_model(target);
-    if (model_ptr == 0) {
-        results.push("[ERROR]: Failed to compile 3D model geometry.");
-        return results;
-    }
+    # O(N) Fast Index Windowed Metrics
+    v_count     :: Int64 = 0; # Vertices
+    vt_count    :: Int64 = 0; # UV Coordinates
+    vn_count    :: Int64 = 0; # Vertex Normals
+    f_count     :: Int64 = 0; # Faces / Polygons
+    o_count     :: Int64 = 0; # Named Objects
+    group_count :: Int64 = 0; # Polygon Groups
+    mtl_count   :: Int64 = 0; # Material Bindings
 
-    active_3d_model   = model_ptr;
-    active_model_name = vfs.filename(target);
-
-    # 2. Fast O(N) Index Windowing Telemetry (No character-by-character string concatenation)
-    v_count  :: Int64 = 0;
-    vt_count :: Int64 = 0;
-    vn_count :: Int64 = 0;
-    f_count  :: Int64 = 0;
-
-    obj_data :: String = vfs.read(target);
-    data_len :: Int64  = obj_data.length();
-    line_start :: Int64 = 0;
+    obj_data   :: String = vfs.read(target);
+    data_len   :: Int64  = obj_data.length();
+    line_start :: Int64  = 0;
 
     through i :: 0..(data_len - 1) -> loop {
         ch = obj_data.substr(i, 1);
@@ -267,14 +261,16 @@ fn cmd_render3d(args :: String) -> Array {
             line_len :: Int64 = (ch == "\n") ? (i - line_start) : (i - line_start + 1);
 
             if (line_len >= 2) {
-                # Slice prefix directly from source string without assembling current_line
                 p3 = obj_data.substr(line_start, 3);
                 p2 = p3.substr(0, 2);
 
-                if (p2 == "v ")  { v_count++; }
-                if (p2 == "f ")  { f_count++; }
-                if (p3 == "vt ") { vt_count++; }
-                if (p3 == "vn ") { vn_count++; }
+                if (p2 == "v ")       { v_count++; }
+                else if (p2 == "f ")  { f_count++; }
+                else if (p2 == "o ")  { o_count++; }
+                else if (p2 == "g ")  { group_count++; }
+                else if (p3 == "vt ") { vt_count++; }
+                else if (p3 == "vn ") { vn_count++; }
+                else if (line_len >= 6 && obj_data.substr(line_start, 6) == "usemtl") { mtl_count++; }
             }
 
             line_start = i + 1;
@@ -282,16 +278,19 @@ fn cmd_render3d(args :: String) -> Array {
     };
 
     results.push("==================================================");
-    results.push(" [3D MESH INSPECTOR]: " + active_model_name);
+    results.push(" [3D MESH METRICS REPORT]: " + vfs.filename(target));
     results.push("--------------------------------------------------");
-    results.push("  FILE SIZE:        " + string(file_bytes) + " bytes");
+    results.push("  FILE PATH:        " + target);
+    results.push("  FILE SIZE:        " + string(file_bytes) + " bytes (" + string(file_mb) + " MB)");
+    results.push("--------------------------------------------------");
     results.push("  VERTICES (v):     " + string(v_count));
-    results.push("  TEXTURE COORDS:   " + string(vt_count));
     results.push("  NORMALS (vn):     " + string(vn_count));
-    results.push("  POLYGONS (f):     " + string(f_count));
+    results.push("  UV MAPS (vt):     " + string(vt_count));
+    results.push("  POLYGONS/FACES:   " + string(f_count));
     results.push("--------------------------------------------------");
-    results.push(" [STATUS]: Model loaded to GPU Viewport Panel!");
-    results.push(" Use 'unload3d' to close 3D renderer.");
+    results.push("  SUB-OBJECTS (o):  " + string(o_count));
+    results.push("  GROUPS (g):       " + string(group_count));
+    results.push("  MATERIAL CALLS:   " + string(mtl_count));
     results.push("==================================================");
 
     return results;
@@ -359,8 +358,8 @@ fn dispatch_command(raw_input :: String) {
     } else if (cmd == "analyze") {
         lines = cmd_analyze(args);
         through line :: lines -> loop { history_logs.push(line); };
-    } else if (cmd == "render3d") {
-        lines = cmd_render3d(args);
+    } else if (cmd == "inspect3d") {
+        lines = cmd_inspect3d(args);
         through line :: lines -> loop { history_logs.push(line); };
     } else if (cmd == "unload3d") {
         active_3d_model = 0;
