@@ -6,23 +6,24 @@ module vcore;
 server_port :: Int64 = 8000;
 server_sock = vnet.udp_socket(server_port);
 
-# Dynamic Active Peer Tables (Tracks Port, IP, and URL)
-active_ports :: Array = [];
-active_ips   :: Array = [];
-active_urls  :: Array = [];
+active_ports     :: Array = [];
+active_ips       :: Array = [];
+active_urls      :: Array = [];
+active_last_seen :: Array = []; # STORES LAST PACKET TIMESTAMP
 
-# Security State
 firewall_open :: Int64 = 1;
-current_salt  :: Int64 = 42;
-target_hash   :: Int64 = 1260;
+current_salt  :: Int64 = int64(vmath.random(10, 99));
 
-# Virtual File System Database
+# GENERATE RANDOM HASHKEY ON SERVER STARTUP
+target_hash   :: Int64 = int64(vmath.random(1000, 9999));
+
 vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key"];
 vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}"];
 
-out("[VNET SERVER] MULTI-PC CYBERWARFARE GATEWAY ONLINE (PORT 8000)");
+out("[VNET SERVER] MULTI-PC CYBERWARFARE & CHAT GATEWAY ONLINE (PORT 8000)");
+out("[VNET SERVER] DYNAMIC TARGET HASH GENERATED: " + string(target_hash));
 
-fn update_peer_session(port :: Int64, ip :: String, url :: String) {
+fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
         if (int64(active_ports[i]) == port) {
@@ -32,17 +33,74 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String) {
     };
 
     if (found_idx >= 0) {
-        active_urls[found_idx] = url;
-        active_ips[found_idx]  = ip;
+        active_urls[found_idx]      = url;
+        active_ips[found_idx]       = ip;
+        active_last_seen[found_idx] = now_time;
     } else {
         active_ports.push(port);
         active_ips.push(ip);
         active_urls.push(url);
+        active_last_seen.push(now_time);
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
     }
 }
 
+fn unregister_peer(port :: Int64) {
+    found_idx :: Int64 = -1;
+    through i :: 0..(active_ports.length() - 1) -> loop {
+        if (int64(active_ports[i]) == port) {
+            found_idx = i;
+            break;
+        }
+    };
+
+    if (found_idx >= 0) {
+        target_port :: Int64 = int64(active_ports[found_idx]);
+        
+        active_ports.delete(target_port);
+        active_ips.delete(active_ips[found_idx]);
+        active_urls.delete(active_urls[found_idx]);
+        active_last_seen.delete(active_last_seen[found_idx]);
+        
+        out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port));
+    }
+}
+
+fn prune_inactive_peers(now_time :: Float64) {
+    i :: Int64 = active_ports.length() - 1;
+    while (i >= 0) {
+        last_t :: Float64 = float64(active_last_seen[i]);
+        if (now_time - last_t > 10.0) {
+            dead_port :: Int64 = int64(active_ports[i]);
+            unregister_peer(dead_port);
+            broadcast_feed_event("[TIMEOUT]: NODE PORT_" + string(dead_port) + " TIMED OUT & PURGED");
+        }
+        i = i - 1;
+    }
+}
+
+fn broadcast_feed_event(event_msg :: String) {
+    through c :: 0..(active_ports.length() - 1) -> loop {
+        vnet.send_to(server_sock, string(active_ips[c]), int64(active_ports[c]), "FEED_EVENT:" + event_msg);
+    };
+}
+
+fn broadcast_raw(payload :: String) {
+    through c :: 0..(active_ports.length() - 1) -> loop {
+        vnet.send_to(server_sock, string(active_ips[c]), int64(active_ports[c]), payload);
+    };
+}
+
+server_uptime :: Float64 = 0.0;
+game_over     :: Int64   = 0;
+
 while (true) {
+    server_uptime = server_uptime + 0.016;
+    
+    if (game_over == 0) {
+        prune_inactive_peers(server_uptime);
+    }
+
     packet :: Array = vnet.recv_from(server_sock);
     
     if (packet.length() >= 3) {
@@ -50,7 +108,6 @@ while (true) {
         sender_ip   :: String = string(packet[1]);
         sender_port :: Int64  = int64(packet[2]);
 
-        # Parse CSV Command Format: "CMD:DATA"
         sep_idx :: Int64 = -1;
         through i :: 0..(msg.length() - 1) -> loop {
             if (msg[i] == ":") { sep_idx = i; break; }
@@ -60,15 +117,13 @@ while (true) {
             cmd :: String     = msg.substr(0, sep_idx);
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
-            # --- 1. DYNAMIC ROUTE TRACKER ---
+            update_peer_session(sender_port, sender_ip, payload, server_uptime);
+
             if (cmd == "GET") {
-                update_peer_session(sender_port, sender_ip, payload);
                 out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
             }
 
-            # --- 2. DYNAMIC NETSCAN ---
             if (cmd == "NETSCAN") {
-                update_peer_session(sender_port, sender_ip, payload);
                 peers_found :: String = "";
 
                 through p :: 0..(active_ports.length() - 1) -> loop {
@@ -87,7 +142,10 @@ while (true) {
                 }
             }
 
-            # --- 3. EXPLOIT: DENIAL OF SERVICE (DOS) ---
+            if (cmd == "CHAT") {
+                broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
+            }
+
             if (cmd == "DOS") {
                 target_node :: Int64 = int64(payload);
                 target_ip   :: String = "127.0.0.1";
@@ -97,9 +155,9 @@ while (true) {
                 out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
                 vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
             }
 
-            # --- 4. EXPLOIT: BGP ROUTE HIJACK (REDIRECT) ---
             if (cmd == "REDIRECT") {
                 sep :: Int64 = -1;
                 through i :: 0..(payload.length() - 1) -> loop {
@@ -115,10 +173,10 @@ while (true) {
                     out("[EXPLOIT] ROUTE HIJACK: PORT " + string(sender_port) + " -> TARGET " + string(target_node) + " FORCED TO " + target_url);
                     vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:REDIRECT:" + target_url);
                     vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:HIJACK_COMPLETED");
+                    broadcast_feed_event("[BGP HIJACK]: NODE " + string(sender_port) + " REROUTED NODE " + string(target_node) + " TO " + target_url);
                 }
             }
 
-            # --- 5. EXPLOIT: REMOTE TELEMETRY SNOOP ---
             if (cmd == "SNOOP") {
                 target_node :: Int64 = int64(payload);
                 target_url  :: String = "UNKNOWN";
@@ -128,7 +186,6 @@ while (true) {
                 vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:PORT_" + string(target_node) + "_ACTIVE_AT_" + target_url);
             }
 
-            # --- 6. EXPLOIT: TRACE SPIKE ---
             if (cmd == "SPIKE") {
                 target_node :: Int64 = int64(payload);
                 target_ip   :: String = "127.0.0.1";
@@ -137,15 +194,19 @@ while (true) {
                 };
                 vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:TRACE_SPIKE");
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:PEER_TRACE_SPIKED");
+                broadcast_feed_event("[TRACE SPIKE]: NODE " + string(sender_port) + " SPIKED TRACE ON NODE " + string(target_node));
             }
 
-            # --- 7. PORT SCAN ---
+            if (cmd == "TRACE_BUST") {
+                unregister_peer(sender_port);
+                broadcast_feed_event("[ICE LOCKOUT]: NODE " + string(sender_port) + " TRACED DOWN & DISCONNECTED!");
+            }
+
             if (cmd == "SCAN") {
                 status :: String = (firewall_open == 1) ? "SYS_STATUS:PORT_80_OPEN:SALT_" + string(current_salt) : "SYS_STATUS:FIREWALL_LOCKED";
                 vnet.send_to(server_sock, sender_ip, sender_port, status);
             }
 
-            # --- 8. SUBMIT HASH SOLUTION ---
             if (cmd == "CRACK") {
                 attempt_val :: Int64 = int64(payload);
                 computed    :: Int64 = (attempt_val * current_salt) % 9999;
@@ -153,16 +214,12 @@ while (true) {
                 if (computed == target_hash) {
                     firewall_open = 0;
                     vnet.send_to(server_sock, sender_ip, sender_port, "AUTH:SUCCESS:ACCESS_GRANTED");
-                    
-                    through c :: 0..(active_ports.length() - 1) -> loop {
-                        vnet.send_to(server_sock, string(active_ips[c]), int64(active_ports[c]), "ALERT:BREACH_DETECTED_FROM_PORT_" + string(sender_port));
-                    };
+                    broadcast_feed_event("[VAULT BREACH]: GATEWAY FIREWALL CRACKED BY NODE " + string(sender_port));
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "AUTH:FAIL:INVALID_HASH");
                 }
             }
 
-            # --- 9. CAT FILE EXFILTRATION ---
             if (cmd == "CAT") {
                 if (firewall_open == 0) {
                     file_found :: Int64 = -1;
@@ -172,6 +229,7 @@ while (true) {
 
                     if (file_found >= 0) {
                         vnet.send_to(server_sock, sender_ip, sender_port, "FILE_DATA:" + string(vfs_data[file_found]));
+                        broadcast_feed_event("[EXFILTRATION]: NODE " + string(sender_port) + " EXFILTRATED " + payload);
                     } else {
                         vnet.send_to(server_sock, sender_ip, sender_port, "FILE_ERROR:NOT_FOUND");
                     }
@@ -180,11 +238,25 @@ while (true) {
                 }
             }
 
-            # --- 10. DEFENDER PATCH ---
             if (cmd == "PATCH") {
                 firewall_open = 1;
                 current_salt  = current_salt + 7;
                 vnet.send_to(server_sock, sender_ip, sender_port, "SYS_STATUS:FIREWALL_PATCHED_SALT_UPDATED");
+                broadcast_feed_event("[DEFENSE PATCH]: NODE " + string(sender_port) + " RELOCKED GATEWAY FIREWALL");
+            }
+
+            # ================================================================
+            # WIN MECHANIC - MASTER VAULT OVERRIDE
+            # ================================================================
+            if (cmd == "WIN") {
+                if (payload == "1001 1337 8008 4040 7712 6660 3141 9999") {
+                    game_over = 1;
+                    out("[SYSTEM OVERRIDE]: VICTORY DETECTED FROM PORT " + string(sender_port));
+                    broadcast_feed_event("[SYSTEM OVERRIDE]: NODE " + string(sender_port) + " HAS BREACHED ROOT VAULT!");
+                    broadcast_raw("EXPLOIT:WINNER:" + string(sender_port));
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "WIN:FAIL:INVALID_KEY_COMBINATION");
+                }
             }
         }
     }
