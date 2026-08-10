@@ -26,7 +26,7 @@ ifeq ($(OS),Windows_NT)
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
     RAYLIB_LIB_PATH = -L./vendor/raylib/lib
     LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH) -static -static-libgcc -static-libstdc++
-    LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread
+    LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread -lws2_32
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
     DEL = rm -f $(TARGET)
