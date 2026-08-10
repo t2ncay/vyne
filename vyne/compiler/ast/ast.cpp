@@ -9,6 +9,7 @@
 #include "../../modules/common/vurage/vurage.h"
 #include "../../modules/common/vcv/vcv.h"
 #include "../../modules/common/vaudio/vaudio.h"
+#include "../../modules/common/vnet/vnet.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -702,6 +703,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     static const uint32_t placeAllId = StringPool::intern("place_all");
     static const uint32_t fieldsId   = StringPool::intern("fields");
     static const uint32_t substrId   = StringPool::intern("substr");
+    static const uint32_t findId     = StringPool::intern("find");
 
     if (receiverVal.getType() == Value::STRING) {
         std::string str = receiverVal.asString();
@@ -727,6 +729,18 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             }
 
             return Value(str.substr(static_cast<size_t>(start)));
+        }
+
+        if (methodId == findId) {
+            if (arguments.empty()) {
+                throw std::runtime_error("find() expects 1 argument (target string) [ line " + std::to_string(lineNumber) + " ]");
+            }
+            std::string target = arguments[0]->evaluate(env, currentGroupId).asString();
+            size_t pos = str.find(target);
+            if (pos == std::string::npos) {
+                return Value(static_cast<int64_t>(-1));
+            }
+            return Value(static_cast<int64_t>(pos));
         }
 
         if (methodId == replaceId) {
@@ -1485,6 +1499,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const 
     if (originalName == "vurage") setupVurage(env, StringPool::instance());
     if (originalName == "vcv")    setupVCV(env, StringPool::instance());
     if (originalName == "vaudio") setupVAudio(env, StringPool::instance());
+    if (originalName == "vnet")   setupVNet(env, StringPool::instance());
 
     auto& groupTable = env[currentGroupId]; 
 
