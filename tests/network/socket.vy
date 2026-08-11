@@ -526,6 +526,13 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + args);
         }
     }
+    else if (cmd == "connect" || cmd == "goto") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: connect <url_address> (e.g. connect market.vnet)");
+        } else {
+            trigger_route_navigation(args);
+        }
+    }
     else if (cmd == "patch") {
         if (cd_patch > 0.0) {
             cli_logs.push("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
@@ -680,6 +687,7 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "help") {
         cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
+        cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
         cli_logs.push("  patch                   - [0.70 BTC | 120s CD] Emergency rebind new socket port");
         cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
         cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
@@ -898,8 +906,10 @@ while (vglib.running()) {
             if (vnet_feed_logs.length() > 12) {
                 feed_scroll_y = float64(vnet_feed_logs.length() - 12) * 20.0;
             }
-        }
-        else {
+        } else if (net_msg.length() > 10 && net_msg.substr(0, 10) == "TELEMETRY:") {
+            cli_logs.push("[TELEMETRY]: " + net_msg.substr(10, net_msg.length() - 10));
+            glitch_trigger = 0.3;
+        } else {
             cli_logs.push("[NET_IN] " + net_msg);
 
             if (net_msg == "EXPLOIT:DOS") {

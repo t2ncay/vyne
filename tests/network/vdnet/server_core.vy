@@ -266,7 +266,7 @@ while (true) {
             }
 
             if (cmd == "MINE_EVENT") {
-                broadcast_feed_event("[WHALE ALERT]: NODE " + string(sender_port) + " MINED +0.05 BTC BLOCK AT crypto.vnet");
+                broadcast_feed_event("[WHALE ALERT]: NODE ???? MINED +0.05 BTC BLOCK AT crypto.vnet");
             }
 
             if (cmd == "SCAN") {
