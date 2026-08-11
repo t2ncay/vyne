@@ -1873,10 +1873,14 @@ while (vglib.running()) {
             if (down_site.length() >= 7 && down_site.substr(0, 7) == "vnet://") {
                 down_site = down_site.substr(7, down_site.length() - 7);
             }
-            active_down_url = clean_str(down_site);
-            active_down_timer = 30.0;
+            parsed_down_url :: String = clean_str(down_site);
+            
+            if (active_down_url != parsed_down_url || active_down_timer <= 0.0) {
+                active_down_url = parsed_down_url;
+                active_down_timer = 30.0;
+                cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
+            }
             glitch_trigger = 0.8;
-            cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             winner_port = net_msg.substr(14, net_msg.length() - 14);
