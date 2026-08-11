@@ -46,7 +46,7 @@ all_50_sites :: Array = [
     "weaponry.vnet", "passports.vnet", "blackbank.vnet"
 ];
 
-# 7 MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
+# MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
 mutual_sites :: Array = [
     "market.vnet", "vault.vnet", "terminal.vnet", 
     "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet", "hellroom.vnet"
@@ -127,29 +127,28 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_ips[found_idx]       = ip;
         active_last_seen[found_idx] = now_time;
     } else {
-        # NEW PEER: ASSIGN EXACTLY 15 SITES (7 MUTUAL, 8 RANDOM)
-        assigned_15 :: Array = [];
+        assigned_16 :: Array = [];
         
-        through m :: 0..6 -> loop {
-            assigned_15.push(string(mutual_sites[m]));
+        through m :: 0..7 -> loop {
+            assigned_16.push(string(mutual_sites[m]));
         };
         
-        while (assigned_15.length() < 15) {
+        while (assigned_16.length() < 16) {
             rand_s :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
             site_n :: String = string(all_50_sites[rand_s]);
             
             already :: Int64 = 0;
-            through u :: 0..(assigned_15.length() - 1) -> loop {
-                if (string(assigned_15[u]) == site_n) { already = 1; break; }
+            through u :: 0..(assigned_16.length() - 1) -> loop {
+                if (string(assigned_16[u]) == site_n) { already = 1; break; }
             };
             if (already == 0) {
-                assigned_15.push(site_n);
+                assigned_16.push(site_n);
             }
         }
         
         dir_payload :: String = "";
-        through s_idx :: 0..14 -> loop {
-            dir_payload = dir_payload + string(assigned_15[s_idx]) + ((s_idx < 14) ? ":" : "");
+        through s_idx :: 0..15 -> loop {
+            dir_payload = dir_payload + string(assigned_16[s_idx]) + ((s_idx < 15) ? ":" : "");
         };
 
         active_ports.push(port);
