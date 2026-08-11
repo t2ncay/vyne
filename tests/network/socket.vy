@@ -154,6 +154,7 @@ cd_mine          :: Float64 = 0.0;
 cd_patch         :: Float64 = 0.0;
 cd_decoy         :: Float64 = 0.0;
 cd_scan          :: Float64 = 0.0;
+cd_proxy         :: Float64 = 0.0;
 
 # CHATROOM & INTERACTIVE HANDLE STATE
 player_handle     :: String = "sh4d0w" + string(vmath.random(100, 999));
@@ -253,7 +254,7 @@ fn load_page(url :: String) -> Array {
     
     if (clean_u == "shadow.dir") {
         dir_res :: Array = [
-            "[TITLE] SHADOWNET ANONYMOUS DIRECTORY v4.09",
+            "[TITLE] VNET ANONYMOUS DIRECTORY v4.09",
             "[HR]",
             "[GLITCH] [WARNING]: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS.",
             "[PULSE] ALL ROUTED PACKETS ARE MIRRORED TO RESTRICTED VFS MEMORY STACKS.",
@@ -692,7 +693,7 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] DEEP WEB ABYSS TERMINAL NODE",
             "[HR]",
-            "[GLITCH] YOU HAVE REACHED THE END OF SHADOWNET ROUTING TABLES.",
+            "[GLITCH] YOU HAVE REACHED THE END OF VNET ROUTING TABLES.",
             "[TEXT] No routing hops exist beyond this coordinate.",
             "[TEXT] All packets sent here dissolve into absolute zero memory entropy.",
             "[CODE] NULL_POINTER_EXCEPTION_AT_0X00000000",
@@ -1200,10 +1201,16 @@ fn dispatch_cli_command(raw_input :: String) {
         via_node = sub_parsed[1]; # format: proxy target.vnet market.vnet
         if (target_u == "" || via_node == "") {
             cli_logs.push("[ERROR]: Usage: proxy <target_url> <proxy_node_url>");
+        } else if (cd_proxy > 0.0) {
+            cli_logs.push("[ERROR]: PROXY COOLDOWN ACTIVE (" + string(int64(cd_proxy) + 1) + "s REMAINING)");
+        } else if (btc_balance < 0.40) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.40 VCOIN)");
         } else {
+            btc_balance = btc_balance - 0.40;
+            cd_proxy = 120.0;
             vnet.send_to(client_sock, server_ip, server_port, "PROXY:" + via_node + ":" + target_u);
             trigger_route_navigation(target_u);
-            cli_logs.push("[PROXY]: ESTABLISHING MASKED CIRCUIT VIA " + via_node + "...");
+            cli_logs.push("[PROXY]: ESTABLISHING MASKED CIRCUIT VIA " + via_node + " (COST: 0.40 VCOIN)...");
         }
     }
     else if (cmd == "patch") {
@@ -1414,7 +1421,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  netscan                 - Discover active peers on current URL");
         cli_logs.push("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
         cli_logs.push("  history                 - Display all known assigned routing nodes");
-        cli_logs.push("  proxy <url> <node>      - Route connection through intermediate proxy node");
+        cli_logs.push("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy node");
         cli_logs.push("  bounty                  - Quick jump to target bounty board");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
         cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
@@ -1493,6 +1500,7 @@ while (vglib.running()) {
         if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; }
         if (cd_scan > 0.0)     { cd_scan = cd_scan - 0.016; }
         if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
+        if (cd_proxy > 0.0)    { cd_proxy = cd_proxy - 0.016; }
 
         if (sniffer_mode == 1) {
             sniffer_upkeep_timer = sniffer_upkeep_timer + 0.016;
@@ -1867,7 +1875,7 @@ while (vglib.running()) {
 
         vglib.rect(0 + jitter_x, 0 + jitter_y, 1280, 60, COLOR_PANEL);
         vglib.line(0, 60, 1280, 60, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "SHADOWNET v9.5", 15 + jitter_x, 22, 14, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "VNET", 45 + jitter_x, 22, 14, COLOR_BLOOD);
 
         vglib.rect(120 + jitter_x, 12 + jitter_y, 800, 36, COLOR_URLBAR);
         vglib.line(120 + jitter_x, 12 + jitter_y, 920 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);

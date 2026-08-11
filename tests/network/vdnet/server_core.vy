@@ -449,9 +449,47 @@ while (true) {
                         active_dos_hits[target_idx] = hits;
                         
                         if (hits == 2) {
-                            target_history :: String = string(active_dirs[target_idx]);
-                            broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! DIRECTORY REVEALED TO PORT " + string(sender_port));
-                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + target_history);
+                            target_history_str :: String = string(active_dirs[target_idx]);
+                            
+                            target_assigned :: Array = [];
+                            curr_seg :: String = "";
+                            through i :: 0..(target_history_str.length() - 1) -> loop {
+                                c = target_history_str.substr(i, 1);
+                                if (c == ":") {
+                                    if (curr_seg != "") { target_assigned.push(curr_seg); }
+                                    curr_seg = "";
+                                } else {
+                                    curr_seg = curr_seg + c;
+                                }
+                            };
+                            if (curr_seg != "") { target_assigned.push(curr_seg); }
+
+                            non_mutuals :: Array = [];
+                            through s_idx :: 0..(target_assigned.length() - 1) -> loop {
+                                site :: String = string(target_assigned[s_idx]);
+                                is_mutual :: Int64 = 0;
+                                through m_idx :: 0..(mutual_sites.length() - 1) -> loop {
+                                    if (site == string(mutual_sites[m_idx])) {
+                                        is_mutual = 1;
+                                        break;
+                                    }
+                                };
+                                if (is_mutual == 0) {
+                                    non_mutuals.push(site);
+                                }
+                            };
+
+                            drop_payload :: String = "";
+                            leak_count :: Int64 = 0;
+                            through n_idx :: 0..(non_mutuals.length() - 1) -> loop {
+                                if (leak_count < 5) {
+                                    drop_payload = drop_payload + string(non_mutuals[n_idx]) + ":";
+                                    leak_count = leak_count + 1;
+                                }
+                            };
+
+                            broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! 5 HIDDEN NODES EXFILTRATED.");
+                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + drop_payload);
                         } else if (hits >= 3) {
                             active_dos_hits[target_idx] = 0;
                             broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
