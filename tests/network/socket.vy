@@ -1994,7 +1994,7 @@ while (vglib.running()) {
             vglib.line(880, 135, 880, 167, COLOR_BLOOD);
             vglib.line(880, 167, 765, 167, COLOR_BLOOD);
             vglib.line(765, 167, 765, 135, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, "TRANSMIT", 778 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "TRANSMIT", 785 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
 
             # Live Stream Panel Box
             vglib.rect(35 + jitter_x, 190 + jitter_y, 855, 545, COLOR_BLACK);
