@@ -126,12 +126,19 @@ heartbeat_timer  :: Float64 = 0.0;
 
 # CYBERWARFARE MECHANIC STATES
 sniffer_mode     :: Int64   = 0;
+sniffer_upkeep_timer :: Float64 = 0.0;
 freq_tuner       :: Float64 = 18.5; # FREQUENCY IN HZ
 recent_packets   :: Int64   = 0;
 packet_decay_cd  :: Float64 = 0.0;
 
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
+
+# HACKING INTRO STATE
+is_playing_intro       :: Int64   = 1;
+intro_timer            :: Float64 = 0.0;
+intro_step             :: Int64   = 0;
+intro_fade             :: Float64 = 0.0;
 
 # PROCEDURAL SESSION KEYS & LOCATIONS STORAGE
 session_keys      :: Array = ["????", "????", "????", "????", "????", "????", "????", "????"];
@@ -149,7 +156,7 @@ cd_decoy         :: Float64 = 0.0;
 cd_scan          :: Float64 = 0.0;
 
 # CHATROOM & INTERACTIVE HANDLE STATE
-player_handle     :: String = "GHOST_" + string(my_port);
+player_handle     :: String = "sh4d0w" + string(vmath.random(100, 999));
 chat_input_buffer :: String = "";
 handle_focused    :: Int64  = 0;
 chat_focused      :: Int64  = 0;
@@ -439,21 +446,25 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] MASTER DECRYPTION GATEWAY TERMINAL",
             "[HR]",
-            "[PULSE] FINAL NODE REACHED. INPUT ALL CODES INTO OVERLAY TERMINAL CLI.",
+            "[PULSE] ROOT VAULT LOCKDOWN ACTIVE. 8 CRYPTOGRAPHIC SLOTS REQUIRE AUTHORIZATION.",
             "[BOX] +---------------------------------------------------------+",
-            "[BOX] | REGISTER CODE 1: [" + session_keys[0] + "] | REGISTER CODE 5: [" + session_keys[4] + "]       |",
-            "[BOX] | REGISTER CODE 2: [" + session_keys[1] + "] | REGISTER CODE 6: [" + session_keys[5] + "]       |",
-            "[BOX] | REGISTER CODE 3: [" + session_keys[2] + "] | REGISTER CODE 7: [" + session_keys[6] + "]       |",
-            "[BOX] | REGISTER CODE 4: [" + session_keys[3] + "] | REGISTER CODE 8: [" + session_keys[7] + "]       |",
+            "[BOX] | SLOT 01: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 02: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 03: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 04: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 05: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 06: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 07: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
+            "[BOX] | SLOT 08: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
             "[BOX] +---------------------------------------------------------+",
             "[TEXT] Gateway verification checks active socket signatures against root keys.",
-            "[TEXT] Unauthorized submission will permanently lock the local subnet port.",
-            "[CODE] ROOT_ACCESS_VECTOR: OPEN",
+            "[TEXT] Scour assigned darknet nodes, forums, and memory dumps to locate fragments.",
+            "[CODE] ROOT_ACCESS_VECTOR: SECURED BY 8-FACTOR HASH SHIELD",
             "[CODE] KERNEL_INTEGRITY: 100%"
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[GLITCH] SYS_STATUS: WAITING FOR ALL 8 KEYS TO BREACH VFS ROOT VAULT...");
-        res.push("[TEXT] Hint: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI");
+        res.push("[TEXT] Instruction: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI [TAB]");
         res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
@@ -1208,9 +1219,15 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "sniffer") {
-        sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
-        status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
-        cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
+        if (sniffer_mode == 0 && btc_balance < 0.05) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO INITIALIZE PACKET SNIFFER (REQUIRES 0.05 VCOIN)");
+        } else {
+            sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
+            status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
+            cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
+            sniffer_upkeep_timer = 0.0;
+            vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_STATUS:" + string(sniffer_mode));
+        }
     }
     else if (cmd == "freq") {
         if (args == "") {
@@ -1245,7 +1262,9 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "win") {
-        if (args == "") {
+        if (current_url != "terminal.vnet") {
+            cli_logs.push("[ERROR]: MASTER GATEWAY UNAVAILABLE. NAVIGATE TO terminal.vnet FIRST.");
+        } else if (args == "") {
             cli_logs.push("[ERROR]: Usage: win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "WIN:" + args);
@@ -1429,6 +1448,27 @@ fn dispatch_cli_command(raw_input :: String) {
 # MAIN ENGINE LOOP
 # ====================================================================
 while (vglib.running()) {
+    # ================================================================
+    # WTTG2 STYLE INTRO / BOOT SEQUENCE CONTROLLER
+    # ================================================================
+    if (is_playing_intro == 1) {
+        intro_timer = intro_timer + 0.016;
+        intro_fade  = vmath.clamp(intro_fade + 0.01, 0.0, 1.0);
+
+        # Timed progression for atmospheric text reveals
+        if (intro_timer > 2.0 && intro_step < 1) { intro_step = 1; }
+        if (intro_timer > 4.5 && intro_step < 2) { intro_step = 2; }
+        if (intro_timer > 7.0 && intro_step < 3) { intro_step = 3; }
+
+        # Bypass on keypress
+        if (vglib.key_pressed(vglib.ENTER) || vglib.key_pressed(vglib.SPACE) || vglib.key_pressed(vglib.ESCAPE)) {
+            is_playing_intro = 0;
+            current_url = "shadow.dir";
+            page_body   = load_page(current_url);
+            vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+        }
+    }
+
     run_time     = run_time + 0.016;
     cursor_blink = cursor_blink + 0.016;
 
@@ -1453,6 +1493,21 @@ while (vglib.running()) {
         if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; }
         if (cd_scan > 0.0)     { cd_scan = cd_scan - 0.016; }
         if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
+
+        if (sniffer_mode == 1) {
+            sniffer_upkeep_timer = sniffer_upkeep_timer + 0.016;
+            if (sniffer_upkeep_timer >= 4.0) {
+                sniffer_upkeep_timer = 0.0;
+                if (btc_balance >= 0.02) {
+                    btc_balance = btc_balance - 0.02;
+                    trace_level = int64(vmath.clamp(float64(trace_level + 3), 0.0, 100.0));
+                    cli_logs.push("[SNIFFER_UPKEEP]: -0.02 VCOIN | WARNING: PROMISCUOUS MODE INCREASING TRACE (+3%)");
+                } else {
+                    sniffer_mode = 0;
+                    cli_logs.push("[POWER FAULT]: INSUFFICIENT VCOIN RESERVES! PACKET SNIFFER FORCED OFFLINE.");
+                }
+            }
+        }
 
         if (is_connecting == 1) {
             connection_timer = connection_timer + 0.016;
@@ -1773,6 +1828,40 @@ while (vglib.running()) {
     vglib.begin();
         vglib.clear(COLOR_BLACK);
 
+        if (is_playing_intro == 1) {
+            vglib.rect(140, 120, 1000, 560, COLOR_PANEL);
+            vglib.line(140, 120, 1140, 120, COLOR_BORDER);
+            vglib.line(1140, 120, 1140, 680, COLOR_BORDER);
+            vglib.line(1140, 680, 140, 680, COLOR_BORDER);
+            vglib.line(140, 680, 140, 120, COLOR_BORDER);
+
+            # Glitch-free, moody WTTG2 branding header
+            vglib.text_ex(vcr_font, "THE DEEP WEB PROTOCOL", 460, 170, 16, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "INITIALIZING SECURE SOCKET ENVIRONMENT...", 400, 210, 12, COLOR_CYAN);
+            vglib.line(180, 240, 1100, 240, COLOR_BORDER);
+
+            # Typewriter Log Sequence
+            if (intro_step >= 1) {
+                vglib.text_ex(vcr_font, "[*] Loading kernel cryptographic signatures... [OK]", 180, 290, 12, COLOR_GHOST);
+            }
+            if (intro_step >= 2) {
+                vglib.text_ex(vcr_font, "[*] Bypassing localized firewall daemons... [SECURE]", 180, 330, 12, COLOR_TOXIC);
+            }
+            if (intro_step >= 3) {
+                vglib.text_ex(vcr_font, "[*] Establishing peer-to-peer uplink to 127.0.0.1:8000...", 180, 370, 12, COLOR_AMBER);
+                vglib.text_ex(vcr_font, ">> PRESS [ENTER] TO INITIALIZE SHADOWOS <<", 420, 520, 14, COLOR_TOXIC);
+            }
+
+            # Subtle Clean Scanlines (No violent shaking)
+            through sy :: 0..99 -> loop {
+                line_y :: Float64 = float64(sy * 8);
+                vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
+            };
+
+            vglib.end();
+            continue;
+        }
+
         jitter_x :: Float64 = (glitch_trigger > 0.0) ? (vmath.sin(run_time * 50.0) * (glitch_trigger * 12.0)) : 0.0;
         jitter_y :: Float64 = (glitch_trigger > 0.0) ? (vmath.cos(run_time * 30.0) * (glitch_trigger * 10.0)) : 0.0;
 
@@ -1897,7 +1986,7 @@ while (vglib.running()) {
             vglib.line(880, 135, 880, 167, COLOR_BLOOD);
             vglib.line(880, 167, 765, 167, COLOR_BLOOD);
             vglib.line(765, 167, 765, 135, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, "[ TRANSMIT ]", 778 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "TRANSMIT", 778 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
 
             # Live Stream Panel Box
             vglib.rect(35 + jitter_x, 190 + jitter_y, 855, 545, COLOR_BLACK);

@@ -166,6 +166,14 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
     }
 }
 
+fn mask_port(port_val :: Int64) -> String {
+    p_str :: String = string(port_val);
+    if (p_str.length() >= 4) {
+        return p_str.substr(0, p_str.length() - 1) + "X";
+    }
+    return p_str;
+}
+
 fn unregister_peer(port :: Int64) {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
@@ -241,11 +249,9 @@ fn send_key_sync_payload(ip :: String, port :: Int64) {
 }
 
 fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
-    # Check if attacker is safely behind a proxy chain
     through p_idx :: 0..(proxy_chains_source.length() - 1) -> loop {
         if (int64(proxy_chains_source[p_idx]) == attacker_port) {
             if (string(proxy_chains_target[p_idx]) == target) {
-                # Proxy intercepts the trap instead of the player!
                 proxy_node_name :: String = string(proxy_chains_proxy[p_idx]);
                 broadcast_feed_event("[PROXY SHIELD]: PROXY NODE " + proxy_node_name + " ABSORBED AMBUSH FOR PORT_" + string(attacker_port));
                 return null;
@@ -255,7 +261,10 @@ fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
 
     h_idx :: Int64 = -1;
     through h :: 0..(decoy_targets.length() - 1) -> loop {
-        if (string(decoy_targets[h]) == target) { h_idx = h; break; }
+        if (string(decoy_urls[h]) == target) { 
+            h_idx = h; 
+            break; 
+        }
     };
 
     if (h_idx >= 0) {
@@ -266,7 +275,7 @@ fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
                 if (int64(active_ports[p]) == owner_port) { owner_ip = string(active_ips[p]); break; }
             };
             vnet.send_to(server_sock, owner_ip, owner_port, "DECOY_TRIPPED:PORT_" + string(attacker_port) + "_AMBUSHED_AT_" + target);
-            broadcast_feed_event("[DECOY TRAP]: PORT_" + string(attacker_port) + " TRIPPED A DECOY AT " + target + "!");
+            broadcast_feed_event("[DECOY TRAP]: PORT_XXXX TRIPPED A DECOY AT " + target + "!");
             
             decoy_targets.delete(decoy_targets[h_idx]);
             decoy_owners.delete(decoy_owners[h_idx]);
@@ -314,12 +323,11 @@ while (true) {
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
             update_peer_session(sender_port, sender_ip, payload, server_uptime);
-            broadcast_feed_event("[SNIFF]: " + string(sender_port) + " -> " + payload);
+            broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
 
             if (cmd == "GET") {
                 out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
                 send_key_sync_payload(sender_ip, sender_port);
-                check_and_trip_decoy(payload, sender_port);
             }
 
             if (cmd == "NETSCAN") {
@@ -365,14 +373,16 @@ while (true) {
                 
                 if (sep_d > 0) {
                     target_url :: String = payload.substr(0, sep_d);
-                    dummy_port :: String = payload.substr(sep_d + 1, payload.length() - sep_d - 1);
+                    dummy_port_str :: String = payload.substr(sep_d + 1, payload.length() - sep_d - 1);
                     
-                    decoy_targets.push(dummy_port);
+                    dummy_port_val :: Int64 = int64(dummy_port_str);
+                    
+                    decoy_targets.push(dummy_port_val);
                     decoy_urls.push(target_url);
                     decoy_owners.push(sender_port);
                     
-                    vnet.send_to(server_sock, sender_ip, sender_port, "DECOY_SET:DECOY_DEPLOYED_ON_" + target_url + "_AS_PORT_" + dummy_port);
-                    broadcast_feed_event("[NETWORK]: DECOY PORT " + dummy_port + " DEPLOYED AT " + target_url);
+                    vnet.send_to(server_sock, sender_ip, sender_port, "DECOY_SET:DECOY_DEPLOYED_ON_" + target_url + "_AS_PORT_" + dummy_port_str);
+                    broadcast_feed_event("[NETWORK]: DECOY PORT " + dummy_port_str + " DEPLOYED AT " + target_url);
                 }
             }
             if (cmd == "CHAT") {
@@ -389,41 +399,68 @@ while (true) {
                 }
             }
             if (cmd == "DOS") {
-                check_and_trip_decoy(payload, sender_port);
+                target_node_str :: String = payload;
+                target_node :: Int64 = int64(target_node_str);
                 
-                target_node :: Int64 = int64(payload);
-                target_ip   :: String = "127.0.0.1";
-                target_idx  :: Int64 = -1;
-                
-                through p :: 0..(active_ports.length() - 1) -> loop {
-                    if (int64(active_ports[p]) == target_node) { 
-                        target_ip = string(active_ips[p]); 
-                        target_idx = p;
-                        break; 
+                decoy_idx :: Int64 = -1;
+                through d :: 0..(decoy_targets.length() - 1) -> loop {
+                    if (int64(decoy_targets[d]) == target_node) {
+                        decoy_idx = d;
+                        break;
                     }
                 };
 
-                if (target_idx >= 0) {
-                    out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
-                    vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
-                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
-                    broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
-
-                    hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
-                    active_dos_hits[target_idx] = hits;
-                    
-                    if (hits == 2) {
-                        target_history :: String = string(active_dirs[target_idx]);
-                        broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! DIRECTORY REVEALED TO PORT " + string(sender_port));
-                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + target_history);
-                    } else if (hits >= 3) {
-                        active_dos_hits[target_idx] = 0;
-                        broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
-                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
+                if (decoy_idx >= 0) {
+                    owner_port :: Int64 = int64(decoy_owners[decoy_idx]);
+                    if (owner_port != sender_port) {
+                        owner_ip :: String = "127.0.0.1";
+                        through p :: 0..(active_ports.length() - 1) -> loop {
+                            if (int64(active_ports[p]) == owner_port) { owner_ip = string(active_ips[p]); break; }
+                        };
+                        
+                        vnet.send_to(server_sock, owner_ip, owner_port, "DECOY_TRIPPED:PORT_" + string(sender_port) + "_ATTACKED_DECOY_PORT_" + string(target_node));
+                        broadcast_feed_event("[DECOY TRAP]: PORT_" + string(sender_port) + " TRIED TO DOS DECOY PORT " + string(target_node) + "! TRAP SPRUNG.");
+                        
+                        vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:DOS");
+                        
+                        decoy_targets.delete(decoy_targets[decoy_idx]);
+                        decoy_owners.delete(decoy_owners[decoy_idx]);
+                        decoy_urls.delete(decoy_urls[decoy_idx]);
                     }
                 } else {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
-                    broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " WASTED 0.25 VCOIN DOS ON PHANTOM BOT PORT_" + string(target_node) + "!");
+                    target_ip   :: String = "127.0.0.1";
+                    target_idx  :: Int64 = -1;
+                    
+                    through p :: 0..(active_ports.length() - 1) -> loop {
+                        if (int64(active_ports[p]) == target_node) { 
+                            target_ip = string(active_ips[p]); 
+                            target_idx = p;
+                            break; 
+                        }
+                    };
+
+                    if (target_idx >= 0) {
+                        out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
+                        vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
+                        vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                        broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
+
+                        hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
+                        active_dos_hits[target_idx] = hits;
+                        
+                        if (hits == 2) {
+                            target_history :: String = string(active_dirs[target_idx]);
+                            broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! DIRECTORY REVEALED TO PORT " + string(sender_port));
+                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + target_history);
+                        } else if (hits >= 3) {
+                            active_dos_hits[target_idx] = 0;
+                            broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
+                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
+                        }
+                    } else {
+                        vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                        broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " WASTED 0.25 VCOIN DOS ON PHANTOM BOT PORT_" + string(target_node) + "!");
+                    }
                 }
             }
 
@@ -503,6 +540,15 @@ while (true) {
                 vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:TRACE_SPIKE");
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:PEER_TRACE_SPIKED");
                 broadcast_feed_event("[TRACE SPIKE]: NODE " + string(sender_port) + " SPIKED TRACE ON NODE " + string(target_node));
+            }
+
+            if (cmd == "SNIFFER_STATUS") {
+                state_str :: String = payload;
+                if (state_str == "1") {
+                    broadcast_feed_event("[WARNING]: PEER PORT_" + string(sender_port) + " ENTERED PROMISCUOUS SNIFFING MODE!");
+                } else {
+                    broadcast_feed_event("[NETWORK]: PEER PORT_" + string(sender_port) + " DISABLED PACKET SNIFFER.");
+                }
             }
 
             if (cmd == "TRACE_BUST") {
