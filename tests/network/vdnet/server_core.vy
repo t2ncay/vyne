@@ -49,7 +49,7 @@ all_50_sites :: Array = [
 # 7 MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
 mutual_sites :: Array = [
     "market.vnet", "vault.vnet", "terminal.vnet", 
-    "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet"
+    "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet", "hellroom.vnet"
 ];
 
 # ====================================================================
@@ -359,11 +359,19 @@ while (true) {
                     broadcast_feed_event("[NETWORK]: DECOY PORT " + dummy_port + " DEPLOYED AT " + target_url);
                 }
             }
-
             if (cmd == "CHAT") {
-                broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
+                sep_c :: Int64 = -1;
+                through i :: 0..(payload.length() - 1) -> loop {
+                    if (payload[i] == ":") { sep_c = i; break; }
+                };
+                if (sep_c > 0) {
+                    handle_part :: String = payload.substr(0, sep_c);
+                    msg_part    :: String = payload.substr(sep_c + 1, payload.length() - sep_c - 1);
+                    broadcast_feed_event("[CHAT] <" + handle_part + ">: " + msg_part);
+                } else {
+                    broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
+                }
             }
-
             if (cmd == "DOS") {
                 check_and_trip_decoy(payload, sender_port);
                 

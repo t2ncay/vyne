@@ -144,6 +144,12 @@ cd_patch         :: Float64 = 0.0;
 cd_decoy         :: Float64 = 0.0;
 cd_scan          :: Float64 = 0.0;
 
+# CHATROOM & INTERACTIVE HANDLE STATE
+player_handle     :: String = "GHOST_" + string(my_port);
+chat_input_buffer :: String = "";
+handle_focused    :: Int64  = 0;
+chat_focused      :: Int64  = 0;
+
 scroll_y         :: Float64 = 0.0;
 cli_scroll_y     :: Float64 = 0.0;
 glitch_trigger   :: Float64 = 0.0;
@@ -293,6 +299,23 @@ fn load_page(url :: String) -> Array {
         return res;
     }
 
+    if (clean_u == "hellroom.vnet") {
+        res :: Array = [
+            "[TITLE] HELLROOM.VNET - DEMONIC P2P CHAT HUB",
+            "[HR]",
+            "[BLOOD] [WARNING]: UNENCRYPTED UDP BROADCAST SWARM ACTIVE.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | CHAT CHANNEL: HELLROOM | PROTOCOL: PLAINTEXT P2P STREAM |",
+            "[BOX] +---------------------------------------------------------+",
+            "[TEXT] Enter your handle and message in the interactive panel above.",
+            "[CODE] STATUS: ONLINE | REALTIME STREAM ACTIVE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
     if (clean_u == "dollhouse.vnet") {
         res :: Array = [
             "[TITLE] SURVEILLANCE FEED #0992 - ROOM 402",
@@ -325,7 +348,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Recovered memory dump from decommissioned gateway server #09.",
             "[TEXT] Sector allocation tables indicate severe sector-wide bit rot.",
             "[CODE] 00000000: 4F 70 65 6E 53 53 4C 20 4B 65 79 20 44 75 6D 70",
-            "[CODE] 00000020: 53 59 53 5F 45 52 52 4F 52 3A 20 4E 4F 44 45 5F",
+            "[CODE] 00000020: 53 59 53 5F 45 52 52 4F 52 3A 20 4E 4F 44 5F",
             "[CODE] 00000040: 88 9A BC EF 11 22 33 44 55 66 77 88 99 AA BB CC",
             "[TEXT] Warning: Accessing unallocated memory buffers triggers local trace spikes.",
             "[TEXT] Sector checksum mismatch detected across all 4 mount points."
@@ -1144,7 +1167,7 @@ fn dispatch_cli_command(raw_input :: String) {
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: chat <your_message_text>");
         } else {
-            vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + args);
+            vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + args);
         }
     }
     else if (cmd == "connect" || cmd == "goto") {
@@ -1310,6 +1333,21 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[SCAN]: INITIATING DEEP SUBNET FREQUENCY SWEEP...");
         }
     }
+    else if (cmd == "history") {
+        cli_logs.push("========== DISCOVERED SUBNET DIRECTORY ==========");
+        if (my_assigned_sites.length() > 0) {
+            through h_i :: 0..(my_assigned_sites.length() - 1) -> loop {
+                cli_logs.push("  -> vnet://" + string(my_assigned_sites[h_i]));
+            };
+        } else {
+            cli_logs.push("  [NO SITES STORED IN CURRENT ROUTING TABLE]");
+        }
+        cli_logs.push("==================================================");
+    }
+    else if (cmd == "bounty") {
+        trigger_route_navigation("bounty.vnet");
+        cli_logs.push("[BOUNTY]: ROUTING TO CONTRACT DIRECTORY...");
+    }
     else if (cmd == "crack") {
         if (args == "") { cli_logs.push("[ERROR]: Usage: crack <val>"); }
         else { vnet.send_to(client_sock, server_ip, server_port, "CRACK:" + args); }
@@ -1329,6 +1367,8 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
         cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
+        cli_logs.push("  history                 - Display all known assigned routing nodes");
+        cli_logs.push("  bounty                  - Quick jump to target bounty board");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
         cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
         cli_logs.push("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
@@ -1404,7 +1444,7 @@ while (vglib.running()) {
         passive_trace_cd = passive_trace_cd + 0.016;
         if (passive_trace_cd >= 3.0) {
             passive_trace_cd = 0.0;
-            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet") {
+            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet" || current_url == "hellroom.vnet") {
                 trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
             }
         }
@@ -1471,6 +1511,23 @@ while (vglib.running()) {
         } else if (dos_timer <= 0.0 && is_connecting == 0) {
             if (m_click == 1) {
                 url_focused = (mx >= 120.0 && mx <= 920.0 && my >= 12.0 && my <= 48.0) ? 1 : 0;
+                
+                if (current_url == "hellroom.vnet") {
+                    handle_focused = (mx >= 45.0 && mx <= 225.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
+                    chat_focused   = (mx >= 235.0 && mx <= 755.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
+                    
+                    # TRANSMIT BUTTON CLICK
+                    if (mx >= 765.0 && mx <= 880.0 && my >= 135.0 && my <= 167.0) {
+                        if (chat_input_buffer.length() > 0) {
+                            vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + chat_input_buffer);
+                            chat_input_buffer = "";
+                            glitch_trigger = 0.2;
+                        }
+                    }
+                } else {
+                    handle_focused = 0;
+                    chat_focused   = 0;
+                }
             }
 
             if (url_focused == 1) {
@@ -1487,6 +1544,41 @@ while (vglib.running()) {
                 if (vglib.key_pressed(vglib.ENTER) && input_url.length() > 0) {
                     url_focused = 0;
                     trigger_route_navigation(input_url);
+                }
+            }
+            else if (handle_focused == 1) {
+                ch = vglib.get_char();
+                while (ch != "") {
+                    if (player_handle.length() < 14 && ch != ":" && ch != " ") {
+                        player_handle = player_handle + ch;
+                    }
+                    ch = vglib.get_char();
+                }
+
+                if (vglib.key_pressed(vglib.BACKSPACE) && player_handle.length() > 0) {
+                    player_handle = player_handle.substr(0, player_handle.length() - 1);
+                }
+
+                if (vglib.key_pressed(vglib.ENTER)) {
+                    handle_focused = 0;
+                    chat_focused   = 1;
+                }
+            }
+            else if (chat_focused == 1) {
+                ch = vglib.get_char();
+                while (ch != "") {
+                    chat_input_buffer = chat_input_buffer + ch;
+                    ch = vglib.get_char();
+                }
+
+                if (vglib.key_pressed(vglib.BACKSPACE) && chat_input_buffer.length() > 0) {
+                    chat_input_buffer = chat_input_buffer.substr(0, chat_input_buffer.length() - 1);
+                }
+
+                if (vglib.key_pressed(vglib.ENTER) && chat_input_buffer.length() > 0) {
+                    vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + chat_input_buffer);
+                    chat_input_buffer = "";
+                    glitch_trigger = 0.2;
                 }
             }
         }
@@ -1741,6 +1833,72 @@ while (vglib.running()) {
 
             glitch_noise :: Float64 = vmath.sin(run_time * 40.0) * 4.0;
             vglib.text_ex(vcr_font, "ANONYMIZING IP SUBNET PACKETS...", 310.0 + glitch_noise + jitter_x, 450 + jitter_y, 11, COLOR_GHOST);
+        } else if (current_url == "hellroom.vnet") {
+            # ================================================================
+            # HELLROOM.VNET :: DEDICATED INTERACTIVE CHATROOM UI
+            # ================================================================
+            vglib.text_ex(vcr_font, "HELLROOM.VNET // DEMONIC P2P UNENCRYPTED CHATROOM", 40 + jitter_x, 95 + jitter_y, 14, COLOR_BLOOD);
+            vglib.line(40, 115, 890, 115, COLOR_BORDER);
+
+            # Control Panel Frame
+            vglib.rect(35 + jitter_x, 125 + jitter_y, 855, 52, COLOR_CLI_BG);
+            vglib.line(35, 125, 890, 125, COLOR_BORDER);
+            vglib.line(35, 177, 890, 177, COLOR_BORDER);
+
+            # Nickname Input Box
+            vglib.rect(45 + jitter_x, 135 + jitter_y, 180, 32, COLOR_BLACK);
+            vglib.line(45, 135, 225, 135, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(225, 135, 225, 167, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(225, 167, 45, 167, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(45, 167, 45, 135, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.text_ex(vcr_font, "NICK: " + player_handle, 52 + jitter_x, 145 + jitter_y, 11, handle_focused == 1 ? COLOR_TOXIC : COLOR_AMBER);
+
+            # Message Input Box
+            vglib.rect(235 + jitter_x, 135 + jitter_y, 520, 32, COLOR_BLACK);
+            vglib.line(235, 135, 755, 135, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(755, 135, 755, 167, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(755, 167, 235, 167, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            vglib.line(235, 167, 235, 135, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+            display_chat_in :: String = "MSG> " + truncate_str(chat_input_buffer, 55);
+            vglib.text_ex(vcr_font, display_chat_in, 242 + jitter_x, 145 + jitter_y, 11, chat_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
+
+            # Send / Transmit Button
+            btn_hover :: Int64 = (mx >= 765.0 && mx <= 880.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
+            vglib.rect(765 + jitter_x, 135 + jitter_y, 115, 32, btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
+            vglib.line(765, 135, 880, 135, COLOR_BLOOD);
+            vglib.line(880, 135, 880, 167, COLOR_BLOOD);
+            vglib.line(880, 167, 765, 167, COLOR_BLOOD);
+            vglib.line(765, 167, 765, 135, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "[ TRANSMIT ]", 778 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
+
+            # Live Stream Panel Box
+            vglib.rect(35 + jitter_x, 190 + jitter_y, 855, 545, COLOR_BLACK);
+            vglib.line(35, 190, 890, 190, COLOR_BORDER);
+            vglib.line(890, 190, 890, 735, COLOR_BORDER);
+            vglib.line(890, 735, 35, 735, COLOR_BORDER);
+            vglib.line(35, 735, 35, 190, COLOR_BORDER);
+
+            vglib.text_ex(vcr_font, "=== LIVE VNET BROADCAST STREAM & PEER CHAT LOG ===", 50 + jitter_x, 202 + jitter_y, 11, COLOR_AMBER);
+            vglib.line(50, 220, 875, 220, COLOR_BORDER);
+
+            chat_feed_cnt = vnet_feed_logs.length();
+            chat_start_y :: Float64 = 710.0 - scroll_y;
+
+            through cf_idx :: 0..(chat_feed_cnt - 1) -> loop {
+                c_line_y :: Float64 = chat_start_y - (float64(chat_feed_cnt - 1 - cf_idx) * 22.0);
+                if (c_line_y >= 230.0 && c_line_y <= 715.0) {
+                    cf_txt :: String = string(vnet_feed_logs[cf_idx]);
+                    cf_txt_trunc :: String = truncate_str(cf_txt, 90);
+
+                    cf_col = COLOR_GHOST;
+                    if (cf_txt.length() > 6 && cf_txt.substr(0, 6) == "[CHAT]") { cf_col = COLOR_TOXIC; }
+                    if (cf_txt.substr(0, 12) == "[DOS ATTACK]") { cf_col = COLOR_BLOOD; }
+                    if (cf_txt.substr(0, 12) == "[TRACE SPIKE]") { cf_col = COLOR_AMBER; }
+                    if (cf_txt.substr(0, 12) == "[BGP HIJACK]") { cf_col = COLOR_TOXIC; }
+
+                    vglib.text_ex(vcr_font, cf_txt_trunc, 50 + jitter_x, c_line_y, 10, cf_col);
+                }
+            };
         } else {
             line_idx :: Int64 = 0;
             through line_item :: page_body -> loop {
