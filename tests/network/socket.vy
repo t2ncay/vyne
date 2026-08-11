@@ -1722,6 +1722,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
         cli_logs.push("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
         cli_logs.push("  spike <port>            - [0.20 VCOIN | 12s CD] Force +35% threat trace");
+        cli_logs.push("  overload <url>          - [1.50 VCOIN | 240s CD] Force target node offline for 30s");
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
         cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
         cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
