@@ -9,10 +9,10 @@ module vfs;
 # NETWORK CONFIGURATION & SOCKET SETUP
 # ====================================================================
 my_port     :: Int64  = int64(vmath.random(8001, 8999));
-server_ip   :: String = "127.0.0.1"; # <-- Client PC changes this to host IP
+server_ip   :: String = "127.0.0.1";
 server_port :: Int64  = 8000;
 
-vglib.init(1280, 800, 60, "VYNE SHADOWOS v8.5 - DEEP HORROR VNET ENGINE", 0);
+vglib.init(1280, 800, 60, "VYNE SHADOWOS v9.0 - CYBERWARFARE & DEEP HORROR ENGINE", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 client_sock = vnet.udp_socket(my_port);
@@ -81,10 +81,8 @@ current_url      :: String  = "shadow.dir";
 input_url        :: String  = "shadow.dir";
 url_focused      :: Int64   = 0;
 
-# INITIAL HANDSHAKE WITH SERVER
 vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
 
-# RANDOMIZED LATENCY CONNECTION STATE
 is_connecting          :: Int64   = 0;
 connection_timer       :: Float64 = 0.0;
 target_connection_time :: Float64 = 0.0;
@@ -96,9 +94,11 @@ cli_logs         :: Array   = [
     "[SYS_INIT]: VNET SOCKET BOUND TO PORT " + string(my_port),
     "[SYS_INIT]: MOUNTED KERNEL SUBSYSTEM (PID: " + string(vcore.pid) + ")",
     "PRESS [TAB] TO TOGGLE OVERLAY TERMINAL ANYTIME",
+    "TYPE 'sniffer' TO INTERCEPT GLOBAL UDP PACKET TRAFFIC",
+    "TYPE 'freq' TO TUNER RF SIGNAL ANALYZER",
+    "TYPE 'honeypot <url>' TO SET AN AMBUSH TRAP (0.10 BTC)",
     "TYPE 'chat <msg>' TO BROADCAST REAL-TIME P2P MESSAGES",
     "TYPE 'buy ice' TO PURCHASE ICE DEFENSE SHIELD (0.30 BTC)",
-    "TYPE 'cat /sys/config.txt' TO INSPECT CONFIG HASH KEYS",
     "TYPE 'win <k1> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
     "TYPE 'help' FOR NETWORK & SYSTEM COMMANDS",
     "--------------------------------------------------"
@@ -119,7 +119,12 @@ dos_timer        :: Float64 = 0.0;
 passive_trace_cd :: Float64 = 0.0;
 heartbeat_timer  :: Float64 = 0.0;
 
-# WIN & FREEZE STATE
+# CYBERWARFARE MECHANIC STATES
+sniffer_mode     :: Int64   = 0;
+freq_tuner       :: Float64 = 18.5; # FREQUENCY IN HZ
+recent_packets   :: Int64   = 0;
+packet_decay_cd  :: Float64 = 0.0;
+
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
 
@@ -139,9 +144,6 @@ mouse_was_down   :: Int64   = 0;
 
 page_body        :: Array   = [];
 
-# ====================================================================
-# HELPER FUNCTIONS
-# ====================================================================
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -199,15 +201,12 @@ fn trigger_route_navigation(target_dest :: String) {
     pending_url            = target_dest;
     is_connecting          = 1;
     connection_timer       = 0.0;
-    target_connection_time = vmath.random(1.0, 10.0); # RANDOM LATENCY BETWEEN 1 AND 10 SECONDS
+    target_connection_time = vmath.random(1.0, 8.0);
     glitch_trigger         = 0.3;
     
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + target_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
-# ====================================================================
-# LORE-DENSE 18-SITE ANIMATED HORROR DATABASE
-# ====================================================================
 fn load_page(url :: String) -> Array {
     clean_u = url;
     
@@ -525,6 +524,29 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + args);
         }
     }
+    else if (cmd == "sniffer") {
+        sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
+        status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
+        cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
+    }
+    else if (cmd == "freq") {
+        if (args == "") {
+            cli_logs.push("[FREQ]: CURRENT TUNED FREQUENCY: " + string(freq_tuner) + " Hz");
+        } else {
+            freq_tuner = vmath.clamp(float64(int64(args)), 1.0, 100.0);
+            cli_logs.push("[FREQ]: TUNED TO " + string(freq_tuner) + " Hz");
+        }
+    }
+    else if (cmd == "honeypot") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: honeypot <target_url>");
+        } else if (btc_balance < 0.10) {
+            cli_logs.push("[ERROR]: INSUFFICIENT BTC (REQUIRES 0.10 BTC)");
+        } else {
+            btc_balance = btc_balance - 0.10;
+            vnet.send_to(client_sock, server_ip, server_port, "HONEYPOT:" + args);
+        }
+    }
     else if (cmd == "buy") {
         if (args == "ice" || args == "shield" || args == "firewall") {
             purchase_ice_firewall();
@@ -610,6 +632,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else {
             btc_balance = btc_balance + 0.05;
             cd_mine = 5.0;
+            vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS");
             cli_logs.push("[MINER]: SUCCESSFUL BLOCK PROOF! +0.05 BTC REWARD.");
         }
     }
@@ -644,9 +667,11 @@ fn dispatch_cli_command(raw_input :: String) {
         vnet.send_to(client_sock, server_ip, server_port, "PATCH:SEC_OVERRIDE");
     }
     else if (cmd == "help") {
-        cli_logs.push("========== P2P CHAT & DEFENSIVE COMMANDS ==========");
+        cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
+        cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
+        cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
+        cli_logs.push("  honeypot <url>          - [0.10 BTC] Deploy ambush trap on URL");
         cli_logs.push("  buy ice                 - [0.30 BTC] Purchase 1 layer of ICE");
-        cli_logs.push("  ice                     - Check active ICE Firewall charges");
         cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
         cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
@@ -660,7 +685,6 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
         cli_logs.push("  flush                   - [0.10 BTC] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
-        cli_logs.push("  scan / crack / cat      - Interrogate & breach vault flags");
         cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
         cli_logs.push("====================================================");
     }
@@ -686,11 +710,16 @@ while (vglib.running()) {
     run_time     = run_time + 0.016;
     cursor_blink = cursor_blink + 0.016;
 
-    # AUTOMATIC KEEPALIVE HEARTBEAT TICK (EVERY 3 SECONDS)
     heartbeat_timer = heartbeat_timer + 0.016;
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
         vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+    }
+
+    packet_decay_cd = packet_decay_cd + 0.016;
+    if (packet_decay_cd >= 2.0) {
+        packet_decay_cd = 0.0;
+        if (recent_packets > 0) { recent_packets = recent_packets - 1; }
     }
 
     if (game_over_winner == 0) {
@@ -700,7 +729,6 @@ while (vglib.running()) {
         if (cd_snoop > 0.0)    { cd_snoop = cd_snoop - 0.016; }
         if (cd_mine > 0.0)     { cd_mine = cd_mine - 0.016; }
 
-        # ROUTING DELAY HANDLER (1-10s RANDOM CONNECTION TIMER)
         if (is_connecting == 1) {
             connection_timer = connection_timer + 0.016;
             if (connection_timer >= target_connection_time) {
@@ -716,7 +744,6 @@ while (vglib.running()) {
             }
         }
 
-        # PASSIVE RISKY ROUTE TRACE INCREMENT
         passive_trace_cd = passive_trace_cd + 0.016;
         if (passive_trace_cd >= 3.0) {
             passive_trace_cd = 0.0;
@@ -725,7 +752,6 @@ while (vglib.running()) {
             }
         }
 
-        # TRACE 100% OVERLOAD LOCKOUT HANDLER
         if (trace_level >= 100) {
             trace_level = 20;
             btc_balance = vmath.clamp(btc_balance - 0.30, 0.0, 999.0);
@@ -814,6 +840,7 @@ while (vglib.running()) {
         net_msg :: String = string(packet_in[0]);
         server_status = net_msg;
         glitch_trigger = 0.2;
+        recent_packets = recent_packets + 1;
 
         if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             winner_port = net_msg.substr(14, net_msg.length() - 14);
@@ -821,13 +848,25 @@ while (vglib.running()) {
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
         }
+        else if (net_msg.length() > 17 && net_msg.substr(0, 17) == "HONEYPOT_TRIPPED:") {
+            cli_logs.push("[AMBUSH ALERT]: " + net_msg.substr(17, net_msg.length() - 17));
+            glitch_trigger = 0.6;
+        }
         else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "DOS_DROP:") {
             cli_logs.push("[REWARD]: " + net_msg.substr(9, net_msg.length() - 9));
             btc_balance = btc_balance + 0.20;
         }
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "FEED_EVENT:") {
             feed_text :: String = net_msg.substr(11, net_msg.length() - 11);
-            vnet_feed_logs.push(feed_text);
+            
+            # SNIFFER INTERCEPT FILTER
+            if (feed_text.substr(0, 8) == "[SNIFF]:") {
+                if (sniffer_mode == 1) {
+                    cli_logs.push(feed_text);
+                }
+            } else {
+                vnet_feed_logs.push(feed_text);
+            }
             
             if (vnet_feed_logs.length() > 12) {
                 feed_scroll_y = float64(vnet_feed_logs.length() - 12) * 20.0;
@@ -836,7 +875,6 @@ while (vglib.running()) {
         else {
             cli_logs.push("[NET_IN] " + net_msg);
 
-            # --- AUTOMATIC ICE FIREWALL DEFENSE INTERCEPTOR ---
             if (net_msg == "EXPLOIT:DOS") {
                 if (ice_charges > 0) {
                     ice_charges = ice_charges - 1;
@@ -900,7 +938,7 @@ while (vglib.running()) {
 
         vglib.rect(0 + jitter_x, 0 + jitter_y, 1280, 60, COLOR_PANEL);
         vglib.line(0, 60, 1280, 60, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "SHADOWNET", 15 + jitter_x, 22, 14, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "SHADOWNET v9.0", 15 + jitter_x, 22, 14, COLOR_BLOOD);
 
         vglib.rect(120 + jitter_x, 12 + jitter_y, 800, 36, COLOR_URLBAR);
         vglib.line(120 + jitter_x, 12 + jitter_y, 920 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
@@ -926,13 +964,17 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, string(trace_level) + "% TRACED BY PEERS", 945 + jitter_x, 155, 10, COLOR_AMBER);
 
         vglib.line(945, 172, 1245, 172, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "EXPLOIT RECHARGE STATE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
-        vglib.text_ex(vcr_font, "DOS [0.25]: " + ((cd_dos > 0.0) ? (string(int64(cd_dos) + 1) + "s") : "READY"), 945 + jitter_x, 200, 10, (cd_dos > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
-        vglib.text_ex(vcr_font, "HIJACK: " + ((cd_redirect > 0.0) ? (string(int64(cd_redirect) + 1) + "s") : "READY"), 945 + jitter_x, 218, 10, (cd_redirect > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
-        vglib.text_ex(vcr_font, "SPIKE:  " + ((cd_spike > 0.0) ? (string(int64(cd_spike) + 1) + "s") : "READY"), 945 + jitter_x, 236, 10, (cd_spike > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
+        
+        # INTERACTIVE RF SIGNAL ANALYZER WAVEFORM
+        through rx :: 0..28 -> loop {
+            wave_y :: Float64 = 215.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * (10.0 + float64(recent_packets * 4));
+            vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
+        };
 
-        vglib.line(945, 255, 1245, 255, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "ICE SHIELD: [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 268, 11, COLOR_TOXIC);
+        vglib.line(945, 235, 1245, 235, COLOR_BORDER);
+        vglib.text_ex(vcr_font, "ICE SHIELD: [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 248, 11, COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "SNIFFER STATUS: " + ((sniffer_mode == 1) ? "ACTIVE [ON]" : "MUTED [OFF]"), 945 + jitter_x, 268, 10, (sniffer_mode == 1) ? COLOR_TOXIC : COLOR_AMBER);
         vglib.line(945, 285, 1245, 285, COLOR_BORDER);
 
         vglib.rect(945 + jitter_x, 292, 300, 440, COLOR_BLACK);
@@ -951,13 +993,14 @@ while (vglib.running()) {
                 if (f_txt.substr(0, 12) == "[DOS ATTACK]") { f_col = COLOR_BLOOD; }
                 if (f_txt.substr(0, 12) == "[ICE LOCKOUT]") { f_col = COLOR_BLOOD; }
                 if (f_txt.substr(0, 12) == "[BGP HIJACK]") { f_col = COLOR_TOXIC; }
+                if (f_txt.substr(0, 13) == "[WHALE ALERT]") { f_col = COLOR_TOXIC; }
+                if (f_txt.substr(0, 10) == "[HONEYPOT]") { f_col = COLOR_AMBER; }
                 if (f_txt.length() > 6 && f_txt.substr(0, 6) == "[CHAT]") { f_col = COLOR_TOXIC; }
 
                 vglib.text_ex(vcr_font, f_txt_truncated, 950 + jitter_x, line_y, 9, f_col);
             }
         };
 
-        # ANIMATED HORROR WEBPAGE RENDERER / CONNECTING LATENCY OVERLAY
         if (is_connecting == 1) {
             vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
             vglib.line(40, 140, 890, 140, COLOR_AMBER);
@@ -970,7 +1013,6 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "RESOLVING HANDSHAKE TO: vnet://" + pending_url, 260 + jitter_x, 290 + jitter_y, 13, COLOR_CYAN);
             vglib.text_ex(vcr_font, "LATENCY BUFFER: " + string(rem_s) + "s REMAINING", 340 + jitter_x, 340 + jitter_y, 12, COLOR_TOXIC);
             
-            # ANIMATED LATENCY PROGRESS BAR
             vglib.rect(240 + jitter_x, 390 + jitter_y, 450, 20, COLOR_PANEL);
             p_ratio :: Float64 = vmath.clamp(connection_timer / target_connection_time, 0.05, 1.0);
             vglib.rect(240 + jitter_x, 390 + jitter_y, 450.0 * p_ratio, 20, COLOR_TOXIC);
@@ -1051,7 +1093,7 @@ while (vglib.running()) {
             vglib.line(910, 600, 20, 600, COLOR_BLOOD);
             vglib.line(20, 600, 20, 80, COLOR_BLOOD);
 
-            vglib.text_ex(vcr_font, "SYSTEM TERMINAL OVERLAY | REAL-TIME CLI & P2P CHAT", 35 + jitter_x, 95, 12, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "SYSTEM TERMINAL OVERLAY | REAL-TIME CLI & CYBERWARFARE HUB", 35 + jitter_x, 95, 12, COLOR_BLOOD);
             vglib.line(35, 115, 895, 115, COLOR_BORDER);
 
             log_cnt = cli_logs.length();
@@ -1063,6 +1105,7 @@ while (vglib.running()) {
                     col = active_theme.text;
                     if (txt.substr(0, 2) == "> ")       { col = COLOR_TOXIC; }
                     if (txt.substr(0, 8) == "[NET_IN]") { col = COLOR_AMBER; }
+                    if (txt.substr(0, 8) == "[SNIFF]:") { col = COLOR_CYAN; }
                     if (txt.substr(0, 13) == "[ICE_DEFENSE]") { col = COLOR_TOXIC; }
                     if (txt.substr(0, 7) == "[ERROR]" || txt.substr(0, 5) == "[ERR]" || txt.substr(0, 16) == "[CRITICAL_ALERT]") { col = COLOR_BLOOD; }
 
@@ -1087,7 +1130,6 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "SYSTEM KERNEL FROZEN | RECOVERING IN " + string(int64(dos_timer) + 1) + "s...", 180 + jitter_x, 400 + jitter_y, 14, COLOR_BLACK);
         }
 
-        # WINNER SYSTEM FREEZE OVERLAY
         if (game_over_winner == 1) {
             vglib.rect(0, 0, 1280, 800, vglib.rgba(180, 0, 20, 220));
             vglib.text_ex(vcr_font, "[ CRITICAL SYSTEM OVERRIDE - GAME OVER ]", 280 + jitter_x, 320 + jitter_y, 20, COLOR_TOXIC);
@@ -1101,7 +1143,6 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "ALL SUBNET CONNECTIONS PERMANENTLY LOCKED", 340 + jitter_x, 420 + jitter_y, 14, COLOR_GHOST);
         }
 
-        # CRT SCANLINES
         through sy :: 0..99 -> loop {
             line_y :: Float64 = float64(sy * 8);
             vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);

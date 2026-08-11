@@ -12,6 +12,10 @@ active_urls      :: Array = [];
 active_last_seen :: Array = []; # STORES LAST PACKET TIMESTAMP
 active_dos_hits  :: Array = []; # TRACKS SUCCESSFUL DOS HIT COUNTS PER PEER
 
+# HONEYPOT TRAP STORAGE
+honeypot_urls    :: Array = [];
+honeypot_owners  :: Array = [];
+
 firewall_open :: Int64 = 1;
 current_salt  :: Int64 = int64(vmath.random(10, 99));
 
@@ -21,7 +25,6 @@ target_hash   :: Int64 = int64(vmath.random(1000, 9999));
 # CONFIG.TXT & VFS STORAGE WITH HASH KEYS ARRAY FORMAT
 vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key", "/sys/config.txt"];
 vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", "3241 3253 5352 5343 2923 3281 2931 3433"];
-# Load master keys directly from /sys/config.txt VFS slot
 master_keys_str :: String = string(vfs_data[3]); # "3241 3253 5352 5343 2923 3281 2931 3433"
 
 out("[VNET SERVER] MULTI-PC CYBERWARFARE & CHAT GATEWAY ONLINE (PORT 8000)");
@@ -102,7 +105,6 @@ server_uptime :: Float64 = 0.0;
 game_over     :: Int64   = 0;
 
 while (true) {
-    # PACE THE UNTHROTTLED SERVER LOOP (16ms = ~60 Ticks per second)
     vcore.sleep(16);
     server_uptime = server_uptime + 0.016;
     
@@ -128,27 +130,61 @@ while (true) {
 
             update_peer_session(sender_port, sender_ip, payload, server_uptime);
 
+            # BROADCAST PACKET TO GLOBAL SNIFFERS
+            broadcast_feed_event("[SNIFF]: " + string(sender_port) + " -> " + payload);
+
             if (cmd == "GET") {
                 out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
+
+                # HONEYPOT AMBUSH CHECK
+                h_idx :: Int64 = -1;
+                through h :: 0..(honeypot_urls.length() - 1) -> loop {
+                    if (string(honeypot_urls[h]) == payload) { h_idx = h; break; }
+                };
+
+                if (h_idx >= 0) {
+                    owner_port :: Int64 = int64(honeypot_owners[h_idx]);
+                    if (owner_port != sender_port) {
+                        owner_ip :: String = "127.0.0.1";
+                        through p :: 0..(active_ports.length() - 1) -> loop {
+                            if (int64(active_ports[p]) == owner_port) { owner_ip = string(active_ips[p]); break; }
+                        };
+                        vnet.send_to(server_sock, owner_ip, owner_port, "HONEYPOT_TRIPPED:PORT_" + string(sender_port) + "_AMBUSHED_AT_" + payload);
+                        broadcast_feed_event("[HONEYPOT]: PORT_" + string(sender_port) + " FELL INTO AN AMBUSH TRAP AT " + payload + "!");
+                        honeypot_urls.delete(honeypot_urls[h_idx]);
+                        honeypot_owners.delete(honeypot_owners[h_idx]);
+                    }
+                }
             }
 
             if (cmd == "NETSCAN") {
                 peers_found :: String = "";
+                count :: Int64 = 0;
 
                 through p :: 0..(active_ports.length() - 1) -> loop {
                     p_port :: Int64  = int64(active_ports[p]);
                     p_url  :: String = string(active_urls[p]);
 
-                    if (p_port != sender_port && p_url == payload) {
-                        peers_found = peers_found + "PORT_" + string(p_port) + " ";
+                    if (p_url == payload) {
+                        count = count + 1;
+                        if (p_port != sender_port) {
+                            peers_found = peers_found + "PORT_" + string(p_port) + " ";
+                        }
                     }
                 };
 
                 if (peers_found == "") {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: NO ACTIVE PEERS ON " + payload);
+                    vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: NO ACTIVE RIVALS ON " + payload + " (TOTAL PEERS: " + string(count) + ")");
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: PEERS DETECTED ON " + payload + " -> [" + peers_found + "]");
                 }
+            }
+
+            if (cmd == "HONEYPOT") {
+                honeypot_urls.push(payload);
+                honeypot_owners.push(sender_port);
+                vnet.send_to(server_sock, sender_ip, sender_port, "HONEYPOT_SET:AMBUSH_TRAP_ARMED_AT_" + payload);
+                broadcast_feed_event("[TRAFFIC ANOMALY]: SUSPICIOUS DATA BURST DETECTED AT " + payload);
             }
 
             if (cmd == "CHAT") {
@@ -173,7 +209,6 @@ while (true) {
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
                 broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
 
-                # DOS 3-TIMES HASH KEY DROP MECHANIC
                 if (target_idx >= 0) {
                     hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
                     if (hits >= 3) {
@@ -228,6 +263,10 @@ while (true) {
             if (cmd == "TRACE_BUST") {
                 unregister_peer(sender_port);
                 broadcast_feed_event("[ICE LOCKOUT]: NODE " + string(sender_port) + " TRACED DOWN & DISCONNECTED!");
+            }
+
+            if (cmd == "MINE_EVENT") {
+                broadcast_feed_event("[WHALE ALERT]: NODE " + string(sender_port) + " MINED +0.05 BTC BLOCK AT crypto.vnet");
             }
 
             if (cmd == "SCAN") {
