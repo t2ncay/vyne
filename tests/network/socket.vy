@@ -19,6 +19,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 img_redroom = vglib.load_texture("tests/assets/redroom.png");
 img_void    = vglib.load_texture("tests/assets/void.jpeg");
 
+# Socket stays bound right here so port and network logic remain intact!
 client_sock = vnet.udp_socket(my_port);
 
 # ====================================================================
@@ -85,8 +86,6 @@ current_url      :: String  = "shadow.dir";
 input_url        :: String  = "shadow.dir";
 url_focused      :: Int64   = 0;
 
-vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
-
 is_connecting          :: Int64   = 0;
 connection_timer       :: Float64 = 0.0;
 target_connection_time :: Float64 = 0.0;
@@ -134,11 +133,10 @@ packet_decay_cd  :: Float64 = 0.0;
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
 
-# HACKING INTRO STATE
-is_playing_intro       :: Int64   = 1;
-intro_timer            :: Float64 = 0.0;
-intro_step             :: Int64   = 0;
-intro_fade             :: Float64 = 0.0;
+# CONNECTION MENU STATE (REPLACES INTRO)
+is_in_ip_menu          :: Int64   = 1;
+ip_input_buffer        :: String  = "127.0.0.1";
+ip_box_focused         :: Int64   = 1;
 
 # PROCEDURAL SESSION KEYS & LOCATIONS STORAGE
 session_keys      :: Array = ["????", "????", "????", "????", "????", "????", "????", "????"];
@@ -1456,24 +1454,78 @@ fn dispatch_cli_command(raw_input :: String) {
 # ====================================================================
 while (vglib.running()) {
     # ================================================================
-    # WTTG2 STYLE INTRO / BOOT SEQUENCE CONTROLLER
+    # SERVER IP CONNECTION MENU
     # ================================================================
-    if (is_playing_intro == 1) {
-        intro_timer = intro_timer + 0.016;
-        intro_fade  = vmath.clamp(intro_fade + 0.01, 0.0, 1.0);
+    if (is_in_ip_menu == 1) {
+        m_pos   = vglib.mouse_pos();
+        mx :: Float64 = float64(m_pos[0]);
+        my :: Float64 = float64(m_pos[1]);
+        m_down  :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
+        m_click :: Int64 = (m_down == 1 && mouse_was_down == 0) ? 1 : 0;
+        mouse_was_down   = m_down;
 
-        # Timed progression for atmospheric text reveals
-        if (intro_timer > 2.0 && intro_step < 1) { intro_step = 1; }
-        if (intro_timer > 4.5 && intro_step < 2) { intro_step = 2; }
-        if (intro_timer > 7.0 && intro_step < 3) { intro_step = 3; }
+        if (m_click == 1) {
+            ip_box_focused = (mx >= 440.0 && mx <= 840.0 && my >= 380.0 && my <= 420.0) ? 1 : 0;
+        }
 
-        # Bypass on keypress
-        if (vglib.key_pressed(vglib.ENTER) || vglib.key_pressed(vglib.SPACE) || vglib.key_pressed(vglib.ESCAPE)) {
-            is_playing_intro = 0;
+        ch = vglib.get_char();
+        while (ch != "") {
+            if (ip_box_focused == 1 && ip_input_buffer.length() < 25) {
+                ip_input_buffer = ip_input_buffer + ch;
+            }
+            ch = vglib.get_char();
+        }
+
+        if (vglib.key_pressed(vglib.BACKSPACE) && ip_box_focused == 1 && ip_input_buffer.length() > 0) {
+            ip_input_buffer = ip_input_buffer.substr(0, ip_input_buffer.length() - 1);
+        }
+
+        connect_btn_hover = (mx >= 540.0 && mx <= 740.0 && my >= 460.0 && my <= 500.0) ? 1 : 0;
+        if (vglib.key_pressed(vglib.ENTER) || (connect_btn_hover == 1 && m_click == 1)) {
+            if (ip_input_buffer.length() > 0) {
+                server_ip = ip_input_buffer;
+            }
+            is_in_ip_menu = 0;
+            
+            # Send initial GET request using the already bound client_sock
             current_url = "shadow.dir";
             page_body   = load_page(current_url);
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
+
+        vglib.begin();
+        vglib.clear(COLOR_BLACK);
+
+        vglib.rect(340, 220, 600, 380, COLOR_PANEL);
+        vglib.line(340, 220, 940, 220, COLOR_BORDER);
+        vglib.line(940, 220, 940, 600, COLOR_BORDER);
+        vglib.line(940, 600, 340, 600, COLOR_BORDER);
+        vglib.line(340, 600, 340, 220, COLOR_BORDER);
+
+        vglib.text_ex(vcr_font, "VYNE SHADOWOS - UPLINK GATEWAY", 445, 260, 14, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "ENTER HOST / SERVER IP ADDRESS:", 435, 340, 11, COLOR_CYAN);
+
+        vglib.rect(440, 380, 400, 40, COLOR_BLACK);
+        vglib.line(440, 380, 840, 380, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(840, 380, 840, 420, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(840, 420, 440, 420, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(440, 420, 440, 380, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.text_ex(vcr_font, ip_input_buffer, 455, 393, 12, COLOR_TOXIC);
+
+        vglib.rect(540, 460, 200, 40, connect_btn_hover == 1 ? COLOR_BLOOD : COLOR_CLI_BG);
+        vglib.line(540, 460, 740, 460, COLOR_BLOOD);
+        vglib.line(740, 460, 740, 500, COLOR_BLOOD);
+        vglib.line(740, 500, 540, 500, COLOR_BLOOD);
+        vglib.line(540, 500, 540, 460, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "CONNECT UPLINK", 575, 474, 11, connect_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+
+        through sy :: 0..99 -> loop {
+            line_y :: Float64 = float64(sy * 8);
+            vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
+        };
+
+        vglib.end();
+        continue;
     }
 
     run_time     = run_time + 0.016;
@@ -1607,7 +1659,6 @@ while (vglib.running()) {
                     handle_focused = (mx >= 45.0 && mx <= 225.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
                     chat_focused   = (mx >= 235.0 && mx <= 755.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
                     
-                    # TRANSMIT BUTTON CLICK
                     if (mx >= 765.0 && mx <= 880.0 && my >= 135.0 && my <= 167.0) {
                         if (chat_input_buffer.length() > 0) {
                             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + chat_input_buffer);
@@ -1836,40 +1887,6 @@ while (vglib.running()) {
     vglib.begin();
         vglib.clear(COLOR_BLACK);
 
-        if (is_playing_intro == 1) {
-            vglib.rect(140, 120, 1000, 560, COLOR_PANEL);
-            vglib.line(140, 120, 1140, 120, COLOR_BORDER);
-            vglib.line(1140, 120, 1140, 680, COLOR_BORDER);
-            vglib.line(1140, 680, 140, 680, COLOR_BORDER);
-            vglib.line(140, 680, 140, 120, COLOR_BORDER);
-
-            # Glitch-free, moody WTTG2 branding header
-            vglib.text_ex(vcr_font, "THE DEEP WEB PROTOCOL", 460, 170, 16, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, "INITIALIZING SECURE SOCKET ENVIRONMENT...", 400, 210, 12, COLOR_CYAN);
-            vglib.line(180, 240, 1100, 240, COLOR_BORDER);
-
-            # Typewriter Log Sequence
-            if (intro_step >= 1) {
-                vglib.text_ex(vcr_font, "[*] Loading kernel cryptographic signatures... [OK]", 180, 290, 12, COLOR_GHOST);
-            }
-            if (intro_step >= 2) {
-                vglib.text_ex(vcr_font, "[*] Bypassing localized firewall daemons... [SECURE]", 180, 330, 12, COLOR_TOXIC);
-            }
-            if (intro_step >= 3) {
-                vglib.text_ex(vcr_font, "[*] Establishing peer-to-peer uplink to 127.0.0.1:8000...", 180, 370, 12, COLOR_AMBER);
-                vglib.text_ex(vcr_font, ">> PRESS [ENTER] TO INITIALIZE SHADOWOS <<", 420, 520, 14, COLOR_TOXIC);
-            }
-
-            # Subtle Clean Scanlines (No violent shaking)
-            through sy :: 0..99 -> loop {
-                line_y :: Float64 = float64(sy * 8);
-                vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
-            };
-
-            vglib.end();
-            continue;
-        }
-
         jitter_x :: Float64 = (glitch_trigger > 0.0) ? (vmath.sin(run_time * 50.0) * (glitch_trigger * 12.0)) : 0.0;
         jitter_y :: Float64 = (glitch_trigger > 0.0) ? (vmath.cos(run_time * 30.0) * (glitch_trigger * 10.0)) : 0.0;
 
@@ -1959,18 +1976,13 @@ while (vglib.running()) {
             glitch_noise :: Float64 = vmath.sin(run_time * 40.0) * 4.0;
             vglib.text_ex(vcr_font, "ANONYMIZING IP SUBNET PACKETS...", 310.0 + glitch_noise + jitter_x, 450 + jitter_y, 11, COLOR_GHOST);
         } else if (current_url == "hellroom.vnet") {
-            # ================================================================
-            # HELLROOM.VNET :: DEDICATED INTERACTIVE CHATROOM UI
-            # ================================================================
             vglib.text_ex(vcr_font, "HELLROOM.VNET // DEMONIC P2P UNENCRYPTED CHATROOM", 40 + jitter_x, 95 + jitter_y, 14, COLOR_BLOOD);
             vglib.line(40, 115, 890, 115, COLOR_BORDER);
 
-            # Control Panel Frame
             vglib.rect(35 + jitter_x, 125 + jitter_y, 855, 52, COLOR_CLI_BG);
             vglib.line(35, 125, 890, 125, COLOR_BORDER);
             vglib.line(35, 177, 890, 177, COLOR_BORDER);
 
-            # Nickname Input Box
             vglib.rect(45 + jitter_x, 135 + jitter_y, 180, 32, COLOR_BLACK);
             vglib.line(45, 135, 225, 135, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
             vglib.line(225, 135, 225, 167, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
@@ -1978,7 +1990,6 @@ while (vglib.running()) {
             vglib.line(45, 167, 45, 135, handle_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
             vglib.text_ex(vcr_font, "NICK: " + player_handle, 52 + jitter_x, 145 + jitter_y, 11, handle_focused == 1 ? COLOR_TOXIC : COLOR_AMBER);
 
-            # Message Input Box
             vglib.rect(235 + jitter_x, 135 + jitter_y, 520, 32, COLOR_BLACK);
             vglib.line(235, 135, 755, 135, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
             vglib.line(755, 135, 755, 167, chat_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
@@ -1987,7 +1998,6 @@ while (vglib.running()) {
             display_chat_in :: String = "MSG> " + truncate_str(chat_input_buffer, 55);
             vglib.text_ex(vcr_font, display_chat_in, 242 + jitter_x, 145 + jitter_y, 11, chat_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
 
-            # Send / Transmit Button
             btn_hover :: Int64 = (mx >= 765.0 && mx <= 880.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
             vglib.rect(765 + jitter_x, 135 + jitter_y, 115, 32, btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
             vglib.line(765, 135, 880, 135, COLOR_BLOOD);
@@ -1996,7 +2006,6 @@ while (vglib.running()) {
             vglib.line(765, 167, 765, 135, COLOR_BLOOD);
             vglib.text_ex(vcr_font, "TRANSMIT", 785 + jitter_x, 145 + jitter_y, 11, btn_hover == 1 ? COLOR_BLACK : COLOR_BLOOD);
 
-            # Live Stream Panel Box
             vglib.rect(35 + jitter_x, 190 + jitter_y, 855, 545, COLOR_BLACK);
             vglib.line(35, 190, 890, 190, COLOR_BORDER);
             vglib.line(890, 190, 890, 735, COLOR_BORDER);
@@ -2088,7 +2097,6 @@ while (vglib.running()) {
                         }
                     } 
                     else if (line_str.length() > 5 && line_str.substr(0, 5) == "[IMG:") {
-                        # Extract asset tag key inside [IMG:key]
                         img_key :: String = line_str.substr(5, line_str.length() - 6);
 
                         img_x :: Float64 = 40.0 + jitter_x;
