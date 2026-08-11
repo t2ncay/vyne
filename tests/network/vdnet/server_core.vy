@@ -690,11 +690,11 @@ while (true) {
                     overloaded_timers.push(30.0); # 30 second lockout
                     broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
                     broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
-                }S
+                }
             }
 
             if (cmd == "ICE_BOUGHT") {
-                broadcast_feed_event("[BLACK MARKET]: NODE PORT_" + mask_port(sender_port) + " REINFORCED ICE FIREWALL SHIELD.");
+                broadcast_feed_event("[BLACK MARKET]: NODE PORT_XXXX REINFORCED ICE FIREWALL SHIELD.");
             }
 
             if (cmd == "CAT") {

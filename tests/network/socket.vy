@@ -242,7 +242,6 @@ fn trigger_route_navigation(target_dest :: String) {
     
     if (clean_dest == active_down_url && active_down_timer > 0.0) {
         cli_logs.push("[ERROR]: CANNOT CONNECT TO " + clean_dest + " - SECTOR OFFLINE (OVERLOADED)");
-        return null;
     }
     
     pending_url            = clean_dest;
