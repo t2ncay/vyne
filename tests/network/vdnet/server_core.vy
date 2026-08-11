@@ -10,6 +10,7 @@ active_ports     :: Array = [];
 active_ips       :: Array = [];
 active_urls      :: Array = [];
 active_last_seen :: Array = []; # STORES LAST PACKET TIMESTAMP
+active_dos_hits  :: Array = []; # TRACKS SUCCESSFUL DOS HIT COUNTS PER PEER
 
 firewall_open :: Int64 = 1;
 current_salt  :: Int64 = int64(vmath.random(10, 99));
@@ -17,11 +18,15 @@ current_salt  :: Int64 = int64(vmath.random(10, 99));
 # GENERATE RANDOM HASHKEY ON SERVER STARTUP
 target_hash   :: Int64 = int64(vmath.random(1000, 9999));
 
-vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key"];
-vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}"];
+# CONFIG.TXT & VFS STORAGE WITH HASH KEYS ARRAY FORMAT
+vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key", "/sys/config.txt"];
+vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", "3241 3253 5352 5343 2923 3281 2931 3433"];
+# Load master keys directly from /sys/config.txt VFS slot
+master_keys_str :: String = string(vfs_data[3]); # "3241 3253 5352 5343 2923 3281 2931 3433"
 
 out("[VNET SERVER] MULTI-PC CYBERWARFARE & CHAT GATEWAY ONLINE (PORT 8000)");
 out("[VNET SERVER] DYNAMIC TARGET HASH GENERATED: " + string(target_hash));
+out("[VNET SERVER] LOADED /sys/config.txt KEYS ARRAY: " + master_keys_str);
 
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
     found_idx :: Int64 = -1;
@@ -41,6 +46,7 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_ips.push(ip);
         active_urls.push(url);
         active_last_seen.push(now_time);
+        active_dos_hits.push(0);
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
     }
 }
@@ -61,8 +67,9 @@ fn unregister_peer(port :: Int64) {
         active_ips.delete(active_ips[found_idx]);
         active_urls.delete(active_urls[found_idx]);
         active_last_seen.delete(active_last_seen[found_idx]);
+        active_dos_hits.delete(active_dos_hits[found_idx]);
         
-        out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port));
+        out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port) + " FROM ACTIVE PEERS LIST");
     }
 }
 
@@ -95,6 +102,8 @@ server_uptime :: Float64 = 0.0;
 game_over     :: Int64   = 0;
 
 while (true) {
+    # PACE THE UNTHROTTLED SERVER LOOP (16ms = ~60 Ticks per second)
+    vcore.sleep(16);
     server_uptime = server_uptime + 0.016;
     
     if (game_over == 0) {
@@ -149,13 +158,32 @@ while (true) {
             if (cmd == "DOS") {
                 target_node :: Int64 = int64(payload);
                 target_ip   :: String = "127.0.0.1";
+                target_idx  :: Int64 = -1;
+                
                 through p :: 0..(active_ports.length() - 1) -> loop {
-                    if (int64(active_ports[p]) == target_node) { target_ip = string(active_ips[p]); break; }
+                    if (int64(active_ports[p]) == target_node) { 
+                        target_ip = string(active_ips[p]); 
+                        target_idx = p;
+                        break; 
+                    }
                 };
+
                 out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
                 vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
                 broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
+
+                # DOS 3-TIMES HASH KEY DROP MECHANIC
+                if (target_idx >= 0) {
+                    hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
+                    if (hits >= 3) {
+                        active_dos_hits[target_idx] = 0;
+                        broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
+                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
+                    } else {
+                        active_dos_hits[target_idx] = hits;
+                    }
+                }
             }
 
             if (cmd == "REDIRECT") {
@@ -245,11 +273,8 @@ while (true) {
                 broadcast_feed_event("[DEFENSE PATCH]: NODE " + string(sender_port) + " RELOCKED GATEWAY FIREWALL");
             }
 
-            # ================================================================
-            # WIN MECHANIC - MASTER VAULT OVERRIDE
-            # ================================================================
             if (cmd == "WIN") {
-                if (payload == "1001 1337 8008 4040 7712 6660 3141 9999") {
+                if (payload == master_keys_str) {
                     game_over = 1;
                     out("[SYSTEM OVERRIDE]: VICTORY DETECTED FROM PORT " + string(sender_port));
                     broadcast_feed_event("[SYSTEM OVERRIDE]: NODE " + string(sender_port) + " HAS BREACHED ROOT VAULT!");

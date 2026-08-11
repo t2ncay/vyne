@@ -81,6 +81,15 @@ current_url      :: String  = "shadow.dir";
 input_url        :: String  = "shadow.dir";
 url_focused      :: Int64   = 0;
 
+# INITIAL HANDSHAKE WITH SERVER
+vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+
+# RANDOMIZED LATENCY CONNECTION STATE
+is_connecting          :: Int64   = 0;
+connection_timer       :: Float64 = 0.0;
+target_connection_time :: Float64 = 0.0;
+pending_url            :: String  = "";
+
 cli_overlay_open :: Int64   = 0;
 cli_input_buffer :: String  = "";
 cli_logs         :: Array   = [
@@ -89,7 +98,8 @@ cli_logs         :: Array   = [
     "PRESS [TAB] TO TOGGLE OVERLAY TERMINAL ANYTIME",
     "TYPE 'chat <msg>' TO BROADCAST REAL-TIME P2P MESSAGES",
     "TYPE 'buy ice' TO PURCHASE ICE DEFENSE SHIELD (0.30 BTC)",
-    "TYPE 'win <k1> <k2> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
+    "TYPE 'cat /sys/config.txt' TO INSPECT CONFIG HASH KEYS",
+    "TYPE 'win <k1> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
     "TYPE 'help' FOR NETWORK & SYSTEM COMMANDS",
     "--------------------------------------------------"
 ];
@@ -107,6 +117,7 @@ trace_level      :: Int64   = 14;
 ice_charges      :: Int64   = 1;
 dos_timer        :: Float64 = 0.0;
 passive_trace_cd :: Float64 = 0.0;
+heartbeat_timer  :: Float64 = 0.0;
 
 # WIN & FREEZE STATE
 game_over_winner :: Int64   = 0;
@@ -180,6 +191,18 @@ fn purchase_ice_firewall() -> Int64 {
     glitch_trigger = 0.2;
     cli_logs.push("[STORE]: ICE FIREWALL LAYER INSTALLED! ACTIVE ICE: " + string(ice_charges) + "/3");
     return 1;
+}
+
+fn trigger_route_navigation(target_dest :: String) {
+    if (is_connecting == 1) { return null; }
+    
+    pending_url            = target_dest;
+    is_connecting          = 1;
+    connection_timer       = 0.0;
+    target_connection_time = vmath.random(1.0, 10.0); # RANDOM LATENCY BETWEEN 1 AND 10 SECONDS
+    glitch_trigger         = 0.3;
+    
+    cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + target_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
 # ====================================================================
@@ -344,6 +367,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Terminal Register Code 8: [9999]",
             "[GLITCH] SYS_STATUS: WAITING FOR ALL 8 KEYS TO BREACH VFS ROOT VAULT...",
             "[TEXT] Hint: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI",
+            "[TEXT] Hint: Use 'cat /sys/config.txt' to view config keys database",
             "[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY"
         ];
     }
@@ -443,7 +467,7 @@ fn load_page(url :: String) -> Array {
         return [
             "[TITLE] DIGITAL RITUAL CIPHER GATEWAY",
             "[HR]",
-            "[PULSE] SACRIFICE 0.10 BTC VIA 'flush' TO PURGE TRACE DEMONS",
+            "[PULSE] SACRIFICE 0.10 BTC VIA 'flush' PURGE TRACE DEMONS",
             "[TEXT] Symbols rendered in pure hexadecimal ASCII geometry.",
             "[BLOOD] 'THE NETWORK CRAVES BLOOD AND BANDWIDTH'",
             "[LINK:shadow.dir] << RETURN TO DIRECTORY"
@@ -621,18 +645,19 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "help") {
         cli_logs.push("========== P2P CHAT & DEFENSIVE COMMANDS ==========");
-        cli_logs.push("  buy ice                 - [0.30 BTC] Purchase 1 layer of ICE Firewall");
+        cli_logs.push("  buy ice                 - [0.30 BTC] Purchase 1 layer of ICE");
         cli_logs.push("  ice                     - Check active ICE Firewall charges");
-        cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach root vault");
-        cli_logs.push("  chat <msg> / msg <msg>  - Send real-time message to global VNET feed");
+        cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
+        cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
-        cli_logs.push("  dos <port>              - [0.25 BTC | 15s CD] Freeze peer browser");
+        cli_logs.push("  dos <port>              - [0.25 BTC | 15s CD] Freeze peer (3x = Drop Key)");
         cli_logs.push("  redirect <port> <url>   - [0.15 BTC | 10s CD] BGP Hijack peer browser");
         cli_logs.push("  snoop <port>            - [0.05 BTC |  5s CD] Interrogate target URL");
         cli_logs.push("  spike <port>            - [0.20 BTC | 12s CD] Force +35% threat trace");
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
         cli_logs.push("  mine                    - Mine +0.05 BTC at crypto.vnet");
+        cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
         cli_logs.push("  flush                   - [0.10 BTC] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
         cli_logs.push("  scan / crack / cat      - Interrogate & breach vault flags");
@@ -661,12 +686,35 @@ while (vglib.running()) {
     run_time     = run_time + 0.016;
     cursor_blink = cursor_blink + 0.016;
 
+    # AUTOMATIC KEEPALIVE HEARTBEAT TICK (EVERY 3 SECONDS)
+    heartbeat_timer = heartbeat_timer + 0.016;
+    if (heartbeat_timer >= 3.0) {
+        heartbeat_timer = 0.0;
+        vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+    }
+
     if (game_over_winner == 0) {
         if (cd_dos > 0.0)      { cd_dos = cd_dos - 0.016; }
         if (cd_redirect > 0.0) { cd_redirect = cd_redirect - 0.016; }
         if (cd_spike > 0.0)    { cd_spike = cd_spike - 0.016; }
         if (cd_snoop > 0.0)    { cd_snoop = cd_snoop - 0.016; }
         if (cd_mine > 0.0)     { cd_mine = cd_mine - 0.016; }
+
+        # ROUTING DELAY HANDLER (1-10s RANDOM CONNECTION TIMER)
+        if (is_connecting == 1) {
+            connection_timer = connection_timer + 0.016;
+            if (connection_timer >= target_connection_time) {
+                is_connecting = 0;
+                current_url   = pending_url;
+                page_body     = load_page(current_url);
+                scroll_y      = 0.0;
+
+                vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+                trace_level = int64(vmath.clamp(float64(trace_level + 5), 0.0, 100.0));
+                glitch_trigger = 0.4;
+                cli_logs.push("[TOR_ROUTE]: CONNECTION ESTABLISHED TO " + current_url);
+            }
+        }
 
         # PASSIVE RISKY ROUTE TRACE INCREMENT
         passive_trace_cd = passive_trace_cd + 0.016;
@@ -681,9 +729,10 @@ while (vglib.running()) {
         if (trace_level >= 100) {
             trace_level = 20;
             btc_balance = vmath.clamp(btc_balance - 0.30, 0.0, 999.0);
-            current_url = "shadow.dir";
-            input_url   = "shadow.dir";
-            page_body   = load_page(current_url);
+            is_connecting = 0;
+            current_url   = "shadow.dir";
+            input_url     = "shadow.dir";
+            page_body     = load_page(current_url);
             
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
             vnet.send_to(client_sock, server_ip, server_port, "TRACE_BUST:LOCKOUT");
@@ -702,7 +751,7 @@ while (vglib.running()) {
         my :: Float64 = float64(m_pos[1]);
         
         m_down  :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
-        m_click :: Int64 = (m_down == 1 && mouse_was_down == 0 && dos_timer <= 0.0) ? 1 : 0;
+        m_click :: Int64 = (m_down == 1 && mouse_was_down == 0 && dos_timer <= 0.0 && is_connecting == 0) ? 1 : 0;
         mouse_was_down   = m_down;
 
         if (vglib.key_pressed(vglib.TAB) && dos_timer <= 0.0) {
@@ -736,7 +785,7 @@ while (vglib.running()) {
                 dispatch_cli_command(cli_input_buffer);
                 cli_input_buffer = "";
             }
-        } else if (dos_timer <= 0.0) {
+        } else if (dos_timer <= 0.0 && is_connecting == 0) {
             if (m_click == 1) {
                 url_focused = (mx >= 120.0 && mx <= 920.0 && my >= 12.0 && my <= 48.0) ? 1 : 0;
             }
@@ -753,14 +802,8 @@ while (vglib.running()) {
                 }
 
                 if (vglib.key_pressed(vglib.ENTER) && input_url.length() > 0) {
-                    current_url = input_url;
-                    page_body   = load_page(current_url);
-                    scroll_y    = 0.0;
-
-                    vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
-                    trace_level = int64(vmath.clamp(float64(trace_level + 4), 0.0, 100.0));
-                    glitch_trigger = 0.3;
                     url_focused = 0;
+                    trigger_route_navigation(input_url);
                 }
             }
         }
@@ -777,6 +820,10 @@ while (vglib.running()) {
             game_over_winner = 1;
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
+        }
+        else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "DOS_DROP:") {
+            cli_logs.push("[REWARD]: " + net_msg.substr(9, net_msg.length() - 9));
+            btc_balance = btc_balance + 0.20;
         }
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "FEED_EVENT:") {
             feed_text :: String = net_msg.substr(11, net_msg.length() - 11);
@@ -810,6 +857,7 @@ while (vglib.running()) {
                     cli_logs.push("[ICE_DEFENSE]: BGP HIJACK TO " + forced_dest + " BLOCKED BY ICE FIREWALL!");
                     if (current_url == "market.vnet") { page_body = load_page(current_url); }
                 } else {
+                    is_connecting = 0;
                     current_url = forced_dest;
                     input_url   = forced_dest;
                     page_body   = load_page(current_url);
@@ -856,7 +904,7 @@ while (vglib.running()) {
 
         vglib.rect(120 + jitter_x, 12 + jitter_y, 800, 36, COLOR_URLBAR);
         vglib.line(120 + jitter_x, 12 + jitter_y, 920 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        display_url_str :: String = "vnet://" + (url_focused == 1 ? input_url : current_url);
+        display_url_str :: String = "vnet://" + (is_connecting == 1 ? pending_url : (url_focused == 1 ? input_url : current_url));
         vglib.text_ex(vcr_font, display_url_str, 135 + jitter_x, 23, 12, url_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
 
         vglib.rect(940 + jitter_x, 12 + jitter_y, 320, 36, COLOR_PANEL);
@@ -909,78 +957,92 @@ while (vglib.running()) {
             }
         };
 
-        # ANIMATED HORROR WEBPAGE RENDERER
-        line_idx :: Int64 = 0;
-        through line_item :: page_body -> loop {
-            line_str :: String = string(line_item);
-            y_pos :: Float64 = 105.0 + (float64(line_idx) * 28.0) - scroll_y;
-            line_idx = line_idx + 1;
+        # ANIMATED HORROR WEBPAGE RENDERER / CONNECTING LATENCY OVERLAY
+        if (is_connecting == 1) {
+            vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
+            vglib.line(40, 140, 890, 140, COLOR_AMBER);
+            vglib.line(890, 140, 890, 640, COLOR_AMBER);
+            vglib.line(890, 640, 40, 640, COLOR_AMBER);
+            vglib.line(40, 640, 40, 140, COLOR_AMBER);
 
-            if (y_pos >= 85.0 && y_pos <= 730.0) {
-                if (line_str.length() > 7 && line_str.substr(0, 7) == "[TITLE]") {
-                    vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 15, COLOR_BLOOD);
-                }
-                else if (line_str.length() > 10 && line_str.substr(0, 10) == "[SUBTITLE]") {
-                    vglib.text_ex(vcr_font, line_str.substr(11, line_str.length() - 11), 40 + jitter_x, y_pos, 12, COLOR_AMBER);
-                }
-                else if (line_str.length() > 6 && line_str.substr(0, 6) == "[WARN]") {
-                    vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_BLOOD);
-                }
-                else if (line_str.length() > 6 && line_str.substr(0, 6) == "[TEXT]") {
-                    vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_GHOST);
-                }
-                else if (line_str.length() > 6 && line_str.substr(0, 6) == "[CODE]") {
-                    vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_TOXIC);
-                }
-                else if (line_str.length() > 5 && line_str.substr(0, 5) == "[BOX]") {
-                    vglib.text_ex(vcr_font, line_str.substr(6, line_str.length() - 6), 40 + jitter_x, y_pos, 11, COLOR_CYAN);
-                }
-                else if (line_str.length() > 7 && line_str.substr(0, 7) == "[BLOOD]") {
-                    vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 11, COLOR_BLOOD);
-                }
-                else if (line_str.length() > 7 && line_str.substr(0, 7) == "[PULSE]") {
-                    pulse_col = (pulse_val > 0.5) ? COLOR_AMBER : COLOR_BLOOD;
-                    vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 11, pulse_col);
-                }
-                else if (line_str.length() > 9 && line_str.substr(0, 9) == "[GLITCH]") {
-                    glitch_off :: Float64 = vmath.sin(run_time * 30.0 + float64(line_idx)) * 6.0;
-                    glitch_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
-                    vglib.text_ex(vcr_font, line_str.substr(10, line_str.length() - 10), 40.0 + glitch_off + jitter_x, y_pos, 11, glitch_col);
-                }
-                else if (line_str == "[HR]") {
-                    vglib.line(40, y_pos + 12.0, 890, y_pos + 12.0, COLOR_BORDER);
-                }
-                else if (line_str.length() > 6 && line_str.substr(0, 6) == "[LINK:") {
-                    link_info = extract_link_info(line_str);
-                    target_url :: String = string(link_info[0]);
-                    label_txt  :: String = string(link_info[1]);
+            rem_s :: Int64 = int64(target_connection_time - connection_timer) + 1;
+            vglib.text_ex(vcr_font, "[ESTABLISHING TOR PROXY HOPS]", 310 + jitter_x, 240 + jitter_y, 16, COLOR_AMBER);
+            vglib.text_ex(vcr_font, "RESOLVING HANDSHAKE TO: vnet://" + pending_url, 260 + jitter_x, 290 + jitter_y, 13, COLOR_CYAN);
+            vglib.text_ex(vcr_font, "LATENCY BUFFER: " + string(rem_s) + "s REMAINING", 340 + jitter_x, 340 + jitter_y, 12, COLOR_TOXIC);
+            
+            # ANIMATED LATENCY PROGRESS BAR
+            vglib.rect(240 + jitter_x, 390 + jitter_y, 450, 20, COLOR_PANEL);
+            p_ratio :: Float64 = vmath.clamp(connection_timer / target_connection_time, 0.05, 1.0);
+            vglib.rect(240 + jitter_x, 390 + jitter_y, 450.0 * p_ratio, 20, COLOR_TOXIC);
 
-                    label_size :: Array = vglib.measure_text(vcr_font, label_txt, 12.0);
-                    lbl_w :: Float64 = float64(label_size[0]);
+            glitch_noise :: Float64 = vmath.sin(run_time * 40.0) * 4.0;
+            vglib.text_ex(vcr_font, "ANONYMIZING IP SUBNET PACKETS...", 310.0 + glitch_noise + jitter_x, 450 + jitter_y, 11, COLOR_GHOST);
+        } else {
+            line_idx :: Int64 = 0;
+            through line_item :: page_body -> loop {
+                line_str :: String = string(line_item);
+                y_pos :: Float64 = 105.0 + (float64(line_idx) * 28.0) - scroll_y;
+                line_idx = line_idx + 1;
 
-                    is_hover :: Int64 = (cli_overlay_open == 0 && dos_timer <= 0.0 && game_over_winner == 0 && mx >= 40.0 && mx <= (40.0 + lbl_w + 20.0) && my >= y_pos && my <= (y_pos + 22.0)) ? 1 : 0;
-                    link_col = (is_hover == 1) ? COLOR_TOXIC : COLOR_CYAN;
+                if (y_pos >= 85.0 && y_pos <= 730.0) {
+                    if (line_str.length() > 7 && line_str.substr(0, 7) == "[TITLE]") {
+                        vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 15, COLOR_BLOOD);
+                    }
+                    else if (line_str.length() > 10 && line_str.substr(0, 10) == "[SUBTITLE]") {
+                        vglib.text_ex(vcr_font, line_str.substr(11, line_str.length() - 11), 40 + jitter_x, y_pos, 12, COLOR_AMBER);
+                    }
+                    else if (line_str.length() > 6 && line_str.substr(0, 6) == "[WARN]") {
+                        vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_BLOOD);
+                    }
+                    else if (line_str.length() > 6 && line_str.substr(0, 6) == "[TEXT]") {
+                        vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_GHOST);
+                    }
+                    else if (line_str.length() > 6 && line_str.substr(0, 6) == "[CODE]") {
+                        vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_TOXIC);
+                    }
+                    else if (line_str.length() > 5 && line_str.substr(0, 5) == "[BOX]") {
+                        vglib.text_ex(vcr_font, line_str.substr(6, line_str.length() - 6), 40 + jitter_x, y_pos, 11, COLOR_CYAN);
+                    }
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[BLOOD]") {
+                        vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 11, COLOR_BLOOD);
+                    }
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[PULSE]") {
+                        pulse_col = (pulse_val > 0.5) ? COLOR_AMBER : COLOR_BLOOD;
+                        vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 11, pulse_col);
+                    }
+                    else if (line_str.length() > 9 && line_str.substr(0, 9) == "[GLITCH]") {
+                        glitch_off :: Float64 = vmath.sin(run_time * 30.0 + float64(line_idx)) * 6.0;
+                        glitch_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
+                        vglib.text_ex(vcr_font, line_str.substr(10, line_str.length() - 10), 40.0 + glitch_off + jitter_x, y_pos, 11, glitch_col);
+                    }
+                    else if (line_str == "[HR]") {
+                        vglib.line(40, y_pos + 12.0, 890, y_pos + 12.0, COLOR_BORDER);
+                    }
+                    else if (line_str.length() > 6 && line_str.substr(0, 6) == "[LINK:") {
+                        link_info = extract_link_info(line_str);
+                        target_url :: String = string(link_info[0]);
+                        label_txt  :: String = string(link_info[1]);
 
-                    vglib.text_ex(vcr_font, label_txt, 40 + jitter_x, y_pos, 12, link_col);
+                        label_size :: Array = vglib.measure_text(vcr_font, label_txt, 12.0);
+                        lbl_w :: Float64 = float64(label_size[0]);
 
-                    if (is_hover == 1 && m_click == 1) {
-                        if (target_url == "buy_ice") {
-                            purchase_ice_firewall();
-                            page_body = load_page(current_url);
-                        } else {
-                            current_url = target_url;
-                            input_url   = target_url;
-                            page_body   = load_page(current_url);
-                            scroll_y    = 0.0;
+                        is_hover :: Int64 = (cli_overlay_open == 0 && dos_timer <= 0.0 && game_over_winner == 0 && is_connecting == 0 && mx >= 40.0 && mx <= (40.0 + lbl_w + 20.0) && my >= y_pos && my <= (y_pos + 22.0)) ? 1 : 0;
+                        link_col = (is_hover == 1) ? COLOR_TOXIC : COLOR_CYAN;
 
-                            vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
-                            trace_level = int64(vmath.clamp(float64(trace_level + 6), 0.0, 100.0));
-                            glitch_trigger = 0.25;
+                        vglib.text_ex(vcr_font, label_txt, 40 + jitter_x, y_pos, 12, link_col);
+
+                        if (is_hover == 1 && m_click == 1) {
+                            if (target_url == "buy_ice") {
+                                purchase_ice_firewall();
+                                page_body = load_page(current_url);
+                            } else {
+                                trigger_route_navigation(target_url);
+                            }
                         }
                     }
                 }
-            }
-        };
+            };
+        }
 
         if (cli_overlay_open == 1) {
             vglib.rect(20 + jitter_x, 80 + jitter_y, 890, 520, COLOR_CLI_BG);
