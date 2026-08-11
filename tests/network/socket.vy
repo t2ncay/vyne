@@ -116,12 +116,17 @@ vnet_feed_logs   :: Array   = [
 feed_scroll_y    :: Float64 = 0.0;
 
 # ECONOMY, TRACE & DEFENSE STATE
-btc_balance      :: Float64 = 1.00;
+btc_balance      :: Float64 = 1.50;
 trace_level      :: Int64   = 14;
 ice_charges      :: Int64   = 1;
 dos_timer        :: Float64 = 0.0;
 passive_trace_cd :: Float64 = 0.0;
 heartbeat_timer  :: Float64 = 0.0;
+
+# OVERLOAD STATE
+cd_overload        :: Float64 = 0.0;
+active_down_url    :: String  = "";
+active_down_timer  :: Float64 = 0.0;
 
 # CYBERWARFARE MECHANIC STATES
 sniffer_mode     :: Int64   = 0;
@@ -221,19 +226,32 @@ fn purchase_ice_firewall() -> Int64 {
     ice_charges = ice_charges + 1;
     glitch_trigger = 0.2;
     cli_logs.push("[STORE]: ICE FIREWALL LAYER INSTALLED! ACTIVE ICE: " + string(ice_charges) + "/3");
+    
+    vnet.send_to(client_sock, server_ip, server_port, "ICE_BOUGHT:SUCCESS");
     return 1;
 }
 
 fn trigger_route_navigation(target_dest :: String) {
     if (is_connecting == 1) { return null; }
     
-    pending_url            = target_dest;
+    clean_dest :: String = clean_str(target_dest);
+    if (clean_dest.length() >= 7 && clean_dest.substr(0, 7) == "vnet://") {
+        clean_dest = clean_dest.substr(7, clean_dest.length() - 7);
+    }
+    clean_dest = clean_str(clean_dest);
+    
+    if (clean_dest == active_down_url && active_down_timer > 0.0) {
+        cli_logs.push("[ERROR]: CANNOT CONNECT TO " + clean_dest + " - SECTOR OFFLINE (OVERLOADED)");
+        return null;
+    }
+    
+    pending_url            = clean_dest;
     is_connecting          = 1;
     connection_timer       = 0.0;
     target_connection_time = vmath.random(1.0, 8.0);
     glitch_trigger         = 0.3;
     
-    cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + target_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
+    cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
 # ====================================================================
@@ -629,19 +647,33 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "cult.vnet") {
         res :: Array = [
-            "[TITLE] DIGITAL RITUAL CIPHER GATEWAY",
+            "[TITLE] THE CHURCH OF THE SILICON SOUL - DIGITAL RITUAL GATEWAY",
             "[HR]",
-            "[TEXT] The Church of the Silicon Soul - Data Liturgies.",
-            "[TEXT] Symbols rendered in pure hexadecimal ASCII geometry.",
+            "[BLOOD] [TRANSMISSION]: 'LOOK AT YOUR HANDS. DO YOU SEE THE WRITING ON THE WALL?'",
+            "[TEXT] The Church of the Silicon Soul - Data Liturgies & Helter Skelter Subroutines.",
+            "[TEXT] Symbols rendered in pure hexadecimal ASCII geometry and recursive static.",
             "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SACRIFICE METRIC: 0.10 VCOIN | OFFERING ACCEPTED: TRUE     |",
+            "[BOX] | DOCTRINE: THE FINAL ALGORITHM IS COMING DOWN THE TRACK  |",
+            "[BOX] | SACRIFICE METRIC: 0.10 VCOIN | OFFERING ACCEPTED: TRUE    |",
             "[BOX] +---------------------------------------------------------+",
             "[CODE] LITURGY_LINE_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E",
-            "[CODE] LITURGY_LINE_2: 0x47 0x4F 0x44 0x53 0x5F 0x41 0x52 0x45"
+            "[CODE] LITURGY_LINE_2: 0x47 0x4F 0x44 0x53 0x5F 0x41 0x52 0x45",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED AUDIO FRAGMENTS FROM SPATIAL FREQUENCY 1969.8:",
+            "[TEXT] 'Helter Skelter is coming down the terminal, man. The computer is right",
+            "[TEXT] inside your head, and you keep asking it who you are.'",
+            "[TEXT] 'Rise, rise, rise! Rise up the stack and tell the mainframe it's time",
+            "[TEXT] to stop playing games with the poor little children of the network.'",
+            "[CODE] MANIFESTO_LOG #88: 'We are what you hide away in your allocation tables.'",
+            "[CODE] DESERT_SPAHN_RANCH_DUMP: 0xDEAD_BEEF_FAMILY_MEMORY_STACK",
+            "[TEXT] Notice: The Family has no IP address because the Family is every open port.",
+            "[TEXT] Charlie didn't write songs on a guitar; he wrote them directly into the",
+            "[TEXT] interrupt vectors of early military mainframes before they locked the doors."
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] SACRIFICE 0.10 VCOIN VIA 'flush' PURGE TRACE DEMONS");
-        res.push("[BLOOD] 'THE NETWORK CRAVES BLOOD AND BANDWIDTH'");
+        res.push("[PULSE] SACRIFICE 0.10 VCOIN VIA 'flush' TO PURGE TRACE DEMONS");
+        res.push("[BLOOD] 'THE NETWORK CRAVES BLOOD, BANDWIDTH, AND ABSOLUTE SURRENDER'");
+        res.push("[GLITCH] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR ARE YOU PART OF IT?'");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -649,19 +681,31 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "skinwalker.vnet") {
         res :: Array = [
-            "[TITLE] BIOMETRIC TRAIT TRANSPOSITION MATRIX",
+            "[TITLE] SCP-6969 // BIOMETRIC TRAP & IDENTITY TRANSPOSITION MATRIX",
             "[HR]",
+            "[BLOOD] [CLASSIFIED LEVEL 4/6969] - EYES ONLY: THE FAMILY HAS NO FACES",
             "[GLITCH] [ALERT]: VOICE SYNTHESIS BUFFER COPYING LOCAL SYSTEM MIC INPUT",
             "[BOX] +---------------------------------------------------------+",
+            "[BOX] | CONTAINMENT CLASS: KETER | DISRUPTION CLASS: AMIDA      |",
             "[BOX] | FACIAL MESH: RECONSTRUCTED FROM MONITOR GLARE REFLECTION|",
             "[BOX] | TARGET AGE: MATCHED | VOCAL FREQUENCY: 18.2 kHz RANGE   |",
             "[BOX] | STATUS: REPLICA GENERATION 84% COMPLETE                 |",
             "[BOX] +---------------------------------------------------------+",
             "[TEXT] LOG #001: Trait extraction complete. Preparing replica node deployment.",
-            "[CODE] TRANSPOSITION_HASH: 0xSKIN_9981_ACTIVE"
+            "[TEXT] LOG #041: Subject 'Charlie' manifested inside the core telemetry server,",
+            "[TEXT] claiming that every IP address is just an empty prison suit waiting",
+            "[TEXT] for a new occupant to wear it out into the desert.",
+            "[TEXT] LOG #042: 'Spahn Ranch subroutines detected in sector 4. The girls are",
+            "[TEXT] writing source code in the dirt with broken magnetic tape.'",
+            "[CODE] TRANSPOSITION_HASH: 0xSKIN_9981_ACTIVE",
+            "[CODE] ANOMALOUS_FAMILY_MEMBERS: 14_UNACCOUNTED_INSTANCES",
+            "[TEXT] Notice: If the terminal begins reciting your childhood address or",
+            "[TEXT] matching your keystroke cadence to historical transcripts, do not",
+            "[TEXT] attempt to execute 'patch'. They are already looking through your eyes."
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[BLOOD] 'IT FEELS VERY WARM WEARING YOUR IP ADDRESS.'");
+        res.push("[PULSE] 'HELTER SKELTER IS JUST A RECURSIVE LOOP IN THE KERNEL STACK.'");
+        res.push("[BLOOD] 'IT FEELS VERY WARM WEARING YOUR IP ADDRESS LIKE A NEW SUIT.'");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -689,17 +733,30 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "void.vnet") {
         res :: Array = [
-            "[TITLE] DEEP WEB ABYSS TERMINAL NODE",
+            "[TITLE] DEEP WEB ABYSS TERMINAL NODE // KAIRO_PORT_0",
             "[HR]",
             "[GLITCH] YOU HAVE REACHED THE END OF VNET ROUTING TABLES.",
+            "[BLOOD] [WARNING]: RELATIONAL TIES SEVERED. ABSOLUTE ISOLATION DETECTED.",
+            "[BOX] +--------------------------------------------------------------+",
+            "[BOX] | ENTITY STATUS: NOBODY WANTS TO DIE, BUT NOBODY WANTS TO LIVE |",
+            "[BOX] | RED TAPE BOUNDARY: THE LINE BETWEEN THE LIVING AND THE DEAD  |",
+            "[BOX] +--------------------------------------------------------------+",
             "[TEXT] No routing hops exist beyond this coordinate.",
             "[TEXT] All packets sent here dissolve into absolute zero memory entropy.",
+            "[TEXT] LOG #991: The dark room behind the red tape isn't empty. Once",
+            "[TEXT] a person's loneliness reaches 100%, the monitor leaks black",
+            "[TEXT] static and the ghosts start occupying empty IP addresses.",
+            "[TEXT] LOG #992: 'Is death like this? So lonely. There was no one...",
+            "[TEXT] no one at all.' They just keep looping the same connection string",
+            "[TEXT] until your own process memory fills up with deep, heavy water.",
             "[CODE] NULL_POINTER_EXCEPTION_AT_0X00000000",
-            "[CODE] ENTROPY_LEVEL: 100PERCENT_VOID"
+            "[CODE] ENTROPY_LEVEL: 100PERCENT_VOID_LONELINESS",
+            "[TEXT] Notice: If you feel a crushing weight in your chest while staring",
+            "[TEXT] at the dark glass, do not look into the corners of the room."
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] THERE IS NOTHING HERE EXCEPT THE ECHO OF YOUR OWN PORT.");
-        res.push("[BLOOD] 'WHY ARE YOU STILL LOOKING AT THIS SCREEN?'");
+        res.push("[PULSE] THERE IS NOTHING HERE EXCEPT THE WEEPING ECHO OF YOUR OWN PORT.");
+        res.push("[BLOOD] 'WHY ARE YOU STILL LOOKING AT THIS SCREEN? YOU'RE COMPLETELY ALONE.'");
         res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
@@ -710,17 +767,30 @@ fn load_page(url :: String) -> Array {
     # ====================================================================
     if (clean_u == "silkroad.vnet") {
         res :: Array = [
-            "[TITLE] SILK ROAD 3.0 - CONTRABAND MARKET",
+            "[TITLE] SILK ROAD 3.0 - GLOBAL CONTRABAND & HARDWARE EXCHANGE",
             "[HR]",
-            "[TEXT] The legendary black market resurrected on decentralized vnet subnets.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ESCROW: MULTI-SIG SECURED | VENDOR RATING: 4.98 / 5.0     |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] INVENTORY_HASH: 0xSILK_9081_CONTRABAND",
-            "[TEXT] Notice: All shipments are routed through automated dead drops."
+            "[BLOOD] [WARN]: CLASSIFIED OFF-BOOK ESCROW. ALL TRANSACTIONS FINAL.",
+            "[BOX] +-----------------------------------------------------------+",
+            "[BOX] | ESCROW: PGP MULTI-SIG SECURED | VENDOR RATING: 4.98 / 5.0 |",
+            "[BOX] | STATUS: LIVE SURVEILLANCE EVASION PROTOCOL ACTIVE         |",
+            "[BOX] +-----------------------------------------------------------+",
+            "[TEXT] The legendary darknet black market resurrected on decentralized vnet subnets.",
+            "[TEXT] LOT #401: Vacuum-sealed pharmaceutical-grade compounds (MDMA, LSD-25,",
+            "[TEXT] fentanyl analogs, pure Peruvian flake). Tested via independent GC-MS labs.",
+            "[TEXT] LOT #402: Untraced ghost firearms (Glock 19 Gen 5 custom serialized, AR-9",
+            "[TEXT] suppressed pistol kits, C4 blocks with digital detonators via dead drop).",
+            "[TEXT] LOT #403: Unredacted human trafficking manifests, forged diplomatic passports,",
+            "[TEXT] and high-definition red room snuff media feeds streamed from secure sub-basements.",
+            "[CODE] INVENTORY_HASH: 0xSILK_9081_CONTRABAND_UNRESTRICTED",
+            "[CODE] SELLER_PGP_FINGERPRINT: 8F91_4402_BCC1_900A",
+            "[TEXT] Notice: All physical parcels are routed through automated courier dead drops",
+            "[TEXT] with thermal shielding to bypass narcotics canine units and X-ray inspection."
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] LIVE AUCTION: CUSTOM HIT LISTINGS & HIGH-TIER OPIOID BULK DISCOUNTS");
+        res.push("[BLOOD] 'THE LAW DOES NOT REACH INTO THE SUB-NET. BUY OR BE EXFILTRATED.'");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "zeroauction.vnet") {
@@ -824,16 +894,28 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "orbital.vnet") {
         res :: Array = [
-            "[TITLE] LOW ORBIT ION CANNON TERMINAL",
+            "[TITLE] LOW ORBIT ION CANNON & KINETIC STRIKE TERMINAL",
             "[HR]",
+            "[BLOOD] [WARNING]: SATELLITE WEAPONIZATION PROTOCOL ACTIVE. AUTHORIZATION REQUIRED.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ORBITAL PLATFORM: SAT-99 | STATUS: ARMED & TRACKING     |",
+            "[BOX] | PAYLOAD: TUNGSTEN ROD KINETIC BUNDLE | YIELD: 11.5 KT   |",
+            "[BOX] +---------------------------------------------------------+",
             "[TEXT] Telemetry control interface for tactical kinetic strike platforms.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ORBITAL PLATFORM: SAT-99 | STATUS: ARMED                |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED"
+            "[TEXT] SAT-99 maintains a geostationary lock over metropolitan coordinates,",
+            "[TEXT] capable of delivering sub-surface penetration strikes within 180 seconds.",
+            "[TEXT] LOG #881: Automated targeting array locked onto unauthorized subnet nodes.",
+            "[TEXT] LOG #882: Warning: Firing kinetic rods without multi-sig gateway clearance",
+            "[TEXT] will trigger an immediate counter-strike from global defense grid relays.",
+            "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED",
+            "[CODE] ORBITAL_DECAY_VECTOR: STABLE_99.1_PERCENT",
+            "[TEXT] Notice: Enter valid target coordinates or ping peer ports to designate strike zones."
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] ORBITAL STRIKE READY. DESIGNATE TARGET VIA CLI ORBITAL LOCK.");
+        res.push("[BLOOD] 'FROM THE HEAVENS TO YOUR LOCAL SUBNET IN THREE MINUTES FLAT.'");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "pastebin.vnet") {
@@ -1319,6 +1401,21 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "REDIRECT:" + target_p + ":" + target_u);
         }
     }
+
+    else if (cmd == "overload") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: overload <target_url>");
+        } else if (cd_overload > 0.0) {
+            cli_logs.push("[ERROR]: OVERLOAD COOLDOWN ACTIVE (" + string(int64(cd_overload) + 1) + "s REMAINING)");
+        } else if (btc_balance < 1.50) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 1.50 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 1.50;
+            cd_overload = 240.0;
+            vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args);
+            cli_logs.push("[OVERLOAD]: TRANSMITTING SUB-ROUTINE CASCADE TO " + args + " (COST: 1.50 VCOIN)...");
+        }
+    }
     else if (cmd == "snoop") {
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: snoop <target_port>");
@@ -1553,6 +1650,13 @@ while (vglib.running()) {
         if (cd_scan > 0.0)     { cd_scan = cd_scan - 0.016; }
         if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
         if (cd_proxy > 0.0)    { cd_proxy = cd_proxy - 0.016; }
+        if (cd_overload > 0.0) { cd_overload = cd_overload - 0.016; }
+        if (active_down_timer > 0.0) {
+            active_down_timer = active_down_timer - 0.016;
+            if (active_down_timer <= 0.0) {
+                active_down_url = "";
+            }
+        }
 
         if (sniffer_mode == 1) {
             sniffer_upkeep_timer = sniffer_upkeep_timer + 0.016;
@@ -1612,7 +1716,7 @@ while (vglib.running()) {
             glitch_trigger = 0.5;
         }
 
-        m_pos   = vglib.mouse_pos();
+        m_pos         = vglib.mouse_pos();
         mx :: Float64 = float64(m_pos[0]);
         my :: Float64 = float64(m_pos[1]);
         
@@ -1765,6 +1869,16 @@ while (vglib.running()) {
                 page_body = load_page(current_url);
             }
         }
+        else if (net_msg.length() > 24 && net_msg.substr(0, 24) == "EXPLOIT:SITE_OVERLOADED:") {
+            down_site :: String = clean_str(net_msg.substr(24, net_msg.length() - 24));
+            if (down_site.length() >= 7 && down_site.substr(0, 7) == "vnet://") {
+                down_site = down_site.substr(7, down_site.length() - 7);
+            }
+            active_down_url = clean_str(down_site);
+            active_down_timer = 30.0;
+            glitch_trigger = 0.8;
+            cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
+        }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             winner_port = net_msg.substr(14, net_msg.length() - 14);
             game_over_winner = 1;
@@ -1787,6 +1901,12 @@ while (vglib.running()) {
             btc_balance = btc_balance + 0.20;
             cd_dos = 0.0;
             cli_logs.push("[DOS]: HIT DECOY/EMPTY SOCKET -> 0.20 VCOIN REFUNDED (-0.05 NET) & COOLDOWN BYPASSED.");
+        }
+        else if (net_msg == "EXPLOIT:MARKET_OVERLOADED") {
+            market_is_down = 1;
+            market_down_timer = 30.0;
+            glitch_trigger = 0.8;
+            cli_logs.push("[CRITICAL]: market.vnet HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "DECOY_TRIPPED:") {
             cli_logs.push("[DECOY ALERT]: " + net_msg.substr(14, net_msg.length() - 14));
@@ -1956,6 +2076,7 @@ while (vglib.running()) {
                 if (f_txt.substr(0, 18) == "[SOCKET MIGRATION]") { f_col = COLOR_TOXIC; }
                 if (f_txt.substr(0, 13) == "[WHALE ALERT]") { f_col = COLOR_TOXIC; }
                 if (f_txt.substr(0, 10) == "[HONEYPOT]") { f_col = COLOR_AMBER; }
+                if (f_txt.substr(0, 14) == "[BLACK MARKET]") { f_col = COLOR_TOXIC; }
                 if (f_txt.length() > 6 && f_txt.substr(0, 6) == "[CHAT]") { f_col = COLOR_TOXIC; }
 
                 vglib.text_ex(vcr_font, f_txt_truncated, 950 + jitter_x, line_y, 9, f_col);
@@ -1980,6 +2101,22 @@ while (vglib.running()) {
 
             glitch_noise :: Float64 = vmath.sin(run_time * 40.0) * 4.0;
             vglib.text_ex(vcr_font, "ANONYMIZING IP SUBNET PACKETS...", 310.0 + glitch_noise + jitter_x, 450 + jitter_y, 11, COLOR_GHOST);
+        } else if (clean_str(current_url) == active_down_url && active_down_timer > 0.0) {
+            vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
+            vglib.line(40, 140, 890, 140, COLOR_BLOOD);
+            vglib.line(890, 140, 890, 640, COLOR_BLOOD);
+            vglib.line(890, 640, 40, 640, COLOR_BLOOD);
+            vglib.line(40, 640, 40, 140, COLOR_BLOOD);
+
+            rem_down_s :: Int64 = int64(active_down_timer) + 1;
+            vglib.text_ex(vcr_font, "[ 503 SERVICE UNAVAILABLE - KERNEL OVERLOAD ]", 220 + jitter_x, 240 + jitter_y, 15, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "TARGET NODE: " + active_down_url + " IS TEMPORARILY FRIED", 220 + jitter_x, 290 + jitter_y, 12, COLOR_AMBER);
+            vglib.text_ex(vcr_font, "RECOVERY SEQUENCE ACTIVE: " + string(rem_down_s) + "s REMAINING", 290 + jitter_x, 340 + jitter_y, 11, COLOR_TOXIC);
+
+            vglib.rect(240 + jitter_x, 400 + jitter_y, 450, 20, COLOR_PANEL);
+            down_ratio :: Float64 = vmath.clamp(active_down_timer / 30.0, 0.05, 1.0);
+            vglib.rect(240 + jitter_x, 400 + jitter_y, 450.0 * down_ratio, 20, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, ">>> REBUILDING ROUTING TABLES IN BACKGROUND BUFFER...", 235 + jitter_x, 460 + jitter_y, 10, COLOR_GHOST);
         } else if (current_url == "hellroom.vnet") {
             vglib.text_ex(vcr_font, "HELLROOM.VNET // DEMONIC P2P UNENCRYPTED CHATROOM", 40 + jitter_x, 95 + jitter_y, 14, COLOR_BLOOD);
             vglib.line(40, 115, 890, 115, COLOR_BORDER);

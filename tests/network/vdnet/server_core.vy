@@ -118,6 +118,12 @@ proxy_chains_source :: Array = [];
 proxy_chains_proxy  :: Array = [];
 proxy_chains_target :: Array = [];
 
+# OVERLOAD STATE STORAGE
+market_overloaded_timer :: Float64 = 0.0;
+overload_cooldowns      :: Array   = [];
+overloaded_urls   :: Array = [];
+overloaded_timers :: Array = [];
+
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
@@ -164,6 +170,24 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_dirs.push(dir_payload);
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
     }
+}
+
+fn clean_str(raw :: String) -> String {
+    out_str = raw;
+    while (out_str.length() > 0) {
+        c = out_str.substr(0, 1);
+        if (c == " " || c == "\"" || c == "'" || c == "\t" || c == "\r" || c == "\n") {
+            out_str = out_str.substr(1, out_str.length() - 1);
+        } else { break; }
+    }
+    while (out_str.length() > 0) {
+        idx = out_str.length() - 1;
+        c   = out_str.substr(idx, 1);
+        if (c == " " || c == "\"" || c == "'" || c == "\t" || c == "\r" || c == "\n") {
+            out_str = out_str.substr(0, idx);
+        } else { break; }
+    }
+    return out_str;
 }
 
 fn mask_port(port_val :: Int64) -> String {
@@ -294,6 +318,18 @@ while (true) {
     if (game_over == 0) {
         prune_inactive_peers(server_uptime);
         
+        t_idx :: Int64 = overloaded_timers.length() - 1;
+        while (t_idx >= 0) {
+            curr_t :: Float64 = float64(overloaded_timers[t_idx]) - 0.016;
+            if (curr_t <= 0.0) {
+                overloaded_urls.delete(overloaded_urls[t_idx]);
+                overloaded_timers.delete(overloaded_timers[t_idx]);
+            } else {
+                overloaded_timers[t_idx] = curr_t;
+            }
+            t_idx = t_idx - 1;
+        }
+        
         decoy_timer = decoy_timer + 0.016;
         if (decoy_timer >= 30.0) {
             decoy_timer = 0.0;
@@ -326,8 +362,20 @@ while (true) {
             broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
 
             if (cmd == "GET") {
-                out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
-                send_key_sync_payload(sender_ip, sender_port);
+                site_is_down :: Int64 = 0;
+                through o_i :: 0..(overloaded_urls.length() - 1) -> loop {
+                    if (string(overloaded_urls[o_i]) == payload) {
+                        site_is_down = 1;
+                        break;
+                    }
+                };
+
+                if (site_is_down == 1) {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:SITE_OVERLOADED:" + payload);
+                } else {
+                    out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
+                    send_key_sync_payload(sender_ip, sender_port);
+                }
             }
 
             if (cmd == "NETSCAN") {
@@ -619,6 +667,34 @@ while (true) {
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "AUTH:FAIL:INVALID_HASH");
                 }
+            }
+
+            if (cmd == "OVERLOAD") {
+                target_site :: String = clean_str(payload);
+                if (target_site.length() >= 7 && target_site.substr(0, 7) == "vnet://") {
+                    target_site = clean_str(target_site.substr(7, target_site.length() - 7));
+                }
+                
+                is_already_down :: Int64 = 0;
+                through o_i :: 0..(overloaded_urls.length() - 1) -> loop {
+                    if (string(overloaded_urls[o_i]) == target_site) {
+                        is_already_down = 1;
+                        break;
+                    }
+                };
+
+                if (is_already_down == 1) {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "OVERLOAD_FAIL:ALREADY_OVERLOADED");
+                } else {
+                    overloaded_urls.push(target_site);
+                    overloaded_timers.push(30.0); # 30 second lockout
+                    broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
+                    broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
+                }S
+            }
+
+            if (cmd == "ICE_BOUGHT") {
+                broadcast_feed_event("[BLACK MARKET]: NODE PORT_" + mask_port(sender_port) + " REINFORCED ICE FIREWALL SHIELD.");
             }
 
             if (cmd == "CAT") {
