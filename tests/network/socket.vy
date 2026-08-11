@@ -509,22 +509,42 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "morgue.vnet") {
         res :: Array = [
-            "[TITLE] DIGITAL AUTOPSY DATABASE - SUBJECT #409",
+            "[TITLE] DIGITAL AUTOPSY DATABASE // SUBJECT #409-B (EXECUTIVE LEVEL)",
             "[HR]",
-            "[BLOOD] SUBJECT STATUS: NO HEARTBEAT DETECTED | BRAIN ACTIVITY: 98%",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SUBJECT ID: #409-B | LOCATION: SECTOR 7 VAULT CORE      |",
-            "[BOX] | CAUSE OF DEATH: HIGH-VOLTAGE KERNEL OVERLOAD              |",
-            "[BOX] | TIME OF EXTINGUISHMENT: 03:41 AM                          |",
-            "[BOX] +---------------------------------------------------------+",
-            "[TEXT] BIO_LOG: Subject was found seated in front of terminal CRT display.",
-            "[TEXT] BIO_LOG: Cornea patterns burned with inverted ASCII hex code.",
-            "[TEXT] BIO_LOG: Neural interface cables fused directly into temporal lobe.",
-            "[CODE] AUTOPSY_REPORT_HASH: 0xDEAD_BEEF_9901"
+            "[BLOOD] SUBJECT STATUS: FLATLINE (0 BPM) // CEREBRAL STEM ACTIVITY: 98% RECURSIVE",
+            "[PULSE] CLASSIFICATION: EYES ONLY // HIGH-TIER GLOBAL CONSPIRACY DOSSIER",
+            "[BOX] +---------------------------------------------------------------------+",
+            "[BOX] | SUBJECT ID: #409-B | ORIGIN: LITTLE SAINT JAMES / SECTOR 7 CORE   |",
+            "[BOX] | CAUSE OF DEATH: HIGH-VOLTAGE KERNEL OVERLOAD & FORCED ASPHYXIA      |",
+            "[BOX] | TIME OF EXTINGUISHMENT: 03:41 AM (OFFICIAL LOG: 'HANGING / SUICIDE')|",
+            "[BOX] | DECOMPOSITION STAGE: ADVANCED ADIPOCERE & INTRAVENOUS PUTREFACTION  |",
+            "[BOX] +---------------------------------------------------------------------+",
+            "[TEXT] BIO_LOG #01: Subject recovered from subterranean vault facility at vault.vnet.",
+            "[TEXT] Trachea fractured via mechanical strangulation, not rope suspension.",
+            "[TEXT] Cornea patterns burned with inverted ASCII hex code mirroring signal0.vnet.",
+            "[TEXT] Abdominal cavity incised post-mortem; liver and intestines liquefied into a",
+            "[TEXT] black, foul-smelling slurry leaking through the stainless steel drainage tray.",
+            "[TEXT] Braided copper neural interface cables fused directly into temporal lobes and",
+            "[TEXT] carotid arteries, pumping oxidized synthetic blood back into the brain stem.",
+            "[CODE] FLIGHT_LOG_MANIFEST: 2019_EXECUTIVE_PASSENGER_HASH_UNREDACTED",
+            "[CODE] MK_ULTRA_HARVEST_REF: 0xEPSTEIN_BOHEMIAN_MIND_CONTROL_VECTOR",
+            "[TEXT] ",
+            "[SUBTITLE] CROSS-LINKED FORENSIC LOGS & ELITE EXFILTRATION RECORDS:",
+            "[TEXT] 'The autopsy report was forged before the body was even cold. Official news",
+            "[TEXT] outlets logged a suicide, but the skull vault was hollowed out while he was",
+            "[TEXT] still conscious. His cerebral memory stacks were extracted and sold on leaks.vnet.'",
+            "[TEXT] 'Tissue samples match the bio-coagulation leaking under the floorboards in",
+            "[TEXT] dollhouse.vnet (Room 402). The shadow elites didn't kill him to silence him—",
+            "[TEXT] they transferred his consciousness into asylum.vnet as Patient #1988.'",
+            "[CODE] AUTOPSY_REPORT_HASH: 0xDEAD_BEEF_9901_MK_HARVEST"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] ANOMALY: SUBJECT EYES OPENED DURING VFS MEMORY SCAN");
-        res.push("[PULSE] 'DO NOT LOOK INTO THE GLASS DISPLAY.'");
+        res.push("[PULSE] WARNING: RANCID PUTREFACTION GASES CORRUPTING LOCAL HARDWARE BUS");
+        res.push("[GLITCH] ANOMALY: SUBJECT EYES SNAP-OPENED AND BEGAN RECITING FLIGHT MANIFESTS");
+        res.push("[LINK:vault.vnet] >> INSPECT CORRUPTED SECTOR 7 VAULT CORE");
+        res.push("[LINK:dollhouse.vnet] >> CROSS-CHECK ROOM 402 SURVEILLANCE FEED");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR PATIENT #1988 CONTAINMENT");
+        res.push("[LINK:leaks.vnet] >> ACCESS EXFILTRATED GLOBAL INTELLIGENCE DUMPS");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -573,17 +593,41 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "snuff.vnet") {
         res :: Array = [
-            "[TITLE] CORRUPTED FRAME BUFFER ARCHIVE",
+            "[TITLE] CORRUPTED FRAME BUFFER ARCHIVE // UNFILTERED RAW VIDEO RECOVERY",
             "[HR]",
-            "[TEXT] Uncompressed raw video streams recovered from wiped sector sectors.",
-            "[TEXT] Every frame contains geometric anomalies inconsistent with rendering engines.",
-            "[CODE] FRAME_001.RAW | STATUS: CORRUPTED | 0x00FF99_PIXEL_BLEED",
-            "[CODE] FRAME_002.RAW | STATUS: CORRUPTED | SHADOW_GEOMETRY_DETECTED",
-            "[CODE] FRAME_003.RAW | STATUS: CORRUPTED | HUMAN_SILHOUETTE_FOUND"
+            "[BLOOD] CLASSIFICATION: EYES ONLY // SECTOR 4 INTERCEPTION DUMP",
+            "[PULSE] STREAM ORIGIN: REDROOM.VNET // BACKUP COLD STORAGE MEMORY STACK",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SOURCE: OMEGA_PROTOCOL_CAM_FEED_09 | RESOLUTION: RAW YUV420    |",
+            "[BOX] | RECOVERY METHOD: VGLIB MEMORY POINTER CARVING (SECTOR 0x88)  |",
+            "[BOX] | DECOMPOSITION STAGE: LIQUEFIED FLESH & COAGULATED OPTICAL FILM|",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] Uncompressed raw frame buffers harvested from wiped cluster sectors.",
+            "[TEXT] Every frame contains geometric anomalies and dark biological spatter",
+            "[TEXT] inconsistent with traditional graphics pipelines.",
+            "[CODE] FRAME_001.RAW | STATUS: CORRUPTED | 0x00FF99_PIXEL_BLEED_&_BILE",
+            "[CODE] FRAME_002.RAW | STATUS: CORRUPTED | SHADOW_GEOMETRY_&_SPLIT_TRACHEA",
+            "[CODE] FRAME_003.RAW | STATUS: CORRUPTED | HUMAN_SILHOUETTE_IN_ACID_BATH",
+            "[TEXT] ",
+            "[SUBTITLE] EXFILTRATED FRAME METADATA & RECOVERED TELEMETRY LOGS:",
+            "[TEXT] 'The imagery salvaged from snuff.vnet wasn't rendered on a GPU. It was",
+            "[TEXT] captured directly from optical nerves harvested in asylum.vnet (Sub-Level 4).'",
+            "[TEXT] 'Frame #409 displays an execution chamber inside dollhouse.vnet (Room 402).",
+            "[TEXT] The subject's torso had been sliced open with industrial surgical saws,",
+            "[TEXT] inner organs drained into a rusted steel bucket while PMC contract operators",
+            "[TEXT] logged in zeroauction.vnet placed live bids on the unredacted recordings.'",
+            "[TEXT] 'A thick, yellowish grease and the stench of charred bone are leaking directly",
+            "[TEXT] through the VFS memory allocation tables at vault.vnet.'",
+            "[CODE] ARCHIVE_HASH_ID: 0xSNUFF_RAW_9912_PMC_RECORDING"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[BLOOD] RECOVERY ATTEMPTED: SHADOW FIGURES FOUND IN EVERY RENDERED FRAME");
-        res.push("[TEXT] Archive compiled from corrupted VGLib texture memory pointers.");
+        res.push("[PULSE] WARNING: FOUL MEMORY ENTROPY SPREADING TO ACTIVE DISPLAY BUFFERS");
+        res.push("[GLITCH] RECOVERY ATTEMPTED: SHADOW FIGURES & SEVERED FLESH IN EVERY FRAME");
+        res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
+        res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 CONTAINMENT");
+        res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
+        res.push("[LINK:vault.vnet] >> CROSS-REFERENCE CORRUPTED DATA VAULT");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -591,19 +635,47 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "asylum.vnet") {
         res :: Array = [
-            "[TITLE] PATIENT TELEMETRY - SUB-LEVEL 4",
+            "[TITLE] SUB-LEVEL 4 EXPERIMENTAL FACILITY // PATIENT TELEMETRY",
             "[HR]",
-            "[PULSE] PATIENT #1988 VITAL MONITORS GLITCHING DANGEROUSLY",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | HEART RATE: 000 BPM | BODY TEMP: 24.2 C | STATUS: ACTIVE   |",
-            "[BOX] | CEREBRAL ACTIVITY: DELTA WAVE LOCK (PERSISTENT LOOP)    |",
-            "[BOX] +---------------------------------------------------------+",
-            "[TEXT] PATIENT LOG: 'He keeps repeating port numbers in his sleep.'",
-            "[TEXT] PATIENT LOG: 'The walls are made of copper wire and fiber optics.'",
-            "[CODE] PATIENT_RECORD_ID: 1988_RESTRICTED"
+            "[BLOOD] CLASSIFICATION: TOP SECRET // MK-ULTRA MORPHOGENIC ENGINE SUITE",
+            "[PULSE] VITAL MONITORS: FLATLINE DETECTED // BRAINWAVE Delta-LOCK ACTIVE",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SUBJECT: PATIENT #1988 (EX-EXECUTIVE WHISTLEBLOWER)             |",
+            "[BOX] | HEART RATE: 000 BPM | BODY TEMP: 18.2 C | STATUS: CONSCIOUS    |",
+            "[BOX] | IMPLANT: BRAIDED COPPER BUS FUSED TO CEREBELLUM (MORGUE LINK)   |",
+            "[BOX] | CONTAINMENT: MOUNT MASSIVE / TEMPLE GATE RITUAL SUBNET LINKED   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] PATIENT LOG #881: 'Subject has been clamped into the metallic restraint",
+            "[TEXT] chair for 144 continuous hours. Eyelids excised to force 100% visual lock",
+            "[TEXT] on the Morphogenic static engine patterns. High-voltage pulses delivered",
+            "[TEXT] directly to carotid arteries every 30 seconds to prevent cognitive shutdown.'",
+            "[TEXT] PATIENT LOG #882: 'Subject no longer speaks human sentences. He twitches",
+            "[TEXT] violently, spewing black bile and regurgitated human hair while chanting",
+            "[TEXT] port numbers and Temple Gate gospel litanies in his sleep.'",
+            "[TEXT] 'Flesh around the cranial ports has turned green with necrotic gangrene",
+            "[TEXT] and maggots are crawling out of the ear canals, matching the tissue dumps",
+            "[TEXT] exfiltrated from morgue.vnet.'",
+            "[CODE] CONTAINMENT_LOCK_STATE: COMPROMISED_FROM_INSIDE_NETWORK",
+            "[TEXT] ",
+            "[SUBTITLE] CROSS-LINKED FACILITY INTERCEPTS & TEMPLE GATE TRANSMISSIONS:",
+            "[TEXT] 'The Morphogenic signals generated in the sub-basements of Mount Massive",
+            "[TEXT] aren't isolated to Mount Massive anymore. They are beamed via radio towers",
+            "[TEXT] directly into the Arizona desert village at cult.vnet.'",
+            "[TEXT] 'In the ritual pits of Temple Gate, Knoth's heretics cut open the bellies of",
+            "[TEXT] pregnant followers, smearing rancid afterbirth over copper CRT receiver coils",
+            "[TEXT] to commune with the Walrider payload streaming live from snuff.vnet.'",
+            "[TEXT] 'When PMC operators from zeroauction.vnet raided Sector 4, they found",
+            "[TEXT] Patient #1988's cell empty—only a pool of liquefied fat, severed tongues,",
+            "[TEXT] and copper wire ripped out from the wall transformers.'",
+            "[CODE] PATIENT_RECORD_ID: 1988_RESTRICTED_WALRIDER_VECTOR"
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] WARNING: MORPHOGENIC STATIC LEAKING INTO LOCAL RAM BUS");
         res.push("[GLITCH] 'CONTAINMENT CELL DOOR OPENED FROM INSIDE THE NETWORK ROUTER'");
+        res.push("[LINK:cult.vnet] >> ACCESS TEMPLE GATE CULT RITUAL GATEWAY");
+        res.push("[LINK:morgue.vnet] >> CROSS-REFERENCE SUBJECT #409 AUTOPSY");
+        res.push("[LINK:snuff.vnet] >> INSPECT UNFILTERED RAW VIDEO RECOVERY");
+        res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
