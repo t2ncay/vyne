@@ -2093,7 +2093,7 @@ while (vglib.running()) {
             vglib.line(890, 640, 40, 640, COLOR_AMBER);
             vglib.line(40, 640, 40, 140, COLOR_AMBER);
 
-            rem_s :: Int64 = int64(target_connection_time - connection_timer) + 1;
+            rem_s :: Int64 = int64(vmath.ceil(target_connection_time - connection_timer));
             vglib.text_ex(vcr_font, "[ESTABLISHING TOR PROXY HOPS]", 310 + jitter_x, 240 + jitter_y, 16, COLOR_AMBER);
             vglib.text_ex(vcr_font, "RESOLVING HANDSHAKE TO: vnet://" + pending_url, 260 + jitter_x, 290 + jitter_y, 13, COLOR_CYAN);
             vglib.text_ex(vcr_font, "LATENCY BUFFER: " + string(rem_s) + "s REMAINING", 340 + jitter_x, 340 + jitter_y, 12, COLOR_TOXIC);
