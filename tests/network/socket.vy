@@ -142,6 +142,7 @@ cd_snoop         :: Float64 = 0.0;
 cd_mine          :: Float64 = 0.0;
 cd_patch         :: Float64 = 0.0;
 cd_decoy         :: Float64 = 0.0;
+cd_scan          :: Float64 = 0.0;
 
 scroll_y         :: Float64 = 0.0;
 cli_scroll_y     :: Float64 = 0.0;
@@ -188,6 +189,10 @@ fn parse_input(raw :: String) -> Array {
 }
 
 fn purchase_ice_firewall() -> Int64 {
+    if(current_url != "market.vnet") {
+        cli_logs.push("[ERROR]: ICE FIREWALL CAN ONLY BE PURCHASED FROM market.vnet");
+        return 0;
+    }
     if (ice_charges >= 3) {
         cli_logs.push("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (3/3)");
         return 0;
@@ -1297,7 +1302,13 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("==================================================");
     }
     else if (cmd == "scan") {
-        vnet.send_to(client_sock, server_ip, server_port, "SCAN:REQ");
+        if (cd_scan > 0.0) {
+            cli_logs.push("[ERROR]: DEEP SCAN COOLING DOWN (" + string(int64(cd_scan)) + "s REMAINING)");
+        } else {
+            cd_scan = 240.0; # 4 minutes = 240 seconds
+            vnet.send_to(client_sock, server_ip, server_port, "SCAN:REQ");
+            cli_logs.push("[SCAN]: INITIATING DEEP SUBNET FREQUENCY SWEEP...");
+        }
     }
     else if (cmd == "crack") {
         if (args == "") { cli_logs.push("[ERROR]: Usage: crack <val>"); }
@@ -1372,6 +1383,7 @@ while (vglib.running()) {
         if (cd_snoop > 0.0)    { cd_snoop = cd_snoop - 0.016; }
         if (cd_mine > 0.0)     { cd_mine = cd_mine - 0.016; }
         if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; }
+        if (cd_scan > 0.0)     { cd_scan = cd_scan - 0.016; }
         if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
 
         if (is_connecting == 1) {
@@ -1392,7 +1404,7 @@ while (vglib.running()) {
         passive_trace_cd = passive_trace_cd + 0.016;
         if (passive_trace_cd >= 3.0) {
             passive_trace_cd = 0.0;
-            if (current_url == "market.vnet" || current_url == "redroom.vnet" || current_url == "dollhouse.vnet" || current_url == "bounty.vnet" || current_url == "skinwalker.vnet" || current_url == "watchtower.vnet") {
+            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet") {
                 trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
             }
         }
@@ -1677,7 +1689,7 @@ while (vglib.running()) {
         wave_amp :: Float64 = vmath.clamp(8.0 + float64(recent_packets * 2), 8.0, 20.0);
 
         through rx :: 0..28 -> loop {
-            wave_y :: Float64 = 203.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
+            wave_y :: Float64 = 209.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
             vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
         };
 

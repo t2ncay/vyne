@@ -472,10 +472,11 @@ while (true) {
             }
 
             if (cmd == "SCAN") {
-                status :: String = (firewall_open == 1) ? "SYS_STATUS:PORT_80_OPEN:SALT_" + string(current_salt) : "SYS_STATUS:FIREWALL_LOCKED";
-                vnet.send_to(server_sock, sender_ip, sender_port, status);
-            }
+                rand_idx  :: Int64  = int64(vmath.random(0, all_50_sites.length() - 1));
+                secret_url :: String = string(all_50_sites[rand_idx]);
 
+                vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:DISCOVERED_HIDDEN_NODE -> vnet://" + secret_url);
+            }
             if (cmd == "CRACK") {
                 attempt_val :: Int64 = int64(payload);
                 computed    :: Int64 = (attempt_val * current_salt) % 9999;
