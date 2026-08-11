@@ -1,6 +1,6 @@
 ruleset { dynamic_casting };
 module vnet;
-module vmath;
+module vmath;   
 module vcore;
 
 server_port :: Int64 = 8000;
@@ -410,6 +410,18 @@ while (true) {
                     }
                 };
 
+                target_ip   :: String = "127.0.0.1";
+                target_idx  :: Int64 = -1;
+                
+                through p :: 0..(active_ports.length() - 1) -> loop {
+                    if (int64(active_ports[p]) == target_node) { 
+                        target_ip = string(active_ips[p]); 
+                        target_idx = p;
+                        break; 
+                    }
+                };
+
+                # Check if it hit a decoy OR missed an active peer (empty socket / phantom bot)
                 if (decoy_idx >= 0) {
                     owner_port :: Int64 = int64(decoy_owners[decoy_idx]);
                     if (owner_port != sender_port) {
@@ -422,82 +434,74 @@ while (true) {
                         broadcast_feed_event("[DECOY TRAP]: PORT_" + string(sender_port) + " TRIED TO DOS DECOY PORT " + string(target_node) + "! TRAP SPRUNG.");
                         
                         vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:DOS");
+                        # Refund 0.20 VCOIN (Net cost 0.05) and bypass cooldown
+                        vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT_REFUND");
                         
                         decoy_targets.delete(decoy_targets[decoy_idx]);
                         decoy_owners.delete(decoy_owners[decoy_idx]);
                         decoy_urls.delete(decoy_urls[decoy_idx]);
                     }
+                } else if (target_idx < 0) {
+                    # Empty socket / phantom bot hit -> Refund and clear cooldown
+                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                    vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT_REFUND");
+                    broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " HIT EMPTY SOCKET PORT_" + string(target_node) + "! -0.05 VCOIN & COOLDOWN BYPASSED.");
                 } else {
-                    target_ip   :: String = "127.0.0.1";
-                    target_idx  :: Int64 = -1;
+                    # Valid active player target hit normally (Costs full 0.25 VCOIN and keeps 15s CD)
+                    out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
+                    vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
+                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                    broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
+
+                    hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
+                    active_dos_hits[target_idx] = hits;
                     
-                    through p :: 0..(active_ports.length() - 1) -> loop {
-                        if (int64(active_ports[p]) == target_node) { 
-                            target_ip = string(active_ips[p]); 
-                            target_idx = p;
-                            break; 
-                        }
-                    };
-
-                    if (target_idx >= 0) {
-                        out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
-                        vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
-                        vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
-                        broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
-
-                        hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
-                        active_dos_hits[target_idx] = hits;
+                    if (hits == 2) {
+                        target_history_str :: String = string(active_dirs[target_idx]);
                         
-                        if (hits == 2) {
-                            target_history_str :: String = string(active_dirs[target_idx]);
-                            
-                            target_assigned :: Array = [];
-                            curr_seg :: String = "";
-                            through i :: 0..(target_history_str.length() - 1) -> loop {
-                                c = target_history_str.substr(i, 1);
-                                if (c == ":") {
-                                    if (curr_seg != "") { target_assigned.push(curr_seg); }
-                                    curr_seg = "";
-                                } else {
-                                    curr_seg = curr_seg + c;
+                        target_assigned :: Array = [];
+                        curr_seg :: String = "";
+                        through i :: 0..(target_history_str.length() - 1) -> loop {
+                            c = target_history_str.substr(i, 1);
+                            if (c == ":") {
+                                if (curr_seg != "") { target_assigned.push(curr_seg); }
+                                curr_seg = "";
+                            } else {
+                                curr_seg = curr_seg + c;
+                            }
+                        };
+                        if (curr_seg != "") { target_assigned.push(curr_seg); }
+
+                        non_mutuals :: Array = [];
+                        through s_idx :: 0..(target_assigned.length() - 1) -> loop {
+                            site :: String = string(target_assigned[s_idx]);
+                            is_mutual :: Int64 = 0;
+                            through m_idx :: 0..(mutual_sites.length() - 1) -> loop {
+                                if (site == string(mutual_sites[m_idx])) {
+                                    is_mutual = 1;
+                                    break;
                                 }
                             };
-                            if (curr_seg != "") { target_assigned.push(curr_seg); }
+                            if (is_mutual == 0) {
+                                non_mutuals.push(site);
+                            }
+                        };
 
-                            non_mutuals :: Array = [];
-                            through s_idx :: 0..(target_assigned.length() - 1) -> loop {
-                                site :: String = string(target_assigned[s_idx]);
-                                is_mutual :: Int64 = 0;
-                                through m_idx :: 0..(mutual_sites.length() - 1) -> loop {
-                                    if (site == string(mutual_sites[m_idx])) {
-                                        is_mutual = 1;
-                                        break;
-                                    }
-                                };
-                                if (is_mutual == 0) {
-                                    non_mutuals.push(site);
-                                }
-                            };
+                        drop_payload :: String = "";
+                        leak_count :: Int64 = 0;
+                        through n_idx :: 0..(non_mutuals.length() - 1) -> loop {
+                            if (leak_count < 5) {
+                                drop_payload = drop_payload + string(non_mutuals[n_idx]) + ":";
+                                leak_count = leak_count + 1;
+                            }
+                        };
 
-                            drop_payload :: String = "";
-                            leak_count :: Int64 = 0;
-                            through n_idx :: 0..(non_mutuals.length() - 1) -> loop {
-                                if (leak_count < 5) {
-                                    drop_payload = drop_payload + string(non_mutuals[n_idx]) + ":";
-                                    leak_count = leak_count + 1;
-                                }
-                            };
-
-                            broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! 5 HIDDEN NODES EXFILTRATED.");
-                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + drop_payload);
-                        } else if (hits >= 3) {
-                            active_dos_hits[target_idx] = 0;
-                            broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
-                            vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
-                        }
-                    } else {
-                        vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
-                        broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " WASTED 0.25 VCOIN DOS ON PHANTOM BOT PORT_" + string(target_node) + "!");
+                        broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! 5 HIDDEN NODES EXFILTRATED.");
+                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + drop_payload);
+                    } else if (hits >= 3) {
+                        active_dos_hits[target_idx] = 0;
+                        broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
+                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
                     }
                 }
             }

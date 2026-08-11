@@ -1783,6 +1783,11 @@ while (vglib.running()) {
             
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
+        else if (net_msg == "EXPLOIT_REFUND") {
+            btc_balance = btc_balance + 0.20;
+            cd_dos = 0.0;
+            cli_logs.push("[DOS]: HIT DECOY/EMPTY SOCKET -> 0.20 VCOIN REFUNDED (-0.05 NET) & COOLDOWN BYPASSED.");
+        }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "DECOY_TRIPPED:") {
             cli_logs.push("[DECOY ALERT]: " + net_msg.substr(14, net_msg.length() - 14));
             glitch_trigger = 0.6;
