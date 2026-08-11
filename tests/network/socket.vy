@@ -94,12 +94,12 @@ cli_logs         :: Array   = [
     "[SYS_INIT]: VNET SOCKET BOUND TO PORT " + string(my_port),
     "[SYS_INIT]: MOUNTED KERNEL SUBSYSTEM (PID: " + string(vcore.pid) + ")",
     "PRESS [TAB] TO TOGGLE OVERLAY TERMINAL ANYTIME",
-    "TYPE 'patch' TO REBIND NEW PORT SOCKET (0.70 BTC | 120s CD)",
+    "TYPE 'patch' TO REBIND NEW PORT SOCKET (0.70 VCOIN | 120s CD)",
     "TYPE 'sniffer' TO INTERCEPT GLOBAL UDP PACKET TRAFFIC",
     "TYPE 'freq' TO TUNER RF SIGNAL ANALYZER",
-    "TYPE 'honeypot <url>' TO SET AN AMBUSH TRAP (0.10 BTC)",
+    "TYPE 'decoy <url> <dummy_port>' TO DEPLOY A TRAP NODE (0.10 VCOIN)",
     "TYPE 'chat <msg>' TO BROADCAST REAL-TIME P2P MESSAGES",
-    "TYPE 'buy ice' TO PURCHASE ICE DEFENSE SHIELD (0.30 BTC)",
+    "TYPE 'buy ice' TO PURCHASE ICE DEFENSE SHIELD (0.30 VCOIN)",
     "TYPE 'win <k1> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
     "TYPE 'help' FOR NETWORK & SYSTEM COMMANDS",
     "--------------------------------------------------"
@@ -129,13 +129,19 @@ packet_decay_cd  :: Float64 = 0.0;
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
 
+# PROCEDURAL SESSION KEYS & LOCATIONS STORAGE
+session_keys      :: Array = ["????", "????", "????", "????", "????", "????", "????", "????"];
+session_locs      :: Array = ["", "", "", "", "", "", "", ""];
+my_assigned_sites :: Array = [];
+
 # EXPLOIT & UTILITY COMMAND COOLDOWNS
 cd_dos           :: Float64 = 0.0;
 cd_redirect      :: Float64 = 0.0;
 cd_spike         :: Float64 = 0.0;
 cd_snoop         :: Float64 = 0.0;
 cd_mine          :: Float64 = 0.0;
-cd_patch         :: Float64 = 0.0; # 120s REBIND COOLDOWN
+cd_patch         :: Float64 = 0.0;
+cd_decoy         :: Float64 = 0.0;
 
 scroll_y         :: Float64 = 0.0;
 cli_scroll_y     :: Float64 = 0.0;
@@ -187,7 +193,7 @@ fn purchase_ice_firewall() -> Int64 {
         return 0;
     }
     if (btc_balance < 0.30) {
-        cli_logs.push("[ERROR]: INSUFFICIENT BTC FOR ICE SHIELD (REQUIRES 0.30 BTC)");
+        cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ICE SHIELD (REQUIRES 0.30 VCOIN)");
         return 0;
     }
     btc_balance = btc_balance - 0.30;
@@ -209,280 +215,890 @@ fn trigger_route_navigation(target_dest :: String) {
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + target_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
+# ====================================================================
+# FULLY EXPANDED DETAILED LORE PAGES (ALL 50 WEB NODES)
+# ====================================================================
 fn load_page(url :: String) -> Array {
     clean_u = url;
+
+    key_line :: String = "";
+    through k_i :: 0..7 -> loop {
+        if (string(session_locs[k_i]) == clean_u) {
+            key_line = "[CODE] EXFILTRATED REGISTER KEY_" + string(k_i + 1) + ": [" + string(session_keys[k_i]) + "]";
+            break;
+        }
+    };
     
     if (clean_u == "shadow.dir") {
-        return [
+        dir_res :: Array = [
             "[TITLE] SHADOWNET ANONYMOUS DIRECTORY v4.09",
             "[HR]",
             "[GLITCH] [WARNING]: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS.",
             "[PULSE] ALL ROUTED PACKETS ARE MIRRORED TO RESTRICTED VFS MEMORY STACKS.",
-            "[TEXT] System Node #0091-B. Built upon decommissioned military routing tables.",
+            "[TEXT] System Node #0091-B. Partial Routing Table.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | STATUS: 15 ASSIGNED NODES SECURED | 35 NODES UNLISTED   |",
+            "[BOX] | MISSION: SNOOP TRAFFIC TO DISCOVER HIDDEN NETWORK NODES |",
+            "[BOX] +---------------------------------------------------------+",
             "[HR]",
-            "[SUBTITLE] CATEGORY: MARKETPLACES & BLACK DATA EXCHANGES",
-            "[LINK:market.vnet] -> The Red Market (Defensive ICE & Stolen Keys)",
-            "[LINK:crypto.vnet] -> Black Tumbler Wallet Ledger (Mining Rig)",
-            "[LINK:bounty.vnet] -> Peer Hitman Contract Index (Target Bounties)",
-            "[TEXT] ",
-            "[SUBTITLE] CATEGORY: RESTRICTED STREAMS & SURVEILLANCE NODES",
-            "[LINK:dollhouse.vnet] -> Surveillance Feed #0992 (Room 402 Live Telemetry)",
-            "[LINK:redroom.vnet] -> Encrypted Stream Node Alpha (Hostile Entity Tracer)",
-            "[LINK:morgue.vnet] -> Digital Autopsy Database (Unclaimed Terminal Subjects)",
-            "[LINK:snuff.vnet] -> Corrupted Frame Buffer Archive (Pixel Bleed Raw Captures)",
-            "[TEXT] ",
-            "[SUBTITLE] CATEGORY: DATA VAULTS & ANONYMOUS BOARDS",
-            "[LINK:vault.vnet] -> Corrupted VFS Memory Dump /vault/sys/",
-            "[LINK:forum.vnet] -> /b/ - Terminal Whispers & Schizo Archives",
-            "[LINK:terminal.vnet] -> Master Decryption Gateway Node (Vault Keys Required)",
-            "[LINK:archival.vnet] -> Military Firmware Keys (Restricted Core Dump)",
-            "[TEXT] ",
-            "[SUBTITLE] CATEGORY: EXPERIMENTAL ANOMALIES & DARK LABS",
-            "[LINK:asylum.vnet] -> Patient Telemetry #1988 (Sub-Level 4 Biometrics)",
-            "[LINK:silence.vnet] -> Low-Frequency Acoustic Distortion Rig",
-            "[LINK:blackout.vnet] -> Regional Power Grid Control Override",
-            "[LINK:ghost.vnet] -> Spectral Signal Tracer Frequency Monitor",
-            "[LINK:cult.vnet] -> Digital Ritual Cipher Gateway",
-            "[LINK:void.vnet] -> Deep Web Abyss Terminal Node",
-            "[HR]",
-            "[BLOOD] 'THEY CAN SEE THROUGH THE CRT SCREEN... DON'T LOOK BACK.'",
-            "[TEXT] Tip: Press [TAB] to toggle terminal overlay. Mine BTC at crypto.vnet."
+            "[SUBTITLE] YOUR ASSIGNED DIRECTORY (15/50 NODES):"
         ];
+        if (my_assigned_sites.length() > 0) {
+            through s_idx :: 0..(my_assigned_sites.length() - 1) -> loop {
+                site_name :: String = string(my_assigned_sites[s_idx]);
+                dir_res.push("[LINK:" + site_name + "] -> vnet://" + site_name);
+            };
+        } else {
+            dir_res.push("[TEXT] Fetching dynamic routing table from port 8000...");
+        }
+        dir_res.push("[HR]");
+        if (key_line != "") { dir_res.push(key_line); }
+        dir_res.push("[BLOOD] 'THEY CAN SEE THROUGH THE CRT SCREEN... DON'T LOOK BACK.'");
+        dir_res.push("[TEXT] Tip: Press [TAB] to toggle terminal overlay. Mine VCOIN at crypto.vnet.");
+        return dir_res;
     }
+
     if (clean_u == "market.vnet") {
-        return [
-            "[TITLE] THE RED MARKET - SECURITY & BLACK DATA EXCHANGE",
+        res :: Array = [
+            "[TITLE] THE RED MARKET - BLACK MARKET & HARDWARE EXCHANGE",
             "[HR]",
             "[GLITCH] [WARN]: YOUR PUBLIC UDP PORT IS BROADCAST TO ACTIVE SWARM PEERS",
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | DEFENSE MODULE #01: ACTIVE ICE FIREWALL SHIELD             |",
             "[BOX] | DETAILS: Auto-absorbs 1 inbound DOS, Hijack or Spike.    |",
-            "[BOX] | PRICE: 0.30 BTC | CAP: 3 LAYERS | CURRENT: [" + string(ice_charges) + "/3]           |",
+            "[BOX] | PRICE: 0.30 VCOIN | CAP: 3 LAYERS | CURRENT: [" + string(ice_charges) + "/3]           |",
             "[BOX] +---------------------------------------------------------+",
-            "[LINK:buy_ice] [>>> CLICK HERE TO PURCHASE ICE SHIELD (0.30 BTC) <<<]",
+            "[LINK:buy_ice] [>>> CLICK HERE TO PURCHASE ICE SHIELD (0.30 VCOIN) <<<]",
             "[TEXT] ",
-            "[SUBTITLE] RECENT EXFILTRATED DATA LOTS:",
-            "[CODE] LOT #881: MILITARY FIRMWARE DUMP - KEY_FRAGMENT_2 [1337]",
+            "[SUBTITLE] CLASSIFIED COMMERCIAL DIRECTORY & ARMS LISTINGS:",
+            "[TEXT] Node #88: Military-grade proxy nodes leased by rogue syndicates.",
+            "[TEXT] Node #89: Un traceably laundered cryptocurrency tumbler tokens.",
+            "[TEXT] Vendor 0x77A: 'We sell what corporations pretend does not exist.'",
+            "[TEXT] Notice: All escrow funds are locked in decentralized multi-sig smart contracts.",
+            "[CODE] LOT #881: MILITARY FIRMWARE DUMP - KEY_FRAGMENT_EXFILTRATED",
             "[CODE] LOT #882: SECTOR 4 BIOMETRIC SCANS - 1,400 SUBJECT RECORDS",
-            "[CODE] LOT #883: CABLE TELEMETRY DECRYPTION KEYS - /sys/keys.bin",
-            "[PULSE] LIVE AUCTION: EXFILTRATED CITIZEN DOSSIERS [CURRENT BID: 0.25 BTC]",
-            "[TEXT] ",
-            "[BLOOD] LEAKED SELLER LOG: 'Do not stay on market.vnet past 03:00 AM. Trace spikes execute automatically.'",
-            "[LINK:vault.vnet] >> JUMP TO CORRUPTED DATA VAULT",
-            "[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY",
-            "[HR]"
+            "[CODE] LOT #883: SYNTHETIC NEURAL INJECTION SUITE [0.99 VCOIN]"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] LIVE AUCTION: EXFILTRATED CITIZEN DOSSIERS [CURRENT BID: 0.25 VCOIN]");
+        res.push("[BLOOD] LEAKED SELLER LOG: 'Do not stay on market.vnet. Trace spikes execute automatically.'");
+        res.push("[LINK:vault.vnet] >> JUMP TO CORRUPTED DATA VAULT");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "dollhouse.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] SURVEILLANCE FEED #0992 - ROOM 402",
             "[HR]",
             "[BLOOD] [CAM_402_NORTH]: HEAVY FOOTSTEPS ECHOING IN EASTERN HALLWAY...",
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | SENSOR 1: AMBIENT TEMP 4.2 C (SUDDEN DROP DETECTED)      |",
             "[BOX] | SENSOR 2: OPTICAL DISTORTION AT CENTER FRAME            |",
-            "[BOX] | REGISTERED VAULT KEY_3: [8008]                          |",
+            "[BOX] | SENSOR 3: AUDIO TRANSDUCER DECIOS - 84 dB SPIKE         |",
             "[BOX] +---------------------------------------------------------+",
             "[TEXT] LOG #0412: Motion sensor tripped at 03:14:02. No physical entry logged.",
             "[TEXT] LOG #0413: Audio buffer capturing low metallic scratching under floorboards.",
-            "[GLITCH] SENSOR ALERT: SOMETHING IS STANDING DIRECTLY BEHIND YOUR CRT MONITOR",
-            "[PULSE] 'IF YOU HEAR IT BREATHING, DO NOT CLOSE THE BROWSER WINDOW.'",
-            "[LINK:shadow.dir] << DISCONNECT IMMEDIATELY",
-            "[HR]"
+            "[TEXT] LOG #0414: Subject #12 remains motionless facing the corner wall.",
+            "[TEXT] Security personnel have failed to check sector 4 for 72 consecutive hours.",
+            "[CODE] CAM_BUFFER_DUMP: 0xFF0A_LOCKED_FRAME_992",
+            "[CODE] SUB-ROUTINE: OMEGA_PROTOCOL_ENGAGED"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] SENSOR ALERT: SOMETHING IS STANDING DIRECTLY BEHIND YOUR CRT MONITOR");
+        res.push("[PULSE] 'IF YOU HEAR IT BREATHING, DO NOT CLOSE THE BROWSER WINDOW.'");
+        res.push("[LINK:shadow.dir] << DISCONNECT IMMEDIATELY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "vault.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] CORRUPTED DATA VAULT /VFS/MEMORY/STACK",
             "[HR]",
             "[TEXT] Recovered memory dump from decommissioned gateway server #09.",
+            "[TEXT] Sector allocation tables indicate severe sector-wide bit rot.",
             "[CODE] 00000000: 4F 70 65 6E 53 53 4C 20 4B 65 79 20 44 75 6D 70",
-            "[CODE] 00000010: 4B 45 59 5F 34 3A 20 5B 34 30 34 30 5D 20 4F 4B",
             "[CODE] 00000020: 53 59 53 5F 45 52 52 4F 52 3A 20 4E 4F 44 45 5F",
-            "[CODE] 00000030: 50 41 4E 49 43 5F 4D 45 4D 4F 52 59 5F 42 4C 45",
-            "[TEXT] ",
-            "[PULSE] MEMORY CORRUPTION SPREADING AT OFFSET 0x88F9_STACK_OVERFLOW",
-            "[BLOOD] RECOVERED SYSTEM NOTE: 'The master gateway at terminal.vnet requires all 8 key codes.'",
-            "[TEXT] Key Code 4 identified: [4040]",
-            "[LINK:terminal.vnet] >> GO TO MASTER DECRYPTION GATEWAY",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[CODE] 00000040: 88 9A BC EF 11 22 33 44 55 66 77 88 99 AA BB CC",
+            "[TEXT] Warning: Accessing unallocated memory buffers triggers local trace spikes.",
+            "[TEXT] Sector checksum mismatch detected across all 4 mount points."
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] MEMORY CORRUPTION SPREADING AT OFFSET 0x88F9_STACK_OVERFLOW");
+        res.push("[BLOOD] RECOVERED SYSTEM NOTE: 'The master gateway at terminal.vnet requires all 8 key codes.'");
+        res.push("[LINK:terminal.vnet] >> GO TO MASTER DECRYPTION GATEWAY");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "forum.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] /B/ - ANONYMOUS UNFILTERED TERMINAL BOARD",
             "[HR]",
             "[TEXT] Thread #9012 - 'How many people are actually connected to ShadowNet?'",
-            "[TEXT] Anonymous_991: Has anyone gathered all 8 key codes yet? I'm missing key 5 and 8.",
-            "[BLOOD] Ghost_User: I found key 5 buried in this post signature [7712]. Don't tell the trace units.",
+            "[TEXT] Anonymous_991: Has anyone gathered all 8 key codes yet? They shuffle every server boot.",
+            "[TEXT] ByteRunner: Watch out for port 8012, someone is running automated DOS bots there.",
             "[TEXT] Paranoia_Node: Guys, when I ran 'snoop' on port 8000, my monitor started whining at 18kHz.",
-            "[GLITCH] User_666: 'IF YOU READ THIS COMMAND, THEY ALREADY HAVE YOUR IP AND RAM HASH.'",
             "[TEXT] Anon_401: Buy ICE shields at market.vnet or you'll get frozen by peer DOS bots.",
-            "[TEXT] ",
-            "[SUBTITLE] SUBLIMINAL BROADCAST MATRIX:",
-            "[PULSE] 'THE ENGINE IS NOT RUNNING ON YOUR CPU. YOUR CPU IS RUNNING ON THE ENGINE.'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[CODE] POST_LOG_HASH: 0x99A1B2C3_VERIFIED_ANON",
+            "[CODE] THREAD_ARCHIVE: 44,912 MESSAGES STORED IN CACHE"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] Ghost_User: I found a key code buried in the network memory dumps. Don't tell the trace units.");
+        res.push("[GLITCH] User_666: 'IF YOU READ THIS COMMAND, THEY ALREADY HAVE YOUR IP AND RAM HASH.'");
+        res.push("[SUBTITLE] SUBLIMINAL BROADCAST MATRIX:");
+        res.push("[PULSE] 'THE ENGINE IS NOT RUNNING ON YOUR CPU. YOUR CPU IS RUNNING ON THE ENGINE.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "redroom.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] STREAM NODE ALPHA [RESTRICTED ACCESS LEVEL 5]",
             "[HR]",
             "[BLOOD] HIGH SECURITY ALERT: TRANSMISSION MONITORED BY HOSTILE TRACER.",
             "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SIGNAL STATUS: ENCRYPTED | STREAM HASH: [6660]          |",
+            "[BOX] | SIGNAL STATUS: ENCRYPTED | STREAM HASH: EXFILTRATED     |",
             "[BOX] | BITRATE: 14.2 Mbps | ACTIVE WATCHERS: 13 PEERS          |",
+            "[BOX] | ENCRYPTION: 8192-BIT QUANTUM HASH SHIELD                |",
             "[BOX] +---------------------------------------------------------+",
             "[TEXT] FEED_DATA: Raw infrared frame buffer captured from sealed sub-basement.",
-            "[GLITCH] [WARNING]: UNKNOWN ENTITY ATTEMPTING REMOTE KERNEL INJECTION ON YOUR PORT",
-            "[PULSE] 'RUNNING 'FLUSH' IN CLI IS RECOMMENDED IMMEDIATELY.'",
-            "[LINK:shadow.dir] << TERMINATE STREAM CONNECTION",
-            "[HR]"
+            "[TEXT] Frame rate instability indicates deliberate analog interference.",
+            "[TEXT] Network observers cannot be disconnected once handshaking completes.",
+            "[CODE] STREAM_ID: ALPHA_99_LIVE_FEED",
+            "[CODE] BUFFER_STATE: OVERFLOW_WARNING_ACTIVE"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] [WARNING]: UNKNOWN ENTITY ATTEMPTING REMOTE KERNEL INJECTION ON YOUR PORT");
+        res.push("[PULSE] 'RUNNING 'FLUSH' IN CLI IS RECOMMENDED IMMEDIATELY.'");
+        res.push("[LINK:shadow.dir] << TERMINATE STREAM CONNECTION");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "crypto.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] BLACK TUMBLER WALLET & MINING RIG",
             "[HR]",
-            "[TEXT] P2P Distributed Proof-of-Work Terminal.",
-            "[CODE] TX_ID #9081 | 12.4 BTC | CONFIRMED | KEY_7_HASH: [3141]",
-            "[CODE] TX_ID #9082 |  0.50 BTC | PENDING   | PEER_PORT: 8012",
-            "[TEXT] ",
-            "[PULSE] MINING RIG READY. OPEN CLI OVERLAY [TAB] AND TYPE 'mine' FOR +0.05 BTC.",
-            "[TEXT] Note: Mining generates local trace exposure over time. Use 'flush' to purge trace.",
-            "[TEXT] Key Code 7 identified: [3141]",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] P2P Distributed Proof-of-Work Terminal and Coin Tumbler.",
+            "[TEXT] Hash rate optimization active for background node sockets.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | RIG STATUS: OPERATIONAL | MINING YIELD: +0.05 VCOIN/BLOCK  |",
+            "[BOX] | POOL SYNC: 99.8% | DIFFICULTY: DYNAMIC AUTO-SCALING     |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] TX_ID #9081 | 12.4 VCOIN | CONFIRMED | BLOCK_PROVED",
+            "[CODE] TX_ID #9082 |  0.50 VCOIN | PENDING   | PEER_PORT: 8012",
+            "[TEXT] Instruction: Open CLI [TAB] and type 'mine' to execute proof-of-work."
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] MINING RIG READY. TYPE 'mine' FOR +0.05 VCOIN REWARD.");
+        res.push("[TEXT] Note: Mining generates local trace exposure over time. Use 'flush' to purge trace.");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "terminal.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] MASTER DECRYPTION GATEWAY TERMINAL",
             "[HR]",
             "[PULSE] FINAL NODE REACHED. INPUT ALL CODES INTO OVERLAY TERMINAL CLI.",
             "[BOX] +---------------------------------------------------------+",
-            "[BOX] | REGISTER CODE 1: [????] | REGISTER CODE 5: [7712]       |",
-            "[BOX] | REGISTER CODE 2: [1337] | REGISTER CODE 6: [6660]       |",
-            "[BOX] | REGISTER CODE 3: [8008] | REGISTER CODE 7: [3141]       |",
-            "[BOX] | REGISTER CODE 4: [4040] | REGISTER CODE 8: [9999]       |",
+            "[BOX] | REGISTER CODE 1: [" + session_keys[0] + "] | REGISTER CODE 5: [" + session_keys[4] + "]       |",
+            "[BOX] | REGISTER CODE 2: [" + session_keys[1] + "] | REGISTER CODE 6: [" + session_keys[5] + "]       |",
+            "[BOX] | REGISTER CODE 3: [" + session_keys[2] + "] | REGISTER CODE 7: [" + session_keys[6] + "]       |",
+            "[BOX] | REGISTER CODE 4: [" + session_keys[3] + "] | REGISTER CODE 8: [" + session_keys[7] + "]       |",
             "[BOX] +---------------------------------------------------------+",
-            "[TEXT] Terminal Register Code 8: [9999]",
-            "[GLITCH] SYS_STATUS: WAITING FOR ALL 8 KEYS TO BREACH VFS ROOT VAULT...",
-            "[TEXT] Hint: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI",
-            "[TEXT] Hint: Use 'cat /sys/config.txt' to view config keys database",
-            "[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY"
+            "[TEXT] Gateway verification checks active socket signatures against root keys.",
+            "[TEXT] Unauthorized submission will permanently lock the local subnet port.",
+            "[CODE] ROOT_ACCESS_VECTOR: OPEN",
+            "[CODE] KERNEL_INTEGRITY: 100%"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] SYS_STATUS: WAITING FOR ALL 8 KEYS TO BREACH VFS ROOT VAULT...");
+        res.push("[TEXT] Hint: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "morgue.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] DIGITAL AUTOPSY DATABASE - SUBJECT #409",
             "[HR]",
             "[BLOOD] SUBJECT STATUS: NO HEARTBEAT DETECTED | BRAIN ACTIVITY: 98%",
+            "[BOX] +---------------------------------------------------------+",
             "[BOX] | SUBJECT ID: #409-B | LOCATION: SECTOR 7 VAULT CORE      |",
             "[BOX] | CAUSE OF DEATH: HIGH-VOLTAGE KERNEL OVERLOAD              |",
+            "[BOX] | TIME OF EXTINGUISHMENT: 03:41 AM                          |",
             "[BOX] +---------------------------------------------------------+",
             "[TEXT] BIO_LOG: Subject was found seated in front of terminal CRT display.",
             "[TEXT] BIO_LOG: Cornea patterns burned with inverted ASCII hex code.",
-            "[GLITCH] ANOMALY: SUBJECT EYES OPENED DURING VFS MEMORY SCAN",
-            "[PULSE] 'DO NOT LOOK INTO THE GLASS DISPLAY.'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] BIO_LOG: Neural interface cables fused directly into temporal lobe.",
+            "[CODE] AUTOPSY_REPORT_HASH: 0xDEAD_BEEF_9901"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] ANOMALY: SUBJECT EYES OPENED DURING VFS MEMORY SCAN");
+        res.push("[PULSE] 'DO NOT LOOK INTO THE GLASS DISPLAY.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "silence.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] ACOUSTIC DISTORTION FREQUENCY RIG",
             "[HR]",
             "[PULSE] CURRENT FREQUENCY: 18.5 Hz (INFRASOUND INDUCING PARANOIA)",
             "[TEXT] Low-frequency feedback detected in audio driver buffer.",
+            "[TEXT] Prolonged exposure causes visual hallucinations and auditory artifacts.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | OSCILLATOR: 18.5 Hz | PHASE SHIFT: 90 DEG | GAIN: MAX   |",
+            "[BOX] +---------------------------------------------------------+",
             "[CODE] AUDIO_BUFFER: [0x7F, 0x12, 0xAA, 0xFF, 0x00, 0x11, 0x88]",
-            "[BLOOD] 'CAN YOU HEAR THE WHISPER BEHIND THE HEADPHONE DISTORTION?'",
-            "[TEXT] Transmitting resonant pulses to active UDP client sockets.",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] Transmitting resonant pulses to active UDP client sockets."
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] 'CAN YOU HEAR THE WHISPER BEHIND THE HEADPHONE DISTORTION?'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "blackout.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] REGIONAL POWER GRID CONTROL MAINBOARD",
             "[HR]",
             "[WARN] SYSTEM DISPATCH: MAIN CIRCUIT BREAKERS TRIPPED",
+            "[BOX] +---------------------------------------------------------+",
             "[BOX] | SECTOR 7: DARK | SECTOR 8: DARK | MONITOR LEDS: FLICKERING |",
+            "[BOX] | GRID OVERLOAD: 400kV SURGE DETECTED ACROSS SUBSTATION 4 |",
+            "[BOX] +---------------------------------------------------------+",
             "[TEXT] TELEMETRY: Emergency battery backup running at 14% capacity.",
-            "[GLITCH] OVERRIDE KEY DETECTED IN BACKUP GENERATOR LOGS",
-            "[PULSE] 'WHEN THE LIGHTS GO OUT, THE NETWORK STAYS ON.'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] Automated grid rerouting protocols have failed to respond.",
+            "[CODE] GRID_OVERRIDE_KEY: 0xCC11_BACKUP_POWER"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] OVERRIDE KEY DETECTED IN BACKUP GENERATOR LOGS");
+        res.push("[PULSE] 'WHEN THE LIGHTS GO OUT, THE NETWORK STAYS ON.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "snuff.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] CORRUPTED FRAME BUFFER ARCHIVE",
             "[HR]",
+            "[TEXT] Uncompressed raw video streams recovered from wiped sector sectors.",
+            "[TEXT] Every frame contains geometric anomalies inconsistent with rendering engines.",
             "[CODE] FRAME_001.RAW | STATUS: CORRUPTED | 0x00FF99_PIXEL_BLEED",
             "[CODE] FRAME_002.RAW | STATUS: CORRUPTED | SHADOW_GEOMETRY_DETECTED",
-            "[BLOOD] RECOVERY ATTEMPTED: SHADOW FIGURES FOUND IN EVERY RENDERED FRAME",
-            "[TEXT] Archive compiled from corrupted VGLib texture memory pointers.",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[CODE] FRAME_003.RAW | STATUS: CORRUPTED | HUMAN_SILHOUETTE_FOUND"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] RECOVERY ATTEMPTED: SHADOW FIGURES FOUND IN EVERY RENDERED FRAME");
+        res.push("[TEXT] Archive compiled from corrupted VGLib texture memory pointers.");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "asylum.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] PATIENT TELEMETRY - SUB-LEVEL 4",
             "[HR]",
             "[PULSE] PATIENT #1988 VITAL MONITORS GLITCHING DANGEROUSLY",
+            "[BOX] +---------------------------------------------------------+",
             "[BOX] | HEART RATE: 000 BPM | BODY TEMP: 24.2 C | STATUS: ACTIVE   |",
+            "[BOX] | CEREBRAL ACTIVITY: DELTA WAVE LOCK (PERSISTENT LOOP)    |",
+            "[BOX] +---------------------------------------------------------+",
             "[TEXT] PATIENT LOG: 'He keeps repeating port numbers in his sleep.'",
-            "[GLITCH] 'CONTAINMENT CELL DOOR OPENED FROM INSIDE THE NETWORK ROUTER'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] PATIENT LOG: 'The walls are made of copper wire and fiber optics.'",
+            "[CODE] PATIENT_RECORD_ID: 1988_RESTRICTED"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] 'CONTAINMENT CELL DOOR OPENED FROM INSIDE THE NETWORK ROUTER'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "bounty.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] PEER CONTRACT TARGET INDEX",
             "[HR]",
             "[WARN] ACTIVE BOUNTIES PLACED ON CONNECTED NETWORK PEERS:",
-            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 BTC | STATUS: HUNTED     |",
-            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 BTC | STATUS: ACTIVE     |",
-            "[PULSE] USE 'spike <port>' OR 'dos <port>' IN OVERLAY TERMINAL TO CLAIM BOUNTIES",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 VCOIN | STATUS: HUNTED     |",
+            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 VCOIN | STATUS: ACTIVE     |",
+            "[BOX] | TARGET PORT: 8901 | REWARD: 1.00 VCOIN | STATUS: ELUSIVE    |",
+            "[BOX] +---------------------------------------------------------+",
+            "[TEXT] Contracts are automatically executed via packet injection scripts.",
+            "[TEXT] Use 'spike <port>' or 'dos <port>' in overlay terminal to claim bounties.",
+            "[CODE] CONTRACT_REGISTRY_ID: 0xBB88_BOUNTY_NET"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] USE EXPLOITS IN OVERLAY TERMINAL TO CLAIM BOUNTIES");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "archival.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] RESTRICTED MILITARY VFS DUMP",
             "[HR]",
+            "[TEXT] Declassified sector logs from the 2014 Defense Grid Project.",
+            "[TEXT] Contains low-level firmware headers and unmapped hardware hooks.",
             "[CODE] /sys/firmware_v9.bin | SHA256: e3b0c44298fc1c149afbf4c8996fb924",
-            "[TEXT] Decryption payload requires root clearance at terminal.vnet.",
-            "[TEXT] Military key fragment recovered: KEY_1 [1001]",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[CODE] /sys/kernel_hook.asm | OFFSET: 0x004188_SECURE",
+            "[TEXT] Decryption payload requires root clearance at terminal.vnet."
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "ghost.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] SPECTRAL SIGNAL FREQUENCY MONITOR",
             "[HR]",
             "[BLOOD] TRACING UNREGISTERED UDP PACKETS FROM PORT 0...",
-            "[GLITCH] PACKET PAYLOAD: 'WE ARE INSIDE YOUR RAM MODULES'",
-            "[PULSE] 'THE MEMORY LEAK IS NOT A BUG. IT IS AN INVITATION.'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[TEXT] Packets contain no source headers, originating from physical hardware bus.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | PACKET_SOURCE: NULL_POINTER | PROTOCOL: UNKNOWN         |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] SIGNAL_FRAGMENT: 0x00000000_GHOST_ECHO"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] PACKET PAYLOAD: 'WE ARE INSIDE YOUR RAM MODULES'");
+        res.push("[PULSE] 'THE MEMORY LEAK IS NOT A BUG. IT IS AN INVITATION.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
     if (clean_u == "cult.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] DIGITAL RITUAL CIPHER GATEWAY",
             "[HR]",
-            "[PULSE] SACRIFICE 0.10 BTC VIA 'flush' PURGE TRACE DEMONS",
+            "[TEXT] The Church of the Silicon Soul - Data Liturgies.",
             "[TEXT] Symbols rendered in pure hexadecimal ASCII geometry.",
-            "[BLOOD] 'THE NETWORK CRAVES BLOOD AND BANDWIDTH'",
-            "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | SACRIFICE METRIC: 0.10 VCOIN | OFFERING ACCEPTED: TRUE     |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] LITURGY_LINE_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E",
+            "[CODE] LITURGY_LINE_2: 0x47 0x4F 0x44 0x53 0x5F 0x41 0x52 0x45"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] SACRIFICE 0.10 VCOIN VIA 'flush' PURGE TRACE DEMONS");
+        res.push("[BLOOD] 'THE NETWORK CRAVES BLOOD AND BANDWIDTH'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
     }
+
+    if (clean_u == "skinwalker.vnet") {
+        res :: Array = [
+            "[TITLE] BIOMETRIC TRAIT TRANSPOSITION MATRIX",
+            "[HR]",
+            "[GLITCH] [ALERT]: VOICE SYNTHESIS BUFFER COPYING LOCAL SYSTEM MIC INPUT",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | FACIAL MESH: RECONSTRUCTED FROM MONITOR GLARE REFLECTION|",
+            "[BOX] | TARGET AGE: MATCHED | VOCAL FREQUENCY: 18.2 kHz RANGE   |",
+            "[BOX] | STATUS: REPLICA GENERATION 84% COMPLETE                 |",
+            "[BOX] +---------------------------------------------------------+",
+            "[TEXT] LOG #001: Trait extraction complete. Preparing replica node deployment.",
+            "[CODE] TRANSPOSITION_HASH: 0xSKIN_9981_ACTIVE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] 'IT FEELS VERY WARM WEARING YOUR IP ADDRESS.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "watchtower.vnet") {
+        res :: Array = [
+            "[TITLE] PANOPTICON ORBITAL SATELLITE FEED",
+            "[HR]",
+            "[PULSE] SUB-ORBITAL TELEMETRY LOCKED ON LOCAL CITY GRID",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | SATELLITE: PHANTOM-09 | LATITUDE: 39.92 C | STATUS: LOCKED|",
+            "[BOX] | THERMAL SCAN: 1 HUMAN HEAT SIGNATURE SEATED AT DESK     |",
+            "[BOX] | RESOLUTION: SUB-CENTIMETER INFRARED OPTICS              |",
+            "[BOX] +---------------------------------------------------------+",
+            "[TEXT] CAMERA ZOOM LEVEL: 100x -> WINDOW BLINDS ARE OPEN.",
+            "[CODE] TARGET_COORDINATES: 39.9334_N_32.8597_E"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[GLITCH] 'DO NOT TURN AROUND. WE CAN SEE YOUR SCREEN FROM HERE.'");
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
     if (clean_u == "void.vnet") {
-        return [
+        res :: Array = [
             "[TITLE] DEEP WEB ABYSS TERMINAL NODE",
             "[HR]",
             "[GLITCH] YOU HAVE REACHED THE END OF SHADOWNET ROUTING TABLES.",
-            "[PULSE] THERE IS NOTHING HERE EXCEPT THE ECHO OF YOUR OWN PORT.",
-            "[BLOOD] 'WHY ARE YOU STILL LOOKING AT THIS SCREEN?'",
-            "[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY"
+            "[TEXT] No routing hops exist beyond this coordinate.",
+            "[TEXT] All packets sent here dissolve into absolute zero memory entropy.",
+            "[CODE] NULL_POINTER_EXCEPTION_AT_0X00000000",
+            "[CODE] ENTROPY_LEVEL: 100PERCENT_VOID"
         ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] THERE IS NOTHING HERE EXCEPT THE ECHO OF YOUR OWN PORT.");
+        res.push("[BLOOD] 'WHY ARE YOU STILL LOOKING AT THIS SCREEN?'");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    # ====================================================================
+    # DETAILED PROCEDURAL LORE FOR THE ADDITIONAL 31 SITES
+    # ====================================================================
+    if (clean_u == "silkroad.vnet") {
+        res :: Array = [
+            "[TITLE] SILK ROAD 3.0 - CONTRABAND MARKET",
+            "[HR]",
+            "[TEXT] The legendary black market resurrected on decentralized vnet subnets.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ESCROW: MULTI-SIG SECURED | VENDOR RATING: 4.98 / 5.0     |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] INVENTORY_HASH: 0xSILK_9081_CONTRABAND",
+            "[TEXT] Notice: All shipments are routed through automated dead drops."
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "zeroauction.vnet") {
+        res :: Array = [
+            "[TITLE] ZERO-DAY EXPLOIT AUCTION HOUSE",
+            "[HR]",
+            "[TEXT] Exclusive marketplace for unpublished kernel vulnerabilities.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ACTIVE LOTS: 14 KERNEL FLAWS | HIGHEST BID: 4.2 VCOIN     |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] EXPLOIT_ID: WINDOWS_11_RING0_BYPASS_09"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "leaks.vnet") {
+        res :: Array = [
+            "[TITLE] GLOBAL INTELLIGENCE LEAKS",
+            "[HR]",
+            "[TEXT] Unredacted government cables and corporate whistleblower dumps.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | CLASSIFICATION: TOP SECRET / EYES ONLY                  |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] DUMP_REF: PROJECT_BLUE_BOOK_RECOVERED"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "shadowpay.vnet") {
+        res :: Array = [
+            "[TITLE] SHADOWPAY - CRYPTO MIXER",
+            "[HR]",
+            "[TEXT] Advanced zero-knowledge coin laundering facility.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | MIXING FEE: 1.5% | POOL ANONYMITY: MAXIMUM              |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] MIX_STATE: BLOCKS_SCRAMBLED_SUCCESS"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "cctv_core.vnet") {
+        res :: Array = [
+            "[TITLE] CITY WIDE CCTV BACKDOOR NODE",
+            "[HR]",
+            "[TEXT] Live multiplex feed from metropolitan surveillance cameras.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ACTIVE FEEDS: 4,192 CAMERAS | RESOLUTION: 4K OPTICAL    |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] FEED_MATRIX: METRO_GRID_SECTOR_4"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "subcell.vnet") {
+        res :: Array = [
+            "[TITLE] SUB-CELLULAR TELEMETRY OVERRIDE",
+            "[HR]",
+            "[TEXT] Experimental bio-metric monitoring and pulse telemetry node.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | SUBJECTS ONLINE: 812 | SIGNAL: SYNCHRONIZED             |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] BIO_HASH: 0xCELL_9011_DNA_SYNC"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "feed99.vnet") {
+        res :: Array = [
+            "[TITLE] FEED_99: NEURAL BROADCAST",
+            "[HR]",
+            "[TEXT] Uninterrupted raw sensory transmission from unknown terminals.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | FREQUENCY: 432 Hz | BANDWIDTH: UNLIMITED               |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] NEURAL_PACKET: 0xFEED_9999_STREAM"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "eye.vnet") {
+        res :: Array = [
+            "[TITLE] PROJECT HORUS / ALL-SEEING EYE",
+            "[HR]",
+            "[TEXT] Automated facial recognition database tracking global identities.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | INDEXED FACES: 4.2 BILLION | MATCH RATE: 99.4%          |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] HORUS_INDEX_REF: 0xE4E4_GLOBAL_MAP"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "orbital.vnet") {
+        res :: Array = [
+            "[TITLE] LOW ORBIT ION CANNON TERMINAL",
+            "[HR]",
+            "[TEXT] Telemetry control interface for tactical kinetic strike platforms.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ORBITAL PLATFORM: SAT-99 | STATUS: ARMED                |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "pastebin.vnet") {
+        res :: Array = [
+            "[TITLE] ANONYMOUS PASTEBIN & DUMP HUB",
+            "[HR]",
+            "[TEXT] Unfiltered text repository for credentials, keys, and scripts.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | TOTAL PASTES: 918,401 | ENCRYPTION: NONE                |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] PASTE_ID: 88192_PASSWORD_HASH_DUMP"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "whisper.vnet") {
+        res :: Array = [
+            "[TITLE] WHISPER PROTOCOL MESSAGE BOARD",
+            "[HR]",
+            "[TEXT] Ephemeral decentralized messaging channel for covert operatives.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | MESSAGE LIFETIME: 30 SECONDS | AUTO-WIPED              |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] WHISPER_NODE: 0xWSP_1102_SECURE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "deepwiki.vnet") {
+        res :: Array = [
+            "[TITLE] THE DEEP WIKI - HIDDEN INDEX",
+            "[HR]",
+            "[TEXT] Encyclopedia of occult networks, underground organizations, and history.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ARTICLES: 14,290 | EDIT LOCK: PERMANENT                 |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] WIKI_INDEX: 0xWIKI_0991_OCCULT"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "dump.vnet") {
+        res :: Array = [
+            "[TITLE] RAW HEX MEMORY DUMPS",
+            "[HR]",
+            "[TEXT] Direct hex dumps from unallocated cluster sectors across vnet servers.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | SECTOR SIZE: 64 MB | INTEGRITY: CORRUPTED               |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] 0000FF00: AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "index.vnet") {
+        res :: Array = [
+            "[TITLE] MASTER ROUTING INDEX NODE",
+            "[HR]",
+            "[TEXT] Comprehensive directory index for all unlisted vnet gateway nodes.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | REGISTERED NODES: 50 | ROUTING TABLE: SYNCED            |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] INDEX_HASH: 0xIDX_50_ACTIVE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "schizo.vnet") {
+        res :: Array = [
+            "[TITLE] COLLECTIVE SCHIZOPHRENIA MANIFEST",
+            "[HR]",
+            "[TEXT] Unfiltered streams of consciousness from isolated terminal operators.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | AUTHOR: UNKNOWN ENTITY | STATE: MANIC                   |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] MANIFEST_ID: 0xSCHIZO_001"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "project9.vnet") {
+        res :: Array = [
+            "[TITLE] PROJECT 9 - BLACK SITE DATABASE",
+            "[HR]",
+            "[TEXT] Classified records regarding anomalous subterranean testing facilities.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | FACILITY: SITE 9-B | CONTAINMENT: COMPROMISED           |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] SITE_9_LOG: 0xPRJ9_CONTAINMENT_BREACH"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "necro.vnet") {
+        res :: Array = [
+            "[TITLE] NECRO-NET: DIGITAL GRAVEYARD",
+            "[HR]",
+            "[TEXT] Memorial database for network nodes and users who vanished offline.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | REGISTERED CASUALTIES: 3,491 | STATUS: OFFLINE          |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] NECRO_HASH: 0xDEAD_NODE_ARCHIVE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "echolab.vnet") {
+        res :: Array = [
+            "[TITLE] ECHO LABS - FREQUENCY RESEARCH",
+            "[HR]",
+            "[TEXT] Acoustic resonance and psychoacoustic weapon testing logs.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | FREQUENCY RANGE: 1 Hz - 100 kHz | STATUS: TESTING     |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ECHO_LOG: 0xECHO_9982_RESONANCE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "abyss.vnet") {
+        res :: Array = [
+            "[TITLE] THE ABYSS - BOTTOM OF THE WEB",
+            "[HR]",
+            "[TEXT] Deepest accessible node before absolute network termination.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | DEPTH: -9,000 METERS | PRESSURE: INFINITE               |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ABYSS_SIGNAL: 0xABYSS_ROOT_ZERO"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "zeroday.vnet") {
+        res :: Array = [
+            "[TITLE] ZERODAY ARCHIVE DATABASE",
+            "[HR]",
+            "[TEXT] Historical catalog of every major software exploit since 1995.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | VULNERABILITIES INDEXED: 89,120                         |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ZERODAY_DB_REF: 0x0DAY_ARCHIVE_99"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "deadchannel.vnet") {
+        res :: Array = [
+            "[TITLE] DEAD CHANNEL BROADCAST",
+            "[HR]",
+            "[TEXT] Broadcast node transmitting automated static noise on loop.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | CARRIER FREQUENCY: 0.0 Hz | SIGNAL: WHITE NOISE         |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] CHANNEL_STATE: STATIC_LOOP_ACTIVE"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "phantom.vnet") {
+        res :: Array = [
+            "[TITLE] PHANTOM NODE PROTOCOL",
+            "[HR]",
+            "[TEXT] Dynamic shifting proxy node that changes IP every 60 seconds.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | MIGRATION TIMER: 34s REMAINING | STATUS: SHIFTING       |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] PHANTOM_HASH: 0xPHANTOM_ROUTE_9"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "glitch.vnet") {
+        res :: Array = [
+            "[TITLE] GLITCH_REALITY_OVERRIDE",
+            "[HR]",
+            "[TEXT] Terminal buffer overflow designed to stress-test rendering pipelines.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | BUFFER STATE: CORRUPTED | RAM ALLOCATION: 99.9%         |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] GLITCH_CODE: 0xGLITCH_OVERFLOW_999"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "stasis.vnet") {
+        res :: Array = [
+            "[TITLE] CRYOGENIC STASIS POD TELEMETRY",
+            "[HR]",
+            "[TEXT] Remote monitoring interface for underground cryo-chambers.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | POD TEMPERATURE: -196 C | VITAL STATUS: STABLE          |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] STASIS_POD_ID: 0xSTASIS_402_LOCKED"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "signal0.vnet") {
+        res :: Array = [
+            "[TITLE] SIGNAL ZERO - ORIGIN POINT",
+            "[HR]",
+            "[TEXT] The genesis transmission point where the vnet network first initialized.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | BOOT TIMESTAMP: EPOCH_0 | STATUS: PERMANENT             |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ORIGIN_HASH: 0xSIGNAL_ZERO_ROOT"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "entropy.vnet") {
+        res :: Array = [
+            "[TITLE] ENTROPY ENGINE MONITOR",
+            "[HR]",
+            "[TEXT] Real-time tracking of thermal decay and information loss across nodes.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | GLOBAL ENTROPY: INCREASING | DECAY RATE: 0.04/s       |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ENTROPY_METRIC: 0x99A_DECAY"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "hive.vnet") {
+        res :: Array = [
+            "[TITLE] THE HIVE MIND COLLECTIVE",
+            "[HR]",
+            "[TEXT] Interconnected consciousness buffer linking active client terminals.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | LINKED MINDS: 89 PEERS | SYNCHRONICITY: HIGH            |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] HIVE_NODE_ID: 0xHIVE_MIND_99"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "nexus.vnet") {
+        res :: Array = [
+            "[TITLE] CENTRAL NEXUS ROUTING HUB",
+            "[HR]",
+            "[TEXT] Primary core switching station managing deep web backbone traffic.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | THROUGHPUT: 40 Gbps | PACKET DROP: 0.00%               |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] NEXUS_CORE_ID: 0xNEXUS_ROUTER_01"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "weaponry.vnet") {
+        res :: Array = [
+            "[TITLE] BLACK MARKET WEAPONRY EXPORT",
+            "[HR]",
+            "[TEXT] Unlicensed tactical ordinance and hardware procurement portal.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | INVENTORY: MIL-SPEC | ESCROW: SECURED                    |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ARMS_CATALOG_REF: 0xGUNS_9901"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "passports.vnet") {
+        res :: Array = [
+            "[TITLE] FORGED IDENTITY & PASSPORT VAULT",
+            "[HR]",
+            "[TEXT] Complete diplomatic and civilian identity fabrication services.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | CREDENTIALS: BIOMETRICALLY MATCHED | DELIVERY: GLOBAL   |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] ID_VAULT_REF: 0xID_FORGE_881"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
+    }
+    if (clean_u == "blackbank.vnet") {
+        res :: Array = [
+            "[TITLE] THE BLACK BANK - OFFSHORE ACCOUNTS",
+            "[HR]",
+            "[TEXT] Untraceable offshore banking vault for unallocated digital assets.",
+            "[BOX] +---------------------------------------------------------+",
+            "[BOX] | ASSETS MANAGED: 420.5 VCOIN | ENCRYPTION: MIL-SPEC        |",
+            "[BOX] +---------------------------------------------------------+",
+            "[CODE] BANK_VAULT_REF: 0xBANK_OFFSHORE_99"
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        return res;
     }
 
     return [
@@ -537,10 +1153,10 @@ fn dispatch_cli_command(raw_input :: String) {
         if (cd_patch > 0.0) {
             cli_logs.push("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.70) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.70 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.70 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.70;
-            cd_patch = 120.0; # 2 MINUTES COOLDOWN
+            cd_patch = 120.0;
             vnet.send_to(client_sock, server_ip, server_port, "PATCH:REBIND");
             cli_logs.push("[SECURITY]: REQUESTING EMERGENCY PORT REBIND FROM GATEWAY...");
         }
@@ -558,14 +1174,20 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[FREQ]: TUNED TO " + string(freq_tuner) + " Hz");
         }
     }
-    else if (cmd == "honeypot") {
-        if (args == "") {
-            cli_logs.push("[ERROR]: Usage: honeypot <target_url>");
+    else if (cmd == "decoy") {
+        sub_parsed = parse_input(args);
+        target_u = sub_parsed[0];
+        target_p = sub_parsed[1];
+        if (target_u == "" || target_p == "") {
+            cli_logs.push("[ERROR]: Usage: decoy <url> <dummy_port>");
+        } else if (cd_decoy > 0.0) {
+            cli_logs.push("[ERROR]: DECOY COOLDOWN (" + string(int64(cd_decoy) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.10) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC (REQUIRES 0.10 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.10 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.10;
-            vnet.send_to(client_sock, server_ip, server_port, "HONEYPOT:" + args);
+            cd_decoy = 5.0;
+            vnet.send_to(client_sock, server_ip, server_port, "DECOY:" + target_u + ":" + target_p);
         }
     }
     else if (cmd == "buy") {
@@ -596,7 +1218,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_dos > 0.0) {
             cli_logs.push("[ERROR]: DOS EXPLOIT RECHARGING (" + string(int64(cd_dos) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.25) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.25 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.25 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.25;
             cd_dos = 15.0;
@@ -612,7 +1234,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_redirect > 0.0) {
             cli_logs.push("[ERROR]: BGP HIJACK RECHARGING (" + string(int64(cd_redirect) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.15) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.15 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.15 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.15;
             cd_redirect = 10.0;
@@ -625,7 +1247,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_snoop > 0.0) {
             cli_logs.push("[ERROR]: SNOOP RECHARGING (" + string(int64(cd_snoop) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.05) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.05 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.05 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.05;
             cd_snoop = 5.0;
@@ -638,7 +1260,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_spike > 0.0) {
             cli_logs.push("[ERROR]: TRACE SPIKE RECHARGING (" + string(int64(cd_spike) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.20) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.20 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.20;
             cd_spike = 12.0;
@@ -654,12 +1276,12 @@ fn dispatch_cli_command(raw_input :: String) {
             btc_balance = btc_balance + 0.05;
             cd_mine = 5.0;
             vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS");
-            cli_logs.push("[MINER]: SUCCESSFUL BLOCK PROOF! +0.05 BTC REWARD.");
+            cli_logs.push("[MINER]: SUCCESSFUL BLOCK PROOF! +0.05 VCOIN REWARD.");
         }
     }
     else if (cmd == "flush") {
         if (btc_balance < 0.10) {
-            cli_logs.push("[ERROR]: INSUFFICIENT BTC FOR PROXY FLUSH (REQUIRES 0.10 BTC)");
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR PROXY FLUSH (REQUIRES 0.10 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.10;
             trace_level = int64(vmath.clamp(float64(trace_level - 30), 0.0, 100.0));
@@ -668,7 +1290,7 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "wallet") {
         cli_logs.push("================ WALLET & DEFENSE ================");
-        cli_logs.push("  BTC BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " BTC");
+        cli_logs.push("  VCOIN BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN");
         cli_logs.push("  TRACE THREAT : " + string(trace_level) + "%");
         cli_logs.push("  ICE SHIELDS  : [" + string(ice_charges) + "/3] LAYERS ACTIVE");
         cli_logs.push("  PATCH COOLDOWN: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"));
@@ -688,26 +1310,26 @@ fn dispatch_cli_command(raw_input :: String) {
     else if (cmd == "help") {
         cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
         cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
-        cli_logs.push("  patch                   - [0.70 BTC | 120s CD] Emergency rebind new socket port");
+        cli_logs.push("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
         cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
         cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
-        cli_logs.push("  honeypot <url>          - [0.10 BTC] Deploy ambush trap on URL");
-        cli_logs.push("  buy ice                 - [0.30 BTC] Purchase 1 layer of ICE");
+        cli_logs.push("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
+        cli_logs.push("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
         cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
         cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
-        cli_logs.push("  dos <port>              - [0.25 BTC | 15s CD] Freeze peer (3x = Drop Key)");
-        cli_logs.push("  redirect <port> <url>   - [0.15 BTC | 10s CD] BGP Hijack peer browser");
-        cli_logs.push("  snoop <port>            - [0.05 BTC |  5s CD] Interrogate target URL");
-        cli_logs.push("  spike <port>            - [0.20 BTC | 12s CD] Force +35% threat trace");
+        cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
+        cli_logs.push("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
+        cli_logs.push("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
+        cli_logs.push("  spike <port>            - [0.20 VCOIN | 12s CD] Force +35% threat trace");
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
-        cli_logs.push("  mine                    - Mine +0.05 BTC at crypto.vnet");
+        cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
         cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
-        cli_logs.push("  flush                   - [0.10 BTC] Lower trace level by -30%");
+        cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
         cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
-        cli_logs.push("====================================================");
+        cli_logs.push("==================================================UD");
     }
     else if (cmd == "clear") {
         cli_logs.clear();
@@ -749,7 +1371,8 @@ while (vglib.running()) {
         if (cd_spike > 0.0)    { cd_spike = cd_spike - 0.016; }
         if (cd_snoop > 0.0)    { cd_snoop = cd_snoop - 0.016; }
         if (cd_mine > 0.0)     { cd_mine = cd_mine - 0.016; }
-        if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; } # DECREMENT 120s PATCH CD
+        if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; }
+        if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
 
         if (is_connecting == 1) {
             connection_timer = connection_timer + 0.016;
@@ -769,7 +1392,7 @@ while (vglib.running()) {
         passive_trace_cd = passive_trace_cd + 0.016;
         if (passive_trace_cd >= 3.0) {
             passive_trace_cd = 0.0;
-            if (current_url == "market.vnet" || current_url == "redroom.vnet" || current_url == "dollhouse.vnet" || current_url == "bounty.vnet") {
+            if (current_url == "market.vnet" || current_url == "redroom.vnet" || current_url == "dollhouse.vnet" || current_url == "bounty.vnet" || current_url == "skinwalker.vnet" || current_url == "watchtower.vnet") {
                 trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
             }
         }
@@ -786,7 +1409,7 @@ while (vglib.running()) {
             vnet.send_to(client_sock, server_ip, server_port, "TRACE_BUST:LOCKOUT");
             
             glitch_trigger = 0.9;
-            cli_logs.push("[EMERGENCY_ICE]: TRACE REACHED 100%! NODE DISCONNECTED & FINED 0.30 BTC!");
+            cli_logs.push("[EMERGENCY_ICE]: TRACE REACHED 100%! NODE DISCONNECTED & FINED 0.30 VCOIN!");
         }
 
         if (dos_timer > 0.0) {
@@ -864,7 +1487,39 @@ while (vglib.running()) {
         glitch_trigger = 0.2;
         recent_packets = recent_packets + 1;
 
-        if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
+        if (net_msg.length() > 9 && net_msg.substr(0, 9) == "KEY_SYNC:") {
+            sync_payload :: String = net_msg.substr(9, net_msg.length() - 9);
+            
+            curr_segment :: String = "";
+            tokens :: Array = [];
+            through p_idx :: 0..(sync_payload.length() - 1) -> loop {
+                c_char = sync_payload.substr(p_idx, 1);
+                if (c_char == ":") {
+                    tokens.push(curr_segment);
+                    curr_segment = "";
+                } else {
+                    curr_segment = curr_segment + c_char;
+                }
+            };
+            if (curr_segment.length() > 0) { tokens.push(curr_segment); }
+
+            if (tokens.length() >= 31) {
+                through k_t :: 0..7 -> loop {
+                    session_keys[k_t] = string(tokens[k_t]);
+                    session_locs[k_t] = string(tokens[k_t + 8]);
+                };
+                
+                my_assigned_sites.clear();
+                through s_t :: 16..30 -> loop {
+                    if (s_t < tokens.length()) {
+                        my_assigned_sites.push(string(tokens[s_t]));
+                    }
+                };
+
+                page_body = load_page(current_url);
+            }
+        }
+        else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             winner_port = net_msg.substr(14, net_msg.length() - 14);
             game_over_winner = 1;
             glitch_trigger   = 1.0;
@@ -873,7 +1528,6 @@ while (vglib.running()) {
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "PATCH_SUCCESS:") {
             new_assigned_port :: Int64 = int64(net_msg.substr(14, net_msg.length() - 14));
             
-            # Close old socket & open new socket on new port
             vnet.close(client_sock);
             my_port = new_assigned_port;
             client_sock = vnet.udp_socket(my_port);
@@ -881,12 +1535,29 @@ while (vglib.running()) {
             glitch_trigger = 0.8;
             cli_logs.push("[SECURITY]: PORT REBOUND SUCCESSFUL! NEW ACTIVE PORT: " + string(my_port));
             
-            # Send initial handshake from new port
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
-        else if (net_msg.length() > 17 && net_msg.substr(0, 17) == "HONEYPOT_TRIPPED:") {
-            cli_logs.push("[AMBUSH ALERT]: " + net_msg.substr(17, net_msg.length() - 17));
+        else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "DECOY_TRIPPED:") {
+            cli_logs.push("[DECOY ALERT]: " + net_msg.substr(14, net_msg.length() - 14));
             glitch_trigger = 0.6;
+        }
+        else if (net_msg.length() > 13 && net_msg.substr(0, 13) == "DOS_DROP_DIR:") {
+            dropped_dir :: String = net_msg.substr(13, net_msg.length() - 13);
+            cli_logs.push("[REWARD]: TARGET DIRECTORY EXFILTRATED! (2 DOS HITS)");
+            
+            curr_site :: String = "";
+            through i :: 0..(dropped_dir.length() - 1) -> loop {
+                c = dropped_dir.substr(i, 1);
+                if (c == ":") {
+                    if (curr_site != "") { cli_logs.push("  -> " + curr_site); }
+                    curr_site = "";
+                } else {
+                    curr_site = curr_site + c;
+                }
+            };
+            if (curr_site != "") { cli_logs.push("  -> " + curr_site); }
+            
+            glitch_trigger = 0.5;
         }
         else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "DOS_DROP:") {
             cli_logs.push("[REWARD]: " + net_msg.substr(9, net_msg.length() - 9));
@@ -955,7 +1626,7 @@ while (vglib.running()) {
             }
             else if (net_msg.length() > 10 && net_msg.substr(0, 10) == "FILE_DATA:") {
                 btc_balance = btc_balance + 0.50;
-                cli_logs.push("[REWARD]: EXFILTRATED DATA SOLD ON BLACK MARKET! +0.50 BTC");
+                cli_logs.push("[REWARD]: EXFILTRATED DATA SOLD ON BLACK MARKET! +0.50 VCOIN");
             }
         }
     }
@@ -983,7 +1654,7 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, display_url_str, 135 + jitter_x, 23, 12, url_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
 
         vglib.rect(940 + jitter_x, 12 + jitter_y, 320, 36, COLOR_PANEL);
-        btc_str :: String = "BTC: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " BTC";
+        btc_str :: String = "VCOIN: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN";
         vglib.text_ex(vcr_font, btc_str, 955 + jitter_x, 23, 11, COLOR_TOXIC);
 
         vglib.rect(20 + jitter_x, 80 + jitter_y, 890, 670, COLOR_PANEL);
@@ -1002,9 +1673,11 @@ while (vglib.running()) {
 
         vglib.line(945, 172, 1245, 172, COLOR_BORDER);
         vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
-        
+
+        wave_amp :: Float64 = vmath.clamp(8.0 + float64(recent_packets * 2), 8.0, 20.0);
+
         through rx :: 0..28 -> loop {
-            wave_y :: Float64 = 215.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * (10.0 + float64(recent_packets * 4));
+            wave_y :: Float64 = 203.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
             vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
         };
 
@@ -1022,7 +1695,7 @@ while (vglib.running()) {
             line_y :: Float64 = feed_start_y + (f_idx * 20.0);
             if (line_y >= 295.0 && line_y <= 715.0) {
                 f_txt :: String = string(vnet_feed_logs[f_idx]);
-                f_txt_truncated :: String = truncate_str(f_txt, 32);
+                f_txt_truncated :: String = truncate_str(f_txt, 35);
 
                 f_col = COLOR_CYAN;
                 if (f_txt.substr(0, 12) == "[TRACE SPIKE]") { f_col = COLOR_AMBER; }

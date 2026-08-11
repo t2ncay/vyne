@@ -9,12 +9,15 @@ server_sock = vnet.udp_socket(server_port);
 active_ports     :: Array = [];
 active_ips       :: Array = [];
 active_urls      :: Array = [];
-active_last_seen :: Array = []; # STORES LAST PACKET TIMESTAMP
-active_dos_hits  :: Array = []; # TRACKS SUCCESSFUL DOS HIT COUNTS PER PEER
+active_last_seen :: Array = [];
+active_dos_hits  :: Array = []; 
+active_dirs      :: Array = []; # STORES EACH PEER'S 15 ASSIGNED SITES
 
-# HONEYPOT TRAP STORAGE
-honeypot_urls    :: Array = [];
-honeypot_owners  :: Array = [];
+# DECOY TRAP STORAGE
+decoy_targets    :: Array = [];
+decoy_owners     :: Array = [];
+decoy_urls       :: Array = [];
+decoy_timer      :: Float64 = 0.0;
 
 firewall_open :: Int64 = 1;
 current_salt  :: Int64 = int64(vmath.random(10, 99));
@@ -22,14 +25,93 @@ current_salt  :: Int64 = int64(vmath.random(10, 99));
 # GENERATE RANDOM HASHKEY ON SERVER STARTUP
 target_hash   :: Int64 = int64(vmath.random(1000, 9999));
 
-# CONFIG.TXT & VFS STORAGE WITH HASH KEYS ARRAY FORMAT
+# ====================================================================
+# MASTER ROSTER OF 50 DARKNET WEBSITES
+# ====================================================================
+all_50_sites :: Array = [
+    # THE ORIGINAL 19 LORE-HEAVY SITES
+    "market.vnet", "dollhouse.vnet", "vault.vnet", "forum.vnet", 
+    "redroom.vnet", "crypto.vnet", "morgue.vnet", "silence.vnet", 
+    "blackout.vnet", "snuff.vnet", "asylum.vnet", "bounty.vnet", 
+    "archival.vnet", "ghost.vnet", "cult.vnet", "void.vnet",
+    "skinwalker.vnet", "watchtower.vnet", "terminal.vnet",
+    # 31 EXPANDED DEEP WEB NODES (For a total of 50)
+    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet", "shadowpay.vnet", 
+    "cctv_core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
+    "orbital.vnet", "pastebin.vnet", "whisper.vnet", "deepwiki.vnet", 
+    "dump.vnet", "index.vnet", "schizo.vnet", "project9.vnet", 
+    "necro.vnet", "echolab.vnet", "abyss.vnet", "zeroday.vnet", 
+    "deadchannel.vnet", "phantom.vnet", "glitch.vnet", "stasis.vnet", 
+    "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
+    "weaponry.vnet", "passports.vnet", "blackbank.vnet"
+];
+
+# 7 MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
+mutual_sites :: Array = [
+    "market.vnet", "vault.vnet", "terminal.vnet", 
+    "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet"
+];
+
+# ====================================================================
+# GLOBAL PROCEDURAL KEY GENERATION (8 KEYS SCATTERED ACROSS 50 SITES)
+# ====================================================================
+k1 :: Int64 = int64(vmath.random(1000, 9999));
+k2 :: Int64 = int64(vmath.random(1000, 9999));
+k3 :: Int64 = int64(vmath.random(1000, 9999));
+k4 :: Int64 = int64(vmath.random(1000, 9999));
+k5 :: Int64 = int64(vmath.random(1000, 9999));
+k6 :: Int64 = int64(vmath.random(1000, 9999));
+k7 :: Int64 = int64(vmath.random(1000, 9999));
+k8 :: Int64 = int64(vmath.random(1000, 9999));
+
+master_keys_str :: String = string(k1) + " " + string(k2) + " " + string(k3) + " " + string(k4) + " " + string(k5) + " " + string(k6) + " " + string(k7) + " " + string(k8);
+
+global_key_locations :: Array = [];
+used_key_indices     :: Array = [];
+
+# Randomly select 8 unique sites out of the 50 to hide the keys globally
+through k_idx :: 0..7 -> loop {
+    rand_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+    is_used  :: Int64 = 0;
+    
+    through u :: used_key_indices -> loop {
+        if (int64(u) == rand_idx) { is_used = 1; break; }
+    };
+    
+    while (is_used == 1) {
+        rand_idx = (rand_idx + 1) % all_50_sites.length();
+        is_used = 0;
+        through u2 :: used_key_indices -> loop {
+            if (int64(u2) == rand_idx) { is_used = 1; break; }
+        };
+    }
+    
+    used_key_indices.push(rand_idx);
+    global_key_locations.push(string(all_50_sites[rand_idx]));
+};
+
+# CONFIG.TXT & VFS STORAGE WITH PROCEDURAL MASTER KEYS
 vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key", "/sys/config.txt"];
-vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", "3241 3253 5352 5343 2923 3281 2931 3433"];
-master_keys_str :: String = string(vfs_data[3]); # "3241 3253 5352 5343 2923 3281 2931 3433"
+vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", master_keys_str];
 
 out("[VNET SERVER] MULTI-PC CYBERWARFARE & CHAT GATEWAY ONLINE (PORT 8000)");
 out("[VNET SERVER] DYNAMIC TARGET HASH GENERATED: " + string(target_hash));
-out("[VNET SERVER] LOADED /sys/config.txt KEYS ARRAY: " + master_keys_str);
+out("[VNET SERVER] GENERATED MASTER KEYS: " + master_keys_str);
+
+# ====================================================================
+# DEBUG KEYCODES & ROOM LOCATIONS
+# ====================================================================
+out("==================================================");
+out("[DEBUG KEYCODES & ROOM LOCATIONS]");
+out("  KEY 1 (" + string(k1) + ") -> " + string(global_key_locations[0]));
+out("  KEY 2 (" + string(k2) + ") -> " + string(global_key_locations[1]));
+out("  KEY 3 (" + string(k3) + ") -> " + string(global_key_locations[2]));
+out("  KEY 4 (" + string(k4) + ") -> " + string(global_key_locations[3]));
+out("  KEY 5 (" + string(k5) + ") -> " + string(global_key_locations[4]));
+out("  KEY 6 (" + string(k6) + ") -> " + string(global_key_locations[5]));
+out("  KEY 7 (" + string(k7) + ") -> " + string(global_key_locations[6]));
+out("  KEY 8 (" + string(k8) + ") -> " + string(global_key_locations[7]));
+out("==================================================");
 
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
     found_idx :: Int64 = -1;
@@ -45,11 +127,37 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_ips[found_idx]       = ip;
         active_last_seen[found_idx] = now_time;
     } else {
+        # NEW PEER: ASSIGN EXACTLY 15 SITES (7 MUTUAL, 8 RANDOM)
+        assigned_15 :: Array = [];
+        
+        through m :: 0..6 -> loop {
+            assigned_15.push(string(mutual_sites[m]));
+        };
+        
+        while (assigned_15.length() < 15) {
+            rand_s :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+            site_n :: String = string(all_50_sites[rand_s]);
+            
+            already :: Int64 = 0;
+            through u :: 0..(assigned_15.length() - 1) -> loop {
+                if (string(assigned_15[u]) == site_n) { already = 1; break; }
+            };
+            if (already == 0) {
+                assigned_15.push(site_n);
+            }
+        }
+        
+        dir_payload :: String = "";
+        through s_idx :: 0..14 -> loop {
+            dir_payload = dir_payload + string(assigned_15[s_idx]) + ((s_idx < 14) ? ":" : "");
+        };
+
         active_ports.push(port);
         active_ips.push(ip);
         active_urls.push(url);
         active_last_seen.push(now_time);
         active_dos_hits.push(0);
+        active_dirs.push(dir_payload);
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
     }
 }
@@ -71,6 +179,7 @@ fn unregister_peer(port :: Int64) {
         active_urls.delete(active_urls[found_idx]);
         active_last_seen.delete(active_last_seen[found_idx]);
         active_dos_hits.delete(active_dos_hits[found_idx]);
+        active_dirs.delete(active_dirs[found_idx]);
         
         out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port) + " FROM ACTIVE PEERS LIST");
     }
@@ -101,6 +210,55 @@ fn broadcast_raw(payload :: String) {
     };
 }
 
+fn send_key_sync_payload(ip :: String, port :: Int64) {
+    found_idx :: Int64 = -1;
+    through i :: 0..(active_ports.length() - 1) -> loop {
+        if (int64(active_ports[i]) == port) {
+            found_idx = i;
+            break;
+        }
+    };
+
+    peer_dir_str :: String = "";
+    if (found_idx >= 0) {
+        peer_dir_str = string(active_dirs[found_idx]);
+    }
+
+    sync_str :: String = "KEY_SYNC:" + 
+        string(k1) + ":" + string(k2) + ":" + string(k3) + ":" + string(k4) + ":" +
+        string(k5) + ":" + string(k6) + ":" + string(k7) + ":" + string(k8) + ":" +
+        string(global_key_locations[0]) + ":" + string(global_key_locations[1]) + ":" +
+        string(global_key_locations[2]) + ":" + string(global_key_locations[3]) + ":" +
+        string(global_key_locations[4]) + ":" + string(global_key_locations[5]) + ":" +
+        string(global_key_locations[6]) + ":" + string(global_key_locations[7]) + ":" + 
+        peer_dir_str;
+    
+    vnet.send_to(server_sock, ip, port, sync_str);
+}
+
+fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
+    h_idx :: Int64 = -1;
+    through h :: 0..(decoy_targets.length() - 1) -> loop {
+        if (string(decoy_targets[h]) == target) { h_idx = h; break; }
+    };
+
+    if (h_idx >= 0) {
+        owner_port :: Int64 = int64(decoy_owners[h_idx]);
+        if (owner_port != attacker_port) {
+            owner_ip :: String = "127.0.0.1";
+            through p :: 0..(active_ports.length() - 1) -> loop {
+                if (int64(active_ports[p]) == owner_port) { owner_ip = string(active_ips[p]); break; }
+            };
+            vnet.send_to(server_sock, owner_ip, owner_port, "DECOY_TRIPPED:PORT_" + string(attacker_port) + "_AMBUSHED_AT_" + target);
+            broadcast_feed_event("[DECOY TRAP]: PORT_" + string(attacker_port) + " TRIPPED A DECOY AT " + target + "!");
+            
+            decoy_targets.delete(decoy_targets[h_idx]);
+            decoy_owners.delete(decoy_owners[h_idx]);
+            decoy_urls.delete(decoy_urls[h_idx]);
+        }
+    }
+}
+
 server_uptime :: Float64 = 0.0;
 game_over     :: Int64   = 0;
 
@@ -110,6 +268,17 @@ while (true) {
     
     if (game_over == 0) {
         prune_inactive_peers(server_uptime);
+        
+        decoy_timer = decoy_timer + 0.016;
+        if (decoy_timer >= 30.0) {
+            decoy_timer = 0.0;
+            if (decoy_targets.length() > 0) {
+                decoy_targets.clear();
+                decoy_owners.clear();
+                decoy_urls.clear();
+                broadcast_feed_event("[SYS_CLEANUP]: ALL ACTIVE DECOYS WIPED (30s CYCLE)");
+            }
+        }
     }
 
     packet :: Array = vnet.recv_from(server_sock);
@@ -129,32 +298,12 @@ while (true) {
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
             update_peer_session(sender_port, sender_ip, payload, server_uptime);
-
-            # BROADCAST PACKET TO GLOBAL SNIFFERS
             broadcast_feed_event("[SNIFF]: " + string(sender_port) + " -> " + payload);
 
             if (cmd == "GET") {
                 out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
-
-                # HONEYPOT AMBUSH CHECK
-                h_idx :: Int64 = -1;
-                through h :: 0..(honeypot_urls.length() - 1) -> loop {
-                    if (string(honeypot_urls[h]) == payload) { h_idx = h; break; }
-                };
-
-                if (h_idx >= 0) {
-                    owner_port :: Int64 = int64(honeypot_owners[h_idx]);
-                    if (owner_port != sender_port) {
-                        owner_ip :: String = "127.0.0.1";
-                        through p :: 0..(active_ports.length() - 1) -> loop {
-                            if (int64(active_ports[p]) == owner_port) { owner_ip = string(active_ips[p]); break; }
-                        };
-                        vnet.send_to(server_sock, owner_ip, owner_port, "HONEYPOT_TRIPPED:PORT_" + string(sender_port) + "_AMBUSHED_AT_" + payload);
-                        broadcast_feed_event("[HONEYPOT]: PORT_" + string(sender_port) + " FELL INTO AN AMBUSH TRAP AT " + payload + "!");
-                        honeypot_urls.delete(honeypot_urls[h_idx]);
-                        honeypot_owners.delete(honeypot_owners[h_idx]);
-                    }
-                }
+                send_key_sync_payload(sender_ip, sender_port);
+                check_and_trip_decoy(payload, sender_port);
             }
 
             if (cmd == "NETSCAN") {
@@ -173,18 +322,42 @@ while (true) {
                     }
                 };
 
-                if (peers_found == "") {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: NO ACTIVE RIVALS ON " + payload + " (TOTAL PEERS: " + string(count) + ")");
-                } else {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: PEERS DETECTED ON " + payload + " -> [" + peers_found + "]");
-                }
+                through d :: 0..(decoy_urls.length() - 1) -> loop {
+                    if (string(decoy_urls[d]) == payload) {
+                        owner_p :: Int64 = int64(decoy_owners[d]);
+                        if (owner_p != sender_port) {
+                            peers_found = peers_found + "PORT_" + string(decoy_targets[d]) + " ";
+                            count = count + 1;
+                        }
+                    }
+                };
+
+                bot_decoy_1 :: Int64 = 8000 + (payload.length() * 17) % 900;
+                bot_decoy_2 :: Int64 = 8000 + (payload.length() * 31 + 43) % 900;
+                
+                if (bot_decoy_1 != sender_port) { peers_found = peers_found + "PORT_" + string(bot_decoy_1) + " "; count = count + 1; }
+                if (bot_decoy_2 != sender_port) { peers_found = peers_found + "PORT_" + string(bot_decoy_2) + " "; count = count + 1; }
+
+                vnet.send_to(server_sock, sender_ip, sender_port, "NETSCAN: PEERS DETECTED ON " + payload + " -> [" + peers_found + "]");
             }
 
-            if (cmd == "HONEYPOT") {
-                honeypot_urls.push(payload);
-                honeypot_owners.push(sender_port);
-                vnet.send_to(server_sock, sender_ip, sender_port, "HONEYPOT_SET:AMBUSH_TRAP_ARMED_AT_" + payload);
-                broadcast_feed_event("[TRAFFIC ANOMALY]: SUSPICIOUS DATA BURST DETECTED AT " + payload);
+            if (cmd == "DECOY") {
+                sep_d :: Int64 = -1;
+                through i :: 0..(payload.length() - 1) -> loop {
+                    if (payload[i] == ":") { sep_d = i; break; }
+                };
+                
+                if (sep_d > 0) {
+                    target_url :: String = payload.substr(0, sep_d);
+                    dummy_port :: String = payload.substr(sep_d + 1, payload.length() - sep_d - 1);
+                    
+                    decoy_targets.push(dummy_port);
+                    decoy_urls.push(target_url);
+                    decoy_owners.push(sender_port);
+                    
+                    vnet.send_to(server_sock, sender_ip, sender_port, "DECOY_SET:DECOY_DEPLOYED_ON_" + target_url + "_AS_PORT_" + dummy_port);
+                    broadcast_feed_event("[NETWORK]: DECOY PORT " + dummy_port + " DEPLOYED AT " + target_url);
+                }
             }
 
             if (cmd == "CHAT") {
@@ -192,6 +365,8 @@ while (true) {
             }
 
             if (cmd == "DOS") {
+                check_and_trip_decoy(payload, sender_port);
+                
                 target_node :: Int64 = int64(payload);
                 target_ip   :: String = "127.0.0.1";
                 target_idx  :: Int64 = -1;
@@ -204,20 +379,27 @@ while (true) {
                     }
                 };
 
-                out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
-                vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
-                vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
-                broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
-
                 if (target_idx >= 0) {
+                    out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
+                    vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
+                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                    broadcast_feed_event("[DOS ATTACK]: NODE " + string(sender_port) + " FROZE NODE " + string(target_node));
+
                     hits :: Int64 = int64(active_dos_hits[target_idx]) + 1;
-                    if (hits >= 3) {
+                    active_dos_hits[target_idx] = hits;
+                    
+                    if (hits == 2) {
+                        target_history :: String = string(active_dirs[target_idx]);
+                        broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! DIRECTORY REVEALED TO PORT " + string(sender_port));
+                        vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + target_history);
+                    } else if (hits >= 3) {
                         active_dos_hits[target_idx] = 0;
                         broadcast_feed_event("[KEY DROP]: NODE " + string(target_node) + " DOSED 3x! HASH KEY DROPPED TO PORT " + string(sender_port));
                         vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP:EXTRACTED_HASH_KEY_FROM_PORT_" + string(target_node));
-                    } else {
-                        active_dos_hits[target_idx] = hits;
                     }
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
+                    broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " WASTED 0.25 VCOIN DOS ON PHANTOM BOT PORT_" + string(target_node) + "!");
                 }
             }
 
@@ -227,7 +409,10 @@ while (true) {
                     if (payload[i] == ":") { sep = i; break; }
                 };
                 if (sep > 0) {
-                    target_node :: Int64  = int64(payload.substr(0, sep));
+                    target_node_str :: String = payload.substr(0, sep);
+                    check_and_trip_decoy(target_node_str, sender_port);
+                    
+                    target_node :: Int64  = int64(target_node_str);
                     target_url  :: String = payload.substr(sep + 1, payload.length() - sep - 1);
                     target_ip   :: String = "127.0.0.1";
                     through p :: 0..(active_ports.length() - 1) -> loop {
@@ -241,15 +426,32 @@ while (true) {
             }
 
             if (cmd == "SNOOP") {
+                check_and_trip_decoy(payload, sender_port);
+                
                 target_node :: Int64 = int64(payload);
                 target_url  :: String = "UNKNOWN";
+                found_peer  :: Int64  = 0;
+
                 through p :: 0..(active_ports.length() - 1) -> loop {
-                    if (int64(active_ports[p]) == target_node) { target_url = string(active_urls[p]); break; }
+                    if (int64(active_ports[p]) == target_node) { 
+                        target_url = string(active_urls[p]); 
+                        found_peer = 1;
+                        break; 
+                    }
                 };
-                vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:PORT_" + string(target_node) + "_ACTIVE_AT_" + target_url);
+
+                if (found_peer == 1) {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:PORT_" + string(target_node) + "_ACTIVE_AT_" + target_url);
+                } else {
+                    rand_bot_site :: String = string(all_50_sites[(target_node * 13) % 50]);
+                    vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:PORT_" + string(target_node) + "_ACTIVE_AT_" + rand_bot_site + " [BOT_DECOY]");
+                    broadcast_feed_event("[SNOOP]: NODE PORT_" + string(sender_port) + " INTERROGATED A PHANTOM DECOY PORT!");
+                }
             }
 
             if (cmd == "SPIKE") {
+                check_and_trip_decoy(payload, sender_port);
+                
                 target_node :: Int64 = int64(payload);
                 target_ip   :: String = "127.0.0.1";
                 through p :: 0..(active_ports.length() - 1) -> loop {
@@ -266,7 +468,7 @@ while (true) {
             }
 
             if (cmd == "MINE_EVENT") {
-                broadcast_feed_event("[WHALE ALERT]: NODE ???? MINED +0.05 BTC BLOCK AT crypto.vnet");
+                broadcast_feed_event("[WHALE ALERT]: NODE ???? MINED +0.05 VCOIN BLOCK AT crypto.vnet");
             }
 
             if (cmd == "SCAN") {
@@ -305,30 +507,24 @@ while (true) {
                 }
             }
 
-            # --- DYNAMIC PORT MIGRATION MECHANIC ---
             if (cmd == "PATCH") {
                 if (payload == "REBIND") {
                     new_port :: Int64 = int64(vmath.random(8001, 8999));
                     
-                    # Ensure port uniqueness
                     through check_p :: active_ports -> loop {
                         if (int64(check_p) == new_port) {
                             new_port = new_port + 1;
                         }
                     };
 
-                    # Locate existing session index
                     p_idx :: Int64 = -1;
                     through i :: 0..(active_ports.length() - 1) -> loop {
                         if (int64(active_ports[i]) == sender_port) { p_idx = i; break; }
                     };
 
                     if (p_idx >= 0) {
-                        # Notify client of new port assignment
                         vnet.send_to(server_sock, sender_ip, sender_port, "PATCH_SUCCESS:" + string(new_port));
                         broadcast_feed_event("[SOCKET MIGRATION]: NODE " + string(sender_port) + " CLOSED EXPOSED PORT & REBOUND TO NEW SUBNET");
-                        
-                        # Migrate registry data to new port
                         active_ports[p_idx] = new_port;
                     } else {
                         vnet.send_to(server_sock, sender_ip, sender_port, "PATCH_SUCCESS:" + string(new_port));
