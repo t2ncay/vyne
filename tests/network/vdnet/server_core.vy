@@ -322,8 +322,10 @@ while (true) {
         while (t_idx >= 0) {
             curr_t :: Float64 = float64(overloaded_timers[t_idx]) - 0.016;
             if (curr_t <= 0.0) {
-                overloaded_urls.delete(overloaded_urls[t_idx]);
-                overloaded_timers.delete(overloaded_timers[t_idx]);
+                url_rm :: String = string(overloaded_urls[t_idx]);
+                timer_rm :: Float64 = float64(overloaded_timers[t_idx]);
+                overloaded_urls.delete(url_rm);
+                overloaded_timers.delete(timer_rm);
             } else {
                 overloaded_timers[t_idx] = curr_t;
             }
@@ -469,7 +471,6 @@ while (true) {
                     }
                 };
 
-                # Check if it hit a decoy OR missed an active peer (empty socket / phantom bot)
                 if (decoy_idx >= 0) {
                     owner_port :: Int64 = int64(decoy_owners[decoy_idx]);
                     if (owner_port != sender_port) {
@@ -482,7 +483,6 @@ while (true) {
                         broadcast_feed_event("[DECOY TRAP]: PORT_" + string(sender_port) + " TRIED TO DOS DECOY PORT " + string(target_node) + "! TRAP SPRUNG.");
                         
                         vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:DOS");
-                        # Refund 0.20 VCOIN (Net cost 0.05) and bypass cooldown
                         vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT_REFUND");
                         
                         decoy_targets.delete(decoy_targets[decoy_idx]);
@@ -490,12 +490,10 @@ while (true) {
                         decoy_urls.delete(decoy_urls[decoy_idx]);
                     }
                 } else if (target_idx < 0) {
-                    # Empty socket / phantom bot hit -> Refund and clear cooldown
                     vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
                     vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT_REFUND");
                     broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " HIT EMPTY SOCKET PORT_" + string(target_node) + "! -0.05 VCOIN & COOLDOWN BYPASSED.");
                 } else {
-                    # Valid active player target hit normally (Costs full 0.25 VCOIN and keeps 15s CD)
                     out("[EXPLOIT] DOS PAYLOAD: PORT " + string(sender_port) + " -> TARGET " + target_ip + ":" + string(target_node));
                     vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:DOS");
                     vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
@@ -656,6 +654,7 @@ while (true) {
 
                 vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:DISCOVERED_HIDDEN_NODE -> vnet://" + secret_url);
             }
+
             if (cmd == "CRACK") {
                 attempt_val :: Int64 = int64(payload);
                 computed    :: Int64 = (attempt_val * current_salt) % 9999;
@@ -690,7 +689,42 @@ while (true) {
                     overloaded_timers.push(30.0); # 30 second lockout
                     broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
                     broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
+
+                    # =========================================================
+                    # WIN GOAL 1: GRID BLACKOUT CASCADE (5 MUTUAL CORE NODES)
+                    # =========================================================
+                    m_mkt :: Int64 = 0;
+                    m_vlt :: Int64 = 0;
+                    m_trm :: Int64 = 0;
+                    m_cry :: Int64 = 0;
+                    m_hel :: Int64 = 0;
+
+                    through chk_i :: 0..(overloaded_urls.length() - 1) -> loop {
+                        chk_u :: String = string(overloaded_urls[chk_i]);
+                        if (chk_u == "market.vnet")   { m_mkt = 1; }
+                        if (chk_u == "vault.vnet")    { m_vlt = 1; }
+                        if (chk_u == "terminal.vnet") { m_trm = 1; }
+                        if (chk_u == "crypto.vnet")   { m_cry = 1; }
+                        if (chk_u == "hellroom.vnet") { m_hel = 1; }
+                    };
+
+                    if (m_mkt == 1 && m_vlt == 1 && m_trm == 1 && m_cry == 1 && m_hel == 1) {
+                        game_over = 1;
+                        out("[GRID BLACKOUT]: VICTORY DETECTED FROM PORT " + string(sender_port));
+                        broadcast_feed_event("[GRID BLACKOUT]: NODE PORT_" + string(sender_port) + " FRIED ALL 5 MUTUAL CORE NODES!");
+                        broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":BLACKOUT");
+                    }
                 }
+            }
+
+            # =========================================================
+            # WIN GOAL 2: ECONOMIC TAKEOVER (25.0 VCOIN)
+            # =========================================================
+            if (cmd == "TAKEOVER") {
+                game_over = 1;
+                out("[ECONOMIC TAKEOVER]: VICTORY DETECTED FROM PORT " + string(sender_port));
+                broadcast_feed_event("[ECONOMIC TAKEOVER]: NODE PORT_" + string(sender_port) + " BOUGHT OUT VNET NETWORK!");
+                broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":ECONOMIC");
             }
 
             if (cmd == "ICE_BOUGHT") {
@@ -745,12 +779,15 @@ while (true) {
                 }
             }
 
+            # =========================================================
+            # ORIGINAL WIN CONDITION: CRYPTOGRAPHIC ROOT BREACH
+            # =========================================================
             if (cmd == "WIN") {
                 if (payload == master_keys_str) {
                     game_over = 1;
                     out("[SYSTEM OVERRIDE]: VICTORY DETECTED FROM PORT " + string(sender_port));
                     broadcast_feed_event("[SYSTEM OVERRIDE]: NODE " + string(sender_port) + " HAS BREACHED ROOT VAULT!");
-                    broadcast_raw("EXPLOIT:WINNER:" + string(sender_port));
+                    broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":KEYS");
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "WIN:FAIL:INVALID_KEY_COMBINATION");
                 }

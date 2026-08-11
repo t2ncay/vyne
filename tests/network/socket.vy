@@ -97,13 +97,15 @@ cli_logs         :: Array   = [
     "[SYS_INIT]: VNET SOCKET BOUND TO PORT " + string(my_port),
     "[SYS_INIT]: MOUNTED KERNEL SUBSYSTEM (PID: " + string(vcore.pid) + ")",
     "PRESS [TAB] TO TOGGLE OVERLAY TERMINAL ANYTIME",
+    "GOAL 1: OVERLOAD 5 MUTUAL CORE NODES (market, vault, terminal, crypto, hellroom)",
+    "GOAL 2: REACH 25.0 VCOIN AND TYPE 'takeover'",
+    "GOAL 3: TYPE 'win <k1> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
     "TYPE 'patch' TO REBIND NEW PORT SOCKET (0.70 VCOIN | 120s CD)",
     "TYPE 'sniffer' TO INTERCEPT GLOBAL UDP PACKET TRAFFIC",
     "TYPE 'freq' TO TUNER RF SIGNAL ANALYZER",
     "TYPE 'decoy <url> <dummy_port>' TO DEPLOY A TRAP NODE (0.10 VCOIN)",
     "TYPE 'chat <msg>' TO BROADCAST REAL-TIME P2P MESSAGES",
     "TYPE 'buy ice' TO PURCHASE ICE DEFENSE SHIELD (0.30 VCOIN)",
-    "TYPE 'win <k1> ... <k8>' TO OVERRIDE VFS ROOT VAULT",
     "TYPE 'help' FOR NETWORK & SYSTEM COMMANDS",
     "--------------------------------------------------"
 ];
@@ -116,7 +118,7 @@ vnet_feed_logs   :: Array   = [
 feed_scroll_y    :: Float64 = 0.0;
 
 # ECONOMY, TRACE & DEFENSE STATE
-btc_balance      :: Float64 = 1.50;
+btc_balance      :: Float64 = 25.0;
 trace_level      :: Int64   = 14;
 ice_charges      :: Int64   = 1;
 dos_timer        :: Float64 = 0.0;
@@ -137,6 +139,7 @@ packet_decay_cd  :: Float64 = 0.0;
 
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
+win_mode_str     :: String  = "KEYS";
 
 # CONNECTION MENU STATE (REPLACES INTRO)
 is_in_ip_menu          :: Int64   = 1;
@@ -1356,6 +1359,13 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "WIN:" + args);
         }
     }
+    else if (cmd == "takeover") {
+        if (btc_balance < 25.0) {
+            cli_logs.push("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
+        } else {
+            vnet.send_to(client_sock, server_ip, server_port, "TAKEOVER:REQ");
+        }
+    }
     else if (cmd == "ice") {
         cli_logs.push("[ICE STATUS]: ACTIVE FIREWALL SHIELDS: [" + string(ice_charges) + "/3]");
     }
@@ -1503,6 +1513,10 @@ fn dispatch_cli_command(raw_input :: String) {
         else { vnet.send_to(client_sock, server_ip, server_port, "CAT:" + args); }
     }
     else if (cmd == "help") {
+        cli_logs.push("========== THREE VICTORY GOALS ==========");
+        cli_logs.push("  1. Root Breach    : win <k1> ... <k8> at terminal.vnet");
+        cli_logs.push("  2. Grid Blackout  : overload 5 mutual pages (market, vault, terminal, crypto, hellroom)");
+        cli_logs.push("  3. Economic Control: Reach 25.0 VCOIN and type 'takeover'");
         cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
         cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
         cli_logs.push("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
@@ -1511,6 +1525,8 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
         cli_logs.push("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
         cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
+        cli_logs.push("  takeover                - [25.0 VCOIN] Buy out network for victory");
+        cli_logs.push("  overload <url>          - [1.50 VCOIN] Force site offline for 30s");
         cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
         cli_logs.push("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
@@ -1528,7 +1544,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
         cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
-        cli_logs.push("==================================================UD");
+        cli_logs.push("==================================================");
     }
     else if (cmd == "clear") {
         cli_logs.clear();
@@ -1630,7 +1646,9 @@ while (vglib.running()) {
     heartbeat_timer = heartbeat_timer + 0.016;
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
-        vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+        if (clean_str(current_url) != active_down_url || active_down_timer <= 0.0) {
+            vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+        }
     }
 
     packet_decay_cd = packet_decay_cd + 0.016;
@@ -1883,7 +1901,18 @@ while (vglib.running()) {
             glitch_trigger = 0.8;
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
-            winner_port = net_msg.substr(14, net_msg.length() - 14);
+            raw_win_str :: String = net_msg.substr(14, net_msg.length() - 14);
+            sep_w :: Int64 = -1;
+            through wi :: 0..(raw_win_str.length() - 1) -> loop {
+                if (raw_win_str[wi] == ":") { sep_w = wi; break; }
+            };
+            if (sep_w > 0) {
+                winner_port  = raw_win_str.substr(0, sep_w);
+                win_mode_str = raw_win_str.substr(sep_w + 1, raw_win_str.length() - sep_w - 1);
+            } else {
+                winner_port  = raw_win_str;
+                win_mode_str = "KEYS";
+            }
             game_over_winner = 1;
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
@@ -2320,10 +2349,19 @@ while (vglib.running()) {
             vglib.rect(0, 0, 1280, 800, vglib.rgba(180, 0, 20, 220));
             vglib.text_ex(vcr_font, "[ CRITICAL SYSTEM OVERRIDE - GAME OVER ]", 280 + jitter_x, 320 + jitter_y, 20, COLOR_TOXIC);
             
-            if (winner_port == string(my_port)) {
-                vglib.text_ex(vcr_font, "VICTORY DECLARED! YOU HAVE BREACHED THE VFS ROOT VAULT!", 210 + jitter_x, 370 + jitter_y, 16, COLOR_TOXIC);
+            win_txt :: String = "";
+            if (win_mode_str == "BLACKOUT") {
+                win_txt = "BLACKED OUT ALL 5 MUTUAL CORE NODES!";
+            } else if (win_mode_str == "ECONOMIC") {
+                win_txt = "EXECUTED AN ECONOMIC TAKEOVER (25 VCOIN)!";
             } else {
-                vglib.text_ex(vcr_font, "NODE PORT_" + winner_port + " HAS BREACHED THE VFS ROOT VAULT FIRST!", 200 + jitter_x, 370 + jitter_y, 16, COLOR_TOXIC);
+                win_txt = "BREACHED THE VFS ROOT VAULT!";
+            }
+
+            if (winner_port == string(my_port)) {
+                vglib.text_ex(vcr_font, "VICTORY DECLARED! YOU HAVE " + win_txt, 180 + jitter_x, 370 + jitter_y, 15, COLOR_TOXIC);
+            } else {
+                vglib.text_ex(vcr_font, "NODE PORT_" + winner_port + " HAS " + win_txt, 180 + jitter_x, 370 + jitter_y, 15, COLOR_TOXIC);
             }
             
             vglib.text_ex(vcr_font, "ALL SUBNET CONNECTIONS PERMANENTLY LOCKED", 340 + jitter_x, 420 + jitter_y, 14, COLOR_GHOST);
