@@ -262,7 +262,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] | MISSION: SNOOP TRAFFIC TO DISCOVER HIDDEN NETWORK NODES |",
             "[BOX] +---------------------------------------------------------+",
             "[HR]",
-            "[SUBTITLE] YOUR ASSIGNED DIRECTORY (15/50 NODES):"
+            "[SUBTITLE] AVAILABLE GATEWAY PROXIES"
         ];
         if (my_assigned_sites.length() > 0) {
             through s_idx :: 0..(my_assigned_sites.length() - 1) -> loop {
@@ -1502,8 +1502,8 @@ while (vglib.running()) {
         vglib.line(940, 600, 340, 600, COLOR_BORDER);
         vglib.line(340, 600, 340, 220, COLOR_BORDER);
 
-        vglib.text_ex(vcr_font, "VYNE SHADOWOS - UPLINK GATEWAY", 445, 260, 14, COLOR_BLOOD);
-        vglib.text_ex(vcr_font, "ENTER HOST / SERVER IP ADDRESS:", 435, 340, 11, COLOR_CYAN);
+        vglib.text_ex(vcr_font, "VYNE SHADOWOS - UPLINK GATEWAY", 465, 260, 14, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "ENTER HOST / SERVER IP ADDRESS:", 495, 340, 11, COLOR_CYAN);
 
         vglib.rect(440, 380, 400, 40, COLOR_BLACK);
         vglib.line(440, 380, 840, 380, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
@@ -1587,7 +1587,7 @@ while (vglib.running()) {
         passive_trace_cd = passive_trace_cd + 0.016;
         if (passive_trace_cd >= 3.0) {
             passive_trace_cd = 0.0;
-            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet" || current_url == "hellroom.vnet") {
+            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet") {
                 trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
             }
         }
