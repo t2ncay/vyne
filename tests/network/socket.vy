@@ -348,24 +348,42 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "dollhouse.vnet") {
         res :: Array = [
-            "[TITLE] SURVEILLANCE FEED #0992 - ROOM 402",
+            "[TITLE] SURVEILLANCE FEED #0992 // ROOM 402 (DOLLHOUSE CORE)",
             "[HR]",
-            "[BLOOD] [CAM_402_NORTH]: HEAVY FOOTSTEPS ECHOING IN EASTERN HALLWAY...",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SENSOR 1: AMBIENT TEMP 4.2 C (SUDDEN DROP DETECTED)      |",
-            "[BOX] | SENSOR 2: OPTICAL DISTORTION AT CENTER FRAME            |",
-            "[BOX] | SENSOR 3: AUDIO TRANSDUCER DECIOS - 84 dB SPIKE         |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BLOOD] [CAM_402_NORTH]: HEAVY FOOTSTEPS & FOUL FLUID LEAKAGE DETECTED",
+            "[PULSE] LIVE FEED LINKED TO REDROOM NETWORK // NOIR SURVEILLANCE MATRIX",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SENSOR 1: AMBIENT TEMP 2.1 C (SEVERE ANOMALOUS FROST SPIKE)     |",
+            "[BOX] | SENSOR 2: OPTICAL COATED FILM: RANCID BIOLOGICAL COAGULATION    |",
+            "[BOX] | SENSOR 3: AUDIO TRANSDUCER: 92 dB FREQUENCY PULSE (18.5 Hz)    |",
+            "[BOX] | SENSOR 4: MOTION VECTOR: OCCUPANT STANDING DIRECTLY BEHIND DOOR |",
+            "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] LOG #0412: Motion sensor tripped at 03:14:02. No physical entry logged.",
-            "[TEXT] LOG #0413: Audio buffer capturing low metallic scratching under floorboards.",
-            "[TEXT] LOG #0414: Subject #12 remains motionless facing the corner wall.",
-            "[TEXT] Security personnel have failed to check sector 4 for 72 consecutive hours.",
-            "[CODE] CAM_BUFFER_DUMP: 0xFF0A_LOCKED_FRAME_992",
-            "[CODE] SUB-ROUTINE: OMEGA_PROTOCOL_ENGAGED"
+            "[TEXT] LOG #0413: Audio transducers capturing low metallic scratching, wet dragging,",
+            "[TEXT] and ragged, moist breathing directly underneath the rotting floorboards.",
+            "[TEXT] LOG #0414: Subject #12 remains completely motionless, facing the corner wall.",
+            "[TEXT] Yellowish bile and liquified fat are seeping from beneath the drywall seams.",
+            "[TEXT] Security team dispatched 48h ago was last heard crying out over sewer comms.",
+            "[CODE] CAM_BUFFER_DUMP: 0xFF0A_LOCKED_FRAME_992_NOIR_FEED",
+            "[CODE] SUB-ROUTINE: OMEGA_PROTOCOL_ENGAGED // KEY_TAPPER_INTERCEPT_ACTIVE",
+            "[TEXT] ",
+            "[SUBTITLE] NOIR MESH TELEMETRY & CROSS-NETWORK INTERCEPTS:",
+            "[TEXT] 'The Key-Tappers on the Noir network aren't using automated scripts.",
+            "[TEXT] They sit in sub-basement sewer cells typing out each packet by hand.",
+            "[TEXT] When Subject #12 stopped moving, watchtower.vnet picked up identical heat",
+            "[TEXT] blooms inside the morgue vaults at morgue.vnet. The flesh was already cold,",
+            "[TEXT] but the lungs were still inhaling CRT monitor static.'",
+            "[TEXT] 'If the stream buffer at redroom.vnet drops below 10 Mbps, the door lock",
+            "[TEXT] in cell 402 disengages automatically. Do not look into the room.'",
+            "[CODE] BIOMETRIC_MATCH_REF: ASYLUM_PATIENT_1988_MUTATION"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] SENSOR ALERT: SOMETHING IS STANDING DIRECTLY BEHIND YOUR CRT MONITOR");
-        res.push("[PULSE] 'IF YOU HEAR IT BREATHING, DO NOT CLOSE THE BROWSER WINDOW.'");
+        res.push("[PULSE] WARNING: FOUL ODOR CORRUPTING LOCAL HARDWARE BUS HEADERS");
+        res.push("[GLITCH] SENSOR ALERT: SOMETHING WET IS BREATHING DIRECTLY BEHIND YOUR CRT DISPLAY");
+        res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON THERMAL OPTICS");
+        res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
+        res.push("[LINK:morgue.vnet] >> INSPECT AUTOPSY RECORDS FOR SUBJECT #409");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 CONTAINMENT");
         res.push("[LINK:shadow.dir] << DISCONNECT IMMEDIATELY");
         res.push("[HR]");
         return res;
@@ -596,11 +614,11 @@ fn load_page(url :: String) -> Array {
             "[TITLE] PEER CONTRACT TARGET INDEX",
             "[HR]",
             "[WARN] ACTIVE BOUNTIES PLACED ON CONNECTED NETWORK PEERS:",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 VCOIN | STATUS: HUNTED     |",
-            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 VCOIN | STATUS: ACTIVE     |",
-            "[BOX] | TARGET PORT: 8901 | REWARD: 1.00 VCOIN | STATUS: ELUSIVE    |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BOX] +----------------------------------------------------------+",
+            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 VCOIN | STATUS: HUNTED  |",
+            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 VCOIN | STATUS: ACTIVE  |",
+            "[BOX] | TARGET PORT: 8901 | REWARD: 1.00 VCOIN | STATUS: ELUSIVE |",
+            "[BOX] +----------------------------------------------------------+",
             "[TEXT] Contracts are automatically executed via packet injection scripts.",
             "[TEXT] Use 'spike <port>' or 'dos <port>' in overlay terminal to claim bounties.",
             "[CODE] CONTRACT_REGISTRY_ID: 0xBB88_BOUNTY_NET"
@@ -614,15 +632,34 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "archival.vnet") {
         res :: Array = [
-            "[TITLE] RESTRICTED MILITARY VFS DUMP",
+            "[TITLE] RESTRICTED MILITARY VFS DUMP // SECTOR 09 ARCHIVES",
             "[HR]",
-            "[TEXT] Declassified sector logs from the 2014 Defense Grid Project.",
-            "[TEXT] Contains low-level firmware headers and unmapped hardware hooks.",
-            "[CODE] /sys/firmware_v9.bin | SHA256: e3b0c44298fc1c149afbf4c8996fb924",
-            "[CODE] /sys/kernel_hook.asm | OFFSET: 0x004188_SECURE",
+            "[BLOOD] CLASSIFICATION: TOP SECRET // OPERATION COLD SIGNAL (2014)",
+            "[TEXT] Declassified sector telemetry and kernel dumps recovered from Project 9.",
+            "[TEXT] Analysis of cold-storage blocks confirms physical hardware intrusion at",
+            "[TEXT] the primary subterranean relay node prior to the 2014 grid blackout.",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | CLUSTER: MIL-NODE-09 | BACKBONE: OPTICAL COAXIAL | STATUS: SEALED |",
+            "[BOX] | FIRMWARE: v9.40.12-PROT | INTEGRITY: CORRUPTED (BIT ROT AT 0x88) |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[CODE] /sys/firmware_v9.bin  | SHA256: e3b0c44298fc1c149afbf4c8996fb924",
+            "[CODE] /sys/kernel_hook.asm  | OFFSET: 0x004188_SECURE_ENTRY_VECTOR",
+            "[CODE] /sys/panopticon_sat.cfg| TARGET: SAT-99_ORBITAL_LOCK",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED INTERCEPT LOG #09-402:",
+            "[TEXT] 'The signal originating from signal0.vnet isn't network traffic.",
+            "[TEXT] It's an analog echo leaking through the subterranean power conduits.",
+            "[TEXT] Project 9 personnel attempted to isolate the memory stack in vault.vnet,",
+            "[TEXT] but the hardware registers locked up. Watchtower orbital telemetry was",
+            "[TEXT] redirected to track local CRT glare before all Site 9-B feeds went dark.'",
+            "[CODE] INCIDENT_REF: SITE_9B_BREACH_LOG_20140912",
             "[TEXT] Decryption payload requires root clearance at terminal.vnet."
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] WARNING: UNMAPPED KERNEL HOOKS STILL EXECUTING IN VFS MEMORY");
+        res.push("[LINK:project9.vnet] >> INSPECT SUBTERRANEAN BLACK SITE DATABASE");
+        res.push("[LINK:vault.vnet] >> CROSS-REFERENCE CORRUPTED DATA VAULT");
+        res.push("[LINK:watchtower.vnet] >> CHECK PANOPTICON SATELLITE FEED");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -715,19 +752,35 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "watchtower.vnet") {
         res :: Array = [
-            "[TITLE] PANOPTICON ORBITAL SATELLITE FEED",
+            "[TITLE] PANOPTICON ORBITAL SATELLITE FEED // SAT-99 MAINBOARD",
             "[HR]",
-            "[PULSE] SUB-ORBITAL TELEMETRY LOCKED ON LOCAL CITY GRID",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SATELLITE: PHANTOM-09 | LATITUDE: 39.92 C | STATUS: LOCKED|",
-            "[BOX] | THERMAL SCAN: 1 HUMAN HEAT SIGNATURE SEATED AT DESK     |",
-            "[BOX] | RESOLUTION: SUB-CENTIMETER INFRARED OPTICS              |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BLOOD] [CLASSIFIED LEVEL 4] SUB-ORBITAL SURVEILLANCE & TARGETING MATRIX",
+            "[PULSE] TELEMETRY LOCKED ON LOCAL CITY GRID // OPTICAL SENSOR OVERRIDE",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SATELLITE: PHANTOM-09 (SAT-99) | ORBIT: GEOSTATIONARY (35,786 km)|",
+            "[BOX] | THERMAL SCAN: 1 HUMAN HEAT SIGNATURE SEATED AT DESK             |",
+            "[BOX] | OPTICAL RESOLUTION: SUB-CENTIMETER INFRARED BAND 4            |",
+            "[BOX] | TARGET COORDINATES: 39.9334 N, 32.8597 E                      |",
+            "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] CAMERA ZOOM LEVEL: 100x -> WINDOW BLINDS ARE OPEN.",
-            "[CODE] TARGET_COORDINATES: 39.9334_N_32.8597_E"
+            "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED_SAT_99",
+            "[TEXT] ",
+            "[SUBTITLE] CROSS-LINKED SURVEILLANCE TELEMETRY LOGS:",
+            "[TEXT] LOG #009: Orbital optics synchronized with cctv_core.vnet feeds.",
+            "[TEXT] Target's local room layout matches interior telemetry logged in dollhouse.vnet.",
+            "[TEXT] LOG #010: Panopticon configuration parameters loaded directly from military",
+            "[TEXT] sector logs in archival.vnet (/sys/panopticon_sat.cfg).",
+            "[TEXT] LOG #011: SAT-99 kinetic strike array primed. Target designation vector",
+            "[TEXT] mirrored to orbital.vnet for tactical response authorization.",
+            "[CODE] PANOPTICON_STATUS: ACTIVE_REALTIME_MONITORING"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] 'DO NOT TURN AROUND. WE CAN SEE YOUR SCREEN FROM HERE.'");
+        res.push("[PULSE] 'KINETIC STRIKE PLATFORM READY AT orbital.vnet'");
+        res.push("[GLITCH] 'DO NOT TURN AROUND. WE CAN SEE YOUR SCREEN REFLECTION FROM HERE.'");
+        res.push("[LINK:orbital.vnet] >> JUMP TO LOW ORBIT ION CANNON TERMINAL");
+        res.push("[LINK:cctv_core.vnet] >> VIEW CITY WIDE CCTV BACKDOOR NODE");
+        res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED MILITARY VFS DUMP");
+        res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -2077,7 +2130,7 @@ while (vglib.running()) {
         vglib.line(945, 172, 1245, 172, COLOR_BORDER);
         vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
 
-        wave_amp :: Float64 = vmath.clamp(8.0 + float64(recent_packets * 2), 8.0, 20.0);
+        wave_amp :: Float64 = vmath.clamp(6.0 + float64(recent_packets * 2), 8.0, 20.0);
 
         through rx :: 0..28 -> loop {
             wave_y :: Float64 = 209.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
