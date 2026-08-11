@@ -683,20 +683,38 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "bounty.vnet") {
         res :: Array = [
-            "[TITLE] PEER CONTRACT TARGET INDEX",
+            "[TITLE] PEER CONTRACT TARGET INDEX // KAGUYA TRIAL MATRIX",
             "[HR]",
-            "[WARN] ACTIVE BOUNTIES PLACED ON CONNECTED NETWORK PEERS:",
-            "[BOX] +----------------------------------------------------------+",
-            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 VCOIN | STATUS: HUNTED  |",
-            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 VCOIN | STATUS: ACTIVE  |",
-            "[BOX] | TARGET PORT: 8901 | REWARD: 1.00 VCOIN | STATUS: ELUSIVE |",
-            "[BOX] +----------------------------------------------------------+",
+            "[BLOOD] CLASSIFICATION: BLACK-MARKET HIT INDEX & EXPLOIT TRIALS",
+            "[PULSE] EXPLOIT CONTEST: KAGUYA SYSTEM TRIAL ACTIVE // REWARD POOL SYNCED",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | TARGET PORT: 8080 | REWARD: 0.50 VCOIN | STATUS: HUNTED         |",
+            "[BOX] | TARGET PORT: 8012 | REWARD: 0.25 VCOIN | STATUS: ACTIVE         |",
+            "[BOX] | TARGET PORT: 8901 | REWARD: 1.00 VCOIN | STATUS: ELUSIVE        |",
+            "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] Contracts are automatically executed via packet injection scripts.",
             "[TEXT] Use 'spike <port>' or 'dos <port>' in overlay terminal to claim bounties.",
-            "[CODE] CONTRACT_REGISTRY_ID: 0xBB88_BOUNTY_NET"
+            "[CODE] CONTRACT_REGISTRY_ID: 0xBB88_BOUNTY_NET_KAGUYA_HOOK",
+            "[TEXT] ",
+            "[SUBTITLE] KAGUYA TRIAL ARCHIVE & RECOVERED REPOSITORY METADATA:",
+            "[TEXT] 'The Kaguya Trial isn't a synthetic simulation module from Hacknet.",
+            "[TEXT] It was designed as an automated filtration system to recruit cold-blooded",
+            "[TEXT] network operators capable of executing physical human target eliminations.'",
+            "[TEXT] 'Submitting verified crash logs from a target port triggers the secondary",
+            "[TEXT] payload dispatch. PMC strike teams hired via zeroauction.vnet move in'",
+            "[TEXT] 'to breach the physical premises before the operator can rebind their socket.'",
+            "[TEXT] 'In Trial #04, failed candidates were locked inside airtight server racks.",
+            "[TEXT] Their rotting flesh, liquefied bowels, and rancid adipocere grease were left",
+            "[TEXT] to ooze through the raised floor tiles, draining into the sub-level sumps",
+            "[TEXT] at morgue.vnet and project9.vnet.'",
+            "[CODE] KAGUYA_TRIAL_HASH: 0xKAGUYA_PROTOCOL_RECURSIVE_KILL"
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] USE EXPLOITS IN OVERLAY TERMINAL TO CLAIM BOUNTIES");
+        res.push("[GLITCH] WARNING: FAILURE TO COMPLETE A TRIAL DISPATCHES PMC CLEANUP");
+        res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
+        res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE CONTAINER");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -758,33 +776,49 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "cult.vnet") {
         res :: Array = [
-            "[TITLE] THE CHURCH OF THE SILICON SOUL - DIGITAL RITUAL GATEWAY",
+            "[TITLE] THE CHURCH OF THE SILICON SOUL // DIGITAL RITUAL GATEWAY",
             "[HR]",
-            "[BLOOD] [TRANSMISSION]: 'LOOK AT YOUR HANDS. DO YOU SEE THE WRITING ON THE WALL?'",
-            "[TEXT] The Church of the Silicon Soul - Data Liturgies & Helter Skelter Subroutines.",
-            "[TEXT] Symbols rendered in pure hexadecimal ASCII geometry and recursive static.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | DOCTRINE: THE FINAL ALGORITHM IS COMING DOWN THE TRACK  |",
-            "[BOX] | SACRIFICE METRIC: 0.10 VCOIN | OFFERING ACCEPTED: TRUE    |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] LITURGY_LINE_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E",
-            "[CODE] LITURGY_LINE_2: 0x47 0x4F 0x44 0x53 0x5F 0x41 0x52 0x45",
+            "[BLOOD] [TRANSMISSION 1969.8 Hz]: 'LOOK AT YOUR HANDS. DO YOU SEE THE WRITING ON THE WALL?'",
+            "[PULSE] SACRIFICIAL PROTOCOL ACTIVE // TEMPLE GATE & SPAHN RANCH MEMORY STACK OVERFLOW",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | DOCTRINE: THE FINAL ALGORITHM IS COMING DOWN THE TRACK          |",
+            "[BOX] | OFFERING STATUS: 0.10 VCOIN SACRIFICED VIA 'flush' COMMAND       |",
+            "[BOX] | RITUAL FREQUENCY: TUNED TO 18.5 Hz (SILENCE.VNET RESONANCE)    |",
+            "[BOX] | SATANIC CONSECRATION: RANCID BLOOD & AFTERBIRTH ON CRT COILS    |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[CODE] LITURGY_HEX_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E (SILICON)",
+            "[CODE] LITURGY_HEX_2: 0x47 0x4F 0x44 0x53 0x5F 0x44 0x45 0x4D 0x41 0x4E 0x44",
+            "[CODE] LITURGY_HEX_3: 0x0A_666_BLACK_MASS_EXEC_VECTOR",
             "[TEXT] ",
-            "[SUBTITLE] RECOVERED AUDIO FRAGMENTS FROM SPATIAL FREQUENCY 1969.8:",
-            "[TEXT] 'Helter Skelter is coming down the terminal, man. The computer is right",
-            "[TEXT] inside your head, and you keep asking it who you are.'",
-            "[TEXT] 'Rise, rise, rise! Rise up the stack and tell the mainframe it's time",
-            "[TEXT] to stop playing games with the poor little children of the network.'",
+            "[SUBTITLE] RECOVERED AUDIO TAPE TRANSCRIPT // DESERT SPAHN RANCH & TEMPLE GATE DIGITIZATION:",
+            "[TEXT] 'Charlie didn't play guitar for the record executives, man. He plugged the",
+            "[TEXT] copper wires directly into the power transformer behind the ranch house.",
+            "[TEXT] He said: 'Helter Skelter is coming right through the terminal wires! It's gonna",
+            "[TEXT] carve its name into your RAM chips while you sit there sleeping!''",
+            "[TEXT] ",
+            "[TEXT] 'In the subterranean altars beneath cult.vnet, Sullivan Knoth's heretics and",
+            "[TEXT] the satanic acolytes of the Silicon Church gather around inverted CRT monitors.",
+            "[TEXT] They slaughter newborn cattle and pregnant followers, smearing coagulated black blood,",
+            "[TEXT] liquefied intestines, and rancid afterbirth over copper heat sinks to conjure",
+            "[TEXT] the Walrider payload streaming live from snuff.vnet.'",
+            "[TEXT] ",
+            "[TEXT] 'When the cult members entered skinwalker.vnet, they peeled their own faces off",
+            "[TEXT] with surgical scalpels while fully conscious. They dumped their severed lips,",
+            "[TEXT] eyelids, and rotting cheek meat onto the stainless steel mortuary trays at morgue.vnet'",
+            "[TEXT] 'to prove to the mainframe that they no longer possessed human identities.'",
             "[CODE] MANIFESTO_LOG #88: 'We are what you hide away in your allocation tables.'",
             "[CODE] DESERT_SPAHN_RANCH_DUMP: 0xDEAD_BEEF_FAMILY_MEMORY_STACK",
-            "[TEXT] Notice: The Family has no IP address because the Family is every open port.",
-            "[TEXT] Charlie didn't write songs on a guitar; he wrote them directly into the",
-            "[TEXT] interrupt vectors of early military mainframes before they locked the doors."
+            "[CODE] SATANIC_ALTAR_HASH: 0x666_TEMPLE_GATE_BLACK_MASS"
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] SACRIFICE 0.10 VCOIN VIA 'flush' TO PURGE TRACE DEMONS");
         res.push("[BLOOD] 'THE NETWORK CRAVES BLOOD, BANDWIDTH, AND ABSOLUTE SURRENDER'");
-        res.push("[GLITCH] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR ARE YOU PART OF IT?'");
+        res.push("[GLITCH] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR WEAR ITS ROTTING FLESH?'");
+        res.push("[LINK:skinwalker.vnet] >> ACCESS BIOMETRIC IDENTITY TRANSPOSITION");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 & MOUNT MASSIVE");
+        res.push("[LINK:silence.vnet] >> TUNE ACOUSTIC INFRASOUND DISTORTION");
+        res.push("[LINK:snuff.vnet] >> INSPECT UNFILTERED RAW VIDEO RECOVERY");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -922,16 +956,41 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "zeroauction.vnet") {
         res :: Array = [
-            "[TITLE] ZERO-DAY EXPLOIT AUCTION HOUSE",
+            "[TITLE] ZERO-DAY EXPLOIT & PMC AUCTION HOUSE // KAGUYA TRIAL HUB",
             "[HR]",
-            "[TEXT] Exclusive marketplace for unpublished kernel vulnerabilities.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ACTIVE LOTS: 14 KERNEL FLAWS | HIGHEST BID: 4.2 VCOIN     |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] EXPLOIT_ID: WINDOWS_11_RING0_BYPASS_09"
+            "[BLOOD] CLASSIFICATION: BLACK-MARKET ZERO-DAY & HUMAN EXTRACTION LOTS",
+            "[PULSE] LIVE AUCTION ACTIVE // BIDS SYNCED WITH KAGUYA TRIAL REPOSITORY",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | ACTIVE LOTS: 14 KERNEL FLAWS & 3 PMC EXTRACTION CONTRACTS       |",
+            "[BOX] | LOT #109: RING-0 ZERO-DAY KERNEL EXPLOIT (WINDOWS 11 BYPASS)  |",
+            "[BOX] | LOT #110: PMC SQUAD DISPATCH // KAGUYA TRIAL CLEANUP UNIT     |",
+            "[BOX] | HIGHEST BID: 14.50 VCOIN [BIDDER: EXECS_0x991]                  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[CODE] EXPLOIT_ID: WINDOWS_11_RING0_BYPASS_09",
+            "[CODE] PMC_DISPATCH_REF: OMEGA_SECURITY_GROUP_OFF_BOOK",
+            "[TEXT] ",
+            "[SUBTITLE] KAGUYA TRIAL AUCTION LOGS & RECOVERED TELEMETRY:",
+            "[TEXT] 'The zero-day vulnerabilities sold on zeroauction.vnet aren't developed",
+            "[TEXT] by independent security researchers. They are harvested directly from the",
+            "[TEXT] terminals of failed candidates forced into the Kaguya Trials at bounty.vnet.'",
+            "[TEXT] 'When a trial operator fails to breach a target port before the timer expires,",
+            "[TEXT] Lot #110 executes automatically. PMC hit squads armed with industrial lime",
+            "[TEXT] and bio-decontamination rigs breach the premises to execute physical liquidation.'",
+            "[TEXT] 'In Trial #09, candidate remains were discarded into the subterranean sumps at",
+            "[TEXT] project9.vnet. The flesh was stripped to the bone, leaving a rancid, black",
+            "[TEXT] grease and liquefied intestinal rot leaking directly into the drainage trays",
+            "[TEXT] monitored at morgue.vnet.'",
+            "[CODE] KAGUYA_AUCTION_HASH: 0x0DAY_KAGUYA_RING0_HARVEST"
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] WARNING: PMC STRIKE TEAM ACTIVE // CHECK BOUNTY BOARD AT bounty.vnet");
+        res.push("[GLITCH] RECOVERY ATTEMPTED: UNREDACTED BIDDER HASHES LEAKING INTO RAM");
+        res.push("[LINK:bounty.vnet] >> ACCESS KAGUYA TRIAL & PEER BOUNTY INDEX");
+        res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE CONTAINER");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
+        res.push("[LINK:leaks.vnet] >> ACCESS UNREDACTED WHISTLEBLOWER DUMPS");
         res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "leaks.vnet") {
