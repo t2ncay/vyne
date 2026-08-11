@@ -107,4 +107,18 @@ Value native_draw_canvas_scaled(std::vector<Value>& args) {
     return Value(std::vector<Value>{ Value((double)scale), Value((double)offsetX), Value((double)offsetY) });
 }
 
+Value native_draw_scanlines(std::vector<Value>& args) {
+    float spacing = (args.size() > 0) ? (float)args[0].asFloat() : 8.0f;
+    Color color = (args.size() > 1) ? GetColor((uint32_t)args[1].asInt()) : Color{ 0, 0, 0, 100 };
+
+    int screenWidth = GetScreenWidth();
+    int screenHeight = GetScreenHeight();
+
+    for (float y = 0; y < (float)screenHeight; y += spacing) {
+        DrawLine(0, (int)y, screenWidth, (int)y, color);
+    }
+
+    return Value();
+}
+
 } // namespace VGLibNative

@@ -2329,10 +2329,7 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "ALL SUBNET CONNECTIONS PERMANENTLY LOCKED", 340 + jitter_x, 420 + jitter_y, 14, COLOR_GHOST);
         }
 
-        through sy :: 0..99 -> loop {
-            line_y :: Float64 = float64(sy * 8);
-            vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
-        };
+        vglib.draw_scanlines(8.0, vglib.rgba(0, 0, 0, 90));
 
         vglib.rect(0, 765, 1280, 35, COLOR_PANEL);
         vglib.line(0, 765, 1280, 765, COLOR_BORDER);
