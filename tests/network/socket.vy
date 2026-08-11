@@ -355,7 +355,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | SENSOR 1: AMBIENT TEMP 2.1 C (SEVERE ANOMALOUS FROST SPIKE)     |",
             "[BOX] | SENSOR 2: OPTICAL COATED FILM: RANCID BIOLOGICAL COAGULATION    |",
-            "[BOX] | SENSOR 3: AUDIO TRANSDUCER: 92 dB FREQUENCY PULSE (18.5 Hz)    |",
+            "[BOX] | SENSOR 3: AUDIO TRANSDUCER: 92 dB FREQUENCY PULSE (18.5 Hz)     |",
             "[BOX] | SENSOR 4: MOTION VECTOR: OCCUPANT STANDING DIRECTLY BEHIND DOOR |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] LOG #0412: Motion sensor tripped at 03:14:02. No physical entry logged.",
