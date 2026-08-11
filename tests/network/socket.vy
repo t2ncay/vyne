@@ -12,7 +12,7 @@ my_port     :: Int64  = int64(vmath.random(8001, 8999));
 server_ip   :: String = "127.0.0.1";
 server_port :: Int64  = 8000;
 
-vglib.init(1280, 800, 60, "VYNE SHADOWOS v9.0 - CYBERWARFARE & DEEP HORROR ENGINE", 0);
+vglib.init(1280, 800, 60, "VYNE SHADOWOS v9.5 - CYBERWARFARE ENGINE", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 client_sock = vnet.udp_socket(my_port);
@@ -94,6 +94,7 @@ cli_logs         :: Array   = [
     "[SYS_INIT]: VNET SOCKET BOUND TO PORT " + string(my_port),
     "[SYS_INIT]: MOUNTED KERNEL SUBSYSTEM (PID: " + string(vcore.pid) + ")",
     "PRESS [TAB] TO TOGGLE OVERLAY TERMINAL ANYTIME",
+    "TYPE 'patch' TO REBIND NEW PORT SOCKET (0.70 BTC | 120s CD)",
     "TYPE 'sniffer' TO INTERCEPT GLOBAL UDP PACKET TRAFFIC",
     "TYPE 'freq' TO TUNER RF SIGNAL ANALYZER",
     "TYPE 'honeypot <url>' TO SET AN AMBUSH TRAP (0.10 BTC)",
@@ -128,12 +129,13 @@ packet_decay_cd  :: Float64 = 0.0;
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
 
-# EXPLOIT COMMAND COOLDOWNS
+# EXPLOIT & UTILITY COMMAND COOLDOWNS
 cd_dos           :: Float64 = 0.0;
 cd_redirect      :: Float64 = 0.0;
 cd_spike         :: Float64 = 0.0;
 cd_snoop         :: Float64 = 0.0;
 cd_mine          :: Float64 = 0.0;
+cd_patch         :: Float64 = 0.0; # 120s REBIND COOLDOWN
 
 scroll_y         :: Float64 = 0.0;
 cli_scroll_y     :: Float64 = 0.0;
@@ -524,6 +526,18 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + args);
         }
     }
+    else if (cmd == "patch") {
+        if (cd_patch > 0.0) {
+            cli_logs.push("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
+        } else if (btc_balance < 0.70) {
+            cli_logs.push("[ERROR]: INSUFFICIENT BTC BALANCE (REQUIRES 0.70 BTC)");
+        } else {
+            btc_balance = btc_balance - 0.70;
+            cd_patch = 120.0; # 2 MINUTES COOLDOWN
+            vnet.send_to(client_sock, server_ip, server_port, "PATCH:REBIND");
+            cli_logs.push("[SECURITY]: REQUESTING EMERGENCY PORT REBIND FROM GATEWAY...");
+        }
+    }
     else if (cmd == "sniffer") {
         sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
         status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
@@ -650,6 +664,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  BTC BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " BTC");
         cli_logs.push("  TRACE THREAT : " + string(trace_level) + "%");
         cli_logs.push("  ICE SHIELDS  : [" + string(ice_charges) + "/3] LAYERS ACTIVE");
+        cli_logs.push("  PATCH COOLDOWN: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"));
         cli_logs.push("==================================================");
     }
     else if (cmd == "scan") {
@@ -663,11 +678,9 @@ fn dispatch_cli_command(raw_input :: String) {
         if (args == "") { cli_logs.push("[ERROR]: Usage: cat <vfs_path>"); }
         else { vnet.send_to(client_sock, server_ip, server_port, "CAT:" + args); }
     }
-    else if (cmd == "patch") {
-        vnet.send_to(client_sock, server_ip, server_port, "PATCH:SEC_OVERRIDE");
-    }
     else if (cmd == "help") {
         cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
+        cli_logs.push("  patch                   - [0.70 BTC | 120s CD] Emergency rebind new socket port");
         cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
         cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
         cli_logs.push("  honeypot <url>          - [0.10 BTC] Deploy ambush trap on URL");
@@ -728,6 +741,7 @@ while (vglib.running()) {
         if (cd_spike > 0.0)    { cd_spike = cd_spike - 0.016; }
         if (cd_snoop > 0.0)    { cd_snoop = cd_snoop - 0.016; }
         if (cd_mine > 0.0)     { cd_mine = cd_mine - 0.016; }
+        if (cd_patch > 0.0)    { cd_patch = cd_patch - 0.016; } # DECREMENT 120s PATCH CD
 
         if (is_connecting == 1) {
             connection_timer = connection_timer + 0.016;
@@ -848,6 +862,20 @@ while (vglib.running()) {
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
         }
+        else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "PATCH_SUCCESS:") {
+            new_assigned_port :: Int64 = int64(net_msg.substr(14, net_msg.length() - 14));
+            
+            # Close old socket & open new socket on new port
+            vnet.close(client_sock);
+            my_port = new_assigned_port;
+            client_sock = vnet.udp_socket(my_port);
+            
+            glitch_trigger = 0.8;
+            cli_logs.push("[SECURITY]: PORT REBOUND SUCCESSFUL! NEW ACTIVE PORT: " + string(my_port));
+            
+            # Send initial handshake from new port
+            vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+        }
         else if (net_msg.length() > 17 && net_msg.substr(0, 17) == "HONEYPOT_TRIPPED:") {
             cli_logs.push("[AMBUSH ALERT]: " + net_msg.substr(17, net_msg.length() - 17));
             glitch_trigger = 0.6;
@@ -859,7 +887,6 @@ while (vglib.running()) {
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "FEED_EVENT:") {
             feed_text :: String = net_msg.substr(11, net_msg.length() - 11);
             
-            # SNIFFER INTERCEPT FILTER
             if (feed_text.substr(0, 8) == "[SNIFF]:") {
                 if (sniffer_mode == 1) {
                     cli_logs.push(feed_text);
@@ -938,7 +965,7 @@ while (vglib.running()) {
 
         vglib.rect(0 + jitter_x, 0 + jitter_y, 1280, 60, COLOR_PANEL);
         vglib.line(0, 60, 1280, 60, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "SHADOWNET v9.0", 15 + jitter_x, 22, 14, COLOR_BLOOD);
+        vglib.text_ex(vcr_font, "SHADOWNET v9.5", 15 + jitter_x, 22, 14, COLOR_BLOOD);
 
         vglib.rect(120 + jitter_x, 12 + jitter_y, 800, 36, COLOR_URLBAR);
         vglib.line(120 + jitter_x, 12 + jitter_y, 920 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
@@ -966,7 +993,6 @@ while (vglib.running()) {
         vglib.line(945, 172, 1245, 172, COLOR_BORDER);
         vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
         
-        # INTERACTIVE RF SIGNAL ANALYZER WAVEFORM
         through rx :: 0..28 -> loop {
             wave_y :: Float64 = 215.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * (10.0 + float64(recent_packets * 4));
             vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
@@ -974,7 +1000,7 @@ while (vglib.running()) {
 
         vglib.line(945, 235, 1245, 235, COLOR_BORDER);
         vglib.text_ex(vcr_font, "ICE SHIELD: [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 248, 11, COLOR_TOXIC);
-        vglib.text_ex(vcr_font, "SNIFFER STATUS: " + ((sniffer_mode == 1) ? "ACTIVE [ON]" : "MUTED [OFF]"), 945 + jitter_x, 268, 10, (sniffer_mode == 1) ? COLOR_TOXIC : COLOR_AMBER);
+        vglib.text_ex(vcr_font, "PATCH REBIND: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 268, 10, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
         vglib.line(945, 285, 1245, 285, COLOR_BORDER);
 
         vglib.rect(945 + jitter_x, 292, 300, 440, COLOR_BLACK);
@@ -993,6 +1019,7 @@ while (vglib.running()) {
                 if (f_txt.substr(0, 12) == "[DOS ATTACK]") { f_col = COLOR_BLOOD; }
                 if (f_txt.substr(0, 12) == "[ICE LOCKOUT]") { f_col = COLOR_BLOOD; }
                 if (f_txt.substr(0, 12) == "[BGP HIJACK]") { f_col = COLOR_TOXIC; }
+                if (f_txt.substr(0, 18) == "[SOCKET MIGRATION]") { f_col = COLOR_TOXIC; }
                 if (f_txt.substr(0, 13) == "[WHALE ALERT]") { f_col = COLOR_TOXIC; }
                 if (f_txt.substr(0, 10) == "[HONEYPOT]") { f_col = COLOR_AMBER; }
                 if (f_txt.length() > 6 && f_txt.substr(0, 6) == "[CHAT]") { f_col = COLOR_TOXIC; }
@@ -1106,6 +1133,7 @@ while (vglib.running()) {
                     if (txt.substr(0, 2) == "> ")       { col = COLOR_TOXIC; }
                     if (txt.substr(0, 8) == "[NET_IN]") { col = COLOR_AMBER; }
                     if (txt.substr(0, 8) == "[SNIFF]:") { col = COLOR_CYAN; }
+                    if (txt.substr(0, 10) == "[SECURITY]") { col = COLOR_TOXIC; }
                     if (txt.substr(0, 13) == "[ICE_DEFENSE]") { col = COLOR_TOXIC; }
                     if (txt.substr(0, 7) == "[ERROR]" || txt.substr(0, 5) == "[ERR]" || txt.substr(0, 16) == "[CRITICAL_ALERT]") { col = COLOR_BLOOD; }
 

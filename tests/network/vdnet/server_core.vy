@@ -305,11 +305,40 @@ while (true) {
                 }
             }
 
+            # --- DYNAMIC PORT MIGRATION MECHANIC ---
             if (cmd == "PATCH") {
-                firewall_open = 1;
-                current_salt  = current_salt + 7;
-                vnet.send_to(server_sock, sender_ip, sender_port, "SYS_STATUS:FIREWALL_PATCHED_SALT_UPDATED");
-                broadcast_feed_event("[DEFENSE PATCH]: NODE " + string(sender_port) + " RELOCKED GATEWAY FIREWALL");
+                if (payload == "REBIND") {
+                    new_port :: Int64 = int64(vmath.random(8001, 8999));
+                    
+                    # Ensure port uniqueness
+                    through check_p :: active_ports -> loop {
+                        if (int64(check_p) == new_port) {
+                            new_port = new_port + 1;
+                        }
+                    };
+
+                    # Locate existing session index
+                    p_idx :: Int64 = -1;
+                    through i :: 0..(active_ports.length() - 1) -> loop {
+                        if (int64(active_ports[i]) == sender_port) { p_idx = i; break; }
+                    };
+
+                    if (p_idx >= 0) {
+                        # Notify client of new port assignment
+                        vnet.send_to(server_sock, sender_ip, sender_port, "PATCH_SUCCESS:" + string(new_port));
+                        broadcast_feed_event("[SOCKET MIGRATION]: NODE " + string(sender_port) + " CLOSED EXPOSED PORT & REBOUND TO NEW SUBNET");
+                        
+                        # Migrate registry data to new port
+                        active_ports[p_idx] = new_port;
+                    } else {
+                        vnet.send_to(server_sock, sender_ip, sender_port, "PATCH_SUCCESS:" + string(new_port));
+                    }
+                } else {
+                    firewall_open = 1;
+                    current_salt  = current_salt + 7;
+                    vnet.send_to(server_sock, sender_ip, sender_port, "SYS_STATUS:FIREWALL_PATCHED_SALT_UPDATED");
+                    broadcast_feed_event("[DEFENSE PATCH]: NODE " + string(sender_port) + " RELOCKED GATEWAY FIREWALL");
+                }
             }
 
             if (cmd == "WIN") {
