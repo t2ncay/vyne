@@ -113,6 +113,11 @@ out("  KEY 7 (" + string(k7) + ") -> " + string(global_key_locations[6]));
 out("  KEY 8 (" + string(k8) + ") -> " + string(global_key_locations[7]));
 out("==================================================");
 
+# PROXY ROUTE STORAGE
+proxy_chains_source :: Array = [];
+proxy_chains_proxy  :: Array = [];
+proxy_chains_target :: Array = [];
+
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
@@ -236,6 +241,18 @@ fn send_key_sync_payload(ip :: String, port :: Int64) {
 }
 
 fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
+    # Check if attacker is safely behind a proxy chain
+    through p_idx :: 0..(proxy_chains_source.length() - 1) -> loop {
+        if (int64(proxy_chains_source[p_idx]) == attacker_port) {
+            if (string(proxy_chains_target[p_idx]) == target) {
+                # Proxy intercepts the trap instead of the player!
+                proxy_node_name :: String = string(proxy_chains_proxy[p_idx]);
+                broadcast_feed_event("[PROXY SHIELD]: PROXY NODE " + proxy_node_name + " ABSORBED AMBUSH FOR PORT_" + string(attacker_port));
+                return null;
+            }
+        }
+    };
+
     h_idx :: Int64 = -1;
     through h :: 0..(decoy_targets.length() - 1) -> loop {
         if (string(decoy_targets[h]) == target) { h_idx = h; break; }
@@ -407,6 +424,25 @@ while (true) {
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
                     broadcast_feed_event("[DECOY DUST]: NODE PORT_" + string(sender_port) + " WASTED 0.25 VCOIN DOS ON PHANTOM BOT PORT_" + string(target_node) + "!");
+                }
+            }
+
+            if (cmd == "PROXY") {
+                sep_p :: Int64 = -1;
+                through i :: 0..(payload.length() - 1) -> loop {
+                    if (payload[i] == ":") { sep_p = i; break; }
+                };
+                
+                if (sep_p > 0) {
+                    proxy_node  :: String = payload.substr(0, sep_p);
+                    target_url  :: String = payload.substr(sep_p + 1, payload.length() - sep_p - 1);
+                    
+                    proxy_chains_source.push(sender_port);
+                    proxy_chains_proxy.push(proxy_node);
+                    proxy_chains_target.push(target_url);
+                    
+                    vnet.send_to(server_sock, sender_ip, sender_port, "PROXY_SET:ROUTING_VIA_" + proxy_node + "_TO_" + target_url);
+                    broadcast_feed_event("[SPY ROUTE]: PORT_" + string(sender_port) + " ENCRYPTED CHAIN THROUGH " + proxy_node + " TO " + target_url);
                 }
             }
 

@@ -15,6 +15,10 @@ server_port :: Int64  = 8000;
 vglib.init(1280, 800, 60, "VYNE SHADOWOS v9.5 - CYBERWARFARE ENGINE", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
+# image loads
+img_redroom = vglib.load_texture("tests/assets/redroom.png");
+img_void    = vglib.load_texture("tests/assets/void.jpeg");
+
 client_sock = vnet.udp_socket(my_port);
 
 # ====================================================================
@@ -389,6 +393,7 @@ fn load_page(url :: String) -> Array {
             "[TITLE] STREAM NODE ALPHA [RESTRICTED ACCESS LEVEL 5]",
             "[HR]",
             "[BLOOD] HIGH SECURITY ALERT: TRANSMISSION MONITORED BY HOSTILE TRACER.",
+            "[IMG:redroom]",
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | SIGNAL STATUS: ENCRYPTED | STREAM HASH: EXFILTRATED     |",
             "[BOX] | BITRATE: 14.2 Mbps | ACTIVE WATCHERS: 13 PEERS          |",
@@ -785,6 +790,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Uninterrupted raw sensory transmission from unknown terminals.",
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | FREQUENCY: 432 Hz | BANDWIDTH: UNLIMITED               |",
+            "[IMG:void]",
             "[BOX] +---------------------------------------------------------+",
             "[CODE] NEURAL_PACKET: 0xFEED_9999_STREAM"
         ];
@@ -1177,6 +1183,18 @@ fn dispatch_cli_command(raw_input :: String) {
             trigger_route_navigation(args);
         }
     }
+    else if (cmd == "proxy") {
+        sub_parsed = parse_input(args);
+        target_u = sub_parsed[0];
+        via_node = sub_parsed[1]; # format: proxy target.vnet market.vnet
+        if (target_u == "" || via_node == "") {
+            cli_logs.push("[ERROR]: Usage: proxy <target_url> <proxy_node_url>");
+        } else {
+            vnet.send_to(client_sock, server_ip, server_port, "PROXY:" + via_node + ":" + target_u);
+            trigger_route_navigation(target_u);
+            cli_logs.push("[PROXY]: ESTABLISHING MASKED CIRCUIT VIA " + via_node + "...");
+        }
+    }
     else if (cmd == "patch") {
         if (cd_patch > 0.0) {
             cli_logs.push("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
@@ -1237,8 +1255,16 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("[ICE STATUS]: ACTIVE FIREWALL SHIELDS: [" + string(ice_charges) + "/3]");
     }
     else if (cmd == "netscan") {
-        cli_logs.push("[NETSCAN]: Scanning active peers on " + current_url + "...");
-        vnet.send_to(client_sock, server_ip, server_port, "NETSCAN:" + current_url);
+        if (current_url == "hellroom.vnet") {
+            cli_logs.push("[HELLROOM_CURSE]: SCANNERS ARE BLIND BEFORE THE HORDE. YOUR PACKETS BELONG TO THE FLAMES NOW.");
+            glitch_trigger = 0.9;
+        } else if (current_url == "shadow.dir") {
+            cli_logs.push("[ROOT_ANOMALY]: SCANNING THE MAIN DIRECTORY YIELDS NO NETWORK PEERS...");
+            glitch_trigger = 1.2;
+        } else {
+            cli_logs.push("[NETSCAN]: Scanning active peers on " + current_url + "...");
+            vnet.send_to(client_sock, server_ip, server_port, "NETSCAN:" + current_url);
+        }
     }
     else if (cmd == "dos") {
         if (args == "") {
@@ -1367,7 +1393,9 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
         cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
         cli_logs.push("  netscan                 - Discover active peers on current URL");
+        cli_logs.push("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
         cli_logs.push("  history                 - Display all known assigned routing nodes");
+        cli_logs.push("  proxy <url> <node>      - Route connection through intermediate proxy node");
         cli_logs.push("  bounty                  - Quick jump to target bounty board");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
         cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
@@ -1961,6 +1989,33 @@ while (vglib.running()) {
                                 trigger_route_navigation(target_url);
                             }
                         }
+                    } 
+                    else if (line_str.length() > 5 && line_str.substr(0, 5) == "[IMG:") {
+                        # Extract asset tag key inside [IMG:key]
+                        img_key :: String = line_str.substr(5, line_str.length() - 6);
+
+                        img_x :: Float64 = 40.0 + jitter_x;
+                        img_y :: Float64 = y_pos;
+                        img_w :: Float64 = 420.0;
+                        img_h :: Float64 = 220.0;
+
+                        if (img_y >= 70.0 && img_y <= 710.0) {
+                            if (img_key == "redroom") {
+                                vglib.draw_texture(img_redroom, img_x, img_y, img_w, img_h);
+                                
+                                vglib.line(img_x, img_y, img_x + img_w, img_y, COLOR_BLOOD);
+                                vglib.line(img_x, img_y + img_h, img_x + img_w, img_y + img_h, COLOR_BLOOD);
+                            }
+
+                            if (img_key == "void") {
+                                vglib.draw_texture(img_void, img_x, img_y, img_w, img_h);
+                                
+                                vglib.line(img_x, img_y, img_x + img_w, img_y, COLOR_BLOOD);
+                                vglib.line(img_x, img_y + img_h, img_x + img_w, img_y + img_h, COLOR_BLOOD);
+                            }
+                        }
+
+                        line_idx = line_idx + 7;
                     }
                 }
             };
