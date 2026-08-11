@@ -1752,7 +1752,15 @@ while (vglib.running()) {
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
+    # ================================================================
+    # SERVER IP CONNECTION MENU (OPERATION COLD SIGNAL GATEWAY)
+    # ================================================================
+    # ================================================================
+    # SERVER IP CONNECTION MENU (OPERATION COLD SIGNAL GATEWAY - ENHANCED)
+    # ================================================================
     if (is_in_ip_menu == 1) {
+        run_time = run_time + 0.016;
+        
         m_pos   = vglib.mouse_pos();
         mx :: Float64 = float64(m_pos[0]);
         my :: Float64 = float64(m_pos[1]);
@@ -1761,7 +1769,7 @@ while (vglib.running()) {
         mouse_was_down   = m_down;
 
         if (m_click == 1) {
-            ip_box_focused = (mx >= 440.0 && mx <= 840.0 && my >= 380.0 && my <= 420.0) ? 1 : 0;
+            ip_box_focused = (mx >= 440.0 && mx <= 840.0 && my >= 430.0 && my <= 470.0) ? 1 : 0;
         }
 
         ch = vglib.get_char();
@@ -1776,45 +1784,156 @@ while (vglib.running()) {
             ip_input_buffer = ip_input_buffer.substr(0, ip_input_buffer.length() - 1);
         }
 
-        connect_btn_hover = (mx >= 540.0 && mx <= 740.0 && my >= 460.0 && my <= 500.0) ? 1 : 0;
+        connect_btn_hover = (mx >= 510.0 && mx <= 770.0 && my >= 510.0 && my <= 550.0) ? 1 : 0;
         if (vglib.key_pressed(vglib.ENTER) || (connect_btn_hover == 1 && m_click == 1)) {
             if (ip_input_buffer.length() > 0) {
                 server_ip = ip_input_buffer;
             }
             is_in_ip_menu = 0;
             
-            # Send initial GET request using the already bound client_sock
             current_url = "shadow.dir";
             page_body   = load_page(current_url);
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
 
+        pulse_alpha :: Float64 = vmath.sin(run_time * 6.0) * 0.5 + 0.5;
+        pulse_col   = (pulse_alpha > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
         vglib.begin();
         vglib.clear(COLOR_BLACK);
 
-        vglib.rect(340, 220, 600, 380, COLOR_PANEL);
-        vglib.line(340, 220, 940, 220, COLOR_BORDER);
-        vglib.line(940, 220, 940, 600, COLOR_BORDER);
-        vglib.line(940, 600, 340, 600, COLOR_BORDER);
-        vglib.line(340, 600, 340, 220, COLOR_BORDER);
+        # ============================================================
+        # ANIMATED BACKGROUND: WAVE GRADIENT & FLOATING VECTOR NODES
+        # ============================================================
+        # Dynamic shifting background gradient strips
+        through bg_i :: 0..19 -> loop {
+            strip_y :: Float64 = float64(bg_i * 40);
+            wave_col_val :: Int64 = int64(vmath.sin(run_time * 2.0 + float64(bg_i) * 0.3) * 20.0 + 25.0);
+            vglib.rect(0, strip_y, 1280, 40, vglib.rgba(wave_col_val, 2, 8, 255));
+        };
 
-        vglib.text_ex(vcr_font, "VYNE SHADOWOS - UPLINK GATEWAY", 465, 260, 14, COLOR_BLOOD);
-        vglib.text_ex(vcr_font, "ENTER HOST / SERVER IP ADDRESS:", 495, 340, 11, COLOR_CYAN);
+        # Floating P2P Nodes and Interconnecting Laser Grid Lines
+        through n_i :: 0..7 -> loop {
+            node_x :: Float64 = vmath.fmod(float64(n_i * 160) + run_time * 30.0, 1380.0) - 50.0;
+            node_y :: Float64 = 100.0 + vmath.sin(run_time * 1.5 + float64(n_i)) * 60.0;
+            node_y2 :: Float64 = 650.0 + vmath.cos(run_time * 1.8 + float64(n_i)) * 50.0;
 
-        vglib.rect(440, 380, 400, 40, COLOR_BLACK);
-        vglib.line(440, 380, 840, 380, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        vglib.line(840, 380, 840, 420, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        vglib.line(840, 420, 440, 420, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        vglib.line(440, 420, 440, 380, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        vglib.text_ex(vcr_font, ip_input_buffer, 455, 393, 12, COLOR_TOXIC);
+            # Draw laser grid link vectors across nodes
+            if (n_i < 7) {
+                next_x :: Float64 = vmath.fmod(float64((n_i + 1) * 160) + run_time * 30.0, 1380.0) - 50.0;
+                next_y :: Float64 = 100.0 + vmath.sin(run_time * 1.5 + float64(n_i + 1)) * 60.0;
+                vglib.line(node_x, node_y, next_x, next_y, vglib.rgba(140, 20, 40, 90));
+            }
 
-        vglib.rect(540, 460, 200, 40, connect_btn_hover == 1 ? COLOR_BLOOD : COLOR_CLI_BG);
-        vglib.line(540, 460, 740, 460, COLOR_BLOOD);
-        vglib.line(740, 460, 740, 500, COLOR_BLOOD);
-        vglib.line(740, 500, 540, 500, COLOR_BLOOD);
-        vglib.line(540, 500, 540, 460, COLOR_BLOOD);
-        vglib.text_ex(vcr_font, "CONNECT UPLINK", 575, 474, 11, connect_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+            vglib.rect(node_x, node_y, 6, 6, COLOR_BLOOD);
+            vglib.rect(node_x + 10.0, node_y2, 4, 4, COLOR_TOXIC);
+        };
 
+        # Occasional glitch jitter offsets for the chassis box
+        jitter_x :: Float64 = (pulse_alpha > 0.85) ? (vmath.sin(run_time * 40.0) * 4.0) : 0.0;
+        jitter_y :: Float64 = (pulse_alpha > 0.85) ? (vmath.cos(run_time * 35.0) * 3.0) : 0.0;
+
+        # ============================================================
+        # CENTRAL TERMINAL CHASSIS
+        # ============================================================
+        box_x :: Float64 = 240.0 + jitter_x;
+        box_y :: Float64 = 140.0 + jitter_y;
+
+        vglib.rect(box_x, box_y, 800, 520, COLOR_PANEL);
+        vglib.line(box_x, box_y, box_x + 800.0, box_y, COLOR_BLOOD);
+        vglib.line(box_x + 800.0, box_y, box_x + 800.0, box_y + 520.0, COLOR_BLOOD);
+        vglib.line(box_x + 800.0, box_y + 520.0, box_x, box_y + 520.0, COLOR_BLOOD);
+        vglib.line(box_x, box_y + 520.0, box_x, box_y, COLOR_BLOOD);
+
+        # ============================================================
+        # DYNAMICALLY CENTERED TEXT RENDERING
+        # ============================================================
+        
+        # 1. Title Header
+        h1_str :: String = "VYNE SHADOWOS v9.5 // OPERATION COLD SIGNAL";
+        h1_sz  :: Array  = vglib.measure_text(vcr_font, h1_str, 14.0);
+        h1_x   :: Float64 = 640.0 - (float64(h1_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, h1_str, h1_x, box_y + 25.0, 14, COLOR_BLOOD);
+
+        # 2. Sub-header Port Status
+        h2_str :: String = "SUBTERRANEAN RELAY UPLINK TERMINAL [PORT: " + string(my_port) + "]";
+        h2_sz  :: Array  = vglib.measure_text(vcr_font, h2_str, 11.0);
+        h2_x   :: Float64 = 640.0 - (float64(h2_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, h2_str, h2_x, box_y + 50.0, 11, COLOR_CYAN);
+
+        vglib.line(box_x + 20.0, box_y + 70.0, box_x + 780.0, box_y + 70.0, COLOR_BORDER);
+
+        # Lore Teaser / Context Log Box
+        vglib.rect(box_x + 20.0, box_y + 80.0, 760, 180, COLOR_BLACK);
+        vglib.line(box_x + 20.0, box_y + 80.0, box_x + 780.0, box_y + 80.0, COLOR_BORDER);
+        vglib.line(box_x + 780.0, box_y + 80.0, box_x + 780.0, box_y + 260.0, COLOR_BORDER);
+        vglib.line(box_x + 780.0, box_y + 260.0, box_x + 20.0, box_y + 260.0, COLOR_BORDER);
+        vglib.line(box_x + 20.0, box_y + 260.0, box_x + 20.0, box_y + 80.0, COLOR_BORDER);
+
+        # Centered Classification Notice
+        class_str :: String = "[CLASSIFIED TOP SECRET] ANKARA SECTOR 09 BLACK-SITE RELAY";
+        class_sz  :: Array  = vglib.measure_text(vcr_font, class_str, 10.0);
+        class_x   :: Float64 = 640.0 - (float64(class_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, class_str, class_x, box_y + 95.0, 10, pulse_col);
+
+        # Lore Terminal Log Outputs
+        vglib.text_ex(vcr_font, "> ANALOG ECHO INTERCEPTED FROM signal0.vnet VIA COPPER BUS", box_x + 40.0, box_y + 118.0, 10, COLOR_GHOST);
+        vglib.text_ex(vcr_font, "> SAT-99 ORBITAL OPTICS LOCKED ON LOCAL CRT GLARE COORDINATES", box_x + 40.0, box_y + 141.0, 10, COLOR_GHOST);
+        vglib.text_ex(vcr_font, "> MORPHOGENIC STATIC LEAKING THROUGH VFS MEMORY ALLOCATION STACKS", box_x + 40.0, box_y + 164.0, 10, COLOR_GHOST);
+        vglib.text_ex(vcr_font, "> KAGUYA TRIAL EXPLOIT HOOKS READY. AWAITING UDP HANDSHAKE...", box_x + 40.0, box_y + 187.0, 10, COLOR_TOXIC);
+
+        # Centered Warning Notice
+        warn_str :: String = "WARNING: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS";
+        warn_sz  :: Array  = vglib.measure_text(vcr_font, warn_str, 10.0);
+        warn_x   :: Float64 = 640.0 - (float64(warn_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, warn_str, warn_x, box_y + 220.0, 10, COLOR_BLOOD);
+
+        # 3. IP Prompt Label (Centered)
+        ip_lbl_str :: String = "TARGET GATEWAY HOST / SERVER IP ADDRESS:";
+        ip_lbl_sz  :: Array  = vglib.measure_text(vcr_font, ip_lbl_str, 11.0);
+        ip_lbl_x   :: Float64 = 640.0 - (float64(ip_lbl_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, ip_lbl_str, ip_lbl_x, box_y + 272.0, 11, COLOR_CYAN);
+
+        # Input Box
+        vglib.rect(box_x + 200.0, box_y + 290.0, 400, 40, COLOR_BLACK);
+        vglib.line(box_x + 200.0, box_y + 290.0, box_x + 600.0, box_y + 290.0, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(box_x + 600.0, box_y + 290.0, box_x + 600.0, box_y + 330.0, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(box_x + 600.0, box_y + 330.0, box_x + 200.0, box_y + 330.0, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        vglib.line(box_x + 200.0, box_y + 330.0, box_x + 200.0, box_y + 290.0, ip_box_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        
+        # 4. Centered IP Input Text
+        display_ip_input :: String = ip_input_buffer + ((vmath.fmod(run_time * 2.0, 1.0) > 0.5) ? "_" : "");
+        ip_txt_sz  :: Array  = vglib.measure_text(vcr_font, display_ip_input, 12.0);
+        ip_txt_x   :: Float64 = 640.0 - (float64(ip_txt_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, display_ip_input, ip_txt_x, box_y + 303.0, 12, COLOR_TOXIC);
+
+        # Connect Button
+        btn_x :: Float64 = box_x + 270.0;
+        btn_y :: Float64 = box_y + 370.0;
+        vglib.rect(btn_x, btn_y, 260, 40, connect_btn_hover == 1 ? COLOR_BLOOD : COLOR_CLI_BG);
+        vglib.line(btn_x, btn_y, btn_x + 260.0, btn_y, COLOR_BLOOD);
+        vglib.line(btn_x + 260.0, btn_y, btn_x + 260.0, btn_y + 40.0, COLOR_BLOOD);
+        vglib.line(btn_x + 260.0, btn_y + 40.0, btn_x, btn_y + 40.0, COLOR_BLOOD);
+        vglib.line(btn_x, btn_y + 40.0, btn_x, btn_y, COLOR_BLOOD);
+
+        # 5. Centered Button Label
+        btn_str :: String = "INITIALIZE UPLINK";
+        btn_sz  :: Array  = vglib.measure_text(vcr_font, btn_str, 11.0);
+        btn_lbl_x :: Float64 = 640.0 - (float64(btn_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, btn_str, btn_lbl_x, btn_y + 14.0, 11, connect_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+
+        # 6. Footer Quotes & Instructions (Centered)
+        f1_str :: String = "'THE FAMILY HAS NO IP ADDRESS BECAUSE THE FAMILY IS EVERY OPEN PORT.'";
+        f1_sz  :: Array  = vglib.measure_text(vcr_font, f1_str, 9.0);
+        f1_x   :: Float64 = 640.0 - (float64(f1_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, f1_str, f1_x, box_y + 470.0, 9, COLOR_AMBER);
+
+        f2_str :: String = "PRESS [ENTER] TO ESTABLISH P2P UDP SOCKET HANDSHAKE WITH SERVER";
+        f2_sz  :: Array  = vglib.measure_text(vcr_font, f2_str, 9.0);
+        f2_x   :: Float64 = 640.0 - (float64(f2_sz[0]) / 2.0) + jitter_x;
+        vglib.text_ex(vcr_font, f2_str, f2_x, box_y + 490.0, 9, COLOR_GHOST);
+
+        # Scanline Overlay
         through sy :: 0..99 -> loop {
             line_y :: Float64 = float64(sy * 8);
             vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
@@ -2231,6 +2350,12 @@ while (vglib.running()) {
         jitter_x :: Float64 = (glitch_trigger > 0.0) ? (vmath.sin(run_time * 50.0) * (glitch_trigger * 12.0)) : 0.0;
         jitter_y :: Float64 = (glitch_trigger > 0.0) ? (vmath.cos(run_time * 30.0) * (glitch_trigger * 10.0)) : 0.0;
 
+        through bg_strip :: 0..19 -> loop {
+            s_y :: Float64 = float64(bg_strip * 40);
+            bg_val :: Int64 = int64(vmath.sin(run_time * 1.5 + float64(bg_strip) * 0.2) * 12.0 + 14.0);
+            vglib.rect(0, s_y, 1280, 40, vglib.rgba(bg_val, 3, 7, 255));
+        };
+
         vglib.rect(0 + jitter_x, 0 + jitter_y, 1280, 60, COLOR_PANEL);
         vglib.line(0, 60, 1280, 60, COLOR_BORDER);
         vglib.text_ex(vcr_font, "VNET", 45 + jitter_x, 22, 14, COLOR_BLOOD);
@@ -2247,22 +2372,43 @@ while (vglib.running()) {
         vglib.rect(20 + jitter_x, 80 + jitter_y, 890, 670, COLOR_PANEL);
         vglib.line(20, 80, 910, 80, COLOR_BORDER);
 
+        # ------------------------------------------------------------
+        # 4. SYSTEM THREAT RADAR (RIGHT PANEL)
+        # ------------------------------------------------------------
         vglib.rect(930 + jitter_x, 80 + jitter_y, 330, 670, COLOR_PANEL);
         vglib.line(930, 80, 1260, 80, COLOR_BORDER);
+        vglib.line(1260, 80, 1260, 750, COLOR_BORDER);
+        vglib.line(1260, 750, 930, 750, COLOR_BORDER);
+        vglib.line(930, 750, 930, 80, COLOR_BORDER);
+
         vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 945 + jitter_x, 95, 11, COLOR_AMBER);
         vglib.line(945, 110, 1245, 110, COLOR_BORDER);
 
+        # Trace Level Gauge
         vglib.text_ex(vcr_font, "TRACE LEVEL GAUGE:", 945 + jitter_x, 120, 10, COLOR_CYAN);
         vglib.rect(945 + jitter_x, 136, 300, 14, COLOR_BLACK);
         bar_w :: Float64 = vmath.clamp((float64(trace_level) / 100.0) * 300.0, 4.0, 300.0);
         vglib.rect(945 + jitter_x, 136, bar_w, 14, (trace_level > 70) ? COLOR_BLOOD : COLOR_AMBER);
+
+        # Pulsing Border for High Trace
+        trace_border_col = (trace_level > 70 && pulse_val > 0.5) ? COLOR_BLOOD : COLOR_BORDER;
+        vglib.line(945 + jitter_x, 136, 1245 + jitter_x, 136, trace_border_col);
+        vglib.line(1245 + jitter_x, 136, 1245 + jitter_x, 150, trace_border_col);
+        vglib.line(1245 + jitter_x, 150, 945 + jitter_x, 150, trace_border_col);
+        vglib.line(945 + jitter_x, 150, 945 + jitter_x, 136, trace_border_col);
+
         vglib.text_ex(vcr_font, string(trace_level) + "% TRACED BY PEERS", 945 + jitter_x, 155, 10, COLOR_AMBER);
 
         vglib.line(945, 172, 1245, 172, COLOR_BORDER);
         vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
 
-        wave_amp :: Float64 = vmath.clamp(6.0 + float64(recent_packets * 2), 8.0, 20.0);
+        # RF Tuner Grid Background
+        through grid_line :: 0..2 -> loop {
+            g_y :: Float64 = 198.0 + float64(grid_line * 12);
+            vglib.line(945 + jitter_x, g_y, 1245 + jitter_x, g_y, vglib.rgba(20, 30, 40, 255));
+        };
 
+        wave_amp :: Float64 = vmath.clamp(6.0 + float64(recent_packets * 2), 8.0, 20.0);
         through rx :: 0..28 -> loop {
             wave_y :: Float64 = 209.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
             vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
@@ -2273,8 +2419,8 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "PATCH REBIND: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 268, 10, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
         vglib.line(945, 285, 1245, 285, COLOR_BORDER);
 
+        # Feed Box Window
         vglib.rect(945 + jitter_x, 292, 300, 440, COLOR_BLACK);
-
         feed_cnt = vnet_feed_logs.length();
         feed_start_y :: Float64 = 300.0 - feed_scroll_y;
 
@@ -2298,25 +2444,91 @@ while (vglib.running()) {
                 vglib.text_ex(vcr_font, f_txt_truncated, 950 + jitter_x, line_y, 9, f_col);
             }
         };
-
         if (is_connecting == 1) {
+            # Window Container & Borders
             vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
-            vglib.line(40, 140, 890, 140, COLOR_AMBER);
-            vglib.line(890, 140, 890, 640, COLOR_AMBER);
-            vglib.line(890, 640, 40, 640, COLOR_AMBER);
-            vglib.line(40, 640, 40, 140, COLOR_AMBER);
+            vglib.line(40 + jitter_x, 140 + jitter_y, 890 + jitter_x, 140 + jitter_y, COLOR_AMBER);
+            vglib.line(890 + jitter_x, 140 + jitter_y, 890 + jitter_x, 640 + jitter_y, COLOR_AMBER);
+            vglib.line(890 + jitter_x, 640 + jitter_y, 40 + jitter_x, 640 + jitter_y, COLOR_AMBER);
+            vglib.line(40 + jitter_x, 640 + jitter_y, 40 + jitter_x, 140 + jitter_y, COLOR_AMBER);
+
+            # Corner Aesthetic Reticles
+            vglib.line(35 + jitter_x, 135 + jitter_y, 55 + jitter_x, 135 + jitter_y, COLOR_BLOOD);
+            vglib.line(35 + jitter_x, 135 + jitter_y, 35 + jitter_x, 155 + jitter_y, COLOR_BLOOD);
+            vglib.line(895 + jitter_x, 135 + jitter_y, 875 + jitter_x, 135 + jitter_y, COLOR_BLOOD);
+            vglib.line(895 + jitter_x, 135 + jitter_y, 895 + jitter_x, 155 + jitter_y, COLOR_BLOOD);
 
             rem_s :: Int64 = int64(vmath.ceil(target_connection_time - connection_timer));
-            vglib.text_ex(vcr_font, "[ESTABLISHING TOR PROXY HOPS]", 310 + jitter_x, 240 + jitter_y, 16, COLOR_AMBER);
-            vglib.text_ex(vcr_font, "RESOLVING HANDSHAKE TO: vnet://" + pending_url, 260 + jitter_x, 290 + jitter_y, 13, COLOR_CYAN);
-            vglib.text_ex(vcr_font, "LATENCY BUFFER: " + string(rem_s) + "s REMAINING", 340 + jitter_x, 340 + jitter_y, 12, COLOR_TOXIC);
-            
-            vglib.rect(240 + jitter_x, 390 + jitter_y, 450, 20, COLOR_PANEL);
-            p_ratio :: Float64 = vmath.clamp(connection_timer / target_connection_time, 0.05, 1.0);
-            vglib.rect(240 + jitter_x, 390 + jitter_y, 450.0 * p_ratio, 20, COLOR_TOXIC);
+            p_ratio :: Float64 = vmath.clamp(connection_timer / target_connection_time, 0.02, 1.0);
 
+            # Center X calculations based on the 850px container (40 + 850 / 2 = 465)
+            center_x :: Float64 = 465.0 + jitter_x;
+
+            # 1. Main Header with Pulse Color Shift
+            c1_str :: String = "[ TOR PROXY CIRCUIT HANDSHAKE ACTIVE ]";
+            c1_sz  :: Array  = vglib.measure_text(vcr_font, c1_str, 16.0);
+            c1_x   :: Float64 = center_x - (float64(c1_sz[0]) / 2.0);
+            head_col = (vmath.sin(run_time * 8.0) > 0.0) ? COLOR_AMBER : COLOR_BLOOD;
+            vglib.text_ex(vcr_font, c1_str, c1_x, 200.0 + jitter_y, 16, head_col);
+
+            # 2. Target URL Designation (Centered)
+            c2_str :: String = "RESOLVING DESTINATION: vnet://" + pending_url;
+            c2_sz  :: Array  = vglib.measure_text(vcr_font, c2_str, 13.0);
+            c2_x   :: Float64 = center_x - (float64(c2_sz[0]) / 2.0);
+            vglib.text_ex(vcr_font, c2_str, c2_x, 245.0 + jitter_y, 13, COLOR_CYAN);
+
+            # 3. Dynamic Animated Vector Radar / Crosshair Reticle
+            rot_off :: Float64 = run_time * 4.0;
+            through r_i :: 0..3 -> loop {
+                angle :: Float64 = rot_off + float64(r_i) * 1.5708;
+                rx1 :: Float64 = center_x + vmath.cos(angle) * 35.0;
+                ry1 :: Float64 = 310.0 + jitter_y + vmath.sin(angle) * 20.0;
+                vglib.rect(rx1, ry1, 4, 4, COLOR_BLOOD);
+            };
+
+            # 4. Latency Status Buffer (Centered)
+            c3_str :: String = "LATENCY BUFFER: " + string(rem_s) + "s REMAINING [HOPS: 3/3]";
+            c3_sz  :: Array  = vglib.measure_text(vcr_font, c3_str, 11.0);
+            c3_x   :: Float64 = center_x - (float64(c3_sz[0]) / 2.0);
+            vglib.text_ex(vcr_font, c3_str, c3_x, 355.0 + jitter_y, 11, COLOR_TOXIC);
+            
+            # 5. Glowing Animated Progress Bar Container
+            bar_x :: Float64 = center_x - 250.0; # 500px wide bar
+            bar_y :: Float64 = 385.0 + jitter_y;
+            vglib.rect(bar_x, bar_y, 500, 22, COLOR_PANEL);
+            vglib.line(bar_x, bar_y, bar_x + 500.0, bar_y, COLOR_BORDER);
+            vglib.line(bar_x + 500.0, bar_y, bar_x + 500.0, bar_y + 22.0, COLOR_BORDER);
+            vglib.line(bar_x + 500.0, bar_y + 22.0, bar_x, bar_y + 22.0, COLOR_BORDER);
+            vglib.line(bar_x, bar_y + 22.0, bar_x, bar_y, COLOR_BORDER);
+
+            # Filled Progress Bar with Dynamic Scan Beam
+            fill_w :: Float64 = 500.0 * p_ratio;
+            vglib.rect(bar_x, bar_y, fill_w, 22, COLOR_TOXIC);
+
+            # Leading Edge Pulse Line on Progress Bar
+            if (fill_w > 5.0) {
+                vglib.rect(bar_x + fill_w - 4.0, bar_y, 4, 22, COLOR_BLOOD);
+            }
+
+            # Progress Percentage Text Centered Over Bar
+            pct_str :: String = string(int64(p_ratio * 100.0)) + "%";
+            pct_sz  :: Array  = vglib.measure_text(vcr_font, pct_str, 11.0);
+            pct_x   :: Float64 = center_x - (float64(pct_sz[0]) / 2.0);
+            vglib.text_ex(vcr_font, pct_str, pct_x, bar_y + 4.0, 11, (p_ratio > 0.5) ? COLOR_BLACK : COLOR_CYAN);
+
+            # 6. Animated Hex Memory Stream / Anonymizer Telemetry (Centered)
+            hex_tick :: Int64 = int64(vmath.fmod(run_time * 20.0, 99.0));
+            hex_str :: String = "0x88F9_NODE_HOP_OK // ENCRYPTING PACKET SUBNET SECTOR #" + string(hex_tick);
+            hex_sz  :: Array  = vglib.measure_text(vcr_font, hex_str, 10.0);
+            hex_x   :: Float64 = center_x - (float64(hex_sz[0]) / 2.0);
+            vglib.text_ex(vcr_font, hex_str, hex_x, 435.0 + jitter_y, 10, COLOR_AMBER);
+
+            # 7. Animated Glitching Footer Subtitle (Centered)
             glitch_noise :: Float64 = vmath.sin(run_time * 40.0) * 4.0;
-            vglib.text_ex(vcr_font, "ANONYMIZING IP SUBNET PACKETS...", 310.0 + glitch_noise + jitter_x, 450 + jitter_y, 11, COLOR_GHOST);
+            c4_str :: String = "SPOOFING MAC ADDRESS & MIRRORING PACKETS VIA ARCHIVAL.VNET...";
+            c4_sz  :: Array  = vglib.measure_text(vcr_font, c4_str, 10.0);
+            c4_x   :: Float64 = center_x - (float64(c4_sz[0]) / 2.0) + glitch_noise;
+            vglib.text_ex(vcr_font, c4_str, c4_x, 470.0 + jitter_y, 10, COLOR_GHOST);
         } else if (clean_str(current_url) == active_down_url && active_down_timer > 0.0) {
             vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
             vglib.line(40, 140, 890, 140, COLOR_BLOOD);
