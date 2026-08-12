@@ -477,20 +477,34 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "forum.vnet") {
         res :: Array = [
-            "[TITLE] /B/ - ANONYMOUS UNFILTERED TERMINAL BOARD [NODE #008]",
+            "[TITLE] /b/ - ANONYMOUS UNFILTERED TERMINAL BOARD [NODE #008]",
             "[HR]",
-            "[WARN] UNMODERATED P2P MEMORY BUFFER // PROMISCUOUS PEERS ARE LOGGING SOCKET SIGNATURES",
+            "[BADGE:/b/ BOARD:BLOOD] [BADGE:UNMODERATED SWARM:AMBER] [BADGE:P2P MIRROR:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | ACTIVE THREADS: 14,902 | PEERS IN SWARM: 666                    |",
             "[BOX] | NOTICE: ALL UNENCRYPTED POSTS ARE MIRRORED TO VFS MEMORY STACKS |",
             "[BOX] | WARNING: DO NOT OPEN RAW IMAGE DUMPS WITHOUT ACTIVE ICE SHIELDS  |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
+            "[GAUGE:88:SWARM_UNENCRYPTED_TRAFFIC_ENTROPY]",
+            "[TEXT] ",
+            "[SUBTITLE] [CREATE ANONYMOUS POST / BROADCAST TO SWARM]",
+            "[TEXT] Submit unencrypted text payload to active P2P board buffer:",
+            "[INPUT:forum_reply_msg:ENTER ANONYMOUS POST TEXT]",
+            "[TEXT] ",
+            "[BTN:submit_forum_post:>>> BROADCAST POST TO ALL PROMISCUOUS PEERS <<<]",
+            "[TEXT] ",
+            "[HR]",
             "[SUBTITLE] THREAD #9012: 'Is the deepnet static leaking through your hardware?'",
+            "[CODE] Anonymous 08/12/26(Wed)14:52:10 No.9012901 -- [VERIFIED_HASH: 0x99A1B2C3]",
             "[TEXT] Anon_991: Has anyone gathered all 8 key codes yet? They shuffle every server boot.",
             "[TEXT] ByteRunner: Watch out for port 8012, someone is running automated DOS bots there.",
             "[TEXT] Paranoia_Node: Guys, when I ran 'snoop' on port 8000, my monitor started whining at 18kHz.",
             "[TEXT] Anon_401: Buy ICE shields at market.vnet or you'll get frozen by peer DOS bots.",
+            "[CODE] > Be me",
+            "[CODE] > Run 'netscan' while sitting in hellroom.vnet",
+            "[CODE] > CRT display starts leaking rancid adipocere grease onto floorboards",
+            "[CODE] > Room smells like liquified fat from Subject #409 at morgue.vnet",
             "[TEXT] Flesh_Farmer_0x: 'Selling fresh corneas, kidneys, and bile tubes exfiltrated from'",
             "[TEXT]                  'Subject #409 at morgue.vnet. Still warm, zero cellular decay.'",
             "[TEXT] Rotting_Gpu: 'The surveillance feed at dollhouse.vnet (Room 402) smells like rancid'",
@@ -505,12 +519,25 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
 
         res.push("[SUBTITLE] THREAD #4099: 'SILKROAD 3.0 & UNFILTERED CONTRABAND EXCHANGES'");
+        res.push("[CODE] Anonymous 08/12/26(Wed)14:55:01 No.4099104 -- [VERIFIED_HASH: 0x44B0C11]");
         res.push("[TEXT] Vendor_0x77: 'Bulk opium paste, synthetic neuro-toxins, and unregistered suppressed'");
         res.push("[TEXT]              'AR-9 dead drops live on silkroad.vnet. Escrow held in blackbank.vnet.'");
         res.push("[TEXT] Snuff_Collector: 'Raw frame buffers from snuff.vnet released. Includes unredacted'");
         res.push("[TEXT]                  'surgical saw recordings and acid bath executions from zeroauction.vnet.'");
         res.push("[TEXT] Ex_PMC_Operator: 'Failed candidates in the Kaguya Trials at bounty.vnet aren't sent home.'");
         res.push("[TEXT]                   'Their remains are dumped into subterranean sumps at project9.vnet.'");
+        res.push("[CODE] > >>4099104");
+        res.push("[CODE] > Imagine buying suppressed AR-9s without active ICE firewall shields");
+        res.push("[CODE] > Hostile peer running 'redirect' hijacks your browser to void.vnet instantly lol");
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] THREAD #1337: 'VICTORY GOALS & CYBERWARFARE MECHANICS'");
+        res.push("[CODE] Anonymous 08/12/26(Wed)14:58:33 No.1337009 -- [VERIFIED_HASH: 0x88F9A22]");
+        res.push("[TEXT] NetStalker_99: 'There are 3 main win conditions on this network:'");
+        res.push("[TEXT]                '1. Root Breach: Exfiltrate all 8 keys and submit them at terminal.vnet'");
+        res.push("[TEXT]                '2. Grid Blackout: Overload 5 mutual core nodes'");
+        res.push("[TEXT]                '3. Economic Control: Mine 25.0 VCOIN and takeover'");
+        res.push("[TEXT] ICE_Vendor_0x: 'If hostiles lock your port with trace spikes, rebind a new socket.'");
+        res.push("[TEXT]                'Or type 'flush' in CLI [TAB] to purge trace threat levels by -30%.'");
         res.push("[TEXT] ");
         res.push("[BLOOD] Ghost_User: 'I found a key code buried in the network memory dumps. Don't tell the trace units.'");
         res.push("[GLITCH] User_666: 'IF YOU READ THIS COMMAND, THEY ALREADY HAVE YOUR IP AND RAM HASH.'");
@@ -632,28 +659,70 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "terminal.vnet") {
         res :: Array = [
-            "[TITLE] MASTER DECRYPTION GATEWAY TERMINAL",
+            "[TITLE] MASTER DECRYPTION GATEWAY TERMINAL // CORE NODE #003",
             "[HR]",
-            "[PULSE] ROOT VAULT LOCKDOWN ACTIVE. 8 CRYPTOGRAPHIC SLOTS REQUIRE AUTHORIZATION.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SLOT 01: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 02: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 03: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 04: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 05: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 06: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 07: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] | SLOT 08: [████] (STATUS: ENCRYPTED HASH VECTOR)         |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BADGE:CORE NODE #003:BLOOD] [BADGE:CRYPTO GATEWAY:TOXIC]",
+            "[ART:vnet]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SYSTEM ROLE: MASTER VFS ROOT DECRYPTION & COMMAND GATEWAY      |",
+            "[BOX] | SECURITY LAYER: 8-FACTOR QUANTUM HASH SHIELD (VFS VAULT CORE) |",
+            "[BOX] | ACCESS PROTOCOL: PARALLEL SLOT VERIFICATION VIA CLI HANDSHAKE   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:100:VFS_ROOT_GATEWAY_LOCKDOWN]",
+            "[TEXT] ",
+            "[SUBTITLE] CRYPTOGRAPHIC SLOT ALLOCATION MATRIX:",
+            "[BADGE:VFS ROOT OVERRIDE:AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SLOT 01: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_1 REQ)    |",
+            "[BOX] | SLOT 02: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_2 REQ)    |",
+            "[BOX] | SLOT 03: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_3 REQ)    |",
+            "[BOX] | SLOT 04: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_4 REQ)    |",
+            "[BOX] | SLOT 05: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_5 REQ)    |",
+            "[BOX] | SLOT 06: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_6 REQ)    |",
+            "[BOX] | SLOT 07: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_7 REQ)    |",
+            "[BOX] | SLOT 08: [████] (STATUS: ENCRYPTED HASH VECTOR // KEY_8 REQ)    |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] DIRECT VFS ROOT DECRYPTION PAYLOAD INJECTION:",
+            "[TEXT] Enter all 8 exfiltrated key codes below or execute 'win <k1>..<k8>' in CLI [TAB]:",
+            "[INPUT:terminal_key_payload:ENTER 8 KEYS SEPARATED BY SPACES]",
+            "[TEXT] ",
+            "[BTN:execute_root_override:>>> EXECUTE MASTER VFS ROOT BREACH & OVERRIDE <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] GATEWAY VERIFICATION TELEMETRY & KERNEL STATUS:",
             "[TEXT] Gateway verification checks active socket signatures against root keys.",
             "[TEXT] Scour assigned darknet nodes, forums, and memory dumps to locate fragments.",
             "[CODE] ROOT_ACCESS_VECTOR: SECURED BY 8-FACTOR HASH SHIELD",
-            "[CODE] KERNEL_INTEGRITY: 100%"
+            "[CODE] KERNEL_INTEGRITY: 100% // ALL SLOTS LOCKED UNTIL FULL SEQUENCE INJECTED",
+            "[CODE] LAST_BREACH_ATTEMPT: HOSTILE_PORT_EXFILTRATED_0x88F9",
+            "[TEXT] ",
+            "[SUBTITLE] SYSTEM CORRUPTION LOGS & CEREBRAL GATEWAY INTERCEPTS:",
+            "[TEXT] 'The Terminal Gate isn't checking passwords or PIN numbers.'",
+            "[TEXT] 'It's measuring the synaptic resistance of the raw memory dumps stored at vault.vnet.'",
+            "[TEXT] 'If an operator attempts to force the key array using mismatched hashes,'",
+            "[TEXT] 'a high-voltage trace spike (+35% threat) is reflected directly back into their socket.'",
+            "[TEXT] 'Whistleblowers who attempted to breach terminal.vnet without active ICE shields'",
+            "[TEXT] 'had their brain stems fried instantly. Their physical remains were hauled away'",
+            "[TEXT] 'to morgue.vnet for bio-harvesting and organ lot listing on market.vnet.'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] SYS_STATUS: WAITING FOR ALL 8 KEYS TO BREACH VFS ROOT VAULT...");
-        res.push("[TEXT] Instruction: Type 'win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>' in CLI [TAB]");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+
+        res.push("[BLOOD] OVERLOAD TACTIC: Executing 'overload terminal.vnet' in CLI [TAB] locks this core node.");
+        res.push("[PULSE] OVERLOADING ALL 5 CORE NODES (market, vault, terminal, crypto, hellroom)");
+        res.push("[GLITCH] WILL COLLAPSE THE VNET BACKBONE INTO A TOTAL GRID BLACKOUT WIN!");
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] ALTERNATIVE VICTORY PATHWAYS:");
+        res.push("[TEXT] - Economic Takeover: Mine 25.0 VCOIN and execute 'takeover' in CLI [TAB].");
+        res.push("[TEXT] - Grid Blackout: Coordinate with peers to overload all 5 mutual core nodes.");
+        res.push("[HR]");
+        res.push("[LINK:vault.vnet] >> ACCESS CORRUPTED VFS DATA VAULT");
+        res.push("[LINK:archival.vnet] >> CROSS-CHECK SECTOR 09 MILITARY DUMPS");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & CORTEX STACKS");
+        res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS");
+        res.push("[LINK:shadow.dir] << CLOSE GATEWAY & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1221,24 +1290,32 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] PROJECT HORUS // THE ALL-SEEING EYE [GLOBAL SURVEILLANCE MESH]",
             "[HR]",
-            "[BLOOD] [CLASSIFIED LEVEL 5] OMNIPRESENT BIOMETRIC OPTIC ARRAY ACTIVE",
+            "[BADGE:LEVEL 5 CLEARANCE:BLOOD] [BADGE:OMNIPRESENT OPTIC:AMBER] [BADGE:SAT-99 LINK:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | INDEXED FACES: 4.2 BILLION | MATCH RATE: 99.4%                 |",
+            "[BOX] | INDEXED FACES: 4.2 BILLION | MATCH RATE: 99.4% RELIABILITY      |",
             "[BOX] | FEED SOURCE: PANOPTICON SAT-99 & METRO CCTV BACKDOOR MESH       |",
             "[BOX] | TARGET RESOLUTION: SUB-MILLIMETER OPTICAL RETINAL SCANS         |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
+            "[GAUGE:99:GLOBAL_RETINAL_SURVEILLANCE_COVERAGE]",
+            "[TEXT] ",
             "[BLOOD]   .--------------------------------------------------------.",
             "[BLOOD]  |                  .---.                                   |",
             "[BLOOD] |                 .'     '.                                  |",
-            "[BLOOD] |                /   .---. \                                 |",
-            "[BLOOD] |               |   /  _  \ |                                |",
+            "[BLOOD] |                /   .---. \\                                 |",
+            "[BLOOD] |               |   /  _  \\ |                                |",
             "[BLOOD] |               |  |  (o)  ||   <-- WATCHING YOU THROUGH     |",
-            "[BLOOD] |               |   \  ^  / |       MONITOR GLASS            |",
-            "[BLOOD] |                \   '---' /                                 |",
+            "[BLOOD] |               |   \\  ^  / |       MONITOR GLASS            |",
+            "[BLOOD] |                \\   '---' /                                 |",
             "[BLOOD] |                 '.     .'                                  |",
             "[BLOOD]  |                  '---'                                   |",
             "[BLOOD]   '--------------------------------------------------------'",
+            "[TEXT] ",
+            "[SUBTITLE] DIRECT OCULAR OVERRIDE & RETINAL LOCK SYSTEM:",
+            "[TEXT] Enter target operator socket signature or alias to engage live ocular lock:",
+            "[INPUT:horus_target_socket:ENTER TARGET SOCKET / PORT (e.g. 8012)]",
+            "[TEXT] ",
+            "[BTN:horus_ocular_lock_btn:>>> ENGAGE KINETIC RETINAL LOCK VIA SAT-99 <<<]",
             "[TEXT] ",
             "[SUBTITLE] RECOVERED OPTICAL TELEMETRY & CROSS-NETWORK INTERCEPTS:",
             "[TEXT] 'Project Horus isn't just indexing street cameras. The lens array'",
@@ -1251,6 +1328,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] 'yet the ocular sensor in this database shows his eye is still blinking.'",
             "[CODE] HORUS_INDEX_REF: 0xE4E4_OCULAR_LOCK_ACTIVE",
             "[CODE] BIOMETRIC_MATCH_REF: TARGET_OPERATOR_SEATED_AT_TERMINAL",
+            "[CODE] DIPLOMATIC_SPOOF_DETECTION: PASSPORTS.VNET BIOMETRIC MASK CHECKED",
             "[TEXT] "
         ];
 
@@ -1262,6 +1340,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON SAT-99 TELEMETRY");
         res.push("[LINK:cctv_core.vnet] >> ACCESS METROPOLITAN CCTV BACKDOOR NODE");
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
+        res.push("[LINK:passports.vnet] >> SPOOF BIOMETRIC MASK AT IDENTITY VAULT");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
         res.push("[LINK:shadow.dir] << CLOSE EYE & RETURN TO DIRECTORY");
         res.push("[HR]");
@@ -1575,16 +1654,76 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "passports.vnet") {
         res :: Array = [
-            "[TITLE] FORGED IDENTITY & PASSPORT VAULT",
+            "[TITLE] FORGED IDENTITY & PASSPORT VAULT // SHADOW BLACK MARKET",
             "[HR]",
-            "[TEXT] Complete diplomatic and civilian identity fabrication services.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | CREDENTIALS: BIOMETRICALLY MATCHED | DELIVERY: GLOBAL   |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] ID_VAULT_REF: 0xID_FORGE_881"
+            "[BADGE:FORGED CREDENTIALS:BLOOD] [BADGE:BIOMETRIC SPOOF:AMBER] [BADGE:DIPLOMATIC CLEARANCE:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY: SUBTERRANEAN FABRICATION LAB #09 (UNKNOWN SECTOR)     |",
+            "[BOX] | SERVICE: DIPLOMATIC, AGENT & CIVILIAN IDENTITY TRANSPOSITION    |",
+            "[BOX] | VERIFICATION: BIOMETRICALLY MATCHED TO RETINAL SCANS & DNA BUS  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:96:BIOMETRIC_IDENTITY_SYNTHESIS]",
+            "[TEXT] ",
+            "[SUBTITLE] DIPLOMATIC & BLACK-OPS FIELD AGENT DOSSIERS:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | AGENT ALIAS   : TRACER // OPERATION COLD SIGNAL LEAD            |",
+            "[BOX] | REAL NAME     : [CLASSIFIED / EXFILTRATED FROM LEAKS.VNET]      |",
+            "[BOX] | PASSPORT NO   : TR-990812-X4                                    |",
+            "[BOX] | NATIONALITY   : DIPLOMATIC immunity (ANON SUBNET JURISDICTION)  |",
+            "[BOX] | BIOMETRIC HASH: 0xTRACER_99_RETINAL_LOCK                        |",
+            "[BOX] | STATUS        : ACTIVE HUNT / PACKET INJECTION PROTOCOL         |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | AGENT ALIAS   : GHOST_USER // ORIGINAL VFS VAULT ADMIN          |",
+            "[BOX] | PASSPORT NO   : UN-000000-NULL                                  |",
+            "[BOX] | NATIONALITY   : STATELESS / NON-EXISTENT HUMAN PROFILE          |",
+            "[BOX] | BIOMETRIC HASH: 0xDEAD_BEEF_GHOST_CORTEX                        |",
+            "[BOX] | STATUS        : SEVERED CONSCIOUSNESS / LOCKED IN SECTOR 09     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | AGENT ALIAS   : VENDOR_0x77 // BLACK MARKET ARMS & TISSUE DEALER|",
+            "[BOX] | PASSPORT NO   : CY-881902-B1                                    |",
+            "[BOX] | NATIONALITY   : OFFSHORE CAYMAN DIPLOMATIC PASSPORT             |",
+            "[BOX] | BIOMETRIC HASH: 0x77A_MARKET_ESCROW_MASTER                      |",
+            "[BOX] | STATUS        : OPERATIONAL / LAUNDERING VIA BLACKBANK.VNET     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] CUSTOM FABRICATION REQUEST & BIOMETRIC SPOOFING:",
+            "[TEXT] Enter desired agent moniker and biometric hash to forge identity credentials:",
+            "[INPUT:passport_alias:ENTER AGENT ALIAS (e.g. TRACER_SUB_01)]",
+            "[INPUT:passport_hash:ENTER BIOMETRIC HASH VECTOR]",
+            "[TEXT] ",
+            "[BTN:forge_passport_btn:>>> FORGE DIPLOMATIC PASSPORT (0.45 VCOIN) <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] EXFILTRATED FABRICATION LOGS & DECOMPOSITION METADATA:",
+            "[TEXT] 'The passports generated in this vault are not simple paper documents.'",
+            "[TEXT] 'They contain bio-synthetic chips embedded with real optic nerve tissue'",
+            "[TEXT] 'harvested from fallen PMC operators and whistleblowers at morgue.vnet.'",
+            "[TEXT] 'When border scanning units or Project Horus optics at eye.vnet sweep your face,'",
+            "[TEXT] 'the bio-chip emits the biometric thermal signature of Agent TRACER or Ghost_User,'",
+            "[TEXT] 'completely masking your true physical socket signature.'",
+            "[TEXT] 'A yellow, rancid film of adipocere and synthetic blood coats the printing press'",
+            "[TEXT] 'as high-voltage passport laminators burn the forgery into the substrate.'",
+            "[CODE] ID_VAULT_REF: 0xID_FORGE_881_TRACER_VERIFIED",
+            "[CODE] BIOMETRIC_MASK_STATUS: ACTIVE_SPOOFING_ENGAGED",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+
+        res.push("[BLOOD] [WARNING]: UNREGISTERED DIPLOMATIC PASSPORTS WILL TRIGGER PROJECT HORUS.");
+        res.push("[PULSE] 'YOU CAN WEAR ANY PASSPORT YOU WANT, BUT YOUR RETINA BELONGS TO SITE 9.'");
+        res.push("[GLITCH] 'AGENT TRACER IS NOT HUNTING YOUR IP. AGENT TRACER IS YOUR IP.'");
+        res.push("[HR]");
+        res.push("[LINK:blackbank.vnet] >> LAUNDER PASSPORT FEES VIA OFFSHORE VAULT");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND & TISSUE MATRIX");
+        res.push("[LINK:eye.vnet] >> TEST PASSPORT AGAINST PROJECT HORUS OPTICAL ARRAY");
+        res.push("[LINK:morgue.vnet] >> INSPECT HARVESTED OPTIC NERVE STACKS");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "blackbank.vnet") {
