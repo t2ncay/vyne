@@ -1708,6 +1708,19 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL THERMAL & PEER TELEMETRY SWEEP...");
         }
     }
+    else if (cmd == "probe") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: probe <target_port>");
+        } else if (btc_balance < 0.10) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.10 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 0.20;
+            cd_probe = 10.0;
+            vnet.send_to(client_sock, server_ip, server_port, "PROBE:" + args);
+            glitch_trigger = 0.3;
+            cli_logs.push("[PROBE]: TRANSMITTING HARDWARE RECON PULSE TO PORT " + args + "...");
+        }
+    }
     else if (cmd == "proxy") {
         sub_parsed = parse_input(args);
         target_u = sub_parsed[0];
@@ -1966,6 +1979,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy node");
         cli_logs.push("  bounty                  - Quick jump to target bounty board");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
+        cli_logs.push("  probe <port>            - [0.20 VCOIN |  NO CD] Probe target node defenses & state");
         cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
         cli_logs.push("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
         cli_logs.push("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
