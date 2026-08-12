@@ -1711,8 +1711,8 @@ fn dispatch_cli_command(raw_input :: String) {
     else if (cmd == "probe") {
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: probe <target_port>");
-        } else if (btc_balance < 0.10) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.10 VCOIN)");
+        } else if (btc_balance < 0.20) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.20;
             cd_probe = 10.0;
