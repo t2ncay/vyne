@@ -161,6 +161,7 @@ cd_patch         :: Float64 = 0.0;
 cd_decoy         :: Float64 = 0.0;
 cd_scan          :: Float64 = 0.0;
 cd_proxy         :: Float64 = 0.0;
+cd_satscan       :: Float64 = 0.0;
 
 # CHATROOM & INTERACTIVE HANDLE STATE
 player_handle     :: String = "sh4d0w" + string(vmath.random(100, 999));
@@ -1692,6 +1693,21 @@ fn dispatch_cli_command(raw_input :: String) {
             trigger_route_navigation(args);
         }
     }
+    else if (cmd == "satscan") {
+        if (current_url != "watchtower.vnet") {
+            cli_logs.push("[ERROR]: PANOPTICON SATELLITE ARRAY ONLY ACCESSIBLE FROM 'watchtower.vnet'");
+        } else if (cd_satscan > 0.0) {
+            cli_logs.push("[ERROR]: SAT-99 OPTICS RECHARGING (" + string(int64(cd_satscan) + 1) + "s REMAINING)");
+        } else if (btc_balance < 0.55) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR SATSCAN (REQUIRES 0.55 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 0.55;
+            cd_satscan = 60.0;
+            vnet.send_to(client_sock, server_ip, server_port, "SATSCAN:REQ");
+            glitch_trigger = 0.6;
+            cli_logs.push("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL THERMAL & PEER TELEMETRY SWEEP...");
+        }
+    }
     else if (cmd == "proxy") {
         sub_parsed = parse_input(args);
         target_u = sub_parsed[0];
@@ -1936,6 +1952,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
         cli_logs.push("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
         cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
+        cli_logs.push("  satscan                 - [0.55 VCOIN | 60s CD] Sweep network thermal radar (watchtower.vnet ONLY)");
         cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
         cli_logs.push("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
         cli_logs.push("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
@@ -2203,6 +2220,7 @@ while (vglib.running()) {
         if (cd_decoy > 0.0)    { cd_decoy = cd_decoy - 0.016; }
         if (cd_proxy > 0.0)    { cd_proxy = cd_proxy - 0.016; }
         if (cd_overload > 0.0) { cd_overload = cd_overload - 0.016; }
+        if (cd_satscan > 0.0)  { cd_satscan = cd_satscan - 0.016; }
         if (active_down_timer > 0.0) {
             active_down_timer = active_down_timer - 0.016;
             if (active_down_timer <= 0.0) {
