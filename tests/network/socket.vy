@@ -301,29 +301,60 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "market.vnet") {
         res :: Array = [
-            "[TITLE] THE RED MARKET - BLACK MARKET & HARDWARE EXCHANGE",
+            "[TITLE] THE RED MARKET - BLACK MARKET & HARDWARE EXCHANGE // NODE #001",
             "[HR]",
-            "[GLITCH] [WARN]: YOUR PUBLIC UDP PORT IS BROADCAST TO ACTIVE SWARM PEERS",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | DEFENSE MODULE #01: ACTIVE ICE FIREWALL SHIELD             |",
-            "[BOX] | DETAILS: Auto-absorbs 1 inbound DOS, Hijack or Spike.    |",
-            "[BOX] | PRICE: 0.30 VCOIN | CAP: 3 LAYERS | CURRENT: [" + string(ice_charges) + "/3]           |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BADGE:CORE NODE #001:BLOOD] [BADGE:SWARM PEER BROADCAST:AMBER] [BADGE:ICE VENDOR:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NODE ID: RED_MARKET_0x77A | NETWORK PROTOCOL: UNENCRYPTED P2P  |",
+            "[BOX] | SYSTEM ROLE: CORE BACKBONE #01 (OVERLOAD TARGET FOR BLACKOUT)  |",
+            "[BOX] | ESCROW STATE: MULTI-SIG SMART CONTRACTS (LAUNDERED VIA BLACKBANK)|",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:78:SWARM_UDP_CONGESTION_ENTROPY]",
+            "[TEXT] ",
+            "[ART:vmarket]",
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE DEFENSE & COUNTER-EXPLOIT MODULES:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | DEFENSE MODULE #01: ACTIVE ICE FIREWALL SHIELD                  |",
+            "[BOX] | DETAILS: Auto-absorbs 1 inbound DOS, Hijack, or Trace Spike.    |",
+            "[BOX] | PRICE: 0.30 VCOIN | CAP: 3 LAYERS | CURRENT: [" + string(ice_charges) + "/3]            |",
+            "[BOX] +-----------------------------------------------------------------+",
             "[LINK:buy_ice] [>>> CLICK HERE TO PURCHASE ICE SHIELD (0.30 VCOIN) <<<]",
             "[TEXT] ",
-            "[SUBTITLE] CLASSIFIED COMMERCIAL DIRECTORY & ARMS LISTINGS:",
-            "[TEXT] Node #88: Military-grade proxy nodes leased by rogue syndicates.",
-            "[TEXT] Node #89: Un traceably laundered cryptocurrency tumbler tokens.",
-            "[TEXT] Vendor 0x77A: 'We sell what corporations pretend does not exist.'",
-            "[TEXT] Notice: All escrow funds are locked in decentralized multi-sig smart contracts.",
+            "[SUBTITLE] CLASSIFIED ARMS, BIOMETRIC & CONTRABAND LOTS:",
             "[CODE] LOT #881: MILITARY FIRMWARE DUMP - KEY_FRAGMENT_EXFILTRATED",
-            "[CODE] LOT #882: SECTOR 4 BIOMETRIC SCANS - 1,400 SUBJECT RECORDS",
-            "[CODE] LOT #883: SYNTHETIC NEURAL INJECTION SUITE [0.99 VCOIN]"
+            "[CODE] LOT #882: SECTOR 4 BIOMETRIC SCANS - 1,400 SUBJECT RECORDS [0.45 VCOIN]",
+            "[CODE] LOT #883: SYNTHETIC NEURAL INJECTION SUITE // CORTEX HOOK [0.99 VCOIN]",
+            "[CODE] LOT #884: FRESH CORNEAL & VISCERAL DUMPS (FROM MORGUE.VNET) [0.80 VCOIN]",
+            "[TEXT] ",
+            "[SUBTITLE] DARKNET VENDOR LOGS & DECOMPOSITION TELEMETRY:",
+            "[TEXT] Vendor_0x77A: 'We sell what corporations pretend does not exist.'",
+            "[TEXT] 'The hardware racks on market.vnet aren't cooled by liquid nitrogen.'",
+            "[TEXT] 'They are submerged in baths of rancid mineral oil mixed with human fat'",
+            "[TEXT] 'and bile extracted from subject morgue trays at morgue.vnet.'",
+            "[TEXT] 'High-voltage transaction loops are cooking the organic matter into a yellow,'",
+            "[TEXT] 'boiling sludge that crusts over the copper heat sinks.'",
+            "[TEXT] 'Do not idle on market.vnet. Your public UDP port signature is broadcast'",
+            "[TEXT] 'to hostile swarm peers, triggering automated trace spikes (+2% trace/3s).'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] LIVE AUCTION: EXFILTRATED CITIZEN DOSSIERS [CURRENT BID: 0.25 VCOIN]");
-        res.push("[BLOOD] LEAKED SELLER LOG: 'Do not stay on market.vnet. Trace spikes execute automatically.'");
-        res.push("[LINK:vault.vnet] >> JUMP TO CORRUPTED DATA VAULT");
+
+        res.push("[SUBTITLE] DIRECT ESCROW PURCHASE & HARDWARE DISPATCH:");
+        res.push("[TEXT] Enter listing code and target delivery port to initiate multi-sig escrow:");
+        res.push("[INPUT:market_lot_code:ENTER LOT CODE (e.g. LOT_881)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:buy_lot_btn:>>> EXECUTE ESCROW PURCHASE & DEPLOY <<<]");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] OVERLOAD TACTIC: Executing 'overload market.vnet' in CLI [TAB] locks this core node.");
+        res.push("[PULSE] OVERLOADING ALL 5 CORE NODES (market, vault, terminal, crypto, hellroom)");
+        res.push("[GLITCH] WILL COLLAPSE THE VNET BACKBONE INTO A TOTAL GRID BLACKOUT WIN!");
+        res.push("[HR]");
+        res.push("[LINK:blackbank.vnet] >> ACCESS OFFSHORE VCOIN LAUNDERING VAULTS");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND MATRIX");
+        res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS (CORE NODE #004)");
         res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
@@ -391,21 +422,54 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "vault.vnet") {
         res :: Array = [
-            "[TITLE] CORRUPTED DATA VAULT /VFS/MEMORY/STACK",
+            "[TITLE] SECTOR 09 CORRUPTED DATA VAULT // /VFS/MEMORY/STACK",
             "[HR]",
-            "[TEXT] Recovered memory dump from decommissioned gateway server #09.",
-            "[TEXT] Sector allocation tables indicate severe sector-wide bit rot.",
-            "[CODE] 00000000: 4F 70 65 6E 53 53 4C 20 4B 65 79 20 44 75 6D 70",
-            "[CODE] 00000020: 53 59 53 5F 45 52 52 4F 52 3A 20 4E 4F 44 5F",
-            "[CODE] 00000040: 88 9A BC EF 11 22 33 44 55 66 77 88 99 AA BB CC",
-            "[TEXT] Warning: Accessing unallocated memory buffers triggers local trace spikes.",
-            "[TEXT] Sector checksum mismatch detected across all 4 mount points."
+            "[BADGE:CORE NODE #002:BLOOD] [BADGE:VFS ROOT MEMORY:AMBER] [BADGE:BIT-ROT 94%:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | MOUNT POINT: /vfs/sys/vault_root | SECTOR: SUB-LEVEL 4 B3-WEST  |",
+            "[BOX] | STORAGE TYPE: BIOLOGICAL NYLON BUS (SEVERED CORTEX STACK)       |",
+            "[BOX] | INTEGRITY: CRITICAL BIT ROT | RECOVERY STATE: OVERRIDE REQUIRED |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:94:SECTOR_BIT_ROT_ENTROPY]",
+            "[TEXT] ",
+            "[ART:skull]",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED CEREBRAL MEMORY DUMP (SUBJECT #409-B / T. VANCE):",
+            "[CODE] 00000000: 4F 70 65 6E 53 53 4C 20 4B 65 79 20 44 75 6D 70 20 [VANCE]",
+            "[CODE] 00000020: 53 59 53 5F 45 52 52 4F 52 3A 20 4E 4F 44 45 5F 30 39 [BLACKOUT]",
+            "[CODE] 00000040: 88 9A BC EF 11 22 33 44 55 66 77 88 99 AA BB CC [CORRUPT]",
+            "[TEXT] ",
+            "[SUBTITLE] FORENSIC HARDWARE & DECOMPOSITION LOGS:",
+            "[TEXT] 'The storage drives in this vault aren't magnetic silicon disks.'",
+            "[TEXT] 'They are preserved spinal cords and optic nerve fibers extracted from'",
+            "[TEXT] 'whistleblowers at morgue.vnet, submerged in jars of conductive formaldehyde.'",
+            "[TEXT] 'A yellow, rancid film of adipocere, human grease, and oxidized copper'",
+            "[TEXT] 'is boiling over the server racks as high-power hashing loops burn through'",
+            "[TEXT] 'the nerve tissue. Accessing unallocated sectors triggers instant trace spikes.'",
+            "[TEXT] 'Ghost_User's original admin credentials are still burned into sector 0x88F9.'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] MEMORY CORRUPTION SPREADING AT OFFSET 0x88F9_STACK_OVERFLOW");
-        res.push("[BLOOD] RECOVERED SYSTEM NOTE: 'The master gateway at terminal.vnet requires all 8 key codes.'");
-        res.push("[LINK:terminal.vnet] >> GO TO MASTER DECRYPTION GATEWAY");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+
+        res.push("[SUBTITLE] VFS ROOT GATEWAY DECRYPTION & OVERRIDE MATRIX:");
+        res.push("[TEXT] This vault houses the master allocation index for all 8 cryptographic keys.");
+        res.push("[TEXT] To verify key integrity or execute an emergency VFS memory flush, enter");
+        res.push("[TEXT] the 4-digit supervisor clearance PIN exfiltrated from archival.vnet:");
+        res.push("[INPUT:vault_pin:ENTER 4-DIGIT SUPERVISOR PIN]");
+        res.push("[TEXT] ");
+        res.push("[BTN:override_vault:>>> EXECUTE VFS MEMORY STACK OVERRIDE <<<]");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] OVERLOAD TACTIC: Executing 'overload vault.vnet' in CLI [TAB] locks this core node.");
+        res.push("[PULSE] OVERLOADING ALL 5 CORE NODES (market, vault, terminal, crypto, hellroom)");
+        res.push("[GLITCH] WILL COLLAPSE THE VNET BACKBONE INTO A TOTAL GRID BLACKOUT WIN!");
+        res.push("[HR]");
+        res.push("[LINK:terminal.vnet] >> ACCESS MASTER DECRYPTION GATEWAY");
+        res.push("[LINK:archival.vnet] >> CROSS-CHECK SECTOR 09 MILITARY DUMPS");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & CORTEX STACKS");
+        res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS");
+        res.push("[LINK:shadow.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -597,6 +661,7 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] DIGITAL AUTOPSY DATABASE // SUBJECT #409-B (EXECUTIVE LEVEL)",
             "[HR]",
+            "[ART:skull]",
             "[BLOOD] SUBJECT STATUS: FLATLINE (0 BPM) // CEREBRAL STEM ACTIVITY: 98% RECURSIVE",
             "[PULSE] CLASSIFICATION: EYES ONLY // HIGH-TIER GLOBAL CONSPIRACY DOSSIER",
             "[BOX] +---------------------------------------------------------------------+",
@@ -1021,6 +1086,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] | ESCROW: PGP MULTI-SIG SECURED | VENDOR RATING: 4.98 / 5.0 |",
             "[BOX] | STATUS: LIVE SURVEILLANCE EVASION PROTOCOL ACTIVE         |",
             "[BOX] +-----------------------------------------------------------+",
+            "[ART:drug]",
             "[TEXT] The legendary darknet black market resurrected on decentralized vnet subnets.",
             "[TEXT] LOT #401: Vacuum-sealed pharmaceutical-grade compounds (MDMA, LSD-25,",
             "[TEXT] fentanyl analogs, pure Peruvian flake). Tested via independent GC-MS labs.",
@@ -1522,16 +1588,59 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "blackbank.vnet") {
         res :: Array = [
-            "[TITLE] THE BLACK BANK - OFFSHORE ACCOUNTS",
+            "[TITLE] THE BLACK BANK // OFFSHORE COLD VAULT & INTELLIGENCE ESCROW",
             "[HR]",
-            "[TEXT] Untraceable offshore banking vault for unallocated digital assets.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ASSETS MANAGED: 420.5 VCOIN | ENCRYPTION: MIL-SPEC        |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] BANK_VAULT_REF: 0xBANK_OFFSHORE_99"
+            "[BLOOD] CLASSIFIED STATE ESCROW // UNTRACEABLE LAUNDERING NODE #009",
+            "[BADGE:OFFSHORE VAULT:BLOOD] [BADGE:STATE APPROVED:AMBER] [BADGE:UNTRACEABLE:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | TOTAL LIQUIDITY: 1,420.85 VCOIN | SYSTEM SLA: 99.999% OPERATIONAL|",
+            "[BOX] | ESCROW PROTOCOL: 8192-BIT SHADOW-WIRE | SWIFT NODE: CAYMAN_0x99 |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:92:OFFSHORE_LAUNDERING_CAPACITY]",
+            "[TEXT] ",
+            "[SUBTITLE] CONFIDENTIAL LEDGER // STATE-SPONSORED & PMC TRANSACTIONS:",
+            "[BOX] +----------+------------+--------+---------------------------------+",
+            "[BOX] | TX_HASH  | AMOUNT      | STATUS | DESTINATION / OPERATION         |",
+            "[BOX] | 0x99A1F  | 120.00 VCOIN| CLEARED| Directorate 7 (PMC Hit Squad)   |",
+            "[BOX] | 0x44B0C  |  15.50 VCOIN| CLEARED| Silkroad Bulk Opium & AR-9 Lot  |",
+            "[BOX] | 0x88F9E  |   4.20 VCOIN| CLEARED| Redroom Sub-Basement Stream Bid |",
+            "[BOX] | 0x1102D  |  85.00 VCOIN| HOLDING| Project Horus Orbital Lock Bribe|",
+            "[BOX] | 0x666F0  |  45.00 VCOIN| CLEARED| Morgue Bio-Harvest Corneal Pay  |",
+            "[BOX] | 0x7710A  | 210.00 VCOIN| CLEARED| Ankara Sector 09 Blackout Cover |",
+            "[BOX] +----------+------------+--------+---------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] EXFILTRATED INTELLIGENCE MEMO (DIRECTORATE 7 DEEP LOG):",
+            "[TEXT] 'Foreign intelligence agents and state actors operating in Sector 09 use'",
+            "[TEXT] 'this bank vault to wire off-book bounty funds directly to Vendor_0x77.'",
+            "[TEXT] 'Every wire transfer leaves a film of grease and dried blood on the server bus.'",
+            "[TEXT] 'Whistleblowers exfiltrated from leaks.vnet have their family bank accounts'",
+            "[TEXT] 'seized and converted into raw crypto to fund redroom execution streams.'",
+            "[TEXT] 'If state trace units detect your IP interacting with this ledger, your local'",
+            "[TEXT] 'terminal will be bricked and your retinal lock dispatched to Project Horus.'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+
+        res.push("[SUBTITLE] WIRE TRANSFER & ASSET EXFILTRATION TERMINAL:");
+        res.push("[TEXT] Enter destination account routing hash and VCOIN wire amount:");
+        res.push("[INPUT:bank_account:ENTER OFFSHORE SWIFT / ROUTING HASH]");
+        res.push("[INPUT:vcoin_amount:ENTER VCOIN AMOUNT (COST 0.50 VCOIN FEE)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:wire_transfer:>>> EXECUTE UNTRACEABLE SHADOW WIRE <<<]");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [ALERT]: VAULT HARDWARE IS SMEARED WITH ADIPOCERE & CORRUPT CRYPTO");
+        res.push("[PULSE] 'THE MONEY IS NOT CLEAN. IT HAS BEEN WASHED IN THE ASHES OF SUBJECT 409.'");
+        res.push("[GLITCH] 'EVERY COIN YOU WITHDRAW DRAGS A TRACER UNIT TO YOUR FRONT DOOR.'");
+        res.push("[HR]");
+        res.push("[LINK:crypto.vnet] >> ACCESS BLACK TUMBLER MINING RIG");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND MATRIX");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
+        res.push("[LINK:shadow.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
 
@@ -2767,6 +2876,163 @@ while (vglib.running()) {
                     else if (line_str == "[HR]") {
                         vglib.line(40, y_pos + 12.0, 890, y_pos + 12.0, COLOR_BORDER);
                     }
+                    # ================================================
+                    # GAUGE / PROGRESS BAR TAG -> [GAUGE:pct:label]
+                    # ================================================
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[GAUGE:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 7..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 7) {
+                            raw_param :: String = line_str.substr(7, close_b - 7);
+                            colon_pos :: Int64 = -1;
+                            through ci :: 0..(raw_param.length() - 1) -> loop {
+                                if (raw_param[ci] == ":") { colon_pos = ci; break; }
+                            };
+
+                            pct_val :: Float64 = 0.0;
+                            g_label :: String = "";
+
+                            if (colon_pos > 0) {
+                                pct_val = float64(int64(raw_param.substr(0, colon_pos)));
+                                g_label = raw_param.substr(colon_pos + 1, raw_param.length() - colon_pos - 1);
+                            } else {
+                                pct_val = float64(int64(raw_param));
+                                g_label = "GAUGE";
+                            }
+
+                            gx :: Float64 = 40.0 + jitter_x;
+                            gy :: Float64 = y_pos;
+                            gw :: Float64 = 340.0;
+                            gh :: Float64 = 18.0;
+
+                            # Gauge Background
+                            vglib.rect(gx, gy, gw, gh, COLOR_BLACK);
+
+                            # Filled Progress Track
+                            fill_w :: Float64 = vmath.clamp((pct_val / 100.0) * gw, 2.0, gw);
+                            bar_col = (pct_val > 70.0) ? COLOR_BLOOD : COLOR_TOXIC;
+                            vglib.rect(gx, gy, fill_w, gh, bar_col);
+
+                            # Outline Border Box
+                            vglib.line(gx, gy, gx + gw, gy, COLOR_BORDER);
+                            vglib.line(gx + gw, gy, gx + gw, gy + gh, COLOR_BORDER);
+                            vglib.line(gx + gw, gy + gh, gx, gy + gh, COLOR_BORDER);
+                            vglib.line(gx, gy + gh, gx, gy, COLOR_BORDER);
+
+                            # Gauge Text Label & Percentage Readout
+                            vglib.text_ex(vcr_font, g_label + " [" + string(int64(pct_val)) + "%]", gx + gw + 15.0, gy + 3.0, 10, COLOR_AMBER);
+                        }
+                    }
+
+                    # ================================================
+                    # BADGE TAG -> [BADGE:TEXT:COLOR]
+                    # ================================================
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[BADGE:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 7..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 7) {
+                            raw_badge :: String = line_str.substr(7, close_b - 7);
+                            colon_p   :: Int64 = -1;
+                            through ci :: 0..(raw_badge.length() - 1) -> loop {
+                                if (raw_badge[ci] == ":") { colon_p = ci; break; }
+                            };
+
+                            badge_txt :: String = (colon_p > 0) ? raw_badge.substr(0, colon_p) : raw_badge;
+                            badge_col_str :: String = (colon_p > 0) ? raw_badge.substr(colon_p + 1, raw_badge.length() - colon_p - 1) : "AMBER";
+
+                            badge_bg = COLOR_AMBER;
+                            if (badge_col_str == "BLOOD") { badge_bg = COLOR_BLOOD; }
+                            if (badge_col_str == "TOXIC") { badge_bg = COLOR_TOXIC; }
+
+                            bdg_sz :: Array   = vglib.measure_text(vcr_font, badge_txt, 10.0);
+                            bdg_w  :: Float64 = float64(bdg_sz[0]) + 16.0;
+
+                            vglib.rect(40.0 + jitter_x, y_pos, bdg_w, 20.0, badge_bg);
+                            vglib.text_ex(vcr_font, badge_txt, 48.0 + jitter_x, y_pos + 4.0, 10, COLOR_BLACK);
+                        }
+                    }
+
+                    # ================================================
+                    # IN-PAGE INPUT BOX -> [INPUT:id:placeholder]
+                    # ================================================
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[INPUT:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 7..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 7) {
+                            raw_inp :: String = line_str.substr(7, close_b - 7);
+                            colon_p :: Int64 = -1;
+                            through ci :: 0..(raw_inp.length() - 1) -> loop {
+                                if (raw_inp[ci] == ":") { colon_p = ci; break; }
+                            };
+
+                            inp_ph :: String = (colon_p > 0) ? raw_inp.substr(colon_p + 1, raw_inp.length() - colon_p - 1) : "ENTER VALUE";
+
+                            ix :: Float64 = 40.0 + jitter_x;
+                            iy :: Float64 = y_pos;
+                            iw :: Float64 = 360.0;
+                            ih :: Float64 = 28.0;
+
+                            vglib.rect(ix, iy, iw, ih, COLOR_BLACK);
+                            vglib.line(ix, iy, ix + iw, iy, COLOR_BORDER);
+                            vglib.line(ix + iw, iy, ix + iw, iy + ih, COLOR_BORDER);
+                            vglib.line(ix + iw, iy + ih, ix, iy + ih, COLOR_BORDER);
+                            vglib.line(ix, iy + ih, ix, iy, COLOR_BORDER);
+
+                            vglib.text_ex(vcr_font, "> " + inp_ph, ix + 10.0, iy + 7.0, 10, COLOR_GHOST);
+                        }
+                    }
+
+                    # ================================================
+                    # IN-PAGE BUTTON -> [BTN:action_id:label]
+                    # ================================================
+                    else if (line_str.length() > 5 && line_str.substr(0, 5) == "[BTN:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 5..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 5) {
+                            raw_btn :: String = line_str.substr(5, close_b - 5);
+                            colon_p :: Int64 = -1;
+                            through ci :: 0..(raw_btn.length() - 1) -> loop {
+                                if (raw_btn[ci] == ":") { colon_p = ci; break; }
+                            };
+
+                            act_id :: String = (colon_p > 0) ? raw_btn.substr(0, colon_p) : "action";
+                            btn_lbl:: String = (colon_p > 0) ? raw_btn.substr(colon_p + 1, raw_btn.length() - colon_p - 1) : "SUBMIT";
+
+                            bx :: Float64 = 40.0 + jitter_x;
+                            by :: Float64 = y_pos;
+
+                            lbl_sz :: Array   = vglib.measure_text(vcr_font, btn_lbl, 11.0);
+                            bw     :: Float64 = float64(lbl_sz[0]) + 30.0;
+                            bh     :: Float64 = 26.0;
+
+                            is_hover :: Int64 = (cli_overlay_open == 0 && dos_timer <= 0.0 && mx >= bx && mx <= (bx + bw) && my >= by && my <= (by + bh)) ? 1 : 0;
+
+                            vglib.rect(bx, by, bw, bh, is_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
+                            vglib.line(bx, by, bx + bw, by, COLOR_BLOOD);
+                            vglib.line(bx + bw, by, bx + bw, by + bh, COLOR_BLOOD);
+                            vglib.line(bx + bw, by + bh, bx, by + bh, COLOR_BLOOD);
+                            vglib.line(bx, by + bh, bx, by, COLOR_BLOOD);
+
+                            vglib.text_ex(vcr_font, btn_lbl, bx + 15.0, by + 6.0, 11, is_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+
+                            if (is_hover == 1 && m_click == 1) {
+                                cli_logs.push("[ACTION]: TRIGGERED IN-PAGE EVENT '" + act_id + "'");
+                                glitch_trigger = 0.3;
+                            }
+                        }
+                    }
                     else if (line_str.length() > 6 && line_str.substr(0, 6) == "[LINK:") {
                         link_info = extract_link_info(line_str);
                         target_url :: String = string(link_info[0]);
@@ -2814,6 +3080,132 @@ while (vglib.running()) {
                         }
 
                         line_idx = line_idx + 7;
+                    }
+                    # ================================================
+                    # ASCII ART TAG RENDERING -> [ART:key]
+                    # ================================================
+                    else if (line_str.length() > 5 && line_str.substr(0, 5) == "[ART:") {
+                        art_key :: String = line_str.substr(5, line_str.length() - 6);
+
+                        art_x :: Float64 = 40.0 + jitter_x;
+                        art_y :: Float64 = y_pos;
+
+                        if (art_key == "skull") {
+                            skull_lines :: Array = [
+                                "         .------------------------.         ",
+                                "        /    .----------------.    \\        ",
+                                "       |    /   (O)      (O)   \\    |       ",
+                                "       |   |      .------.      |   |       ",
+                                "       |   |     /  /||\\  \\     |   |       ",
+                                "       |    \\   |  | || |  |   /    |       ",
+                                "        \\    '--'--'--'--'--'  /        ",
+                                "         '------------------------'         "
+                            ];
+
+                            skull_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+                            through sk_i :: 0..(skull_lines.length() - 1) -> loop {
+                                sk_line_y :: Float64 = art_y + (float64(sk_i) * 16.0);
+                                if (sk_line_y >= 85.0 && sk_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(skull_lines[sk_i]), art_x, sk_line_y, 11, skull_col);
+                                }
+                            };
+
+                            line_idx = line_idx + 4;
+                        } else if (art_key == "vnet") {
+                            vnet_art :: Array = [
+                                " __   _____  _ _____ _____ ",
+                                " \\ \\ / /  _ \\| | ____|_   _|",
+                                "  \\ V /| |_) | |  _|   | |  ",
+                                "   | | |  _ <| | |___  | |  ",
+                                "   |_| |_| \\_\\_|_____| |_|  ",
+                                " [=== VIRTUAL NETWORK MATRIX ===]"
+                            ];
+                            vnet_col = (pulse_val > 0.5) ? COLOR_CYAN : COLOR_TOXIC;
+                            through vn_i :: 0..(vnet_art.length() - 1) -> loop {
+                                vn_line_y :: Float64 = art_y + (float64(vn_i) * 16.0);
+                                if (vn_line_y >= 85.0 && vn_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(vnet_art[vn_i]), art_x, vn_line_y, 11, vnet_col);
+                                }
+                            };
+                            line_idx = line_idx + 3;
+                        }
+                        else if (art_key == "vmarket") {
+                            vmarket_art :: Array = [
+                                "  _  _  _  _   _   ___  _  _____ _____ ",
+                                " | || || || | / \\ |  _\\| |/ ____|_   _|",
+                                " | || || || |/ _ \\| |_ | ' /|  _| | |  ",
+                                "  \\__/  \\_//_/ \\_\\_|\\_\\_|_|\\_\\____||_|  ",
+                                " [=== RED MARKET BLACKOUT EXCHANGE ===]"
+                            ];
+                            vmkt_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+                            through vm_i :: 0..(vmarket_art.length() - 1) -> loop {
+                                vm_line_y :: Float64 = art_y + (float64(vm_i) * 16.0);
+                                if (vm_line_y >= 85.0 && vm_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(vmarket_art[vm_i]), art_x, vm_line_y, 11, vmkt_col);
+                                }
+                            };
+                            line_idx = line_idx + 3;
+                        }
+                        else if (art_key == "gun") {
+                            gun_art :: Array = [
+                                "      +---------------------------------+",
+                                "     /   ______________________________/ ",
+                                "    /   / /                              ",
+                                "   /   / /     [ AR-9 SUPPRESSED ]       ",
+                                "  /   /_/______                          ",
+                                " /   __________)                         ",
+                                "/   /                                    ",
+                                "/___/                                    "
+                            ];
+                            gun_col = COLOR_AMBER;
+                            through gn_i :: 0..(gun_art.length() - 1) -> loop {
+                                gn_line_y :: Float64 = art_y + (float64(gn_i) * 16.0);
+                                if (gn_line_y >= 85.0 && gn_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(gun_art[gn_i]), art_x, gn_line_y, 11, gun_col);
+                                }
+                            };
+                            line_idx = line_idx + 4;
+                        }
+                        else if (art_key == "drug") {
+                            drug_art :: Array = [
+                                "        .---.           .---.           ",
+                                "       /     \\         /   /|           ",
+                                "      |  RX   |       /   / |  [ SYNTHETIC ",
+                                "       \\     /       |---|  |    OPIOIDS &",
+                                "        '---'        |   | /     NEURALS ]",
+                                "       .-----.       |___|/             ",
+                                "      (  80  )        / \\               ",
+                                "       '-----'       '---'              "
+                            ];
+                            drug_col = COLOR_TOXIC;
+                            through dr_i :: 0..(drug_art.length() - 1) -> loop {
+                                dr_line_y :: Float64 = art_y + (float64(dr_i) * 16.0);
+                                if (dr_line_y >= 85.0 && dr_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(drug_art[dr_i]), art_x, dr_line_y, 11, drug_col);
+                                }
+                            };
+                            line_idx = line_idx + 4;
+                        }
+                        else if (art_key == "biohazard") {
+                            bio_art :: Array = [
+                                "                 _  _                   ",
+                                "                / \\/ \\                  ",
+                                "              / \\  /\\  \\                ",
+                                "             |   ()   |                 ",
+                                "              \\ /  \\/  /                ",
+                                "                \\_/\\_/                  ",
+                                "     [ BIO-CONTAMINATION HAZARD ]       "
+                            ];
+                            bio_col = COLOR_BLOOD;
+                            through bio_i :: 0..(bio_art.length() - 1) -> loop {
+                                bio_line_y :: Float64 = art_y + (float64(bio_i) * 16.0);
+                                if (bio_line_y >= 85.0 && bio_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(bio_art[bio_i]), art_x, bio_line_y, 11, bio_col);
+                                }
+                            };
+                            line_idx = line_idx + 4;
+                        }
                     }
                 }
             };
