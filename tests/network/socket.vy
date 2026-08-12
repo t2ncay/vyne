@@ -202,15 +202,7 @@ fn truncate_str(raw :: String, max_len :: Int64) -> String {
 }
 
 fn parse_input(raw :: String) -> Array {
-    clean = raw;
-    space_pos :: Int64 = -1;
-    through i :: 0..(clean.length() - 1) -> loop {
-        if (space_pos == -1 && clean[i] == " ") { space_pos = i; }
-    };
-    if (space_pos == -1) { return [clean, ""]; }
-    cmd_part = clean.substr(0, space_pos);
-    arg_part = clean.substr(space_pos + 1, clean.length() - space_pos - 1);
-    return [cmd_part, arg_part];
+    return vnet.parse_package(raw, " ");
 }
 
 fn purchase_ice_firewall() -> Int64 {
@@ -1958,13 +1950,9 @@ fn load_page(url :: String) -> Array {
 page_body = load_page(current_url);
 
 fn extract_link_info(line :: String) -> Array {
-    close_idx :: Int64 = -1;
-    len :: Int64 = line.length();
-    through i :: 6..(len - 1) -> loop {
-        if (line[i] == "]") { close_idx = i; break; }
-    };
-    if (close_idx == -1) { return ["", ""]; }
-    return [line.substr(6, close_idx - 6), line.substr(close_idx + 1, len - close_idx - 1)];
+    if (line.length() <= 6) { return ["", ""]; }
+    body = line.substr(6, line.length() - 6);
+    return vnet.parse_package(body, "]");
 }
 
 # ====================================================================
@@ -2726,19 +2714,13 @@ while (vglib.running()) {
 
         if (net_msg.length() > 9 && net_msg.substr(0, 9) == "KEY_SYNC:") {
             sync_payload :: String = net_msg.substr(9, net_msg.length() - 9);
-            
-            curr_segment :: String = "";
             tokens :: Array = [];
-            through p_idx :: 0..(sync_payload.length() - 1) -> loop {
-                c_char = sync_payload.substr(p_idx, 1);
-                if (c_char == ":") {
-                    tokens.push(curr_segment);
-                    curr_segment = "";
-                } else {
-                    curr_segment = curr_segment + c_char;
-                }
-            };
-            if (curr_segment.length() > 0) { tokens.push(curr_segment); }
+            rem_sync :: String = sync_payload;
+            while (rem_sync.length() > 0) {
+                parts = vnet.parse_package(rem_sync, ":");
+                tokens.push(parts[0]);
+                rem_sync = string(parts[1]);
+            }
 
             if (tokens.length() >= 31) {
                 through k_t :: 0..7 -> loop {
@@ -2772,17 +2754,10 @@ while (vglib.running()) {
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             raw_win_str :: String = net_msg.substr(14, net_msg.length() - 14);
-            sep_w :: Int64 = -1;
-            through wi :: 0..(raw_win_str.length() - 1) -> loop {
-                if (raw_win_str[wi] == ":") { sep_w = wi; break; }
-            };
-            if (sep_w > 0) {
-                winner_port  = raw_win_str.substr(0, sep_w);
-                win_mode_str = raw_win_str.substr(sep_w + 1, raw_win_str.length() - sep_w - 1);
-            } else {
-                winner_port  = raw_win_str;
-                win_mode_str = "KEYS";
-            }
+            win_parts = vnet.parse_package(raw_win_str, ":");
+            winner_port  = string(win_parts[0]);
+            win_mode_str = (string(win_parts[1]) != "") ? string(win_parts[1]) : "KEYS";
+            
             game_over_winner = 1;
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
@@ -2818,17 +2793,13 @@ while (vglib.running()) {
             dropped_dir :: String = net_msg.substr(13, net_msg.length() - 13);
             cli_logs.push("[REWARD]: TARGET DIRECTORY EXFILTRATED! (2 DOS HITS)");
             
-            curr_site :: String = "";
-            through i :: 0..(dropped_dir.length() - 1) -> loop {
-                c = dropped_dir.substr(i, 1);
-                if (c == ":") {
-                    if (curr_site != "") { cli_logs.push("  -> " + curr_site); }
-                    curr_site = "";
-                } else {
-                    curr_site = curr_site + c;
-                }
-            };
-            if (curr_site != "") { cli_logs.push("  -> " + curr_site); }
+            rem_dir :: String = dropped_dir;
+            while (rem_dir.length() > 0) {
+                parts = vnet.parse_package(rem_dir, ":");
+                site = string(parts[0]);
+                if (site != "") { cli_logs.push("  -> " + site); }
+                rem_dir = string(parts[1]);
+            }
             
             glitch_trigger = 0.5;
         }
@@ -3223,21 +3194,10 @@ while (vglib.running()) {
 
                         if (close_b > 7) {
                             raw_param :: String = line_str.substr(7, close_b - 7);
-                            colon_pos :: Int64 = -1;
-                            through ci :: 0..(raw_param.length() - 1) -> loop {
-                                if (raw_param[ci] == ":") { colon_pos = ci; break; }
-                            };
-
-                            pct_val :: Float64 = 0.0;
-                            g_label :: String = "";
-
-                            if (colon_pos > 0) {
-                                pct_val = float64(int64(raw_param.substr(0, colon_pos)));
-                                g_label = raw_param.substr(colon_pos + 1, raw_param.length() - colon_pos - 1);
-                            } else {
-                                pct_val = float64(int64(raw_param));
-                                g_label = "GAUGE";
-                            }
+                            g_parts = vnet.parse_package(raw_param, ":");
+                            
+                            pct_val :: Float64 = float64(int64(g_parts[0]));
+                            g_label :: String = (string(g_parts[1]) != "") ? string(g_parts[1]) : "GAUGE";
 
                             gx :: Float64 = 40.0 + jitter_x;
                             gy :: Float64 = y_pos;
@@ -3274,14 +3234,9 @@ while (vglib.running()) {
 
                         if (close_b > 7) {
                             raw_badge :: String = line_str.substr(7, close_b - 7);
-                            colon_p   :: Int64 = -1;
-                            through ci :: 0..(raw_badge.length() - 1) -> loop {
-                                if (raw_badge[ci] == ":") { colon_p = ci; break; }
-                            };
-
-                            badge_txt :: String = (colon_p > 0) ? raw_badge.substr(0, colon_p) : raw_badge;
-                            badge_col_str :: String = (colon_p > 0) ? raw_badge.substr(colon_p + 1, raw_badge.length() - colon_p - 1) : "AMBER";
-
+                            b_parts = vnet.parse_package(raw_badge, ":");
+                            badge_txt :: String = string(b_parts[0]);
+                            badge_col_str :: String = (string(b_parts[1]) != "") ? string(b_parts[1]) : "AMBER";
                             badge_bg = COLOR_AMBER;
                             if (badge_col_str == "BLOOD") { badge_bg = COLOR_BLOOD; }
                             if (badge_col_str == "TOXIC") { badge_bg = COLOR_TOXIC; }
@@ -3305,13 +3260,8 @@ while (vglib.running()) {
 
                         if (close_b > 7) {
                             raw_inp :: String = line_str.substr(7, close_b - 7);
-                            colon_p :: Int64 = -1;
-                            through ci :: 0..(raw_inp.length() - 1) -> loop {
-                                if (raw_inp[ci] == ":") { colon_p = ci; break; }
-                            };
-
-                            inp_ph :: String = (colon_p > 0) ? raw_inp.substr(colon_p + 1, raw_inp.length() - colon_p - 1) : "ENTER VALUE";
-
+                            i_parts = vnet.parse_package(raw_inp, ":");
+                            inp_ph :: String = (string(i_parts[1]) != "") ? string(i_parts[1]) : "ENTER VALUE";
                             ix :: Float64 = 40.0 + jitter_x;
                             iy :: Float64 = y_pos;
                             iw :: Float64 = 360.0;
@@ -3338,14 +3288,9 @@ while (vglib.running()) {
 
                         if (close_b > 5) {
                             raw_btn :: String = line_str.substr(5, close_b - 5);
-                            colon_p :: Int64 = -1;
-                            through ci :: 0..(raw_btn.length() - 1) -> loop {
-                                if (raw_btn[ci] == ":") { colon_p = ci; break; }
-                            };
-
-                            act_id :: String = (colon_p > 0) ? raw_btn.substr(0, colon_p) : "action";
-                            btn_lbl:: String = (colon_p > 0) ? raw_btn.substr(colon_p + 1, raw_btn.length() - colon_p - 1) : "SUBMIT";
-
+                            btn_parts = vnet.parse_package(raw_btn, ":");
+                            act_id :: String = string(btn_parts[0]);
+                            btn_lbl:: String = (string(btn_parts[1]) != "") ? string(btn_parts[1]) : "SUBMIT";
                             bx :: Float64 = 40.0 + jitter_x;
                             by :: Float64 = y_pos;
 

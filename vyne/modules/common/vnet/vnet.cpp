@@ -1,5 +1,8 @@
 #include "vnet.h"
 
+static const Value EMPTY_PACKET_LIST = Value(std::vector<Value>{});
+static std::unordered_map<std::string, in_addr> ip_cache;
+
 namespace VNetNative {
 
 bool net_initialized = false;
@@ -20,6 +23,11 @@ Value native_create_udp_socket(std::vector<Value>& args) {
     int port = (args.empty()) ? 0 : static_cast<int>(args[0].asInt());
 
     SocketHandle sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    
+    int bufSize = 256 * 1024;
+    setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (const char*)&bufSize, sizeof(bufSize));
+    setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (const char*)&bufSize, sizeof(bufSize));
+
     if (IS_INVALID_SOCKET(sock)) {
         throw std::runtime_error("vnet: Failed to create UDP socket");
     }
@@ -51,14 +59,21 @@ Value native_send_to(std::vector<Value>& args) {
     }
 
     SocketHandle sock = static_cast<SocketHandle>(args[0].asInt());
-    std::string ip   = args[1].asString();
-    int port         = static_cast<int>(args[2].asInt());
-    std::string msg  = args[3].asString();
+    const std::string& ip = args[1].asString();
+    int port              = static_cast<int>(args[2].asInt());
+    const std::string& msg = args[3].asString();
 
     sockaddr_in destAddr{};
     destAddr.sin_family = AF_INET;
-    destAddr.sin_port = htons(port);
-    inet_pton(AF_INET, ip.c_str(), &destAddr.sin_addr);
+    destAddr.sin_port   = htons(port);
+
+    auto it = ip_cache.find(ip);
+    if (it != ip_cache.end()) {
+        destAddr.sin_addr = it->second;
+    } else {
+        inet_pton(AF_INET, ip.c_str(), &destAddr.sin_addr);
+        ip_cache[ip] = destAddr.sin_addr; // Cache for subsequent frames
+    }
 
     int sentBytes = sendto(sock, msg.c_str(), static_cast<int>(msg.length()), 0,
                            (sockaddr*)&destAddr, sizeof(destAddr));
@@ -83,7 +98,7 @@ Value native_recv_from(std::vector<Value>& args) {
                              (sockaddr*)&senderAddr, &addrLen);
 
     if (bytesRead <= 0) {
-        return Value(std::vector<Value>{});
+        return EMPTY_PACKET_LIST;
     }
 
     buffer[bytesRead] = '\0';
@@ -107,6 +122,23 @@ Value native_close_socket(std::vector<Value>& args) {
     return Value(true);
 }
 
+Value native_parse_package(std::vector<Value>& args) {
+    if (args.size() < 2) return Value(std::vector<Value>{});
+
+    const std::string& str = args[0].asString();
+    char delim = args[1].asString()[0];
+
+    size_t pos = str.find(delim);
+    if (pos == std::string::npos) {
+        return Value(std::vector<Value>{ Value(str), Value("") });
+    }
+
+    return Value(std::vector<Value>{
+        Value(str.substr(0, pos)),
+        Value(str.substr(pos + 1))
+    });
+}
+
 } // namespace VNetNative
 
 void setupVNet(SymbolContainer& env, StringPool& pool) {
@@ -116,8 +148,9 @@ void setupVNet(SymbolContainer& env, StringPool& pool) {
     }
 
     auto& vnet = env[path];
-    vnet[pool.intern("udp_socket")] = Value(VNetNative::native_create_udp_socket);
-    vnet[pool.intern("send_to")]     = Value(VNetNative::native_send_to);
-    vnet[pool.intern("recv_from")]   = Value(VNetNative::native_recv_from);
-    vnet[pool.intern("close")]       = Value(VNetNative::native_close_socket);
+    vnet[pool.intern("udp_socket")]    = Value(VNetNative::native_create_udp_socket);
+    vnet[pool.intern("send_to")]       = Value(VNetNative::native_send_to);
+    vnet[pool.intern("recv_from")]     = Value(VNetNative::native_recv_from);
+    vnet[pool.intern("close")]         = Value(VNetNative::native_close_socket);
+    vnet[pool.intern("parse_package")] = Value(VNetNative::native_parse_package);
 }
