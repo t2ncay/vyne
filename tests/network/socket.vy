@@ -82,8 +82,8 @@ COLOR_SCANLINE   = vglib.rgba(0, 0, 0, 90);
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
 # ====================================================================
-current_url      :: String  = "shadow.dir";
-input_url        :: String  = "shadow.dir";
+current_url      :: String  = "vnet.dir";
+input_url        :: String  = "vnet.dir";
 url_focused      :: Int64   = 0;
 
 is_connecting          :: Int64   = 0;
@@ -271,7 +271,7 @@ fn load_page(url :: String) -> Array {
         }
     };
     
-    if (clean_u == "shadow.dir") {
+    if (clean_u == "vnet.dir") {
         dir_res :: Array = [
             "[TITLE] VNET ANONYMOUS DIRECTORY v4.09",
             "[HR]",
@@ -356,7 +356,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:blackbank.vnet] >> ACCESS OFFSHORE VCOIN LAUNDERING VAULTS");
         res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND MATRIX");
         res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS (CORE NODE #004)");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -373,7 +373,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] STATUS: ONLINE | REALTIME STREAM ACTIVE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -416,7 +416,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
         res.push("[LINK:morgue.vnet] >> INSPECT AUTOPSY RECORDS FOR SUBJECT #409");
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 CONTAINMENT");
-        res.push("[LINK:shadow.dir] << DISCONNECT IMMEDIATELY");
+        res.push("[LINK:vnet.dir] << DISCONNECT IMMEDIATELY");
         res.push("[HR]");
         return res;
     }
@@ -470,7 +470,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:archival.vnet] >> CROSS-CHECK SECTOR 09 MILITARY DUMPS");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & CORTEX STACKS");
         res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS");
-        res.push("[LINK:shadow.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -551,7 +551,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
         res.push("[LINK:snuff.vnet] >> VIEW UNFILTERED RAW FRAME BUFFER ARCHIVE");
         res.push("[LINK:cult.vnet] >> JOIN THE CHURCH OF THE SILICON SOUL");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -601,7 +601,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND MATRIX");
         res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
         res.push("[LINK:cult.vnet] >> JOIN THE CHURCH OF THE SILICON SOUL");
-        res.push("[LINK:shadow.dir] << TERMINATE STREAM & RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << TERMINATE STREAM & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -652,7 +652,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
         res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -722,7 +722,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:archival.vnet] >> CROSS-CHECK SECTOR 09 MILITARY DUMPS");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & CORTEX STACKS");
         res.push("[LINK:crypto.vnet] >> MINE VCOIN & LAUNDER TUMBLER POOLS");
-        res.push("[LINK:shadow.dir] << CLOSE GATEWAY & RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << CLOSE GATEWAY & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -766,7 +766,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:dollhouse.vnet] >> CROSS-CHECK ROOM 402 SURVEILLANCE FEED");
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR PATIENT #1988 CONTAINMENT");
         res.push("[LINK:leaks.vnet] >> ACCESS EXFILTRATED GLOBAL INTELLIGENCE DUMPS");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -786,7 +786,7 @@ fn load_page(url :: String) -> Array {
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[BLOOD] 'CAN YOU HEAR THE WHISPER BEHIND THE HEADPHONE DISTORTION?'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -807,7 +807,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[GLITCH] OVERRIDE KEY DETECTED IN BACKUP GENERATOR LOGS");
         res.push("[PULSE] 'WHEN THE LIGHTS GO OUT, THE NETWORK STAYS ON.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -849,7 +849,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 CONTAINMENT");
         res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
         res.push("[LINK:vault.vnet] >> CROSS-REFERENCE CORRUPTED DATA VAULT");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -897,7 +897,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:morgue.vnet] >> CROSS-REFERENCE SUBJECT #409 AUTOPSY");
         res.push("[LINK:snuff.vnet] >> INSPECT UNFILTERED RAW VIDEO RECOVERY");
         res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -936,7 +936,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:zeroauction.vnet] >> BID ON UNPUBLISHED EXPLOITS & PMC CONTRACTS");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
         res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE CONTAINER");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -971,7 +971,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:project9.vnet] >> INSPECT SUBTERRANEAN BLACK SITE DATABASE");
         res.push("[LINK:vault.vnet] >> CROSS-REFERENCE CORRUPTED DATA VAULT");
         res.push("[LINK:watchtower.vnet] >> CHECK PANOPTICON SATELLITE FEED");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -990,7 +990,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[GLITCH] PACKET PAYLOAD: 'WE ARE INSIDE YOUR RAM MODULES'");
         res.push("[PULSE] 'THE MEMORY LEAK IS NOT A BUG. IT IS AN INVITATION.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1040,7 +1040,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:silence.vnet] >> TUNE ACOUSTIC INFRASOUND DISTORTION");
         res.push("[LINK:snuff.vnet] >> INSPECT UNFILTERED RAW VIDEO RECOVERY");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1072,7 +1072,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] 'HELTER SKELTER IS JUST A RECURSIVE LOOP IN THE KERNEL STACK.'");
         res.push("[BLOOD] 'IT FEELS VERY WARM WEARING YOUR IP ADDRESS LIKE A NEW SUIT.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1108,7 +1108,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:cctv_core.vnet] >> VIEW CITY WIDE CCTV BACKDOOR NODE");
         res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED MILITARY VFS DUMP");
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1139,7 +1139,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] THERE IS NOTHING HERE EXCEPT THE WEEPING ECHO OF YOUR OWN PORT.");
         res.push("[BLOOD] 'WHY ARE YOU STILL LOOKING AT THIS SCREEN? YOU'RE COMPLETELY ALONE.'");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1172,7 +1172,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] LIVE AUCTION: CUSTOM HIT LISTINGS & HIGH-TIER OPIOID BULK DISCOUNTS");
         res.push("[BLOOD] 'THE LAW DOES NOT REACH INTO THE SUB-NET. BUY OR BE EXFILTRATED.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1211,7 +1211,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE CONTAINER");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
         res.push("[LINK:leaks.vnet] >> ACCESS UNREDACTED WHISTLEBLOWER DUMPS");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1226,7 +1226,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] DUMP_REF: PROJECT_BLUE_BOOK_RECOVERED"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "shadowpay.vnet") {
@@ -1240,7 +1240,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] MIX_STATE: BLOCKS_SCRAMBLED_SUCCESS"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "cctv_core.vnet") {
@@ -1254,7 +1254,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] FEED_MATRIX: METRO_GRID_SECTOR_4"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "subcell.vnet") {
@@ -1268,7 +1268,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] BIO_HASH: 0xCELL_9011_DNA_SYNC"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "feed99.vnet") {
@@ -1283,7 +1283,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] NEURAL_PACKET: 0xFEED_9999_STREAM"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "eye.vnet") {
@@ -1342,7 +1342,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
         res.push("[LINK:passports.vnet] >> SPOOF BIOMETRIC MASK AT IDENTITY VAULT");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
-        res.push("[LINK:shadow.dir] << CLOSE EYE & RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << CLOSE EYE & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1368,7 +1368,7 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] ORBITAL STRIKE READY. DESIGNATE TARGET VIA CLI ORBITAL LOCK.");
         res.push("[BLOOD] 'FROM THE HEAVENS TO YOUR LOCAL SUBNET IN THREE MINUTES FLAT.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1383,7 +1383,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] PASTE_ID: 88192_PASSWORD_HASH_DUMP"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "whisper.vnet") {
@@ -1397,7 +1397,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] WHISPER_NODE: 0xWSP_1102_SECURE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "deepwiki.vnet") {
@@ -1411,7 +1411,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] WIKI_INDEX: 0xWIKI_0991_OCCULT"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "dump.vnet") {
@@ -1425,7 +1425,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] 0000FF00: AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "index.vnet") {
@@ -1439,7 +1439,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] INDEX_HASH: 0xIDX_50_ACTIVE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "schizo.vnet") {
@@ -1453,7 +1453,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] MANIFEST_ID: 0xSCHIZO_001"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "project9.vnet") {
@@ -1467,7 +1467,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] SITE_9_LOG: 0xPRJ9_CONTAINMENT_BREACH"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "necro.vnet") {
@@ -1481,7 +1481,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] NECRO_HASH: 0xDEAD_NODE_ARCHIVE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "echolab.vnet") {
@@ -1495,7 +1495,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ECHO_LOG: 0xECHO_9982_RESONANCE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "abyss.vnet") {
@@ -1509,7 +1509,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ABYSS_SIGNAL: 0xABYSS_ROOT_ZERO"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "zeroday.vnet") {
@@ -1523,7 +1523,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ZERODAY_DB_REF: 0x0DAY_ARCHIVE_99"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "deadchannel.vnet") {
@@ -1537,7 +1537,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] CHANNEL_STATE: STATIC_LOOP_ACTIVE"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "phantom.vnet") {
@@ -1551,7 +1551,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] PHANTOM_HASH: 0xPHANTOM_ROUTE_9"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "glitch.vnet") {
@@ -1565,7 +1565,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] GLITCH_CODE: 0xGLITCH_OVERFLOW_999"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "stasis.vnet") {
@@ -1579,7 +1579,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] STASIS_POD_ID: 0xSTASIS_402_LOCKED"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "signal0.vnet") {
@@ -1593,7 +1593,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ORIGIN_HASH: 0xSIGNAL_ZERO_ROOT"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "entropy.vnet") {
@@ -1607,7 +1607,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ENTROPY_METRIC: 0x99A_DECAY"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "hive.vnet") {
@@ -1621,7 +1621,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] HIVE_NODE_ID: 0xHIVE_MIND_99"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "nexus.vnet") {
@@ -1635,7 +1635,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] NEXUS_CORE_ID: 0xNEXUS_ROUTER_01"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "weaponry.vnet") {
@@ -1649,7 +1649,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] ARMS_CATALOG_REF: 0xGUNS_9901"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
     if (clean_u == "passports.vnet") {
@@ -1722,7 +1722,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND & TISSUE MATRIX");
         res.push("[LINK:eye.vnet] >> TEST PASSPORT AGAINST PROJECT HORUS OPTICAL ARRAY");
         res.push("[LINK:morgue.vnet] >> INSPECT HARVESTED OPTIC NERVE STACKS");
-        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1779,16 +1779,40 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
         res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
-        res.push("[LINK:shadow.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
+        res.push("[LINK:vnet.dir] << CLOSE VAULT & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
 
     return [
-        "[TITLE] 404 - NODE UNREACHABLE",
+        "[TITLE] 404 // ROUTE_CORRUPTED - SECTOR NULL",
         "[HR]",
-        "[GLITCH] DESTINATION PURGED FROM ROUTING TABLE.",
-        "[LINK:shadow.dir] << RETURN TO DIRECTORY"
+        "[BADGE:NODE VOID:BLOOD] [BADGE:SIGNAL LOST:AMBER] [BADGE:ICE TRACE:TOXIC]",
+        "[BOX] +-----------------------------------------------------------------+",
+        "[BOX] | ERROR CODE : 0x404_VFS_SEGFAULT_UNALLOCATED_ADDRESS_SPACE       |",
+        "[BOX] | TARGET URL : vnet://" + truncate_str(clean_u, 32) + "            ",
+        "[BOX] | REASON     : MEMORY BLOCK WIPED OR SEIZED BY AUTHORITIES        |",
+        "[BOX] +-----------------------------------------------------------------+",
+        "[TEXT] ",
+        "[GAUGE:100:SIGNAL_ENTROPY_DECAY]",
+        "[TEXT] ",
+        "[ART:skull]",
+        "[TEXT] ",
+        "[SUBTITLE] DYNAMIC ROUTE RECOVERY & PACKET RE-INJECTION:",
+        "[TEXT] Attempting to access an invalid or purged darknet node triggers active BGP traces.",
+        "[TEXT] 'The URL you requested was not merely offline.'",
+        "[TEXT] 'It was physically scrubbed by Directorate 7 PMC cleanup crews.'",
+        "[TEXT] 'Sub-level servers were doused in thermite, leaving only melted silica'",
+        "[TEXT] 'and the stench of charred biological cabling at morgue.vnet.'",
+        "[TEXT] 'Every second you idle on this void page, reverse trace algorithms'",
+        "[TEXT] 'are logging your CRT monitor heat signature to Project Horus at eye.vnet.'",
+        "[TEXT] ",
+        "[BLOOD] [CRITICAL WARNING]: UNALLOCATED SOCKET DETECTED // TRACE +10%",
+        "[PULSE] 'THE VOID IS NOT EMPTY. IT IS WAITING FOR YOUR PACKET HEADER.'",
+        "[GLITCH] 'DO NOT LOOK AT THE CORNERS OF YOUR CRT MONITOR. THEY ARE INSIDE THE static.'",
+        "[HR]",
+        "[LINK:vnet.dir] >> ESCAPE TO MAIN DIRECTORY [vnet.dir]",
+        "[HR]"
     ];
 }
 
@@ -1956,7 +1980,7 @@ fn dispatch_cli_command(raw_input :: String) {
         if (current_url == "hellroom.vnet") {
             cli_logs.push("[HELLROOM_CURSE]: SCANNERS ARE BLIND BEFORE THE HORDE. YOUR PACKETS BELONG TO THE FLAMES NOW.");
             glitch_trigger = 0.9;
-        } else if (current_url == "shadow.dir") {
+        } else if (current_url == "vnet.dir") {
             cli_logs.push("[ROOT_ANOMALY]: SCANNING THE MAIN DIRECTORY YIELDS NO NETWORK PEERS...");
             glitch_trigger = 1.2;
         } else {
@@ -2193,7 +2217,7 @@ while (vglib.running()) {
             }
             is_in_ip_menu = 0;
             
-            current_url = "shadow.dir";
+            current_url = "vnet.dir";
             page_body   = load_page(current_url);
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
@@ -2423,8 +2447,8 @@ while (vglib.running()) {
             trace_level = 20;
             btc_balance = vmath.clamp(btc_balance - 0.30, 0.0, 999.0);
             is_connecting = 0;
-            current_url   = "shadow.dir";
-            input_url     = "shadow.dir";
+            current_url   = "vnet.dir";
+            input_url     = "vnet.dir";
             page_body     = load_page(current_url);
             
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
@@ -2755,7 +2779,7 @@ while (vglib.running()) {
 
         through bg_strip :: 0..19 -> loop {
             s_y :: Float64 = float64(bg_strip * 40);
-            bg_val :: Int64 = int64(vmath.sin(run_time * 1.5 + float64(bg_strip) * 0.2) * 12.0 + 14.0);
+            bg_val :: Int64 = int64(vmath.sin(run_time * 1.5 + float64(bg_strip) * 0.2) * 12.0 + 26.0);
             vglib.rect(0, s_y, 1280, 40, vglib.rgba(bg_val, 3, 7, 255));
         };
 
