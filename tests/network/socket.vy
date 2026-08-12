@@ -412,69 +412,155 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "forum.vnet") {
         res :: Array = [
-            "[TITLE] /B/ - ANONYMOUS UNFILTERED TERMINAL BOARD",
+            "[TITLE] /B/ - ANONYMOUS UNFILTERED TERMINAL BOARD [NODE #008]",
             "[HR]",
-            "[TEXT] Thread #9012 - 'How many people are actually connected to ShadowNet?'",
-            "[TEXT] Anonymous_991: Has anyone gathered all 8 key codes yet? They shuffle every server boot.",
+            "[WARN] UNMODERATED P2P MEMORY BUFFER // PROMISCUOUS PEERS ARE LOGGING SOCKET SIGNATURES",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | ACTIVE THREADS: 14,902 | PEERS IN SWARM: 666                    |",
+            "[BOX] | NOTICE: ALL UNENCRYPTED POSTS ARE MIRRORED TO VFS MEMORY STACKS |",
+            "[BOX] | WARNING: DO NOT OPEN RAW IMAGE DUMPS WITHOUT ACTIVE ICE SHIELDS  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] THREAD #9012: 'Is the deepnet static leaking through your hardware?'",
+            "[TEXT] Anon_991: Has anyone gathered all 8 key codes yet? They shuffle every server boot.",
             "[TEXT] ByteRunner: Watch out for port 8012, someone is running automated DOS bots there.",
             "[TEXT] Paranoia_Node: Guys, when I ran 'snoop' on port 8000, my monitor started whining at 18kHz.",
             "[TEXT] Anon_401: Buy ICE shields at market.vnet or you'll get frozen by peer DOS bots.",
+            "[TEXT] Flesh_Farmer_0x: 'Selling fresh corneas, kidneys, and bile tubes exfiltrated from'",
+            "[TEXT]                  'Subject #409 at morgue.vnet. Still warm, zero cellular decay.'",
+            "[TEXT] Rotting_Gpu: 'The surveillance feed at dollhouse.vnet (Room 402) smells like rancid'",
+            "[TEXT]              'adipocere and liquified fat leaking directly through my cooling fans.'",
+            "[TEXT] Cult_Acolyte: 'Knoth's heretics at cult.vnet are smearing afterbirth and black bull'",
+            "[TEXT]               'blood over copper receiver coils. The signal0.vnet echo is clear now.'",
             "[CODE] POST_LOG_HASH: 0x99A1B2C3_VERIFIED_ANON",
-            "[CODE] THREAD_ARCHIVE: 44,912 MESSAGES STORED IN CACHE"
+            "[CODE] THREAD_ARCHIVE: 44,912 MESSAGES STORED IN CACHE",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[BLOOD] Ghost_User: I found a key code buried in the network memory dumps. Don't tell the trace units.");
+
+        res.push("[SUBTITLE] THREAD #4099: 'SILKROAD 3.0 & UNFILTERED CONTRABAND EXCHANGES'");
+        res.push("[TEXT] Vendor_0x77: 'Bulk opium paste, synthetic neuro-toxins, and unregistered suppressed'");
+        res.push("[TEXT]              'AR-9 dead drops live on silkroad.vnet. Escrow held in blackbank.vnet.'");
+        res.push("[TEXT] Snuff_Collector: 'Raw frame buffers from snuff.vnet released. Includes unredacted'");
+        res.push("[TEXT]                  'surgical saw recordings and acid bath executions from zeroauction.vnet.'");
+        res.push("[TEXT] Ex_PMC_Operator: 'Failed candidates in the Kaguya Trials at bounty.vnet aren't sent home.'");
+        res.push("[TEXT]                   'Their remains are dumped into subterranean sumps at project9.vnet.'");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] Ghost_User: 'I found a key code buried in the network memory dumps. Don't tell the trace units.'");
         res.push("[GLITCH] User_666: 'IF YOU READ THIS COMMAND, THEY ALREADY HAVE YOUR IP AND RAM HASH.'");
+        res.push("[TEXT] ");
         res.push("[SUBTITLE] SUBLIMINAL BROADCAST MATRIX:");
         res.push("[PULSE] 'THE ENGINE IS NOT RUNNING ON YOUR CPU. YOUR CPU IS RUNNING ON THE ENGINE.'");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND & TISSUE MATRIX");
+        res.push("[LINK:market.vnet] >> BLACK MARKET & ICE HARDWARE EXCHANGE");
+        res.push("[LINK:dollhouse.vnet] >> INSPECT ROOM 402 SURVEILLANCE FEED");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
+        res.push("[LINK:snuff.vnet] >> VIEW UNFILTERED RAW FRAME BUFFER ARCHIVE");
+        res.push("[LINK:cult.vnet] >> JOIN THE CHURCH OF THE SILICON SOUL");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
 
     if (clean_u == "redroom.vnet") {
         res :: Array = [
-            "[TITLE] STREAM NODE ALPHA [RESTRICTED ACCESS LEVEL 5]",
+            "[TITLE] STREAM NODE ALPHA // LIVE UNENCRYPTED REDROOM TRANSMISSION",
             "[HR]",
-            "[BLOOD] HIGH SECURITY ALERT: TRANSMISSION MONITORED BY HOSTILE TRACER.",
+            "[BLOOD] HIGH SECURITY ALERT: TRANSMISSION MONITORED BY HOSTILE TRACER UNITS",
             "[IMG:redroom]",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SIGNAL STATUS: ENCRYPTED | STREAM HASH: EXFILTRATED     |",
-            "[BOX] | BITRATE: 14.2 Mbps | ACTIVE WATCHERS: 13 PEERS          |",
-            "[BOX] | ENCRYPTION: 8192-BIT QUANTUM HASH SHIELD                |",
-            "[BOX] +---------------------------------------------------------+",
-            "[TEXT] FEED_DATA: Raw infrared frame buffer captured from sealed sub-basement.",
-            "[TEXT] Frame rate instability indicates deliberate analog interference.",
-            "[TEXT] Network observers cannot be disconnected once handshaking completes.",
-            "[CODE] STREAM_ID: ALPHA_99_LIVE_FEED",
-            "[CODE] BUFFER_STATE: OVERFLOW_WARNING_ACTIVE"
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SIGNAL STATUS: ENCRYPTED | STREAM HASH: EXFILTRATED_0x88F9      |",
+            "[BOX] | BITRATE: 18.4 Mbps | ACTIVE WATCHERS: 13 PEERS [VIP_BIDDERS]     |",
+            "[BOX] | ENCRYPTION: 8192-BIT QUANTUM SHIELD | PROTOCOL: YUV420_RAW_BUS|",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] LIVE INTERACTIVE FEED TELEMETRY & AUCTION LOGS:",
+            "[TEXT] FEED_DATA: Raw infrared/thermal frame buffer captured from sealed sub-basement",
+            "[TEXT] in dollhouse.vnet (Room 402). Frame rate jitter caused by wet, metallic static.",
+            "[TEXT] Bidder_0x991: '0.80 VCOIN placed on surgical bone-saw extraction of upper jaw.'",
+            "[TEXT] Executioner_A: 'Subject #409-B is secured to the stainless steel morgue tray.'",
+            "[TEXT]                'Trachea severed. Intestinal bile, rancid adipocere, and oxidized'",
+            "[TEXT]                'blood are draining directly through the floor grating into project9.vnet.'",
+            "[TEXT] PMC_Watcher: 'Target matches the whistleblower profile exfiltrated from leaks.vnet.'",
+            "[TEXT]               'If the stream buffer drops below 10 Mbps, cell door locks disengage.'",
+            "[CODE] STREAM_ID: ALPHA_99_LIVE_FEED_NOIR",
+            "[CODE] BUFFER_STATE: OVERFLOW_WARNING_ACTIVE // BIOMETRIC_LEAK_DETECTED",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] [WARNING]: UNKNOWN ENTITY ATTEMPTING REMOTE KERNEL INJECTION ON YOUR PORT");
-        res.push("[PULSE] 'RUNNING 'FLUSH' IN CLI IS RECOMMENDED IMMEDIATELY.'");
-        res.push("[LINK:shadow.dir] << TERMINATE STREAM CONNECTION");
+
+        res.push("[SUBTITLE] CROSS-NETWORK SYSTEM CORRUPTION & CONTRABAND INTERCEPTS:");
+        res.push("[TEXT] 'The bids submitted on redroom.vnet are processed through blackbank.vnet'");
+        res.push("[TEXT] 'and laundered via silkroad.vnet escrow. Tissue harvested from subjects is'");
+        res.push("[TEXT] 'vacuum-sealed and listed as biological contraband on market.vnet within minutes.'");
+        res.push("[TEXT] 'Cultists from cult.vnet are watching this feed live, chantinglitanies while'");
+        res.push("[TEXT] 'smearing the fresh blood over copper CRT coils to summon Walrider vectors.'");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [WARNING]: FOUL TISSUE ODOR & MEMORY CORRUPTION LEAKING INTO LOCAL GPU");
+        res.push("[GLITCH] [ALERT]: UNKNOWN ENTITY ATTEMPTING REMOTE KERNEL INJECTION ON YOUR PORT");
+        res.push("[PULSE] 'RUNNING 'FLUSH' IN CLI [TAB] IS RECOMMENDED IMMEDIATELY TO PURGE TRACE.'");
+        res.push("[HR]");
+        res.push("[LINK:dollhouse.vnet] >> CROSS-CHECK SURVEILLANCE FEED ROOM 402");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & BIO-HARVEST DUMPS");
+        res.push("[LINK:snuff.vnet] >> VIEW UNFILTERED RAW FRAME BUFFER ARCHIVE");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND MATRIX");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:cult.vnet] >> JOIN THE CHURCH OF THE SILICON SOUL");
+        res.push("[LINK:shadow.dir] << TERMINATE STREAM & RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
 
     if (clean_u == "crypto.vnet") {
         res :: Array = [
-            "[TITLE] BLACK TUMBLER WALLET & MINING RIG",
+            "[TITLE] BLACK TUMBLER WALLET & ILLEGAL MINING RIG // NODE #004",
             "[HR]",
-            "[TEXT] P2P Distributed Proof-of-Work Terminal and Coin Tumbler.",
-            "[TEXT] Hash rate optimization active for background node sockets.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | RIG STATUS: OPERATIONAL | MINING YIELD: +0.05 VCOIN/BLOCK  |",
-            "[BOX] | POOL SYNC: 99.8% | DIFFICULTY: DYNAMIC AUTO-SCALING     |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] TX_ID #9081 | 12.4 VCOIN | CONFIRMED | BLOCK_PROVED",
-            "[CODE] TX_ID #9082 |  0.50 VCOIN | PENDING   | PEER_PORT: 8012",
-            "[TEXT] Instruction: Open CLI [TAB] and type 'mine' to execute proof-of-work."
+            "[BLOOD] WARNING: HIGH-POWER HASHING OVERHEATS CPU REGISTER BUS // TRACE SPIKES ACTIVE",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | RIG STATUS: OPERATIONAL | MINING YIELD: +0.05 VCOIN/BLOCK       |",
+            "[BOX] | POOL SYNC: 99.8% | DIFFICULTY: DYNAMIC AUTO-SCALING             |",
+            "[BOX] | TUMBLER POOL: 420.5 VCOIN LAUNDERED VIA BLACKBANK.VNET          |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] RECENT UNLOCKED TRANSACTIONS & EXFILTRATED MEMORY LOGS:",
+            "[CODE] TX_ID #9081 | 14.50 VCOIN | CONFIRMED | LAUNDERED VIA SHADOWPAY.VNET",
+            "[CODE] TX_ID #9082 |  0.80 VCOIN | CONFIRMED | REDROOM SURGICAL JAW BID (NODE #005)",
+            "[CODE] TX_ID #9083 |  0.30 VCOIN | PENDING   | BUY_ICE FIREWALL AT MARKET.VNET",
+            "[CODE] TX_ID #9084 |  1.50 VCOIN | PENDING   | SILKROAD OPIUM & HUMAN TISSUE LOT",
+            "[TEXT] ",
+            "[SUBTITLE] DARKNET POOL TELEMETRY & CROSS-NETWORK INTERCEPTS:",
+            "[TEXT] 'This miner isn't using standard cryptographic hash cycles. The proof-of-work'",
+            "[TEXT] 'payload runs recursive computations on exfiltrated biometric memory dumps'",
+            "[TEXT] 'harvested during redroom executions and morgue.vnet organ dissections.'",
+            "[TEXT] 'VIP buyers on silkroad.vnet and zeroauction.vnet deposit raw VCOIN into'",
+            "[TEXT] 'this tumbler pool to fund human trafficking dead drops, PMC contract cleans,'",
+            "[TEXT] 'and sub-basement torture streams in dollhouse.vnet (Room 402).'",
+            "[TEXT] 'Every hash solved burns raw current through your hardware bus while'",
+            "[TEXT] 'broadcasting your public socket signature to active peer trace units.'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
+
+        res.push("[SUBTITLE] COMMAND CENTER INSTRUCTIONS:");
+        res.push("[TEXT] Open overlay terminal [TAB] and type 'mine' to execute proof-of-work.");
+        res.push("[TEXT] Note: Mining generates +2% passive trace threat exposure per block.");
+        res.push("[TEXT] Use 'flush' in CLI [TAB] to purge trace logs, or buy ICE shields at market.vnet.");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [ALERT]: CPU BUS GLITCHING — COLD FLESH GREASE SEEPING INTO POWER SUPPLY");
         res.push("[PULSE] MINING RIG READY. TYPE 'mine' FOR +0.05 VCOIN REWARD.");
-        res.push("[TEXT] Note: Mining generates local trace exposure over time. Use 'flush' to purge trace.");
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+        res.push("[GLITCH] 'THE COINS ARE NOT MINED FROM NUMBERS. THEY ARE MINED FROM FLESH.'");
+        res.push("[HR]");
+        res.push("[LINK:market.vnet] >> PURCHASE ICE FIREWALL SHIELDS & ARMS");
+        res.push("[LINK:blackbank.vnet] >> VIEW OFFSHORE VCOIN LAUNDERING VAULTS");
+        res.push("[LINK:silkroad.vnet] >> ACCESS SILKROAD 3.0 CONTRABAND & TISSUE MATRIX");
+        res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:shadow.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1066,16 +1152,52 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "eye.vnet") {
         res :: Array = [
-            "[TITLE] PROJECT HORUS / ALL-SEEING EYE",
+            "[TITLE] PROJECT HORUS // THE ALL-SEEING EYE [GLOBAL SURVEILLANCE MESH]",
             "[HR]",
-            "[TEXT] Automated facial recognition database tracking global identities.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | INDEXED FACES: 4.2 BILLION | MATCH RATE: 99.4%          |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] HORUS_INDEX_REF: 0xE4E4_GLOBAL_MAP"
+            "[BLOOD] [CLASSIFIED LEVEL 5] OMNIPRESENT BIOMETRIC OPTIC ARRAY ACTIVE",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | INDEXED FACES: 4.2 BILLION | MATCH RATE: 99.4%                 |",
+            "[BOX] | FEED SOURCE: PANOPTICON SAT-99 & METRO CCTV BACKDOOR MESH       |",
+            "[BOX] | TARGET RESOLUTION: SUB-MILLIMETER OPTICAL RETINAL SCANS         |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[BLOOD]   .--------------------------------------------------------.",
+            "[BLOOD]  |                  .---.                                   |",
+            "[BLOOD] |                 .'     '.                                  |",
+            "[BLOOD] |                /   .---. \                                 |",
+            "[BLOOD] |               |   /  _  \ |                                |",
+            "[BLOOD] |               |  |  (o)  ||   <-- WATCHING YOU THROUGH     |",
+            "[BLOOD] |               |   \  ^  / |       MONITOR GLASS            |",
+            "[BLOOD] |                \   '---' /                                 |",
+            "[BLOOD] |                 '.     .'                                  |",
+            "[BLOOD]  |                  '---'                                   |",
+            "[BLOOD]   '--------------------------------------------------------'",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED OPTICAL TELEMETRY & CROSS-NETWORK INTERCEPTS:",
+            "[TEXT] 'Project Horus isn't just indexing street cameras. The lens array'",
+            "[TEXT] 'is reading the optical reflections off the glass on your CRT monitor.'",
+            "[TEXT] 'Every time you view feeds at redroom.vnet or dollhouse.vnet (Room 402),'",
+            "[TEXT] 'Horus logs your pupillary dilation, mapping your physical bedroom layout.'",
+            "[TEXT] 'When PMC strike teams are hired on zeroauction.vnet to execute targets,'",
+            "[TEXT] 'they use Horus ocular locks to confirm the target is still sitting at their desk.'",
+            "[TEXT] 'Subject #409-B's optic nerve was severed post-mortem at morgue.vnet,'",
+            "[TEXT] 'yet the ocular sensor in this database shows his eye is still blinking.'",
+            "[CODE] HORUS_INDEX_REF: 0xE4E4_OCULAR_LOCK_ACTIVE",
+            "[CODE] BIOMETRIC_MATCH_REF: TARGET_OPERATOR_SEATED_AT_TERMINAL",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:shadow.dir] << RETURN TO DIRECTORY");
+
+        res.push("[PULSE] WARNING: RETINAL PATTERN MATCHED // DO NOT LOOK INTO THE CAMERA LENS");
+        res.push("[GLITCH] 'IT DOES NOT MATTER IF YOU TURN OFF THE LIGHTS. IT SEES THE HEAT.'");
+        res.push("[HR]");
+        res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON SAT-99 TELEMETRY");
+        res.push("[LINK:cctv_core.vnet] >> ACCESS METROPOLITAN CCTV BACKDOOR NODE");
+        res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
+        res.push("[LINK:shadow.dir] << CLOSE EYE & RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "orbital.vnet") {
