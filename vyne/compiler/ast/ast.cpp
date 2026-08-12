@@ -697,6 +697,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     static const uint32_t popFrontId = StringPool::intern("pop_front");
     static const uint32_t backId     = StringPool::intern("back");
     static const uint32_t deleteId   = StringPool::intern("delete");
+    static const uint32_t deleteAtId = StringPool::intern("delete_at");
     static const uint32_t sortId     = StringPool::intern("sort");
     static const uint32_t reverseId  = StringPool::intern("reverse");
     static const uint32_t clearId    = StringPool::intern("clear");
@@ -940,6 +941,23 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             if (it == std::end(target->asList())) throw std::runtime_error("Value error : Could not find given value in array! [ line " + std::to_string(lineNumber) + " ]");
             target->asList().erase(it);
             return Value(true);
+        }
+
+        if (methodId == deleteAtId) {
+            if (target->getType() != Value::ARRAY) {
+                throw std::runtime_error("Type Error: Called method delete_at() on non-array [ line " + std::to_string(lineNumber) + " ]");
+            }
+            if (arguments.size() != 1) {
+                throw std::runtime_error("Argument Error: delete_at() expects exactly 1 argument (index) [ line " + std::to_string(lineNumber) + " ]");
+            }
+
+            Value idxVal = arguments[0]->evaluate(env, currentGroupId);
+            auto& vec = target->asList();
+            size_t idx = validateIndex(idxVal, vec.size(), lineNumber);
+
+            Value removedVal = vec[idx];
+            vec.erase(vec.begin() + idx);
+            return removedVal;
         }
 
         if (methodId == sortId) {
