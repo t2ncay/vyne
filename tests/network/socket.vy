@@ -772,25 +772,43 @@ fn load_page(url :: String) -> Array {
     }
 
     if (clean_u == "silence.vnet") {
+        # Calculate dynamic resonance offset based on tuned frequency
+        target_hz :: Float64 = 18.5;
+        hz_delta :: Float64 = vmath.abs(freq_tuner - target_hz);
+        sync_pct :: Int64 = int64(vmath.clamp((1.0 - (hz_delta / 20.0)) * 100.0, 0.0, 100.0));
+
         res :: Array = [
-            "[TITLE] ACOUSTIC DISTORTION FREQUENCY RIG",
+            "[TITLE] ACOUSTIC DISTORTION FREQUENCY RIG // INFRASOUND ANALYZER",
             "[HR]",
-            "[PULSE] CURRENT FREQUENCY: 18.5 Hz (INFRASOUND INDUCING PARANOIA)",
-            "[TEXT] Low-frequency feedback detected in audio driver buffer.",
-            "[TEXT] Prolonged exposure causes visual hallucinations and auditory artifacts.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | OSCILLATOR: 18.5 Hz | PHASE SHIFT: 90 DEG | GAIN: MAX   |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] AUDIO_BUFFER: [0x7F, 0x12, 0xAA, 0xFF, 0x00, 0x11, 0x88]",
-            "[TEXT] Transmitting resonant pulses to active UDP client sockets."
+            "[BADGE:INFRASOUND RIG:BLOOD] [BADGE:SIGNAL LOCK: " + string(sync_pct) + "%:AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | OSCILLATOR TUNER : " + string(freq_tuner) + " Hz (TARGET: 18.5 Hz)                   |",
+            "[BOX] | PHASE RESONANCE  : " + string(sync_pct) + "% SIGNAL SYNCHRONIZATION                |",
+            "[BOX] +-----------------------------------------------------------------+"
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[BLOOD] 'CAN YOU HEAR THE WHISPER BEHIND THE HEADPHONE DISTORTION?'");
+
+        if (sync_pct > 90) {
+            res.push("[GAUGE:100:CARRIER_SIGNAL_LOCKED]");
+            res.push("[SUBTITLE] DECRYPTED INFRASOUND BROADCAST PAYLOAD:");
+            res.push("[CODE] AUDIO_STREAM_INTERCEPT: 0x185_RESONANCE_DECRYPTED");
+            res.push("[TEXT] 'The whisper isn't in your ears. It's vibrating through your CRT glass.'");
+            if (key_line != "") { res.push(key_line); }
+        } else {
+            res.push("[GAUGE:" + string(sync_pct) + ":SIGNAL_CARRIER_DECAY]");
+            res.push("[TEXT] Heavy acoustic distortion active. Tune frequency in CLI using 'freq 18.5'");
+            res.push("[TEXT] to lock carrier phase and isolate high-frequency memory leaks.");
+        }
+
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] MANUAL FREQUENCY CALIBRATION:");
+        res.push("[INPUT:set_freq_hz:ENTER FREQUENCY IN HZ (e.g. 18.5)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:tune_freq_btn:>>> TRANSMIT RESONANT FREQUENCY PULSE <<<]");
+        res.push("[HR]");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
-
     if (clean_u == "blackout.vnet") {
         res :: Array = [
             "[TITLE] REGIONAL POWER GRID CONTROL MAINBOARD",
@@ -1231,30 +1249,79 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "shadowpay.vnet") {
         res :: Array = [
-            "[TITLE] SHADOWPAY - CRYPTO MIXER",
+            "[TITLE] SHADOWPAY // ZERO-KNOWLEDGE CRYPTO MIXER & TUMBLER",
             "[HR]",
-            "[TEXT] Advanced zero-knowledge coin laundering facility.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | MIXING FEE: 1.5% | POOL ANONYMITY: MAXIMUM              |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] MIX_STATE: BLOCKS_SCRAMBLED_SUCCESS"
+            "[BADGE:ANONYMITY: MAXIMUM:TOXIC] [BADGE:MIXING FEE: 1.5%:AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | TUMBLER POOL BALANCE : 420.50 VCOIN                             |",
+            "[BOX] | ZERO-KNOWLEDGE PROOF : zk-SNARKs SHADOW-CIRCUIT ACTIVE            |",
+            "[BOX] | TRACE PURGE YIELD    : -10% TRACE PER 1.00 VCOIN LAUNDERED        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:88:ZK_PROOF_SCRAMBLE_ENTROPY]",
+            "[TEXT] ",
+            "[SUBTITLE] LAUNDER VCOIN & PURGE NETWORK TRACE SIGNATURES:",
+            "[TEXT] Deposit raw VCOIN into the shadow tumbler pool. Scrambles wallet lineage",
+            "[TEXT] across 50 decentralized nodes and reduces active trace level.",
+            "[INPUT:tumble_vcoin_amt:ENTER VCOIN AMOUNT TO LAUNDER (e.g. 1.0)]",
+            "[TEXT] ",
+            "[BTN:execute_tumble_btn:>>> LAUNDER VCOIN & SCRUB WALLET TRACE <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] SHADOW STAKING & INTEREST POOL:",
+            "[TEXT] Lock VCOIN in escrow for 120 seconds to earn +15% yield funded by market fees:",
+            "[BTN:stake_vcoin_btn:>>> DEPOSIT VCOIN INTO 120s YIELD VAULT <<<]",
+            "[HR]"
         ];
         if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:blackbank.vnet] >> TRANSFER CLEAN VCOIN TO OFFSHORE VAULT");
+        res.push("[LINK:crypto.vnet] >> RETURN TO MINING RIG");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "cctv_core.vnet") {
+        # Active camera feed selector using runtime phase
+        cam_id :: Int64 = int64(vmath.fmod(run_time / 10.0, 4.0)) + 1;
+
         res :: Array = [
-            "[TITLE] CITY WIDE CCTV BACKDOOR NODE",
+            "[TITLE] CITY WIDE CCTV BACKDOOR MESH // MULTIPLEX FEED",
             "[HR]",
-            "[TEXT] Live multiplex feed from metropolitan surveillance cameras.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ACTIVE FEEDS: 4,192 CAMERAS | RESOLUTION: 4K OPTICAL    |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] FEED_MATRIX: METRO_GRID_SECTOR_4"
+            "[BADGE:4,192 CAMERAS ONLINE:TOXIC] [BADGE:ACTIVE CHANNEL: CAM_0" + string(cam_id) + ":AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FEED FEEDBACK : OPTICAL RETINAL SCANNER ACTIVE VIA PROJECT HORUS |",
+            "[BOX] | STREAM METHOD : UNENCRYPTED PROMISCUOUS UDP MULTICAST BUS       |",
+            "[BOX] +-----------------------------------------------------------------+"
         ];
+
+        if (cam_id == 1) {
+            res.push("[SUBTITLE] LIVE FEED: SECTOR 4 METRO GRID INTERSECTION");
+            res.push("[BOX] [ CAM_01: METRO_WEST ] - THERMAL BLOBS DETECTED AT SATELLITE RELAY");
+            res.push("[TEXT] Patrol cruisers parked outside site 9-B. Optical recognition matching faces.");
+        } else if (cam_id == 2) {
+            res.push("[SUBTITLE] LIVE FEED: DOLLHOUSE ROOM 402 SUB-BASEMENT");
+            res.push("[IMG:redroom]");
+            res.push("[TEXT] Subject #12 remains stationary facing the wall. Bile seeping through drywall.");
+        } else if (cam_id == 3) {
+            res.push("[SUBTITLE] LIVE FEED: MOUNT MASSIVE SUB-LEVEL 4 CONTAINMENT");
+            res.push("[ART:biohazard]");
+            res.push("[TEXT] Containment door 402 disengaged. Morphogenic static flooding optical sensor.");
+        } else {
+            res.push("[SUBTITLE] LIVE FEED: PANOPTICON SAT-99 CRT GLARE REFLECTION");
+            res.push("[BOX] [ CAM_04: RETINAL_LOCK ] - REVERSE OPTIC SCANNING YOUR MONITOR GLASS");
+            res.push("[PULSE] 'THE CAMERA IS NOT LOOKING AT THE STREET. IT IS LOOKING AT YOUR PUPILS.'");
+        }
+
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] MANUAL CAMERA CHANNEL SWITCHER:");
+        res.push("[BTN:cam_select_1:>>> CHANNEL 01: METRO <<<]");
+        res.push("[BTN:cam_select_2:>>> CHANNEL 02: ROOM 402 <<<]");
+        res.push("[BTN:cam_select_3:>>> CHANNEL 03: ASYLUM <<<]");
+        res.push("[BTN:cam_select_4:>>> CHANNEL 04: SAT-99 <<<]");
+        res.push("[HR]");
         if (key_line != "") { res.push(key_line); }
+        res.push("[LINK:eye.vnet] >> CROSS-CHECK RETINAL SCANS AT PROJECT HORUS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "subcell.vnet") {
@@ -1347,27 +1414,33 @@ fn load_page(url :: String) -> Array {
         return res;
     }
     if (clean_u == "orbital.vnet") {
+        strike_timer :: Int64 = int64(vmath.fmod(run_time, 180.0));
+
         res :: Array = [
             "[TITLE] LOW ORBIT ION CANNON & KINETIC STRIKE TERMINAL",
             "[HR]",
-            "[BLOOD] [WARNING]: SATELLITE WEAPONIZATION PROTOCOL ACTIVE. AUTHORIZATION REQUIRED.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ORBITAL PLATFORM: SAT-99 | STATUS: ARMED & TRACKING     |",
-            "[BOX] | PAYLOAD: TUNGSTEN ROD KINETIC BUNDLE | YIELD: 11.5 KT   |",
-            "[BOX] +---------------------------------------------------------+",
-            "[TEXT] Telemetry control interface for tactical kinetic strike platforms.",
-            "[TEXT] SAT-99 maintains a geostationary lock over metropolitan coordinates,",
-            "[TEXT] capable of delivering sub-surface penetration strikes within 180 seconds.",
-            "[TEXT] LOG #881: Automated targeting array locked onto unauthorized subnet nodes.",
-            "[TEXT] LOG #882: Warning: Firing kinetic rods without multi-sig gateway clearance",
-            "[TEXT] will trigger an immediate counter-strike from global defense grid relays.",
-            "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED",
-            "[CODE] ORBITAL_DECAY_VECTOR: STABLE_99.1_PERCENT",
-            "[TEXT] Notice: Enter valid target coordinates or ping peer ports to designate strike zones."
+            "[BADGE:PLATFORM: SAT-99:BLOOD] [BADGE:PAYLOAD: TUNGSTEN RODS:AMBER] [BADGE:TARGET LOCK: READY:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | ORBITAL ALTITUDE : 35,786 KM GEOSTATIONARY LOCK                 |",
+            "[BOX] | PAYLOAD YIELD    : 11.5 KILOTONS KINETIC PENETRATOR               |",
+            "[BOX] | ORBITAL WINDOW   : NEXT RECHARGE IN " + string(180 - strike_timer) + "s                     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:100:ION_CANNON_CAPACITOR_CHARGE]",
+            "[TEXT] ",
+            "[SUBTITLE] TACTICAL TARGET DESIGNATION & KINETIC DISPATCH:",
+            "[TEXT] Designate peer socket port or target node URL for precision sub-surface strike.",
+            "[TEXT] Striking a target port forces a 45s node blackout and wipes key registration:",
+            "[INPUT:orbital_target_port:ENTER TARGET PORT OR URL (e.g. 8012)]",
+            "[TEXT] ",
+            "[BTN:fire_ion_cannon_btn:>>> AUTHORIZE & FIRE SAT-99 KINETIC STRIKE (2.0 VCOIN) <<<]",
+            "[TEXT] ",
+            "[BLOOD] [WARNING]: FIRING KINETIC RODS BROADCASTS YOUR PUBLIC PORT TO ALL SWARM PEERS.",
+            "[HR]"
         ];
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] ORBITAL STRIKE READY. DESIGNATE TARGET VIA CLI ORBITAL LOCK.");
-        res.push("[BLOOD] 'FROM THE HEAVENS TO YOUR LOCAL SUBNET IN THREE MINUTES FLAT.'");
+        res.push("[LINK:watchtower.vnet] >> CHECK PANOPTICON THERMAL OPTICS");
+        res.push("[LINK:eye.vnet] >> VERIFY RETINAL LOCK VIA PROJECT HORUS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -1401,17 +1474,83 @@ fn load_page(url :: String) -> Array {
         return res;
     }
     if (clean_u == "deepwiki.vnet") {
+        # Calculate active time phase: shifts content every 60 seconds (3 phases total over 180s)
+        wiki_phase :: Int64 = int64(vmath.fmod(run_time, 180.0) / 60.0);
+
         res :: Array = [
-            "[TITLE] THE DEEP WIKI - HIDDEN INDEX",
+            "[TITLE] THE DEEP WIKI // HIDDEN OCCULT & ARCHIVAL DATABASE",
             "[HR]",
-            "[TEXT] Encyclopedia of occult networks, underground organizations, and history.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | ARTICLES: 14,290 | EDIT LOCK: PERMANENT                 |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] WIKI_INDEX: 0xWIKI_0991_OCCULT"
+            "[BADGE:DEEP WIKI:BLOOD] [BADGE:RESTRICTED ACCESS:AMBER] [BADGE:AUTO-ROTATING INDEX:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | CLASSIFICATION: UNFILTERED SHADOW WIKI & OCCULT ARCHIVE NODE    |",
+            "[BOX] | INDEXED ARTICLES: 14,290 | ACCESS PROTOCOL: DYNAMIC SHIFTING    |",
+            "[BOX] | ROTATION TIMER: AUTO-PURGED EVERY 60.0 SECONDS VIA RUN_TIME BUS |",
+            "[BOX] +-----------------------------------------------------------------+"
         ];
+
+        # Dynamic Phase Content Shifting
+        if (wiki_phase == 0) {
+            res.push("[GAUGE:33:DEEPWIKI_INDEX_ROTATION_PHASE_1]");
+            res.push("[SUBTITLE] ARCHIVE SECTOR ALPHA: PROJECT HORUS & ORBITAL OPTICS");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[BOX] | ENTRY #0091: PANOPTICON SATELLITE ARRAY (SAT-99)                |");
+            res.push("[BOX] | ORIGIN: Classified military contractor data dump exfiltrated from |");
+            res.push("[BOX] | archival.vnet. Satellite constellation tracks CRT reflections. |");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[CODE] ARTICLE_REF: 0xWIKI_0091_PANOPTICON_SAT99");
+            res.push("[TEXT] 'Project Horus does not rely on CCTV feeds. It measures the CRT static'");
+            res.push("[TEXT] 'glare reflecting off your pupils to render 3D depth maps of your workspace.'");
+            res.push("[TEXT] 'Field agents active on passports.vnet spoof retinal patterns to bypass this.'");
+        }
+        else if (wiki_phase == 1) {
+            res.push("[GAUGE:66:DEEPWIKI_INDEX_ROTATION_PHASE_2]");
+            res.push("[SUBTITLE] ARCHIVE SECTOR BETA: SUBTERRANEAN BLACK SITES & CULT PROTOCOLS");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[BOX] | ENTRY #0409: SUBJECT #409-B & TEMPLE GATE RITUAL MATRIX          |");
+            res.push("[BOX] | ORIGIN: Forensics and autopsy dumps recovered from morgue.vnet.   |");
+            res.push("[BOX] | Cross-linked with Temple Gate rituals hosted at cult.vnet.      |");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[CODE] ARTICLE_REF: 0xWIKI_0409_SUBLEVEL4_RITUAL");
+            res.push("[TEXT] 'Cultists in cult.vnet smear black blood over copper CRT coils to'");
+            res.push("[TEXT] 'amplify Morphogenic engine frequencies generated at asylum.vnet.'");
+            res.push("[TEXT] 'Subject #409-B's cortex stacks were extracted post-mortem to seed'");
+            "[TEXT] 'the proof-of-work algorithm running on crypto.vnet.'";
+        }
+        else {
+            res.push("[GAUGE:99:DEEPWIKI_INDEX_ROTATION_PHASE_3]");
+            res.push("[SUBTITLE] ARCHIVE SECTOR OMEGA: THE KAGUYA TRIALS & VOID MATRIX");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[BOX] | ENTRY #6969: BIOMETRIC TRANSPOSITION & KAGUYA TRIAL CLEANUP     |");
+            res.push("[BOX] | ORIGIN: Unredacted execution logs recovered from zeroauction.vnet |");
+            res.push("[BOX] | and bounty.vnet. Target routing leads to void.vnet.             |");
+            res.push("[BOX] +-----------------------------------------------------------------+");
+            res.push("[CODE] ARTICLE_REF: 0xWIKI_6969_KAGUYA_VOID_PROTOCOL");
+            res.push("[TEXT] 'Candidates who fail the Kaguya Trials at bounty.vnet aren't released.'");
+            res.push("[TEXT] 'Their physical remains are processed into organ lots on market.vnet,'");
+            "[TEXT] 'while their network sockets are permanently trapped in void.vnet.'";
+        }
+
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] INTERACTIVE WIKI SEARCH & DATABASE QUERY:");
+        res.push("[TEXT] Enter article reference key or occult moniker to query hidden sub-pages:");
+        res.push("[INPUT:wiki_query_input:ENTER ARTICLE KEY (e.g. 0xWIKI_0091)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:wiki_query_btn:>>> QUERY DEEP WIKI VAULT <<<]");
+        res.push("[TEXT] ");
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        res.push("[BLOOD] [SYSTEM NOTICE]: WIKI INDEX SHIFTS EVERY 60 SECONDS.");
+        res.push("[PULSE] 'KNOWLEDGE ON THIS NETWORK IS NOT STATIC. IT ROTS LIKE FLESH.'");
+        res.push("[GLITCH] 'ARTICLE #0000: YOU ARE ALREADY INDEXED IN SITE 9 ALLOCATION TABLES.'");
+        res.push("[HR]");
+        res.push("[SUBTITLE] SECRET & RESTRICTED ROUTING GATEWAYS:");
+        res.push("[LINK:void.vnet] >> ACCESS DEEP WEB ABYSS TERMINAL [void.vnet]");
+        res.push("[LINK:cult.vnet] >> ACCESS CHURCH OF THE SILICON SOUL [cult.vnet]");
+        res.push("[LINK:skinwalker.vnet] >> ACCESS BIOMETRIC TRANSPOSITION MATRIX [skinwalker.vnet]");
+        res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED SECTOR 09 MILITARY DUMPS [archival.vnet]");
+        res.push("[LINK:vnet.dir] << CLOSE WIKI & RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "dump.vnet") {
@@ -1796,7 +1935,7 @@ fn load_page(url :: String) -> Array {
         "[TEXT] ",
         "[GAUGE:100:SIGNAL_ENTROPY_DECAY]",
         "[TEXT] ",
-        "[ART:skull]",
+        "[ART:not_found]",
         "[TEXT] ",
         "[SUBTITLE] DYNAMIC ROUTE RECOVERY & PACKET RE-INJECTION:",
         "[TEXT] Attempting to access an invalid or purged darknet node triggers active BGP traces.",
@@ -1931,6 +2070,10 @@ fn dispatch_cli_command(raw_input :: String) {
         } else {
             freq_tuner = vmath.clamp(float64(int64(args)), 1.0, 100.0);
             cli_logs.push("[FREQ]: TUNED TO " + string(freq_tuner) + " Hz");
+            
+            if (current_url == "silence.vnet") {
+                page_body = load_page(current_url);
+            }
         }
     }
     else if (cmd == "decoy") {
@@ -2360,10 +2503,7 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, f2_str, f2_x, box_y + 490.0, 9, COLOR_GHOST);
 
         # Scanline Overlay
-        through sy :: 0..99 -> loop {
-            line_y :: Float64 = float64(sy * 8);
-            vglib.line(0, line_y, 1280, line_y, COLOR_SCANLINE);
-        };
+        vglib.draw_scanlines(8.0, vglib.rgba(0, 0, 0, 90));
 
         vglib.end();
         continue;
@@ -2376,7 +2516,7 @@ while (vglib.running()) {
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
         if (clean_str(current_url) != active_down_url || active_down_timer <= 0.0) {
-            vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
+            vnet.send_to(client_sock, server_ip, server_port, "PING:" + current_url);
         }
     }
 
@@ -2578,7 +2718,7 @@ while (vglib.running()) {
     }
 
     packet_in :: Array = vnet.recv_from(client_sock);
-    if (packet_in.length() >= 3) {
+    while (packet_in.length() >= 3) {
         net_msg :: String = string(packet_in[0]);
         server_status = net_msg;
         glitch_trigger = 0.2;
@@ -2762,6 +2902,7 @@ while (vglib.running()) {
                 cli_logs.push("[REWARD]: EXFILTRATED DATA SOLD ON BLACK MARKET! +0.50 VCOIN");
             }
         }
+        packet_in = vnet.recv_from(client_sock);
     }
 
     if (glitch_trigger > 0.0) { glitch_trigger = glitch_trigger - 0.016; }
@@ -3400,6 +3541,34 @@ while (vglib.running()) {
                                 }
                             };
                             line_idx = line_idx + 4;
+                        }
+                        else if (art_key == "not_found") {
+                            nf_art :: Array = [
+                                "      .------------------------------------.      ",
+                                "     /  404 // SIGNAL LOST IN THE MATRIX   \     ",
+                                "    |   ================================   |    ",
+                                "    |     _  _    ___   _  _               |    ",
+                                "    |    | || |  / _ \\ | || |  [ VOID ]   |    ",
+                                "    |    | || |_| | | || || |_             |    ",
+                                "    |    |__   _| |_| ||__   _|            |    ",
+                                "    |       |_|  \\___/    |_|             |    ",
+                                "    |                                      |    ",
+                                "    |   [!] SOCKET DESYNCHRONIZED          |    ",
+                                "    |   [!] MEMORY BLOCK WIPED / SEIZED    |    ",
+                                "     \\  --------------------------------  /     ",
+                                "      '----------------------------------'      "
+                            ];
+
+                            nf_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+                            through nf_i :: 0..(nf_art.length() - 1) -> loop {
+                                nf_line_y :: Float64 = art_y + (float64(nf_i) * 16.0);
+                                if (nf_line_y >= 85.0 && nf_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(nf_art[nf_i]), art_x, nf_line_y, 11, nf_col);
+                                }
+                            };
+
+                            line_idx = line_idx + 7;
                         }
                     }
                 }

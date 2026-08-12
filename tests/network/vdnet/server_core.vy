@@ -124,7 +124,7 @@ overload_cooldowns      :: Array   = [];
 overloaded_urls   :: Array = [];
 overloaded_timers :: Array = [];
 
-fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) {
+fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) -> Int64 {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
         if (int64(active_ports[i]) == port) {
@@ -137,6 +137,7 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_urls[found_idx]      = url;
         active_ips[found_idx]       = ip;
         active_last_seen[found_idx] = now_time;
+        return 0; # Existing peer
     } else {
         assigned_16 :: Array = [];
         
@@ -169,6 +170,8 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_dos_hits.push(0);
         active_dirs.push(dir_payload);
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
+
+        return 1;
     }
 }
 
@@ -208,14 +211,12 @@ fn unregister_peer(port :: Int64) {
     };
 
     if (found_idx >= 0) {
-        target_port :: Int64 = int64(active_ports[found_idx]);
-        
-        active_ports.delete(target_port);
-        active_ips.delete(active_ips[found_idx]);
-        active_urls.delete(active_urls[found_idx]);
-        active_last_seen.delete(active_last_seen[found_idx]);
-        active_dos_hits.delete(active_dos_hits[found_idx]);
-        active_dirs.delete(active_dirs[found_idx]);
+        active_ports.delete_at(found_idx);
+        active_ips.delete_at(found_idx);
+        active_urls.delete_at(found_idx);
+        active_last_seen.delete_at(found_idx);
+        active_dos_hits.delete_at(found_idx);
+        active_dirs.delete_at(found_idx);
         
         out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port) + " FROM ACTIVE PEERS LIST");
     }
@@ -225,7 +226,7 @@ fn prune_inactive_peers(now_time :: Float64) {
     i :: Int64 = active_ports.length() - 1;
     while (i >= 0) {
         last_t :: Float64 = float64(active_last_seen[i]);
-        if (now_time - last_t > 10.0) {
+        if (now_time - last_t > 10.0) { # 10s grace window for 3s heartbeats
             dead_port :: Int64 = int64(active_ports[i]);
             unregister_peer(dead_port);
             broadcast_feed_event("[TIMEOUT]: NODE PORT_" + string(dead_port) + " TIMED OUT & PURGED");
@@ -360,8 +361,11 @@ while (true) {
             cmd :: String     = msg.substr(0, sep_idx);
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
-            update_peer_session(sender_port, sender_ip, payload, server_uptime);
-            broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
+            if (cmd == "PING") {
+                # Silent heartbeat keepalive — updates last_seen without feed spam
+            } else {
+                broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
+            }
 
             if (cmd == "GET") {
                 site_is_down :: Int64 = 0;
@@ -376,7 +380,11 @@ while (true) {
                     vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:SITE_OVERLOADED:" + payload);
                 } else {
                     out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
-                    send_key_sync_payload(sender_ip, sender_port);
+                    
+                    is_new_peer :: Int64 = update_peer_session(sender_port, sender_ip, payload, server_uptime);
+                    if (is_new_peer == 1) {
+                        send_key_sync_payload(sender_ip, sender_port);
+                    }
                 }
             }
 
