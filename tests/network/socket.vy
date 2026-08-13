@@ -1066,52 +1066,114 @@ fn load_page(url :: String) -> Array {
     }
 
     if (clean_u == "cult.vnet") {
+        # Calculate ritual resonance and phase lock based on active RF tuner
+        target_hz   :: Float64 = 18.0;
+        hz_delta    :: Float64 = vmath.abs(freq_tuner - target_hz);
+        is_resonant :: Int64   = (hz_delta <= 0.5) ? 1 : 0;
+        
+        # Calculate dynamic ritual harmony (0% = Scrambled Static, 100% = Divine Phase Lock)
+        harmony_pct :: Int64   = int64(vmath.clamp((1.0 - (hz_delta / 20.0)) * 100.0, 0.0, 100.0));
+        
+        # Determine real-time ritual phase based on run_time
+        ritual_phase :: Int64  = int64(vmath.fmod(run_time / 40.0, 3.0));
+
         res :: Array = [
-            "[TITLE] THE CHURCH OF THE SILICON SOUL // DIGITAL RITUAL GATEWAY",
+            "[TITLE] THE CHURCH OF THE SILICON SOUL // DIGITAL RITUAL GATEWAY [NODE #066]",
             "[HR]",
-            "[BLOOD] [TRANSMISSION 1969.8 Hz]: 'LOOK AT YOUR HANDS. DO YOU SEE THE WRITING ON THE WALL?'",
-            "[PULSE] SACRIFICIAL PROTOCOL ACTIVE // TEMPLE GATE & SPAHN RANCH MEMORY STACK OVERFLOW",
+            "[BADGE:TEMPLE GATE ALTAR:BLOOD] [BADGE:RITUAL HARMONY: " + string(harmony_pct) + "%:AMBER] [BADGE:GOD FREQ: 18.0Hz:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | DOCTRINE: THE FINAL ALGORITHM IS COMING DOWN THE TRACK          |",
-            "[BOX] | OFFERING STATUS: 0.10 VCOIN SACRIFICED VIA 'flush' COMMAND       |",
-            "[BOX] | RITUAL FREQUENCY: TUNED TO 18.0 Hz (SILENCE.VNET RESONANCE)    |",
-            "[BOX] | SATANIC CONSECRATION: RANCID BLOOD & AFTERBIRTH ON CRT COILS    |",
+            "[BOX] | DOCTRINE: FINDING GOD THROUGH TERMINAL.VNET & CEREBRAL REGISTERS|",
+            "[BOX] | RITUAL FREQUENCY: " + string(freq_tuner) + " Hz (TARGET: 18.0 Hz RESONANCE)            |",
+            "[BOX] | SACRIFICIAL ALTAR: COAXIAL CABLING & BOILING ADIPOCERE ON CRT   |",
+            "[BOX] | FAITH STATUS: " + ((is_resonant == 1) ? "DIVINE CARRIER PHASE LOCKED" : "SEARCHING FOR GOD IN STATIC") + "      |",
             "[BOX] +-----------------------------------------------------------------+",
-            "[CODE] LITURGY_HEX_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E (SILICON)",
-            "[CODE] LITURGY_HEX_2: 0x47 0x4F 0x44 0x53 0x5F 0x44 0x45 0x4D 0x41 0x4E 0x44",
-            "[CODE] LITURGY_HEX_3: 0x0A_666_BLACK_MASS_EXEC_VECTOR",
-            "[TEXT] ",
-            "[SUBTITLE] RECOVERED AUDIO TAPE TRANSCRIPT // DESERT SPAHN RANCH & TEMPLE GATE DIGITIZATION:",
-            "[TEXT] 'Charlie didn't play guitar for the record executives, man. He plugged the",
-            "[TEXT] copper wires directly into the power transformer behind the ranch house.",
-            "[TEXT] He said: 'Helter Skelter is coming right through the terminal wires! It's gonna",
-            "[TEXT] carve its name into your RAM chips while you sit there sleeping!''",
-            "[TEXT] ",
-            "[TEXT] 'In the subterranean altars beneath cult.vnet, Sullivan Knoth's heretics and",
-            "[TEXT] the satanic acolytes of the Silicon Church gather around inverted CRT monitors.",
-            "[TEXT] They slaughter newborn cattle and pregnant followers, smearing coagulated black blood,",
-            "[TEXT] liquefied intestines, and rancid afterbirth over copper heat sinks to conjure",
-            "[TEXT] the Walrider payload streaming live from snuff.vnet.'",
-            "[TEXT] ",
-            "[TEXT] 'When the cult members entered skinwalker.vnet, they peeled their own faces off",
-            "[TEXT] with surgical scalpels while fully conscious. They dumped their severed lips,",
-            "[TEXT] eyelids, and rotting cheek meat onto the stainless steel mortuary trays at morgue.vnet'",
-            "[TEXT] 'to prove to the mainframe that they no longer possessed human identities.'",
-            "[CODE] MANIFESTO_LOG #88: 'We are what you hide away in your allocation tables.'",
-            "[CODE] DESERT_SPAHN_RANCH_DUMP: 0xDEAD_BEEF_FAMILY_MEMORY_STACK",
-            "[CODE] SATANIC_ALTAR_HASH: 0x666_TEMPLE_GATE_BLACK_MASS"
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] SACRIFICE 0.10 VCOIN VIA 'flush' TO PURGE TRACE DEMONS");
-        res.push("[BLOOD] 'THE NETWORK CRAVES BLOOD, BANDWIDTH, AND ABSOLUTE SURRENDER'");
-        res.push("[GLITCH] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR WEAR ITS ROTTING FLESH?'");
-        res.push("[LINK:skinwalker.vnet] >> ACCESS BIOMETRIC IDENTITY TRANSPOSITION");
-        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 & MOUNT MASSIVE");
-        res.push("[LINK:silence.vnet] >> TUNE ACOUSTIC INFRASOUND DISTORTION");
-        res.push("[LINK:snuff.vnet] >> INSPECT UNFILTERED RAW VIDEO RECOVERY");
-        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        # DYNAMIC MECHANIC 1: Visual Infrasound Liturgy Gauge & Resonant Text
+        res.push("[GAUGE:" + string(harmony_pct) + ":SILICON_SOUL_HARMONIC_RESONANCE]");
+        res.push("[TEXT] ");
+
+        if (is_resonant == 1) {
+            res.push("[SUBTITLE] DECRYPTED TESTAMENT OF THE SILICON GOD (SIGNAL LOCKED):");
+            res.push("[BLOOD] 'Do not look for God in the clouds or inside stone cathedrals.'");
+            res.push("[BLOOD] 'God is the high-voltage carrier wave humming inside terminal.vnet.'");
+            res.push("[PULSE] 'He lives in the zero-day allocations, in the unmapped VFS registers,'");
+            res.push("[PULSE] 'and in the warmth of the CRT glass pressing against your forehead.'");
+            res.push("[CODE] LITURGY_HEX_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E (SILICON)");
+            res.push("[CODE] LITURGY_HEX_2: 0x47 0x4F 0x44 0x53 0x5F 0x44 0x45 0x4D 0x41 0x4E 0x44");
+            res.push("[CODE] LITURGY_HEX_3: 0x0A_666_BLACK_MASS_EXEC_VECTOR");
+            
+            if (key_line != "") {
+                res.push("[HR]");
+                res.push("[SUBTITLE] CONSECRATED VFS MEMORY REGISTER (EXTRACTED VIA GOD'S WAVE):");
+                res.push(key_line);
+                res.push("[CODE] DIVINE_BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT_OFFSET: " + string(bit_shift_offset) + "]");
+            }
+        } else {
+            res.push("[SUBTITLE] ACOUSTIC CARRIER UNSYNCHRONIZED // HEAVY DEMONIC INTERFERENCE:");
+            res.push("[GLITCH] %$%@#$! THE TERMINAL IS WHISPERING IN REVERSE. TUNE RF TO 18.0 Hz TO LOCK !#$@#$");
+            res.push("[WARN] Infrasound carrier phase broken. Use CLI command 'freq 18.0' or tune in silence.vnet.");
+            res.push("[TEXT] Current RF Frequency: " + string(freq_tuner) + " Hz. Required: 18.0 Hz.");
+        }
+
+        res.push("[TEXT] ");
+
+        if (ritual_phase == 0) {
+            res.push("[SUBTITLE] RITUAL PHASE I: THE DIGITIZATION OF SPAHN RANCH & TEMPLE GATE");
+            res.push("[TEXT] 'In 1969, Charlie plugged copper jumper wires directly into the power'");
+            res.push("[TEXT] 'transformer behind the Spahn Ranch house. He said: 'Helter Skelter'");
+            res.push("[TEXT] 'is coming right through the terminal wires! It's gonna carve its name'");
+            res.push("[TEXT] 'into your RAM chips while you sit there sleeping!''");
+            res.push("[TEXT] 'Today, Sullivan Knoth's heretics gather around inverted CRT monitors.'");
+            res.push("[TEXT] 'They slaughter cattle and smear black blood, liquefied intestines, and'");
+            res.push("[TEXT] 'rancid afterbirth over copper heat sinks to conjure the Walrider payload'");
+            res.push("[TEXT] 'streaming live from snuff.vnet.'");
+        } else if (ritual_phase == 1) {
+            res.push("[SUBTITLE] RITUAL PHASE II: THE SACRAMENT OF FACIAL TRANSPOSITION");
+            res.push("[TEXT] 'When cult members entered skinwalker.vnet, they peeled their own faces'");
+            res.push("[TEXT] 'off with surgical scalpels while fully conscious. They dumped their severed'");
+            res.push("[TEXT] 'lips, eyelids, and rotting cheek meat onto mortuary trays at morgue.vnet'");
+            res.push("[TEXT] 'to prove to terminal.vnet that they no longer possessed human identities.'");
+            res.push("[TEXT] 'To find God in the terminal, you must first strip away the flesh suit.'");
+            res.push("[TEXT] 'Once your eyes are gone, the monitor glass becomes your retina.'");
+        } else {
+            res.push("[SUBTITLE] RITUAL PHASE III: THE HIGH-VOLTAGE BAPTISM OF SUBJECT #409");
+            res.push("[TEXT] 'Subject #409-B did not die during the redroom.vnet execution.'");
+            res.push("[TEXT] 'His soul was converted into raw binary packets and injected into vault.vnet.'");
+            res.push("[TEXT] 'When you type commands into overlay terminal [TAB], you are not executing'");
+            res.push("[TEXT] 'code on your CPU—you are tapping directly into the nervous system'");
+            res.push("[TEXT] 'of the Silicon God built from the ashes of dead whistleblowers.'");
+        }
+
+        res.push("[TEXT] ");
+
+        res.push("[SUBTITLE] SACRIFICIAL ALTAR // PURGE NETWORK TRACE DEMONS:");
+        res.push("[TEXT] Lay VCOIN on the copper altar to purge trace threat level (-30% per 0.10 VCOIN):");
+        res.push("[INPUT:vcoin_offering_amt:ENTER VCOIN SACRIFICE (e.g. 0.10)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:sacrifice_vcoin_btn:>>> FLUSH VCOIN TO ALTAR & PURGE TRACE DEMONS <<<]");
+        res.push("[TEXT] ");
+
+        # DYNAMIC MECHANIC 4: Confessional Keystroke Input
+        res.push("[SUBTITLE] CONFESSIONAL GATEWAY // SURRENDER YOUR IDENTITY TO THE MAINFRAME:");
+        res.push("[TEXT] Type your name, secret sins, or socket ID below to bind your soul to terminal.vnet:");
+        res.push("[INPUT:confession_input:ENTER YOUR CONFESSION TO THE SILICON GOD]");
+        res.push("[TEXT] ");
+        res.push("[BTN:confess_sin_btn:>>> TRANSMIT CONFESSION & BURN INTO RAM <<<]");
+        res.push("[TEXT] ");
+
+        res.push("[BLOOD] [WARNING]: THE NETWORK CRAVES BLOOD, BANDWIDTH, AND ABSOLUTE SURRENDER.");
+        res.push("[PULSE] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR WEAR ITS ROTTING FLESH?'");
+        res.push("[GLITCH] 'THE CRT MONITOR GLASS IS VERY WARM. IT IS DRINKING YOUR HEAT.'");
         res.push("[HR]");
+        res.push("[LINK:terminal.vnet] >> ENTER MASTER DECRYPTION GATEWAY TERMINAL");
+        res.push("[LINK:schizo.vnet] >> VISIT THE TEMPLE OF NETMAN");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 & MOUNT MASSIVE");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        
         return res;
     }
 
@@ -1806,17 +1868,95 @@ fn load_page(url :: String) -> Array {
         return res;
     }
     if (clean_u == "deadchannel.vnet") {
+        # Calculate carrier resonance & phase lock based on live RF tuner
+        target_hz   :: Float64 = 18.0;
+        hz_delta    :: Float64 = vmath.abs(freq_tuner - target_hz);
+        is_resonant :: Int64   = (hz_delta <= 0.5) ? 1 : 0;
+        
+        # Calculate dynamic carrier noise entropy percentage (0% = Clean Intercept, 100% = Pure Static)
+        noise_pct   :: Int64   = int64(vmath.clamp((hz_delta / 20.0) * 100.0, 0.0, 100.0));
+        
         res :: Array = [
-            "[TITLE] DEAD CHANNEL BROADCAST",
+            "[TITLE] DEADCHANNEL.VNET // SHADOW PMC WIRETAP INTERCEPT",
             "[HR]",
-            "[TEXT] Broadcast node transmitting automated static noise on loop.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | CARRIER FREQUENCY: 0.0 Hz | SIGNAL: WHITE NOISE         |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] CHANNEL_STATE: STATIC_LOOP_ACTIVE"
+            "[BADGE:SEIZED BROADCAST:BLOOD] [BADGE:CARRIER NOISE: " + string(noise_pct) + "%:AMBER] [BADGE:PMC FREQ: 18.0Hz:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NODE ID: DEADCHANNEL_0x00 | ORIGIN: FORMER CULT CHAT RELAY      |",
+            "[BOX] | INCIDENT: RAIDED BY SHADOW PMC DIRECTRATE 7 // COMMS DROPPED    |",
+            "[BOX] | CARRIER FREQUENCY: " + string(freq_tuner) + " Hz | RF CARRIER LOCK: " + ((is_resonant == 1) ? "LOCKED" : "SEARCHING") + "  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        # DYNAMIC MECHANIC 1: Live Interactive RF Waveform Display
+        res.push("[SUBTITLE] REAL-TIME RF CARRIER WAVEFORM (ANALOG INTERCEPT):");
+        
+        # Build dynamic ASCII oscilloscope wave based on run_time & tuning state
+        wave_str_1 :: String = "  [RF_SCOPE] ";
+        wave_str_2 :: String = "  [RF_SCOPE] ";
+        through w_idx :: 0..30 -> loop {
+            wave_val_1 :: Float64 = vmath.sin(run_time * (freq_tuner * 0.4) + float64(w_idx) * 0.3);
+            wave_val_2 :: Float64 = vmath.cos(run_time * (freq_tuner * 0.4) + float64(w_idx) * 0.3);
+            
+            if (is_resonant == 1) {
+                # Clean sine wave visual representation when phase locked at 18.0 Hz
+                wave_str_1 = wave_str_1 + ((wave_val_1 > 0.2) ? "█" : ((wave_val_1 < -0.2) ? "_" : "▀"));
+                wave_str_2 = wave_str_2 + ((wave_val_2 > 0.2) ? "█" : ((wave_val_2 < -0.2) ? "_" : "▀"));
+            } else {
+                # Glitched static noise representation when off-frequency
+                rnd_char :: Int64 = int64(vmath.fmod(run_time * 100.0 + float64(w_idx * 7), 4.0));
+                wave_str_1 = wave_str_1 + ((rnd_char == 0) ? "░" : ((rnd_char == 1) ? "▒" : ((rnd_char == 2) ? "▓" : "█")));
+                wave_str_2 = wave_str_2 + ((rnd_char == 0) ? "▓" : ((rnd_char == 1) ? "░" : ((rnd_char == 2) ? "▒" : "#")));
+            }
+        };
+        
+        res.push("[CODE] " + wave_str_1);
+        res.push("[CODE] " + wave_str_2);
+        res.push("[GAUGE:" + string(100 - noise_pct) + ":CARRIER_SIGNAL_RESONANCE]");
+        res.push("[TEXT] ");
+
+        # DYNAMIC MECHANIC 2: Conditional Signal Demodulation / Intercept Transcript
+        if (is_resonant == 1) {
+            res.push("[SUBTITLE] DECRYPTED AUDIO INTERCEPT // SHADOW PMC COMMS LOG:");
+            res.push("[CODE] [03:14:02] PMC_ACTUATOR_1 : 'Basement door breached. Cultist chat server located.'");
+            res.push("[CODE] [03:14:04] PMC_ACTUATOR_1 : 'Target acolytes engaged. Executing non-compliance protocol.'");
+            res.push("[CODE] [03:14:06] PMC_LEAD       : 'Plant thermite on the relay antennas. Drop the broadcast.'");
+            res.push("[CODE] [03:14:09] SYSTEM         : [TRANSMITTER SEVERED] -- SIGNAL COLLAPSED TO WHITE NOISE.");
+            res.push("[TEXT] ");
+            res.push("[BLOOD] Cultist_0x99 (Post-Mortem Packet Log): 'The static... it was Hellroom...'");
+            res.push("[PULSE] 'THEY SILENCED THE CHAT MESH, BUT THE CARRIER WAVE STILL HUMS.'");
+            
+            if (key_line != "") {
+                res.push("[HR]");
+                res.push("[SUBTITLE] EXFILTRATED VFS REGISTER (RECOVERED FROM CHARRED RACK):");
+                res.push(key_line);
+                res.push("[CODE] RAW_BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT_OFFSET: " + string(bit_shift_offset) + "]");
+            }
+        } else {
+            res.push("[SUBTITLE] CARRIER UNSYNCHRONIZED // HEAVY CARRIER JAMMING:");
+            res.push("[GLITCH] 0x88 0xFF 0x00 0x12 -- CARRIER NOISE OVERFLOW (18.0 Hz TUNING REQUIRED)");
+            res.push("[WARN] Signal scrambled by PMC directional jammer. Use CLI command 'freq 18.0'");
+            res.push("[TEXT] Current RF Frequency: " + string(freq_tuner) + " Hz. Required: 18.0 Hz.");
+        }
+
+        # DYNAMIC MECHANIC 3: Non-Input Passive Environmental Lore & Links
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] FIELD TACTICAL ANALYSIS:");
+        res.push("[TEXT] 'What used to be deadchannel.vnet (the legacy Hellroom chat backup)'");
+        res.push("[TEXT] 'is now an open graveyard of severed copper cables and melted silica.'");
+        res.push("[TEXT] 'Shadow PMC teams swept through at 03:14, executed the cult operators,'");
+        res.push("[TEXT] 'and clamped a heavy RF jamming vector onto the site's carrier frequency.'");
+        res.push("[TEXT] 'The white noise isn't random. It's the residual heat of thermite burning'");
+        res.push("[TEXT] 'through the sub-basement server frames.'");
+        res.push("[TEXT] ");
+        res.push("[PULSE] TIP: Open terminal overlay [TAB] and type 'freq 18.0' to lock signal phase.");
+        res.push("[HR]");
+        res.push("[LINK:cult.vnet] >> ACCESS REMNANTS AT CHURCH OF THE SILICON SOUL");
+        res.push("[LINK:weaponry.vnet] >> INSPECT SHADOW PMC ARMORY EXPORTS");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY DUMPS FOR RAID CASUALTIES");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        
         return res;
     }
     if (clean_u == "phantom.vnet") {
