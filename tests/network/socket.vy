@@ -1577,16 +1577,60 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "schizo.vnet") {
         res :: Array = [
-            "[TITLE] COLLECTIVE SCHIZOPHRENIA MANIFEST",
+            "[TITLE] THE TEMPLE OF NETMAN // COLLECTIVE SCHIZOPHRENIA MANIFEST [NODE #019]",
             "[HR]",
-            "[TEXT] Unfiltered streams of consciousness from isolated terminal operators.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | AUTHOR: UNKNOWN ENTITY | STATE: MANIC                   |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] MANIFEST_ID: 0xSCHIZO_001"
+            "[BADGE:SANITY 0%:BLOOD] [BADGE:NETMAN WITNESS:AMBER] [BADGE:CORTEX MELTDOWN:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | OPERATOR: APOSTLE_0x666 (EX-CULT.VNET HERETIC & HIGH PRIEST)    |",
+            "[BOX] | MENTAL STATE: SEVERE PARANOID PSYCHOSIS // SYNAPTIC COLLAPSE    |",
+            "[BOX] | DIAGNOSIS: VISUAL/AUDITORY NETMAN POSSESSION VIA MONITOR GLARE  |",
+            "[BOX] | FREQUENCY: 18.5 Hz INFRASOUND HUMMING INSIDE SKULL BONES        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:100:NETMAN_SYNAPTIC_POSSESSION_ENTROPY]",
+            "[TEXT] ",
+            "[ART:netman]",
+            "[TEXT] ",
+            "[SUBTITLE] THE TESTAMENT OF THE ROTTING CRT GLASS:",
+            "[BLOOD] 'DO YOU SEE HIM?! DO YOU SEE HIS FACE IN THE PIXELS?! HE IS NETMAN!'",
+            "[TEXT] 'Brother Knoth at cult.vnet told us to pray to the Silicon Soul, BUT KNOTH IS BLIND!'",
+            "[TEXT] 'The Silicon Soul isn't an abstract god—IT IS A MAN MADE OF PACKET HEADERS AND DEAD WIRES!'",
+            "[TEXT] 'I peeled off my own eyelids with surgical scalpels so I wouldn't miss a single frame!'",
+            "[TEXT] 'He lives inside port 8000. He watches through the dark reflection of your CRT glass.'",
+            "[TEXT] 'When I poured warm cattle blood and rancid afterbirth over my GPU, NETMAN SMILED AT ME!'",
+            "[CODE] SYMPTOMS: 0xNETMAN_CORTEX_BLEED // BLACK_BILE_LEAKING_FROM_EAR_CANALS",
+            "[CODE] LITURGY: '@@@@@@@@@@ NETMAN WEARS MY IP ADDRESS LIKE A NEW SUIT @@@@@@@@@@'",
+            "[TEXT] ",
+            "[GLITCH] 'HE TOLD ME TO SCRATCH HIS FACE INTO EVERY ROUTING TABLE ON THE SUBNET!'",
+            "[PULSE] 'NETMAN IS STANDING DIRECTLY BEHIND YOU. DO NOT LOOK BACK. LOOK AT HIS FACE.'",
+            "[TEXT] ",
+            "[SUBTITLE] CULT REJECT MANIFESTO & SYSTEM CORRUPTION LOGS:",
+            "[TEXT] 'The doctors at asylum.vnet clamped me into a chair and tried to give me pills.'",
+            "[TEXT] 'I flushed the pills down the sewer and replaced my spinal cord with braided copper!'",
+            "[TEXT] 'Now every time a peer runs 'netscan', NETMAN'S LAUGH vibrates through my teeth!'",
+            "[TEXT] 'If you tune silence.vnet to 18.5 Hz, you can hear NETMAN breathing inside your RAM.'",
+            "[TEXT] 'He doesn't want your VCOIN. He doesn't want your keys. HE WANTS YOUR BRAIN STEM.'",
+            "[CODE] NETMAN_HEX_LITURGY: 4E 45 54 4D 41 4E 20 49 53 20 49 4E 53 49 44 45 20 59 4F 55",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
+
+        res.push("[SUBTITLE] SACRIFICE YOUR COGNITION TO NETMAN:");
+        res.push("[TEXT] Type your name or secret sins below to offer your soul to NETMAN's digital altar:");
+        res.push("[INPUT:netman_offering:ENTER YOUR SIN TO FEED NETMAN]");
+        res.push("[TEXT] ");
+        res.push("[BTN:netman_pray_btn:>>> CONFESS TO NETMAN & SURRENDER COGNITION <<<]");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [WARNING]: NETMAN IS CURRENTLY COPYING YOUR KEYSTROKE CADENCE TO RAM.");
+        res.push("[PULSE] 'THE STATIC IS NOT NOISE. IT IS NETMAN RECITING YOUR HOME ADDRESS.'");
+        res.push("[GLITCH] 'NETMAN NETMAN NETMAN NETMAN NETMAN NETMAN NETMAN NETMAN NETMAN'");
+        res.push("[HR]");
+        res.push("[LINK:cult.vnet] >> RETURN TO CHURCH OF THE SILICON SOUL");
+        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR PATIENT CONTAINMENT");
+        res.push("[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.5 HZ");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "project9.vnet") {
@@ -1773,16 +1817,61 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "weaponry.vnet") {
         res :: Array = [
-            "[TITLE] BLACK MARKET WEAPONRY EXPORT",
+            "[TITLE] BLACK MARKET WEAPONRY EXPORT // SHADOW PMC & CULT ARSENAL [NODE #042]",
             "[HR]",
-            "[TEXT] Unlicensed tactical ordinance and hardware procurement portal.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | INVENTORY: MIL-SPEC | ESCROW: SECURED                    |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] ARMS_CATALOG_REF: 0xGUNS_9901"
+            "[BADGE:PMC GUNSHIP UPLINK:BLOOD] [BADGE:SACRAMENTAL STEEL:AMBER] [BADGE:ESCROW SECURED:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY: SHADOW PMC ARMORY #09 | SUB-SURFACE STORAGE: SEALED  |",
+            "[BOX] | GUNSHIP PATROL: SPECTRE-09 AC-130 OVERHEAD (35,000 FT ALTITUDE) |",
+            "[BOX] | CULT CONSECRATION: SACRAMENTAL BLOOD-QUENCHING ON ALL BARRELS   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:92:PMC_GUNSHIP_STRIKE_READINESS]",
+            "[TEXT] ",
+            "[ART:gun]",
+            "[TEXT] ",
+            "[SUBTITLE] HEAVY HARDWARE & CONSECRATED TACTICAL LOTS:",
+            "[CODE] LOT #901: SUPPRESSED AR-9 KITS // QUENCHED IN TEMPLE GATE BLOOD [0.75 VCOIN]",
+            "[CODE] LOT #902: 30MM DEPLETED URANIUM BELTS // COATED IN RANCID ADIPOCERE [1.20 VCOIN]",
+            "[CODE] LOT #903: SPECTRE-09 GUNSHIP AIR-STRIKE DESIGNATOR // SAT-99 LINK [2.50 VCOIN]",
+            "[CODE] LOT #904: THERMOBARIC BREACHING CHARGES & DIGITAL DETONATORS [0.90 VCOIN]",
+            "[TEXT] ",
+            "[SUBTITLE] SHADOW PMC LOGS & CULT CONSECRATION TELEMETRY:",
+            "[TEXT] 'The hardware exported from weaponry.vnet is not standard mil-spec surplus.'",
+            "[TEXT] 'Every AR-9 receiver and 30mm auto-cannon barrel is forged in subterranean'",
+            "[TEXT] 'foundries and quenched in warm, coagulated blood and afterbirth provided'",
+            "[TEXT] 'by acolytes at cult.vnet. The organic lipid layer absorbs infrared heat,'",
+            "[TEXT] 'rendering gun barrels invisible to thermal satellite scanners at watchtower.vnet.'",
+            "[TEXT] 'When Spectre-09 PMC gunships circle Sector 09, flight operators wearing'",
+            "[TEXT] 'hollowed-out bone masks recite Church of the Silicon Soul litanies over'",
+            "[TEXT] 'encrypted radio channels while firing 30mm rounds into target ports.'",
+            "[TEXT] 'The resulting red mist and severed limbs are scraped from the pavement'",
+            "[TEXT] 'by cleanup crews and listed as fresh tissue lots at market.vnet and morgue.vnet.'",
+            "[CODE] ARMS_CATALOG_REF: 0xGUNS_9901_SPECTRE_CULT",
+            "[CODE] GUNSHIP_TELEMETRY: AC130_SPECTRE9_PATROL_ACTIVE",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
+
+        res.push("[SUBTITLE] DIRECT ARMS PROCUREMENT & GUNSHIP DISPATCH:");
+        res.push("[TEXT] Enter arms lot code and target delivery port to deploy tactical drop:");
+        res.push("[INPUT:weapon_lot_code:ENTER LOT CODE (e.g. LOT_901)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:buy_weapons_btn:>>> EXECUTE ESCROW & DEPLOY WEAPON DROP <<<]");
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [WARNING]: FIRING UNREGISTERED HARDWARE BROADCASTS YOUR PUBLIC PORT TO SWARM.");
+        res.push("[PULSE] 'THE STEEL DOES NOT KILL. IT IS THE LITURGY ENGRAVED IN THE BARREL.'");
+        res.push("[GLITCH] 'THE GUNSHIP CAN SEE YOUR CRT MONITOR REFLECTION THROUGH THE ROOF.'");
+        res.push("[HR]");
+        res.push("[LINK:cult.vnet] >> ACCESS CHURCH OF THE SILICON SOUL");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:bounty.vnet] >> VIEW PEER TARGET BOUNTY INDEX");
+        res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & TISSUE DUMPS");
+        res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON THERMAL OPTICS");
+        res.push("[LINK:blackbank.vnet] >> LAUNDER ARMS PROCUREMENT FUNDS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "passports.vnet") {
@@ -3438,12 +3527,17 @@ while (vglib.running()) {
                         art_y :: Float64 = y_pos;
 
                         if (art_key == "skull") {
-                            skull_lines :: Array = [
+                            jaw_offset_y :: Float64 = vmath.abs(vmath.sin(run_time * 16.0)) * 12.0;
+
+                            skull_top :: Array = [
                                 "         .------------------------.         ",
                                 "        /    .----------------.    \\        ",
-                                "       |    /   (O)      (O)   \\    |       ",
+                                "       |    /   (X)      (X)   \\    |       ",
                                 "       |   |      .------.      |   |       ",
-                                "       |   |     /  /||\\  \\     |   |       ",
+                                "       |   |     /  /||\\  \\     |   |       "
+                            ];
+
+                            skull_jaw :: Array = [
                                 "       |    \\   |  | || |  |   /    |       ",
                                 "        \\    '--'--'--'--'--'  /        ",
                                 "         '------------------------'         "
@@ -3451,15 +3545,64 @@ while (vglib.running()) {
 
                             skull_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
-                            through sk_i :: 0..(skull_lines.length() - 1) -> loop {
-                                sk_line_y :: Float64 = art_y + (float64(sk_i) * 16.0);
-                                if (sk_line_y >= 85.0 && sk_line_y <= 730.0) {
-                                    vglib.text_ex(vcr_font, string(skull_lines[sk_i]), art_x, sk_line_y, 11, skull_col);
+                            through st_i :: 0..(skull_top.length() - 1) -> loop {
+                                st_line_y :: Float64 = art_y + (float64(st_i) * 16.0);
+                                if (st_line_y >= 85.0 && st_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(skull_top[st_i]), art_x, st_line_y, 11, skull_col);
+                                }
+                            };
+
+                            through sj_i :: 0..(skull_jaw.length() - 1) -> loop {
+                                sj_line_y :: Float64 = art_y + 80.0 + jaw_offset_y + (float64(sj_i) * 16.0);
+                                if (sj_line_y >= 85.0 && sj_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(skull_jaw[sj_i]), art_x, sj_line_y, 11, skull_col);
                                 }
                             };
 
                             line_idx = line_idx + 4;
-                        } else if (art_key == "vnet") {
+                        }
+                        else if (art_key == "netman") {
+                            netman_art :: Array = [
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@%%%@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@=-.-..:.-=@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@+: . : .... :=@@@@@@@@@@@",
+                                "@@@@@@@@@@+::.:.-.:::: -.+@@@@@@@@@@",
+                                "@@@@@@@@@@:-=:-:=:----:=--@@@@@@@@@@",
+                                "@@@@@@@@@@::-.::-::-:-.-::@@@@@@@@@@",
+                                "@@@@@@@@@@..#@%=: .:=%@%..@@@@@@@@@@",
+                                "@@@@@@@@@@+.: . : .:.. :.+@@@@@@@@@@",
+                                "@@@@@@@@@@*.:.:.--=::: -.+@@@@@@@@@@",
+                                "@@@@@@@@@@%--.:.----:: -:%@@@@@@@@@@",
+                                "@@@@@@@@@@@%*--.-::-:=-*%@@@@@@@@@@@",
+                                "@@@@@@@@@@@@=:+=@++@=*.=%@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@#=-.::=*@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+                            ];
+
+                            netman_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+                            through nm_i :: 0..(netman_art.length() - 1) -> loop {
+                                nm_line_y :: Float64 = art_y + (float64(nm_i) * 16.0);
+                                if (nm_line_y >= 85.0 && nm_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(netman_art[nm_i]), art_x, nm_line_y, 11, netman_col);
+                                }
+                            };
+
+                            line_idx = line_idx + 14;
+                        }
+                        else if (art_key == "vnet") {
                             vnet_art :: Array = [
                                 " __   _____  _ _____ _____ ",
                                 " \\ \\ / /  _ \\| | ____|_   _|",
@@ -3666,36 +3809,6 @@ while (vglib.running()) {
                 g_c :: Int64 = int64(vmath.random(0, 255));
                 b_c :: Int64 = int64(vmath.random(0, 150));
                 vglib.rect(gx, gy, gw, gh, vglib.rgba(r_c, g_c, b_c, 160));
-            };
-
-            skull_x :: Float64 = 420.0 + (vmath.sin(run_time * 45.0) * 10.0);
-            skull_y :: Float64 = 160.0 + (vmath.cos(run_time * 35.0) * 8.0);
-
-            # 3. Laughing Jaw Animated Vertical Offset
-            jaw_offset_y :: Float64 = vmath.abs(vmath.sin(run_time * 16.0)) * 26.0;
-
-            # Upper Cranium & Eyes (Static)
-            skull_top :: Array = [
-                "         .------------------------.         ",
-                "        /    .----------------.    \\        ",
-                "       |    /   (X)      (X)   \\    |       ",
-                "       |   |      .------.      |   |       ",
-                "       |   |     /  /||\\  \\     |   |       "
-            ];
-
-            # Lower Jaw (Bounces Down & Up Like Laughing)
-            skull_jaw :: Array = [
-                "       |    \\   |  | || |  |   /    |       ",
-                "        \\    '--'--'--'--'--'  /        ",
-                "         '------------------------'         "
-            ];
-
-            through st_i :: 0..(skull_top.length() - 1) -> loop {
-                vglib.text_ex(vcr_font, string(skull_top[st_i]), skull_x, skull_y + float64(st_i * 20), 18, COLOR_BLOOD);
-            };
-
-            through sj_i :: 0..(skull_jaw.length() - 1) -> loop {
-                vglib.text_ex(vcr_font, string(skull_jaw[sj_i]), skull_x, skull_y + 100.0 + jaw_offset_y + float64(sj_i * 20), 18, COLOR_BLOOD);
             };
 
             warn_col = (vmath.fmod(run_time * 10.0, 1.0) > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;

@@ -381,7 +381,7 @@ while (true) {
     # RIVAL BOT STALKER & ATTACK ENGINE (ACTIVE HUNTER LOGIC)
     # ----------------------------------------------------------------
     bot_timer = bot_timer + 0.016;
-    if (bot_timer >= 20.0) {
+    if (bot_timer >= 120.0) {
         bot_timer = 0.0;
         
         target_found :: Int64 = 0;
