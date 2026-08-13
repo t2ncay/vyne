@@ -2683,11 +2683,19 @@ while (vglib.running()) {
             }
         }
 
-        passive_trace_cd = passive_trace_cd + 0.016;
-        if (passive_trace_cd >= 3.0) {
-            passive_trace_cd = 0.0;
-            if (current_url == "market.vnet" || current_url == "vault.vnet" || current_url == "terminal.vnet" || current_url == "forum.vnet" || current_url == "crypto.vnet" || current_url == "bounty.vnet" || current_url == "redroom.vnet") {
-                trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
+        if (current_url == "hellroom.vnet") {
+            trace_level = 0;
+        } else {
+            passive_trace_cd = passive_trace_cd + 0.016;
+            if (passive_trace_cd >= 3.0) {
+                passive_trace_cd = 0.0;
+                if (current_url == "market.vnet" || current_url == "vault.vnet" || 
+                    current_url == "terminal.vnet" || current_url == "forum.vnet" || 
+                    current_url == "crypto.vnet" || current_url == "bounty.vnet" || 
+                    current_url == "redroom.vnet") {
+                    
+                    trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
+                }
             }
         }
 
