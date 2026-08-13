@@ -258,7 +258,7 @@ fn load_page(url :: String) -> Array {
     key_line :: String = "";
     through k_i :: 0..7 -> loop {
         if (string(session_locs[k_i]) == clean_u) {
-            key_line = "[CODE] EXFILTRATED REGISTER KEY_" + string(k_i + 1) + ": [" + string(session_keys[k_i]) + "]";
+            key_line = "[COMMENT] <!-- EXFILTRATED REGISTER KEY_" + string(k_i + 1) + ": [" + string(session_keys[k_i]) + "] -->";
             break;
         }
     };
@@ -1976,6 +1976,38 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + args);
         }
     }
+    else if (cmd == "inspect") {
+        # 1. Fallback to current_url if no argument provided
+        target_inspect :: String = (args == "") ? current_url : clean_str(args);
+        
+        # 2. Safe string prefix removal (bounds checked)
+        if (target_inspect.length() >= 7 && target_inspect.substr(0, 7) == "vnet://") {
+            target_inspect = clean_str(target_inspect.substr(7, target_inspect.length() - 7));
+        }
+
+        cli_logs.push("========== RAW SOURCE: vnet://" + target_inspect + " ==========");
+        
+        raw_lines :: Array = load_page(target_inspect);
+        
+        through idx :: 0..(raw_lines.length() - 1) -> loop {
+            line :: String = string(raw_lines[idx]);
+            
+            # 3. Handle hidden comments vs rendered elements
+            if (line.length() > 9 && line.substr(0, 9) == "[COMMENT]") {
+                comment_body :: String = line.substr(10, line.length() - 10);
+                cli_logs.push("  [RAW_COMMENT]: " + truncate_str(comment_body, 70));
+            } else {
+                # Truncate standard lines to prevent terminal UI clipping
+                cli_logs.push("  [SRC]: " + truncate_str(line, 70));
+            }
+        };
+        
+        cli_logs.push("==================================================");
+        
+        if (cli_logs.length() > 16) {
+            cli_scroll_y = float64(cli_logs.length() - 16) * 22.0;
+        }
+    }
     else if (cmd == "connect" || cmd == "goto") {
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: connect <url_address> (e.g. connect market.vnet)");
@@ -2259,7 +2291,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
         cli_logs.push("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
         cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
-        cli_logs.push("  satscan                 - [0.55 VCOIN | 60s CD] Sweep network thermal radar (watchtower.vnet ONLY)");
+        cli_logs.push("  satscan                 - [0.55 VCOIN | 60s CD] Sweep network thermal radar (watchtower.vnet)");
         cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
         cli_logs.push("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
         cli_logs.push("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
@@ -2270,7 +2302,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  netscan                 - Discover active peers on current URL");
         cli_logs.push("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
         cli_logs.push("  history                 - Display all known assigned routing nodes");
-        cli_logs.push("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy node");
+        cli_logs.push("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy");
         cli_logs.push("  bounty                  - Quick jump to target bounty board");
         cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
         cli_logs.push("  probe <port>            - [0.20 VCOIN |  NO CD] Probe target node defenses & state");
@@ -2282,6 +2314,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
         cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
         cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
+        cli_logs.push("  inspect <url>           - Dump raw page source markup");
         cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
         cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
@@ -2503,9 +2536,7 @@ while (vglib.running()) {
     heartbeat_timer = heartbeat_timer + 0.016;
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
-        if (clean_str(current_url) != active_down_url || active_down_timer <= 0.0) {
-            vnet.send_to(client_sock, server_ip, server_port, "PING:" + current_url);
-        }
+        vnet.send_to(client_sock, server_ip, server_port, "PING:" + current_url);
     }
 
     packet_decay_cd = packet_decay_cd + 0.016;
@@ -3070,20 +3101,40 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, c4_str, c4_x, 470.0 + jitter_y, 10, COLOR_GHOST);
         } else if (clean_str(current_url) == active_down_url && active_down_timer > 0.0) {
             vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
-            vglib.line(40, 140, 890, 140, COLOR_BLOOD);
-            vglib.line(890, 140, 890, 640, COLOR_BLOOD);
-            vglib.line(890, 640, 40, 640, COLOR_BLOOD);
-            vglib.line(40, 640, 40, 140, COLOR_BLOOD);
+            vglib.line(40 + jitter_x, 140 + jitter_y, 890 + jitter_x, 140 + jitter_y, COLOR_BLOOD);
+            vglib.line(890 + jitter_x, 140 + jitter_y, 890 + jitter_x, 640 + jitter_y, COLOR_BLOOD);
+            vglib.line(890 + jitter_x, 640 + jitter_y, 40 + jitter_x, 640 + jitter_y, COLOR_BLOOD);
+            vglib.line(40 + jitter_x, 640 + jitter_y, 40 + jitter_x, 140 + jitter_y, COLOR_BLOOD);
 
             rem_down_s :: Int64 = int64(active_down_timer) + 1;
-            vglib.text_ex(vcr_font, "[ 503 SERVICE UNAVAILABLE - KERNEL OVERLOAD ]", 220 + jitter_x, 240 + jitter_y, 15, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, "TARGET NODE: " + active_down_url + " IS TEMPORARILY FRIED", 220 + jitter_x, 290 + jitter_y, 12, COLOR_AMBER);
-            vglib.text_ex(vcr_font, "RECOVERY SEQUENCE ACTIVE: " + string(rem_down_s) + "s REMAINING", 290 + jitter_x, 340 + jitter_y, 11, COLOR_TOXIC);
+            center_x :: Float64 = 465.0 + jitter_x;
 
-            vglib.rect(240 + jitter_x, 400 + jitter_y, 450, 20, COLOR_PANEL);
+            err_head :: String = "[ 503 // SITE UNAVAILABLE - KERNEL / BGP DESYNC ]";
+            err_sz   :: Array  = vglib.measure_text(vcr_font, err_head, 15.0);
+            vglib.text_ex(vcr_font, err_head, center_x - (float64(err_sz[0]) / 2.0), 220.0 + jitter_y, 15, COLOR_BLOOD);
+
+            sub_head :: String = "TARGET NODE: vnet://" + active_down_url + " IS UNREACHABLE";
+            sub_sz   :: Array  = vglib.measure_text(vcr_font, sub_head, 12.0);
+            vglib.text_ex(vcr_font, sub_head, center_x - (float64(sub_sz[0]) / 2.0), 265.0 + jitter_y, 12, COLOR_AMBER);
+
+            rec_str :: String = "RECOVERY HANDSHAKE IN PROGRESS: " + string(rem_down_s) + "s";
+            rec_sz  :: Array  = vglib.measure_text(vcr_font, rec_str, 11.0);
+            vglib.text_ex(vcr_font, rec_str, center_x - (float64(rec_sz[0]) / 2.0), 320.0 + jitter_y, 11, COLOR_TOXIC);
+
+            bar_x :: Float64 = center_x - 225.0;
+            bar_y :: Float64 = 360.0 + jitter_y;
+            vglib.rect(bar_x, bar_y, 450, 20, COLOR_PANEL);
+            vglib.line(bar_x, bar_y, bar_x + 450.0, bar_y, COLOR_BORDER);
+            vglib.line(bar_x + 450.0, bar_y, bar_x + 450.0, bar_y + 20.0, COLOR_BORDER);
+            vglib.line(bar_x + 450.0, bar_y + 20.0, bar_x, bar_y + 20.0, COLOR_BORDER);
+            vglib.line(bar_x, bar_y + 20.0, bar_x, bar_y, COLOR_BORDER);
+
             down_ratio :: Float64 = vmath.clamp(active_down_timer / 30.0, 0.05, 1.0);
-            vglib.rect(240 + jitter_x, 400 + jitter_y, 450.0 * down_ratio, 20, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, ">>> REBUILDING ROUTING TABLES IN BACKGROUND BUFFER...", 235 + jitter_x, 460 + jitter_y, 10, COLOR_GHOST);
+            vglib.rect(bar_x, bar_y, 450.0 * down_ratio, 20, COLOR_BLOOD);
+
+            foot_str :: String = ">>> BGP ROUTER RE-ELECTING PRIMARY MESH GATEWAY NODE...";
+            foot_sz  :: Array  = vglib.measure_text(vcr_font, foot_str, 10.0);
+            vglib.text_ex(vcr_font, foot_str, center_x - (float64(foot_sz[0]) / 2.0), 415.0 + jitter_y, 10, COLOR_GHOST);
         } else if (current_url == "hellroom.vnet") {
             vglib.text_ex(vcr_font, "HELLROOM.VNET // DEMONIC P2P UNENCRYPTED CHATROOM", 40 + jitter_x, 95 + jitter_y, 14, COLOR_BLOOD);
             vglib.line(40, 115, 890, 115, COLOR_BORDER);
@@ -3152,6 +3203,9 @@ while (vglib.running()) {
                 if (y_pos >= 85.0 && y_pos <= 730.0) {
                     if (line_str.length() > 7 && line_str.substr(0, 7) == "[TITLE]") {
                         vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 15, COLOR_BLOOD);
+                    }
+                    else if (line_str.length() > 9 && line_str.substr(0, 9) == "[COMMENT]") {
+                        # skip rendering comments
                     }
                     else if (line_str.length() > 10 && line_str.substr(0, 10) == "[SUBTITLE]") {
                         vglib.text_ex(vcr_font, line_str.substr(11, line_str.length() - 11), 40 + jitter_x, y_pos, 12, COLOR_AMBER);
@@ -3264,7 +3318,7 @@ while (vglib.running()) {
                             inp_ph :: String = (string(i_parts[1]) != "") ? string(i_parts[1]) : "ENTER VALUE";
                             ix :: Float64 = 40.0 + jitter_x;
                             iy :: Float64 = y_pos;
-                            iw :: Float64 = 360.0;
+                            iw :: Float64 = 375.0;
                             ih :: Float64 = 28.0;
 
                             vglib.rect(ix, iy, iw, ih, COLOR_BLACK);

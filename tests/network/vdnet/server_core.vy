@@ -19,6 +19,9 @@ decoy_owners     :: Array = [];
 decoy_urls       :: Array = [];
 decoy_timer      :: Float64 = 0.0;
 
+# SERVER-SIDE RANDOM NETWORK INSTABILITY TIMER
+server_outage_timer :: Float64 = 0.0;
+
 firewall_open :: Int64 = 1;
 current_salt  :: Int64 = int64(vmath.random(10, 99));
 
@@ -121,8 +124,8 @@ proxy_chains_target :: Array = [];
 # OVERLOAD STATE STORAGE
 market_overloaded_timer :: Float64 = 0.0;
 overload_cooldowns      :: Array   = [];
-overloaded_urls   :: Array = [];
-overloaded_timers :: Array = [];
+overloaded_urls         :: Array = [];
+overloaded_timers       :: Array = [];
 
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) -> Int64 {
     found_idx :: Int64 = -1;
@@ -318,15 +321,39 @@ while (true) {
     
     if (game_over == 0) {
         prune_inactive_peers(server_uptime);
+
+        server_outage_timer = server_outage_timer + 0.016;
+        if (server_outage_timer >= 45.0) {
+            server_outage_timer = 0.0;
+            
+            if (vmath.random(0.0, 100.0) < 30.0) {
+                rand_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+                rand_site :: String = string(all_50_sites[rand_idx]);
+                
+                is_already_down :: Int64 = 0;
+                through chk_i :: 0..(overloaded_urls.length() - 1) -> loop {
+                    if (string(overloaded_urls[chk_i]) == rand_site) {
+                        is_already_down = 1;
+                        break;
+                    }
+                };
+
+                if (is_already_down == 0) {
+                    overloaded_urls.push(rand_site);
+                    overloaded_timers.push(20.0);
+                    
+                    broadcast_feed_event("[NET_DESYNC]: BGP ROUTER DROPPED SUBNET " + rand_site + " (SITE UNAVAILABLE)");
+                    broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + rand_site);
+                }
+            }
+        }
         
         t_idx :: Int64 = overloaded_timers.length() - 1;
         while (t_idx >= 0) {
             curr_t :: Float64 = float64(overloaded_timers[t_idx]) - 0.016;
             if (curr_t <= 0.0) {
-                url_rm :: String = string(overloaded_urls[t_idx]);
-                timer_rm :: Float64 = float64(overloaded_timers[t_idx]);
-                overloaded_urls.delete(url_rm);
-                overloaded_timers.delete(timer_rm);
+                overloaded_urls.delete_at(t_idx);
+                overloaded_timers.delete_at(t_idx);
             } else {
                 overloaded_timers[t_idx] = curr_t;
             }
@@ -362,7 +389,7 @@ while (true) {
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
             if (cmd == "PING") {
-                # Silent heartbeat keepalive — updates last_seen without feed spam
+                update_peer_session(sender_port, sender_ip, payload, server_uptime);
             } else {
                 broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
             }
