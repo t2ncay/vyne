@@ -321,6 +321,8 @@ fn load_page(url :: String) -> Array {
     if (clean_u == "vnet.dir") {
         dir_res :: Array = [
             "[TITLE] VNET ANONYMOUS DIRECTORY v4.09",
+            "[ART:vnet]",
+            "[TEXT] ",
             "[HR]",
             "[GLITCH] [WARNING]: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS.",
             "[PULSE] ALL ROUTED PACKETS ARE MIRRORED TO RESTRICTED VFS MEMORY STACKS.",
@@ -3975,11 +3977,14 @@ while (vglib.running()) {
                         }
                         else if (art_key == "vnet") {
                             vnet_art :: Array = [
-                                " __   _____  _ _____ _____ ",
-                                " \\ \\ / /  _ \\| | ____|_   _|",
-                                "  \\ V /| |_) | |  _|   | |  ",
-                                "   | | |  _ <| | |___  | |  ",
-                                "   |_| |_| \\_\\_|_____| |_|  ",
+                                " /$$    /$$ /$$    /$$ /$$$$$$$$ /$$$$$$$$",
+                                "| $$   | $$| $$$  | $$| $$_____/|__  $$__/",
+                                "| $$   | $$| $$$$ | $$| $$         | $$   ",
+                                "|  $$ / $$/| $$ $$ $$| $$$$$      | $$   ",
+                                " \\  $$ $$/ | $$  $$$$| $$__/      | $$   ",
+                                "  \\  $$$/  | $$\\  $$$| $$         | $$   ",
+                                "   \\  $/   | $$ \\  $$| $$$$$$$$   | $$   ",
+                                "    \\_/    |__/  \\__/|________/   |__/   ",
                                 " [=== VIRTUAL NETWORK MATRIX ===]"
                             ];
                             vnet_col = (pulse_val > 0.5) ? COLOR_CYAN : COLOR_TOXIC;
