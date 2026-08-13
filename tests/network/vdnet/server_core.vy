@@ -121,6 +121,11 @@ proxy_chains_source :: Array = [];
 proxy_chains_proxy  :: Array = [];
 proxy_chains_target :: Array = [];
 
+# RIVAL BOT STALKER STATE
+bot_port  :: Int64   = 8999;
+bot_url   :: String  = "market.vnet";
+bot_timer :: Float64 = 0.0;
+
 # OVERLOAD STATE STORAGE
 market_overloaded_timer :: Float64 = 0.0;
 overload_cooldowns      :: Array   = [];
@@ -323,10 +328,10 @@ while (true) {
         prune_inactive_peers(server_uptime);
 
         server_outage_timer = server_outage_timer + 0.016;
-        if (server_outage_timer >= 45.0) {
+        if (server_outage_timer >= 30.0) {
             server_outage_timer = 0.0;
             
-            if (vmath.random(0.0, 100.0) < 30.0) {
+            if (vmath.random(0.0, 100.0) < 90.0) {
                 rand_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
                 rand_site :: String = string(all_50_sites[rand_idx]);
                 
@@ -370,6 +375,42 @@ while (true) {
                 broadcast_feed_event("[SYS_CLEANUP]: ALL ACTIVE DECOYS WIPED (30s CYCLE)");
             }
         }
+    }
+
+    # ----------------------------------------------------------------
+    # RIVAL BOT STALKER & ATTACK ENGINE (ACTIVE HUNTER LOGIC)
+    # ----------------------------------------------------------------
+    bot_timer = bot_timer + 0.016;
+    if (bot_timer >= 20.0) {
+        bot_timer = 0.0;
+        
+        target_found :: Int64 = 0;
+        if (active_ports.length() > 0) {
+            rand_p_idx :: Int64 = int64(vmath.random(0, active_ports.length() - 1));
+            target_p_port :: Int64  = int64(active_ports[rand_p_idx]);
+            target_p_url  :: String = string(active_urls[rand_p_idx]);
+            
+            if (target_p_port != bot_port && target_p_url != "vnet.dir") {
+                bot_url = target_p_url;
+                target_found = 1;
+            }
+        }
+
+        if (target_found == 0) {
+            rand_b_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+            bot_url = string(all_50_sites[rand_b_idx]);
+        }
+
+        through p_i :: 0..(active_ports.length() - 1) -> loop {
+            p_port :: Int64  = int64(active_ports[p_i]);
+            p_url  :: String = string(active_urls[p_i]);
+            p_ip   :: String = string(active_ips[p_i]);
+
+            if (p_port != bot_port && p_url == bot_url && p_url != "vnet.dir") {
+                vnet.send_to(server_sock, p_ip, p_port, "EXPLOIT:BOT_STALK");
+                broadcast_feed_event("[WARNING]: SPECTRE_BOT LOCKED ONTO PORT_" + string(p_port) + " AT " + bot_url);
+            }
+        };
     }
 
     packet :: Array = vnet.recv_from(server_sock);

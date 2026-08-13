@@ -176,6 +176,8 @@ run_time         :: Float64 = 0.0;
 cursor_blink     :: Float64 = 0.0;
 mouse_was_down   :: Int64   = 0;
 
+bot_stalk_active :: Int64 = 0;
+
 page_body        :: Array   = [];
 
 fn clean_str(raw :: String) -> String {
@@ -2632,6 +2634,11 @@ while (vglib.running()) {
 
         if (vglib.key_pressed(vglib.TAB) && dos_timer <= 0.0) {
             cli_overlay_open = (cli_overlay_open == 1) ? 0 : 1;
+
+            if (bot_stalk_active == 1) {
+                cli_overlay_open = 0;
+            }
+
             glitch_trigger = 0.15;
         }
 
@@ -2782,6 +2789,11 @@ while (vglib.running()) {
                 cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
             }
             glitch_trigger = 0.8;
+        }
+        else if (net_msg == "EXPLOIT:BOT_STALK") {
+            bot_stalk_active = 1;
+            cli_overlay_open = 0;
+            glitch_trigger   = 1.0;
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
             raw_win_str :: String = net_msg.substr(14, net_msg.length() - 14);
@@ -3641,6 +3653,87 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "ALL SUBNET CONNECTIONS PERMANENTLY LOCKED", 340 + jitter_x, 420 + jitter_y, 14, COLOR_GHOST);
         }
 
+        # ================================================================
+        # BOT STALKER HIJACK: LAUGHING SKULL & COLOR GLITCH OVERLAY
+        # ================================================================
+        if (bot_stalk_active == 1) {
+            through g_i :: 0..18 -> loop {
+                gx :: Float64 = vmath.random(0.0, 1200.0);
+                gy :: Float64 = vmath.random(0.0, 750.0);
+                gw :: Float64 = vmath.random(40.0, 350.0);
+                gh :: Float64 = vmath.random(8.0, 60.0);
+                r_c :: Int64 = int64(vmath.random(100, 255));
+                g_c :: Int64 = int64(vmath.random(0, 255));
+                b_c :: Int64 = int64(vmath.random(0, 150));
+                vglib.rect(gx, gy, gw, gh, vglib.rgba(r_c, g_c, b_c, 160));
+            };
+
+            skull_x :: Float64 = 420.0 + (vmath.sin(run_time * 45.0) * 10.0);
+            skull_y :: Float64 = 160.0 + (vmath.cos(run_time * 35.0) * 8.0);
+
+            # 3. Laughing Jaw Animated Vertical Offset
+            jaw_offset_y :: Float64 = vmath.abs(vmath.sin(run_time * 16.0)) * 26.0;
+
+            # Upper Cranium & Eyes (Static)
+            skull_top :: Array = [
+                "         .------------------------.         ",
+                "        /    .----------------.    \\        ",
+                "       |    /   (X)      (X)   \\    |       ",
+                "       |   |      .------.      |   |       ",
+                "       |   |     /  /||\\  \\     |   |       "
+            ];
+
+            # Lower Jaw (Bounces Down & Up Like Laughing)
+            skull_jaw :: Array = [
+                "       |    \\   |  | || |  |   /    |       ",
+                "        \\    '--'--'--'--'--'  /        ",
+                "         '------------------------'         "
+            ];
+
+            through st_i :: 0..(skull_top.length() - 1) -> loop {
+                vglib.text_ex(vcr_font, string(skull_top[st_i]), skull_x, skull_y + float64(st_i * 20), 18, COLOR_BLOOD);
+            };
+
+            through sj_i :: 0..(skull_jaw.length() - 1) -> loop {
+                vglib.text_ex(vcr_font, string(skull_jaw[sj_i]), skull_x, skull_y + 100.0 + jaw_offset_y + float64(sj_i * 20), 18, COLOR_BLOOD);
+            };
+
+            warn_col = (vmath.fmod(run_time * 10.0, 1.0) > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
+            vglib.rect(120, 520, 1040, 50, COLOR_BLACK);
+            vglib.line(120, 520, 1160, 520, warn_col);
+            vglib.line(1160, 520, 1160, 570, warn_col);
+            vglib.line(1160, 570, 120, 570, warn_col);
+            vglib.line(120, 570, 120, 520, warn_col);
+
+            vglib.text_ex(vcr_font, "[WARNING]: PROMISCUOUS NODE DETECTED ON LOCAL SUBNET", 170, 535, 16, warn_col);
+
+            m_pos_bot = vglib.mouse_pos();
+            bmx :: Float64 = float64(m_pos_bot[0]);
+            bmy :: Float64 = float64(m_pos_bot[1]);
+            bm_down :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
+
+            logout_btn_hover :: Int64 = (bmx >= 510.0 && bmx <= 770.0 && bmy >= 600.0 && bmy <= 640.0) ? 1 : 0;
+            
+            vglib.rect(510, 600, 260, 40, logout_btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
+            vglib.line(510, 600, 770, 600, COLOR_BLOOD);
+            vglib.line(770, 600, 770, 640, COLOR_BLOOD);
+            vglib.line(770, 640, 510, 640, COLOR_BLOOD);
+            vglib.line(510, 640, 510, 600, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "FORCE BGP DISCONNECT", 555, 614, 12, logout_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+
+            if (logout_btn_hover == 1 && bm_down == 1) {
+                bot_stalk_active = 0;
+                is_connecting    = 0;
+                current_url      = "vnet.dir";
+                input_url        = "vnet.dir";
+                page_body        = load_page("vnet.dir");
+                scroll_y         = 0.0;
+                
+                vnet.send_to(client_sock, server_ip, server_port, "GET:vnet.dir");
+            }
+        }
+
+        # Scanlines main screen
         vglib.draw_scanlines(8.0, vglib.rgba(0, 0, 0, 90));
 
         vglib.rect(0, 765, 1280, 35, COLOR_PANEL);
