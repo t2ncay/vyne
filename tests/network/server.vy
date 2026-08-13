@@ -221,33 +221,33 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_last_seen[found_idx] = now_time;
         return 0; # Existing peer
     } else {
-        assigned_16 :: Array = [];
+        assigned_20 :: Array = [];
 
         through m_i :: 0..(mutual_sites.length() - 1) -> loop {
             raw_m_site :: String = string(mutual_sites[m_i]);
             hashed_m_site :: String = resolve_hash(raw_m_site);
-            assigned_16.push(hashed_m_site);
+            assigned_20.push(hashed_m_site);
         };
 
-        while (assigned_16.length() < 16) {
+        while (assigned_20.length() < 20) {
             rand_s :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
             site_name :: String = string(hashed_50_sites[rand_s]);
             
             already :: Int64 = 0;
-            through u :: 0..(assigned_16.length() - 1) -> loop {
-                if (string(assigned_16[u]) == site_name) { 
+            through u :: 0..(assigned_20.length() - 1) -> loop {
+                if (string(assigned_20[u]) == site_name) { 
                     already = 1; 
                     break; 
                 }
             };
             if (already == 0) {
-                assigned_16.push(site_name);
+                assigned_20.push(site_name);
             }
         }
         
         dir_payload :: String = "";
-        through s_idx :: 0..15 -> loop {
-            dir_payload = dir_payload + string(assigned_16[s_idx]) + ((s_idx < 15) ? ":" : "");
+        through s_idx :: 0..19 -> loop {
+            dir_payload = dir_payload + string(assigned_20[s_idx]) + ((s_idx < 19) ? ":" : "");
         };
 
         active_ports.push(port);
@@ -449,7 +449,7 @@ while (true) {
     # RIVAL BOT STALKER & ATTACK ENGINE (ACTIVE HUNTER LOGIC)
     # ----------------------------------------------------------------
     bot_timer = bot_timer + 0.016;
-    if (bot_timer >= 10.0) {
+    if (bot_timer >= 120.0) {
         bot_timer = 0.0;
         
         target_found :: Int64 = 0;

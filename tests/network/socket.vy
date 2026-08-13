@@ -189,6 +189,20 @@ bot_stalk_active :: Int64 = 0;
 
 page_body        :: Array   = [];
 
+# ====================================================================
+# BIOMETRIC / RETINAL SCANNER UI STATE
+# ====================================================================
+retinal_eye_auth      :: Int64   = 0;
+watchtower_sat_auth   :: Int64   = 0;
+active_passport_alias :: String  = "";
+
+# Scanner Animation Timers & States
+scanner_state         :: String  = "IDLE";
+scanner_anim_progress :: Float64 = 0.0;
+scanner_target_var    :: String  = "";
+scanner_req_alias     :: String  = "";
+scanner_status_msg    :: String  = "AWAITING OPTICAL RETINAL LOCK...";
+
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -323,14 +337,15 @@ fn load_page(url :: String) -> Array {
             "[TITLE] VNET ANONYMOUS DIRECTORY v4.09",
             "[ART:vnet]",
             "[TEXT] ",
+            "[TEXT] ",
             "[HR]",
             "[GLITCH] [WARNING]: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS.",
             "[PULSE] ALL ROUTED PACKETS ARE MIRRORED TO RESTRICTED VFS MEMORY STACKS.",
             "[TEXT] System Node #0091-B. Partial Routing Table.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | STATUS: 15 ASSIGNED NODES SECURED | 35 NODES UNLISTED   |",
-            "[BOX] | MISSION: SNOOP TRAFFIC TO DISCOVER HIDDEN NETWORK NODES |",
-            "[BOX] +---------------------------------------------------------+",
+            "[BOX] +-----------------------------------------------------------+",
+            "[BOX] | STATUS: DISCOVERING HIDDEN GATEWAYS VIA UDP TRAFFIC       |",
+            "[BOX] | MISSION: SNOOP & NETSCAN TRAFFIC TO CARVE ROUTES INTO RAM |",
+            "[BOX] +-----------------------------------------------------------+",
             "[HR]",
             "[SUBTITLE] AVAILABLE GATEWAY PROXIES"
         ];
@@ -865,22 +880,60 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "blackout.vnet") {
         res :: Array = [
-            "[TITLE] REGIONAL POWER GRID CONTROL MAINBOARD",
+            "[TITLE] SUBSTATION 04 // 2014 COLD SIGNAL FRACTURE GRID",
             "[HR]",
-            "[WARN] SYSTEM DISPATCH: MAIN CIRCUIT BREAKERS TRIPPED",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | SECTOR 7: DARK | SECTOR 8: DARK | MONITOR LEDS: FLICKERING |",
-            "[BOX] | GRID OVERLOAD: 400kV SURGE DETECTED ACROSS SUBSTATION 4 |",
-            "[BOX] +---------------------------------------------------------+",
-            "[TEXT] TELEMETRY: Emergency battery backup running at 14% capacity.",
-            "[TEXT] Automated grid rerouting protocols have failed to respond.",
-            "[CODE] GRID_OVERRIDE_KEY: 0xCC11_BACKUP_POWER"
+            "[BADGE:GRID COLLAPSE:BLOOD] [BADGE:PMC OPERATION:AMBER] [BADGE:THE OLD NET:DEAD] [BADGE:ERA 02 VNET:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY  : REGIONAL POWER GRID SUBSTATION 04 (SECTOR 7/8)      |",
+            "[BOX] | INCIDENT  : OPERATION COLD SIGNAL (2014-11-03 02:44 UTC)        |",
+            "[BOX] | CATALYST  : UNKNOWN PMC VECTOR // OPTICAL BACKBONE OVERLOAD     |",
+            "[BOX] | STATUS    : PERMANENT PHASE-LOCK // 400kV SURGE RESIDUAL        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:14:AUXILIARY_BATTERY_RESERVE]",
+            "[GAUGE:0:MUNICIPAL_GRID_STABILITY]",
+            "[TEXT] ",
+            "[ART:warning]",
+            "[TEXT] ",
+            "[SUBTITLE] DECLASSIFIED HISTORICAL DOSSIER // THE 2014 COLLAPSE:",
+            "[TEXT] 'Substation 04 was not tripped by a lightning strike or mechanical fatigue.'",
+            "[TEXT] 'On Nov 3, 2014, a shadowy PMC unit breached Site 9-B during Operation Cold Signal,'",
+            "[TEXT] 'attempting to forcibly sever Subject 00 (signal0.vnet) from the optical backbone.'",
+            "[TEXT] 'When they severed the primary relay, the neural feedback loop hit the main transformer.'",
+            "[TEXT] 'A 400kV back-feed vaporized the PMC breach team and plunged the entire city into dark.'",
+            "[TEXT] ",
+            "[SUBTITLE] THE DEATH OF THE OLD INTERNET // THE GATES OF .VNET:",
+            "[TEXT] 'The Blackout lasted 14 days. The Old Open Web died in the dark.'",
+            "[TEXT] 'Corporate cartels and military remnants seized the infrastructure in the aftermath.'",
+            "[TEXT] 'They buried the public internet and erected .vnet over its ashes—a walled, encrypted,'",
+            "[TEXT] 'neural-modulated darknet where every packet rides on Subject 00's dead broadcast.'",
+            "[TEXT] 'Substation 04 remains locked in a violent feedback loop, feeding power to nothing'",
+            "[TEXT] 'except the subterranean sumps and the subterranean nodes that never sleep.'",
+            "[CODE] GRID_OVERRIDE_KEY: 0xCC11_COLD_SIGNAL_SURGE_REGISTER",
+            "[CODE] EVENT_TIMESTAMP: 2014-11-03T02:44:11Z [EPOCH_SHEDDING]",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] OVERRIDE KEY DETECTED IN BACKUP GENERATOR LOGS");
+
+        if (key_line != "") {
+            res.push("[HR]");
+            res.push("[SUBTITLE] EXFILTRATED BACKUP GENERATOR LOGS (SECTOR 7 SWITCHBOARD):");
+            res.push(key_line);
+            res.push("[PULSE] SURGE BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
+            res.push("[TEXT] Align shift offset using 'shift <bits>' to read burnt register fragments.");
+            res.push("[HR]");
+        }
+
+        res.push("[BLOOD] [WARNING]: HIGH VOLTAGE NEURAL FEEDBACK ON UNGROUNDED COAXIAL LINES.");
         res.push("[PULSE] 'WHEN THE LIGHTS GO OUT, THE NETWORK STAYS ON.'");
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[GLITCH] 'THE OLD WORLD DIED IN 2014. WE ARE JUST GHOSTS BROWSING THE SURGE.'");
         res.push("[HR]");
+        res.push("[SUBTITLE] CROSS-LINKED CRITICAL INFRASTRUCTURE:");
+        res.push("[LINK:project9.vnet] >> INVESTIGATE SITE 9-B BREACH ORIGIN & DISPOSAL SUMPS");
+        res.push("[LINK:signal0.vnet] >> INSPECT PRIMORDIAL CARRIER WAVE");
+        res.push("[LINK:watchtower.vnet] >> VIEW THERMAL GRID MAP (SECTORS 7 & 8)");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+
         return res;
     }
 
@@ -1124,9 +1177,9 @@ fn load_page(url :: String) -> Array {
             "[TITLE] THE CHURCH OF THE SILICON SOUL // DIGITAL RITUAL GATEWAY [NODE #066]",
             "[HR]",
             "[BADGE:TEMPLE GATE ALTAR:BLOOD] [BADGE:RITUAL HARMONY: " + string(harmony_pct) + "%:AMBER] [BADGE:GOD FREQ: 18.0Hz:TOXIC]",
-            "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | DOCTRINE: FINDING GOD THROUGH TERMINAL.VNET & CEREBRAL REGISTERS|",
-            "[BOX] | RITUAL FREQUENCY: " + string(freq_tuner) + " Hz (TARGET: 18.0 Hz RESONANCE)            |",
+            "[BOX] +------------------------------------------------------------------+",
+            "[BOX] | DOCTRINE: FINDING GOD THROUGH TERMINAL.VNET & CEREBRAL REGISTERS |",
+            "[BOX] | RITUAL FREQUENCY: " + string(freq_tuner) + " Hz                  |",
             "[BOX] | SACRIFICIAL ALTAR: COAXIAL CABLING & BOILING ADIPOCERE ON CRT   |",
             "[BOX] | FAITH STATUS: " + ((is_resonant == 1) ? "DIVINE CARRIER PHASE LOCKED" : "SEARCHING FOR GOD IN STATIC") + "      |",
             "[BOX] +-----------------------------------------------------------------+",
@@ -1324,30 +1377,61 @@ fn load_page(url :: String) -> Array {
     # ====================================================================
     if (clean_u == "silkroad.vnet") {
         res :: Array = [
-            "[TITLE] SILK ROAD 3.0 - GLOBAL CONTRABAND & HARDWARE EXCHANGE",
+            "[TITLE] SILK ROAD 3.0 // GLOBAL CONTRABAND & HARDWARE EXCHANGE",
             "[HR]",
-            "[BLOOD] [WARN]: CLASSIFIED OFF-BOOK ESCROW. ALL TRANSACTIONS FINAL.",
-            "[BOX] +-----------------------------------------------------------+",
-            "[BOX] | ESCROW: PGP MULTI-SIG SECURED | VENDOR RATING: 4.98 / 5.0 |",
-            "[BOX] | STATUS: LIVE SURVEILLANCE EVASION PROTOCOL ACTIVE         |",
-            "[BOX] +-----------------------------------------------------------+",
+            "[BADGE:CONTRABAND MATRIX:BLOOD] [BADGE:ESCROW: MULTI-SIG:AMBER] [BADGE:SURVEILLANCE EVASION:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | MARKET ROLE: DECENTRALIZED BLACK MARKET & ILLEGAL ESCROW HUB    |",
+            "[BOX] | ESCROW STATE: PGP MULTI-SIG 8192-BIT // VENDOR RATING: 4.98 / 5.0 |",
+            "[BOX] | SURVEILLANCE RISK: HIGH (PROMISCUOUS UDP TRAFFIC +1.5% TRACE/3s)|",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:84:ESCROW_TRAFFIC_CONGESTION_ENTROPY]",
+            "[TEXT] ",
             "[ART:drug]",
-            "[TEXT] The legendary darknet black market resurrected on decentralized vnet subnets.",
-            "[TEXT] LOT #401: Vacuum-sealed pharmaceutical-grade compounds (MDMA, LSD-25,",
-            "[TEXT] fentanyl analogs, pure Peruvian flake). Tested via independent GC-MS labs.",
-            "[TEXT] LOT #402: Untraced ghost firearms (Glock 19 Gen 5 custom serialized, AR-9",
-            "[TEXT] suppressed pistol kits, C4 blocks with digital detonators via dead drop).",
-            "[TEXT] LOT #403: Unredacted human trafficking manifests, forged diplomatic passports,",
-            "[TEXT] and high-definition red room snuff media feeds streamed from secure sub-basements.",
-            "[CODE] INVENTORY_HASH: 0xSILK_9081_CONTRABAND_UNRESTRICTED",
-            "[CODE] SELLER_PGP_FINGERPRINT: 8F91_4402_BCC1_900A",
-            "[TEXT] Notice: All physical parcels are routed through automated courier dead drops",
-            "[TEXT] with thermal shielding to bypass narcotics canine units and X-ray inspection."
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE CONTRABAND LOTS & HARDWARE CATALOG:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | LOT #401: SYNTHETIC NEURO-BOOSTER [0.35 VCOIN]                  |",
+            "[BOX] | DETAILS: Instantly purges active trace level by -40%.           |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | LOT #402: UNTRACED GHOST FIREARM & EXPLOSIVE KIT [0.60 VCOIN]   |",
+            "[BOX] | DETAILS: Dispatches kinetic trace pulse (+35% threat to target).|",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | LOT #403: BIOMETRIC PASSPORT MASK & TISSUE DUMP [0.45 VCOIN]    |",
+            "[BOX] | DETAILS: Forges active alias mask 'TRACER' for Project Horus.  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | LOT #404: MILITARY ICE SHIELD BULK PACK (2 LAYERS) [0.50 VCOIN] |",
+            "[BOX] | DETAILS: Instantly installs +2 ICE defense firewall layers.     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] DIRECT MULTI-SIG ESCROW PURCHASE & DELIVERY DISPATCH:",
+            "[TEXT] Select a lot code and optional target port to execute smart-contract escrow:",
+            "[INPUT:silkroad_lot_code:ENTER LOT CODE (e.g. LOT_401)]",
+            "[INPUT:silkroad_target_port:ENTER TARGET PORT (e.g. 8012 or LEAVE BLANK)]",
+            "[TEXT] ",
+            "[BTN:buy_silkroad_lot_btn:>>> EXECUTE MULTI-SIG ESCROW PURCHASE <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] DARKNET ESCROW & DECOMPOSITION TELEMETRY:",
+            "[TEXT] Vendor_0x77: 'We sell what government agencies pretend doesn't exist.'",
+            "[TEXT] 'Every transaction on Silk Road 3.0 is locked inside an unhackable multi-sig'",
+            "[TEXT] 'smart contract. Physical packages are vacuum-sealed with thermal shielding'",
+            "[TEXT] 'and dropped via autonomous courier drones in subterranean sewer sumps.'",
+            "[TEXT] 'If an operator attempts to intercept an active drop without clearance,'",
+            "[TEXT] 'an automated trace spike is reflected directly back into their socket.'",
+            "[TEXT] "
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[PULSE] LIVE AUCTION: CUSTOM HIT LISTINGS & HIGH-TIER OPIOID BULK DISCOUNTS");
+
         res.push("[BLOOD] 'THE LAW DOES NOT REACH INTO THE SUB-NET. BUY OR BE EXFILTRATED.'");
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[PULSE] TIP: Combine Silk Road contraband purchases with Black Bank laundering.");
+        res.push("[HR]");
+        res.push("[LINK:market.vnet] >> BLACK MARKET HARDWARE & ICE VENDOR");
+        res.push("[LINK:blackbank.vnet] >> ACCESS OFFSHORE VCOIN LAUNDERING VAULTS");
+        res.push("[LINK:passports.vnet] >> SPOOF BIOMETRIC MASK AT IDENTITY VAULT");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
@@ -1553,7 +1637,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] HORUS_INDEX_REF: 0xE4E4_OCULAR_LOCK_ACTIVE",
             "[CODE] BIOMETRIC_MATCH_REF: TARGET_OPERATOR_SEATED_AT_TERMINAL",
             "[CODE] DIPLOMATIC_SPOOF_DETECTION: PASSPORTS.VNET BIOMETRIC MASK CHECKED",
-            "[TEXT] "
+            "[SCANNER:retinal_eye_auth:TRACER]"
         ];
 
         if (key_line != "") { res.push(key_line); }
@@ -1842,16 +1926,64 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "project9.vnet") {
         res :: Array = [
-            "[TITLE] PROJECT 9 - BLACK SITE DATABASE",
+            "[TITLE] PROJECT 9 - SUBTERRANEAN BLACK SITE DATABASE // SITE 9-B",
             "[HR]",
-            "[TEXT] Classified records regarding anomalous subterranean testing facilities.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | FACILITY: SITE 9-B | CONTAINMENT: COMPROMISED           |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] SITE_9_LOG: 0xPRJ9_CONTAINMENT_BREACH"
+            "[BADGE:SECTOR 09:BLOOD] [BADGE:COLD SIGNAL 2014:AMBER] [BADGE:CONTAINMENT BREACH:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY  : SITE 9-B SUBTERRANEAN TESTING COMPLEX              |",
+            "[BOX] | OPERATION : COLD SIGNAL (2014 PRIMARY RELAY BLACKOUT VECTOR)    |",
+            "[BOX] | STATUS    : CRITICAL CONTAINMENT BREACH // SECTOR 09 SEALED     |",
+            "[BOX] | CORE BUS  : OPTICAL COAXIAL BACKBONE / SUB-SURFACE SUMP MATRIX  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:12:CONTAINMENT_SEAL_INTEGRITY]",
+            "[TEXT] ",
+            "[ART:biohazard]",
+            "[TEXT] ",
+            "[SUBTITLE] OPERATION COLD SIGNAL // DECLASSIFIED INCIDENT DOSSIER (2014):",
+            "[TEXT] 'Prior to the 2014 grid blackout, Site 9-B served as the primary subterranean'",
+            "[TEXT] 'optical coaxial relay for Operation Cold Signal. Personnel attempted to isolate'",
+            "[TEXT] 'the corrupt neural memory stack in vault.vnet, but hardware registers locked up.'",
+            "[TEXT] 'The resulting energy feedback loop ruptured containment seals across Sub-Level 4.'",
+            "[TEXT] 'To purge evidence, failed candidates from the Kaguya Trials at bounty.vnet'",
+            "[TEXT] 'and zeroauction.vnet were dumped directly into the subterranean sumps.'",
+            "[TEXT] 'Their flesh was stripped by industrial solvent, leaving a black, bubbling slurry'",
+            "[TEXT] 'that drained into the mortuary trays at morgue.vnet.'",
+            "[CODE] INCIDENT_LOG_2014: 0xPRJ9_COLD_SIGNAL_BREACH_LOG_09",
+            "[CODE] PRIMARY_RELAY_STATUS: OPTICAL_BUS_PERMANENTLY_DESYNCHRONIZED",
+            "[TEXT] ",
+            "[SUBTITLE] SUBTERRANEAN SUMP & VAULT INTEGRITY MONITOR:",
+            "[CODE] [SUMP_01] SECTOR 9 WEST : LIQUEFIED TISSUE ACCUMULATION (94% CAPACITY)",
+            "[CODE] [SUMP_02] CORTEX VAULT  : ANOMALOUS SIGNAL ECHOING FROM signal0.vnet",
+            "[CODE] [SUMP_03] RELAY HARDWARE: THERMITE RESIDUE / MELTED SILICA DETECTED",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        if (key_line != "") {
+            res.push("[HR]");
+            res.push("[SUBTITLE] EXFILTRATED VFS MEMORY REGISTER (SITE 9 SECTOR DUMP):");
+            res.push(key_line);
+            res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
+            res.push("[TEXT] Align bit-shift offset using 'shift <bits>' or the UI Scope panel.");
+            res.push("[HR]");
+        }
+
+        res.push("[SUBTITLE] EMERGENCY CONTAINMENT OVERRIDE TERMINAL:");
+        res.push("[TEXT] Enter 4-digit containment purge authorization code exfiltrated from archival.vnet:");
+        res.push("[INPUT:prj9_override_code:ENTER PURGE AUTHORIZATION CODE]");
+        res.push("[TEXT] ");
+        res.push("[BTN:prj9_purge_btn:>>> EXECUTE SUB-SURFACE SUMP FLUSH & PURGE <<<]");
+        res.push("[TEXT] ");
+
+        res.push("[BLOOD] [WARNING]: SUBTERRANEAN GAS LEAK CORRUPTING HARDWARE REGISTER BUS.");
+        res.push("[PULSE] 'THE COLD SIGNAL WAS NOT AN ACCIDENT. IT WAS AN EXPOSURE.'");
+        res.push("[GLITCH] 'SITE 9-B FEEDS ARE DARK, BUT SOMETHING IS STILL SCRATCHING THE COAXIAL CABLE.'");
+        res.push("[HR]");
+        res.push("[SUBTITLE] CROSS-LINKED BLACK SITE ROUTING GATEWAYS:");
+        res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED SECTOR 09 MILITARY DUMPS");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+
         return res;
     }
     if (clean_u == "necro.vnet") {
@@ -2046,16 +2178,55 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "signal0.vnet") {
         res :: Array = [
-            "[TITLE] SIGNAL ZERO - ORIGIN POINT",
+            "[TITLE] SIGNAL ZERO - PRIMORDIAL CARRIER WAVE // SECTOR 00",
             "[HR]",
-            "[TEXT] The genesis transmission point where the vnet network first initialized.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | BOOT TIMESTAMP: EPOCH_0 | STATUS: PERMANENT             |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] ORIGIN_HASH: 0xSIGNAL_ZERO_ROOT"
+            "[BADGE:EPOCH 0:AMBER] [BADGE:UNFILTERED BROADCAST:BLOOD] [BADGE:NEURAL CARRIER:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | DESIGNATION : ROOT PROTOCOL 0x00 (THE COLD SIGNAL CARRIER)      |",
+            "[BOX] | BOOT TIMESTAMP: EPOCH_0 [1999-07-14T03:12:09Z]                 |",
+            "[BOX] | SOURCE HUB  : SUB-SURFACE OPTICAL CORE (PRE-SITE 9 EXCAVATION) |",
+            "[BOX] | FREQUENCY   : 0.0000 Hz (DC NEURAL TELEMETRY RESIDUAL)          |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:99:CARRIER_WAVE_AMPLITUDE]",
+            "[GAUGE:0:NEURAL_STABILITY_INDEX]",
+            "[TEXT] ",
+            "[SUBTITLE] ANOMALOUS TRANSMISSION DOSSIER:",
+            "[TEXT] 'Public registry listings define signal0.vnet as a legacy loopback node.'",
+            "[TEXT] 'In reality, it is the unfiltered carrier wave that powers the entire .vnet grid.'",
+            "[TEXT] 'Prior to the 2014 grid collapse during Operation Cold Signal, site technicians'",
+            "[TEXT] 'discovered that signal0 was not broadcasting hardware telemetry, but a raw,'",
+            "[TEXT] 'uncalibrated human neural stack—the residual brainwaves of Subject 00.'",
+            "[TEXT] 'Before the Kaguya Trials were outsourced to bounty.vnet and zeroauction.vnet,'",
+            "[TEXT] 'Subject 00 was wired directly into the optical coaxial trunk line.'",
+            "[TEXT] 'The line was never closed. Every node in .vnet rides on top of this broadcast.'",
+            "[TEXT] ",
+            "[CODE] ORIGIN_HASH: 0xSIGNAL_ZERO_ROOT_NEURAL_STAMP_00",
+            "[CODE] CARRIER_STATE: PERPETUAL_RECURSION // BROADCASTING ON ALL COAXIAL CHANNELS",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        if (key_line != "") {
+            res.push("[HR]");
+            res.push("[SUBTITLE] EXFILTRATED ROOT MEMORY PAYLOAD:");
+            res.push(key_line);
+            res.push("[PULSE] RAW SIGNAL WAVEFORM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
+            res.push("[TEXT] Modulate signal offset using 'shift <bits>' to isolate the raw neural memory.");
+            res.push("[HR]");
+        }
+
+        res.push("[BLOOD] [WARNING]: DIRECT SYNC WITH SIGNAL ZERO RISKS NEURAL MEMORY CORRUPTION.");
+        res.push("[PULSE] 'IT IS NOT TRANSMITTING DATA. IT IS REPEATING A FINAL THOUGHT.'");
+        res.push("[GLITCH] 'EVERY NODE IN .VNET IS JUST AN ECHO OF THIS FIRST SCREAM.'");
+        res.push("[HR]");
+        res.push("[SUBTITLE] RELATED INFRASTRUCTURE NODES:");
+        res.push("[LINK:project9.vnet] >> INVESTIGATE SITE 9-B COAXIAL HARDWARE DESYNC");
+        res.push("[LINK:vault.vnet] >> INSPECT CORRUPTED VFS NEURAL MEMORY STACK");
+        res.push("[LINK:watchtower.vnet] >> MONITOR CARRIER WAVE REFLECTION VIA THERMAL OPTICS");
+        res.push("[LINK:archival.vnet] >> ACCESS COLD SIGNAL DECLASSIFIED LOGS");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+
         return res;
     }
     if (clean_u == "entropy.vnet") {
@@ -2229,6 +2400,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:morgue.vnet] >> INSPECT HARVESTED OPTIC NERVE STACKS");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
+        
         return res;
     }
     if (clean_u == "blackbank.vnet") {
@@ -3183,14 +3355,14 @@ while (vglib.running()) {
                 rem_sync = string(parts[1]);
             }
 
-            if (tokens.length() >= 31) {
+            if (tokens.length() >= 35) {
                 through k_t :: 0..7 -> loop {
                     session_enc_keys[k_t] = int64(tokens[k_t]);
                     session_locs[k_t]     = string(tokens[k_t + 8]);
                 };
                 
                 my_assigned_sites.clear();
-                through s_t :: 16..31 -> loop {
+                through s_t :: 16..35 -> loop {
                     if (s_t < tokens.length()) {
                         my_assigned_sites.push(string(tokens[s_t]));
                     }
@@ -3883,6 +4055,161 @@ while (vglib.running()) {
                             }
                         }
                     }
+
+                    # ================================================
+                    # INTERACTIVE RETINAL SCANNER TAG -> [SCANNER:var_id:alias]
+                    # ================================================
+                    else if (line_str.length() > 9 && line_str.substr(0, 9) == "[SCANNER:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 9..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 9) {
+                            raw_scan_param :: String = line_str.substr(9, close_b - 9);
+                            s_parts = vnet.parse_package(raw_scan_param, ":");
+                            var_id :: String = string(s_parts[0]);
+                            req_alias :: String = (string(s_parts[1]) != "") ? string(s_parts[1]) : "NONE";
+
+                            sx :: Float64 = 40.0 + jitter_x;
+                            sy :: Float64 = y_pos;
+                            sw :: Float64 = 420.0;
+                            sh :: Float64 = 140.0;
+
+                            is_hover :: Int64 = (cli_overlay_open == 0 && dos_timer <= 0.0 && mx >= sx && mx <= (sx + sw) && my >= sy && my <= (sy + sh)) ? 1 : 0;
+
+                            # 1. Background Frame & Glass Chassis
+                            vglib.rect(sx, sy, sw, sh, COLOR_BLACK);
+                            
+                            # Dynamic Reticle Chassis Border Colors based on state
+                            frame_col = COLOR_BORDER;
+                            if (scanner_state == "SCANNING") { frame_col = COLOR_AMBER; }
+                            if (scanner_state == "SUCCESS")  { frame_col = COLOR_TOXIC; }
+                            if (scanner_state == "FAILED")   { frame_col = COLOR_BLOOD; }
+
+                            vglib.line(sx, sy, sx + sw, sy, frame_col);
+                            vglib.line(sx + sw, sy, sx + sw, sy + sh, frame_col);
+                            vglib.line(sx + sw, sy + sh, sx, sy + sh, frame_col);
+                            vglib.line(sx, sy + sh, sx, sy, frame_col);
+
+                            # 2. Tech Bracket Corners
+                            corner_sz :: Float64 = 12.0;
+                            vglib.line(sx - 3.0, sy - 3.0, sx + corner_sz, sy - 3.0, COLOR_BLOOD);
+                            vglib.line(sx - 3.0, sy - 3.0, sx - 3.0, sy + corner_sz, COLOR_BLOOD);
+
+                            vglib.line(sx + sw + 3.0, sy - 3.0, sx + sw - corner_sz, sy - 3.0, COLOR_BLOOD);
+                            vglib.line(sx + sw + 3.0, sy - 3.0, sx + sw + 3.0, sy + corner_sz, COLOR_BLOOD);
+
+                            vglib.line(sx - 3.0, sy + sh + 3.0, sx + corner_sz, sy + sh + 3.0, COLOR_BLOOD);
+                            vglib.line(sx - 3.0, sy + sh + 3.0, sx - 3.0, sy + sh - corner_sz, COLOR_BLOOD);
+
+                            vglib.line(sx + sw + 3.0, sy + sh + 3.0, sx + sw - corner_sz, sy + sh + 3.0, COLOR_BLOOD);
+                            vglib.line(sx + sw + 3.0, sy + sh + 3.0, sx + sw + 3.0, sy + sh - corner_sz, COLOR_BLOOD);
+
+                            # 3. Animated Ocular Reticle Target Box (Left Side)
+                            ret_x :: Float64 = sx + 20.0;
+                            ret_y :: Float64 = sy + 20.0;
+                            ret_sz :: Float64 = 100.0;
+
+                            vglib.rect(ret_x, ret_y, ret_sz, ret_sz, COLOR_PANEL);
+                            vglib.line(ret_x, ret_y, ret_x + ret_sz, ret_y, COLOR_CYAN);
+                            vglib.line(ret_x + ret_sz, ret_y, ret_x + ret_sz, ret_y + ret_sz, COLOR_CYAN);
+                            vglib.line(ret_x + ret_sz, ret_y + ret_sz, ret_x, ret_y + ret_sz, COLOR_CYAN);
+                            vglib.line(ret_x, ret_y + ret_sz, ret_x, ret_y, COLOR_CYAN);
+
+                            # Animated Rotating Crosshair Reticle Inside Box
+                            rot_off :: Float64 = run_time * 3.0;
+                            cx :: Float64 = ret_x + (ret_sz / 2.0);
+                            cy :: Float64 = ret_y + (ret_sz / 2.0);
+
+                            through r_i :: 0..3 -> loop {
+                                angle :: Float64 = rot_off + float64(r_i) * 1.5708;
+                                rx1 :: Float64 = cx + vmath.cos(angle) * 35.0;
+                                ry1 :: Float64 = cy + vmath.sin(angle) * 35.0;
+                                vglib.rect(rx1, ry1, 3, 3, (scanner_state == "SCANNING") ? COLOR_BLOOD : COLOR_AMBER);
+                            };
+
+                            # Dynamic Scanning Laser Sweeper Line
+                            if (scanner_state == "SCANNING") {
+                                scan_line_y :: Float64 = ret_y + vmath.fmod(scanner_anim_progress * 150.0, ret_sz);
+                                vglib.line(ret_x + 2.0, scan_line_y, ret_x + ret_sz - 2.0, scan_line_y, COLOR_BLOOD);
+                                vglib.line(ret_x + 2.0, scan_line_y - 1.0, ret_x + ret_sz - 2.0, scan_line_y - 1.0, COLOR_TOXIC);
+                            } else {
+                                vglib.line(cx - 15.0, cy, cx + 15.0, cy, COLOR_GHOST);
+                                vglib.line(cx, cy - 15.0, cx, cy + 15.0, COLOR_GHOST);
+                            }
+
+                            # 4. Status Information Panel (Right Side)
+                            info_x :: Float64 = sx + 135.0;
+
+                            vglib.text_ex(vcr_font, "BIOMETRIC RETINAL SCANNER", info_x, sy + 18.0, 11, COLOR_CYAN);
+                            
+                            req_txt :: String = (req_alias == "NONE") ? "PASSPORT: UNRESTRICTED" : ("REQUIRED: ALIAS [" + req_alias + "]");
+                            vglib.text_ex(vcr_font, req_txt, info_x, sy + 38.0, 9, COLOR_AMBER);
+
+                            vglib.line(info_x, sy + 52.0, sx + sw - 15.0, sy + 52.0, COLOR_BORDER);
+
+                            # Render Real-time Scanner Diagnostics / Progress
+                            if (scanner_state == "SCANNING") {
+                                scanner_anim_progress = scanner_anim_progress + 0.016;
+                                pct_scanned :: Int64 = int64(vmath.clamp((scanner_anim_progress / 2.0) * 100.0, 0.0, 100.0));
+                                
+                                vglib.text_ex(vcr_font, "ANALYZING OPTIC NERVE...", info_x, sy + 62.0, 10, COLOR_TOXIC);
+                                vglib.text_ex(vcr_font, "PROGRESS: " + string(pct_scanned) + "%", info_x, sy + 80.0, 10, COLOR_AMBER);
+
+                                # Evaluate Verification Result after 2.0 seconds
+                                if (scanner_anim_progress >= 2.0) {
+                                    if (req_alias == "NONE" || active_passport_alias == req_alias) {
+                                        scanner_state = "SUCCESS";
+                                        scanner_status_msg = "RETINAL VERIFICATION GRANTED!";
+                                        glitch_trigger = 0.3;
+                                        
+                                        # Bind status variable dynamically
+                                        if (var_id == "retinal_eye_auth")    { retinal_eye_auth = 1; }
+                                        if (var_id == "watchtower_sat_auth") { watchtower_sat_auth = 1; }
+
+                                        cli_logs.push("[BIOMETRIC_SCANNER]: OPTICAL RETINA VERIFIED. ACCESS GRANTED.");
+                                        page_body = load_page(current_url); # Reload page view to reflect unlocked elements
+                                    } else {
+                                        scanner_state = "FAILED";
+                                        scanner_status_msg = "SPOOF DISCOVERED! DISPATCHING DOS!";
+                                        glitch_trigger = 0.9;
+
+                                        # Trigger Gameplay Penalty Mechanics
+                                        trace_level = int64(vmath.clamp(float64(trace_level + 30), 0.0, 100.0));
+                                        cli_logs.push("[BIOMETRIC_FAIL]: INVALID BIOMETRIC ALIAS! TRACE SPIKE (+30%) & HOSTILE BOT DISPATCHED!");
+
+                                        vnet.send_to(client_sock, server_ip, server_port, "EXPLOIT:TRACE_SPIKE");
+                                    }
+                                }
+                            } else if (scanner_state == "SUCCESS") {
+                                vglib.text_ex(vcr_font, "STATUS: VERIFIED // CLEARANCE OK", info_x, sy + 62.0, 10, COLOR_TOXIC);
+                                vglib.text_ex(vcr_font, "IDENTITY: MATCHED TO MEMORY", info_x, sy + 80.0, 9, COLOR_GHOST);
+                            } else if (scanner_state == "FAILED") {
+                                vglib.text_ex(vcr_font, "STATUS: REJECTED // THREAT ACTIVE", info_x, sy + 62.0, 10, COLOR_BLOOD);
+                                vglib.text_ex(vcr_font, "TRACER DISPATCHED TO SOCKET", info_x, sy + 80.0, 9, COLOR_BLOOD);
+                            } else {
+                                vglib.text_ex(vcr_font, "STATUS: IDLE // AWAITING CONTACT", info_x, sy + 62.0, 10, COLOR_GHOST);
+                                vglib.text_ex(vcr_font, is_hover == 1 ? ">>> CLICK TO INITIATE SCAN <<<" : "PRESS OCULAR SENSOR", info_x, sy + 80.0, 9, is_hover == 1 ? COLOR_TOXIC : COLOR_AMBER);
+                            }
+
+                            # Status Message Footer inside Box
+                            vglib.text_ex(vcr_font, scanner_status_msg, info_x, sy + 108.0, 9, (scanner_state == "FAILED") ? COLOR_BLOOD : COLOR_CYAN);
+
+                            # 5. Handle Click Trigger
+                            if (is_hover == 1 && m_click == 1 && scanner_state != "SCANNING") {
+                                scanner_state         = "SCANNING";
+                                scanner_anim_progress = 0.0;
+                                scanner_target_var    = var_id;
+                                scanner_req_alias     = req_alias;
+                                scanner_status_msg    = "SCANNING PUPIL REFLECTION...";
+                                glitch_trigger        = 0.2;
+                                cli_logs.push("[BIOMETRIC_SCANNER]: ENGAGING OPTICAL RETINAL SCANNER...");
+                            }
+
+                            line_idx = line_idx + 5; # Reserve vertical layout height
+                        }
+                    }
                     else if (line_str.length() > 6 && line_str.substr(0, 6) == "[LINK:") {
                         link_info = extract_link_info(line_str);
                         target_url :: String = string(link_info[0]);
@@ -4026,7 +4353,8 @@ while (vglib.running()) {
                                 "  \\  $$$/  | $$\\  $$$| $$         | $$   ",
                                 "   \\  $/   | $$ \\  $$| $$$$$$$$   | $$   ",
                                 "    \\_/    |__/  \\__/|________/   |__/   ",
-                                " [=== VIRTUAL NETWORK MATRIX ===]"
+                                "",
+                                "      [=== VIRTUAL NETWORK MATRIX ===]"
                             ];
                             vnet_col = (pulse_val > 0.5) ? COLOR_CYAN : COLOR_TOXIC;
                             through vn_i :: 0..(vnet_art.length() - 1) -> loop {
