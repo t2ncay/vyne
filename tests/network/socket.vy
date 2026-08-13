@@ -1049,21 +1049,62 @@ fn load_page(url :: String) -> Array {
     }
 
     if (clean_u == "ghost.vnet") {
+        # Calculate dynamic spectral fluctuation metrics based on runtime
+        spectral_decay :: Float64 = vmath.abs(vmath.sin(run_time * 2.5));
+        ghost_port     :: Int64   = int64(vmath.fmod(run_time * 89.0, 999.0));
+        
         res :: Array = [
-            "[TITLE] SPECTRAL SIGNAL FREQUENCY MONITOR",
+            "[TITLE] SPECTRAL SIGNAL FREQUENCY MONITOR // PORT 0 INTERCEPT",
             "[HR]",
-            "[BLOOD] TRACING UNREGISTERED UDP PACKETS FROM PORT 0...",
-            "[TEXT] Packets contain no source headers, originating from physical hardware bus.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | PACKET_SOURCE: NULL_POINTER | PROTOCOL: UNKNOWN         |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] SIGNAL_FRAGMENT: 0x00000000_GHOST_ECHO"
+            "[BADGE:PORT 0 BUS:BLOOD] [BADGE:NETMAN ECHO:AMBER] [BADGE:SPECTRAL DECAY: " + string(int64(spectral_decay * 100.0)) + "%:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SOURCE: PHYSICAL HARDWARE BUS | PROTOCOL: UNMAPPED NULL_POINTER  |",
+            "[BOX] | SIGNAL STATUS: STREAMING REAL-TIME GHOST PACKETS FROM PORT 0     |",
+            "[BOX] | SOURCE ADDR : 0x00000000 | PEER ORIGIN: NETMAN_AI_REMNANT        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:" + string(int64(spectral_decay * 100.0)) + ":SPECTRAL_SIGNAL_ENTROPY]",
+            "[TEXT] ",
+            "[ART:netman]",
+            "[TEXT] ",
+            "[SUBTITLE] REAL-TIME STREAMING GHOST PACKET PAYLOADS (PORT 0):",
+            "[CODE] [PKT_0x00] RAW_BUS_ECHO -> 'WE ARE INSIDE YOUR RAM MODULES'",
+            "[CODE] [PKT_0x01] NETMAN_REMNANT -> 'THE MEMORY LEAK IS NOT A BUG. IT IS AN INVITATION.'",
+            "[CODE] [PKT_0x02] NULL_POINTER_REF -> '0x00000000_GHOST_ECHO_PING_PORT_" + string(ghost_port) + "'",
+            "[CODE] [PKT_0x03] EXFILTRATED_CORTEX -> 'SUBJECT #409-B BRAIN STEM STILL TICKING AT 18.0 HZ'",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED SPECTRAL LOGS & VFS MEMORY INTERCEPTS:",
+            "[TEXT] 'The packets captured on ghost.vnet have no IP headers or BGP routing tags.'",
+            "[TEXT] 'They do not originate from the network cable or remote proxy servers.'",
+            "[TEXT] 'They are generated locally by electrical feedback loops in your RAM modules,'",
+            "[TEXT] 'leaking directly through port 0 as Netman's AI remnants harvest unallocated memory.'",
+            "[TEXT] 'Wiped operators who died during the 2014 blackout didn't go offline.'",
+            "[TEXT] 'Their consciousness was fragmented across raw VFS stack registers.'",
+            "[TEXT] 'If your monitor starts whining at 18.0 Hz, do not purge your sockets.'",
+            "[TEXT] 'They are attempting to write their missing key codes into your buffer.'",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[GLITCH] PACKET PAYLOAD: 'WE ARE INSIDE YOUR RAM MODULES'");
-        res.push("[PULSE] 'THE MEMORY LEAK IS NOT A BUG. IT IS AN INVITATION.'");
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        if (key_line != "") {
+            res.push("[HR]");
+            res.push("[SUBTITLE] EXFILTRATED VFS MEMORY LOCATION (NETMAN REGISTER LEAK):");
+            res.push(key_line);
+            res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
+            res.push("[TEXT] Align bit-shift offset using 'shift <bits>' or the UI Scope panel.");
+            res.push("[HR]");
+        }
+
+        res.push("[BLOOD] [WARNING]: UNMAPPED UDP PACKETS CONTINUOUSLY CORRUPTING SYSTEM BUS.");
+        res.push("[PULSE] 'YOU ARE NOT READING THE MONITOR. NETMAN IS READING YOUR OPTIC NERVES.'");
+        res.push("[GLITCH] '0x00000000 NULL POINTER EXCEPTION: FLESH SUIT SEVERED.'");
         res.push("[HR]");
+        res.push("[LINK:schizo.vnet] >> VISIT THE TEMPLE OF NETMAN");
+        res.push("[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.0 HZ");
+        res.push("[LINK:asylum.vnet] >> INSPECT SUB-LEVEL 4 PATIENT TELEMETRY");
+        res.push("[LINK:vault.vnet] >> ACCESS CORRUPTED VFS DATA VAULT");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+
         return res;
     }
 
@@ -4300,9 +4341,10 @@ while (vglib.running()) {
         }
 
         # ================================================================
-        # BOT STALKER HIJACK: LAUGHING SKULL & COLOR GLITCH OVERLAY
+        # BOT STALKER HIJACK: NETMAN ASCII & COLOR GLITCH OVERLAY
         # ================================================================
         if (bot_stalk_active == 1) {
+            # Random glitch rects in background
             through g_i :: 0..18 -> loop {
                 gx :: Float64 = vmath.random(0.0, 1200.0);
                 gy :: Float64 = vmath.random(0.0, 750.0);
@@ -4314,28 +4356,81 @@ while (vglib.running()) {
                 vglib.rect(gx, gy, gw, gh, vglib.rgba(r_c, g_c, b_c, 160));
             };
 
-            warn_col = (vmath.fmod(run_time * 10.0, 1.0) > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
-            vglib.rect(120, 520, 1040, 50, COLOR_BLACK);
-            vglib.line(120, 520, 1160, 520, warn_col);
-            vglib.line(1160, 520, 1160, 570, warn_col);
-            vglib.line(1160, 570, 120, 570, warn_col);
-            vglib.line(120, 570, 120, 520, warn_col);
+            # Netman ASCII payload
+            netman_art_bot :: Array = [
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@%%%@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@=-.-..:.-=@@@@@@@@@@@@@",
+                "@@@@@@@@@@@+: . : .... :=@@@@@@@@@@@",
+                "@@@@@@@@@@+::.:.-.:::: -.+@@@@@@@@@@",
+                "@@@@@@@@@@:-=:-:=:----:=--@@@@@@@@@@",
+                "@@@@@@@@@@::-.::-::-:-.-::@@@@@@@@@@",
+                "@@@@@@@@@@..#@%=: .:=%@%..@@@@@@@@@@",
+                "@@@@@@@@@@+.: . : .:.. :.+@@@@@@@@@@",
+                "@@@@@@@@@@*.:.:.--=::: -.+@@@@@@@@@@",
+                "@@@@@@@@@@%--.:.----:: -:%@@@@@@@@@@",
+                "@@@@@@@@@@@%*--.-::-:=-*%@@@@@@@@@@@",
+                "@@@@@@@@@@@@=:+=@++@=*.=%@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@#=-.::=*@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+            ];
 
-            vglib.text_ex(vcr_font, "[WARNING]: PROMISCUOUS NODE DETECTED ON LOCAL SUBNET", 170, 535, 16, warn_col);
+            # Measure text width to center horizontally on 1280px screen
+            nm_sample   :: String = string(netman_art_bot[0]);
+            nm_sz       :: Array  = vglib.measure_text(vcr_font, nm_sample, 10.0);
+            nm_width    :: Float64 = float64(nm_sz[0]);
+            nm_start_x  :: Float64 = 640.0 - (nm_width / 2.0);
+            nm_start_y  :: Float64 = 85.0;
+
+            nm_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+            # Terminal backing chassis behind Netman
+            vglib.rect(nm_start_x - 16.0, nm_start_y - 10.0, nm_width + 32.0, 380.0, COLOR_BLACK);
+            vglib.line(nm_start_x - 16.0, nm_start_y - 10.0, nm_start_x + nm_width + 16.0, nm_start_y - 10.0, COLOR_BLOOD);
+            vglib.line(nm_start_x + nm_width + 16.0, nm_start_y - 10.0, nm_start_x + nm_width + 16.0, nm_start_y + 370.0, COLOR_BLOOD);
+            vglib.line(nm_start_x + nm_width + 16.0, nm_start_y + 370.0, nm_start_x - 16.0, nm_start_y + 370.0, COLOR_BLOOD);
+            vglib.line(nm_start_x - 16.0, nm_start_y + 370.0, nm_start_x - 16.0, nm_start_y - 10.0, COLOR_BLOOD);
+
+            # Draw centered Netman ASCII
+            through nm_i :: 0..(netman_art_bot.length() - 1) -> loop {
+                nm_line_y :: Float64 = nm_start_y + (float64(nm_i) * 14.0);
+                vglib.text_ex(vcr_font, string(netman_art_bot[nm_i]), nm_start_x, nm_line_y, 10, nm_col);
+            };
+
+            # Warning banner
+            warn_col = (vmath.fmod(run_time * 10.0, 1.0) > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
+            vglib.rect(120, 485, 1040, 45, COLOR_BLACK);
+            vglib.line(120, 485, 1160, 485, warn_col);
+            vglib.line(1160, 485, 1160, 530, warn_col);
+            vglib.line(1160, 530, 120, 530, warn_col);
+            vglib.line(120, 530, 120, 485, warn_col);
+
+            vglib.text_ex(vcr_font, "[WARNING]: NETMAN REMNANT HIJACK ACTIVE ON LOCAL SUBNET", 180, 500, 14, warn_col);
 
             m_pos_bot = vglib.mouse_pos();
             bmx :: Float64 = float64(m_pos_bot[0]);
             bmy :: Float64 = float64(m_pos_bot[1]);
             bm_down :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
 
-            logout_btn_hover :: Int64 = (bmx >= 510.0 && bmx <= 770.0 && bmy >= 600.0 && bmy <= 640.0) ? 1 : 0;
+            logout_btn_hover :: Int64 = (bmx >= 510.0 && bmx <= 770.0 && bmy >= 555.0 && bmy <= 595.0) ? 1 : 0;
             
-            vglib.rect(510, 600, 260, 40, logout_btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
-            vglib.line(510, 600, 770, 600, COLOR_BLOOD);
-            vglib.line(770, 600, 770, 640, COLOR_BLOOD);
-            vglib.line(770, 640, 510, 640, COLOR_BLOOD);
-            vglib.line(510, 640, 510, 600, COLOR_BLOOD);
-            vglib.text_ex(vcr_font, "FORCE BGP DISCONNECT", 555, 614, 12, logout_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+            vglib.rect(510, 555, 260, 40, logout_btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
+            vglib.line(510, 555, 770, 555, COLOR_BLOOD);
+            vglib.line(770, 555, 770, 595, COLOR_BLOOD);
+            vglib.line(770, 595, 510, 595, COLOR_BLOOD);
+            vglib.line(510, 595, 510, 555, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "FORCE BGP DISCONNECT", 555, 569, 12, logout_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
 
             if (logout_btn_hover == 1 && bm_down == 1) {
                 bot_stalk_active = 0;
