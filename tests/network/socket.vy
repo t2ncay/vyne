@@ -1499,16 +1499,60 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "pastebin.vnet") {
         res :: Array = [
-            "[TITLE] ANONYMOUS PASTEBIN & DUMP HUB",
+            "[TITLE] PASTEBIN.VNET // ANONYMOUS DUMP NETWORK & EXPLOIT HUB",
             "[HR]",
-            "[TEXT] Unfiltered text repository for credentials, keys, and scripts.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | TOTAL PASTES: 918,401 | ENCRYPTION: NONE                |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] PASTE_ID: 88192_PASSWORD_HASH_DUMP"
+            "[BADGE:UNENCRYPTED DUMP:BLOOD] [BADGE:PMC FIRMWARE LEAK:AMBER] [BADGE:VFS ARCHIVE:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SYSTEM ROLE: PUBLIC MEMORY SCRAPER & RAW PASTE REPOSITORY       |",
+            "[BOX] | TOTAL PASTES: 918,401 | SHADOW DUMPS: ACTIVE                    |",
+            "[BOX] | EXCURSION RISK: HIGH  | AUTOMATED TRACE INCREMENT: +1.5%/3s     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:82:LEAKED_BUFFER_CONGESTION]",
+            "[TEXT] ",
+            "[SUBTITLE] EXFILTRATED SHADOW PMC ELITE CHIPCODE (RAW VYNE EXEC):",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | PASTE ID: #PMC-88192-EXPLOIT | ORIGIN: OMNI-CORP BLACK-OPS LAB  |",
+            "[BOX] | ARCHITECTURE: DIRECT VYNE KERNEL ASSEMBLY / VMEM OVERRIDE      |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[WARN] [CRITICAL]: RAW PMC EXECS CONTAIN ACTIVE NEURAL INHIBITOR HOOKS",
+            "[HR]",
+            "[TEXT] Target Protocol: Shadow PMC Elite Actuator & Reflex Engine",
+            "[TEXT] Target Architecture: Vyne Direct Micro-Kernel Assembly",
+            "[HR]",
+            "[CODE] // --- [SHADOW_PMC_ACTUATOR_OVERCLOCK.vyne] ---",
+            "[CODE] fn execute_viper_reflex(pmc_host: PmcUnit) -> Void {",
+            "[CODE]     // Bypass internal synapse locks via direct memory bus write",
+            "[CODE]     vmem.write_raw(pmc_host.synapse_addr + 0x3F, 0xFF);",
+            "[CODE]     pmc_host.reaction_ms = 1; // Sub-human reaction delay",
+            "[CODE]     pmc_host.override_ice(ICEMode.Bypass);",
+            "[CODE]     vnet.broadcast_exploit(pmc_host.net_ip, \"PMC_OVERRIDE_VIP\");",
+            "[CODE] }",
+            "[CODE] // --- END LEAKED RAW CHIPCODE PAYLOAD ---",
+            "[TEXT] ",
+            "[SUBTITLE] INTERACTIVE PAYLOAD EXFILTRATION & QUERY:",
+            "[TEXT] Enter Paste ID to extract raw memory vectors or download exploit binaries:",
+            "[INPUT:paste_id_query:ENTER PASTE ID (e.g. 88192)]",
+            "[TEXT] ",
+            "[BTN:download_paste_btn:>>> EXTRACT EXPLOIT PAYLOAD TO LOCAL DISK <<<]",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
+
+        if (key_line != "") {
+            res.push("[HR]");
+            res.push("[SUBTITLE] DISCOVERED VFS MEMORY REGISTER DUMP:");
+            res.push(key_line);
+            res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16));
+            res.push("[TEXT] Use 'shift <bits>' or the UI Scope panel to align bit registers.");
+        }
+
+        res.push("[HR]");
+        res.push("[SUBTITLE] CATEGORY ARCHIVES & CROSS-NETWORK LINKS:");
+        res.push("[LINK:zeroauction.vnet] >> ACCESS ZERO-DAY EXPLOIT AUCTION HOUSE");
+        res.push("[LINK:bounty.vnet] >> CROSS-CHECK PEER BOUNTY & HIT INDEX");
+        res.push("[LINK:leaks.vnet] >> ACCESS GLOBAL INTELLIGENCE DUMPS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "whisper.vnet") {
@@ -2172,8 +2216,10 @@ fn dispatch_cli_command(raw_input :: String) {
 
             if (active_raw_payload == 0) {
                 cli_logs.push("[vdec]: ERROR - No corrupted VFS memory sector payload active on this site.");
+            } else if (is_aligned == 0) {
+                cli_logs.push("[vdec]: DECRYPTION FAILED - Bit alignment offset mismatch. Use 'shift <bits>'.");
             } else if (lock_progress < 1.0) {
-                cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier signal lock lost. Hold 18.0 Hz resonance.");
+                cli_logs.push("[vdec]: DECRYPTION FAILED - Signal lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold 18.0 Hz.");
             } else if (input_offset != bit_shift_offset) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
             } else {
