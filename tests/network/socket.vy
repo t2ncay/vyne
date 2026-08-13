@@ -229,6 +229,35 @@ fn purchase_ice_firewall() -> Int64 {
     return 1;
 }
 
+fn extract_canonical_name(raw_url :: String) -> String {
+    clean_u :: String = clean_str(raw_url);
+    if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
+        clean_u = clean_str(clean_u.substr(7, clean_u.length() - 7));
+    }
+
+    sep_idx :: Int64 = clean_u.find("_");
+
+    if (sep_idx < 0) {
+        return clean_u;
+    }
+
+    through idx :: 0..(my_assigned_sites.length() - 1) -> loop {
+        if (string(my_assigned_sites[idx]) == clean_u) {
+            base_prefix :: String = clean_u.substr(0, sep_idx);
+            return base_prefix + ".vnet";
+        }
+    };
+
+    through idx :: 0..(session_locs.length() - 1) -> loop {
+        if (string(session_locs[idx]) == clean_u) {
+            base_prefix :: String = clean_u.substr(0, sep_idx);
+            return base_prefix + ".vnet";
+        }
+    };
+
+    return clean_u;
+}
+
 fn trigger_route_navigation(target_dest :: String) {
     if (is_connecting == 1) { return null; }
     
@@ -255,7 +284,7 @@ fn trigger_route_navigation(target_dest :: String) {
 # FULLY EXPANDED DETAILED LORE PAGES (ALL 50 WEB NODES)
 # ====================================================================
 fn load_page(url :: String) -> Array {
-    clean_u = url;
+    clean_u = extract_canonical_name(url);
 
     key_line :: String = "";
     through k_i :: 0..7 -> loop {
@@ -2862,7 +2891,7 @@ while (vglib.running()) {
                 };
                 
                 my_assigned_sites.clear();
-                through s_t :: 16..30 -> loop {
+                through s_t :: 16..31 -> loop {
                     if (s_t < tokens.length()) {
                         my_assigned_sites.push(string(tokens[s_t]));
                     }

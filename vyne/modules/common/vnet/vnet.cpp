@@ -139,6 +139,23 @@ Value native_parse_package(std::vector<Value>& args) {
     });
 }
 
+Value native_hash_site(std::vector<Value>& args) {
+    if (args.empty()) return Value(std::string(""));
+
+    const std::string& site = args[0].asString();
+    uint32_t salt = (args.size() > 1) ? static_cast<uint32_t>(args[1].asInt()) : 0x811c9dc5;
+
+    uint32_t hash = salt;
+    for (char c : site) {
+        hash ^= static_cast<uint8_t>(c);
+        hash *= 16777619u;
+    }
+
+    char hexBuf[16];
+    snprintf(hexBuf, sizeof(hexBuf), "%08x", hash);
+    return Value(std::string(hexBuf));
+}
+
 } // namespace VNetNative
 
 void setupVNet(SymbolContainer& env, StringPool& pool) {
@@ -153,4 +170,5 @@ void setupVNet(SymbolContainer& env, StringPool& pool) {
     vnet[pool.intern("recv_from")]     = Value(VNetNative::native_recv_from);
     vnet[pool.intern("close")]         = Value(VNetNative::native_close_socket);
     vnet[pool.intern("parse_package")] = Value(VNetNative::native_parse_package);
+    vnet[pool.intern("hash_site")]     = Value(VNetNative::native_hash_site);
 }

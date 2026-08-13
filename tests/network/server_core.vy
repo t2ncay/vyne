@@ -55,6 +55,22 @@ mutual_sites :: Array = [
     "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet", "hellroom.vnet"
 ];
 
+session_salt :: Int64 = int64(vmath.random(100000, 999999));
+hashed_50_sites :: Array = [];
+
+through i :: 0..(all_50_sites.length() - 1) -> loop {
+    raw_name :: String = string(all_50_sites[i]);
+    
+    base_name :: String = raw_name;
+    if (raw_name.length() > 5 && raw_name.substr(raw_name.length() - 5, 5) == ".vnet") {
+        base_name = raw_name.substr(0, raw_name.length() - 5);
+    }
+    
+    hash_code :: String = vnet.hash_site(raw_name, session_salt);
+    hashed_url :: String = base_name + "_" + hash_code + ".vnet";
+    hashed_50_sites.push(hashed_url);
+};
+
 # ====================================================================
 # GLOBAL PROCEDURAL KEY GENERATION (8 KEYS SCATTERED ACROSS 50 SITES)
 # ====================================================================
@@ -90,7 +106,7 @@ through k_idx :: 0..7 -> loop {
     }
     
     used_key_indices.push(rand_idx);
-    global_key_locations.push(string(all_50_sites[rand_idx]));
+    global_key_locations.push(string(hashed_50_sites[rand_idx]));
 };
 
 # CONFIG.TXT & VFS STORAGE WITH PROCEDURAL MASTER KEYS
@@ -132,6 +148,37 @@ overload_cooldowns      :: Array   = [];
 overloaded_urls         :: Array = [];
 overloaded_timers       :: Array = [];
 
+fn resolve_canonical(input_url :: String) -> String {
+    clean_u :: String = input_url;
+    if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
+        clean_u = clean_u.substr(7, clean_u.length() - 7);
+    }
+    clean_u = clean_str(clean_u);
+
+    through idx :: 0..(all_50_sites.length() - 1) -> loop {
+        if (string(all_50_sites[idx]) == clean_u) {
+            return string(all_50_sites[idx]);
+        }
+    };
+
+    through idx :: 0..(hashed_50_sites.length() - 1) -> loop {
+        if (string(hashed_50_sites[idx]) == clean_u) {
+            return string(all_50_sites[idx]);
+        }
+    };
+
+    return clean_u;
+}
+
+fn resolve_hash(raw_url :: String) -> String {
+    through idx :: 0..(all_50_sites.length() - 1) -> loop {
+        if (string(all_50_sites[idx]) == raw_url) {
+            return string(hashed_50_sites[idx]);
+        }
+    };
+    return raw_url;
+}
+
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) -> Int64 {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
@@ -148,21 +195,17 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         return 0; # Existing peer
     } else {
         assigned_16 :: Array = [];
-        
-        through m :: 0..7 -> loop {
-            assigned_16.push(string(mutual_sites[m]));
-        };
-        
         while (assigned_16.length() < 16) {
             rand_s :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
-            site_n :: String = string(all_50_sites[rand_s]);
+            
+            site_name :: String = string(hashed_50_sites[rand_s]);
             
             already :: Int64 = 0;
             through u :: 0..(assigned_16.length() - 1) -> loop {
-                if (string(assigned_16[u]) == site_n) { already = 1; break; }
+                if (string(assigned_16[u]) == site_name) { already = 1; break; }
             };
             if (already == 0) {
-                assigned_16.push(site_n);
+                assigned_16.push(site_name);
             }
         }
         
@@ -436,20 +479,28 @@ while (true) {
             }
 
             if (cmd == "GET") {
+                clean_payload :: String = clean_str(payload);
+                if (clean_payload.length() >= 7 && clean_payload.substr(0, 7) == "vnet://") {
+                    clean_payload = clean_str(clean_payload.substr(7, clean_payload.length() - 7));
+                }
+
+                canonical_site :: String = resolve_canonical(clean_payload);
+
                 site_is_down :: Int64 = 0;
                 through o_i :: 0..(overloaded_urls.length() - 1) -> loop {
-                    if (string(overloaded_urls[o_i]) == payload) {
+                    target_down :: String = string(overloaded_urls[o_i]);
+                    if (target_down == canonical_site || target_down == clean_payload) {
                         site_is_down = 1;
                         break;
                     }
                 };
 
                 if (site_is_down == 1) {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:SITE_OVERLOADED:" + payload);
+                    vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:SITE_OVERLOADED:" + clean_payload);
                 } else {
-                    out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + payload);
+                    out("[ROUTE] NODE " + string(sender_port) + " (" + sender_ip + ") -> " + canonical_site);
                     
-                    is_new_peer :: Int64 = update_peer_session(sender_port, sender_ip, payload, server_uptime);
+                    is_new_peer :: Int64 = update_peer_session(sender_port, sender_ip, clean_payload, server_uptime);
                     if (is_new_peer == 1) {
                         send_key_sync_payload(sender_ip, sender_port);
                     }
