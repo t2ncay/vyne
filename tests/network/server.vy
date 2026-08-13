@@ -72,8 +72,12 @@ through i :: 0..(all_50_sites.length() - 1) -> loop {
 };
 
 # ====================================================================
-# GLOBAL PROCEDURAL KEY GENERATION (8 KEYS SCATTERED ACROSS 50 SITES)
+# GLOBAL PROCEDURAL BIT-ENCRYPTED KEYS & OFFSET SHIFTS
 # ====================================================================
+
+MULTIPLIER :: Int64 = 37;
+MODULUS    :: Int64 = 100000;
+
 k1 :: Int64 = int64(vmath.random(1000, 9999));
 k2 :: Int64 = int64(vmath.random(1000, 9999));
 k3 :: Int64 = int64(vmath.random(1000, 9999));
@@ -83,12 +87,29 @@ k6 :: Int64 = int64(vmath.random(1000, 9999));
 k7 :: Int64 = int64(vmath.random(1000, 9999));
 k8 :: Int64 = int64(vmath.random(1000, 9999));
 
+shift_1 :: Int64 = int64(vmath.random(1, 7));
+shift_2 :: Int64 = int64(vmath.random(1, 7));
+shift_3 :: Int64 = int64(vmath.random(1, 7));
+shift_4 :: Int64 = int64(vmath.random(1, 7));
+shift_5 :: Int64 = int64(vmath.random(1, 7));
+shift_6 :: Int64 = int64(vmath.random(1, 7));
+shift_7 :: Int64 = int64(vmath.random(1, 7));
+shift_8 :: Int64 = int64(vmath.random(1, 7));
+
+scrambled_k1 :: Int64 = (k1 * MULTIPLIER + shift_1) % MODULUS;
+scrambled_k2 :: Int64 = (k2 * MULTIPLIER + shift_2) % MODULUS;
+scrambled_k3 :: Int64 = (k3 * MULTIPLIER + shift_3) % MODULUS;
+scrambled_k4 :: Int64 = (k4 * MULTIPLIER + shift_4) % MODULUS;
+scrambled_k5 :: Int64 = (k5 * MULTIPLIER + shift_5) % MODULUS;
+scrambled_k6 :: Int64 = (k6 * MULTIPLIER + shift_6) % MODULUS;
+scrambled_k7 :: Int64 = (k7 * MULTIPLIER + shift_7) % MODULUS;
+scrambled_k8 :: Int64 = (k8 * MULTIPLIER + shift_8) % MODULUS;
+
 master_keys_str :: String = string(k1) + " " + string(k2) + " " + string(k3) + " " + string(k4) + " " + string(k5) + " " + string(k6) + " " + string(k7) + " " + string(k8);
 
 global_key_locations :: Array = [];
 used_key_indices     :: Array = [];
 
-# Randomly select 8 unique sites out of the 50 to hide the keys globally
 through k_idx :: 0..7 -> loop {
     rand_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
     is_used  :: Int64 = 0;
@@ -118,19 +139,25 @@ out("[VNET SERVER] DYNAMIC TARGET HASH GENERATED: " + string(target_hash));
 out("[VNET SERVER] GENERATED MASTER KEYS: " + master_keys_str);
 
 # ====================================================================
-# DEBUG KEYCODES & ROOM LOCATIONS
+# DEBUG KEYCODES, SHIFT VALUES & ROOM LOCATIONS
 # ====================================================================
-out("==================================================");
-out("[DEBUG KEYCODES & ROOM LOCATIONS]");
-out("  KEY 1 (" + string(k1) + ") -> " + string(global_key_locations[0]));
-out("  KEY 2 (" + string(k2) + ") -> " + string(global_key_locations[1]));
-out("  KEY 3 (" + string(k3) + ") -> " + string(global_key_locations[2]));
-out("  KEY 4 (" + string(k4) + ") -> " + string(global_key_locations[3]));
-out("  KEY 5 (" + string(k5) + ") -> " + string(global_key_locations[4]));
-out("  KEY 6 (" + string(k6) + ") -> " + string(global_key_locations[5]));
-out("  KEY 7 (" + string(k7) + ") -> " + string(global_key_locations[6]));
-out("  KEY 8 (" + string(k8) + ") -> " + string(global_key_locations[7]));
-out("==================================================");
+out("=========================================================================");
+out("[DEBUG KEYCODES & MASTER ROOM LOCATIONS]");
+through debug_k :: 0..7 -> loop {
+    site_idx   :: Int64  = int64(used_key_indices[debug_k]);
+    clean_site :: String = string(all_50_sites[site_idx]);
+    hash_site  :: String = string(global_key_locations[debug_k]);
+    
+    k_val   :: Int64 = (debug_k == 0) ? k1 : ((debug_k == 1) ? k2 : ((debug_k == 2) ? k3 : ((debug_k == 3) ? k4 : ((debug_k == 4) ? k5 : ((debug_k == 5) ? k6 : ((debug_k == 6) ? k7 : k8))))));
+    s_val   :: Int64 = (debug_k == 0) ? shift_1 : ((debug_k == 1) ? shift_2 : ((debug_k == 2) ? shift_3 : ((debug_k == 3) ? shift_4 : ((debug_k == 4) ? shift_5 : ((debug_k == 5) ? shift_6 : ((debug_k == 6) ? shift_7 : shift_8))))));
+    sc_val  :: Int64 = (debug_k == 0) ? scrambled_k1 : ((debug_k == 1) ? scrambled_k2 : ((debug_k == 2) ? scrambled_k3 : ((debug_k == 3) ? scrambled_k4 : ((debug_k == 4) ? scrambled_k5 : ((debug_k == 5) ? scrambled_k6 : ((debug_k == 6) ? scrambled_k7 : scrambled_k8))))));
+
+    out("  KEY " + string(debug_k + 1) + " [" + string(k_val) + "] | Shift: " + string(s_val) + " | Scrambled: " + string(sc_val));
+    out("        -> Canonical : " + clean_site);
+    out("        -> Hashed URL: " + hash_site);
+    out("-------------------------------------------------------------------------");
+};
+out("=========================================================================");
 
 # PROXY ROUTE STORAGE
 proxy_chains_source :: Array = [];
@@ -307,28 +334,17 @@ fn broadcast_raw(payload :: String) {
     };
 }
 
-fn send_key_sync_payload(ip :: String, port :: Int64) {
-    found_idx :: Int64 = -1;
-    through i :: 0..(active_ports.length() - 1) -> loop {
-        if (int64(active_ports[i]) == port) {
-            found_idx = i;
-            break;
-        }
-    };
-
-    peer_dir_str :: String = "";
-    if (found_idx >= 0) {
-        peer_dir_str = string(active_dirs[found_idx]);
-    }
-
+fn send_key_sync_payload(ip :: String, port :: Int64, dir_payload :: String) {
     sync_str :: String = "KEY_SYNC:" + 
-        string(k1) + ":" + string(k2) + ":" + string(k3) + ":" + string(k4) + ":" +
-        string(k5) + ":" + string(k6) + ":" + string(k7) + ":" + string(k8) + ":" +
+        string(scrambled_k1) + ":" + string(scrambled_k2) + ":" +
+        string(scrambled_k3) + ":" + string(scrambled_k4) + ":" +
+        string(scrambled_k5) + ":" + string(scrambled_k6) + ":" +
+        string(scrambled_k7) + ":" + string(scrambled_k8) + ":" +
         string(global_key_locations[0]) + ":" + string(global_key_locations[1]) + ":" +
         string(global_key_locations[2]) + ":" + string(global_key_locations[3]) + ":" +
         string(global_key_locations[4]) + ":" + string(global_key_locations[5]) + ":" +
-        string(global_key_locations[6]) + ":" + string(global_key_locations[7]) + ":" + 
-        peer_dir_str;
+        string(global_key_locations[6]) + ":" + string(global_key_locations[7]) + ":" +
+        dir_payload;
     
     vnet.send_to(server_sock, ip, port, sync_str);
 }
@@ -511,7 +527,8 @@ while (true) {
                     
                     is_new_peer :: Int64 = update_peer_session(sender_port, sender_ip, clean_payload, server_uptime);
                     if (is_new_peer == 1) {
-                        send_key_sync_payload(sender_ip, sender_port);
+                        p_idx :: Int64 = active_ports.length() - 1;
+                        send_key_sync_payload(sender_ip, sender_port, string(active_dirs[p_idx]));
                     }
                 }
             }

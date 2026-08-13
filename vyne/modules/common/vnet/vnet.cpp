@@ -156,6 +156,36 @@ Value native_hash_site(std::vector<Value>& args) {
     return Value(std::string(hexBuf));
 }
 
+Value native_bit_shift(std::vector<Value>& args) {
+    if (args.size() < 2) return Value(static_cast<int64_t>(0));
+    int64_t val = args[0].asInt();
+    int shift = static_cast<int>(args[1].asInt());
+
+    if (shift >= 0) {
+        return Value(static_cast<int64_t>(val >> shift));
+    } else {
+        return Value(static_cast<int64_t>(val << (-shift)));
+    }
+}
+
+Value native_bit_xor(std::vector<Value>& args) {
+    if (args.size() < 2) return Value(static_cast<int64_t>(0));
+    return Value(static_cast<int64_t>(args[0].asInt() ^ args[1].asInt()));
+}
+
+Value native_to_binary_str(std::vector<Value>& args) {
+    if (args.empty()) return Value(std::string(""));
+    uint64_t val = static_cast<uint64_t>(args[0].asInt());
+    int bits = (args.size() > 1) ? static_cast<int>(args[1].asInt()) : 16;
+
+    std::string res = "";
+    for (int i = bits - 1; i >= 0; --i) {
+        res += ((val >> i) & 1) ? '1' : '0';
+        if (i > 0 && i % 4 == 0) res += " ";
+    }
+    return Value(res);
+}
+
 } // namespace VNetNative
 
 void setupVNet(SymbolContainer& env, StringPool& pool) {
@@ -171,4 +201,8 @@ void setupVNet(SymbolContainer& env, StringPool& pool) {
     vnet[pool.intern("close")]         = Value(VNetNative::native_close_socket);
     vnet[pool.intern("parse_package")] = Value(VNetNative::native_parse_package);
     vnet[pool.intern("hash_site")]     = Value(VNetNative::native_hash_site);
+
+    vnet[pool.intern("bit_shift")]     = Value(VNetNative::native_bit_shift);
+    vnet[pool.intern("bit_xor")]       = Value(VNetNative::native_bit_xor);
+    vnet[pool.intern("to_bin")]        = Value(VNetNative::native_to_binary_str);
 }

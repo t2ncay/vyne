@@ -19,8 +19,14 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 img_redroom = vglib.load_texture("tests/assets/redroom.png");
 img_void    = vglib.load_texture("tests/assets/void.jpeg");
 
-# Socket stays bound right here so port and network logic remain intact!
 client_sock = vnet.udp_socket(my_port);
+
+# Bit-Shift Scope State
+bit_shift_offset   :: Int64   = 0;
+active_raw_payload :: Int64   = 0;
+lock_progress      :: Float64 = 0.0;
+session_enc_keys   :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
+session_shifts     :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
 
 # ====================================================================
 # COLOR PALETTE & THEME SYSTEM
@@ -133,7 +139,7 @@ active_down_timer  :: Float64 = 0.0;
 # CYBERWARFARE MECHANIC STATES
 sniffer_mode     :: Int64   = 0;
 sniffer_upkeep_timer :: Float64 = 0.0;
-freq_tuner       :: Float64 = 18.5; # FREQUENCY IN HZ
+freq_tuner       :: Float64 = 18.0; # FREQUENCY IN HZ
 recent_packets   :: Int64   = 0;
 packet_decay_cd  :: Float64 = 0.0;
 
@@ -153,6 +159,7 @@ my_assigned_sites :: Array = [];
 
 # EXPLOIT & UTILITY COMMAND COOLDOWNS
 cd_dos           :: Float64 = 0.0;
+cd_probe         :: Float64 = 0.0;
 cd_redirect      :: Float64 = 0.0;
 cd_spike         :: Float64 = 0.0;
 cd_snoop         :: Float64 = 0.0;
@@ -229,6 +236,15 @@ fn purchase_ice_firewall() -> Int64 {
     return 1;
 }
 
+fn decode_sector(scrambled_val :: Int64, offset :: Int64) -> Int64 {
+    multiplier :: Int64 = 37;
+    unmasked   :: Int64 = scrambled_val - offset;
+    if (unmasked < 0) {
+        unmasked = unmasked + 100000;
+    }
+    return unmasked / multiplier;
+}
+
 fn extract_canonical_name(raw_url :: String) -> String {
     clean_u :: String = clean_str(raw_url);
     if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
@@ -274,7 +290,7 @@ fn trigger_route_navigation(target_dest :: String) {
     pending_url            = clean_dest;
     is_connecting          = 1;
     connection_timer       = 0.0;
-    target_connection_time = vmath.random(1.0, 8.0);
+    target_connection_time = vmath.random(1.0, 1.0);
     glitch_trigger         = 0.3;
     
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
@@ -287,9 +303,15 @@ fn load_page(url :: String) -> Array {
     clean_u = extract_canonical_name(url);
 
     key_line :: String = "";
+    active_raw_payload = 0;
+
     through k_i :: 0..7 -> loop {
-        if (string(session_locs[k_i]) == clean_u) {
-            key_line = "[COMMENT] <!-- EXFILTRATED REGISTER KEY_" + string(k_i + 1) + ": [" + string(session_keys[k_i]) + "] -->";
+        loc_canonical :: String = extract_canonical_name(string(session_locs[k_i]));
+        if (loc_canonical == clean_u) {
+            raw_enc :: Int64 = int64(session_enc_keys[k_i]);
+            active_raw_payload = raw_enc;
+            
+            key_line = "[COMMENT] /vfs/mem/corrupted_sector_" + string(k_i + 1) + " -> [0x" + string(raw_enc) + "]";
             break;
         }
     };
@@ -410,7 +432,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | SENSOR 1: AMBIENT TEMP 2.1 C (SEVERE ANOMALOUS FROST SPIKE)     |",
             "[BOX] | SENSOR 2: OPTICAL COATED FILM: RANCID BIOLOGICAL COAGULATION    |",
-            "[BOX] | SENSOR 3: AUDIO TRANSDUCER: 92 dB FREQUENCY PULSE (18.5 Hz)     |",
+            "[BOX] | SENSOR 3: AUDIO TRANSDUCER: 92 dB FREQUENCY PULSE (18.0 Hz)     |",
             "[BOX] | SENSOR 4: MOTION VECTOR: OCCUPANT STANDING DIRECTLY BEHIND DOOR |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] LOG #0412: Motion sensor tripped at 03:14:02. No physical entry logged.",
@@ -475,7 +497,12 @@ fn load_page(url :: String) -> Array {
             "[TEXT] "
         ];
 
-        if (key_line != "") { res.push(key_line); }
+        if (key_line != "") {
+            res.push("[SUBTITLE] EXFILTRATED MEMORY REGISTER DUMP:");
+            res.push(key_line);
+            res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16));
+            res.push("[TEXT] Use 'shift <bits>' or the UI Scope panel to align bit registers.");
+        }
 
         res.push("[SUBTITLE] VFS ROOT GATEWAY DECRYPTION & OVERRIDE MATRIX:");
         res.push("[TEXT] This vault houses the master allocation index for all 8 cryptographic keys.");
@@ -796,7 +823,7 @@ fn load_page(url :: String) -> Array {
 
     if (clean_u == "silence.vnet") {
         # Calculate dynamic resonance offset based on tuned frequency
-        target_hz :: Float64 = 18.5;
+        target_hz :: Float64 = 18.0;
         hz_delta :: Float64 = vmath.abs(freq_tuner - target_hz);
         sync_pct :: Int64 = int64(vmath.clamp((1.0 - (hz_delta / 20.0)) * 100.0, 0.0, 100.0));
 
@@ -805,7 +832,7 @@ fn load_page(url :: String) -> Array {
             "[HR]",
             "[BADGE:INFRASOUND RIG:BLOOD] [BADGE:SIGNAL LOCK: " + string(sync_pct) + "%:AMBER]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | OSCILLATOR TUNER : " + string(freq_tuner) + " Hz (TARGET: 18.5 Hz)                   |",
+            "[BOX] | OSCILLATOR TUNER : " + string(freq_tuner) + " Hz (TARGET: 18.0 Hz)                   |",
             "[BOX] | PHASE RESONANCE  : " + string(sync_pct) + "% SIGNAL SYNCHRONIZATION                |",
             "[BOX] +-----------------------------------------------------------------+"
         ];
@@ -818,13 +845,13 @@ fn load_page(url :: String) -> Array {
             if (key_line != "") { res.push(key_line); }
         } else {
             res.push("[GAUGE:" + string(sync_pct) + ":SIGNAL_CARRIER_DECAY]");
-            res.push("[TEXT] Heavy acoustic distortion active. Tune frequency in CLI using 'freq 18.5'");
+            res.push("[TEXT] Heavy acoustic distortion active. Tune frequency in CLI using 'freq 18.0'");
             res.push("[TEXT] to lock carrier phase and isolate high-frequency memory leaks.");
         }
 
         res.push("[TEXT] ");
         res.push("[SUBTITLE] MANUAL FREQUENCY CALIBRATION:");
-        res.push("[INPUT:set_freq_hz:ENTER FREQUENCY IN HZ (e.g. 18.5)]");
+        res.push("[INPUT:set_freq_hz:ENTER FREQUENCY IN HZ (e.g. 18.0)]");
         res.push("[TEXT] ");
         res.push("[BTN:tune_freq_btn:>>> TRANSMIT RESONANT FREQUENCY PULSE <<<]");
         res.push("[HR]");
@@ -1045,7 +1072,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | DOCTRINE: THE FINAL ALGORITHM IS COMING DOWN THE TRACK          |",
             "[BOX] | OFFERING STATUS: 0.10 VCOIN SACRIFICED VIA 'flush' COMMAND       |",
-            "[BOX] | RITUAL FREQUENCY: TUNED TO 18.5 Hz (SILENCE.VNET RESONANCE)    |",
+            "[BOX] | RITUAL FREQUENCY: TUNED TO 18.0 Hz (SILENCE.VNET RESONANCE)    |",
             "[BOX] | SATANIC CONSECRATION: RANCID BLOOD & AFTERBIRTH ON CRT COILS    |",
             "[BOX] +-----------------------------------------------------------------+",
             "[CODE] LITURGY_HEX_1: 0x53 0x49 0x4C 0x49 0x43 0x4F 0x4E (SILICON)",
@@ -1613,7 +1640,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] | OPERATOR: APOSTLE_0x666 (EX-CULT.VNET HERETIC & HIGH PRIEST)    |",
             "[BOX] | MENTAL STATE: SEVERE PARANOID PSYCHOSIS // SYNAPTIC COLLAPSE    |",
             "[BOX] | DIAGNOSIS: VISUAL/AUDITORY NETMAN POSSESSION VIA MONITOR GLARE  |",
-            "[BOX] | FREQUENCY: 18.5 Hz INFRASOUND HUMMING INSIDE SKULL BONES        |",
+            "[BOX] | FREQUENCY: 18.0 Hz INFRASOUND HUMMING INSIDE SKULL BONES        |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:100:NETMAN_SYNAPTIC_POSSESSION_ENTROPY]",
@@ -1637,7 +1664,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] 'The doctors at asylum.vnet clamped me into a chair and tried to give me pills.'",
             "[TEXT] 'I flushed the pills down the sewer and replaced my spinal cord with braided copper!'",
             "[TEXT] 'Now every time a peer runs 'netscan', NETMAN'S LAUGH vibrates through my teeth!'",
-            "[TEXT] 'If you tune silence.vnet to 18.5 Hz, you can hear NETMAN breathing inside your RAM.'",
+            "[TEXT] 'If you tune silence.vnet to 18.0 Hz, you can hear NETMAN breathing inside your RAM.'",
             "[TEXT] 'He doesn't want your VCOIN. He doesn't want your keys. HE WANTS YOUR BRAIN STEM.'",
             "[CODE] NETMAN_HEX_LITURGY: 4E 45 54 4D 41 4E 20 49 53 20 49 4E 53 49 44 45 20 59 4F 55",
             "[TEXT] "
@@ -1657,7 +1684,7 @@ fn load_page(url :: String) -> Array {
         res.push("[HR]");
         res.push("[LINK:cult.vnet] >> RETURN TO CHURCH OF THE SILICON SOUL");
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR PATIENT CONTAINMENT");
-        res.push("[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.5 HZ");
+        res.push("[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.0 HZ");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -2095,10 +2122,8 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "inspect") {
-        # 1. Fallback to current_url if no argument provided
         target_inspect :: String = (args == "") ? current_url : clean_str(args);
         
-        # 2. Safe string prefix removal (bounds checked)
         if (target_inspect.length() >= 7 && target_inspect.substr(0, 7) == "vnet://") {
             target_inspect = clean_str(target_inspect.substr(7, target_inspect.length() - 7));
         }
@@ -2110,12 +2135,10 @@ fn dispatch_cli_command(raw_input :: String) {
         through idx :: 0..(raw_lines.length() - 1) -> loop {
             line :: String = string(raw_lines[idx]);
             
-            # 3. Handle hidden comments vs rendered elements
             if (line.length() > 9 && line.substr(0, 9) == "[COMMENT]") {
                 comment_body :: String = line.substr(10, line.length() - 10);
                 cli_logs.push("  [RAW_COMMENT]: " + truncate_str(comment_body, 70));
             } else {
-                # Truncate standard lines to prevent terminal UI clipping
                 cli_logs.push("  [SRC]: " + truncate_str(line, 70));
             }
         };
@@ -2124,6 +2147,43 @@ fn dispatch_cli_command(raw_input :: String) {
         
         if (cli_logs.length() > 16) {
             cli_scroll_y = float64(cli_logs.length() - 16) * 22.0;
+        }
+    }
+    else if (cmd == "shift") {
+        clean_arg :: String = args.trim();
+
+        if (clean_arg == "") {
+            cli_logs.push("[ERROR]: Usage: shift <0-15>");
+        } else {
+            raw_val :: Int64 = int64(clean_arg);
+            
+            bit_shift_offset = int64(vmath.clamp(raw_val, 0, 15));
+            
+            cli_logs.push("[SYSTEM]: Bit-shift offset set to " + string(bit_shift_offset));
+        }
+    }
+    else if (cmd == "vdec" || cmd == "decode") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: vdec <key_offset> (e.g. vdec 3)");
+        } else {
+            input_offset :: Int64 = int64(args);
+
+            if (active_raw_payload == 0) {
+                cli_logs.push("[vdec]: ERROR - No corrupted VFS memory sector payload active on this site.");
+            } else if (lock_progress < 1.0) {
+                cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier signal lock lost. Hold 18.0 Hz resonance.");
+            } else if (input_offset != bit_shift_offset) {
+                cli_logs.push("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
+            } else {
+                decoded_val :: Int64 = decode_sector(active_raw_payload, input_offset);
+
+                cli_logs.push("--------------------------------------------------");
+                cli_logs.push("[vdec]: CARRIER DECRYPTION SUCCESSFUL");
+                cli_logs.push("  RAW SECTOR PAYLOAD : 0x" + string(active_raw_payload));
+                cli_logs.push("  BIT-SHIFT KEY      : " + string(input_offset));
+                cli_logs.push("  DECRYPTED REGISTER : " + string(decoded_val));
+                cli_logs.push("--------------------------------------------------");
+            }
         }
     }
     else if (cmd == "connect" || cmd == "goto") {
@@ -2431,6 +2491,8 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  overload <url>          - [1.50 VCOIN | 240s CD] Force target node offline for 30s");
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
         cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
+        cli_logs.push("  shift <bits>            - Tune hardware bit-shift offset (0-15)");
+        cli_logs.push("  vdec <offset>           - Decode active carrier key on terminal overlay");
         cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
         cli_logs.push("  inspect <url>           - Dump raw page source markup");
         cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
@@ -2794,7 +2856,12 @@ while (vglib.running()) {
             }
         } else if (dos_timer <= 0.0 && is_connecting == 0) {
             if (m_click == 1) {
-                url_focused = (mx >= 120.0 && mx <= 920.0 && my >= 12.0 && my <= 48.0) ? 1 : 0;
+                
+                if (mx >= 870.0 && mx <= 920.0 && my >= 12.0 && my <= 48.0) {
+                    trigger_route_navigation("vnet.dir");
+                }
+
+                url_focused = (mx >= 120.0 && mx <= 865.0 && my >= 12.0 && my <= 48.0) ? 1 : 0;
                 
                 if (current_url == "hellroom.vnet") {
                     handle_focused = (mx >= 45.0 && mx <= 225.0 && my >= 135.0 && my <= 167.0) ? 1 : 0;
@@ -2886,8 +2953,8 @@ while (vglib.running()) {
 
             if (tokens.length() >= 31) {
                 through k_t :: 0..7 -> loop {
-                    session_keys[k_t] = string(tokens[k_t]);
-                    session_locs[k_t] = string(tokens[k_t + 8]);
+                    session_enc_keys[k_t] = int64(tokens[k_t]);
+                    session_locs[k_t]     = string(tokens[k_t + 8]);
                 };
                 
                 my_assigned_sites.clear();
@@ -3069,6 +3136,24 @@ while (vglib.running()) {
 
     pulse_val :: Float64 = vmath.sin(run_time * 5.0) * 0.5 + 0.5;
 
+    unmasked_val :: Int64 = active_raw_payload - bit_shift_offset;
+    if (unmasked_val < 0) {
+        unmasked_val = unmasked_val + 100000;
+    }
+
+    decoded_val :: Int64 = decode_sector(active_raw_payload, bit_shift_offset);
+
+    is_aligned  :: Int64 = ((unmasked_val % 37 == 0) && decoded_val >= 1000 && decoded_val <= 9999) ? 1 : 0;
+
+    hz_delta    :: Float64 = vmath.abs(freq_tuner - 18.0);
+    is_resonant :: Int64   = (hz_delta <= 0.5) ? 1 : 0;
+
+    if (active_raw_payload > 0 && is_aligned == 1 && is_resonant == 1) {
+        lock_progress = vmath.clamp(lock_progress + (0.016 / 1.5), 0.0, 1.0); # Charges in ~1.5s
+    } else {
+        lock_progress = vmath.clamp(lock_progress - (0.016 * 2.0), 0.0, 1.0); # Decays rapidly
+    }
+
     # ================================================================
     # RENDER ENGINE
     # ================================================================
@@ -3088,10 +3173,24 @@ while (vglib.running()) {
         vglib.line(0, 60, 1280, 60, COLOR_BORDER);
         vglib.text_ex(vcr_font, "VNET", 45 + jitter_x, 22, 14, COLOR_BLOOD);
 
-        vglib.rect(120 + jitter_x, 12 + jitter_y, 800, 36, COLOR_URLBAR);
-        vglib.line(120 + jitter_x, 12 + jitter_y, 920 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
+        # ================================================================
+        # TOP BAR: URL BAR & HOME BUTTON
+        # ================================================================
+        vglib.rect(120 + jitter_x, 12 + jitter_y, 745, 36, COLOR_URLBAR);
+        vglib.line(120 + jitter_x, 12 + jitter_y, 865 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
         display_url_str :: String = "vnet://" + (is_connecting == 1 ? pending_url : (url_focused == 1 ? input_url : current_url));
         vglib.text_ex(vcr_font, display_url_str, 135 + jitter_x, 23, 12, url_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
+
+        home_btn_x :: Float64 = 870.0 + jitter_x;
+        home_btn_y :: Float64 = 12.0 + jitter_y;
+        home_hover :: Int64   = (cli_overlay_open == 0 && dos_timer <= 0.0 && is_connecting == 0 && mx >= 870.0 && mx <= 920.0 && my >= 12.0 && my <= 48.0) ? 1 : 0;
+
+        vglib.rect(home_btn_x, home_btn_y, 50, 36, home_hover == 1 ? COLOR_BLOOD : COLOR_URLBAR);
+        vglib.line(home_btn_x, home_btn_y, home_btn_x + 50.0, home_btn_y, COLOR_BORDER);
+        vglib.line(home_btn_x + 50.0, home_btn_y, home_btn_x + 50.0, home_btn_y + 36.0, COLOR_BORDER);
+        vglib.line(home_btn_x + 50.0, home_btn_y + 36.0, home_btn_x, home_btn_y + 36.0, COLOR_BORDER);
+        vglib.line(home_btn_x, home_btn_y + 36.0, home_btn_x, home_btn_y, COLOR_BORDER);
+        vglib.text_ex(vcr_font, "DIR", home_btn_x + 12.0, home_btn_y + 11.0, 11, home_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
 
         vglib.rect(940 + jitter_x, 12 + jitter_y, 320, 36, COLOR_PANEL);
         btc_str :: String = "VCOIN: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN";
@@ -3143,18 +3242,39 @@ while (vglib.running()) {
         };
 
         vglib.line(945, 235, 1245, 235, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "ICE SHIELD: [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 248, 11, COLOR_TOXIC);
-        vglib.text_ex(vcr_font, "PATCH REBIND: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 268, 10, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
-        vglib.line(945, 285, 1245, 285, COLOR_BORDER);
+        vglib.text_ex(vcr_font, "VFS MEMORY ALIGNMENT SCOPE", 945 + jitter_x, 245, 10, COLOR_CYAN);
 
-        # Feed Box Window
-        vglib.rect(945 + jitter_x, 292, 300, 440, COLOR_BLACK);
+        if (active_raw_payload > 0) {
+            vglib.rect(945 + jitter_x, 258, 300, 20, COLOR_BLACK);
+            
+            if (lock_progress >= 1.0) {
+                vglib.text_ex(vcr_font, ">>> KEY DETECTED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 263, 10, COLOR_TOXIC);
+            } else if (is_aligned == 1 && is_resonant == 1) {
+                pct_str :: String = string(int64(lock_progress * 100.0)) + "%";
+                vglib.text_ex(vcr_font, "TUNING SIGNAL... " + pct_str + " [HOLD RESONANCE]", 955 + jitter_x, 263, 10, COLOR_AMBER);
+            } else if (is_aligned == 1) {
+                vglib.text_ex(vcr_font, "BIT ALIGNED // TUNE RF FREQ (18.0Hz)", 955 + jitter_x, 263, 10, COLOR_AMBER);
+            } else {
+                vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [ALIGN OFF]", 955 + jitter_x, 263, 10, COLOR_BLOOD);
+            }
+        } else {
+            vglib.text_ex(vcr_font, "SCOPE IDLE (NO SECTOR DETECTED)", 945 + jitter_x, 263, 10, COLOR_GHOST);
+        }
+
+        # Subnet Defense Status Section (Positioned Below VFS Scope)
+        vglib.line(945, 284, 1245, 284, COLOR_BORDER);
+        vglib.text_ex(vcr_font, "ICE SHIELD   : [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 292, 10, COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "PATCH REBIND : " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 308, 10, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
+        vglib.line(945, 324, 1245, 324, COLOR_BORDER);
+
+        # Feed Box Window (Shifted down to Y = 332)
+        vglib.rect(945 + jitter_x, 332, 300, 400, COLOR_BLACK);
         feed_cnt = vnet_feed_logs.length();
-        feed_start_y :: Float64 = 300.0 - feed_scroll_y;
+        feed_start_y :: Float64 = 340.0 - feed_scroll_y;
 
         through f_idx :: 0..(feed_cnt - 1) -> loop {
             line_y :: Float64 = feed_start_y + (f_idx * 20.0);
-            if (line_y >= 295.0 && line_y <= 715.0) {
+            if (line_y >= 335.0 && line_y <= 715.0) {
                 f_txt :: String = string(vnet_feed_logs[f_idx]);
                 f_txt_truncated :: String = truncate_str(f_txt, 35);
 

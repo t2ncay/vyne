@@ -297,6 +297,9 @@ Value BinOpNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
             case VTokenType::Division:
                 if (rv == 0) throw std::runtime_error("Division by zero!");
                 return Value(lv / rv); 
+            case VTokenType::Floor_Divide:
+                if (rv == 0) throw std::runtime_error("Division by zero!");
+                return Value(lv / rv);
             case VTokenType::Modulo:
                 if (rv == 0) throw std::runtime_error("Modulo by zero!");
                 return Value(static_cast<int64_t>(lv % rv));
@@ -691,6 +694,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
 
     static const uint32_t lengthId   = StringPool::intern("length");
     static const uint32_t replaceId  = StringPool::intern("replace");
+    static const uint32_t trimId     = StringPool::intern("trim");
     static const uint32_t sizeId     = StringPool::intern("size");
     static const uint32_t pushId     = StringPool::intern("push");
     static const uint32_t popId      = StringPool::intern("pop");
@@ -750,13 +754,19 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             std::string oldS = arguments[0]->evaluate(env, currentGroupId).asString();
             std::string newS = arguments[1]->evaluate(env, currentGroupId).asString();
 
-            // C++ daxilində string əvəzləmə məntiqi
             size_t pos = 0;
             while ((pos = str.find(oldS, pos)) != std::string::npos) {
                 str.replace(pos, oldS.length(), newS);
                 pos += newS.length();
             }
             return Value(str);
+        }
+
+        if (methodId == trimId) {
+            size_t first = str.find_first_not_of(" \t\n\r");
+            if (first == std::string::npos) return Value("");
+            size_t last = str.find_last_not_of(" \t\n\r");
+            return Value(str.substr(first, (last - first + 1)));
         }
     }
 

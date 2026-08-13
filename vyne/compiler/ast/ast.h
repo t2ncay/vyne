@@ -531,7 +531,17 @@ class BuiltInCallNode : public ASTNode {
             return Value(static_cast<int64_t>(args[0].asFloat()));
         }
         else if (args[0].getType() == Value::STRING) {
-            return Value(static_cast<int64_t>(std::stoll(args[0].asString())));
+            const std::string& str = args[0].asString();
+            if (str.empty()) {
+                throw std::runtime_error("Runtime Error: Cannot convert empty string to int64 [ line " + std::to_string(lineNumber) + " ]");
+            }
+            try {
+                return Value(static_cast<int64_t>(std::stoll(str)));
+            } catch (const std::invalid_argument&) {
+                throw std::runtime_error("Runtime Error: Invalid int64 format '" + str + "' [ line " + std::to_string(lineNumber) + " ]");
+            } catch (const std::out_of_range&) {
+                throw std::runtime_error("Runtime Error: int64 value out of range '" + str + "' [ line " + std::to_string(lineNumber) + " ]");
+            }
         }
         else if (args[0].getType() == Value::INT64) {
             return args[0];
