@@ -1866,9 +1866,7 @@ fn load_page(url :: String) -> Array {
         res.push("[HR]");
         res.push("[LINK:cult.vnet] >> ACCESS CHURCH OF THE SILICON SOUL");
         res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
-        res.push("[LINK:bounty.vnet] >> VIEW PEER TARGET BOUNTY INDEX");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY & TISSUE DUMPS");
-        res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON THERMAL OPTICS");
         res.push("[LINK:blackbank.vnet] >> LAUNDER ARMS PROCUREMENT FUNDS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
@@ -3638,25 +3636,32 @@ while (vglib.running()) {
                             line_idx = line_idx + 3;
                         }
                         else if (art_key == "gun") {
-                            gun_art :: Array = [
-                                "      +---------------------------------+",
-                                "     /   ______________________________/ ",
-                                "    /   / /                              ",
-                                "   /   / /     [ AR-9 SUPPRESSED ]       ",
-                                "  /   /_/______                          ",
-                                " /   __________)                         ",
-                                "/   /                                    ",
-                                "/___/                                    "
-                            ];
-                            gun_col = COLOR_AMBER;
-                            through gn_i :: 0..(gun_art.length() - 1) -> loop {
-                                gn_line_y :: Float64 = art_y + (float64(gn_i) * 16.0);
-                                if (gn_line_y >= 85.0 && gn_line_y <= 730.0) {
-                                    vglib.text_ex(vcr_font, string(gun_art[gn_i]), art_x, gn_line_y, 11, gun_col);
-                                }
-                            };
-                            line_idx = line_idx + 4;
-                        }
+                        gun_art :: Array = [
+                            "   .                       :     ",
+                            "  *#%#################%%%%%%%.   ",
+                            "  =%%%%%%%%######%%%%%%%%%%%%:   ",
+                            "  .*###%%%%%%@%%%%###%%%##%%+.   ",
+                            "            +=. :%%%#%%#*%%:     ",
+                            "            #+  *:=%%%%%%%%*     ",
+                            "              ...:. =%%%%%%@-    ",
+                            "                    .#%%%%%%@-   ",
+                            "                     .%%%%%%%@=  ",
+                            "                      :%%%%%%%%. ",
+                            "                       #%%%%%%%= ",
+                            "                       .+****+:  "
+                        ];
+
+                        gun_col = COLOR_AMBER;
+
+                        through gn_i :: 0..(gun_art.length() - 1) -> loop {
+                            gn_line_y :: Float64 = art_y + (float64(gn_i) * 16.0);
+                            if (gn_line_y >= 85.0 && gn_line_y <= 730.0) {
+                                vglib.text_ex(vcr_font, string(gun_art[gn_i]), art_x, gn_line_y, 11, gun_col);
+                            }
+                        };
+
+                        line_idx = line_idx + 7;
+                    }
                         else if (art_key == "drug") {
                             drug_art :: Array = [
                                 "        .---.           .---.           ",
