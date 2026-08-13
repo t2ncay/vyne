@@ -217,7 +217,7 @@ fn parse_input(raw :: String) -> Array {
 }
 
 fn purchase_ice_firewall() -> Int64 {
-    if(current_url != "market.vnet") {
+    if (extract_canonical_name(current_url) != "market.vnet") {
         cli_logs.push("[ERROR]: ICE FIREWALL CAN ONLY BE PURCHASED FROM market.vnet");
         return 0;
     }
@@ -2775,16 +2775,18 @@ while (vglib.running()) {
             }
         }
 
-        if (current_url == "hellroom.vnet") {
+        canonical_curr :: String = extract_canonical_name(current_url);
+
+        if (canonical_curr == "hellroom.vnet") {
             trace_level = 0;
         } else {
             passive_trace_cd = passive_trace_cd + 0.016;
             if (passive_trace_cd >= 3.0) {
                 passive_trace_cd = 0.0;
-                if (current_url == "market.vnet" || current_url == "vault.vnet" || 
-                    current_url == "terminal.vnet" || current_url == "forum.vnet" || 
-                    current_url == "crypto.vnet" || current_url == "bounty.vnet" || 
-                    current_url == "redroom.vnet") {
+                if (canonical_curr == "market.vnet" || canonical_curr == "vault.vnet" || 
+                    canonical_curr == "terminal.vnet" || canonical_curr == "forum.vnet" || 
+                    canonical_curr == "crypto.vnet" || canonical_curr == "bounty.vnet" || 
+                    canonical_curr == "redroom.vnet") {
                     
                     trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
                 }
