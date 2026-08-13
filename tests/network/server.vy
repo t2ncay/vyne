@@ -822,8 +822,22 @@ while (true) {
                 }
             }
 
+            # =========================================================
+            # WIN GOAL 1: GRID BLACKOUT CASCADE (5 MUTUAL CORE NODES)
+            # =========================================================
             if (cmd == "OVERLOAD") {
                 target_site :: String = clean_str(payload);
+                handle_part :: String = "";
+
+                sep_ov :: Int64 = -1;
+                through i :: 0..(payload.length() - 1) -> loop {
+                    if (payload[i] == ":") { sep_ov = i; break; }
+                };
+                if (sep_ov > 0) {
+                    target_site = clean_str(payload.substr(0, sep_ov));
+                    handle_part = clean_str(payload.substr(sep_ov + 1, payload.length() - sep_ov - 1));
+                }
+
                 if (target_site.length() >= 7 && target_site.substr(0, 7) == "vnet://") {
                     target_site = clean_str(target_site.substr(7, target_site.length() - 7));
                 }
@@ -844,9 +858,6 @@ while (true) {
                     broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
                     broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
 
-                    # =========================================================
-                    # WIN GOAL 1: GRID BLACKOUT CASCADE (5 MUTUAL CORE NODES)
-                    # =========================================================
                     m_mkt :: Int64 = 0;
                     m_vlt :: Int64 = 0;
                     m_trm :: Int64 = 0;
@@ -866,7 +877,7 @@ while (true) {
                         game_over = 1;
                         out("[GRID BLACKOUT]: VICTORY DETECTED FROM PORT " + string(sender_port));
                         broadcast_feed_event("[GRID BLACKOUT]: NODE PORT_" + string(sender_port) + " FRIED ALL 5 MUTUAL CORE NODES!");
-                        broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":BLACKOUT");
+                        broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":BLACKOUT:" + handle_part);
                     }
                 }
             }
@@ -876,30 +887,35 @@ while (true) {
             # =========================================================
             if (cmd == "TAKEOVER") {
                 game_over = 1;
+                handle_part :: String = (payload != "") ? payload : ("PORT_" + string(sender_port));
                 out("[ECONOMIC TAKEOVER]: VICTORY DETECTED FROM PORT " + string(sender_port));
                 broadcast_feed_event("[ECONOMIC TAKEOVER]: NODE PORT_" + string(sender_port) + " BOUGHT OUT VNET NETWORK!");
-                broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":ECONOMIC");
+                broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":ECONOMIC:" + handle_part);
             }
 
-            if (cmd == "ICE_BOUGHT") {
-                broadcast_feed_event("[BLACK MARKET]: NODE PORT_XXXX REINFORCED ICE FIREWALL SHIELD.");
-            }
+            # =========================================================
+            # ORIGINAL WIN CONDITION: CRYPTOGRAPHIC ROOT BREACH
+            # =========================================================
+            if (cmd == "WIN") {
+                win_keys    :: String = payload;
+                handle_part :: String = "";
 
-            if (cmd == "CAT") {
-                if (firewall_open == 0) {
-                    file_found :: Int64 = -1;
-                    through f :: 0..(vfs_paths.length() - 1) -> loop {
-                        if (string(vfs_paths[f]) == payload) { file_found = f; break; }
-                    };
+                sep_w :: Int64 = -1;
+                through i :: 0..(payload.length() - 1) -> loop {
+                    if (payload[i] == ":") { sep_w = i; break; }
+                };
+                if (sep_w > 0) {
+                    win_keys    = payload.substr(0, sep_w);
+                    handle_part = payload.substr(sep_w + 1, payload.length() - sep_w - 1);
+                }
 
-                    if (file_found >= 0) {
-                        vnet.send_to(server_sock, sender_ip, sender_port, "FILE_DATA:" + string(vfs_data[file_found]));
-                        broadcast_feed_event("[EXFILTRATION]: NODE " + string(sender_port) + " EXFILTRATED " + payload);
-                    } else {
-                        vnet.send_to(server_sock, sender_ip, sender_port, "FILE_ERROR:NOT_FOUND");
-                    }
+                if (win_keys == master_keys_str) {
+                    game_over = 1;
+                    out("[SYSTEM OVERRIDE]: VICTORY DETECTED FROM PORT " + string(sender_port));
+                    broadcast_feed_event("[SYSTEM OVERRIDE]: NODE " + string(sender_port) + " HAS BREACHED ROOT VAULT!");
+                    broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":KEYS:" + handle_part);
                 } else {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "SYS_ERROR:ACCESS_DENIED_LOCKOUT");
+                    vnet.send_to(server_sock, sender_ip, sender_port, "WIN:FAIL:INVALID_KEY_COMBINATION");
                 }
             }
 
@@ -930,20 +946,6 @@ while (true) {
                     current_salt  = current_salt + 7;
                     vnet.send_to(server_sock, sender_ip, sender_port, "SYS_STATUS:FIREWALL_PATCHED_SALT_UPDATED");
                     broadcast_feed_event("[DEFENSE PATCH]: NODE " + string(sender_port) + " RELOCKED GATEWAY FIREWALL");
-                }
-            }
-
-            # =========================================================
-            # ORIGINAL WIN CONDITION: CRYPTOGRAPHIC ROOT BREACH
-            # =========================================================
-            if (cmd == "WIN") {
-                if (payload == master_keys_str) {
-                    game_over = 1;
-                    out("[SYSTEM OVERRIDE]: VICTORY DETECTED FROM PORT " + string(sender_port));
-                    broadcast_feed_event("[SYSTEM OVERRIDE]: NODE " + string(sender_port) + " HAS BREACHED ROOT VAULT!");
-                    broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":KEYS");
-                } else {
-                    vnet.send_to(server_sock, sender_ip, sender_port, "WIN:FAIL:INVALID_KEY_COMBINATION");
                 }
             }
         }

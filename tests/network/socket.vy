@@ -145,7 +145,9 @@ packet_decay_cd  :: Float64 = 0.0;
 
 game_over_winner :: Int64   = 0;
 winner_port      :: String  = "";
+winner_handle    :: String  = "";
 win_mode_str     :: String  = "KEYS";
+win_anim_timer   :: Float64 = 0.0;
 
 # CONNECTION MENU STATE (REPLACES INTRO)
 is_in_ip_menu          :: Int64   = 1;
@@ -2194,7 +2196,7 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "satscan") {
-        if (current_url != "watchtower.vnet") {
+        if (extract_canonical_name(current_url) != "watchtower.vnet") {
             cli_logs.push("[ERROR]: PANOPTICON SATELLITE ARRAY ONLY ACCESSIBLE FROM 'watchtower.vnet'");
         } else if (cd_satscan > 0.0) {
             cli_logs.push("[ERROR]: SAT-99 OPTICS RECHARGING (" + string(int64(cd_satscan) + 1) + "s REMAINING)");
@@ -2298,22 +2300,6 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[ERROR]: Unknown store item. Usage: buy ice");
         }
     }
-    else if (cmd == "win") {
-        if (current_url != "terminal.vnet") {
-            cli_logs.push("[ERROR]: MASTER GATEWAY UNAVAILABLE. NAVIGATE TO terminal.vnet FIRST.");
-        } else if (args == "") {
-            cli_logs.push("[ERROR]: Usage: win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>");
-        } else {
-            vnet.send_to(client_sock, server_ip, server_port, "WIN:" + args);
-        }
-    }
-    else if (cmd == "takeover") {
-        if (btc_balance < 25.0) {
-            cli_logs.push("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
-        } else {
-            vnet.send_to(client_sock, server_ip, server_port, "TAKEOVER:REQ");
-        }
-    }
     else if (cmd == "ice") {
         cli_logs.push("[ICE STATUS]: ACTIVE FIREWALL SHIELDS: [" + string(ice_charges) + "/3]");
     }
@@ -2358,7 +2344,22 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "REDIRECT:" + target_p + ":" + target_u);
         }
     }
-
+    else if (cmd == "win") {
+        if (extract_canonical_name(current_url) != "terminal.vnet") {
+            cli_logs.push("[ERROR]: MASTER GATEWAY UNAVAILABLE. NAVIGATE TO terminal.vnet FIRST.");
+        } else if (args == "") {
+            cli_logs.push("[ERROR]: Usage: win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>");
+        } else {
+            vnet.send_to(client_sock, server_ip, server_port, "WIN:" + args + ":" + player_handle);
+        }
+    }
+    else if (cmd == "takeover") {
+        if (btc_balance < 25.0) {
+            cli_logs.push("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
+        } else {
+            vnet.send_to(client_sock, server_ip, server_port, "TAKEOVER:" + player_handle);
+        }
+    }
     else if (cmd == "overload") {
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: overload <target_url>");
@@ -2369,7 +2370,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else {
             btc_balance = btc_balance - 1.50;
             cd_overload = 240.0;
-            vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args);
+            vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args + ":" + player_handle);
             cli_logs.push("[OVERLOAD]: TRANSMITTING SUB-ROUTINE CASCADE TO " + args + " (COST: 1.50 VCOIN)...");
         }
     }
@@ -2400,7 +2401,7 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "mine") {
-        if (current_url != "crypto.vnet") {
+        if (extract_canonical_name(current_url) != "crypto.vnet") {
             cli_logs.push("[ERROR]: MINING ONLY AVAILABLE AT 'crypto.vnet'");
         } else if (cd_mine > 0.0) {
             cli_logs.push("[ERROR]: RIG COOLING DOWN (" + string(int64(cd_mine) + 1) + "s REMAINING)");
@@ -2986,15 +2987,20 @@ while (vglib.running()) {
             cli_overlay_open = 0;
             glitch_trigger   = 1.0;
         }
-        else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "EXPLOIT:WINNER:") {
-            raw_win_str :: String = net_msg.substr(14, net_msg.length() - 14);
-            win_parts = vnet.parse_package(raw_win_str, ":");
-            winner_port  = string(win_parts[0]);
-            win_mode_str = (string(win_parts[1]) != "") ? string(win_parts[1]) : "KEYS";
+        else if (net_msg.length() >= 15 && net_msg.substr(0, 15) == "EXPLOIT:WINNER:") {
+            raw_win_str :: String = net_msg.substr(15, net_msg.length() - 15);
             
+            p1 = vnet.parse_package(raw_win_str, ":");
+            winner_port = string(p1[0]);
+            
+            p2 = vnet.parse_package(string(p1[1]), ":");
+            win_mode_str  = (string(p2[0]) != "") ? string(p2[0]) : "KEYS";
+            winner_handle = (string(p2[1]) != "") ? string(p2[1]) : ("PORT_" + winner_port);
+
             game_over_winner = 1;
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
+            win_anim_timer   = 0.0;
         }
         else if (net_msg.length() > 12 && net_msg.substr(0, 12) == "SCAN_RESULT:") {
             discovered_site :: String = clean_str(net_msg.substr(12, net_msg.length() - 12));
@@ -3958,26 +3964,146 @@ while (vglib.running()) {
             vglib.text_ex(vcr_font, "SYSTEM KERNEL FROZEN | RECOVERING IN " + string(int64(dos_timer) + 1) + "s...", 180 + jitter_x, 400 + jitter_y, 14, COLOR_BLACK);
         }
 
+        # ================================================================
+        # COLD-BLOODED LOCKDOWN & GAME WINNING ANIMATED OVERLAY
+        # ================================================================
         if (game_over_winner == 1) {
-            vglib.rect(0, 0, 1280, 800, vglib.rgba(180, 0, 20, 220));
-            vglib.text_ex(vcr_font, "[ CRITICAL SYSTEM OVERRIDE - GAME OVER ]", 280 + jitter_x, 320 + jitter_y, 20, COLOR_TOXIC);
-            
-            win_txt :: String = "";
-            if (win_mode_str == "BLACKOUT") {
-                win_txt = "BLACKED OUT ALL 5 MUTUAL CORE NODES!";
-            } else if (win_mode_str == "ECONOMIC") {
-                win_txt = "EXECUTED AN ECONOMIC TAKEOVER (25 VCOIN)!";
-            } else {
-                win_txt = "BREACHED THE VFS ROOT VAULT!";
+            win_anim_timer = win_anim_timer + 0.016;
+
+            # Automatically close game after 10-second cold animation completes
+            if (win_anim_timer >= 10.0) {
+                vnet.close(client_sock);
+                vglib.close();
+                break;
             }
 
-            if (winner_port == string(my_port)) {
-                vglib.text_ex(vcr_font, "VICTORY DECLARED! YOU HAVE " + win_txt, 180 + jitter_x, 370 + jitter_y, 15, COLOR_TOXIC);
-            } else {
-                vglib.text_ex(vcr_font, "NODE PORT_" + winner_port + " HAS " + win_txt, 180 + jitter_x, 370 + jitter_y, 15, COLOR_TOXIC);
-            }
+            vglib.begin();
+            vglib.clear(COLOR_BLACK);
+
+            glitch_intensity :: Float64 = vmath.sin(win_anim_timer * 25.0) * 10.0;
+            through tear_i :: 0..25 -> loop {
+                tx :: Float64 = vmath.random(-20.0, 1280.0);
+                ty :: Float64 = float64(tear_i * 32);
+                tw :: Float64 = vmath.random(100.0, 600.0);
+                th :: Float64 = vmath.random(4.0, 18.0);
+                
+                t_col = (tear_i % 2 == 0) ? vglib.rgba(220, 10, 30, 180) : vglib.rgba(10, 240, 80, 140);
+                vglib.rect(tx + glitch_intensity, ty, tw, th, t_col);
+            };
+
+            through hex_col :: 0..7 -> loop {
+                column_x_left  :: Float64 = float64(hex_col * 22);
+                column_x_right :: Float64 = 1100.0 + float64(hex_col * 22);
+                
+                drop_y :: Float64 = vmath.fmod((win_anim_timer * 400.0) + float64(hex_col * 90), 800.0);
+                hex_val_str :: String = "0x" + string(int64(vmath.fmod(win_anim_timer * 100.0 + float64(hex_col * 17), 99.0)));
+                
+                vglib.text_ex(vcr_font, hex_val_str, column_x_left, drop_y, 10, COLOR_BLOOD);
+                vglib.text_ex(vcr_font, hex_val_str, column_x_right, drop_y, 10, COLOR_BLOOD);
+            };
+
+            box_x :: Float64 = 180.0 + glitch_intensity;
+            box_y :: Float64 = 100.0;
+            box_w :: Float64 = 920.0;
+            box_h :: Float64 = 600.0;
+
+            vglib.rect(box_x, box_y, box_w, box_h, vglib.rgba(8, 2, 6, 245));
             
-            vglib.text_ex(vcr_font, "ALL SUBNET CONNECTIONS PERMANENTLY LOCKED", 340 + jitter_x, 420 + jitter_y, 14, COLOR_GHOST);
+            border_col = (vmath.fmod(win_anim_timer * 6.0, 1.0) > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+            vglib.line(box_x, box_y, box_x + box_w, box_y, border_col);
+            vglib.line(box_x + box_w, box_y, box_x + box_w, box_y + box_h, border_col);
+            vglib.line(box_x + box_w, box_y + box_h, box_x, box_y + box_h, border_col);
+            vglib.line(box_x, box_y + box_h, box_x, box_y, border_col);
+
+            vglib.line(box_x + 6.0, box_y + 6.0, box_x + box_w - 6.0, box_y + 6.0, COLOR_BLOOD);
+            vglib.line(box_x + box_w - 6.0, box_y + 6.0, box_x + box_w - 6.0, box_y + box_h - 6.0, COLOR_BLOOD);
+            vglib.line(box_x + box_w - 6.0, box_y + box_h - 6.0, box_x + 6.0, box_y + box_h - 6.0, COLOR_BLOOD);
+            vglib.line(box_x + 6.0, box_y + box_h - 6.0, box_x + 6.0, box_y + 6.0, COLOR_BLOOD);
+
+            # 4. Animated Screaming ASCII Skull Banner
+            skull_y :: Float64 = box_y + 25.0;
+            jaw_motion :: Float64 = vmath.abs(vmath.sin(win_anim_timer * 14.0)) * 8.0;
+
+            vglib.text_ex(vcr_font, "      .------------------------------------------.      ", box_x + 220.0, skull_y, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "     /   [!] CRITICAL NETWORK ROOT OVERRIDE [!]   \\     ", box_x + 220.0, skull_y + 16.0, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "    |    ======================================    |    ", box_x + 220.0, skull_y + 32.0, 11, COLOR_AMBER);
+            vglib.text_ex(vcr_font, "    |      (X)  ALL PEER SOCKETS LOCKED  (X)       |    ", box_x + 220.0, skull_y + 48.0 + jaw_motion, 11, COLOR_TOXIC);
+            vglib.text_ex(vcr_font, "     \\  ----------------------------------------  /     ", box_x + 220.0, skull_y + 64.0, 11, COLOR_BLOOD);
+
+            vglib.line(box_x + 30.0, box_y + 115.0, box_x + box_w - 30.0, box_y + 115.0, COLOR_BORDER);
+
+            is_me :: Int64 = (winner_port == string(my_port)) ? 1 : 0;
+            
+            main_header_str :: String = (is_me == 1) ? ">>> YOU HAVE SEIZED TOTAL CONTROL OF VNET <<<" : ">>> HOSTILE OPERATOR HAS SEIZED VNET <<<";
+            header_sz :: Array  = vglib.measure_text(vcr_font, main_header_str, 16.0);
+            header_x  :: Float64 = (box_x + (box_w / 2.0)) - (float64(header_sz[0]) / 2.0);
+            
+            vglib.text_ex(vcr_font, main_header_str, header_x, box_y + 135.0, 16, (is_me == 1) ? COLOR_TOXIC : COLOR_BLOOD);
+
+            # Highlight Card
+            card_x :: Float64 = box_x + 80.0;
+            card_y :: Float64 = box_y + 175.0;
+            card_w :: Float64 = 760.0;
+            card_h :: Float64 = 210.0;
+
+            vglib.rect(card_x, card_y, card_w, card_h, COLOR_BLACK);
+            vglib.line(card_x, card_y, card_x + card_w, card_y, COLOR_BLOOD);
+            vglib.line(card_x + card_w, card_y, card_x + card_w, card_y + card_h, COLOR_BLOOD);
+            vglib.line(card_x + card_w, card_y + card_h, card_x, card_y + card_h, COLOR_BLOOD);
+            vglib.line(card_x, card_y + card_h, card_x, card_y, COLOR_BLOOD);
+
+            disp_handle :: String = (winner_handle != "") ? winner_handle : "UNKNOWN_GHOST";
+
+            vglib.text_ex(vcr_font, "DOMINANT OPERATOR  : " + disp_handle, card_x + 30.0, card_y + 30.0, 14, COLOR_TOXIC);
+            vglib.text_ex(vcr_font, "BOUND SOCKET PORT  : PORT " + winner_port, card_x + 30.0, card_y + 70.0, 14, COLOR_CYAN);
+
+            win_method_desc :: String = "";
+            if (win_mode_str == "BLACKOUT") {
+                win_method_desc = "GRID BLACKOUT (FRIED ALL 5 MUTUAL CORE NODES)";
+            } else if (win_mode_str == "ECONOMIC") {
+                win_method_desc = "ECONOMIC TAKEOVER (25.00 VCOIN NETWORK SHARE)";
+            } else {
+                win_method_desc = "CRYPTOGRAPHIC BREACH (OVERRODE VFS ROOT KEYS)";
+            }
+
+            vglib.text_ex(vcr_font, "EXPLOIT METHOD     : " + win_method_desc, card_x + 30.0, card_y + 110.0, 13, COLOR_AMBER);
+            
+            status_txt :: String = (is_me == 1) ? "STATUS: VICTORIOUS // ALL PEER NODES TERMINATED" : "STATUS: TERMINATED // YOUR SYSTEM MEMORY WIPED";
+            vglib.text_ex(vcr_font, status_txt, card_x + 30.0, card_y + 155.0, 13, (is_me == 1) ? COLOR_TOXIC : COLOR_BLOOD);
+
+            # 6. Cold-Blooded Lore Quotes
+            vglib.text_ex(vcr_font, "'THE NETWORK DOES NOT FORGIVE. THE WEAK HAVE BEEN PURGED FROM RAM.'", box_x + 110.0, box_y + 415.0, 11, COLOR_GHOST);
+            vglib.text_ex(vcr_font, "'ALL UDP CONNECTIONS ARE PERMANENTLY SEVERED BY SERVER FIREWALL.'", box_x + 120.0, box_y + 440.0, 11, COLOR_BLOOD);
+
+            # 7. Animated Process Kill Countdown & Bar
+            time_rem :: Float64 = vmath.clamp(10.0 - win_anim_timer, 0.0, 10.0);
+            shutdown_str :: String = "SYSTEM TERMINATION IN PROGRESS... CLOSING GAME IN " + string(vmath.round(time_rem * 10.0) / 10.0) + "s";
+            s_sz :: Array   = vglib.measure_text(vcr_font, shutdown_str, 12.0);
+            s_x  :: Float64 = (box_x + (box_w / 2.0)) - (float64(s_sz[0]) / 2.0);
+            
+            vglib.text_ex(vcr_font, shutdown_str, s_x, box_y + 490.0, 12, COLOR_AMBER);
+
+            bar_x :: Float64 = box_x + 160.0;
+            bar_y :: Float64 = box_y + 520.0;
+            bar_w :: Float64 = 600.0;
+            bar_h :: Float64 = 20.0;
+
+            vglib.rect(bar_x, bar_y, bar_w, bar_h, COLOR_BLACK);
+            
+            fill_ratio :: Float64 = win_anim_timer / 10.0;
+            fill_w     :: Float64 = vmath.clamp(fill_ratio * bar_w, 4.0, bar_w);
+            
+            vglib.rect(bar_x, bar_y, fill_w, bar_h, COLOR_BLOOD);
+
+            vglib.line(bar_x, bar_y, bar_x + bar_w, bar_y, COLOR_BORDER);
+            vglib.line(bar_x + bar_w, bar_y, bar_x + bar_w, bar_y + bar_h, COLOR_BORDER);
+            vglib.line(bar_x + bar_w, bar_y + bar_h, bar_x, bar_y + bar_h, COLOR_BORDER);
+            vglib.line(bar_x, bar_y + bar_h, bar_x, bar_y, COLOR_BORDER);
+
+            vglib.draw_scanlines(8.0, vglib.rgba(0, 0, 0, 90));
+            vglib.end();
+
+            continue;
         }
 
         # ================================================================
