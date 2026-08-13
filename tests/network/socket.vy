@@ -2929,6 +2929,31 @@ while (vglib.running()) {
             glitch_trigger   = 1.0;
             cli_overlay_open = 0;
         }
+        else if (net_msg.length() > 12 && net_msg.substr(0, 12) == "SCAN_RESULT:") {
+            discovered_site :: String = clean_str(net_msg.substr(12, net_msg.length() - 12));
+            
+            already_known :: Int64 = 0;
+            if (my_assigned_sites.length() > 0) {
+                through s_i :: 0..(my_assigned_sites.length() - 1) -> loop {
+                    if (string(my_assigned_sites[s_i]) == discovered_site) {
+                        already_known = 1;
+                        break;
+                    }
+                };
+            }
+
+            if (already_known == 0) {
+                my_assigned_sites.push(discovered_site);
+                cli_logs.push("[SCAN SUCCESS]: DISCOVERED NEW SUBNET NODE -> vnet://" + discovered_site);
+                
+                if (current_url == "vnet.dir") {
+                    page_body = load_page(current_url);
+                }
+            } else {
+                cli_logs.push("[SCAN TELEMETRY]: FREQUENCY RE-DETECTED KNOWN NODE -> vnet://" + discovered_site);
+            }
+            glitch_trigger = 0.5;
+        }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "PATCH_SUCCESS:") {
             new_assigned_port :: Int64 = int64(net_msg.substr(14, net_msg.length() - 14));
             
@@ -2988,9 +3013,6 @@ while (vglib.running()) {
             if (vnet_feed_logs.length() > 12) {
                 feed_scroll_y = float64(vnet_feed_logs.length() - 12) * 20.0;
             }
-        } else if (net_msg.length() > 10 && net_msg.substr(0, 10) == "TELEMETRY:") {
-            cli_logs.push("[TELEMETRY]: " + net_msg.substr(10, net_msg.length() - 10));
-            glitch_trigger = 0.3;
         } else {
             cli_logs.push("[NET_IN] " + net_msg);
 

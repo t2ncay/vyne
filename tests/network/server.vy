@@ -195,14 +195,23 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         return 0; # Existing peer
     } else {
         assigned_16 :: Array = [];
+
+        through m_i :: 0..(mutual_sites.length() - 1) -> loop {
+            raw_m_site :: String = string(mutual_sites[m_i]);
+            hashed_m_site :: String = resolve_hash(raw_m_site);
+            assigned_16.push(hashed_m_site);
+        };
+
         while (assigned_16.length() < 16) {
             rand_s :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
-            
             site_name :: String = string(hashed_50_sites[rand_s]);
             
             already :: Int64 = 0;
             through u :: 0..(assigned_16.length() - 1) -> loop {
-                if (string(assigned_16[u]) == site_name) { already = 1; break; }
+                if (string(assigned_16[u]) == site_name) { 
+                    already = 1; 
+                    break; 
+                }
             };
             if (already == 0) {
                 assigned_16.push(site_name);
@@ -562,6 +571,14 @@ while (true) {
                     broadcast_feed_event("[NETWORK]: DECOY PORT " + dummy_port_str + " DEPLOYED AT " + target_url);
                 }
             }
+            if (msg == "SCAN:REQ") {
+                rand_idx :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+                raw_site :: String = string(all_50_sites[rand_idx]);
+                
+                hashed_site :: String = resolve_hash(raw_site);
+                
+                vnet.send_to(server_sock, sender_ip, sender_port, "SCAN_RESULT:" + hashed_site);
+            }
             if (cmd == "CHAT") {
                 sep_c :: Int64 = -1;
                 through i :: 0..(payload.length() - 1) -> loop {
@@ -773,13 +790,6 @@ while (true) {
 
             if (cmd == "MINE_EVENT") {
                 broadcast_feed_event("[WHALE ALERT]: NODE ???? MINED +0.05 VCOIN BLOCK AT crypto.vnet");
-            }
-
-            if (cmd == "SCAN") {
-                rand_idx  :: Int64  = int64(vmath.random(0, all_50_sites.length() - 1));
-                secret_url :: String = string(all_50_sites[rand_idx]);
-
-                vnet.send_to(server_sock, sender_ip, sender_port, "TELEMETRY:DISCOVERED_HIDDEN_NODE -> vnet://" + secret_url);
             }
 
             if (cmd == "CRACK") {
