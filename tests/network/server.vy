@@ -40,7 +40,7 @@ all_50_sites :: Array = [
     "skinwalker.vnet", "watchtower.vnet", "terminal.vnet",
     # 31 EXPANDED DEEP WEB NODES (For a total of 50)
     "silkroad.vnet", "zeroauction.vnet", "leaks.vnet", "shadowpay.vnet", 
-    "cctv_core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
+    "cctv-core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
     "orbital.vnet", "pastebin.vnet", "whisper.vnet", "deepwiki.vnet", 
     "dump.vnet", "index.vnet", "schizo.vnet", "project9.vnet", 
     "necro.vnet", "echolab.vnet", "abyss.vnet", "zeroday.vnet", 

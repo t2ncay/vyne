@@ -1134,7 +1134,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] TARGET_LOCK_HASH: 0xORB_4402_LOCKED_SAT_99",
             "[TEXT] ",
             "[SUBTITLE] CROSS-LINKED SURVEILLANCE TELEMETRY LOGS:",
-            "[TEXT] LOG #009: Orbital optics synchronized with cctv_core.vnet feeds.",
+            "[TEXT] LOG #009: Orbital optics synchronized with cctv-core.vnet feeds.",
             "[TEXT] Target's local room layout matches interior telemetry logged in dollhouse.vnet.",
             "[TEXT] LOG #010: Panopticon configuration parameters loaded directly from military",
             "[TEXT] sector logs in archival.vnet (/sys/panopticon_sat.cfg).",
@@ -1146,7 +1146,7 @@ fn load_page(url :: String) -> Array {
         res.push("[PULSE] 'KINETIC STRIKE PLATFORM READY AT orbital.vnet'");
         res.push("[GLITCH] 'DO NOT TURN AROUND. WE CAN SEE YOUR SCREEN REFLECTION FROM HERE.'");
         res.push("[LINK:orbital.vnet] >> JUMP TO LOW ORBIT ION CANNON TERMINAL");
-        res.push("[LINK:cctv_core.vnet] >> VIEW CITY WIDE CCTV BACKDOOR NODE");
+        res.push("[LINK:cctv-core.vnet] >> VIEW CITY WIDE CCTV BACKDOOR NODE");
         res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED MILITARY VFS DUMP");
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
@@ -1302,7 +1302,7 @@ fn load_page(url :: String) -> Array {
         res.push("[HR]");
         return res;
     }
-    if (clean_u == "cctv_core.vnet") {
+    if (clean_u == "cctv-core.vnet") {
         # Active camera feed selector using runtime phase
         cam_id :: Int64 = int64(vmath.fmod(run_time / 10.0, 4.0)) + 1;
 
@@ -1428,7 +1428,7 @@ fn load_page(url :: String) -> Array {
         res.push("[GLITCH] 'IT DOES NOT MATTER IF YOU TURN OFF THE LIGHTS. IT SEES THE HEAT.'");
         res.push("[HR]");
         res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON SAT-99 TELEMETRY");
-        res.push("[LINK:cctv_core.vnet] >> ACCESS METROPOLITAN CCTV BACKDOOR NODE");
+        res.push("[LINK:cctv-core.vnet] >> ACCESS METROPOLITAN CCTV BACKDOOR NODE");
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
         res.push("[LINK:passports.vnet] >> SPOOF BIOMETRIC MASK AT IDENTITY VAULT");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY & BIO-HARVEST DUMPS");
