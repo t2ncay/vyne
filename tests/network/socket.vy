@@ -964,6 +964,8 @@ fn load_page(url :: String) -> Array {
             "[HR]",
             "[BADGE:CORE NODE #003:BLOOD] [BADGE:CRYPTO GATEWAY:TOXIC]",
             "[ART:vnet]",
+            "[TEXT] ",
+            "[TEXT] ",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | SYSTEM ROLE: MASTER VFS ROOT DECRYPTION & COMMAND GATEWAY      |",
             "[BOX] | SECURITY LAYER: 8-FACTOR QUANTUM HASH SHIELD (VFS VAULT CORE) |",
