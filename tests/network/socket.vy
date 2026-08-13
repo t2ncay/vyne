@@ -29,62 +29,289 @@ session_enc_keys   :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
 session_shifts     :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
 
 # ====================================================================
-# COLOR PALETTE & THEME SYSTEM
+# COLOR PALETTE & THEME SYSTEM (15 TOTAL THEMES)
 # ====================================================================
 interface Theme {
     bg      :: Int64,
     panel   :: Int64,
+    cli_bg  :: Int64,
+    urlbar  :: Int64,
     border  :: Int64,
-    text    :: Int64,
-    dim     :: Int64,
-    accent  :: Int64
+    blood   :: Int64,
+    cyan    :: Int64,
+    amber   :: Int64,
+    toxic   :: Int64,
+    ghost   :: Int64
 }
 
-fn get_theme(name :: String) {
-    if (name == "matrix") {
+# Default Active Colors (Preserving original ShadowOS aesthetic)
+COLOR_BLACK    :: Int64 = vglib.rgba(2, 2, 4, 255);
+COLOR_PANEL    :: Int64 = vglib.rgba(10, 12, 16, 255);
+COLOR_CLI_BG   :: Int64 = vglib.rgba(6, 8, 12, 245);
+COLOR_URLBAR   :: Int64 = vglib.rgba(16, 20, 26, 255);
+COLOR_BORDER   :: Int64 = vglib.rgba(40, 50, 60, 255);
+COLOR_BLOOD    :: Int64 = vglib.rgba(220, 20, 40, 255);
+COLOR_CYAN     :: Int64 = vglib.rgba(0, 220, 240, 255);
+COLOR_AMBER    :: Int64 = vglib.rgba(255, 150, 0, 255);
+COLOR_TOXIC    :: Int64 = vglib.rgba(40, 240, 100, 255);
+COLOR_GHOST    :: Int64 = vglib.rgba(160, 170, 185, 255);
+COLOR_SCANLINE :: Int64 = vglib.rgba(0, 0, 0, 90);
+
+fn get_theme(name :: String) -> Theme {
+    # 0. CLASSIC SHADOWOS
+    if (name == "classic") {
         return Theme(
-            vglib.rgba(5, 15, 5, 255),
-            vglib.rgba(10, 28, 10, 255),
-            vglib.rgba(20, 80, 20, 255),
-            vglib.rgba(50, 255, 50, 255),
-            vglib.rgba(20, 140, 20, 255),
-            vglib.rgba(0, 240, 255, 255)
+            vglib.rgba(2, 2, 4, 255),       # bg
+            vglib.rgba(10, 12, 16, 255),    # panel
+            vglib.rgba(6, 8, 12, 245),      # cli_bg
+            vglib.rgba(16, 20, 26, 255),    # urlbar
+            vglib.rgba(40, 50, 60, 255),    # border
+            vglib.rgba(220, 20, 40, 255),   # blood
+            vglib.rgba(0, 220, 240, 255),   # cyan
+            vglib.rgba(255, 150, 0, 255),   # amber
+            vglib.rgba(40, 240, 100, 255),  # toxic
+            vglib.rgba(160, 170, 185, 255)  # ghost
         );
     }
+
+    # 1. TOKYO NIGHT
+    if (name == "tokyo") {
+        return Theme(
+            vglib.rgba(16, 18, 28, 255),    # bg
+            vglib.rgba(22, 25, 38, 230),    # panel
+            vglib.rgba(14, 16, 26, 245),    # cli_bg
+            vglib.rgba(30, 35, 54, 255),    # urlbar
+            vglib.rgba(52, 60, 92, 255),    # border
+            vglib.rgba(247, 118, 142, 255), # blood
+            vglib.rgba(122, 162, 247, 255), # cyan
+            vglib.rgba(187, 154, 247, 255), # amber
+            vglib.rgba(115, 218, 202, 255), # toxic
+            vglib.rgba(192, 202, 245, 255)  # ghost
+        );
+    }
+
+    # 2. CRIMSON REDROOM
+    if (name == "redroom") {
+        return Theme(
+            vglib.rgba(10, 3, 5, 255),      # bg
+            vglib.rgba(22, 8, 12, 235),     # panel
+            vglib.rgba(15, 4, 7, 245),      # cli_bg
+            vglib.rgba(38, 12, 18, 255),    # urlbar
+            vglib.rgba(85, 22, 30, 255),    # border
+            vglib.rgba(255, 20, 50, 255),   # blood
+            vglib.rgba(240, 45, 65, 255),   # cyan
+            vglib.rgba(255, 140, 0, 255),   # amber
+            vglib.rgba(0, 230, 180, 255),   # toxic
+            vglib.rgba(235, 210, 215, 255)  # ghost
+        );
+    }
+
+    # 3. AMBER PHOSPHOR
+    if (name == "amber") {
+        return Theme(
+            vglib.rgba(12, 8, 2, 255),      # bg
+            vglib.rgba(24, 16, 5, 230),     # panel
+            vglib.rgba(16, 10, 3, 245),     # cli_bg
+            vglib.rgba(40, 26, 8, 255),     # urlbar
+            vglib.rgba(90, 60, 15, 255),    # border
+            vglib.rgba(240, 60, 30, 255),   # blood
+            vglib.rgba(255, 175, 0, 255),   # cyan
+            vglib.rgba(220, 120, 0, 255),   # amber
+            vglib.rgba(180, 240, 80, 255),  # toxic
+            vglib.rgba(255, 210, 130, 255)  # ghost
+        );
+    }
+
+    # 4. CYBERPUNK 2077
     if (name == "cyberpunk") {
         return Theme(
-            vglib.rgba(15, 5, 20, 255),
-            vglib.rgba(30, 10, 38, 255),
-            vglib.rgba(140, 20, 120, 255),
-            vglib.rgba(255, 45, 120, 255),
-            vglib.rgba(160, 30, 90, 255),
-            vglib.rgba(0, 240, 255, 255)
+            vglib.rgba(18, 10, 26, 255),    # bg
+            vglib.rgba(30, 16, 42, 230),    # panel
+            vglib.rgba(22, 12, 32, 245),    # cli_bg
+            vglib.rgba(45, 20, 60, 255),    # urlbar
+            vglib.rgba(100, 30, 120, 255),  # border
+            vglib.rgba(255, 0, 85, 255),    # blood
+            vglib.rgba(0, 230, 255, 255),   # cyan
+            vglib.rgba(255, 215, 0, 255),   # amber
+            vglib.rgba(50, 255, 120, 255),  # toxic
+            vglib.rgba(220, 200, 240, 255)  # ghost
         );
     }
+
+    # 5. NORD FROST
+    if (name == "nord") {
+        return Theme(
+            vglib.rgba(15, 20, 28, 255),    # bg
+            vglib.rgba(24, 30, 42, 230),    # panel
+            vglib.rgba(18, 24, 34, 245),    # cli_bg
+            vglib.rgba(35, 45, 60, 255),    # urlbar
+            vglib.rgba(60, 75, 100, 255),   # border
+            vglib.rgba(191, 97, 106, 255),  # blood
+            vglib.rgba(136, 192, 208, 255), # cyan
+            vglib.rgba(208, 135, 112, 255), # amber
+            vglib.rgba(163, 190, 140, 255), # toxic
+            vglib.rgba(216, 222, 233, 255)  # ghost
+        );
+    }
+
+    # 6. DRACULA GOTHIC
+    if (name == "dracula") {
+        return Theme(
+            vglib.rgba(18, 16, 26, 255),    # bg
+            vglib.rgba(28, 25, 40, 230),    # panel
+            vglib.rgba(20, 18, 30, 245),    # cli_bg
+            vglib.rgba(40, 35, 58, 255),    # urlbar
+            vglib.rgba(70, 60, 95, 255),    # border
+            vglib.rgba(255, 85, 85, 255),   # blood
+            vglib.rgba(139, 233, 253, 255), # cyan
+            vglib.rgba(255, 184, 108, 255), # amber
+            vglib.rgba(80, 250, 123, 255),  # toxic
+            vglib.rgba(248, 248, 242, 255)  # ghost
+        );
+    }
+
+    # 7. SYNTHWAVE OUTRUN
+    if (name == "synthwave") {
+        return Theme(
+            vglib.rgba(12, 6, 24, 255),     # bg
+            vglib.rgba(26, 12, 48, 230),    # panel
+            vglib.rgba(16, 8, 32, 245),     # cli_bg
+            vglib.rgba(42, 18, 75, 255),    # urlbar
+            vglib.rgba(90, 35, 140, 255),   # border
+            vglib.rgba(255, 30, 130, 255),  # blood
+            vglib.rgba(0, 240, 255, 255),   # cyan
+            vglib.rgba(255, 160, 0, 255),   # amber
+            vglib.rgba(120, 255, 180, 255), # toxic
+            vglib.rgba(235, 210, 255, 255)  # ghost
+        );
+    }
+
+    # 8. COBALT DEEP
+    if (name == "cobalt") {
+        return Theme(
+            vglib.rgba(2, 12, 28, 255),     # bg
+            vglib.rgba(8, 22, 48, 230),     # panel
+            vglib.rgba(4, 16, 36, 245),     # cli_bg
+            vglib.rgba(14, 34, 70, 255),    # urlbar
+            vglib.rgba(30, 65, 120, 255),   # border
+            vglib.rgba(255, 60, 90, 255),   # blood
+            vglib.rgba(0, 190, 255, 255),   # cyan
+            vglib.rgba(255, 180, 40, 255),  # amber
+            vglib.rgba(40, 240, 180, 255),  # toxic
+            vglib.rgba(180, 215, 245, 255)  # ghost
+        );
+    }
+
+    # 9. MONOKAI PRO
+    if (name == "monokai") {
+        return Theme(
+            vglib.rgba(20, 20, 20, 255),    # bg
+            vglib.rgba(32, 32, 32, 230),    # panel
+            vglib.rgba(24, 24, 24, 245),    # cli_bg
+            vglib.rgba(45, 45, 45, 255),    # urlbar
+            vglib.rgba(80, 80, 80, 255),    # border
+            vglib.rgba(255, 97, 136, 255),  # blood
+            vglib.rgba(120, 220, 232, 255), # cyan
+            vglib.rgba(252, 152, 103, 255), # amber
+            vglib.rgba(166, 226, 46, 255),  # toxic
+            vglib.rgba(248, 248, 242, 255)  # ghost
+        );
+    }
+
+    # 10. GRUVBOX DARK
+    if (name == "gruvbox") {
+        return Theme(
+            vglib.rgba(20, 20, 18, 255),    # bg
+            vglib.rgba(32, 30, 26, 230),    # panel
+            vglib.rgba(24, 22, 18, 245),    # cli_bg
+            vglib.rgba(48, 44, 38, 255),    # urlbar
+            vglib.rgba(85, 78, 66, 255),    # border
+            vglib.rgba(251, 73, 52, 255),   # blood
+            vglib.rgba(131, 165, 152, 255), # cyan
+            vglib.rgba(254, 128, 25, 255),  # amber
+            vglib.rgba(184, 187, 38, 255),  # toxic
+            vglib.rgba(235, 219, 178, 255)  # ghost
+        );
+    }
+
+    # 11. ABYSS TRENCH
+    if (name == "abyss") {
+        return Theme(
+            vglib.rgba(2, 6, 12, 255),      # bg
+            vglib.rgba(6, 14, 26, 230),     # panel
+            vglib.rgba(4, 10, 20, 245),     # cli_bg
+            vglib.rgba(10, 24, 42, 255),    # urlbar
+            vglib.rgba(20, 50, 80, 255),    # border
+            vglib.rgba(230, 40, 70, 255),   # blood
+            vglib.rgba(0, 180, 200, 255),   # cyan
+            vglib.rgba(0, 140, 180, 255),   # amber
+            vglib.rgba(0, 240, 160, 255),   # toxic
+            vglib.rgba(140, 180, 200, 255)  # ghost
+        );
+    }
+
+    # 12. SOLARIS FLARE
+    if (name == "solaris") {
+        return Theme(
+            vglib.rgba(18, 6, 2, 255),      # bg
+            vglib.rgba(32, 12, 4, 230),     # panel
+            vglib.rgba(22, 8, 3, 245),      # cli_bg
+            vglib.rgba(52, 20, 8, 255),     # urlbar
+            vglib.rgba(100, 40, 15, 255),   # border
+            vglib.rgba(255, 40, 20, 255),   # blood
+            vglib.rgba(255, 140, 0, 255),   # cyan
+            vglib.rgba(255, 200, 0, 255),   # amber
+            vglib.rgba(220, 240, 50, 255),  # toxic
+            vglib.rgba(255, 225, 180, 255)  # ghost
+        );
+    }
+
+    # 13. GHOST SHELL
+    if (name == "ghost") {
+        return Theme(
+            vglib.rgba(12, 14, 18, 255),    # bg
+            vglib.rgba(20, 24, 30, 230),    # panel
+            vglib.rgba(15, 18, 24, 245),    # cli_bg
+            vglib.rgba(32, 38, 48, 255),    # urlbar
+            vglib.rgba(65, 75, 90, 255),    # border
+            vglib.rgba(240, 80, 100, 255),  # blood
+            vglib.rgba(160, 210, 245, 255), # cyan
+            vglib.rgba(200, 190, 220, 255), # amber
+            vglib.rgba(140, 230, 210, 255), # toxic
+            vglib.rgba(220, 230, 240, 255)  # ghost
+        );
+    }
+
+    # DEFAULT / 14: MATRIX CYBERSPACE
     return Theme(
-        vglib.rgba(2, 2, 4, 255),
-        vglib.rgba(10, 12, 16, 255),
-        vglib.rgba(40, 50, 60, 255),
-        vglib.rgba(0, 220, 240, 255),
-        vglib.rgba(160, 170, 185, 255),
-        vglib.rgba(255, 150, 0, 255)
+        vglib.rgba(4, 10, 6, 255),      # bg
+        vglib.rgba(8, 22, 12, 230),     # panel
+        vglib.rgba(5, 15, 8, 245),      # cli_bg
+        vglib.rgba(14, 38, 20, 255),    # urlbar
+        vglib.rgba(25, 80, 40, 255),    # border
+        vglib.rgba(240, 40, 70, 255),   # blood
+        vglib.rgba(0, 210, 255, 255),   # cyan
+        vglib.rgba(40, 240, 100, 255),  # amber
+        vglib.rgba(50, 255, 120, 255),  # toxic
+        vglib.rgba(200, 255, 215, 255)  # ghost
     );
 }
 
-active_theme = get_theme("amber");
+fn set_active_theme(name :: String) {
+    t = get_theme(name);
+    COLOR_BLACK  = t.bg;
+    COLOR_PANEL  = t.panel;
+    COLOR_CLI_BG = t.cli_bg;
+    COLOR_URLBAR = t.urlbar;
+    COLOR_BORDER = t.border;
+    COLOR_BLOOD  = t.blood;
+    COLOR_CYAN   = t.cyan;
+    COLOR_AMBER  = t.amber;
+    COLOR_TOXIC  = t.toxic;
+    COLOR_GHOST  = t.ghost;
+}
 
-COLOR_BLACK      = vglib.rgba(2, 2, 4, 255);
-COLOR_PANEL      = vglib.rgba(10, 12, 16, 255);
-COLOR_CLI_BG     = vglib.rgba(6, 8, 12, 245);
-COLOR_URLBAR     = vglib.rgba(16, 20, 26, 255);
-COLOR_BORDER     = vglib.rgba(40, 50, 60, 255);
-COLOR_BLOOD      = vglib.rgba(220, 20, 40, 255);
-COLOR_CYAN       = vglib.rgba(0, 220, 240, 255);
-COLOR_AMBER      = vglib.rgba(255, 150, 0, 255);
-COLOR_TOXIC      = vglib.rgba(40, 240, 100, 255);
-COLOR_GHOST      = vglib.rgba(160, 170, 185, 255);
-COLOR_SCANLINE   = vglib.rgba(0, 0, 0, 90);
-
+set_active_theme("classic");
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
 # ====================================================================
@@ -2527,6 +2754,37 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + args);
         }
     }
+    else if (cmd == "theme") {
+        if (args == "" || args == "list") {
+            cli_logs.push("[SYS_THEME]: AVAILABLE PALETTES:");
+            cli_logs.push("  -> classic");
+            cli_logs.push("  -> tokyo");
+            cli_logs.push("  -> redroom");
+            cli_logs.push("  -> amber");
+            cli_logs.push("  -> matrix");
+            cli_logs.push("  -> cyberpunk");
+            cli_logs.push("  -> nord");
+            cli_logs.push("  -> dracula");
+            cli_logs.push("  -> synthwave");
+            cli_logs.push("  -> cobalt");
+            cli_logs.push("  -> monokai");
+            cli_logs.push("  -> gruvbox");
+            cli_logs.push("  -> abyss");
+            cli_logs.push("  -> solaris");
+            cli_logs.push("  -> ghost");
+            cli_logs.push("[SYS_THEME]: Usage: theme <theme_name>");
+        } 
+        else if (args == "classic" || args == "tokyo" || args == "redroom" || args == "amber" || args == "matrix" || 
+                 args == "cyberpunk" || args == "nord" || args == "dracula" || args == "synthwave" || args == "cobalt" || 
+                 args == "monokai" || args == "gruvbox" || args == "abyss" || args == "solaris" || args == "ghost") {
+            set_active_theme(args);
+            cli_logs.push("[SYS_THEME]: Palette re-configured to [" + args + "]");
+        } 
+        else {
+            cli_logs.push("[ERROR]: Unknown palette '" + args + "'");
+            cli_logs.push("[ERROR]: Type 'theme list' to view all 15 themes.");
+        }
+    }
     else if (cmd == "inspect") {
         target_inspect :: String = (args == "") ? current_url : clean_str(args);
         
@@ -4881,7 +5139,7 @@ while (vglib.running()) {
                 line_y :: Float64 = cli_start_y + (c_idx * 22.0);
                 if (line_y >= 120.0 && line_y <= 540.0) {
                     txt = string(cli_logs[c_idx]);
-                    col = active_theme.text;
+                    col = COLOR_CYAN;
                     if (txt.substr(0, 2) == "> ")       { col = COLOR_TOXIC; }
                     if (txt.substr(0, 8) == "[NET_IN]") { col = COLOR_AMBER; }
                     if (txt.substr(0, 8) == "[SNIFF]:") { col = COLOR_CYAN; }
