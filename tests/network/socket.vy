@@ -92,6 +92,11 @@ current_url      :: String  = "vnet.dir";
 input_url        :: String  = "vnet.dir";
 url_focused      :: Int64   = 0;
 
+# --- EMERGENCY & RAID STATE ---
+raid_active       :: Int64   = 0;
+raid_timer        :: Float64 = 0.0;
+raid_purged       :: Int64   = 0;
+
 is_connecting          :: Int64   = 0;
 connection_timer       :: Float64 = 0.0;
 target_connection_time :: Float64 = 0.0;
@@ -2624,6 +2629,18 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[PROBE]: TRANSMITTING HARDWARE RECON PULSE TO PORT " + args + "...");
         }
     }
+    else if (cmd == "purge") {
+        if (raid_active == 1) {
+            raid_active = 0;
+            raid_purged = 1;
+            glitch_trigger = 0.5;
+            cli_logs.push("[SECURITY]: CRITICAL CACHE & SUSPECT LOGS PURGED!");
+            cli_logs.push("[SYS]: FEDERAL E-RAID BYPASSED. SHADOW PMC DISENGAGED.");
+            vnet.send_to(client_sock, server_ip, server_port, "RAID_SUCCESS:" + string(my_port));
+        } else {
+            cli_logs.push("[SYS]: NO ACTIVE E-RAID DETECTED.");
+        }
+    }
     else if (cmd == "proxy") {
         sub_parsed = parse_input(args);
         target_u = sub_parsed[0];
@@ -3161,6 +3178,19 @@ while (vglib.running()) {
             }
         }
 
+        if (raid_active == 1) {
+            raid_timer = raid_timer - 0.016;
+            if (raid_timer <= 0.0) {
+                raid_active = 0;
+                btc_balance = vmath.clamp(btc_balance - 5.00, 0.0, 999.0);
+                trace_level = int64(vmath.clamp(float64(trace_level + 50), 0.0, 100.0));
+                glitch_trigger = 1.0;
+                
+                cli_logs.push("[PENALTY]: E-RAID PURGE FAILED!");
+                cli_logs.push("[SHADOW PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
+            }
+        }
+
         if (is_connecting == 1) {
             connection_timer = connection_timer + 0.016;
             if (connection_timer >= target_connection_time) {
@@ -3429,6 +3459,16 @@ while (vglib.running()) {
                 cli_logs.push("[SCAN TELEMETRY]: FREQUENCY RE-DETECTED KNOWN NODE -> vnet://" + discovered_site);
             }
             glitch_trigger = 0.5;
+        }
+        else if (net_msg == "EXPLOIT:FEDERAL_RAID") {
+            raid_active = 1;
+            raid_timer  = 30.0;
+            raid_purged = 0;
+            glitch_trigger = 1.0;
+            cli_logs.push("--------------------------------------------------");
+            cli_logs.push("[CRITICAL EMERGENCY]: FEDERAL E-RAID INITIATED!");
+            cli_logs.push("TYPE 'purge' IN OVERLAY TERMINAL [TAB] WITHIN 30s!");
+            cli_logs.push("--------------------------------------------------");
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "PATCH_SUCCESS:") {
             new_assigned_port :: Int64 = int64(net_msg.substr(14, net_msg.length() - 14));
@@ -4343,6 +4383,30 @@ while (vglib.running()) {
 
                             line_idx = line_idx + 14;
                         }
+                        else if (art_key == "shadow_pmc") {
+                            shadow_art :: Array = [
+                                "           /\\                               /\\           ",
+                                "          /  \\     SHADOW PMC DIRECTORATE  /  \\          ",
+                                "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
+                                "        / /  \\ \\                         / /  \\ \\        ",
+                                "       / /____\\ \\    /=============\\    / /____\\ \\       ",
+                                "      / /______\\ \\  |  (X) (X) (X)  |  / /______\\ \\      ",
+                                "     /_/        \\_\\  \\_____________/  /_/        \\_\\     ",
+                                "     =================================================== ",
+                                "     [ FEDERAL E-RAID AUTHORIZATION: INTERCEPT ACTIVE ] "
+                            ];
+
+                            pmc_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+                            through sp_i :: 0..(shadow_art.length() - 1) -> loop {
+                                sp_line_y :: Float64 = art_y + (float64(sp_i) * 16.0);
+                                if (sp_line_y >= 85.0 && sp_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(shadow_art[sp_i]), art_x, sp_line_y, 11, pmc_col);
+                                }
+                            };
+
+                            line_idx = line_idx + 6;
+                        }
                         else if (art_key == "vnet") {
                             vnet_art :: Array = [
                                 " /$$    /$$ /$$    /$$ /$$$$$$$$ /$$$$$$$$",
@@ -4479,45 +4543,6 @@ while (vglib.running()) {
                     }
                 }
             };
-        }
-
-        if (cli_overlay_open == 1) {
-            vglib.rect(20 + jitter_x, 80 + jitter_y, 890, 520, COLOR_CLI_BG);
-            vglib.line(20, 80, 910, 80, COLOR_BLOOD);
-            vglib.line(910, 80, 910, 600, COLOR_BLOOD);
-            vglib.line(910, 600, 20, 600, COLOR_BLOOD);
-            vglib.line(20, 600, 20, 80, COLOR_BLOOD);
-
-            vglib.text_ex(vcr_font, "SYSTEM TERMINAL OVERLAY | REAL-TIME CLI & CYBERWARFARE HUB", 35 + jitter_x, 95, 12, COLOR_BLOOD);
-            vglib.line(35, 115, 895, 115, COLOR_BORDER);
-
-            log_cnt = cli_logs.length();
-            cli_start_y :: Float64 = 125.0 - cli_scroll_y;
-            through c_idx :: 0..(log_cnt - 1) -> loop {
-                line_y :: Float64 = cli_start_y + (c_idx * 22.0);
-                if (line_y >= 120.0 && line_y <= 540.0) {
-                    txt = string(cli_logs[c_idx]);
-                    col = active_theme.text;
-                    if (txt.substr(0, 2) == "> ")       { col = COLOR_TOXIC; }
-                    if (txt.substr(0, 8) == "[NET_IN]") { col = COLOR_AMBER; }
-                    if (txt.substr(0, 8) == "[SNIFF]:") { col = COLOR_CYAN; }
-                    if (txt.substr(0, 10) == "[SECURITY]") { col = COLOR_TOXIC; }
-                    if (txt.substr(0, 13) == "[ICE_DEFENSE]") { col = COLOR_TOXIC; }
-                    if (txt.substr(0, 7) == "[ERROR]" || txt.substr(0, 5) == "[ERR]" || txt.substr(0, 16) == "[CRITICAL_ALERT]") { col = COLOR_BLOOD; }
-
-                    vglib.text_ex(vcr_font, txt, 35 + jitter_x, line_y, 11, col);
-                }
-            };
-
-            vglib.line(20, 560, 910, 560, COLOR_BORDER);
-            prompt_str :: String = "CMD> " + cli_input_buffer;
-            vglib.text_ex(vcr_font, prompt_str, 35 + jitter_x, 572, 12, COLOR_TOXIC);
-
-            if (vmath.fmod(cursor_blink, 0.8) > 0.4) {
-                prompt_size :: Array = vglib.measure_text(vcr_font, prompt_str, 12.0);
-                cur_x :: Float64 = 35.0 + float64(prompt_size[0]) + 2.0;
-                vglib.rect(cur_x + jitter_x, 572 + jitter_y, 8, 14, COLOR_TOXIC);
-            }
         }
 
         if (dos_timer > 0.0) {
@@ -4769,6 +4794,113 @@ while (vglib.running()) {
                 scroll_y         = 0.0;
                 
                 vnet.send_to(client_sock, server_ip, server_port, "GET:vnet.dir");
+            }
+        }
+
+        # ====================================================================
+        # MAIN RENDER LOOP STRUCTURE (Ensure CLI renders AFTER Raid Screen)
+        # ====================================================================
+
+        if (raid_active == 1) {
+            flash_alpha :: Float64 = vmath.abs(vmath.sin(run_time * 8.0));
+            bg_overlay_col = vglib.rgba(220, 10, 30, int64(flash_alpha * 120.0 + 40.0));
+            
+            vglib.rect(0, 0, 1280, 800, bg_overlay_col);
+
+            # Center Chassis Box
+            r_box_x :: Float64 = 240.0 + (vmath.sin(run_time * 40.0) * 4.0);
+            r_box_y :: Float64 = 150.0 + (vmath.cos(run_time * 35.0) * 3.0);
+            r_box_w :: Float64 = 800.0;
+            r_box_h :: Float64 = 480.0;
+
+            vglib.rect(r_box_x, r_box_y, r_box_w, r_box_h, vglib.rgba(6, 2, 8, 250));
+            
+            shadow_art :: Array = [
+                "           /\\                               /\\           ",
+                "          /  \\     SHADOW PMC DIRECTORATE  /  \\          ",
+                "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
+                "        / /  \\ \\                         / /  \\ \\        ",
+                "       / /____\\ \\    /=============\\    / /____\\ \\       ",
+                "      / /______\\ \\  |  (X) (X) (X)  |  / /______\\ \\      ",
+                "     /_/        \\_\\  \\_____________/  /_/        \\_\\     "
+            ];
+
+            pmc_col = (flash_alpha > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+            through sp_i :: 0..(shadow_art.length() - 1) -> loop {
+                sp_line_y :: Float64 = r_box_y + 15.0 + (float64(sp_i) * 14.0);
+                vglib.text_ex(vcr_font, string(shadow_art[sp_i]), r_box_x + 110.0, sp_line_y, 10, pmc_col);
+            };
+
+            vglib.text_ex(vcr_font, "[!] FEDERAL E-RAID AUTHORIZATION: INTERCEPT ACTIVE [!]", r_box_x + 150.0, r_box_y + 125.0, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "[!] ATTENTION OPERATOR: UNENCRYPTED VFS LOGS DETECTED", r_box_x + 140.0, r_box_y + 145.0, 11, COLOR_AMBER);
+            vglib.text_ex(vcr_font, "FEDERAL WIRETAP UNITS ARE CARVING YOUR RAM REGISTERS!", r_box_x + 145.0, r_box_y + 165.0, 10, COLOR_GHOST);
+
+            vglib.line(r_box_x + 30.0, r_box_y + 185.0, r_box_x + r_box_w - 30.0, r_box_y + 185.0, COLOR_BORDER);
+
+            rem_seconds :: Int64 = int64(vmath.ceil(raid_timer));
+            timer_str   :: String = "PURGE WINDOW CLOSING IN: " + string(rem_seconds) + "s";
+            vglib.text_ex(vcr_font, timer_str, r_box_x + 230.0, r_box_y + 195.0, 14, COLOR_TOXIC);
+
+            c_bar_x :: Float64 = r_box_x + 100.0;
+            c_bar_y :: Float64 = r_box_y + 220.0;
+            c_bar_w :: Float64 = 600.0;
+            c_bar_h :: Float64 = 20.0;
+
+            vglib.rect(c_bar_x, c_bar_y, c_bar_w, c_bar_h, COLOR_BLACK);
+            
+            t_ratio :: Float64 = vmath.clamp(raid_timer / 30.0, 0.0, 1.0);
+            vglib.rect(c_bar_x, c_bar_y, c_bar_w * t_ratio, c_bar_h, (t_ratio < 0.3) ? COLOR_BLOOD : COLOR_AMBER);
+
+            vglib.line(c_bar_x, c_bar_y, c_bar_x + c_bar_w, c_bar_y, COLOR_BORDER);
+            vglib.line(c_bar_x + c_bar_w, c_bar_y, c_bar_x + c_bar_w, c_bar_y + c_bar_h, COLOR_BORDER);
+            vglib.line(c_bar_x + c_bar_w, c_bar_y + c_bar_h, c_bar_x, c_bar_y + c_bar_h, COLOR_BORDER);
+            vglib.line(c_bar_x, c_bar_y + c_bar_h, c_bar_x, c_bar_y, COLOR_BORDER);
+
+            vglib.rect(r_box_x + 60.0, r_box_y + 260.0, 680, 100, COLOR_BLACK);
+            vglib.text_ex(vcr_font, "FAILURE PENALTIES:", r_box_x + 80.0, r_box_y + 272.0, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, " - VCOIN FINE    : -5.00 VCOIN SEIZED BY FEDERAL ESCROW", r_box_x + 100.0, r_box_y + 295.0, 10, COLOR_GHOST);
+            vglib.text_ex(vcr_font, " - BASE TRACE    : +50% PERMANENT TRACE SPIKE DISPATCHED", r_box_x + 100.0, r_box_y + 320.0, 10, COLOR_GHOST);
+
+            vglib.text_ex(vcr_font, "ACTION REQUIRED:", r_box_x + 330.0, r_box_y + 385.0, 12, COLOR_CYAN);
+            vglib.text_ex(vcr_font, "PRESS [TAB] TO OPEN TERMINAL OVERLAY & TYPE 'purge'", r_box_x + 150.0, r_box_y + 410.0, 12, COLOR_TOXIC);
+        }
+
+        if (cli_overlay_open == 1) {
+            vglib.rect(20 + jitter_x, 80 + jitter_y, 890, 520, COLOR_CLI_BG);
+            vglib.line(20, 80, 910, 80, COLOR_BLOOD);
+            vglib.line(910, 80, 910, 600, COLOR_BLOOD);
+            vglib.line(910, 600, 20, 600, COLOR_BLOOD);
+            vglib.line(20, 600, 20, 80, COLOR_BLOOD);
+
+            vglib.text_ex(vcr_font, "SYSTEM TERMINAL OVERLAY | REAL-TIME CLI & CYBERWARFARE HUB", 35 + jitter_x, 95, 12, COLOR_BLOOD);
+            vglib.line(35, 115, 895, 115, COLOR_BORDER);
+
+            log_cnt = cli_logs.length();
+            cli_start_y :: Float64 = 125.0 - cli_scroll_y;
+            through c_idx :: 0..(log_cnt - 1) -> loop {
+                line_y :: Float64 = cli_start_y + (c_idx * 22.0);
+                if (line_y >= 120.0 && line_y <= 540.0) {
+                    txt = string(cli_logs[c_idx]);
+                    col = active_theme.text;
+                    if (txt.substr(0, 2) == "> ")       { col = COLOR_TOXIC; }
+                    if (txt.substr(0, 8) == "[NET_IN]") { col = COLOR_AMBER; }
+                    if (txt.substr(0, 8) == "[SNIFF]:") { col = COLOR_CYAN; }
+                    if (txt.substr(0, 10) == "[SECURITY]") { col = COLOR_TOXIC; }
+                    if (txt.substr(0, 13) == "[ICE_DEFENSE]") { col = COLOR_TOXIC; }
+                    if (txt.substr(0, 7) == "[ERROR]" || txt.substr(0, 5) == "[ERR]" || txt.substr(0, 16) == "[CRITICAL_ALERT]") { col = COLOR_BLOOD; }
+
+                    vglib.text_ex(vcr_font, txt, 35 + jitter_x, line_y, 11, col);
+                }
+            };
+
+            vglib.line(20, 560, 910, 560, COLOR_BORDER);
+            prompt_str :: String = "CMD> " + cli_input_buffer;
+            vglib.text_ex(vcr_font, prompt_str, 35 + jitter_x, 572, 12, COLOR_TOXIC);
+
+            if (vmath.fmod(cursor_blink, 0.8) > 0.4) {
+                prompt_size :: Array = vglib.measure_text(vcr_font, prompt_str, 12.0);
+                cur_x :: Float64 = 35.0 + float64(prompt_size[0]) + 2.0;
+                vglib.rect(cur_x + jitter_x, 572 + jitter_y, 8, 14, COLOR_TOXIC);
             }
         }
 

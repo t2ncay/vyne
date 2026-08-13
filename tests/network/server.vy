@@ -169,6 +169,9 @@ bot_port  :: Int64   = 8999;
 bot_url   :: String  = "market.vnet";
 bot_timer :: Float64 = 0.0;
 
+# Add at top of server initialization:
+raid_event_timer :: Float64 = 0.0;
+
 # OVERLOAD STATE STORAGE
 market_overloaded_timer :: Float64 = 0.0;
 overload_cooldowns      :: Array   = [];
@@ -449,6 +452,8 @@ while (true) {
     # RIVAL BOT STALKER & ATTACK ENGINE (ACTIVE HUNTER LOGIC)
     # ----------------------------------------------------------------
     bot_timer = bot_timer + 0.016;
+    raid_event_timer = raid_event_timer + 0.016;
+
     if (bot_timer >= 120.0) {
         bot_timer = 0.0;
         
@@ -479,6 +484,15 @@ while (true) {
                 broadcast_feed_event("[WARNING]: SPECTRE_BOT LOCKED ONTO PORT_" + string(p_port) + " AT " + bot_url);
             }
         };
+    }
+
+    if (raid_event_timer >= 200.0) {
+        raid_event_timer = 0.0;
+        if (active_ports.length() > 0) {
+            out("[FEDERAL E-RAID]: SHADOW PMC INITIATING NETWORK-WIDE PURGE EVENT!");
+            broadcast_feed_event("[FEDERAL E-RAID]: SHADOW PMC INTERCEPT ACTIVE! 30s PURGE WINDOW!");
+            broadcast_raw("EXPLOIT:FEDERAL_RAID");
+        }
     }
 
     packet :: Array = vnet.recv_from(server_sock);
