@@ -948,7 +948,7 @@ while (true) {
                     vnet.send_to(server_sock, sender_ip, sender_port, "OVERLOAD_FAIL:ALREADY_OVERLOADED");
                 } else {
                     overloaded_urls.push(target_site);
-                    overloaded_timers.push(30.0); # 30 second lockout
+                    overloaded_timers.push(45.0); # 30 second lockout
                     broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
                     broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
 

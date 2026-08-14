@@ -568,6 +568,28 @@ fn trigger_route_navigation(target_dest :: String) {
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
+fn get_site_target_freq(raw_url :: String) -> Float64 {
+    clean_u :: String = clean_str(raw_url);
+    if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
+        clean_u = clean_str(clean_u.substr(7, clean_u.length() - 7));
+    }
+
+    sep_idx :: Int64 = clean_u.find("_");
+    dot_idx :: Int64 = clean_u.find(".vnet");
+
+    if (sep_idx >= 0 && dot_idx > sep_idx) {
+        hash_str :: String = clean_u.substr(sep_idx + 1, dot_idx - sep_idx - 1);
+        
+        hash_val :: Int64 = vcore.hex_to_int64(hash_str);
+        
+        if (hash_val > 0) {
+            return float64((hash_val % 800) / 10) + 10.0;
+        }
+    }
+
+    return 18.0;
+}
+
 # ====================================================================
 # FULLY EXPANDED DETAILED LORE PAGES (ALL 50 WEB NODES)
 # ====================================================================
@@ -2088,7 +2110,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Uninterrupted raw sensory transmission from unknown terminals.",
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | FREQUENCY: 432 Hz | BANDWIDTH: UNLIMITED               |",
-            "[IMG:void]",
+            "[VIDEO:void:D7_PMC_EXECUTION_OF_D34D_7DP_RAW.MP4]",
             "[BOX] +---------------------------------------------------------+",
             "[CODE] NEURAL_PACKET: 0xFEED_9999_STREAM"
         ];
@@ -3097,19 +3119,22 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "vdec" || cmd == "decode") {
-        is_aligned :: Int64 = check_bit_alignment(active_raw_payload, bit_shift_offset);
+        target_hz :: Float64 = get_site_target_freq(current_url);
+        hz_delta  :: Float64 = vmath.abs(freq_tuner - target_hz);
 
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: vdec <key_offset> (e.g. vdec 3)");
+            cli_logs.push("[ERROR]: Usage: vdec <key_offset> (e.g. vdec " + string(bit_shift_offset) + ")");
         } else {
             input_offset :: Int64 = int64(args);
 
             if (active_raw_payload == 0) {
-                cli_logs.push("[vdec]: ERROR - No corrupted VFS memory sector payload active on this site.");
-            } else if (is_aligned == 0) {
+                cli_logs.push("[vdec]: ERROR - No corrupted VFS memory payload on this site.");
+            } else if (check_bit_alignment(active_raw_payload, bit_shift_offset) == 0) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Bit alignment offset mismatch. Use 'shift <bits>'.");
+            } else if (hz_delta > 0.8) {
+                cli_logs.push("[vdec]: FREQUENCY MISMATCH - RF signal carrier unaligned. Target: " + string(vmath.round(target_hz * 10.0) / 10.0) + " Hz.");
             } else if (lock_progress < 1.0) {
-                cli_logs.push("[vdec]: DECRYPTION FAILED - Signal lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold 18.0 Hz.");
+                cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold frequency.");
             } else if (input_offset != bit_shift_offset) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
             } else {
@@ -3119,6 +3144,7 @@ fn dispatch_cli_command(raw_input :: String) {
                 cli_logs.push("[vdec]: CARRIER DECRYPTION SUCCESSFUL");
                 cli_logs.push("  RAW SECTOR PAYLOAD : 0x" + string(active_raw_payload));
                 cli_logs.push("  BIT-SHIFT KEY      : " + string(input_offset));
+                cli_logs.push("  CARRIER FREQUENCY  : " + string(target_hz) + " Hz");
                 cli_logs.push("  DECRYPTED REGISTER : " + string(decoded_val));
                 cli_logs.push("--------------------------------------------------");
             }
@@ -3540,14 +3566,12 @@ while (vglib.running()) {
         # ============================================================
         # ANIMATED BACKGROUND: WAVE GRADIENT & FLOATING VECTOR NODES
         # ============================================================
-        # Dynamic shifting background gradient strips
         through bg_i :: 0..19 -> loop {
             strip_y :: Float64 = float64(bg_i * 40);
             wave_col_val :: Int64 = int64(vmath.sin(run_time * 2.0 + float64(bg_i) * 0.3) * 20.0 + 25.0);
             vglib.rect(0, strip_y, 1280, 40, vglib.rgba(wave_col_val, 2, 8, 255));
         };
 
-        # Floating P2P Nodes and Interconnecting Laser Grid Lines
         through n_i :: 0..7 -> loop {
             node_x :: Float64 = vmath.fmod(float64(n_i * 160) + run_time * 30.0, 1380.0) - 50.0;
             node_y :: Float64 = 100.0 + vmath.sin(run_time * 1.5 + float64(n_i)) * 60.0;
@@ -4180,13 +4204,18 @@ while (vglib.running()) {
 
     is_aligned :: Int64 = check_bit_alignment(active_raw_payload, bit_shift_offset);
 
-    hz_delta    :: Float64 = vmath.abs(freq_tuner - 18.0);
-    is_resonant :: Int64   = (hz_delta <= 0.5) ? 1 : 0;
+    # ================================================================
+    # DYNAMIC FREQUENCY & SIGNAL LOCK RESOLVER
+    # ================================================================
+    target_hz   :: Float64 = get_site_target_freq(current_url);
+    hz_delta    :: Float64 = vmath.abs(freq_tuner - target_hz);
+    is_resonant :: Int64   = (hz_delta <= 0.8) ? 1 : 0;
+    is_aligned  :: Int64   = check_bit_alignment(active_raw_payload, bit_shift_offset);
 
     if (active_raw_payload > 0 && is_aligned == 1 && is_resonant == 1) {
-        lock_progress = vmath.clamp(lock_progress + (0.016 / 1.5), 0.0, 1.0); # Charges in ~1.5s
+        lock_progress = vmath.clamp(lock_progress + (0.016 / 1.2), 0.0, 1.0); # ~1.2s lock window
     } else {
-        lock_progress = vmath.clamp(lock_progress - (0.016 * 2.0), 0.0, 1.0); # Decays rapidly
+        lock_progress = vmath.clamp(lock_progress - (0.016 * 2.5), 0.0, 1.0); # Fast decay
     }
 
     # ================================================================
@@ -4283,14 +4312,15 @@ while (vglib.running()) {
             vglib.rect(945 + jitter_x, 258, 300, 20, COLOR_BLACK);
             
             if (lock_progress >= 1.0) {
-                vglib.text_ex(vcr_font, ">>> KEY DETECTED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 263, 10, COLOR_TOXIC);
+                vglib.text_ex(vcr_font, ">>> CARRIER LOCKED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 263, 10, COLOR_TOXIC);
             } else if (is_aligned == 1 && is_resonant == 1) {
                 pct_str :: String = string(int64(lock_progress * 100.0)) + "%";
-                vglib.text_ex(vcr_font, "TUNING SIGNAL... " + pct_str + " [HOLD]", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                vglib.text_ex(vcr_font, "LOCKING... " + pct_str + " [" + string(freq_tuner) + "Hz]", 955 + jitter_x, 263, 10, COLOR_AMBER);
             } else if (is_aligned == 1) {
-                vglib.text_ex(vcr_font, "BIT ALIGNED // TUNE RF FREQ", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                target_hz_str :: String = string(vmath.round(target_hz * 10.0) / 10.0);
+                vglib.text_ex(vcr_font, "BIT ALIGNED // NEED " + target_hz_str + "Hz", 955 + jitter_x, 263, 10, COLOR_AMBER);
             } else {
-                vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [ALIGN OFF]", 955 + jitter_x, 263, 10, COLOR_BLOOD);
+                vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [SHIFT BIT]", 955 + jitter_x, 263, 10, COLOR_BLOOD);
             }
         } else {
             vglib.text_ex(vcr_font, "SCOPE IDLE (NO SECTOR DETECTED)", 945 + jitter_x, 263, 10, COLOR_GHOST);
@@ -4442,7 +4472,7 @@ while (vglib.running()) {
             vglib.line(bar_x + 450.0, bar_y + 20.0, bar_x, bar_y + 20.0, COLOR_BORDER);
             vglib.line(bar_x, bar_y + 20.0, bar_x, bar_y, COLOR_BORDER);
 
-            down_ratio :: Float64 = vmath.clamp(active_down_timer / 30.0, 0.05, 1.0);
+            down_ratio :: Float64 = vmath.clamp(active_down_timer / 45.0, 0.05, 1.0);
             vglib.rect(bar_x, bar_y, 450.0 * down_ratio, 20, COLOR_BLOOD);
 
             foot_str :: String = ">>> BGP ROUTER RE-ELECTING PRIMARY MESH GATEWAY NODE...";
@@ -4935,7 +4965,7 @@ while (vglib.running()) {
                                     vglib.rect(vp_x + 10.0, vp_y + 10.0, 8.0, 8.0, COLOR_BLOOD);
                                 }
                                 vglib.text_ex(vcr_font, "REC", vp_x + 22.0, vp_y + 9.0, 9, (rec_blink == 1) ? COLOR_BLOOD : COLOR_GHOST);
-                                vglib.text_ex(vcr_font, "480p IR | 18.0 Hz", vp_x + vp_w - 110.0, vp_y + 9.0, 9, COLOR_TOXIC);
+                                vglib.text_ex(vcr_font, "480p IR | 18.0 Hz", vp_x + vp_w - 90.0, vp_y + 9.0, 9, COLOR_TOXIC);
 
                                 play_sec :: Int64 = int64(vmath.fmod(run_time * 2.5, 1120.0)); # Loops at 18:40
                                 m_val    :: Int64 = play_sec / 60;

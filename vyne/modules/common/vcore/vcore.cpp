@@ -186,6 +186,33 @@ namespace VCoreNative {
         size_t pos = 0;
         return parseElement(input, pos);
     }
+
+    /**
+     * @brief Converts a hexadecimal string to an int64_t Value.
+     * @param args A vector containing:
+     *   - args[0]: String representation of a hex number (e.g. "ff2d809a" or "0xFF2D809A")
+     * @return Value An int64_t containing the parsed numeric value, or 0 on failure.
+     */
+    Value hex_to_int64(std::vector<Value>& args) {
+        if (args.empty() || args[0].getType() != Value::STRING) {
+            throw std::runtime_error("vcore.hex_to_int64() expects 1 String argument.");
+        }
+
+        std::string hex_s = args[0].asString();
+        
+        // Strip optional "0x" or "0X" prefix
+        if (hex_s.length() >= 2 && hex_s[0] == '0' && (hex_s[1] == 'x' || hex_s[1] == 'X')) {
+            hex_s = hex_s.substr(2);
+        }
+
+        try {
+            size_t pos = 0;
+            unsigned long long parsed = std::stoull(hex_s, &pos, 16);
+            return Value(static_cast<int64_t>(parsed));
+        } catch (...) {
+            return Value(static_cast<int64_t>(0));
+        }
+    }
 }
 
 void setupVCore(SymbolContainer& env, StringPool& pool) {
@@ -203,6 +230,7 @@ void setupVCore(SymbolContainer& env, StringPool& pool) {
     vcore[pool.intern("platform")]        = Value(VCoreNative::platform);
     vcore[pool.intern("input")]           = Value(VCoreNative::input);
     vcore[pool.intern("parse_array")]     = Value(VCoreNative::parse_array);
+    vcore[pool.intern("hex_to_int64")]    = Value(VCoreNative::hex_to_int64);
 
     // VCore properties
     vcore[pool.intern("version")]         = Value("v0.0.1-alpha").setReadOnly();
