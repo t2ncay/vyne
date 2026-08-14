@@ -486,7 +486,7 @@ while (true) {
         };
     }
 
-    if (raid_event_timer >= 200.0) {
+    if (raid_event_timer >= 120.0) {
         raid_event_timer = 0.0;
         if (active_ports.length() > 0) {
             out("[FEDERAL E-RAID]: SHADOW PMC INITIATING NETWORK-WIDE PURGE EVENT!");
@@ -549,19 +549,20 @@ while (true) {
 
             if (cmd == "ION_STRIKE") {
                 target_param :: String = clean_str(payload);
-                target_port_num :: Int64 = int64(target_param);
-                
                 struck_count :: Int64 = 0;
+                is_port_hit  :: Int64 = 0;
 
-                if (target_port_num > 0) {
-                    through p :: 0..(active_ports.length() - 1) -> loop {
-                        if (int64(active_ports[p]) == target_port_num) {
-                            p_ip :: String = string(active_ips[p]);
-                            vnet.send_to(server_sock, p_ip, target_port_num, "EXPLOIT:BRAINDEAD:ION_STRIKE_DIRECT_HIT");
-                            struck_count = struck_count + 1;
-                        }
-                    };
-                } else {
+                through p :: 0..(active_ports.length() - 1) -> loop {
+                    if (string(active_ports[p]) == target_param) {
+                        p_ip   :: String = string(active_ips[p]);
+                        p_port :: Int64  = int64(active_ports[p]);
+                        vnet.send_to(server_sock, p_ip, p_port, "EXPLOIT:BRAINDEAD:ION_STRIKE_DIRECT_HIT");
+                        struck_count = struck_count + 1;
+                        is_port_hit  = 1;
+                    }
+                };
+
+                if (is_port_hit == 0) {
                     canonical_target :: String = resolve_canonical(target_param);
 
                     through p :: 0..(active_ports.length() - 1) -> loop {

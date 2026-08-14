@@ -5124,22 +5124,67 @@ while (vglib.running()) {
         # ================================================================
         # BRAINDEAD CORTEX OVERLOAD UI (ION CANNON DIRECT HIT)
         # ================================================================
+        # ================================================================
+        # BRAINDEAD CORTEX OVERLOAD UI (ION CANNON DIRECT HIT)
+        # ================================================================
         if (is_braindead == 1) {
             braindead_timer = braindead_timer + 0.016;
 
             vglib.begin();
             vglib.clear(vglib.rgba(12, 2, 4, 255));
 
-            glitch_off :: Float64 = vmath.sin(braindead_timer * 30.0) * 8.0;
+            cold_pulse :: Float64 = vmath.sin(braindead_timer * 1.5) * 0.5 + 0.5;
+            glow_alpha :: Int64   = int64(40.0 + cold_pulse * 60.0);
 
-            through tear_i :: 0..15 -> loop {
-                tx :: Float64 = vmath.random(-10.0, 1280.0);
-                ty :: Float64 = float64(tear_i * 50);
-                vglib.rect(tx + glitch_off, ty, 300, 12, vglib.rgba(220, 20, 40, 120));
+            vglib.rect(0, 0, 1280, 10, vglib.rgba(220, 20, 40, glow_alpha));
+            vglib.rect(0, 790, 1280, 10, vglib.rgba(220, 20, 40, glow_alpha));
+
+            through drip :: 0..31 -> loop {
+                drip_x :: Float64 = float64(drip * 40);
+                
+                speed  :: Float64 = 160.0 + vmath.fmod(float64(drip * 73), 240.0);
+                offset :: Float64 = float64(drip * 137);
+                
+                drip_y :: Float64 = vmath.fmod((braindead_timer * speed) + offset, 880.0) - 80.0;
+
+                through tail :: 0..5 -> loop {
+                    char_y :: Float64 = drip_y - float64(tail * 14);
+                    
+                    if (char_y >= -20.0 && char_y <= 800.0) {
+                        byte_val :: Int64 = int64(vmath.fmod((braindead_timer * 120.0) + float64(drip * 17 + tail * 31), 255.0));
+                        hex_str  :: String = "0x" + string(byte_val);
+
+                        # Lead glyph is stark white, tail fades out to deep blood red
+                        alpha_val :: Int64 = (tail == 0) ? 240 : int64(200.0 / float64(tail + 1));
+                        text_col  :: Int64 = (tail == 0) ? vglib.rgba(255, 255, 255, alpha_val) 
+                                                         : vglib.rgba(220, 20, 40, alpha_val);
+
+                        vglib.text_ex(vcr_font, hex_str, drip_x, char_y, 9, text_col);
+                    }
+                };
             };
 
-            # Technical Death Frame
-            box_x :: Float64 = 200.0 + glitch_off;
+            through g_block :: 0..24 -> loop {
+                seed_t   :: Float64 = braindead_timer * 140.0 + float64(g_block * 19);
+                raw_rand :: Float64 = vmath.fmod(vmath.sin(seed_t) * 43758.5453, 1.0);
+                
+                if (raw_rand > 0.35) {
+                    px :: Float64 = vmath.fmod(raw_rand * 1280.0 + float64(g_block * 53), 1280.0);
+                    py :: Float64 = vmath.fmod(raw_rand * 800.0 + float64(g_block * 29), 800.0);
+                    
+                    # Micro static pixels mixed with wider slice tears
+                    pw :: Float64 = (raw_rand > 0.82) ? (20.0 + raw_rand * 110.0) : (2.0 + raw_rand * 10.0);
+                    ph :: Float64 = (raw_rand > 0.82) ? (2.0 + raw_rand * 3.0)    : (2.0 + raw_rand * 14.0);
+
+                    # Glitch colors: Blood red, corrupted cyan offset, white hot static
+                    g_col :: Int64 = (raw_rand > 0.85) ? vglib.rgba(255, 255, 255, 230) :
+                                     ((raw_rand > 0.50) ? vglib.rgba(220, 20, 40, 190) : vglib.rgba(0, 220, 240, 150));
+
+                    vglib.rect(px, py, pw, ph, g_col);
+                }
+            };
+
+            box_x :: Float64 = 200.0;
             box_y :: Float64 = 150.0;
             vglib.rect(box_x, box_y, 880, 500, vglib.rgba(6, 4, 8, 245));
             vglib.line(box_x, box_y, box_x + 880.0, box_y, COLOR_BLOOD);
@@ -5191,15 +5236,17 @@ while (vglib.running()) {
         # MAIN RENDER LOOP STRUCTURE (Ensure CLI renders AFTER Raid Screen)
         # ====================================================================
 
+        # ================================================================
+        # FEDERAL E-RAID SCREEN
+        # ================================================================
         if (raid_active == 1) {
-            flash_alpha :: Float64 = vmath.abs(vmath.sin(run_time * 8.0));
-            bg_overlay_col = vglib.rgba(220, 10, 30, int64(flash_alpha * 120.0 + 40.0));
+            flash_alpha :: Float64 = vmath.abs(vmath.sin(run_time * 2.0));
+            bg_overlay_col = vglib.rgba(220, 10, 30, int64(flash_alpha * 60.0 + 20.0));
             
             vglib.rect(0, 0, 1280, 800, bg_overlay_col);
 
-            # Center Chassis Box
-            r_box_x :: Float64 = 240.0 + (vmath.sin(run_time * 40.0) * 4.0);
-            r_box_y :: Float64 = 150.0 + (vmath.cos(run_time * 35.0) * 3.0);
+            r_box_x :: Float64 = 240.0;
+            r_box_y :: Float64 = 150.0;
             r_box_w :: Float64 = 800.0;
             r_box_h :: Float64 = 480.0;
 
