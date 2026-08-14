@@ -356,7 +356,7 @@ vnet_feed_logs   :: Array   = [
 feed_scroll_y    :: Float64 = 0.0;
 
 # ECONOMY, TRACE & DEFENSE STATE
-btc_balance      :: Float64 = 25.0;
+btc_balance      :: Float64 = 1.50;
 trace_level      :: Int64   = 14;
 ice_charges      :: Int64   = 1;
 dos_timer        :: Float64 = 0.0;
@@ -368,7 +368,6 @@ is_braindead     :: Int64   = 0;
 braindead_timer  :: Float64 = 0.0;
 
 # OVERLOAD STATE
-cd_overload        :: Float64 = 0.0;
 active_down_url    :: String  = "";
 active_down_timer  :: Float64 = 0.0;
 
@@ -407,6 +406,8 @@ cd_decoy         :: Float64 = 0.0;
 cd_scan          :: Float64 = 0.0;
 cd_proxy         :: Float64 = 0.0;
 cd_satscan       :: Float64 = 0.0;
+cd_overload      :: Float64 = 0.0;
+cd_ion           :: Float64 = 0.0;
 
 # CHATROOM & INTERACTIVE HANDLE STATE
 player_handle     :: String = "sh4d0w" + string(vmath.random(100, 999));
@@ -475,11 +476,11 @@ fn purchase_ice_firewall() -> Int64 {
         cli_logs.push("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (3/3)");
         return 0;
     }
-    if (btc_balance < 0.30) {
-        cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ICE SHIELD (REQUIRES 0.30 VCOIN)");
+    if (btc_balance < 0.15) {
+        cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ICE SHIELD (REQUIRES 0.15 VCOIN)");
         return 0;
     }
-    btc_balance = btc_balance - 0.30;
+    btc_balance = btc_balance - 0.15;
     ice_charges = ice_charges + 1;
     glitch_trigger = 0.2;
     cli_logs.push("[STORE]: ICE FIREWALL LAYER INSTALLED! ACTIVE ICE: " + string(ice_charges) + "/3");
@@ -490,11 +491,28 @@ fn purchase_ice_firewall() -> Int64 {
 
 fn decode_sector(scrambled_val :: Int64, offset :: Int64) -> Int64 {
     multiplier :: Int64 = 37;
-    unmasked   :: Int64 = scrambled_val - offset;
-    if (unmasked < 0) {
-        unmasked = unmasked + 100000;
+    base_unmasked :: Int64 = scrambled_val - offset;
+
+    through mult :: 0..3 -> loop {
+        cand :: Int64 = base_unmasked + (mult * 100000);
+        if (cand > 0 && cand % multiplier == 0) {
+            k_candidate :: Int64 = cand / multiplier;
+            if (k_candidate >= 1000 && k_candidate <= 9999) {
+                return k_candidate;
+            }
+        }
+    };
+
+    return 0;
+}
+
+fn check_bit_alignment(payload :: Int64, shift :: Int64) -> Int64 {
+    if (payload <= 0) { return 0; }
+    dec :: Int64 = decode_sector(payload, shift);
+    if (dec >= 1000 && dec <= 9999) {
+        return 1;
     }
-    return unmasked / multiplier;
+    return 0;
 }
 
 fn extract_canonical_name(raw_url :: String) -> String {
@@ -544,6 +562,8 @@ fn trigger_route_navigation(target_dest :: String) {
     connection_timer       = 0.0;
     target_connection_time = vmath.random(1.0, 1.0);
     glitch_trigger         = 0.3;
+    lock_progress    = 0.0;
+    bit_shift_offset = 0;
     
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
@@ -1714,16 +1734,62 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "leaks.vnet") {
         res :: Array = [
-            "[TITLE] GLOBAL INTELLIGENCE LEAKS",
+            "[TITLE] LIVELEAK_VNET // RAW UNCENSORED INTELLIGENCE DUMP & WAR LEAKS",
             "[HR]",
-            "[TEXT] Unredacted government cables and corporate whistleblower dumps.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | CLASSIFICATION: TOP SECRET / EYES ONLY                  |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] DUMP_REF: PROJECT_BLUE_BOOK_RECOVERED"
+            "[BADGE:LIVELEAK WATERMARK:BLOOD] [BADGE:RAW FOOTAGE:AMBER] [BADGE:UNCENSORED 18+:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | HOST: DEADLEAK_SERVER_0x88 | MIRROR: PROMISCUOUS UDP MULTICAST  |",
+            "[BOX] | CATEGORY: EXECUTION / WAR CRIMES / BLACK SITE WHISTLEBLOWER     |",
+            "[BOX] | UPLOADER: Whistleblower_409-B (VERIFIED DEAD / MORGUE MATCH)   |",
+            "[BOX] | VIEWS: 666,412 | RATING: 99.8% RAW | LOCATION: ANKARA SECTOR 09   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:98:RAW_VIDEO_BUFFER_INTEGRITY]",
+            "[TEXT] ",
+            "[SUBTITLE] VIDEO FEED #091: 'DIRECTORATE_7_PMC_SITE_9B_BREACH_BODYCAM_RAW.MP4'",
+            "[VIDEO:redroom:SITE_9B_BREACH_BODYCAM_RAW.MP4]",
+            "[TEXT] ",
+            "[SUBTITLE] DECLASSIFIED VIDEO CAPTION & FORENSIC METADATA:",
+            "[TEXT] TIMESTAMP: 2014-11-03 02:41:09 UTC (Operation Cold Signal Catalyst)",
+            "[TEXT] LOCATION: Norilsk Substation 04 / Sub-level 4 Testing Complex (Site 9-B)",
+            "[TEXT] SUMMARY: Recovered helmet camera footage from Directorate 7 PMC lead.",
+            "[TEXT] Operatives breach subterranean server vault at vault.vnet, severing Subject 409-B's",
+            "[TEXT] carotid arteries and temporal lobes with industrial bone saws while he recites",
+            "[TEXT] global flight logs and executive passenger manifests exfiltrated from leaks.vnet.",
+            "[TEXT] Execution slurry was flushed directly into project9.vnet sumps.",
+            "[CODE] LEAK_HASH_ID: 0xLIVELEAK_2014_COLD_SIGNAL_EXECUTION_RAW",
+            "[CODE] FLIGHT_LOG_REF: 0xEPSTEIN_BOHEMIAN_PASSENGER_MANIFEST_UNREDACTED",
+            "[TEXT] ",
+            "[SUBTITLE] LEAK DATABASE SEARCH & ANONYMOUS DUMP UPLOAD:",
+            "[TEXT] Query unredacted military cables, Epstein flight logs, or PMC bodycam files:",
+            "[INPUT:leak_search_query:ENTER DOSSIER / CABLE REF (e.g. BLUE_BOOK)]",
+            "[TEXT] ",
+            "[BTN:search_leak_btn:>>> QUERY UNREDACTED INTELLIGENCE VAULT <<<]",
+            "[TEXT] ",
+            "[HR]",
+            "[SUBTITLE] UNCENSORED USER COMMENTS SECTION (1,402 COMMENTS):",
+            "[CODE] Anon_Rotting_CRT (2m ago): 'Is that Subject 409 getting his jaw cut off at 02:14?? Holy shit classic LiveLeak.'",
+            "[TEXT] PMC_Watcher_99 (5m ago): 'Fake. That thermal signature matches the morphogenic static from asylum.vnet.'",
+            "[CODE] Necro_Boid (12m ago): 'You can literally hear the 18.0 Hz infrasound hum from silence.vnet in the audio track!'",
+            "[TEXT] Cult_Acolyte_666 (18m ago): 'PRAISE NETMAN! His face is visible in the pixel static at timestamp 03:12!'",
+            "[CODE] Ex_Operator_TRACER (22m ago): 'D7 team used thermite on the racks right after this frame. Substation 04 blew up 3 mins later.'",
+            "[TEXT] ",
+            "[BLOOD] [WARNING]: WATCHING UNFILTERED WAR LEAKS INCREASES NEURAL TRACE (+1.5%/3s).",
+            "[PULSE] 'THE CAMERA DOES NOT LIE. BUT THE DEAD DO NOT STAY IN THE VIDEO BUFFER.'",
+            "[GLITCH] 'DO NOT PAUSE THE FRAME AT 03:14. HE LOOKS DIRECTLY AT THE LENS.'",
+            "[HR]"
         ];
+
         if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        res.push("[SUBTITLE] CROSS-LINKED LEAKED INFRASTRUCTURE:");
+        res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED MILITARY VFS DUMPS");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK SUBJECT #409 AUTOPSY REPORT");
+        res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
+        res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE DISPOSAL SUMPS");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
         return res;
     }
     if (clean_u == "shadowpay.vnet") {
@@ -2662,7 +2728,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] | 0x88F9E  |   4.20 VCOIN| CLEARED| Redroom Sub-Basement Stream Bid |",
             "[BOX] | 0x1102D  |  85.00 VCOIN| HOLDING| Project Horus Orbital Lock Bribe|",
             "[BOX] | 0x666F0  |  45.00 VCOIN| CLEARED| Morgue Bio-Harvest Corneal Pay  |",
-            "[BOX] | 0x7710A  | 210.00 VCOIN| CLEARED| Ankara Sector 09 Blackout Cover |",
+            "[BOX] | 0x7710A  | 210.00 VCOIN| CLEARED| Norilsk Sector 09 Blackout Cover |",
             "[BOX] +----------+------------+--------+---------------------------------+",
             "[TEXT] ",
             "[SUBTITLE] EXFILTRATED INTELLIGENCE MEMO (DIRECTORATE 7 DEEP LOG):",
@@ -2737,13 +2803,6 @@ fn extract_link_info(line :: String) -> Array {
     if (line.length() <= 6) { return ["", ""]; }
     body = line.substr(6, line.length() - 6);
     return vnet.parse_package(body, "]");
-}
-
-fn check_bit_alignment(payload :: Int64, shift :: Int64) -> Int64 {
-    unmasked :: Int64 = payload - shift;
-    if (unmasked < 0) { unmasked = unmasked + 100000; }
-    dec :: Int64 = decode_sector(payload, shift);
-    return ((unmasked % 37 == 0) && dec >= 1000 && dec <= 9999) ? 1 : 0;
 }
 
 # ====================================================================
@@ -2827,14 +2886,14 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "shift") {
-        clean_arg :: String = args.trim();
+        clean_arg :: String = clean_str(args);
 
         if (clean_arg == "") {
             cli_logs.push("[ERROR]: Usage: shift <0-15>");
         } else {
             raw_val :: Int64 = int64(clean_arg);
             
-            bit_shift_offset = int64(vmath.clamp(raw_val, 0, 15));
+            bit_shift_offset = int64(vmath.clamp(float64(raw_val), 0.0, 15.0));
             
             cli_logs.push("[SYSTEM]: Bit-shift offset set to " + string(bit_shift_offset));
         }
@@ -2894,10 +2953,12 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[ERROR]: Usage: ion <target_port_or_url> (e.g. ion market.vnet or ion 8012)");
         } else if (extract_canonical_name(current_url) != "orbital.vnet") {
             cli_logs.push("[ERROR]: ORBITAL ION CANNON ONLY ACCESSIBLE FROM 'orbital_XXXXXXX.vnet'");
-        } else if (btc_balance < 2.00) {
+        } else if (btc_balance < 4.50) {
             cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ION CANNON STRIKE (REQUIRES 2.00 VCOIN)");
+        } else if (cd_ion > 0.0) {
+            cli_logs.push("[ERROR]: ORBITAL CANNON RECHARGING (" + string(int64(cd_ion) + 1) + "s REMAINING)");
         } else {
-            btc_balance = btc_balance - 2.00;
+            btc_balance = btc_balance - 4.50;
             glitch_trigger = 1.0;
             vnet.send_to(client_sock, server_ip, server_port, "ION_STRIKE:" + args);
             cli_logs.push("[SAT-99 ION CANNON]: AUTHORIZING & FIRING SAT-99 KINETIC ION BEAM AT " + args + "...");
@@ -3059,7 +3120,7 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "takeover") {
-        if (btc_balance < 25.0) {
+        if (btc_balance < 30.0) {
             cli_logs.push("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "TAKEOVER:" + player_handle);
@@ -3074,7 +3135,7 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 1.50 VCOIN)");
         } else {
             btc_balance = btc_balance - 1.50;
-            cd_overload = 240.0;
+            cd_overload = 25.0;
             vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args + ":" + player_handle);
             cli_logs.push("[OVERLOAD]: TRANSMITTING SUB-ROUTINE CASCADE TO " + args + " (COST: 1.50 VCOIN)...");
         }
@@ -3443,6 +3504,8 @@ while (vglib.running()) {
         if (cd_proxy > 0.0)    { cd_proxy = cd_proxy - 0.016; }
         if (cd_overload > 0.0) { cd_overload = cd_overload - 0.016; }
         if (cd_satscan > 0.0)  { cd_satscan = cd_satscan - 0.016; }
+        if (cd_ion > 0.0)      { cd_ion = cd_ion - 0.016; }
+        if (cd_probe > 0.0)    { cd_probe = cd_probe - 0.016; }
         if (active_down_timer > 0.0) {
             active_down_timer = active_down_timer - 0.016;
             if (active_down_timer <= 0.0) {
@@ -3697,7 +3760,7 @@ while (vglib.running()) {
             
             if (active_down_url != parsed_down_url || active_down_timer <= 0.0) {
                 active_down_url = parsed_down_url;
-                active_down_timer = 30.0;
+                active_down_timer = 45.0;
                 cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
             }
             glitch_trigger = 0.8;
@@ -4024,9 +4087,9 @@ while (vglib.running()) {
                 vglib.text_ex(vcr_font, ">>> KEY DETECTED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 263, 10, COLOR_TOXIC);
             } else if (is_aligned == 1 && is_resonant == 1) {
                 pct_str :: String = string(int64(lock_progress * 100.0)) + "%";
-                vglib.text_ex(vcr_font, "TUNING SIGNAL... " + pct_str + " [HOLD RESONANCE]", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                vglib.text_ex(vcr_font, "TUNING SIGNAL... " + pct_str + " [HOLD]", 955 + jitter_x, 263, 10, COLOR_AMBER);
             } else if (is_aligned == 1) {
-                vglib.text_ex(vcr_font, "BIT ALIGNED // TUNE RF FREQ (18.0Hz)", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                vglib.text_ex(vcr_font, "BIT ALIGNED // TUNE RF FREQ", 955 + jitter_x, 263, 10, COLOR_AMBER);
             } else {
                 vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [ALIGN OFF]", 955 + jitter_x, 263, 10, COLOR_BLOOD);
             }
@@ -4621,6 +4684,90 @@ while (vglib.running()) {
                         }
 
                         line_idx = line_idx + 7;
+                    }
+                    # ================================================
+                    # ANIMATED CRT VIDEO PLAYER TAG -> [VIDEO:key:title]
+                    # ================================================
+                    else if (line_str.length() > 7 && line_str.substr(0, 7) == "[VIDEO:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 7..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 7) {
+                            raw_vid_param :: String = line_str.substr(7, close_b - 7);
+                            v_parts = vnet.parse_package(raw_vid_param, ":");
+                            vid_key   :: String = string(v_parts[0]);
+                            vid_title :: String = (string(v_parts[1]) != "") ? string(v_parts[1]) : "RAW_FEED.MP4";
+
+                            vx :: Float64 = 40.0 + jitter_x;
+                            vy :: Float64 = y_pos;
+                            vw :: Float64 = 440.0;
+                            vh :: Float64 = 250.0;
+
+                            if (vy >= 50.0 && vy <= 720.0) {
+                                vglib.rect(vx, vy, vw, vh, COLOR_BLACK);
+                                vglib.line(vx, vy, vx + vw, vy, COLOR_BLOOD);
+                                vglib.line(vx + vw, vy, vx + vw, vy + vh, COLOR_BLOOD);
+                                vglib.line(vx + vw, vy + vh, vx, vy + vh, COLOR_BLOOD);
+                                vglib.line(vx, vy + vh, vx, vy, COLOR_BLOOD);
+
+                                vglib.rect(vx, vy, vw, 22.0, COLOR_PANEL);
+                                vglib.text_ex(vcr_font, "MEDIA_PLAYER // " + vid_title, vx + 10.0, vy + 5.0, 10, COLOR_AMBER);
+
+                                vp_x :: Float64 = vx + 8.0;
+                                vp_y :: Float64 = vy + 28.0;
+                                vp_w :: Float64 = vw - 16.0;
+                                vp_h :: Float64 = 175.0;
+
+                                if (vid_key == "redroom") {
+                                    vglib.draw_texture(img_redroom, vp_x, vp_y, vp_w, vp_h);
+                                } else if (vid_key == "void") {
+                                    vglib.draw_texture(img_void, vp_x, vp_y, vp_w, vp_h);
+                                } else {
+                                    vglib.rect(vp_x, vp_y, vp_w, vp_h, COLOR_CLI_BG);
+                                }
+
+                                scan_y :: Float64 = vp_y + vmath.fmod(run_time * 90.0, vp_h);
+                                vglib.line(vp_x, scan_y, vp_x + vp_w, scan_y, vglib.rgba(255, 40, 40, 160));
+
+                                rec_blink :: Int64 = (vmath.fmod(run_time * 2.0, 1.0) > 0.5) ? 1 : 0;
+                                if (rec_blink == 1) {
+                                    vglib.rect(vp_x + 10.0, vp_y + 10.0, 8.0, 8.0, COLOR_BLOOD);
+                                }
+                                vglib.text_ex(vcr_font, "REC", vp_x + 22.0, vp_y + 9.0, 9, (rec_blink == 1) ? COLOR_BLOOD : COLOR_GHOST);
+                                vglib.text_ex(vcr_font, "480p IR | 18.0 Hz", vp_x + vp_w - 110.0, vp_y + 9.0, 9, COLOR_TOXIC);
+
+                                play_sec :: Int64 = int64(vmath.fmod(run_time * 2.5, 1120.0)); # Loops at 18:40
+                                m_val    :: Int64 = play_sec / 60;
+                                s_val    :: Int64 = play_sec % 60;
+                                m_str    :: String = (m_val < 10) ? ("0" + string(m_val)) : string(m_val);
+                                s_str    :: String = (s_val < 10) ? ("0" + string(s_val)) : string(s_val);
+                                time_code_str :: String = "00:" + m_str + ":" + s_str;
+
+                                ctrl_y :: Float64 = vy + 212.0;
+                                play_anim_str :: String = (rec_blink == 1) ? "[> PLAY]" : "[>     ]";
+
+                                vglib.text_ex(vcr_font, play_anim_str, vx + 10.0, ctrl_y + 10.0, 9, COLOR_TOXIC);
+                                vglib.text_ex(vcr_font, time_code_str + " / 00:18:40", vx + 75.0, ctrl_y + 10.0, 9, COLOR_CYAN);
+
+                                scrub_x :: Float64 = vx + 215.0;
+                                scrub_y :: Float64 = ctrl_y + 12.0;
+                                scrub_w :: Float64 = 215.0;
+
+                                vglib.rect(scrub_x, scrub_y, scrub_w, 6.0, COLOR_BLACK);
+                                vglib.line(scrub_x, scrub_y, scrub_x + scrub_w, scrub_y, COLOR_BORDER);
+
+                                progress_ratio :: Float64 = float64(play_sec) / 1120.0;
+                                fill_w :: Float64 = vmath.clamp(scrub_w * progress_ratio, 2.0, scrub_w);
+
+                                vglib.rect(scrub_x, scrub_y, fill_w, 6.0, COLOR_BLOOD);
+                                # Playhead indicator dot
+                                vglib.rect(scrub_x + fill_w - 2.0, scrub_y - 3.0, 5.0, 12.0, COLOR_TOXIC);
+                            }
+
+                            line_idx = line_idx + 9;
+                        }
                     }
                     # ================================================
                     # ASCII ART TAG RENDERING -> [ART:key]
