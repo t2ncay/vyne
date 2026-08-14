@@ -440,6 +440,26 @@ scanner_target_var    :: String  = "";
 scanner_req_alias     :: String  = "";
 scanner_status_msg    :: String  = "AWAITING OPTICAL RETINAL LOCK...";
 
+# ====================================================================
+# CRT GLASS HEAT & NEURAL PARANOIA MECHANICS
+# ====================================================================
+crt_heat         :: Float64 = 35.0; # Ambient temperature in °C (35.0°C base -> 100.0°C limit)
+neural_paranoia  :: Float64 = 0.0;  # Paranoia level (0.0% -> 100.0%)
+heat_warning_cd  :: Float64 = 0.0;  # Cooldown timer for thermal warnings
+paranoia_tick_cd :: Float64 = 0.0;  # Cooldown timer for phantom hallucinations
+
+# ====================================================================
+# CRT GLASS HEAT & NEURAL PARANOIA MECHANICS
+# ====================================================================
+crt_heat               :: Float64 = 35.0;  # Ambient temperature in °C (35.0°C base -> 100.0°C limit)
+neural_paranoia        :: Float64 = 0.0;   # Paranoia level (0.0% -> 100.0%)
+heat_warning_cd        :: Float64 = 0.0;   # Cooldown timer for thermal warnings
+paranoia_tick_cd       :: Float64 = 0.0;   # Cooldown timer for phantom hallucinations
+hallucinated_url       :: String  = "";    # Temporary fake URL overlay
+hallucination_timer    :: Float64 = 0.0;   # Glitch URL duration
+phantom_attack_cd      :: Float64 = 0.0;   # Cooldown for fake DOS / Trace alerts
+static_blackout_timer  :: Float64 = 0.0;   # Duration of full-screen static blackout
+
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -566,6 +586,25 @@ fn trigger_route_navigation(target_dest :: String) {
     bit_shift_offset = 0;
     
     cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
+}
+
+fn corrupt_text_paranoia(raw_txt :: String, paranoia :: Float64) -> String {
+    if (paranoia < 45.0) { return raw_txt; }
+    
+    roll :: Float64 = vmath.random(0.0, 100.0);
+    if (roll < (paranoia * 0.25)) {
+        subliminals :: Array = [
+            " [THEY ARE WATCHING] ",
+            " [DON'T LOOK BACK] ",
+            " [BEHIND YOUR DESK] ",
+            " [NOT ALONE] ",
+            " [LOOK AT THE GLASS] "
+        ];
+        idx :: Int64 = int64(vmath.random(0.0, 4.0));
+        return raw_txt + string(subliminals[idx]);
+    }
+    
+    return raw_txt;
 }
 
 fn get_site_target_freq(raw_url :: String) -> Float64 {
@@ -3130,8 +3169,10 @@ fn dispatch_cli_command(raw_input :: String) {
             if (active_raw_payload == 0) {
                 cli_logs.push("[vdec]: ERROR - No corrupted VFS memory payload on this site.");
             } else if (check_bit_alignment(active_raw_payload, bit_shift_offset) == 0) {
+                neural_paranoia = vmath.clamp(neural_paranoia + 12.0, 0.0, 100.0);
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Bit alignment offset mismatch. Use 'shift <bits>'.");
             } else if (hz_delta > 0.8) {
+                neural_paranoia = vmath.clamp(neural_paranoia + 12.0, 0.0, 100.0);
                 cli_logs.push("[vdec]: FREQUENCY MISMATCH - RF signal carrier unaligned. Target: " + string(vmath.round(target_hz * 10.0) / 10.0) + " Hz.");
             } else if (lock_progress < 1.0) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold frequency.");
@@ -3165,6 +3206,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (btc_balance < 0.55) {
             cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR SATSCAN (REQUIRES 0.55 VCOIN)");
         } else {
+            crt_heat = vmath.clamp(crt_heat + 12.0, 35.0, 100.0);
             btc_balance = btc_balance - 0.55;
             cd_satscan = 60.0;
             vnet.send_to(client_sock, server_ip, server_port, "SATSCAN:REQ");
@@ -3182,6 +3224,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_ion > 0.0) {
             cli_logs.push("[ERROR]: ORBITAL CANNON RECHARGING (" + string(int64(cd_ion) + 1) + "s REMAINING)");
         } else {
+            crt_heat = vmath.clamp(crt_heat + 25.0, 35.0, 100.0);
             btc_balance = btc_balance - 4.50;
             glitch_trigger = 1.0;
             vnet.send_to(client_sock, server_ip, server_port, "ION_STRIKE:" + args);
@@ -3358,6 +3401,7 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (btc_balance < 1.50) {
             cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 1.50 VCOIN)");
         } else {
+            crt_heat = vmath.clamp(crt_heat + 15.0, 35.0, 100.0);
             btc_balance = btc_balance - 1.50;
             cd_overload = 25.0;
             vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args + ":" + player_handle);
@@ -3396,10 +3440,21 @@ fn dispatch_cli_command(raw_input :: String) {
         } else if (cd_mine > 0.0) {
             cli_logs.push("[ERROR]: RIG COOLING DOWN (" + string(int64(cd_mine) + 1) + "s REMAINING)");
         } else {
+            crt_heat = vmath.clamp(crt_heat + 3.5, 35.0, 100.0);
             btc_balance = btc_balance + 0.05;
             cd_mine = 5.0;
             vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS");
             cli_logs.push("[MINER]: SUCCESSFUL BLOCK PROOF! +0.05 VCOIN REWARD.");
+        }
+    }
+    else if (cmd == "calm" || cmd == "meds") {
+        if (btc_balance < 0.15) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR SYNAPTIC STABILIZER (REQUIRES 0.15 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 0.15;
+            neural_paranoia = vmath.clamp(neural_paranoia - 40.0, 0.0, 100.0);
+            glitch_trigger = 0.3;
+            cli_logs.push("[NEURAL_CALM]: SYNAPTIC STABILIZER DEPLOYED. PARANOIA PURGED BY -40%.");
         }
     }
     else if (cmd == "flush") {
@@ -3408,7 +3463,8 @@ fn dispatch_cli_command(raw_input :: String) {
         } else {
             btc_balance = btc_balance - 0.10;
             trace_level = int64(vmath.clamp(float64(trace_level - 30), 0.0, 100.0));
-            cli_logs.push("[VPN]: ROUTE PURGED! TRACE REDUCED BY 30%.");
+            neural_paranoia = vmath.clamp(neural_paranoia - 15.0, 0.0, 100.0);
+            cli_logs.push("[VPN]: ROUTE PURGED! TRACE -30% | NEURAL PARANOIA -15%.");
         }
     }
     else if (cmd == "wallet") {
@@ -3793,6 +3849,14 @@ while (vglib.running()) {
                     
                     trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
                 }
+            }
+
+            if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
+                canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
+                canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet" ||
+                canonical_curr == "morgue.vnet" || canonical_curr == "skinwalker.vnet") {
+
+                neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 1.9), 0.0, 100.0);
             }
         }
 
@@ -4219,6 +4283,160 @@ while (vglib.running()) {
     }
 
     # ================================================================
+    # CRT GLASS HEAT & NEURAL PARANOIA TICK ENGINE
+    # ================================================================
+    # 1. Passive Thermal Dissipation (Cools down toward 35°C ambient)
+    if (crt_heat > 35.0) {
+        crt_heat = vmath.clamp(crt_heat - (0.016 * 1.2), 35.0, 100.0);
+    }
+
+    # 2. Node-Specific Environmental Heat & Paranoia Accumulation
+    if (canonical_curr == "crypto.vnet" || canonical_curr == "substation04.vnet" || canonical_curr == "blackout.vnet") {
+        crt_heat = vmath.clamp(crt_heat + (0.016 * 2.0), 35.0, 100.0);
+    }
+
+    if (canonical_curr == "vnet.dir" || canonical_curr == "market.vnet") {
+        # Safe nodes passively calm neural paranoia
+        neural_paranoia = vmath.clamp(neural_paranoia - (0.016 * 1.8), 0.0, 100.0);
+    } else if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
+               canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
+               canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet") {
+        # Horror nodes increase paranoia index
+        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 2.8), 0.0, 100.0);
+    }
+
+    # 3. High Heat Side-Effects (Thermal Screen Distortion & Log Spikes)
+    if (crt_heat > 75.0) {
+        glitch_trigger = vmath.clamp(glitch_trigger + (0.016 * 0.4), 0.0, 1.0);
+        heat_warning_cd = heat_warning_cd + 0.016;
+        if (heat_warning_cd >= 6.0) {
+            heat_warning_cd = 0.0;
+            cli_logs.push("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
+        }
+    }
+
+    if (neural_paranoia > 40.0) {
+        paranoia_tick_cd = paranoia_tick_cd + 0.016;
+        if (paranoia_tick_cd >= (12.0 - (neural_paranoia * 0.08))) {
+            paranoia_tick_cd = 0.0;
+            glitch_trigger = 0.5;
+            
+            p_roll :: Float64 = vmath.random(0.0, 1.0);
+            if (p_roll > 0.6) {
+                cli_logs.push("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
+            } else if (p_roll > 0.3) {
+                cli_logs.push("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
+            } else {
+                cli_logs.push("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
+            }
+        }
+    }
+
+    # ================================================================
+    # CRT GLASS HEAT & NEURAL PARANOIA TICK ENGINE
+    # ================================================================
+    if (crt_heat > 35.0) {
+        crt_heat = vmath.clamp(crt_heat - (0.016 * 1.2), 35.0, 100.0);
+    }
+
+    if (canonical_curr == "crypto.vnet" || canonical_curr == "substation04.vnet" || canonical_curr == "blackout.vnet") {
+        crt_heat = vmath.clamp(crt_heat + (0.016 * 2.0), 35.0, 100.0);
+    }
+
+    # Safe vs Horror Node Paranoia Scaling
+    if (canonical_curr == "vnet.dir" || canonical_curr == "market.vnet") {
+        neural_paranoia = vmath.clamp(neural_paranoia - (0.016 * 1.8), 0.0, 100.0);
+    } else if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
+               canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
+               canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet" ||
+               canonical_curr == "morgue.vnet" || canonical_curr == "skinwalker.vnet") {
+        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 3.5), 0.0, 100.0);
+    }
+
+    if (crt_heat > 75.0) {
+        glitch_trigger = vmath.clamp(glitch_trigger + (0.016 * 0.4), 0.0, 1.0);
+        heat_warning_cd = heat_warning_cd + 0.016;
+        if (heat_warning_cd >= 6.0) {
+            heat_warning_cd = 0.0;
+            cli_logs.push("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
+        }
+    }
+
+    # High Paranoia Hallucinations & Phantom Attacks
+    if (neural_paranoia > 30.0) {
+        paranoia_tick_cd = paranoia_tick_cd + 0.016;
+        
+        # Frequency of hallucinations increases with paranoia level
+        threshold :: Float64 = vmath.clamp(10.0 - (neural_paranoia * 0.08), 2.0, 10.0);
+        if (paranoia_tick_cd >= threshold) {
+            paranoia_tick_cd = 0.0;
+            glitch_trigger = 0.4;
+
+            p_roll :: Float64 = vmath.random(0.0, 1.0);
+            if (p_roll > 0.75) {
+                cli_logs.push("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
+            } else if (p_roll > 0.50) {
+                cli_logs.push("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
+            } else if (p_roll > 0.25) {
+                cli_logs.push("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
+            } else {
+                cli_logs.push("[PARANOIA_ECHO]: OPTICAL COAXIAL REFLECTION MATCHED TO ROOM 402.");
+            }
+        }
+
+        # Phantom Attack Alerts (Fake DOS / Trace Spikes to induce panic)
+        phantom_attack_cd = phantom_attack_cd + 0.016;
+        if (phantom_attack_cd >= 14.0 && neural_paranoia > 50.0) {
+            phantom_attack_cd = 0.0;
+            f_roll :: Float64 = vmath.random(0.0, 1.0);
+            if (f_roll > 0.5) {
+                vnet_feed_logs.push("[DOS ATTACK]: HOSTILE BOT PORT_" + string(vmath.random(8000, 8999)) + " -> TARGETING YOUR SOCKET!");
+            } else {
+                vnet_feed_logs.push("[TRACE SPIKE]: REVERSE WIRE TAP DETECTED (+35% THREAT)");
+            }
+            glitch_trigger = 0.6;
+        }
+
+        # URL Hallucination Trigger
+        if (hallucination_timer > 0.0) {
+            hallucination_timer = hallucination_timer - 0.016;
+            if (hallucination_timer <= 0.0) { hallucinated_url = ""; }
+        } else if (neural_paranoia > 55.0 && vmath.random(0.0, 100.0) < 0.3) {
+            hallucination_timer = 1.8;
+            fake_urls :: Array = [
+                "they.see.you.vnet",
+                "behind_your_desk.vnet",
+                "room402.eye.vnet",
+                "netman.cortex.vnet",
+                "void.nobody.vnet"
+            ];
+            u_idx :: Int64 = int64(vmath.random(0.0, 4.0));
+            hallucinated_url = string(fake_urls[u_idx]);
+        }
+
+        if (neural_paranoia > 75.0 && static_blackout_timer <= 0.0 && vmath.random(0.0, 100.0) < 0.03) {
+            static_blackout_timer = 1.2; # Holds the black screen for 1.5 seconds
+            glitch_trigger = 1.0;
+        }
+    }
+
+    if (static_blackout_timer > 0.0) {
+        static_blackout_timer = static_blackout_timer - 0.016;
+    }
+
+    # High Paranoia Phantom CLI Injections
+    if (neural_paranoia > 65.0 && vmath.random(0.0, 100.0) < 0.2) {
+        phantom_logs :: Array = [
+            "[SYS_WARN]: UNKNOWN PROCESS 'NETMAN.EXE' READING RAM AT 0x00000000",
+            "[NET_IN]: PEER_0x0000 -> 'I CAN SEE YOU THROUGH THE GLASS'",
+            "[ALERT]: OPTICAL SENSOR OVERRIDE INITIATED BY SAT-99",
+            "[KERNEL]: CORTEX SYNC AT 99% -- DO NOT PURGE SOCKET"
+        ];
+        rnd_p_idx :: Int64 = int64(vmath.random(0.0, 3.0));
+        cli_logs.push(string(phantom_logs[rnd_p_idx]));
+    }
+
+    # ================================================================
     # RENDER ENGINE
     # ================================================================
     vglib.begin();
@@ -4242,8 +4460,15 @@ while (vglib.running()) {
         # ================================================================
         vglib.rect(120 + jitter_x, 12 + jitter_y, 745, 36, COLOR_URLBAR);
         vglib.line(120 + jitter_x, 12 + jitter_y, 865 + jitter_x, 12 + jitter_y, url_focused == 1 ? COLOR_BLOOD : COLOR_BORDER);
-        display_url_str :: String = "vnet://" + (is_connecting == 1 ? pending_url : (url_focused == 1 ? input_url : current_url));
-        vglib.text_ex(vcr_font, display_url_str, 135 + jitter_x, 23, 12, url_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
+        
+        display_url_raw :: String = is_connecting == 1 ? pending_url : (url_focused == 1 ? input_url : current_url);
+        if (hallucinated_url != "") {
+            display_url_raw = hallucinated_url;
+        }
+        
+        display_url_str :: String = "vnet://" + display_url_raw;
+        url_col = (hallucinated_url != "") ? COLOR_BLOOD : (url_focused == 1 ? COLOR_TOXIC : COLOR_CYAN);
+        vglib.text_ex(vcr_font, display_url_str, 135 + jitter_x, 23, 12, url_col);
 
         home_btn_x :: Float64 = 870.0 + jitter_x;
         home_btn_y :: Float64 = 12.0 + jitter_y;
@@ -4275,71 +4500,91 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 945 + jitter_x, 95, 11, COLOR_AMBER);
         vglib.line(945, 110, 1245, 110, COLOR_BORDER);
 
-        # Trace Level Gauge
-        vglib.text_ex(vcr_font, "TRACE LEVEL GAUGE:", 945 + jitter_x, 120, 10, COLOR_CYAN);
-        vglib.rect(945 + jitter_x, 136, 300, 14, COLOR_BLACK);
+        # --- 1. TRACE LEVEL GAUGE ---
+        vglib.text_ex(vcr_font, "TRACE LEVEL GAUGE:", 945 + jitter_x, 118, 10, COLOR_CYAN);
+        vglib.rect(945 + jitter_x, 132, 300, 12, COLOR_BLACK);
         bar_w :: Float64 = vmath.clamp((float64(trace_level) / 100.0) * 300.0, 4.0, 300.0);
-        vglib.rect(945 + jitter_x, 136, bar_w, 14, (trace_level > 70) ? COLOR_BLOOD : COLOR_AMBER);
+        vglib.rect(945 + jitter_x, 132, bar_w, 12, (trace_level > 70) ? COLOR_BLOOD : COLOR_AMBER);
 
         # Pulsing Border for High Trace
         trace_border_col = (trace_level > 70 && pulse_val > 0.5) ? COLOR_BLOOD : COLOR_BORDER;
-        vglib.line(945 + jitter_x, 136, 1245 + jitter_x, 136, trace_border_col);
-        vglib.line(1245 + jitter_x, 136, 1245 + jitter_x, 150, trace_border_col);
-        vglib.line(1245 + jitter_x, 150, 945 + jitter_x, 150, trace_border_col);
-        vglib.line(945 + jitter_x, 150, 945 + jitter_x, 136, trace_border_col);
+        vglib.line(945 + jitter_x, 132, 1245 + jitter_x, 132, trace_border_col);
+        vglib.line(1245 + jitter_x, 132, 1245 + jitter_x, 144, trace_border_col);
+        vglib.line(1245 + jitter_x, 144, 945 + jitter_x, 144, trace_border_col);
+        vglib.line(945 + jitter_x, 144, 945 + jitter_x, 132, trace_border_col);
 
-        vglib.text_ex(vcr_font, string(trace_level) + "% TRACED BY PEERS", 945 + jitter_x, 155, 10, COLOR_AMBER);
+        vglib.text_ex(vcr_font, string(trace_level) + "% TRACED BY PEERS", 945 + jitter_x, 148, 10, COLOR_AMBER);
 
-        vglib.line(945, 172, 1245, 172, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 182, 10, COLOR_CYAN);
+        vglib.line(945, 162, 1245, 162, COLOR_BORDER);
 
-        # RF Tuner Grid Background
+        # --- 2. CRT HEAT & PARANOIA TELEMETRY ---
+        heat_col = (crt_heat > 75.0) ? COLOR_BLOOD : ((crt_heat > 55.0) ? COLOR_AMBER : COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "CRT GLASS TEMP: " + string(int64(crt_heat)) + "°C", 945 + jitter_x, 170, 9, heat_col);
+        vglib.rect(945 + jitter_x, 182, 300, 8, COLOR_BLACK);
+        heat_w :: Float64 = vmath.clamp(((crt_heat - 35.0) / 65.0) * 300.0, 2.0, 300.0);
+        vglib.rect(945 + jitter_x, 182, heat_w, 8, heat_col);
+
+        para_col = (neural_paranoia > 60.0) ? COLOR_BLOOD : COLOR_AMBER;
+        vglib.text_ex(vcr_font, "NEURAL PARANOIA: " + string(int64(neural_paranoia)) + "%", 945 + jitter_x, 194, 9, para_col);
+        vglib.rect(945 + jitter_x, 206, 300, 8, COLOR_BLACK);
+        para_w :: Float64 = vmath.clamp((neural_paranoia / 100.0) * 300.0, 2.0, 300.0);
+        vglib.rect(945 + jitter_x, 206, para_w, 8, para_col);
+
+        vglib.line(945, 220, 1245, 220, COLOR_BORDER);
+
+        # --- 3. RF TUNER SIGNAL WAVE ---
+        vglib.text_ex(vcr_font, "RF TUNER (" + string(int64(freq_tuner)) + "Hz) SIGNAL WAVE:", 945 + jitter_x, 228, 9, COLOR_CYAN);
+
         through grid_line :: 0..2 -> loop {
-            g_y :: Float64 = 198.0 + float64(grid_line * 12);
+            g_y :: Float64 = 242.0 + float64(grid_line * 10);
             vglib.line(945 + jitter_x, g_y, 1245 + jitter_x, g_y, vglib.rgba(20, 30, 40, 255));
         };
 
-        wave_amp :: Float64 = vmath.clamp(6.0 + float64(recent_packets * 2), 8.0, 20.0);
+        wave_amp :: Float64 = vmath.clamp(5.0 + float64(recent_packets * 2), 6.0, 14.0);
         through rx :: 0..28 -> loop {
-            wave_y :: Float64 = 209.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
-            vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 6, 6, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
+            wave_y :: Float64 = 252.0 + vmath.sin(run_time * (freq_tuner * 0.5) + float64(rx) * 0.4) * wave_amp;
+            vglib.rect(945.0 + float64(rx * 10) + jitter_x, wave_y, 5, 5, (recent_packets > 3) ? COLOR_BLOOD : COLOR_TOXIC);
         };
 
-        vglib.line(945, 235, 1245, 235, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "VFS MEMORY ALIGNMENT SCOPE", 945 + jitter_x, 245, 10, COLOR_CYAN);
+        vglib.line(945, 272, 1245, 272, COLOR_BORDER);
+
+        # --- 4. VFS MEMORY ALIGNMENT SCOPE ---
+        vglib.text_ex(vcr_font, "VFS MEMORY ALIGNMENT SCOPE", 945 + jitter_x, 280, 9, COLOR_CYAN);
 
         if (active_raw_payload > 0) {
-            vglib.rect(945 + jitter_x, 258, 300, 20, COLOR_BLACK);
+            vglib.rect(945 + jitter_x, 294, 300, 18, COLOR_BLACK);
             
             if (lock_progress >= 1.0) {
-                vglib.text_ex(vcr_font, ">>> CARRIER LOCKED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 263, 10, COLOR_TOXIC);
+                vglib.text_ex(vcr_font, ">>> CARRIER LOCKED <<< [OFFSET: " + string(bit_shift_offset) + "]", 955 + jitter_x, 298, 9, COLOR_TOXIC);
             } else if (is_aligned == 1 && is_resonant == 1) {
                 pct_str :: String = string(int64(lock_progress * 100.0)) + "%";
-                vglib.text_ex(vcr_font, "LOCKING... " + pct_str + " [" + string(freq_tuner) + "Hz]", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                vglib.text_ex(vcr_font, "LOCKING... " + pct_str + " [" + string(freq_tuner) + "Hz]", 955 + jitter_x, 298, 9, COLOR_AMBER);
             } else if (is_aligned == 1) {
                 target_hz_str :: String = string(vmath.round(target_hz * 10.0) / 10.0);
-                vglib.text_ex(vcr_font, "BIT ALIGNED // NEED " + target_hz_str + "Hz", 955 + jitter_x, 263, 10, COLOR_AMBER);
+                vglib.text_ex(vcr_font, "BIT ALIGNED // NEED " + target_hz_str + "Hz", 955 + jitter_x, 298, 9, COLOR_AMBER);
             } else {
-                vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [SHIFT BIT]", 955 + jitter_x, 263, 10, COLOR_BLOOD);
+                vglib.text_ex(vcr_font, "CORRUPTED: " + string(active_raw_payload) + " [SHIFT BIT]", 955 + jitter_x, 298, 9, COLOR_BLOOD);
             }
         } else {
-            vglib.text_ex(vcr_font, "SCOPE IDLE (NO SECTOR DETECTED)", 945 + jitter_x, 263, 10, COLOR_GHOST);
+            vglib.text_ex(vcr_font, "SCOPE IDLE (NO SECTOR DETECTED)", 945 + jitter_x, 298, 9, COLOR_GHOST);
         }
 
-        # Subnet Defense Status Section (Positioned Below VFS Scope)
-        vglib.line(945, 284, 1245, 284, COLOR_BORDER);
-        vglib.text_ex(vcr_font, "ICE SHIELD   : [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 292, 10, COLOR_TOXIC);
-        vglib.text_ex(vcr_font, "PATCH REBIND : " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 308, 10, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
-        vglib.line(945, 324, 1245, 324, COLOR_BORDER);
+        vglib.line(945, 318, 1245, 318, COLOR_BORDER);
 
-        # Feed Box Window (Shifted down to Y = 332)
-        vglib.rect(945 + jitter_x, 332, 300, 400, COLOR_BLACK);
+        # --- 5. SUBNET DEFENSE STATUS ---
+        vglib.text_ex(vcr_font, "ICE SHIELD   : [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 326, 9, COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "PATCH REBIND : " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 340, 9, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
+        
+        vglib.line(945, 356, 1245, 356, COLOR_BORDER);
+
+        # --- 6. VNET FEED BOX WINDOW ---
+        vglib.rect(945 + jitter_x, 364, 300, 370, COLOR_BLACK);
         feed_cnt = vnet_feed_logs.length();
-        feed_start_y :: Float64 = 340.0 - feed_scroll_y;
+        feed_start_y :: Float64 = 372.0 - feed_scroll_y;
 
         through f_idx :: 0..(feed_cnt - 1) -> loop {
-            line_y :: Float64 = feed_start_y + (f_idx * 20.0);
-            if (line_y >= 335.0 && line_y <= 715.0) {
+            line_y :: Float64 = feed_start_y + (f_idx * 18.0);
+            if (line_y >= 368.0 && line_y <= 724.0) {
                 f_txt :: String = string(vnet_feed_logs[f_idx]);
                 f_txt_truncated :: String = truncate_str(f_txt, 35);
 
@@ -4357,6 +4602,8 @@ while (vglib.running()) {
                 vglib.text_ex(vcr_font, f_txt_truncated, 950 + jitter_x, line_y, 9, f_col);
             }
         };
+
+        # -- connection handling ---
         if (is_connecting == 1) {
             # Window Container & Borders
             vglib.rect(40 + jitter_x, 140 + jitter_y, 850, 500, COLOR_BLACK);
@@ -4557,7 +4804,9 @@ while (vglib.running()) {
                         vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_BLOOD);
                     }
                     else if (line_str.length() > 6 && line_str.substr(0, 6) == "[TEXT]") {
-                        vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_GHOST);
+                        clean_payload :: String = line_str.substr(7, line_str.length() - 7);
+                        corrupted_payload :: String = corrupt_text_paranoia(clean_payload, neural_paranoia);
+                        vglib.text_ex(vcr_font, corrupted_payload, 40 + jitter_x, y_pos, 11, COLOR_GHOST);
                     }
                     else if (line_str.length() > 6 && line_str.substr(0, 6) == "[CODE]") {
                         vglib.text_ex(vcr_font, line_str.substr(7, line_str.length() - 7), 40 + jitter_x, y_pos, 11, COLOR_TOXIC);
@@ -5715,6 +5964,101 @@ while (vglib.running()) {
                 cur_x :: Float64 = 35.0 + float64(prompt_size[0]) + 2.0;
                 vglib.rect(cur_x + jitter_x, 572 + jitter_y, 8, 14, COLOR_TOXIC);
             }
+        }
+
+        # ================================================================
+        # NEURAL PARANOIA PSYCHOLOGICAL OVERLAY (PERIPHERAL VISUALS)
+        # ================================================================
+        if (neural_paranoia > 40.0) {
+            # Red Vignette intensity scales with paranoia
+            vignette_alpha :: Int64 = int64(((neural_paranoia - 40.0) / 60.0) * 110.0);
+            vglib.rect(0, 0, 15, 800, vglib.rgba(220, 10, 30, vignette_alpha));
+            vglib.rect(1265, 0, 15, 800, vglib.rgba(220, 10, 30, vignette_alpha));
+            vglib.rect(0, 0, 1280, 10, vglib.rgba(220, 10, 30, vignette_alpha));
+            vglib.rect(0, 790, 1280, 10, vglib.rgba(220, 10, 30, vignette_alpha));
+
+            # Peripheral Eye Hallucinations at screen margins
+            if (neural_paranoia > 60.0) {
+                eye_blink :: Float64 = vmath.sin(run_time * 8.0);
+                if (eye_blink > 0.4) {
+                    # Left Margin Eye
+                    vglib.text_ex(vcr_font, "(o.o)", 3, 380, 10, COLOR_BLOOD);
+                    # Right Margin Eye
+                    vglib.text_ex(vcr_font, "(o.o)", 1242, 420, 10, COLOR_BLOOD);
+                }
+            }
+        }
+
+        # ================================================================
+        # EXPANDED PSYCHOTIC STATIC BLACKOUT & NEURAL PARANOIA ENGINE
+        # ================================================================
+        if (static_blackout_timer > 0.0) {
+            # Pitch black base void
+            vglib.rect(0, 0, 1280, 800, COLOR_BLACK);
+
+            # --- 1. SEVERE MULTI-PHASE ANALOG NOISE & SCREEN TEARING ---
+            through s_i :: 0..45 -> loop {
+                sx :: Float64 = vmath.random(-50.0, 1280.0);
+                sy :: Float64 = vmath.random(0.0, 800.0);
+                sw :: Float64 = vmath.random(20.0, 450.0);
+                sh :: Float64 = vmath.random(1.0, 12.0);
+                
+                # Interleaved white-hot static, blood red noise, and void tears
+                noise_alpha :: Int64 = int64(vmath.random(40.0, 220.0));
+                noise_col = (s_i % 3 == 0) ? vglib.rgba(255, 255, 255, noise_alpha) :
+                           ((s_i % 3 == 1) ? vglib.rgba(220, 20, 40, noise_alpha) : vglib.rgba(10, 12, 16, noise_alpha));
+                
+                vglib.rect(sx, sy, sw, sh, noise_col);
+            };
+
+            # --- 2. CRT GLASS REFLECTION: THE MAN BEHIND THE MONITOR ---
+            # Draws a faint, terrifying outline of a face/figure staring back through the glass
+            figure_alpha :: Int64 = int64(vmath.sin(run_time * 12.0) * 35.0 + 45.0);
+            shadow_col :: Int64 = vglib.rgba(220, 20, 40, figure_alpha);
+            
+            # Head and hollow eye sockets
+            vglib.rect(580, 310, 120, 150, vglib.rgba(12, 2, 6, 220)); # Silhouetted skull shape
+            vglib.text_ex(vcr_font, "(  .  )     (  .  )", 588, 350, 12, shadow_col); # Staring wide eyes
+            vglib.text_ex(vcr_font, "|     |||     |", 602, 400, 10, shadow_col);       # Exposed teeth / jaw
+
+            # --- 3. PSYCHOTIC SUBLIMINAL FLASH-TEXT INJECTIONS ---
+            # Rapid 1-frame text messages that cycle with high paranoia
+            subliminal_msg :: String = "";
+            sub_roll :: Float64 = vmath.fmod(run_time * 85.0, 7.0);
+
+            if (sub_roll < 1.0)      { subliminal_msg = "DON'T LOOK AT THE GLASS"; }
+            else if (sub_roll < 2.0) { subliminal_msg = "HE IS STANDING BEHIND YOUR CHAIR"; }
+            else if (sub_roll < 3.0) { subliminal_msg = "THE MONITOR IS DRINKING YOUR HEAT"; }
+            else if (sub_roll < 4.0) { subliminal_msg = "ROOM 402 IS OPEN"; }
+            else if (sub_roll < 5.0) { subliminal_msg = "YOUR IP HAS BEEN CONSUMED BY NETMAN"; }
+            else if (sub_roll < 6.0) { subliminal_msg = "WIPE YOUR EYES. THEY ARE NOT YOURS."; }
+            else                     { subliminal_msg = "18.0 Hz RESONANCE COMPLETED"; }
+
+            sub_sz :: Array = vglib.measure_text(vcr_font, subliminal_msg, 13.0);
+            sub_x  :: Float64 = 640.0 - (float64(sub_sz[0]) / 2.0) + vmath.random(-8.0, 8.0);
+            sub_y  :: Float64 = 480.0 + vmath.random(-4.0, 4.0);
+
+            flash_alpha :: Int64 = int64(vmath.random(120.0, 255.0));
+            vglib.text_ex(vcr_font, subliminal_msg, sub_x, sub_y, 13, vglib.rgba(255, 30, 50, flash_alpha));
+
+            # --- 4. RETINAL SCANNER CROSSHAIR & PORT CORRUPTOR ---
+            # Dynamic crosshairs locking onto screen corners like a satellite or eye tracking you
+            reticle_x :: Float64 = 640.0 + vmath.sin(run_time * 40.0) * 300.0;
+            reticle_y :: Float64 = 400.0 + vmath.cos(run_time * 30.0) * 200.0;
+            vglib.line(reticle_x - 30.0, reticle_y, reticle_x + 30.0, reticle_y, COLOR_BLOOD);
+            vglib.line(reticle_x, reticle_y - 30.0, reticle_x, reticle_y + 30.0, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "[OCULAR LOCK: ACTIVE]", reticle_x + 35.0, reticle_y - 6.0, 9, COLOR_AMBER);
+
+            # --- 5. PARANOIA HEADER & FREQUENCY DISTORTION ---
+            hdr_str :: String = "[NEURAL SYNAPSE COLLAPSE // PORT 0 INTRUSION]";
+            hdr_sz  :: Array  = vglib.measure_text(vcr_font, hdr_str, 15.0);
+            hdr_x   :: Float64 = 640.0 - (float64(hdr_sz[0]) / 2.0);
+            
+            p_glow :: Int64 = int64(vmath.sin(run_time * 20.0) * 100.0 + 155.0);
+            vglib.text_ex(vcr_font, hdr_str, hdr_x + vmath.random(-3.0, 3.0), 240.0, 15, vglib.rgba(220, 20, 40, p_glow));
+
+            # --- 6. AGGRESSIVE HEAVY SCANLINES & RGB DISPLACEMENT ---
+            vglib.draw_scanlines(4.0, vglib.rgba(0, 0, 0, 180));
         }
 
         # Scanlines main screen
