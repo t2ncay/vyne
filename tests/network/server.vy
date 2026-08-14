@@ -547,6 +547,49 @@ while (true) {
                 }
             }
 
+            if (cmd == "ION_STRIKE") {
+                target_param :: String = clean_str(payload);
+                target_port_num :: Int64 = int64(target_param);
+                
+                struck_count :: Int64 = 0;
+
+                if (target_port_num > 0) {
+                    through p :: 0..(active_ports.length() - 1) -> loop {
+                        if (int64(active_ports[p]) == target_port_num) {
+                            p_ip :: String = string(active_ips[p]);
+                            vnet.send_to(server_sock, p_ip, target_port_num, "EXPLOIT:BRAINDEAD:ION_STRIKE_DIRECT_HIT");
+                            struck_count = struck_count + 1;
+                        }
+                    };
+                } else {
+                    canonical_target :: String = resolve_canonical(target_param);
+
+                    through p :: 0..(active_ports.length() - 1) -> loop {
+                        p_url :: String = resolve_canonical(string(active_urls[p]));
+                        if (p_url == canonical_target) {
+                            p_port :: Int64  = int64(active_ports[p]);
+                            p_ip   :: String = string(active_ips[p]);
+                            vnet.send_to(server_sock, p_ip, p_port, "EXPLOIT:BRAINDEAD:ION_STRIKE_SITE_OBLITERATED:" + canonical_target);
+                            struck_count = struck_count + 1;
+                        }
+                    };
+
+                    through idx :: 0..(all_50_sites.length() - 1) -> loop {
+                        if (string(all_50_sites[idx]) == canonical_target) {
+                            new_salt :: Int64 = int64(vmath.random(100000, 999999));
+                            new_hash :: String = vnet.hash_site(canonical_target, new_salt);
+                            
+                            base_n :: String = canonical_target.substr(0, canonical_target.length() - 5);
+                            hashed_50_sites[idx] = base_n + "_" + new_hash + ".vnet";
+                            break;
+                        }
+                    };
+                }
+
+                out("[ION STRIKE]: SAT-99 ION BEAM FIRED AT " + target_param + "! " + string(struck_count) + " AGENT(S) OBLITERATED.");
+                broadcast_feed_event("[ION STRIKE]: SAT-99 ION CANNON FIRED AT " + target_param + "! " + string(struck_count) + " AGENT(S) FRIED & DESYNCED!");
+            }
+
             if (cmd == "NETSCAN") {
                 peers_found :: String = "";
                 count :: Int64 = 0;
@@ -610,6 +653,40 @@ while (true) {
                 
                 vnet.send_to(server_sock, sender_ip, sender_port, "SCAN_RESULT:" + hashed_site);
             }
+            if (msg == "SATSCAN:REQ") {
+                selected_indices :: Array = [];
+                
+                while (selected_indices.length() < 10) {
+                    rand_i :: Int64 = int64(vmath.random(0, all_50_sites.length() - 1));
+                    already :: Int64 = 0;
+                    through chk :: selected_indices -> loop {
+                        if (int64(chk) == rand_i) { already = 1; break; }
+                    };
+                    if (already == 0) {
+                        selected_indices.push(rand_i);
+                    }
+                }
+
+                res_payload :: String = "SATSCAN_RES:";
+                through s_idx :: 0..9 -> loop {
+                    site_i :: Int64 = int64(selected_indices[s_idx]);
+                    raw_s :: String = string(all_50_sites[site_i]);
+                    hashed_s :: String = resolve_hash(raw_s);
+
+                    traffic_kbps :: Int64 = int64(vmath.random(120, 9800));
+                    node_status  :: String = "NOMINAL";
+                    if (traffic_kbps > 7000) {
+                        node_status = "CRITICAL";
+                    } else if (traffic_kbps > 3000) {
+                        node_status = "ELEVATED";
+                    }
+
+                    res_payload = res_payload + hashed_s + "|" + string(traffic_kbps) + "|" + node_status + ((s_idx < 9) ? ";" : "");
+                };
+
+                vnet.send_to(server_sock, sender_ip, sender_port, res_payload);
+                broadcast_feed_event("[SATSCAN]: PORT_" + string(sender_port) + " EXECUTED SAT-99 SUB-ORBITAL TELEMETRY SWEEP");
+            }
             if (cmd == "CHAT") {
                 sep_c :: Int64 = -1;
                 through i :: 0..(payload.length() - 1) -> loop {
@@ -660,9 +737,9 @@ while (true) {
                         vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT:DOS");
                         vnet.send_to(server_sock, sender_ip, sender_port, "EXPLOIT_REFUND");
                         
-                        decoy_targets.delete(decoy_targets[decoy_idx]);
-                        decoy_owners.delete(decoy_owners[decoy_idx]);
-                        decoy_urls.delete(decoy_urls[decoy_idx]);
+                        decoy_targets.delete_at(h_idx);
+                        decoy_owners.delete_at(h_idx);
+                        decoy_urls.delete_at(h_idx);
                     }
                 } else if (target_idx < 0) {
                     vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:DOS_PAYLOAD_DELIVERED");
@@ -710,12 +787,14 @@ while (true) {
 
                         drop_payload :: String = "";
                         leak_count :: Int64 = 0;
-                        through n_idx :: 0..(non_mutuals.length() - 1) -> loop {
-                            if (leak_count < 5) {
-                                drop_payload = drop_payload + string(non_mutuals[n_idx]) + ":";
-                                leak_count = leak_count + 1;
-                            }
-                        };
+                        if (non_mutuals.length() > 0) {
+                            through n_idx :: 0..(non_mutuals.length() - 1) -> loop {
+                                if (leak_count < 5) {
+                                    drop_payload = drop_payload + string(non_mutuals[n_idx]) + ":";
+                                    leak_count = leak_count + 1;
+                                }
+                            };
+                        }
 
                         broadcast_feed_event("[DATA LEAK]: NODE " + string(target_node) + " DOSED 2x! 5 HIDDEN NODES EXFILTRATED.");
                         vnet.send_to(server_sock, sender_ip, sender_port, "DOS_DROP_DIR:" + drop_payload);

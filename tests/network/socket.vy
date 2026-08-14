@@ -363,6 +363,10 @@ dos_timer        :: Float64 = 0.0;
 passive_trace_cd :: Float64 = 0.0;
 heartbeat_timer  :: Float64 = 0.0;
 
+# BRAINDEAD STATE
+is_braindead     :: Int64   = 0;
+braindead_timer  :: Float64 = 0.0;
+
 # OVERLOAD STATE
 cd_overload        :: Float64 = 0.0;
 active_down_url    :: String  = "";
@@ -2033,7 +2037,7 @@ fn load_page(url :: String) -> Array {
             res.push("[TEXT] 'Cultists in cult.vnet smear black blood over copper CRT coils to'");
             res.push("[TEXT] 'amplify Morphogenic engine frequencies generated at asylum.vnet.'");
             res.push("[TEXT] 'Subject #409-B's cortex stacks were extracted post-mortem to seed'");
-            "[TEXT] 'the proof-of-work algorithm running on crypto.vnet.'";
+            res.push("[TEXT] 'the proof-of-work algorithm running on crypto.vnet.'");
         }
         else {
             res.push("[GAUGE:99:DEEPWIKI_INDEX_ROTATION_PHASE_3]");
@@ -2046,7 +2050,7 @@ fn load_page(url :: String) -> Array {
             res.push("[CODE] ARTICLE_REF: 0xWIKI_6969_KAGUYA_VOID_PROTOCOL");
             res.push("[TEXT] 'Candidates who fail the Kaguya Trials at bounty.vnet aren't released.'");
             res.push("[TEXT] 'Their physical remains are processed into organ lots on market.vnet,'");
-            "[TEXT] 'while their network sockets are permanently trapped in void.vnet.'";
+            res.push("[TEXT] 'while their network sockets are permanently trapped in void.vnet.'");
         }
 
         res.push("[TEXT] ");
@@ -2735,6 +2739,13 @@ fn extract_link_info(line :: String) -> Array {
     return vnet.parse_package(body, "]");
 }
 
+fn check_bit_alignment(payload :: Int64, shift :: Int64) -> Int64 {
+    unmasked :: Int64 = payload - shift;
+    if (unmasked < 0) { unmasked = unmasked + 100000; }
+    dec :: Int64 = decode_sector(payload, shift);
+    return ((unmasked % 37 == 0) && dec >= 1000 && dec <= 9999) ? 1 : 0;
+}
+
 # ====================================================================
 # CLI OVERLAY COMMAND ROUTER
 # ====================================================================
@@ -2829,6 +2840,8 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "vdec" || cmd == "decode") {
+        is_aligned :: Int64 = check_bit_alignment(active_raw_payload, bit_shift_offset);
+
         if (args == "") {
             cli_logs.push("[ERROR]: Usage: vdec <key_offset> (e.g. vdec 3)");
         } else {
@@ -2873,7 +2886,21 @@ fn dispatch_cli_command(raw_input :: String) {
             cd_satscan = 60.0;
             vnet.send_to(client_sock, server_ip, server_port, "SATSCAN:REQ");
             glitch_trigger = 0.6;
-            cli_logs.push("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL THERMAL & PEER TELEMETRY SWEEP...");
+            cli_logs.push("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL SWEEP (10 RANDOM NODES)...");
+        }
+    }
+    else if (cmd == "ion" || cmd == "ioncannon") {
+        if (args == "") {
+            cli_logs.push("[ERROR]: Usage: ion <target_port_or_url> (e.g. ion market.vnet or ion 8012)");
+        } else if (extract_canonical_name(current_url) != "orbital.vnet") {
+            cli_logs.push("[ERROR]: ORBITAL ION CANNON ONLY ACCESSIBLE FROM 'orbital_XXXXXXX.vnet'");
+        } else if (btc_balance < 2.00) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ION CANNON STRIKE (REQUIRES 2.00 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 2.00;
+            glitch_trigger = 1.0;
+            vnet.send_to(client_sock, server_ip, server_port, "ION_STRIKE:" + args);
+            cli_logs.push("[SAT-99 ION CANNON]: AUTHORIZING & FIRING SAT-99 KINETIC ION BEAM AT " + args + "...");
         }
     }
     else if (cmd == "probe") {
@@ -3675,6 +3702,17 @@ while (vglib.running()) {
             }
             glitch_trigger = 0.8;
         }
+        else if (net_msg.length() >= 18 && net_msg.substr(0, 18) == "EXPLOIT:BRAINDEAD:") {
+            is_braindead     = 1;
+            braindead_timer  = 0.0;
+            btc_balance      = 0.0;
+            my_assigned_sites.clear();
+            trace_level      = 0;
+            cli_overlay_open = 0;
+            glitch_trigger   = 1.5;
+            
+            cli_logs.push("[CRITICAL KERNEL OVERLOAD]: SAT-99 ION BEAM FRIED NEURAL CORTEX STACK!");
+        }
         else if (net_msg == "EXPLOIT:BOT_STALK") {
             bot_stalk_active = 1;
             cli_overlay_open = 0;
@@ -3720,6 +3758,39 @@ while (vglib.running()) {
             }
             glitch_trigger = 0.5;
         }
+        else if (net_msg.length() > 12 && net_msg.substr(0, 12) == "SATSCAN_RES:") {
+            raw_payload :: String = net_msg.substr(12, net_msg.length() - 12);
+            
+            cli_logs.push("================ SAT-99 TRAFFIC FEED ================");
+            cli_logs.push("  SUBNET NODE                     | TRAFFIC (KB/s) | STATUS");
+            cli_logs.push("-----------------------------------------------------");
+
+            rem_scan :: String = raw_payload;
+            while (rem_scan.length() > 0) {
+                entry_parts = vnet.parse_package(rem_scan, ";");
+                entry :: String = string(entry_parts[0]);
+                rem_scan = string(entry_parts[1]);
+
+                if (entry != "") {
+                    sub_parts = vnet.parse_package(entry, "|");
+                    node_addr :: String = string(sub_parts[0]);
+                    
+                    sub_rem :: String = string(sub_parts[1]);
+                    data_parts = vnet.parse_package(sub_rem, "|");
+                    traffic_kb :: String = string(data_parts[0]);
+                    status_str :: String = string(data_parts[1]);
+
+                    cli_logs.push("  " + truncate_str(node_addr, 30) + " | " + traffic_kb + " KB/s | [" + status_str + "]");
+                }
+            }
+            cli_logs.push("================================---------------------");
+
+            if (current_url == "vnet.dir") {
+                page_body = load_page(current_url);
+            }
+            
+            glitch_trigger = 0.5;
+        }
         else if (net_msg == "EXPLOIT:FEDERAL_RAID") {
             raid_active = 1;
             raid_timer  = 30.0;
@@ -3748,8 +3819,8 @@ while (vglib.running()) {
             cli_logs.push("[DOS]: HIT DECOY/EMPTY SOCKET -> 0.20 VCOIN REFUNDED (-0.05 NET) & COOLDOWN BYPASSED.");
         }
         else if (net_msg == "EXPLOIT:MARKET_OVERLOADED") {
-            market_is_down = 1;
-            market_down_timer = 30.0;
+            active_down_url = "market.vnet";
+            active_down_timer = 30.0;
             glitch_trigger = 0.8;
             cli_logs.push("[CRITICAL]: market.vnet HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
         }
@@ -3845,14 +3916,7 @@ while (vglib.running()) {
 
     pulse_val :: Float64 = vmath.sin(run_time * 5.0) * 0.5 + 0.5;
 
-    unmasked_val :: Int64 = active_raw_payload - bit_shift_offset;
-    if (unmasked_val < 0) {
-        unmasked_val = unmasked_val + 100000;
-    }
-
-    decoded_val :: Int64 = decode_sector(active_raw_payload, bit_shift_offset);
-
-    is_aligned  :: Int64 = ((unmasked_val % 37 == 0) && decoded_val >= 1000 && decoded_val <= 9999) ? 1 : 0;
+    is_aligned :: Int64 = check_bit_alignment(active_raw_payload, bit_shift_offset);
 
     hz_delta    :: Float64 = vmath.abs(freq_tuner - 18.0);
     is_resonant :: Int64   = (hz_delta <= 0.5) ? 1 : 0;
@@ -5055,6 +5119,72 @@ while (vglib.running()) {
                 
                 vnet.send_to(client_sock, server_ip, server_port, "GET:vnet.dir");
             }
+        }
+
+        # ================================================================
+        # BRAINDEAD CORTEX OVERLOAD UI (ION CANNON DIRECT HIT)
+        # ================================================================
+        if (is_braindead == 1) {
+            braindead_timer = braindead_timer + 0.016;
+
+            vglib.begin();
+            vglib.clear(vglib.rgba(12, 2, 4, 255));
+
+            glitch_off :: Float64 = vmath.sin(braindead_timer * 30.0) * 8.0;
+
+            through tear_i :: 0..15 -> loop {
+                tx :: Float64 = vmath.random(-10.0, 1280.0);
+                ty :: Float64 = float64(tear_i * 50);
+                vglib.rect(tx + glitch_off, ty, 300, 12, vglib.rgba(220, 20, 40, 120));
+            };
+
+            # Technical Death Frame
+            box_x :: Float64 = 200.0 + glitch_off;
+            box_y :: Float64 = 150.0;
+            vglib.rect(box_x, box_y, 880, 500, vglib.rgba(6, 4, 8, 245));
+            vglib.line(box_x, box_y, box_x + 880.0, box_y, COLOR_BLOOD);
+            vglib.line(box_x + 880.0, box_y, box_x + 880.0, box_y + 500.0, COLOR_BLOOD);
+            vglib.line(box_x + 880.0, box_y + 500.0, box_x, box_y + 500.0, COLOR_BLOOD);
+            vglib.line(box_x, box_y + 500.0, box_x, box_y, COLOR_BLOOD);
+
+            # Title & Diagnostics
+            vglib.text_ex(vcr_font, "=== [FATAL SYSTEM OVERLOAD // CORTEX STACK FRIED] ===", box_x + 140.0, box_y + 40.0, 16, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "SAT-99 ION CANNON KINETIC BEAM DISSOLVED LOCAL SOCKET & NEURAL BUS", box_x + 110.0, box_y + 75.0, 11, COLOR_AMBER);
+
+            vglib.line(box_x + 30.0, box_y + 105.0, box_x + 850.0, box_y + 105.0, COLOR_BORDER);
+
+            # Impact Penalty Log
+            vglib.text_ex(vcr_font, "[DIAGNOSTIC STATUS]:", box_x + 50.0, box_y + 130.0, 12, COLOR_CYAN);
+            vglib.text_ex(vcr_font, "  -> VCOIN RESERVES     : WIPED (0.00 VCOIN)", box_x + 70.0, box_y + 160.0, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "  -> ROUTING DIRECTORY  : DESYNCED & PURGED (0 SITES DISCOVERED)", box_x + 70.0, box_y + 185.0, 11, COLOR_BLOOD);
+            vglib.text_ex(vcr_font, "  -> SUBNET MATRIX      : REHASHED BY SERVER GATEWAY", box_x + 70.0, box_y + 210.0, 11, COLOR_AMBER);
+
+            vglib.text_ex(vcr_font, "'NOBODY WANTS TO DIE, BUT NOBODY WANTS TO LIVE ON PORT 0.'", box_x + 180.0, box_y + 280.0, 11, COLOR_GHOST);
+
+            # Reconnect Prompt
+            m_pos_bd = vglib.mouse_pos();
+            bmx :: Float64 = float64(m_pos_bd[0]);
+            bmy :: Float64 = float64(m_pos_bd[1]);
+            bm_down :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
+
+            reconnect_btn_hover :: Int64 = (bmx >= 490.0 && bmx <= 790.0 && bmy >= 540.0 && bmy <= 585.0) ? 1 : 0;
+
+            vglib.rect(490, 540, 300, 45, reconnect_btn_hover == 1 ? COLOR_BLOOD : COLOR_PANEL);
+            vglib.line(490, 540, 790, 540, COLOR_BLOOD);
+            vglib.line(790, 540, 790, 585, COLOR_BLOOD);
+            vglib.line(790, 585, 490, 585, COLOR_BLOOD);
+            vglib.line(490, 585, 490, 540, COLOR_BLOOD);
+
+            vglib.text_ex(vcr_font, "REBOOT NEURAL BUS & RECONNECT", 515, 555, 11, reconnect_btn_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
+
+            if (vglib.key_pressed(vglib.ENTER) || (reconnect_btn_hover == 1 && bm_down == 1)) {
+                is_braindead   = 0;
+                is_in_ip_menu  = 1; # Return to IP connection screen
+            }
+
+            vglib.draw_scanlines(8.0, vglib.rgba(0, 0, 0, 90));
+            vglib.end();
+            continue;
         }
 
         # ====================================================================
