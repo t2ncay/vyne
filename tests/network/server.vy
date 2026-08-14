@@ -46,7 +46,7 @@ all_50_sites :: Array = [
     "necro.vnet", "echolab.vnet", "abyss.vnet", "zeroday.vnet", 
     "deadchannel.vnet", "phantom.vnet", "glitch.vnet", "stasis.vnet", 
     "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
-    "weaponry.vnet", "passports.vnet", "blackbank.vnet"
+    "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", "substation04.vnet", "deepocean.vnet", "darkdrop.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY

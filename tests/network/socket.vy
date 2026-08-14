@@ -12,7 +12,7 @@ my_port     :: Int64  = int64(vmath.random(8001, 8999));
 server_ip   :: String = "127.0.0.1";
 server_port :: Int64  = 8000;
 
-vglib.init(1280, 800, 60, "VYNE SHADOWOS v9.5 - CYBERWARFARE ENGINE", 0);
+vglib.init(1280, 800, 60, "VYNE VEKTRAOS v9.5 - CYBERWARFARE ENGINE", 0);
 vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 
 # image loads
@@ -58,7 +58,7 @@ COLOR_GHOST    :: Int64 = vglib.rgba(160, 170, 185, 255);
 COLOR_SCANLINE :: Int64 = vglib.rgba(0, 0, 0, 90);
 
 fn get_theme(name :: String) -> Theme {
-    # 0. CLASSIC SHADOWOS
+    # 0. CLASSIC VEKTRAOS
     if (name == "classic") {
         return Theme(
             vglib.rgba(2, 2, 4, 255),       # bg
@@ -806,7 +806,7 @@ fn load_page(url :: String) -> Array {
             "[HR]",
             "[BADGE:/b/ BOARD:BLOOD] [BADGE:UNMODERATED SWARM:AMBER] [BADGE:P2P MIRROR:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | ACTIVE THREADS: 14,902 | PEERS IN SWARM: 666                    |",
+            "[BOX] | ACTIVE THREADS: 14,903 | PEERS IN SWARM: 666                    |",
             "[BOX] | NOTICE: ALL UNENCRYPTED POSTS ARE MIRRORED TO VFS MEMORY STACKS |",
             "[BOX] | WARNING: DO NOT OPEN RAW IMAGE DUMPS WITHOUT ACTIVE ICE SHIELDS  |",
             "[BOX] +-----------------------------------------------------------------+",
@@ -818,6 +818,24 @@ fn load_page(url :: String) -> Array {
             "[INPUT:forum_reply_msg:ENTER ANONYMOUS POST TEXT]",
             "[TEXT] ",
             "[BTN:submit_forum_post:>>> BROADCAST POST TO ALL PROMISCUOUS PEERS <<<]",
+            "[TEXT] ",
+            "[HR]",
+            "[SUBTITLE] THREAD #8819: 'Regarding d34d_7dp's execution video on LiveLeak / leaks.vnet'",
+            "[CODE] Anonymous 08/14/26(Fri)21:04:12 No.8819001 -- [VERIFIED_HASH: 0xDEAD_7DP_RAT_EXPOSED]",
+            "[CODE] > Be d34d_7dp",
+            "[CODE] > Old-guard cult.vnet heretic sitting on legacy zero-day archives since 2014",
+            "[CODE] > Thinks he can play both sides in the 2026 arena and sell Site 9-B logs",
+            "[CODE] > Gets dragged out of his Ankara basement by Directorate 7 Shadow PMC elites",
+            "[CODE] > Execution streamed live on LiveLeak / leaks.vnet before socket got fried",
+            "[TEXT] Anon_991: 'Did you guys see what he actually ratted about before D7 blew his door off?'",
+            "[TEXT] Ex_PMC_Operator: 'He leaked unredacted 2014 Cold Signal BGP tables proving Substation 04'",
+            "[TEXT]                   'was overloaded on purpose to sever Subject 00 from the optical backbone.'",
+            "[TEXT] Vendor_0x77: 'He also tried to sell the passport.vnet biometric spoofing chain used to evade'",
+            "[TEXT]               'Project Horus SAT-99 kinetic strikes at eye.vnet. Complete idiot.'",
+            "[TEXT] Cult_Acolyte: 'He thought his buy_ice firewall layers would save him. PMCs used thermite'",
+            "[TEXT]               'on his server rack. His raw memory stack is floating in vault.vnet now.'",
+            "[CODE] POST_LOG_HASH: 0xDEAD_7DP_RAT_EXPOSED",
+            "[CODE] THREAD_ARCHIVE: 1,402 MESSAGES STORED IN CACHE",
             "[TEXT] ",
             "[HR]",
             "[SUBTITLE] THREAD #9012: 'Is the deepnet static leaking through your hardware?'",
@@ -943,7 +961,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[SUBTITLE] RECENT UNLOCKED TRANSACTIONS & EXFILTRATED MEMORY LOGS:",
-            "[CODE] TX_ID #9081 | 14.50 VCOIN | CONFIRMED | LAUNDERED VIA SHADOWPAY.VNET",
+            "[CODE] TX_ID #9081 | 14.50 VCOIN | CONFIRMED | LAUNDERED VIA VEKTRAPAY.VNET",
             "[CODE] TX_ID #9082 |  0.80 VCOIN | CONFIRMED | REDROOM SURGICAL JAW BID (NODE #005)",
             "[CODE] TX_ID #9083 |  0.30 VCOIN | PENDING   | BUY_ICE FIREWALL AT MARKET.VNET",
             "[CODE] TX_ID #9084 |  1.50 VCOIN | PENDING   | SILKROAD OPIUM & HUMAN TISSUE LOT",
@@ -1098,6 +1116,170 @@ fn load_page(url :: String) -> Array {
         return res;
     }
 
+    if (clean_u == "stasi.vnet") {
+        res :: Array = [
+            "[TITLE] D7 COMMUNICATIONS INTERCEPT RELAY // STASI_HUB_09",
+            "[HR]",
+            "[BADGE:SURVEILLANCE NODE:BLOOD] [BADGE:SS7 WIRE TAP:AMBER] [BADGE:CELLULAR STINGRAY:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NODE ID: STASI_RELAY_0x99B | NETWORK: PROMISCUOUS SS7 BACKBONE  |",
+            "[BOX] | FACILITY: ANKARA TELECOM SUB-BASEMENT 04                        |",
+            "[BOX] | FUNCTION: REAL-TIME CELLULAR INTERCEPT & SATELLITE RELAY        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:91:TELECOM_BACKBONE_BANDWIDTH]",
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE CELLULAR INTERCEPTS & PHYSICAL TRACE LOGS:",
+            "[CODE] INTERCEPT_01 | IMEI: 86492004128901 | TOWER: ANKARA_SEC_09 | LATENCY: 12ms",
+            "[CODE] INTERCEPT_02 | IMEI: 35910208119024 | TOWER: NORILSK_SUB_04 | ACTIVE WIRE TAP",
+            "[CODE] INTERCEPT_03 | IMEI: 49012899120481 | TOWER: FRANKFURT_HUB  | SIGNAL DROPPED",
+            "[TEXT] ",
+            "[SUBTITLE] DIRECTORATE 7 FIELD OPERATIVE LOGS:",
+            "[TEXT] PMC_Tracer: 'We are matching CRT screen glare reflections against compromised'",
+            "[TEXT]            'traffic cameras in Sector 09. If an operator idles on this socket,'",
+            "[TEXT]            'their local BGP routing table leaks their physical IP within 45 seconds.'",
+            "[TEXT] Whistleblower_409-B: 'D7 isn't using software traces anymore. They track the'",
+            "[TEXT]                     'power draw of your monitor through legacy copper lines.'",
+            "[TEXT] "
+        ];
+
+        if (key_line != "") { res.push(key_line); }
+
+        res.push("[BLOOD] [WARNING]: ACTIVE SS7 SIGNAL SNIFFER LOGGING YOUR LOCAL PORT.");
+        res.push("[PULSE] 'YOUR PHONE IS NOT TRANSMITTING TO A CELL TOWER. IT IS TRANSMITTING TO US.'");
+        res.push("[HR]");
+        res.push("[LINK:watchtower.vnet] >> CROSS-CHECK PANOPTICON THERMAL OPTICS");
+        res.push("[LINK:cctv-core.vnet] >> ACCESS METROPOLITAN CCTV MESH");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "darkdrop.vnet") {
+        res :: Array = [
+            "[TITLE] PHYSICAL DEAD-DROP GPS REGISTRY // CONTRABAND LOCATOR",
+            "[HR]",
+            "[BADGE:GPS REGISTRY:BLOOD] [BADGE:ENCRYPTED DROPS:AMBER] [BADGE:COURIER SWARM:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SYSTEM ROLE: AUTONOMOUS DEAD-DROP COORDINATE MATRIX             |",
+            "[BOX] | DISPATCH   : SUBTERRANEAN SEWER SUMPS & SUBWAY DUCTS            |",
+            "[BOX] | INTEGRITY  : PGP SIGNED BY VENDOR_0x77 // UNTRACED DISPATCH     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:88:DEAD_DROP_CACHE_AVAILABILITY]",
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE PHYSICAL DEAD-DROP COORDINATES:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | DROP #901: SECTOR 09 SUBWAY SUMP B3  | CONTENTS: SUPPRESSED AR-9|",
+            "[BOX] | COORD    : 39.9334° N, 32.8597° E    | STATUS  : UNCLAIMED      |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | DROP #902: SUBSTATION 04 DRAIN PIPE  | CONTENTS: COLD WALLET 5.0|",
+            "[BOX] | COORD    : 41.0082° N, 28.9784° E    | STATUS  : LOCKED         |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] COURIER LOGS & FIELD INTERCEPTS:",
+            "[TEXT] Vendor_0x77: 'No physical meetings. No handshakes. Packages are dropped'",
+            "[TEXT]             'by autonomous couriers into sewer sumps wrapped in grease.'",
+            "[TEXT] PMC_Tracer: 'We watch darkdrop.vnet coordinates using SAT-99 thermal cameras.'",
+            "[TEXT]            'The moment an operator picks up a drop, we mark their location.'",
+            "[TEXT] "
+        ];
+
+        if (key_line != "") { res.push(key_line); }
+
+        res.push("[BLOOD] [WARNING]: DO NOT ACCESS DROPS WITHOUT ACTIVE PASSPORT MASKING.");
+        res.push("[PULSE] 'THE PACKAGE IS WAITING IN THE DARK. SO IS THE PMC BREACH TEAM.'");
+        res.push("[HR]");
+        res.push("[LINK:silkroad.vnet] >> PURCHASE CONTRABAND LOTS VIA ESCROW");
+        res.push("[LINK:weaponry.vnet] >> ACCESS BLACK MARKET WEAPONRY EXPORT");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "deepocean.vnet") {
+        res :: Array = [
+            "[TITLE] UNDERSEA FIBER LANDING STATION // JUNCTION NODE #088",
+            "[HR]",
+            "[BADGE:DARK FIBER:BLOOD] [BADGE:THROUGHPUT: 400 Gbps:AMBER] [BADGE:TRACE RISK: HIGH:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | LOCATION: BLACK SEA COASTAL TERMINUS // JUNCTION SECTOR 09       |",
+            "[BOX] | TRUNK   : TRANS-MEDITERRANEAN DARK FIBER ARRAY #04              |",
+            "[BOX] | STATUS  : PROMISCUOUS UDP MULTICAST ACTIVE (+3% TRACE / 3s)     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:96:OPTICAL_TRUNK_CAPACITY]",
+            "[TEXT] ",
+            "[SUBTITLE] HIGH-SPEED DATA TAP & EXFILTRATION LOGS:",
+            "[CODE] TRUNK_01 | TRANS-ATLANTIC  | 120.4 Gbps | UNENCRYPTED MILITARY BUFFER",
+            "[CODE] TRUNK_02 | MEDITERRANEAN   |  89.1 Gbps | OFFSHORE BANKING LAUNDERING",
+            "[CODE] TRUNK_03 | SECTOR 09 RELAY | 210.0 Gbps | VNET BGP BACKBONE ROUTING",
+            "[TEXT] ",
+            "[SUBTITLE] PHYSICAL TELEMETRY & HARDWARE WARNINGS:",
+            "[TEXT] 'The fiber trunks running into blacksea.vnet aren't managed by ISPs.'",
+            "[TEXT] 'They are spliced directly into off-book naval surveillance taps.'",
+            "[TEXT] 'Mining VCOIN or routing traffic through this node grants maximum throughput,'",
+            "[TEXT] 'but naval signals intelligence arrays actively log every socket signature.'",
+            "[TEXT] "
+        ];
+
+        if (key_line != "") { res.push(key_line); }
+
+        res.push("[BLOOD] [WARNING]: UNENCRYPTED OPTICAL PACKET TAPS TRACING YOUR SOCKET.");
+        res.push("[PULSE] 'THE FIBER CABLES ARE AT THE BOTTOM OF THE SEA, BUT THE TRACE IS RIGHT HERE.'");
+        res.push("[HR]");
+        res.push("[LINK:crypto.vnet] >> MINE VCOIN AT BLACK TUMBLER RIG");
+        res.push("[LINK:nexus.vnet] >> ROUTE VIA CENTRAL SWITCHING STATION");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "substation04.vnet") {
+        # Frequency delta resonance check
+        target_hz :: Float64 = 18.0;
+        hz_delta  :: Float64 = vmath.abs(freq_tuner - target_hz);
+        sync_pct  :: Int64   = int64(vmath.clamp((1.0 - (hz_delta / 20.0)) * 100.0, 0.0, 100.0));
+
+        res :: Array = [
+            "[TITLE] SUBSTATION 04 // 2014 COLD SIGNAL GROUND ZERO",
+            "[HR]",
+            "[BADGE:POWER GRID:BLOOD] [BADGE:400kV FEEDBACK:AMBER] [BADGE:DIESEL GENERATOR:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY: MUNICIPAL SUBSTATION 04 (ABANDONED INDUSTRIAL ZONE)   |",
+            "[BOX] | INCIDENT: OPERATION COLD SIGNAL (2014-11-03 02:44 UTC)        |",
+            "[BOX] | STATUS  : RUNNING ON DIESEL BACKUP // 400kV TRANSFORMER SURGE   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] "
+        ];
+
+        if (sync_pct > 85) {
+            res.push("[GAUGE:100:POWER_GRID_RESONANCE_LOCKED]");
+            res.push("[SUBTITLE] DECRYPTED SUBSTATION TRANSFORMER TELEMETRY:");
+            res.push("[CODE] TRANSFORMER_01: 400kV SURGE ACTIVE // FREQUENCY: 18.0 Hz");
+            res.push("[TEXT] 'When D7 breached Site 9-B in 2014, the back-feed didn't just blow the grid.'");
+            res.push("[TEXT] 'It melted the primary optical switches directly into the copper bus.'");
+            if (key_line != "") { res.push(key_line); }
+        } else {
+            res.push("[GAUGE:" + string(sync_pct) + ":GRID_PHASE_DESYNC]");
+            res.push("[TEXT] Severe electrical hum disrupting coax line. Tune RF frequency to 18.0 Hz");
+            res.push("[TEXT] in CLI using 'freq 18.0' to lock signal carrier phase.");
+        }
+
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] HISTORICAL FIELD LOG (2014 INCIDENT):");
+        res.push("[TEXT] 'The Blackout lasted 14 days. The Old Web died here in the dark.'");
+        res.push("[TEXT] 'Corporate cartels built .vnet over the burnt copper coax because it was'");
+        res.push("[TEXT] 'completely isolated from public infrastructure. Substation 04 still'");
+        res.push("[TEXT] 'feeds raw current to the subterranean sumps that never sleep.'");
+        res.push("[HR]");
+        res.push("[LINK:project9.vnet] >> INSPECT SITE 9-B DISPOSAL SUMPS");
+        res.push("[LINK:blackout.vnet] >> VIEW FRACTURE GRID TELEMETRY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
     if (clean_u == "silence.vnet") {
         # Calculate dynamic resonance offset based on tuned frequency
         target_hz :: Float64 = 18.0;
@@ -1210,7 +1392,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Every frame contains geometric anomalies and dark biological spatter",
             "[TEXT] inconsistent with traditional graphics pipelines.",
             "[CODE] FRAME_001.RAW | STATUS: CORRUPTED | 0x00FF99_PIXEL_BLEED_&_BILE",
-            "[CODE] FRAME_002.RAW | STATUS: CORRUPTED | SHADOW_GEOMETRY_&_SPLIT_TRACHEA",
+            "[CODE] FRAME_002.RAW | STATUS: CORRUPTED | VEKTRA_GEOMETRY_&_SPLIT_TRACHEA",
             "[CODE] FRAME_003.RAW | STATUS: CORRUPTED | HUMAN_SILHOUETTE_IN_ACID_BATH",
             "[TEXT] ",
             "[SUBTITLE] EXFILTRATED FRAME METADATA & RECOVERED TELEMETRY LOGS:",
@@ -1226,7 +1408,7 @@ fn load_page(url :: String) -> Array {
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[PULSE] WARNING: FOUL MEMORY ENTROPY SPREADING TO ACTIVE DISPLAY BUFFERS");
-        res.push("[GLITCH] RECOVERY ATTEMPTED: SHADOW FIGURES & SEVERED FLESH IN EVERY FRAME");
+        res.push("[GLITCH] RECOVERY ATTEMPTED: VEKTRA FIGURES & SEVERED FLESH IN EVERY FRAME");
         res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
         res.push("[LINK:dollhouse.vnet] >> INSPECT SURVEILLANCE FEED ROOM 402");
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 CONTAINMENT");
@@ -1741,11 +1923,26 @@ fn load_page(url :: String) -> Array {
             "[BOX] | HOST: DEADLEAK_SERVER_0x88 | MIRROR: PROMISCUOUS UDP MULTICAST  |",
             "[BOX] | CATEGORY: EXECUTION / WAR CRIMES / BLACK SITE WHISTLEBLOWER     |",
             "[BOX] | UPLOADER: Whistleblower_409-B (VERIFIED DEAD / MORGUE MATCH)   |",
-            "[BOX] | VIEWS: 666,412 | RATING: 99.8% RAW | LOCATION: ANKARA SECTOR 09   |",
+            "[BOX] | VIEWS: 914,882 | RATING: 99.9% RAW | LOCATION: ANKARA SECTOR 09   |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:98:RAW_VIDEO_BUFFER_INTEGRITY]",
             "[TEXT] ",
+            "[SUBTITLE] VIDEO FEED #092: 'D7_PMC_ELITE_EXECUTION_OF_RAT_D34D_7DP_BODYCAM_RAW.MP4'",
+            "[VIDEO:redroom:D7_PMC_EXECUTION_OF_D34D_7DP_RAW.MP4]",
+            "[TEXT] ",
+            "[SUBTITLE] DECLASSIFIED VIDEO CAPTION & FORENSIC METADATA:",
+            "[TEXT] TIMESTAMP: 2026-08-14 20:58:11 UTC (Ankara Sector 09 Raid)",
+            "[TEXT] LOCATION: Ankara Sub-Basement Facility / Server Vault (Sector 09)",
+            "[TEXT] SUMMARY: Recovered helmet camera footage from Directorate 7 PMC Alpha Lead.",
+            "[TEXT] Operatives breach physical location of ex-cultist d34d_7dp after his rat post",
+            "[TEXT] on forums.vnet. Operatives breach the reinforced door with breaching charges,",
+            "[TEXT] dragging d34d_7dp from his console while his CRT whine hits 18.0 Hz.",
+            "[TEXT] Thermite charges deployed on server frames; d34d_7dp executed on live stream.",
+            "[CODE] LEAK_HASH_ID: 0xLIVELEAK_2026_D34D_7DP_RAT_EXECUTION_RAW",
+            "[CODE] TARGET_SOCKET_REF: 0xDEAD_7DP_PORT_8012_SEVERED",
+            "[TEXT] ",
+            "[HR]",
             "[SUBTITLE] VIDEO FEED #091: 'DIRECTORATE_7_PMC_SITE_9B_BREACH_BODYCAM_RAW.MP4'",
             "[VIDEO:redroom:SITE_9B_BREACH_BODYCAM_RAW.MP4]",
             "[TEXT] ",
@@ -1767,12 +1964,13 @@ fn load_page(url :: String) -> Array {
             "[BTN:search_leak_btn:>>> QUERY UNREDACTED INTELLIGENCE VAULT <<<]",
             "[TEXT] ",
             "[HR]",
-            "[SUBTITLE] UNCENSORED USER COMMENTS SECTION (1,402 COMMENTS):",
-            "[CODE] Anon_Rotting_CRT (2m ago): 'Is that Subject 409 getting his jaw cut off at 02:14?? Holy shit classic LiveLeak.'",
-            "[TEXT] PMC_Watcher_99 (5m ago): 'Fake. That thermal signature matches the morphogenic static from asylum.vnet.'",
-            "[CODE] Necro_Boid (12m ago): 'You can literally hear the 18.0 Hz infrasound hum from silence.vnet in the audio track!'",
-            "[TEXT] Cult_Acolyte_666 (18m ago): 'PRAISE NETMAN! His face is visible in the pixel static at timestamp 03:12!'",
-            "[CODE] Ex_Operator_TRACER (22m ago): 'D7 team used thermite on the racks right after this frame. Substation 04 blew up 3 mins later.'",
+            "[SUBTITLE] UNCENSORED USER COMMENTS SECTION (1,489 COMMENTS):",
+            "[CODE] Anon_Rotting_CRT (1m ago): 'Holy shit they uploaded the d34d_7dp raid video already! Look at the thermite melting his GPU!'",
+            "[TEXT] PMC_Watcher_99 (3m ago): 'He thought his buy_ice firewall would protect his physical house lol.'",
+            "[CODE] Necro_Boid (8m ago): 'You can hear the 18.0 Hz infrasound hum from silence.vnet screaming right before the breach charge goes off!'",
+            "[TEXT] Cult_Acolyte_666 (11m ago): 'NETMAN TOOK HIS SOCKET! THAT'S WHAT HAPPENS TO RATS ON FORUMS.VNET!'",
+            "[CODE] Ex_Operator_TRACER (15m ago): 'D7 team took less than 45 seconds to breach, clear, and thermite the node.'",
+            "[CODE] Anon_Rotting_CRT (22m ago): 'Is that Subject 409 getting his jaw cut off at 02:14 in video #091?? Holy shit classic LiveLeak.'",
             "[TEXT] ",
             "[BLOOD] [WARNING]: WATCHING UNFILTERED WAR LEAKS INCREASES NEURAL TRACE (+1.5%/3s).",
             "[PULSE] 'THE CAMERA DOES NOT LIE. BUT THE DEAD DO NOT STAY IN THE VIDEO BUFFER.'",
@@ -1794,12 +1992,12 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "shadowpay.vnet") {
         res :: Array = [
-            "[TITLE] SHADOWPAY // ZERO-KNOWLEDGE CRYPTO MIXER & TUMBLER",
+            "[TITLE] VEKTRAPAY // ZERO-KNOWLEDGE CRYPTO MIXER & TUMBLER",
             "[HR]",
             "[BADGE:ANONYMITY: MAXIMUM:TOXIC] [BADGE:MIXING FEE: 1.5%:AMBER]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | TUMBLER POOL BALANCE : 420.50 VCOIN                             |",
-            "[BOX] | ZERO-KNOWLEDGE PROOF : zk-SNARKs SHADOW-CIRCUIT ACTIVE            |",
+            "[BOX] | ZERO-KNOWLEDGE PROOF : zk-SNARKs VEKTRA-CIRCUIT ACTIVE            |",
             "[BOX] | TRACE PURGE YIELD    : -10% TRACE PER 1.00 VCOIN LAUNDERED        |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
@@ -1812,7 +2010,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] ",
             "[BTN:execute_tumble_btn:>>> LAUNDER VCOIN & SCRUB WALLET TRACE <<<]",
             "[TEXT] ",
-            "[SUBTITLE] SHADOW STAKING & INTEREST POOL:",
+            "[SUBTITLE] VEKTRA STAKING & INTEREST POOL:",
             "[TEXT] Lock VCOIN in escrow for 120 seconds to earn +15% yield funded by market fees:",
             "[BTN:stake_vcoin_btn:>>> DEPOSIT VCOIN INTO 120s YIELD VAULT <<<]",
             "[HR]"
@@ -1997,13 +2195,13 @@ fn load_page(url :: String) -> Array {
             "[BADGE:UNENCRYPTED DUMP:BLOOD] [BADGE:PMC FIRMWARE LEAK:AMBER] [BADGE:VFS ARCHIVE:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | SYSTEM ROLE: PUBLIC MEMORY SCRAPER & RAW PASTE REPOSITORY       |",
-            "[BOX] | TOTAL PASTES: 918,401 | SHADOW DUMPS: ACTIVE                    |",
+            "[BOX] | TOTAL PASTES: 918,401 | VEKTRA DUMPS: ACTIVE                    |",
             "[BOX] | EXCURSION RISK: HIGH  | AUTOMATED TRACE INCREMENT: +1.5%/3s     |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:82:LEAKED_BUFFER_CONGESTION]",
             "[TEXT] ",
-            "[SUBTITLE] EXFILTRATED SHADOW PMC ELITE CHIPCODE (RAW VYNE EXEC):",
+            "[SUBTITLE] EXFILTRATED VEKTRA PMC ELITE CHIPCODE (RAW VYNE EXEC):",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | PASTE ID: #PMC-88192-EXPLOIT | ORIGIN: OMNI-CORP BLACK-OPS LAB  |",
             "[BOX] | ARCHITECTURE: DIRECT VYNE KERNEL ASSEMBLY / VMEM OVERRIDE      |",
@@ -2013,7 +2211,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Target Protocol: Shadow PMC Elite Actuator & Reflex Engine",
             "[TEXT] Target Architecture: Vyne Direct Micro-Kernel Assembly",
             "[HR]",
-            "[CODE] // --- [SHADOW_PMC_ACTUATOR_OVERCLOCK.vyne] ---",
+            "[CODE] // --- [VEKTRA_PMC_ACTUATOR_OVERCLOCK.vyne] ---",
             "[CODE] fn execute_viper_reflex(pmc_host: PmcUnit) -> Void {",
             "[CODE]     // Bypass internal synapse locks via direct memory bus write",
             "[CODE]     vmem.write_raw(pmc_host.synapse_addr + 0x3F, 0xFF);",
@@ -2071,7 +2269,7 @@ fn load_page(url :: String) -> Array {
             "[HR]",
             "[BADGE:DEEP WIKI:BLOOD] [BADGE:RESTRICTED ACCESS:AMBER] [BADGE:AUTO-ROTATING INDEX:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | CLASSIFICATION: UNFILTERED SHADOW WIKI & OCCULT ARCHIVE NODE    |",
+            "[BOX] | CLASSIFICATION: UNFILTERED VEKTRA WIKI & OCCULT ARCHIVE NODE    |",
             "[BOX] | INDEXED ARTICLES: 14,290 | ACCESS PROTOCOL: DYNAMIC SHIFTING    |",
             "[BOX] | ROTATION TIMER: AUTO-PURGED EVERY 60.0 SECONDS VIA RUN_TIME BUS |",
             "[BOX] +-----------------------------------------------------------------+"
@@ -2356,12 +2554,12 @@ fn load_page(url :: String) -> Array {
         noise_pct   :: Int64   = int64(vmath.clamp((hz_delta / 20.0) * 100.0, 0.0, 100.0));
         
         res :: Array = [
-            "[TITLE] DEADCHANNEL.VNET // SHADOW PMC WIRETAP INTERCEPT",
+            "[TITLE] DEADCHANNEL.VNET // VEKTRA PMC WIRETAP INTERCEPT",
             "[HR]",
             "[BADGE:SEIZED BROADCAST:BLOOD] [BADGE:CARRIER NOISE: " + string(noise_pct) + "%:AMBER] [BADGE:PMC FREQ: 18.0Hz:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | NODE ID: DEADCHANNEL_0x00 | ORIGIN: FORMER CULT CHAT RELAY      |",
-            "[BOX] | INCIDENT: RAIDED BY SHADOW PMC DIRECTRATE 7 // COMMS DROPPED    |",
+            "[BOX] | INCIDENT: RAIDED BY VEKTRA PMC DIRECTRATE 7 // COMMS DROPPED    |",
             "[BOX] | CARRIER FREQUENCY: " + string(freq_tuner) + " Hz | RF CARRIER LOCK: " + ((is_resonant == 1) ? "LOCKED" : "SEARCHING") + "  |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] "
@@ -2396,7 +2594,7 @@ fn load_page(url :: String) -> Array {
 
         # DYNAMIC MECHANIC 2: Conditional Signal Demodulation / Intercept Transcript
         if (is_resonant == 1) {
-            res.push("[SUBTITLE] DECRYPTED AUDIO INTERCEPT // SHADOW PMC COMMS LOG:");
+            res.push("[SUBTITLE] DECRYPTED AUDIO INTERCEPT // VEKTRA PMC COMMS LOG:");
             res.push("[CODE] [03:14:02] PMC_ACTUATOR_1 : 'Basement door breached. Cultist chat server located.'");
             res.push("[CODE] [03:14:04] PMC_ACTUATOR_1 : 'Target acolytes engaged. Executing non-compliance protocol.'");
             res.push("[CODE] [03:14:06] PMC_LEAD       : 'Plant thermite on the relay antennas. Drop the broadcast.'");
@@ -2431,7 +2629,7 @@ fn load_page(url :: String) -> Array {
         res.push("[PULSE] TIP: Open terminal overlay [TAB] and type 'freq 18.0' to lock signal phase.");
         res.push("[HR]");
         res.push("[LINK:cult.vnet] >> ACCESS REMNANTS AT CHURCH OF THE SILICON SOUL");
-        res.push("[LINK:weaponry.vnet] >> INSPECT SHADOW PMC ARMORY EXPORTS");
+        res.push("[LINK:weaponry.vnet] >> INSPECT VEKTRA PMC ARMORY EXPORTS");
         res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY DUMPS FOR RAID CASUALTIES");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
@@ -2577,11 +2775,11 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "weaponry.vnet") {
         res :: Array = [
-            "[TITLE] BLACK MARKET WEAPONRY EXPORT // SHADOW PMC & CULT ARSENAL [NODE #042]",
+            "[TITLE] BLACK MARKET WEAPONRY EXPORT // VEKTRA PMC & CULT ARSENAL [NODE #042]",
             "[HR]",
             "[BADGE:PMC GUNSHIP UPLINK:BLOOD] [BADGE:SACRAMENTAL STEEL:AMBER] [BADGE:ESCROW SECURED:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | FACILITY: SHADOW PMC ARMORY #09 | SUB-SURFACE STORAGE: SEALED  |",
+            "[BOX] | FACILITY: VEKTRA PMC ARMORY #09 | SUB-SURFACE STORAGE: SEALED  |",
             "[BOX] | GUNSHIP PATROL: SPECTRE-09 AC-130 OVERHEAD (35,000 FT ALTITUDE) |",
             "[BOX] | CULT CONSECRATION: SACRAMENTAL BLOOD-QUENCHING ON ALL BARRELS   |",
             "[BOX] +-----------------------------------------------------------------+",
@@ -2596,7 +2794,7 @@ fn load_page(url :: String) -> Array {
             "[CODE] LOT #903: SPECTRE-09 GUNSHIP AIR-STRIKE DESIGNATOR // SAT-99 LINK [2.50 VCOIN]",
             "[CODE] LOT #904: THERMOBARIC BREACHING CHARGES & DIGITAL DETONATORS [0.90 VCOIN]",
             "[TEXT] ",
-            "[SUBTITLE] SHADOW PMC LOGS & CULT CONSECRATION TELEMETRY:",
+            "[SUBTITLE] VEKTRA PMC LOGS & CULT CONSECRATION TELEMETRY:",
             "[TEXT] 'The hardware exported from weaponry.vnet is not standard mil-spec surplus.'",
             "[TEXT] 'Every AR-9 receiver and 30mm auto-cannon barrel is forged in subterranean'",
             "[TEXT] 'foundries and quenched in warm, coagulated blood and afterbirth provided'",
@@ -2634,7 +2832,7 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "passports.vnet") {
         res :: Array = [
-            "[TITLE] FORGED IDENTITY & PASSPORT VAULT // SHADOW BLACK MARKET",
+            "[TITLE] FORGED IDENTITY & PASSPORT VAULT // VEKTRA BLACK MARKET",
             "[HR]",
             "[BADGE:FORGED CREDENTIALS:BLOOD] [BADGE:BIOMETRIC SPOOF:AMBER] [BADGE:DIPLOMATIC CLEARANCE:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
@@ -2715,7 +2913,7 @@ fn load_page(url :: String) -> Array {
             "[BADGE:OFFSHORE VAULT:BLOOD] [BADGE:STATE APPROVED:AMBER] [BADGE:UNTRACEABLE:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | TOTAL LIQUIDITY: 1,420.85 VCOIN | SYSTEM SLA: 99.999% OPERATIONAL|",
-            "[BOX] | ESCROW PROTOCOL: 8192-BIT SHADOW-WIRE | SWIFT NODE: CAYMAN_0x99 |",
+            "[BOX] | ESCROW PROTOCOL: 8192-BIT VEKTRA-WIRE | SWIFT NODE: CAYMAN_0x99 |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:92:OFFSHORE_LAUNDERING_CAPACITY]",
@@ -2749,7 +2947,7 @@ fn load_page(url :: String) -> Array {
         res.push("[INPUT:bank_account:ENTER OFFSHORE SWIFT / ROUTING HASH]");
         res.push("[INPUT:vcoin_amount:ENTER VCOIN AMOUNT (COST 0.50 VCOIN FEE)]");
         res.push("[TEXT] ");
-        res.push("[BTN:wire_transfer:>>> EXECUTE UNTRACEABLE SHADOW WIRE <<<]");
+        res.push("[BTN:wire_transfer:>>> EXECUTE UNTRACEABLE VEKTRA WIRE <<<]");
         res.push("[TEXT] ");
         res.push("[BLOOD] [ALERT]: VAULT HARDWARE IS SMEARED WITH ADIPOCERE & CORRUPT CRYPTO");
         res.push("[PULSE] 'THE MONEY IS NOT CLEAN. IT HAS BEEN WASHED IN THE ASHES OF SUBJECT 409.'");
@@ -2983,7 +3181,7 @@ fn dispatch_cli_command(raw_input :: String) {
             raid_purged = 1;
             glitch_trigger = 0.5;
             cli_logs.push("[SECURITY]: CRITICAL CACHE & SUSPECT LOGS PURGED!");
-            cli_logs.push("[SYS]: FEDERAL E-RAID BYPASSED. SHADOW PMC DISENGAGED.");
+            cli_logs.push("[SYS]: FEDERAL E-RAID BYPASSED. VEKTRA PMC DISENGAGED.");
             vnet.send_to(client_sock, server_ip, server_port, "RAID_SUCCESS:" + string(my_port));
         } else {
             cli_logs.push("[SYS]: NO ACTIVE E-RAID DETECTED.");
@@ -3387,7 +3585,7 @@ while (vglib.running()) {
         # ============================================================
         
         # 1. Title Header
-        h1_str :: String = "VYNE SHADOWOS v9.5 // OPERATION COLD SIGNAL";
+        h1_str :: String = "VYNE VEKTRAOS v9.5 // OPERATION COLD SIGNAL";
         h1_sz  :: Array  = vglib.measure_text(vcr_font, h1_str, 14.0);
         h1_x   :: Float64 = 640.0 - (float64(h1_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, h1_str, h1_x, box_y + 25.0, 14, COLOR_BLOOD);
@@ -3537,7 +3735,7 @@ while (vglib.running()) {
                 glitch_trigger = 1.0;
                 
                 cli_logs.push("[PENALTY]: E-RAID PURGE FAILED!");
-                cli_logs.push("[SHADOW PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
+                cli_logs.push("[VEKTRA PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
             }
         }
 
@@ -3855,10 +4053,11 @@ while (vglib.running()) {
             glitch_trigger = 0.5;
         }
         else if (net_msg == "EXPLOIT:FEDERAL_RAID") {
-            raid_active = 1;
-            raid_timer  = 30.0;
-            raid_purged = 0;
-            glitch_trigger = 1.0;
+            raid_active      = 1;
+            raid_timer       = 30.0;
+            raid_purged      = 0;
+            bot_stalk_active = 0;
+            glitch_trigger   = 1.0;
             cli_logs.push("--------------------------------------------------");
             cli_logs.push("[CRITICAL EMERGENCY]: FEDERAL E-RAID INITIATED!");
             cli_logs.push("TYPE 'purge' IN OVERLAY TERMINAL [TAB] WITHIN 30s!");
@@ -4702,7 +4901,7 @@ while (vglib.running()) {
 
                             vx :: Float64 = 40.0 + jitter_x;
                             vy :: Float64 = y_pos;
-                            vw :: Float64 = 440.0;
+                            vw :: Float64 = 460.0;
                             vh :: Float64 = 250.0;
 
                             if (vy >= 50.0 && vy <= 720.0) {
@@ -4857,7 +5056,7 @@ while (vglib.running()) {
                         else if (art_key == "shadow_pmc") {
                             shadow_art :: Array = [
                                 "           /\\                               /\\           ",
-                                "          /  \\     SHADOW PMC DIRECTORATE  /  \\          ",
+                                "          /  \\     VEKTRA PMC DIRECTORATE  /  \\          ",
                                 "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
                                 "        / /  \\ \\                         / /  \\ \\        ",
                                 "       / /____\\ \\    /=============\\    / /____\\ \\       ",
@@ -5401,7 +5600,7 @@ while (vglib.running()) {
             
             shadow_art :: Array = [
                 "           /\\                               /\\           ",
-                "          /  \\     SHADOW PMC DIRECTORATE  /  \\          ",
+                "          /  \\     VEKTRA PMC DIRECTORATE  /  \\          ",
                 "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
                 "        / /  \\ \\                         / /  \\ \\        ",
                 "       / /____\\ \\    /=============\\    / /____\\ \\       ",
