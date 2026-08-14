@@ -4,6 +4,7 @@ module vnet;
 module vcore;
 module vmath;
 module vfs;
+module vaudio;
 
 # ====================================================================
 # NETWORK CONFIGURATION & SOCKET SETUP
@@ -312,6 +313,22 @@ fn set_active_theme(name :: String) {
 }
 
 set_active_theme("classic");
+
+is_audio_ready = vaudio.init_audio();
+vaudio.volume(1.0);
+
+stream_brown_noise = vaudio.play_stream("tests/assets/brown_noise.mp3");
+stream_wind        = vaudio.play_stream("tests/assets/wind.mp3");
+stream_crt_hum     = vaudio.play_stream("tests/assets/analog_electronic_noise.mp3");
+stream_crt_noise   = vaudio.play_stream("tests/assets/crt_noise.mp3");
+click_sfx          = vaudio.load_sound("tests/assets/mouse_click.mp3");
+
+vaudio.sound_volume(click_sfx, 0.9);
+vaudio.sound_volume(stream_brown_noise, 0.45);
+vaudio.sound_volume(stream_wind,        0.25);
+vaudio.sound_volume(stream_crt_hum,     0.65);
+vaudio.sound_volume(stream_crt_noise,   0.95);
+
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
 # ====================================================================
@@ -3566,14 +3583,12 @@ fn dispatch_cli_command(raw_input :: String) {
 # MAIN ENGINE LOOP
 # ====================================================================
 while (vglib.running()) {
+    vaudio.update_stream(stream_brown_noise);
+    vaudio.update_stream(stream_wind);
+    vaudio.update_stream(stream_crt_hum);
+    vaudio.update_stream(stream_crt_noise);
     # ================================================================
     # SERVER IP CONNECTION MENU
-    # ================================================================
-    # ================================================================
-    # SERVER IP CONNECTION MENU (OPERATION COLD SIGNAL GATEWAY)
-    # ================================================================
-    # ================================================================
-    # SERVER IP CONNECTION MENU (OPERATION COLD SIGNAL GATEWAY - ENHANCED)
     # ================================================================
     if (is_in_ip_menu == 1) {
         run_time = run_time + 0.016;
@@ -3587,6 +3602,7 @@ while (vglib.running()) {
 
         if (m_click == 1) {
             ip_box_focused = (mx >= 440.0 && mx <= 840.0 && my >= 430.0 && my <= 470.0) ? 1 : 0;
+            vaudio.play_sound(click_sfx);
         }
 
         ch = vglib.get_char();
@@ -3887,6 +3903,10 @@ while (vglib.running()) {
         m_down  :: Int64 = vglib.mouse_down(vglib.MOUSE_LEFT);
         m_click :: Int64 = (m_down == 1 && mouse_was_down == 0 && dos_timer <= 0.0 && is_connecting == 0) ? 1 : 0;
         mouse_was_down   = m_down;
+
+        if (m_click) {
+            vaudio.play_sound(click_sfx); 
+        }
 
         if (vglib.key_pressed(vglib.TAB) && dos_timer <= 0.0) {
             cli_overlay_open = (cli_overlay_open == 1) ? 0 : 1;
