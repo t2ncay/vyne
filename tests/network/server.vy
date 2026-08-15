@@ -53,7 +53,7 @@ all_50_sites :: Array = [
     "deadchannel.vnet", "phantom.vnet", "glitch.vnet", "stasis.vnet", 
     "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
     "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", 
-    "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "corridor204863.vnet"
+    "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "forum.vnet", "corridor204863.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
@@ -205,25 +205,7 @@ fn refresh_mining_blocks() -> String {
 refresh_mining_blocks();
 
 fn resolve_canonical(input_url :: String) -> String {
-    clean_u :: String = input_url;
-    if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
-        clean_u = clean_u.substr(7, clean_u.length() - 7);
-    }
-    clean_u = clean_str(clean_u);
-
-    through idx :: 0..(all_50_sites.length() - 1) -> loop {
-        if (string(all_50_sites[idx]) == clean_u) {
-            return string(all_50_sites[idx]);
-        }
-    };
-
-    through idx :: 0..(hashed_50_sites.length() - 1) -> loop {
-        if (string(hashed_50_sites[idx]) == clean_u) {
-            return string(all_50_sites[idx]);
-        }
-    };
-
-    return clean_u;
+    return vnet.resolve_canonical(input_url, all_50_sites);
 }
 
 fn resolve_hash(raw_url :: String) -> String {
@@ -347,7 +329,7 @@ fn prune_inactive_peers(now_time :: Float64) {
         if (now_time - last_t > 10.0) { # 10s grace window for 3s heartbeats
             dead_port :: Int64 = int64(active_ports[i]);
             unregister_peer(dead_port);
-            broadcast_feed_event("[TIMEOUT]: NODE PORT_" + string(dead_port) + " TIMED OUT & PURGED");
+            broadcast_feed_event("[TIMEOUT]: NODE PORT_" + mask_port(dead_port) + " TIMED OUT & PURGED");
         }
         i = i - 1;
     }
@@ -385,7 +367,7 @@ fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
         if (int64(proxy_chains_source[p_idx]) == attacker_port) {
             if (string(proxy_chains_target[p_idx]) == target) {
                 proxy_node_name :: String = string(proxy_chains_proxy[p_idx]);
-                broadcast_feed_event("[PROXY SHIELD]: PROXY NODE " + proxy_node_name + " ABSORBED AMBUSH FOR PORT_" + string(attacker_port));
+                broadcast_feed_event("[PROXY SHIELD]: PROXY NODE " + proxy_node_name + " ABSORBED AMBUSH FOR PORT_" + mask_port(attacker_port));
                 return null;
             }
         }
@@ -509,7 +491,7 @@ while (true) {
 
             if (p_port != bot_port && p_url == bot_url && p_url != "vnet.dir") {
                 vnet.send_to(server_sock, p_ip, p_port, "EXPLOIT:BOT_STALK");
-                broadcast_feed_event("[WARNING]: SPECTRE_BOT LOCKED ONTO PORT_" + string(p_port) + " AT " + bot_url);
+                broadcast_feed_event("[WARNING]: SPECTRE_BOT LOCKED ONTO PORT_" + mask_port(p_port) + " AT " + bot_url);
             }
         };
     }
@@ -845,7 +827,7 @@ while (true) {
 
                     broadcast_feed_event("[CHAT] <" + handle_part + ">: " + msg_part);
                 } else {
-                    broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
+                    broadcast_feed_event("[CHAT] PORT_" + mask_port(sender_port) + ": " + payload);
                 }
             }
             if (cmd == "CAT") {
@@ -1000,7 +982,7 @@ while (true) {
                     proxy_chains_target.push(target_url);
                     
                     vnet.send_to(server_sock, sender_ip, sender_port, "PROXY_SET:ROUTING_VIA_" + proxy_node + "_TO_" + target_url);
-                    broadcast_feed_event("[SPY ROUTE]: PORT_" + string(sender_port) + " ENCRYPTED CHAIN THROUGH " + proxy_node + " TO " + target_url);
+                    broadcast_feed_event("[SPY ROUTE]: PORT_" + mask_port(sender_port) + " ENCRYPTED CHAIN THROUGH " + proxy_node + " TO " + target_url);
                 }
             }
 
@@ -1127,7 +1109,7 @@ while (true) {
                 } else {
                     overloaded_urls.push(target_site);
                     overloaded_timers.push(45.0); # 30 second lockout
-                    broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + string(sender_port) + " FRIED " + target_site + "!");
+                    broadcast_feed_event("[GRID OVERLOAD]: NODE PORT_" + mask_port(sender_port) + " FRIED " + target_site + "!");
                     broadcast_raw("EXPLOIT:SITE_OVERLOADED:" + target_site);
 
                     m_mkt :: Int64 = 0;
@@ -1147,7 +1129,7 @@ while (true) {
 
                     if (m_mkt == 1 && m_vlt == 1 && m_trm == 1 && m_cry == 1 && m_hel == 1) {
                         game_over = 1;
-                        out("[GRID BLACKOUT]: VICTORY DETECTED FROM PORT " + string(sender_port));
+                        broadcast_feed_event("[GRID BLACKOUT]: NODE PORT_" + mask_port(sender_port) + " FRIED ALL 5 MUTUAL CORE NODES!");
                         broadcast_feed_event("[GRID BLACKOUT]: NODE PORT_" + string(sender_port) + " FRIED ALL 5 MUTUAL CORE NODES!");
                         broadcast_raw("EXPLOIT:WINNER:" + string(sender_port) + ":BLACKOUT:" + handle_part);
                     }

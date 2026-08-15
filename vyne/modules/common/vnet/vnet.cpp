@@ -186,6 +186,52 @@ Value native_to_binary_str(std::vector<Value>& args) {
     return Value(res);
 }
 
+Value native_resolve_canonical(std::vector<Value>& args) {
+    if (args.empty()) return Value(std::string(""));
+
+    std::string url = args[0].asString();
+
+    if (url.rfind("vnet://", 0) == 0) {
+        url = url.substr(7);
+    }
+
+    size_t start = url.find_first_not_of(" \"'\t\r\n");
+    if (start != std::string::npos) {
+        size_t end = url.find_last_not_of(" \"'\t\r\n");
+        url = url.substr(start, end - start + 1);
+    } else {
+        url = "";
+    }
+
+    // 1. Strip hash suffix upfront (e.g., "market_88f912.vnet" -> "market.vnet")
+    std::string canonical_url = url;
+    size_t underscore_pos = url.find('_');
+    size_t dot_pos = url.rfind(".vnet");
+    if (underscore_pos != std::string::npos && dot_pos != std::string::npos && dot_pos > underscore_pos) {
+        canonical_url = url.substr(0, underscore_pos) + ".vnet";
+    }
+
+    if (args.size() < 2) return Value(canonical_url);
+
+    const auto& sites = args[1].asList();
+
+    for (const auto& siteVal : sites) {
+        std::string site = siteVal.asString();
+        
+        std::string clean_site = site;
+        size_t s_under = site.find('_');
+        size_t s_dot = site.rfind(".vnet");
+        if (s_under != std::string::npos && s_dot != std::string::npos && s_dot > s_under) {
+            clean_site = site.substr(0, s_under) + ".vnet";
+        }
+
+        if (clean_site == canonical_url) {
+            return Value(clean_site);
+        }
+    }
+
+    return Value(canonical_url);
+}
 } // namespace VNetNative
 
 void setupVNet(SymbolContainer& env, StringPool& pool) {
@@ -201,6 +247,7 @@ void setupVNet(SymbolContainer& env, StringPool& pool) {
     vnet[pool.intern("close")]         = Value(VNetNative::native_close_socket);
     vnet[pool.intern("parse_package")] = Value(VNetNative::native_parse_package);
     vnet[pool.intern("hash_site")]     = Value(VNetNative::native_hash_site);
+    vnet[pool.intern("resolve_canonical")] = Value(VNetNative::native_resolve_canonical);
 
     vnet[pool.intern("bit_shift")]     = Value(VNetNative::native_bit_shift);
     vnet[pool.intern("bit_xor")]       = Value(VNetNative::native_bit_xor);

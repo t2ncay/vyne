@@ -325,13 +325,17 @@ stream_crt_hum     = vaudio.play_stream("tests/assets/analog_electronic_noise.mp
 stream_crt_noise   = vaudio.play_stream("tests/assets/crt_noise.mp3");
 click_sfx          = vaudio.load_sound("tests/assets/mouse_click.mp3");
 stream_pt_radio    = vaudio.play_stream("tests/assets/pt_radio.mp3");
+stream_look_behind = vaudio.play_stream("tests/assets/look_behind.mp3");
+stream_e_raid      = vaudio.play_stream("tests/assets/e_raid.mp3");
 
 vaudio.sound_volume(click_sfx, 0.9);
-vaudio.sound_volume(stream_brown_noise, 0.25);
-vaudio.sound_volume(stream_wind,        0.25);
+vaudio.sound_volume(stream_brown_noise, 0.35);
+vaudio.sound_volume(stream_wind,        0.35);
 vaudio.sound_volume(stream_crt_hum,     0.95);
 vaudio.sound_volume(stream_crt_noise,   0.95);
 vaudio.sound_volume(stream_pt_radio,    0.00);
+vaudio.sound_volume(stream_e_raid,      0.00);
+vaudio.sound_volume(stream_look_behind, 0.00);
 
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
@@ -444,6 +448,7 @@ cursor_blink     :: Float64 = 0.0;
 mouse_was_down   :: Int64   = 0;
 
 bot_stalk_active :: Int64 = 0;
+hex_stream_locked :: Int64 = 0;
 
 page_body        :: Array   = [];
 
@@ -557,32 +562,13 @@ fn check_bit_alignment(payload :: Int64, shift :: Int64) -> Int64 {
 }
 
 fn extract_canonical_name(raw_url :: String) -> String {
-    clean_u :: String = clean_str(raw_url);
-    if (clean_u.length() >= 7 && clean_u.substr(0, 7) == "vnet://") {
-        clean_u = clean_str(clean_u.substr(7, clean_u.length() - 7));
+    resolved :: String = vnet.resolve_canonical(raw_url, my_assigned_sites);
+    
+    if (resolved == raw_url || resolved.find(".vnet") < 0) {
+        resolved = vnet.resolve_canonical(raw_url, session_locs);
     }
 
-    sep_idx :: Int64 = clean_u.find("_");
-
-    if (sep_idx < 0) {
-        return clean_u;
-    }
-
-    through idx :: 0..(my_assigned_sites.length() - 1) -> loop {
-        if (string(my_assigned_sites[idx]) == clean_u) {
-            base_prefix :: String = clean_u.substr(0, sep_idx);
-            return base_prefix + ".vnet";
-        }
-    };
-
-    through idx :: 0..(session_locs.length() - 1) -> loop {
-        if (string(session_locs[idx]) == clean_u) {
-            base_prefix :: String = clean_u.substr(0, sep_idx);
-            return base_prefix + ".vnet";
-        }
-    };
-
-    return clean_u;
+    return resolved;
 }
 
 fn trigger_route_navigation(target_dest :: String) {
@@ -1160,7 +1146,7 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] DIGITAL AUTOPSY DATABASE // SUBJECT #409-B (EXECUTIVE LEVEL)",
             "[HR]",
-            "[ART:skull]",
+            "[ART:morgue]",
             "[BLOOD] SUBJECT STATUS: FLATLINE (0 BPM) // CEREBRAL STEM ACTIVITY: 98% RECURSIVE",
             "[PULSE] CLASSIFICATION: EYES ONLY // HIGH-TIER GLOBAL CONSPIRACY DOSSIER",
             "[BOX] +---------------------------------------------------------------------+",
@@ -1932,7 +1918,7 @@ fn load_page(url :: String) -> Array {
             "[SUBTITLE] DIRECT MULTI-SIG ESCROW PURCHASE & DELIVERY DISPATCH:",
             "[TEXT] Select a lot code and optional target port to execute smart-contract escrow:",
             "[INPUT:silkroad_lot_code:ENTER LOT CODE (e.g. LOT_401)]",
-            "[INPUT:silkroad_target_port:ENTER TARGET PORT (e.g. 8012 or LEAVE BLANK)]",
+            "[INPUT:silkroad_target_port:ENTER TARGET PORT (e.g. 8012)]",
             "[TEXT] ",
             "[BTN:buy_silkroad_lot_btn:>>> EXECUTE MULTI-SIG ESCROW PURCHASE <<<]",
             "[TEXT] ",
@@ -2471,7 +2457,8 @@ fn load_page(url :: String) -> Array {
             "[BOX] +---------------------------------------------------------+",
             "[BOX] | SECTOR SIZE: 64 MB | INTEGRITY: CORRUPTED               |",
             "[BOX] +---------------------------------------------------------+",
-            "[CODE] 0000FF00: AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99"
+            "[CODE] 0000FF00: AA BB CC DD EE FF 00 11 22 33 44 55 66 77 88 99",
+            "[HEX_STREAM:0x88F9:32:18]"
         ];
         if (key_line != "") { res.push(key_line); }
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
@@ -2613,15 +2600,74 @@ fn load_page(url :: String) -> Array {
     }
     if (clean_u == "necro.vnet") {
         res :: Array = [
-            "[TITLE] NECRO-NET: DIGITAL GRAVEYARD",
+            "[TITLE] NECRO-NET: DIGITAL GRAVEYARD // CORTEX RETENTION VAULT",
             "[HR]",
-            "[TEXT] Memorial database for network nodes and users who vanished offline.",
+            "[BADGE:SEVERED SOULS:BLOOD] [BADGE:NEURAL TRAP:AMBER] [BADGE:PERPETUAL RECURSION:TOXIC]",
             "[BOX] +---------------------------------------------------------+",
-            "[BOX] | REGISTERED CASUALTIES: 3,491 | STATUS: OFFLINE          |",
+            "[BOX] | REGISTERED CASUALTIES: 3,492 | STATUS: PERMANENT LOCK   |",
+            "[BOX] | MEMORIAL DATABASE FOR SOCKETS THAT CAN NEVER DISCONNECT |",
             "[BOX] +---------------------------------------------------------+",
-            "[CODE] NECRO_HASH: 0xDEAD_NODE_ARCHIVE"
+            "[CODE] NECRO_HASH: 0xDEAD_NODE_ARCHIVE_SECTOR_09",
+            "[TEXT] ",
+            "[SUBTITLE] TRAPPED CONSCIOUSNESS & RECURSIVE SOUL REGISTRY:",
+            "[CODE] [CASUALTY #3492] HANDLE: " + player_handle + " | PORT: " + string(my_port) + " | STATUS: TRAPPED (FLATLINE / ACTIVE BUS)"
         ];
+
+        # Dynamic Extraction of Active Handles from Hellroom / Feed Logs
+        known_handles :: Array = [player_handle];
+        casualty_num  :: Int64 = 3491;
+
+        if (vnet_feed_logs.length() > 0) {
+            through log_idx :: 0..(vnet_feed_logs.length() - 1) -> loop {
+                log_entry :: String = string(vnet_feed_logs[log_idx]);
+                found_handle :: String = "";
+
+                if (log_entry.length() > 7 && log_entry.substr(0, 7) == "[CHAT] ") {
+                    chat_body :: String = log_entry.substr(7, log_entry.length() - 7);
+                    colon_idx :: Int64 = chat_body.find(":");
+                    if (colon_idx > 0) {
+                        found_handle = clean_str(chat_body.substr(0, colon_idx));
+                    }
+                } else if (log_entry.length() > 15 && log_entry.substr(0, 15) == "[WHISPER FROM <") {
+                    w_body :: String = log_entry.substr(15, log_entry.length() - 15);
+                    gt_idx :: Int64 = w_body.find(">");
+                    if (gt_idx > 0) {
+                        found_handle = clean_str(w_body.substr(0, gt_idx));
+                    }
+                }
+
+                if (found_handle != "") {
+                    is_dup :: Int64 = 0;
+                    through h_i :: 0..(known_handles.length() - 1) -> loop {
+                        if (string(known_handles[h_i]) == found_handle) {
+                            is_dup = 1;
+                            break;
+                        }
+                    };
+                    if (is_dup == 0) {
+                        known_handles.push(found_handle);
+                        res.push("[CODE] [CASUALTY #" + string(casualty_num) + "] HANDLE: " + found_handle + " | PORT: " + string(vmath.random(8001, 8999)) + " | STATUS: TRAPPED (HELLROOM SWARM)");
+                        casualty_num = casualty_num - 1;
+                    }
+                }
+            };
+        }
+
+        # Static Lore Casualties
+        res.push("[CODE] [CASUALTY #" + string(casualty_num) + "] HANDLE: d34d_7dp     | PORT: 8012 | STATUS: EXECUTED (THERMITE BURN)");
+        casualty_num = casualty_num - 1;
+        res.push("[CODE] [CASUALTY #" + string(casualty_num) + "] HANDLE: Ghost_User    | PORT: 0000 | STATUS: SEVERED CORTEX STACK");
+        casualty_num = casualty_num - 1;
+        res.push("[CODE] [CASUALTY #" + string(casualty_num) + "] HANDLE: Anon_409     | PORT: 8000 | STATUS: LIQUEFIED IN VFS VAULT");
+
+        res.push("[TEXT] ");
+        res.push("[BLOOD] 'YOU ARE NOT BROWSING THIS SITE FROM THE OUTSIDE.'");
+        res.push("[BLOOD] 'YOUR IP WAS MONITORED, YOUR RETINA WAS LOCKED, AND YOUR SOCKET WAS SEALED AT BOOT.'");
+        res.push("[PULSE] 'NOBODY LOGS OUT OF NECRO.VNET. YOU ARE ALREADY STANDING IN THE GRAVEYARD.'");
+        res.push("[GLITCH] 'LOOK AT THE MONITOR GLASS. YOUR BODY IS ALREADY COLD.'");
+
         if (key_line != "") { res.push(key_line); }
+        res.push("[HR]");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         return res;
     }
@@ -3739,6 +3785,8 @@ while (vglib.running()) {
     vaudio.update_stream(stream_crt_hum);
     vaudio.update_stream(stream_crt_noise);
     vaudio.update_stream(stream_pt_radio);
+    vaudio.update_stream(stream_look_behind);
+    vaudio.update_stream(stream_e_raid);
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
@@ -3976,6 +4024,7 @@ while (vglib.running()) {
 
         if (raid_active == 1) {
             raid_timer = raid_timer - 0.016;
+            vaudio.sound_volume(stream_e_raid, 0.90);
             if (raid_timer <= 0.0) {
                 raid_active = 0;
                 btc_balance = vmath.clamp(btc_balance - 5.00, 0.0, 999.0);
@@ -3985,6 +4034,8 @@ while (vglib.running()) {
                 cli_logs.push("[PENALTY]: E-RAID PURGE FAILED!");
                 cli_logs.push("[VEKTRA PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
             }
+        } else {
+            vaudio.sound_volume(stream_e_raid, 0.00);
         }
 
         if (is_connecting == 1) {
@@ -4006,7 +4057,7 @@ while (vglib.running()) {
         
         # === WEBSITE SPECIFIC EVENTS ===
         if (canonical_curr == "corridor204863.vnet") {
-            vaudio.sound_volume(stream_pt_radio, 1.1);
+            vaudio.sound_volume(stream_pt_radio, 1.5);
         } else {
             vaudio.sound_volume(stream_pt_radio, 0.00);
         }
@@ -4542,27 +4593,22 @@ while (vglib.running()) {
     # ================================================================
     # CRT GLASS HEAT & NEURAL PARANOIA TICK ENGINE
     # ================================================================
-    # 1. Passive Thermal Dissipation (Cools down toward 35°C ambient)
     if (crt_heat > 35.0) {
         crt_heat = vmath.clamp(crt_heat - (0.016 * 1.2), 35.0, 100.0);
     }
 
-    # 2. Node-Specific Environmental Heat & Paranoia Accumulation
     if (canonical_curr == "crypto.vnet" || canonical_curr == "substation04.vnet" || canonical_curr == "blackout.vnet") {
         crt_heat = vmath.clamp(crt_heat + (0.016 * 2.0), 35.0, 100.0);
     }
 
     if (canonical_curr == "vnet.dir" || canonical_curr == "market.vnet") {
-        # Safe nodes passively calm neural paranoia
         neural_paranoia = vmath.clamp(neural_paranoia - (0.016 * 1.8), 0.0, 100.0);
     } else if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
                canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
                canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet") {
-        # Horror nodes increase paranoia index
-        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 2.8), 0.0, 100.0);
+        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 1.9), 0.0, 100.0);
     }
 
-    # 3. High Heat Side-Effects (Thermal Screen Distortion & Log Spikes)
     if (crt_heat > 75.0) {
         glitch_trigger = vmath.clamp(glitch_trigger + (0.016 * 0.4), 0.0, 1.0);
         heat_warning_cd = heat_warning_cd + 0.016;
@@ -4666,7 +4712,9 @@ while (vglib.running()) {
                 "behind_your_desk.vnet",
                 "room402.eye.vnet",
                 "netman.cortex.vnet",
-                "void.nobody.vnet"
+                "void.nobody.vnet",
+                "CUT.YOUR.THROAT",
+                "OFF.YOURSELF"
             ];
             u_idx :: Int64 = int64(vmath.random(0.0, 4.0));
             hallucinated_url = string(fake_urls[u_idx]);
@@ -4674,7 +4722,10 @@ while (vglib.running()) {
 
         if (neural_paranoia > 75.0 && static_blackout_timer <= 0.0 && vmath.random(0.0, 100.0) < 0.03) {
             static_blackout_timer = 1.2; # Holds the black screen for 1.5 seconds
+            vaudio.sound_volume(stream_look_behind, 1.20);
             glitch_trigger = 1.0;
+        } else {
+            vaudio.sound_volume(stream_look_behind, 0.0);
         }
     }
 
@@ -5081,12 +5132,11 @@ while (vglib.running()) {
                     }
                     else if (line_str.length() > 8 && line_str.substr(0, 8) == "[GLITCH]") {
                         raw_glitch_text :: String = clean_str(line_str.substr(8, line_str.length() - 8));
+                        corrupted_payload :: String = corrupt_text_paranoia(raw_glitch_text, neural_paranoia);
 
-                        # Tightened position jitter (High speed, small displacement)
                         glitch_off_x :: Float64 = vmath.sin(run_time * 48.0 + float64(line_idx * 7)) * 1.2; # Cut from 7.0 -> 1.8px
                         glitch_off_y :: Float64 = vmath.cos(run_time * 32.0 + float64(line_idx * 3)) * 0.6; # Cut from 2.0 -> 0.6px
 
-                        # Tighter Chromatic Aberration (RGB channels stay closer to main text)
                         red_shift_x  :: Float64 = vmath.sin(run_time * 65.0) * 1.2;                        # Cut from 4.0 -> 1.2px
                         cyan_shift_x :: Float64 = -vmath.cos(run_time * 55.0) * 1.2;                       # Cut from 4.0 -> 1.2px
 
@@ -5099,13 +5149,125 @@ while (vglib.running()) {
                         base_x :: Float64 = 40.0 + jitter_x + glitch_off_x;
                         base_y :: Float64 = y_pos + glitch_off_y;
 
-                        vglib.text_ex(vcr_font, raw_glitch_text, base_x + red_shift_x, base_y - 0.5, 11, vglib.rgba(220, 20, 40, 190));
-                        vglib.text_ex(vcr_font, raw_glitch_text, base_x + cyan_shift_x, base_y + 0.5, 11, vglib.rgba(0, 220, 240, 190));
+                        vglib.text_ex(vcr_font, corrupted_payload, base_x + red_shift_x, base_y - 0.5, 11, vglib.rgba(220, 20, 40, 190));
+                        vglib.text_ex(vcr_font, corrupted_payload, base_x + cyan_shift_x, base_y + 0.5, 11, vglib.rgba(0, 220, 240, 190));
 
-                        vglib.text_ex(vcr_font, raw_glitch_text, base_x, base_y, 11, primary_col);
+                        vglib.text_ex(vcr_font, corrupted_payload, base_x, base_y, 11, primary_col);
                     }
                     else if (line_str == "[HR]") {
                         vglib.line(40, y_pos + 12.0, 890, y_pos + 12.0, COLOR_BORDER);
+                    }
+                    # ================================================
+                    # INTERACTIVE HEX STREAM TAG -> [HEX_STREAM:addr:length:scramble_rate]
+                    # ================================================
+                    else if (line_str.length() > 12 && line_str.substr(0, 12) == "[HEX_STREAM:") {
+                        close_b :: Int64 = -1;
+                        through bi :: 12..(line_str.length() - 1) -> loop {
+                            if (line_str[bi] == "]") { close_b = bi; break; }
+                        };
+
+                        if (close_b > 12) {
+                            raw_hex_param :: String = line_str.substr(12, close_b - 12);
+                            hs_parts = vnet.parse_package(raw_hex_param, ":");
+                            
+                            # Safe default fallback values
+                            base_addr    :: String  = "0x0000";
+                            byte_len     :: Int64   = 16;
+                            scramble_spd :: Float64 = 12.0;
+
+                            # Bounds-checked assignments
+                            if (hs_parts.length() > 0) { base_addr = string(hs_parts[0]); }
+                            if (hs_parts.length() > 1) { byte_len = int64(hs_parts[1]); }
+                            if (hs_parts.length() > 2) { scramble_spd = float64(hs_parts[2]); }
+
+                            if (byte_len <= 0) { byte_len = 16; }
+                            if (byte_len > 32) { byte_len = 32; }
+                            if (scramble_spd <= 0.0) { scramble_spd = 12.0; }
+
+                            hs_x :: Float64 = 40.0 + jitter_x;
+                            hs_y :: Float64 = y_pos;
+                            hs_w :: Float64 = 530.0;
+                            
+                            rows_cnt :: Int64 = (byte_len + 15) / 16;
+                            hs_h :: Float64 = 32.0 + float64(rows_cnt * 22);
+
+                            is_box_hover :: Int64 = (cli_overlay_open == 0 && dos_timer <= 0.0 && mx >= hs_x && mx <= (hs_x + hs_w) && my >= hs_y && my <= (hs_y + hs_h)) ? 1 : 0;
+
+                            # Toggle lock on user click
+                            if (is_box_hover == 1 && m_click == 1) {
+                                hex_stream_locked = (hex_stream_locked == 1) ? 0 : 1;
+                                glitch_trigger = 0.3;
+                                if (hex_stream_locked == 1) {
+                                    cli_logs.push("[HEX_STREAM]: VFS REGISTER STREAM LOCKED AT " + base_addr);
+                                } else {
+                                    cli_logs.push("[HEX_STREAM]: BYTE STREAM UNLOCKED - CYCLING SECTORS...");
+                                }
+                            }
+
+                            # Background Chassis & Frame
+                            vglib.rect(hs_x, hs_y, hs_w, hs_h, COLOR_BLACK);
+                            
+                            border_c = (hex_stream_locked == 1) ? COLOR_TOXIC : ((is_box_hover == 1) ? COLOR_AMBER : COLOR_BORDER);
+                            
+                            vglib.line(hs_x, hs_y, hs_x + hs_w, hs_y, border_c);
+                            vglib.line(hs_x + hs_w, hs_y, hs_x + hs_w, hs_y + hs_h, border_c);
+                            vglib.line(hs_x + hs_w, hs_y + hs_h, hs_x, hs_y + hs_h, border_c);
+                            vglib.line(hs_x, hs_y + hs_h, hs_x, hs_y, border_c);
+
+                            # Header Bar
+                            vglib.rect(hs_x, hs_y, hs_w, 20.0, COLOR_PANEL);
+                            status_str :: String = (hex_stream_locked == 1) ? "[LOCKED - KEY FRAGMENT REVEALED]" : ((is_box_hover == 1) ? "[HOVERING - CLICK TO LOCK STREAM]" : "[LIVE CYCLING]");
+                            vglib.text_ex(vcr_font, "MEM_STREAM // " + base_addr + " " + status_str, hs_x + 10.0, hs_y + 4.0, 10, (hex_stream_locked == 1) ? COLOR_TOXIC : COLOR_AMBER);
+
+                            # Render Hex Address Rows
+                            base_addr_num :: Int64 = vcore.hex_to_int64(base_addr);
+                            hex_chars :: Array = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
+
+                            through r_idx :: 0..(rows_cnt - 1) -> loop {
+                                row_y :: Float64 = hs_y + 26.0 + float64(r_idx * 22);
+                                row_addr_val :: Int64 = base_addr_num + (r_idx * 16);
+                                row_addr_str :: String = "0x" + string(row_addr_val) + ":";
+                                
+                                if (base_addr_num == 0) {
+                                    row_addr_str = base_addr + "+0x" + string(r_idx * 16) + ":";
+                                }
+
+                                vglib.text_ex(vcr_font, row_addr_str, hs_x + 10.0, row_y, 10, COLOR_CYAN);
+
+                                row_hex_line :: String = "";
+                                bytes_in_row :: Int64 = 16;
+                                if ((r_idx + 1) * 16 > byte_len) {
+                                    bytes_in_row = byte_len - (r_idx * 16);
+                                }
+
+                                through b_idx :: 0..(bytes_in_row - 1) -> loop {
+                                    byte_pos :: Int64 = r_idx * 16 + b_idx;
+                                    byte_val :: Int64 = 0;
+
+                                    if (hex_stream_locked == 1 || is_box_hover == 1) {
+                                        if (active_raw_payload > 0) {
+                                            byte_val = int64(vmath.fmod(float64(active_raw_payload + byte_pos * 37), 256.0));
+                                        } else {
+                                            byte_val = int64(vmath.fmod(float64(base_addr_num + byte_pos * 101 + 13), 256.0));
+                                        }
+                                    } else {
+                                        byte_val = int64(vmath.fmod(run_time * scramble_spd * 15.0 + float64(byte_pos * 17), 255.0));
+                                    }
+
+                                    v_clamp :: Int64 = int64(vmath.clamp(float64(byte_val), 0.0, 255.0));
+                                    hi_idx :: Int64 = v_clamp / 16;
+                                    lo_idx :: Int64 = v_clamp % 16;
+                                    byte_hex :: String = string(hex_chars[hi_idx]) + string(hex_chars[lo_idx]);
+
+                                    row_hex_line = row_hex_line + byte_hex + " ";
+                                };
+
+                                row_col = (hex_stream_locked == 1) ? COLOR_TOXIC : ((is_box_hover == 1) ? COLOR_AMBER : COLOR_GHOST);
+                                vglib.text_ex(vcr_font, row_hex_line, hs_x + 110.0, row_y, 10, row_col);
+                            };
+
+                            line_idx = line_idx + (rows_cnt + 2);
+                        }
                     }
                     # ================================================
                     # GAUGE / PROGRESS BAR TAG -> [GAUGE:pct:label]
@@ -5633,6 +5795,28 @@ while (vglib.running()) {
                             };
 
                             line_idx = line_idx + 6;
+                        }
+                        else if (art_key == "morgue") {
+                            morgue_art :: Array = [
+                                "{__        {__    {____     {_______        {____    {__     {__{________",
+                                "{_ {__   {___  {__    {__  {__    {__   {_    {__ {__     {__{__      ",
+                                "{__ {__ { {__ {__        {__{__    {__  {__        {__     {__{__      ",
+                                "{__  {__  {__{__        {__{_ {__      {__        {__     {__{______  ",
+                                "{__   {_  {__{__        {__{__  {__    {__   {____{__     {__{__      ",
+                                "{__       {__  {__     {__ {__    {__   {__    {_ {__     {__{__      ",
+                                "{__       {__    {____     {__      {__  {_____     {_____   {________"
+                            ];
+
+                            morgue_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
+
+                            through mp_i :: 0..(morgue_art.length() - 1) -> loop {
+                                mp_line_y :: Float64 = art_y + (float64(mp_i) * 16.0);
+                                if (mp_line_y >= 85.0 && mp_line_y <= 730.0) {
+                                    vglib.text_ex(vcr_font, string(morgue_art[mp_i]), art_x, mp_line_y, 11, morgue_col);
+                                }
+                            };
+
+                            line_idx = line_idx + 4;
                         }
                         else if (art_key == "vnet") {
                             vnet_art :: Array = [
