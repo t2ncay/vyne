@@ -3602,8 +3602,27 @@ fn dispatch_cli_command(raw_input :: String) {
         else { vnet.send_to(client_sock, server_ip, server_port, "CRACK:" + args); }
     }
     else if (cmd == "cat") {
-        if (args == "") { cli_logs.push("[ERROR]: Usage: cat <vfs_path>"); }
-        else { vnet.send_to(client_sock, server_ip, server_port, "CAT:" + args); }
+        if (args == "") { 
+            cli_logs.push("[ERROR]: Usage: cat <vfs_path>"); 
+        } else if (btc_balance < 0.05) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR VFS BUS READ (REQUIRES 0.05 VCOIN)");
+        } else {
+            trace_level = int64(vmath.clamp(float64(trace_level + 15), 0.0, 100.0));
+
+            btc_balance = btc_balance - 0.05;
+            vnet.send_to(client_sock, server_ip, server_port, "CAT:" + args);
+            cli_logs.push("[VFS_BUS]: READING REGISTER " + args + "...");
+        }
+    }
+    else if (cmd == "ls" || cmd == "dir") {
+        path_arg :: String = (args == "") ? "/" : clean_str(args);
+        if (btc_balance < 0.02) {
+            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR VFS DIRECTORY ENUMERATION (REQUIRES 0.02 VCOIN)");
+        } else {
+            btc_balance = btc_balance - 0.02;
+            vnet.send_to(client_sock, server_ip, server_port, "LS:" + path_arg);
+            cli_logs.push("[VFS_BUS]: SCANNING DIRECTORY PATH " + path_arg + "...");
+        }
     }
     else if (cmd == "help") {
         cli_logs.push("========== THREE VICTORY GOALS ==========");
@@ -4170,6 +4189,40 @@ while (vglib.running()) {
                 cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
             }
             glitch_trigger = 0.8;
+        }
+        else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "VFS_DATA:") {
+            raw_vfs :: String = net_msg.substr(9, net_msg.length() - 9);
+            cli_logs.push("[VFS_READ]: " + raw_vfs);
+            
+            btc_balance = btc_balance + 0.30;
+            
+            trace_level = int64(vmath.clamp(float64(trace_level + 15), 0.0, 100.0));
+            crt_heat    = vmath.clamp(crt_heat + 8.0, 35.0, 100.0);
+            
+            glitch_trigger = 0.4;
+        }
+        else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "VFS_LIST:") {
+            raw_list_payload :: String = net_msg.substr(9, net_msg.length() - 9);
+            
+            sep_ls :: Int64 = raw_list_payload.find(":");
+            if (sep_ls > 0) {
+                dir_path :: String = raw_list_payload.substr(0, sep_ls);
+                files_str :: String = raw_list_payload.substr(sep_ls + 1, raw_list_payload.length() - sep_ls - 1);
+
+                cli_logs.push("========== VFS DIRECTORY: " + dir_path + " ==========");
+                
+                file_tokens :: Array = vnet.parse_package(files_str, " ");
+                through f_idx :: 0..(file_tokens.length() - 1) -> loop {
+                    f_item :: String = string(file_tokens[f_idx]);
+                    if (f_item != "") {
+                        cli_logs.push("  [NODE] " + f_item);
+                    }
+                };
+                cli_logs.push("==================================================");
+            } else {
+                cli_logs.push("[VFS_LIST]: " + raw_list_payload);
+            }
+            glitch_trigger = 0.3;
         }
         else if (net_msg.length() >= 18 && net_msg.substr(0, 18) == "EXPLOIT:BRAINDEAD:") {
             is_braindead     = 1;

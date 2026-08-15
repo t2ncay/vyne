@@ -737,6 +737,37 @@ while (true) {
                     broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
                 }
             }
+            if (cmd == "CAT") {
+                found_vfs :: Int64 = -1;
+                through v_i :: 0..(vfs_paths.length() - 1) -> loop {
+                    if (string(vfs_paths[v_i]) == payload) { found_vfs = v_i; break; }
+                };
+
+                if (found_vfs >= 0) {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "VFS_DATA:" + string(vfs_paths[found_vfs]) + ":" + string(vfs_data[found_vfs]));
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "VFS_DATA:ERROR:PATH_NOT_FOUND");
+                }
+            }
+            if (cmd == "LS") {
+                target_dir :: String = clean_str(payload);
+                if (target_dir == "") { target_dir = "/"; }
+
+                matched_files :: String = "";
+                through v_i :: 0..(vfs_paths.length() - 1) -> loop {
+                    p_str :: String = string(vfs_paths[v_i]);
+                    # Match root listing or specific subdirectory prefix
+                    if (target_dir == "/" || (p_str.length() >= target_dir.length() && p_str.substr(0, target_dir.length()) == target_dir)) {
+                        matched_files = matched_files + p_str + " ";
+                    }
+                };
+
+                if (matched_files != "") {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "VFS_LIST:" + target_dir + ":" + matched_files);
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "VFS_LIST:ERROR:NO_NODES_FOUND");
+                }
+            }
             if (cmd == "DOS") {
                 target_node_str :: String = payload;
                 target_node :: Int64 = int64(target_node_str);
