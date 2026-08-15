@@ -24,6 +24,7 @@ decoy_timer      :: Float64 = 0.0;
 pay_keys    :: Array = []; # Holds active 5-digit keys (e.g. 33241)
 pay_amounts :: Array = []; # Holds balance amount (e.g. 0.25)
 pay_owners  :: Array = []; # Tracks port of key creator
+pay_timestamps :: Array = [];
 
 # SERVER-SIDE RANDOM NETWORK INSTABILITY TIMER
 server_outage_timer :: Float64 = 0.0;
@@ -362,6 +363,19 @@ fn send_key_sync_payload(ip :: String, port :: Int64, dir_payload :: String) {
     vnet.send_to(server_sock, ip, port, sync_str);
 }
 
+fn build_escrow_list_payload() -> String {
+    payload :: String = "ESCROW_LIST:";
+    through i :: 0..(pay_keys.length() - 1) -> loop {
+        key_str   = string(pay_keys[i]);
+        amt_str   = string(pay_amounts[i]);
+        owner_str = mask_port(pay_owners[i]);
+        age_str   = string(int64(server_uptime - pay_timestamps[i]));
+        
+        payload = payload + key_str + ":" + amt_str + ":" + owner_str + ":" + age_str + ((i < pay_keys.length() - 1) ? ";" : "");
+    };
+    return payload;
+}
+
 fn check_and_trip_decoy(target :: String, attacker_port :: Int64) {
     through p_idx :: 0..(proxy_chains_source.length() - 1) -> loop {
         if (int64(proxy_chains_source[p_idx]) == attacker_port) {
@@ -585,6 +599,11 @@ while (true) {
                         };
                         vnet.send_to(server_sock, sender_ip, sender_port, blocks_msg);
                     }
+
+                    if (canonical_site == "vektrapay.vnet") {
+                        escrow_payload :: String = build_escrow_list_payload();
+                        vnet.send_to(server_sock, sender_ip, sender_port, escrow_payload);
+                    }
                 }
             }
 
@@ -634,8 +653,10 @@ while (true) {
                 pay_keys.push(t_key);
                 pay_amounts.push(t_amt);
                 pay_owners.push(sender_port);
+                pay_timestamps.push(server_uptime);
 
                 broadcast_feed_event("[VEKTRAPAY]: NEW ESCROW KEY GENERATED (" + string(t_amt) + " VCOIN LOCKED)");
+                broadcast_raw(build_escrow_list_payload());
             }
             else if (cmd == "PAY_CLAIM") {
                 claim_key :: Int64 = int64(payload);
@@ -655,12 +676,26 @@ while (true) {
                     pay_keys.delete_at(found_idx);
                     pay_amounts.delete_at(found_idx);
                     pay_owners.delete_at(found_idx);
+                    pay_timestamps.delete_at(found_idx);
 
                     vnet.send_to(server_sock, sender_ip, sender_port, "PAY_CLAIM_SUCCESS:" + string(claimed_amt));
                     broadcast_feed_event("[VEKTRAPAY]: ESCROW KEY " + string(claim_key) + " CLAIMED!");
                 } else {
                     vnet.send_to(server_sock, sender_ip, sender_port, "PAY_CLAIM_FAILED:INVALID_KEY");
                 }
+            }
+
+            if (cmd == "GET_ESCROWS") {
+                list_payload :: String = "ESCROW_LIST:";
+                through i :: 0..(pay_keys.length() - 1) -> loop {
+                    masked_key  :: String  = "XXXXX";
+                    masked_port :: String  = mask_port(int64(pay_owners[i])); # Returns 801X / 80YY
+                    amount_val  :: Float64 = float64(pay_amounts[i]);
+                    time_val    :: Float64 = float64(pay_timestamps[i]);
+
+                    list_payload = list_payload + masked_key + "|" + string(amount_val) + "|" + masked_port + "|" + string(int64(time_val)) + ((i < pay_keys.length() - 1) ? ";" : "");
+                };
+                vnet.send_to(server_sock, sender_ip, sender_port, list_payload);
             }
 
             if (cmd == "ION_STRIKE") {

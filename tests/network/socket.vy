@@ -396,6 +396,9 @@ braindead_timer  :: Float64 = 0.0;
 active_down_url    :: String  = "";
 active_down_timer  :: Float64 = 0.0;
 
+# ESCROW LISTING
+active_escrow_listings :: Array = [];
+
 # CYBERWARFARE MECHANIC STATES
 sniffer_mode     :: Int64   = 0;
 sniffer_upkeep_timer :: Float64 = 0.0;
@@ -2107,8 +2110,8 @@ fn load_page(url :: String) -> Array {
             "[BADGE:ANONYMITY: MAXIMUM:TOXIC] [BADGE:MIXING FEE: 1.5%:AMBER]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | TUMBLER POOL BALANCE : 420.50 VCOIN                             |",
-            "[BOX] | ZERO-KNOWLEDGE PROOF : zk-SNARKs VEKTRA-CIRCUIT ACTIVE            |",
-            "[BOX] | TRACE PURGE YIELD    : -10% TRACE PER 1.00 VCOIN LAUNDERED        |",
+            "[BOX] | ZERO-KNOWLEDGE PROOF : zk-SNARKs VEKTRA-CIRCUIT ACTIVE          |",
+            "[BOX] | TRACE PURGE YIELD    : -10% TRACE PER 1.00 VCOIN LAUNDERED      |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:88:ZK_PROOF_SCRAMBLE_ENTROPY]",
@@ -2125,6 +2128,26 @@ fn load_page(url :: String) -> Array {
             "[BTN:stake_vcoin_btn:>>> DEPOSIT VCOIN INTO 120s YIELD VAULT <<<]",
             "[HR]"
         ];
+
+        # --- ACTIVE NETWORK ESCROW LISTINGS ---
+        res.push("[SUBTITLE] ACTIVE NETWORK ESCROW LISTINGS (MASKED):");
+        
+        if (active_escrow_listings.length() == 0) {
+            res.push("[TEXT] (No active escrow deposits found on network)");
+        } else {
+            through e_i :: 0..(active_escrow_listings.length() - 1) -> loop {
+                entry :: Array = active_escrow_listings[e_i];
+                
+                # Unpack payload entry [key, amount, port, timestamp]
+                amount      :: Float64 = float64(entry[1]);
+                masked_port :: String  = string(entry[2]);
+                time_stamp  :: Int64   = int64(entry[3]);
+
+                res.push("[CODE] KEY: XXXXX | AMOUNT: " + string(amount) + " VCOIN | ORIGIN: " + masked_port + " | CREATED: " + string(time_stamp) + "s ago");
+            };
+        }
+        res.push("[HR]");
+
         if (key_line != "") { res.push(key_line); }
         res.push("[LINK:blackbank.vnet] >> TRANSFER CLEAN VCOIN TO OFFSHORE VAULT");
         res.push("[LINK:crypto.vnet] >> RETURN TO MINING RIG");
@@ -3676,6 +3699,10 @@ fn dispatch_cli_command(raw_input :: String) {
                     escrow_key :: Int64 = int64(vmath.random(10000, 99999));
                     vnet.send_to(client_sock, server_ip, server_port, "PAY_TRANSFER:" + string(escrow_key) + ":" + string(amt));
                     cli_logs.push("[VEKTRAPAY]: GENERATED ESCROW KEY " + string(escrow_key) + " FOR " + string(amt) + " VCOIN");
+                    
+                    if (extract_canonical_name(current_url) == "vektrapay.vnet") {
+                        page_body = load_page(current_url);
+                    }
                 }
             }
             else if (action == "claim") {
@@ -4310,6 +4337,37 @@ while (vglib.running()) {
             reason_err :: String = net_msg.substr(17, net_msg.length() - 17);
             glitch_trigger = 0.6;
             cli_logs.push("[VEKTRAPAY ERROR]: CLAIM FAILED - " + reason_err);
+        }
+        else if (net_msg.length() >= 12 && net_msg.substr(0, 12) == "ESCROW_LIST:") {
+            raw_escrows :: String = net_msg.substr(12, net_msg.length() - 12);
+            active_escrow_listings.clear();
+
+            rem_escrows :: String = raw_escrows;
+
+            while (rem_escrows.length() > 0) {
+                e_parts = vnet.parse_package(rem_escrows, ";");
+                entry_str :: String = string(e_parts[0]);
+                rem_escrows = string(e_parts[1]);
+
+                if (entry_str != "") {
+                    field_tokens :: Array = [];
+                    rem_fields :: String = entry_str;
+
+                    while (rem_fields.length() > 0) {
+                        f_parts = vnet.parse_package(rem_fields, ":");
+                        field_tokens.push(f_parts[0]);
+                        rem_fields = string(f_parts[1]);
+                    }
+
+                    if (field_tokens.length() >= 4) {
+                        active_escrow_listings.push(field_tokens);
+                    }
+                }
+            }
+
+            if (extract_canonical_name(current_url) == "vektrapay.vnet") {
+                page_body = load_page(current_url);
+            }
         }
         else if (net_msg.length() > 24 && net_msg.substr(0, 24) == "EXPLOIT:SITE_OVERLOADED:") {
             down_site :: String = clean_str(net_msg.substr(24, net_msg.length() - 24));
