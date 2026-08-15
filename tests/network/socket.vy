@@ -3147,6 +3147,18 @@ fn dispatch_cli_command(raw_input :: String) {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + args);
         }
     }
+    else if (cmd == "whisper" || cmd == "pm") {
+        sub_parsed = parse_input(args);
+        target_handle = sub_parsed[0];
+        msg_body      = sub_parsed[1];
+        
+        if (target_handle == "" || msg_body == "") {
+            cli_logs.push("[ERROR]: Usage: whisper <handle> <message>");
+        } else {
+            vnet.send_to(client_sock, server_ip, server_port, "WHISPER:" + player_handle + ":" + target_handle + ":" + msg_body);
+            cli_logs.push("[WHISPER -> " + target_handle + "]: " + msg_body);
+        }
+    }
     else if (cmd == "theme") {
         if (args == "" || args == "list") {
             cli_logs.push("[SYS_THEME]: AVAILABLE PALETTES:");
@@ -3601,6 +3613,41 @@ fn dispatch_cli_command(raw_input :: String) {
         if (args == "") { cli_logs.push("[ERROR]: Usage: crack <val>"); }
         else { vnet.send_to(client_sock, server_ip, server_port, "CRACK:" + args); }
     }
+    else if (cmd == "vektrapay") {
+            if (extract_canonical_name(current_url) != "vektrapay.vnet") {
+            cli_logs.push("[ERROR]: VEKTRAPAY GATEWAY UNREACHABLE. CONNECT TO vektrapay.vnet FIRST.");
+        } else {
+            sub_parsed = parse_input(args);
+            action :: String = sub_parsed[0];
+            val_str :: String = sub_parsed[1];
+
+            if (action == "transfer" || action == "lock" || action == "create") {
+                amt :: Float64 = float64(val_str);
+                if (amt <= 0.0 || btc_balance < amt) {
+                    cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ESCROW CREATION");
+                } else {
+                    btc_balance = btc_balance - amt;
+                    escrow_key :: Int64 = int64(vmath.random(10000, 99999));
+                    vnet.send_to(client_sock, server_ip, server_port, "PAY_TRANSFER:" + string(escrow_key) + ":" + string(amt));
+                    cli_logs.push("[VEKTRAPAY]: GENERATED ESCROW KEY " + string(escrow_key) + " FOR " + string(amt) + " VCOIN");
+                }
+            }
+            else if (action == "claim") {
+                if (val_str == "") {
+                    cli_logs.push("[ERROR]: Usage: vektrapay claim <5_digit_key>");
+                } else {
+                    vnet.send_to(client_sock, server_ip, server_port, "PAY_CLAIM:" + val_str);
+                    cli_logs.push("[VEKTRAPAY]: SUBMITTING CLAIM FOR ESCROW KEY " + val_str + "...");
+                }
+            }
+            else {
+                cli_logs.push("========== VEKTRAPAY COMMANDS ==========");
+                cli_logs.push("  vektrapay create <amount>  - Lock VCOIN into a 5-digit escrow key");
+                cli_logs.push("  vektrapay claim <key>      - Redeem a 5-digit VektraPay escrow key");
+                cli_logs.push("========================================");
+            }
+        }
+    }
     else if (cmd == "cat") {
         if (args == "") { 
             cli_logs.push("[ERROR]: Usage: cat <vfs_path>"); 
@@ -3882,7 +3929,7 @@ while (vglib.running()) {
     heartbeat_timer = heartbeat_timer + 0.016;
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
-        vnet.send_to(client_sock, server_ip, server_port, "PING:" + current_url);
+        vnet.send_to(client_sock, server_ip, server_port, "PING:" + player_handle + ":" + current_url);
     }
 
     packet_decay_cd = packet_decay_cd + 0.016;
@@ -4063,7 +4110,19 @@ while (vglib.running()) {
                     
                     if (mx >= 765.0 && mx <= 880.0 && my >= 135.0 && my <= 167.0) {
                         if (chat_input_buffer.length() > 0) {
-                            vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + chat_input_buffer);
+                            if (chat_input_buffer.length() > 3 && (chat_input_buffer.substr(0, 3) == "/w " || chat_input_buffer.substr(0, 3) == "/pm")) {
+                                # Format: /w <nickname> <message>
+                                raw_w :: String = chat_input_buffer.substr(3, chat_input_buffer.length() - 3);
+                                w_parts = parse_input(raw_w);
+                                if (w_parts.length() >= 2) {
+                                    target_nick :: String = string(w_parts[0]);
+                                    target_msg  :: String = string(w_parts[1]);
+                                    vnet.send_to(client_sock, server_ip, server_port, "WHISPER:" + player_handle + ":" + target_nick + ":" + target_msg);
+                                    vnet_feed_logs.push("[WHISPER -> " + target_nick + "]: " + target_msg);
+                                }
+                            } else {
+                                    vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + chat_input_buffer);
+                            }
                             chat_input_buffer = "";
                             glitch_trigger = 0.2;
                         }
@@ -4175,6 +4234,31 @@ while (vglib.running()) {
             if (extract_canonical_name(current_url) == "crypto.vnet") {
                 page_body = load_page(current_url);
             }
+        }
+        else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "WHISPER_IN:") {
+            w_raw :: String = net_msg.substr(11, net_msg.length() - 11);
+            w_parts = vnet.parse_package(w_raw, ":");
+            if (w_parts.length() >= 2) {
+                from_handle :: String = string(w_parts[0]);
+                w_msg       :: String = string(w_parts[1]);
+                
+                whisper_formatted :: String = "[WHISPER FROM <" + from_handle + ">]: " + w_msg;
+                
+                vnet_feed_logs.push(whisper_formatted);
+                cli_logs.push(whisper_formatted);
+                glitch_trigger = 0.3;
+            }
+        }
+        else if (net_msg.length() >= 18 && net_msg.substr(0, 18) == "PAY_CLAIM_SUCCESS:") {
+            claimed_amt :: Float64 = float64(net_msg.substr(18, net_msg.length() - 18));
+            btc_balance = btc_balance + claimed_amt;
+            glitch_trigger = 0.4;
+            cli_logs.push("[VEKTRAPAY]: ESCROW CLAIM SUCCESSFUL! +" + string(claimed_amt) + " VCOIN ADDED TO WALLET");
+        }
+        else if (net_msg.length() >= 17 && net_msg.substr(0, 17) == "PAY_CLAIM_FAILED:") {
+            reason_err :: String = net_msg.substr(17, net_msg.length() - 17);
+            glitch_trigger = 0.6;
+            cli_logs.push("[VEKTRAPAY ERROR]: CLAIM FAILED - " + reason_err);
         }
         else if (net_msg.length() > 24 && net_msg.substr(0, 24) == "EXPLOIT:SITE_OVERLOADED:") {
             down_site :: String = clean_str(net_msg.substr(24, net_msg.length() - 24));

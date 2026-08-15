@@ -7,6 +7,7 @@ server_port :: Int64 = 8000;
 server_sock = vnet.udp_socket(server_port);
 
 active_ports     :: Array = [];
+active_handles   :: Array = [];
 active_ips       :: Array = [];
 active_urls      :: Array = [];
 active_last_seen :: Array = [];
@@ -18,6 +19,11 @@ decoy_targets    :: Array = [];
 decoy_owners     :: Array = [];
 decoy_urls       :: Array = [];
 decoy_timer      :: Float64 = 0.0;
+
+# --- VEKTRAPAY ESCROW STORAGE ---
+pay_keys    :: Array = []; # Holds active 5-digit keys (e.g. 33241)
+pay_amounts :: Array = []; # Holds balance amount (e.g. 0.25)
+pay_owners  :: Array = []; # Tracks port of key creator
 
 # SERVER-SIDE RANDOM NETWORK INSTABILITY TIMER
 server_outage_timer :: Float64 = 0.0;
@@ -33,13 +39,13 @@ target_hash   :: Int64 = int64(vmath.random(1000, 9999));
 # ====================================================================
 all_50_sites :: Array = [
     # THE ORIGINAL 19 LORE-HEAVY SITES
-    "market.vnet", "dollhouse.vnet", "vault.vnet", "forum.vnet", 
+    "market.vnet", "dollhouse.vnet", "vault.vnet", "vektrapay.vnet", "forum.vnet", 
     "redroom.vnet", "crypto.vnet", "morgue.vnet", "silence.vnet", 
     "blackout.vnet", "snuff.vnet", "asylum.vnet", "bounty.vnet", 
     "archival.vnet", "ghost.vnet", "cult.vnet", "void.vnet",
     "skinwalker.vnet", "watchtower.vnet", "terminal.vnet",
     # 31 EXPANDED DEEP WEB NODES (For a total of 50)
-    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet", "vektrapay.vnet", 
+    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet",
     "cctv-core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
     "orbital.vnet", "pastebin.vnet", "whisper.vnet", "deepwiki.vnet", 
     "dump.vnet", "index.vnet", "schizo.vnet", "project9.vnet", 
@@ -53,7 +59,7 @@ all_50_sites :: Array = [
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
 mutual_sites :: Array = [
     "market.vnet", "vault.vnet", "terminal.vnet", 
-    "forum.vnet", "crypto.vnet", "bounty.vnet", "redroom.vnet", "hellroom.vnet"
+    "forum.vnet", "crypto.vnet", "bounty.vnet", "vektrapay.vnet", "hellroom.vnet"
 ];
 
 session_salt :: Int64 = int64(vmath.random(100000, 999999));
@@ -279,8 +285,9 @@ fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: F
         active_last_seen.push(now_time);
         active_dos_hits.push(0);
         active_dirs.push(dir_payload);
+        active_handles.push("");
+        
         out("[DYNAMIC REGISTRY]: NEW PEER CONNECTED FROM " + ip + ":" + string(port));
-
         return 1;
     }
 }
@@ -327,6 +334,7 @@ fn unregister_peer(port :: Int64) {
         active_last_seen.delete_at(found_idx);
         active_dos_hits.delete_at(found_idx);
         active_dirs.delete_at(found_idx);
+        active_handles.delete_at(found_idx);
         
         out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port) + " FROM ACTIVE PEERS LIST");
     }
@@ -540,7 +548,22 @@ while (true) {
             payload :: String = msg.substr(sep_idx + 1, msg.length() - sep_idx - 1);
 
             if (cmd == "PING") {
-                update_peer_session(sender_port, sender_ip, payload, server_uptime);
+                p_parts = vnet.parse_package(payload, ":");
+                if (p_parts.length() >= 2) {
+                    p_handle :: String = string(p_parts[0]);
+                    p_url    :: String = string(p_parts[1]);
+
+                    update_peer_session(sender_port, sender_ip, p_url, server_uptime);
+
+                    through i :: 0..(active_ports.length() - 1) -> loop {
+                        if (int64(active_ports[i]) == sender_port) {
+                            active_handles[i] = p_handle;
+                            break;
+                        }
+                    };
+                } else {
+                    update_peer_session(sender_port, sender_ip, payload, server_uptime);
+                }
             } else {
                 broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
             }
@@ -580,6 +603,81 @@ while (true) {
                         };
                         vnet.send_to(server_sock, sender_ip, sender_port, blocks_msg);
                     }
+                }
+            }
+
+            else if (cmd == "WHISPER") {
+                p1 = vnet.parse_package(payload, ":");
+                from_handle :: String = string(p1[0]);
+                rem         :: String = string(p1[1]);
+
+                p2 = vnet.parse_package(rem, ":");
+                to_handle   :: String = string(p2[0]);
+                w_msg       :: String = string(p2[1]);
+
+                sender_idx :: Int64 = -1;
+                through i :: 0..(active_ports.length() - 1) -> loop {
+                    if (int64(active_ports[i]) == sender_port) {
+                        sender_idx = i;
+                        break;
+                    }
+                };
+                if (sender_idx >= 0) {
+                    active_handles[sender_idx] = from_handle;
+                }
+
+                target_idx :: Int64 = -1;
+                through h_i :: 0..(active_handles.length() - 1) -> loop {
+                    if (string(active_handles[h_i]) == to_handle) {
+                        target_idx = h_i;
+                        break;
+                    }
+                };
+
+                if (target_idx >= 0) {
+                    target_ip   :: String = string(active_ips[target_idx]);
+                    target_port :: Int64  = int64(active_ports[target_idx]);
+                    
+                    vnet.send_to(server_sock, target_ip, target_port, "WHISPER_IN:" + from_handle + ":" + w_msg);
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "FEED_EVENT:[ERROR]: USER <" + to_handle + "> NOT FOUND");
+                }
+            }
+
+            if (cmd == "PAY_TRANSFER") {
+                key_parts = vnet.parse_package(payload, ":");
+                t_key :: Int64    = int64(key_parts[0]);
+                t_amt :: Float64  = float64(key_parts[1]);
+
+                pay_keys.push(t_key);
+                pay_amounts.push(t_amt);
+                pay_owners.push(sender_port);
+
+                broadcast_feed_event("[VEKTRAPAY]: NEW ESCROW KEY GENERATED (" + string(t_amt) + " VCOIN LOCKED)");
+            }
+            else if (cmd == "PAY_CLAIM") {
+                claim_key :: Int64 = int64(payload);
+                found_idx :: Int64 = -1;
+
+                through k_i :: 0..(pay_keys.length() - 1) -> loop {
+                    if (int64(pay_keys[k_i]) == claim_key) {
+                        found_idx = k_i;
+                        break;
+                    }
+                };
+
+                if (found_idx >= 0) {
+                    claimed_amt :: Float64 = float64(pay_amounts[found_idx]);
+                    
+                    # Remove key from pool to prevent double-claiming
+                    pay_keys.delete_at(found_idx);
+                    pay_amounts.delete_at(found_idx);
+                    pay_owners.delete_at(found_idx);
+
+                    vnet.send_to(server_sock, sender_ip, sender_port, "PAY_CLAIM_SUCCESS:" + string(claimed_amt));
+                    broadcast_feed_event("[VEKTRAPAY]: ESCROW KEY " + string(claim_key) + " CLAIMED!");
+                } else {
+                    vnet.send_to(server_sock, sender_ip, sender_port, "PAY_CLAIM_FAILED:INVALID_KEY");
                 }
             }
 
@@ -732,6 +830,19 @@ while (true) {
                 if (sep_c > 0) {
                     handle_part :: String = payload.substr(0, sep_c);
                     msg_part    :: String = payload.substr(sep_c + 1, payload.length() - sep_c - 1);
+
+                    sender_idx :: Int64 = -1;
+                    through i :: 0..(active_ports.length() - 1) -> loop {
+                        if (int64(active_ports[i]) == sender_port) {
+                            sender_idx = i;
+                            break;
+                        }
+                    };
+                    if (sender_idx >= 0) {
+                        active_handles[sender_idx] = handle_part;
+                    }
+                    # --------------------------------------------------
+
                     broadcast_feed_event("[CHAT] <" + handle_part + ">: " + msg_part);
                 } else {
                     broadcast_feed_event("[CHAT] PORT_" + string(sender_port) + ": " + payload);
