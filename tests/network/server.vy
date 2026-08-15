@@ -39,14 +39,15 @@ all_50_sites :: Array = [
     "archival.vnet", "ghost.vnet", "cult.vnet", "void.vnet",
     "skinwalker.vnet", "watchtower.vnet", "terminal.vnet",
     # 31 EXPANDED DEEP WEB NODES (For a total of 50)
-    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet", "shadowpay.vnet", 
+    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet", "vektrapay.vnet", 
     "cctv-core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
     "orbital.vnet", "pastebin.vnet", "whisper.vnet", "deepwiki.vnet", 
     "dump.vnet", "index.vnet", "schizo.vnet", "project9.vnet", 
     "necro.vnet", "echolab.vnet", "abyss.vnet", "zeroday.vnet", 
     "deadchannel.vnet", "phantom.vnet", "glitch.vnet", "stasis.vnet", 
     "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
-    "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", "substation04.vnet", "deepocean.vnet", "darkdrop.vnet"
+    "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", 
+    "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "corridor204863.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
@@ -130,6 +131,10 @@ through k_idx :: 0..7 -> loop {
     global_key_locations.push(string(hashed_50_sites[rand_idx]));
 };
 
+# mine block timer
+mine_block_timer :: Float64 = 0.0;
+active_blocks    :: Array   = [];
+
 # CONFIG.TXT & VFS STORAGE WITH PROCEDURAL MASTER KEYS
 vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key", "/sys/config.txt"];
 vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", master_keys_str];
@@ -177,6 +182,21 @@ market_overloaded_timer :: Float64 = 0.0;
 overload_cooldowns      :: Array   = [];
 overloaded_urls         :: Array = [];
 overloaded_timers       :: Array = [];
+
+fn refresh_mining_blocks() -> String {
+    active_blocks.clear();
+    block_payload :: String = "NEW_BLOCKS:";
+    through b_i :: 0..7 -> loop {
+        block_id   :: Int64   = int64(vmath.random(1000, 9999));
+        payout_val :: Float64 = float64(vmath.random(5, 50)) / 100.0;
+        
+        active_blocks.push(string(block_id) + ":" + string(payout_val));
+        block_payload = block_payload + string(block_id) + ":" + string(payout_val) + ((b_i < 7) ? ";" : "");
+    };
+    return block_payload;
+}
+
+refresh_mining_blocks();
 
 fn resolve_canonical(input_url :: String) -> String {
     clean_u :: String = input_url;
@@ -495,6 +515,14 @@ while (true) {
         }
     }
 
+    mine_block_timer = mine_block_timer + 0.016;
+    if (mine_block_timer >= 30.0) {
+        mine_block_timer = 0.0;
+        block_payload :: String = refresh_mining_blocks();
+        broadcast_raw(block_payload);
+        broadcast_feed_event("[WHALE ALERT]: 8 NEW MINING BLOCKS DISCOVERED AT crypto.vnet!");
+    }
+
     packet :: Array = vnet.recv_from(server_sock);
     
     if (packet.length() >= 3) {
@@ -543,6 +571,14 @@ while (true) {
                     if (is_new_peer == 1) {
                         p_idx :: Int64 = active_ports.length() - 1;
                         send_key_sync_payload(sender_ip, sender_port, string(active_dirs[p_idx]));
+                    }
+
+                    if (canonical_site == "crypto.vnet" && active_blocks.length() > 0) {
+                        blocks_msg :: String = "NEW_BLOCKS:";
+                        through b_i :: 0..(active_blocks.length() - 1) -> loop {
+                            blocks_msg = blocks_msg + string(active_blocks[b_i]) + ((b_i < active_blocks.length() - 1) ? ";" : "");
+                        };
+                        vnet.send_to(server_sock, sender_ip, sender_port, blocks_msg);
                     }
                 }
             }

@@ -29,6 +29,8 @@ lock_progress      :: Float64 = 0.0;
 session_enc_keys   :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
 session_shifts     :: Array   = [0, 0, 0, 0, 0, 0, 0, 0];
 
+current_mined_blocks :: Array = [];
+
 # ====================================================================
 # COLOR PALETTE & THEME SYSTEM (15 TOTAL THEMES)
 # ====================================================================
@@ -322,12 +324,14 @@ stream_wind        = vaudio.play_stream("tests/assets/wind.mp3");
 stream_crt_hum     = vaudio.play_stream("tests/assets/analog_electronic_noise.mp3");
 stream_crt_noise   = vaudio.play_stream("tests/assets/crt_noise.mp3");
 click_sfx          = vaudio.load_sound("tests/assets/mouse_click.mp3");
+stream_pt_radio    = vaudio.play_stream("tests/assets/pt_radio.mp3");
 
 vaudio.sound_volume(click_sfx, 0.9);
-vaudio.sound_volume(stream_brown_noise, 0.45);
+vaudio.sound_volume(stream_brown_noise, 0.25);
 vaudio.sound_volume(stream_wind,        0.25);
-vaudio.sound_volume(stream_crt_hum,     0.65);
+vaudio.sound_volume(stream_crt_hum,     0.95);
 vaudio.sound_volume(stream_crt_noise,   0.95);
+vaudio.sound_volume(stream_pt_radio,    0.00);
 
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
@@ -509,8 +513,8 @@ fn purchase_ice_firewall() -> Int64 {
         cli_logs.push("[ERROR]: ICE FIREWALL CAN ONLY BE PURCHASED FROM market.vnet");
         return 0;
     }
-    if (ice_charges >= 3) {
-        cli_logs.push("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (3/3)");
+    if (ice_charges >= 1) {
+        cli_logs.push("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (1/1)");
         return 0;
     }
     if (btc_balance < 0.15) {
@@ -1033,28 +1037,30 @@ fn load_page(url :: String) -> Array {
             "[HR]",
             "[BLOOD] WARNING: HIGH-POWER HASHING OVERHEATS CPU REGISTER BUS // TRACE SPIKES ACTIVE",
             "[BOX] +-----------------------------------------------------------------+",
-            "[BOX] | RIG STATUS: OPERATIONAL | MINING YIELD: +0.05 VCOIN/BLOCK       |",
-            "[BOX] | POOL SYNC: 99.8% | DIFFICULTY: DYNAMIC AUTO-SCALING             |",
+            "[BOX] | RIG STATUS: OPERATIONAL | MINING YIELD: DYNAMIC PER BLOCK       |",
+            "[BOX] | POOL SYNC: 99.8% | DIFFICULTY: AUTO-SCALING                     |",
             "[BOX] | TUMBLER POOL: 420.5 VCOIN LAUNDERED VIA BLACKBANK.VNET          |",
             "[BOX] +-----------------------------------------------------------------+",
-            "[TEXT] ",
-            "[SUBTITLE] RECENT UNLOCKED TRANSACTIONS & EXFILTRATED MEMORY LOGS:",
-            "[CODE] TX_ID #9081 | 14.50 VCOIN | CONFIRMED | LAUNDERED VIA VEKTRAPAY.VNET",
-            "[CODE] TX_ID #9082 |  0.80 VCOIN | CONFIRMED | REDROOM SURGICAL JAW BID (NODE #005)",
-            "[CODE] TX_ID #9083 |  0.30 VCOIN | PENDING   | BUY_ICE FIREWALL AT MARKET.VNET",
-            "[CODE] TX_ID #9084 |  1.50 VCOIN | PENDING   | SILKROAD OPIUM & HUMAN TISSUE LOT",
-            "[TEXT] ",
-            "[SUBTITLE] DARKNET POOL TELEMETRY & CROSS-NETWORK INTERCEPTS:",
-            "[TEXT] 'This miner isn't using standard cryptographic hash cycles. The proof-of-work'",
-            "[TEXT] 'payload runs recursive computations on exfiltrated biometric memory dumps'",
-            "[TEXT] 'harvested during redroom executions and morgue.vnet organ dissections.'",
-            "[TEXT] 'VIP buyers on silkroad.vnet and zeroauction.vnet deposit raw VCOIN into'",
-            "[TEXT] 'this tumbler pool to fund human trafficking dead drops, PMC contract cleans,'",
-            "[TEXT] 'and sub-basement torture streams in dollhouse.vnet (Room 402).'",
-            "[TEXT] 'Every hash solved burns raw current through your hardware bus while'",
-            "[TEXT] 'broadcasting your public socket signature to active peer trace units.'",
             "[TEXT] "
         ];
+
+        res.push("[SUBTITLE] ACTIVE POOL MINING BLOCKS:");
+        if (current_mined_blocks.length() > 0) {
+            through b_i :: 0..(current_mined_blocks.length() - 1) -> loop {
+                b_str :: String = string(current_mined_blocks[b_i]);
+                b_parts = vnet.parse_package(b_str, ":");
+                res.push("[CODE] BLOCK #" + string(b_parts[0]) + " | YIELD: " + string(b_parts[1]) + " VCOIN | STATUS: UNCLAIMED");
+            };
+        } else {
+            res.push("[TEXT] NO ACTIVE BLOCKS DISCOVERED. AWAITING NETWORK BROADCAST...");
+        }
+
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] RECENT UNLOCKED TRANSACTIONS & EXFILTRATED MEMORY LOGS:");
+        res.push("[CODE] TX_ID #9081 | 14.50 VCOIN | CONFIRMED | LAUNDERED VIA VEKTRAPAY.VNET");
+        res.push("[CODE] TX_ID #9082 |  0.80 VCOIN | CONFIRMED | REDROOM SURGICAL JAW BID (NODE #005)");
+        res.push("[CODE] TX_ID #9083 |  0.30 VCOIN | PENDING   | BUY_ICE FIREWALL AT MARKET.VNET");
+        res.push("[CODE] TX_ID #9084 |  1.50 VCOIN | PENDING   | SILKROAD OPIUM & HUMAN TISSUE LOT");
 
         if (key_line != "") { res.push(key_line); }
 
@@ -2059,16 +2065,56 @@ fn load_page(url :: String) -> Array {
         if (key_line != "") { res.push(key_line); }
 
         res.push("[SUBTITLE] CROSS-LINKED LEAKED INFRASTRUCTURE:");
-        res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED MILITARY VFS DUMPS");
-        res.push("[LINK:morgue.vnet] >> CROSS-CHECK SUBJECT #409 AUTOPSY REPORT");
         res.push("[LINK:redroom.vnet] >> ACCESS LIVE UNENCRYPTED STREAM NODE ALPHA");
-        res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE DISPOSAL SUMPS");
-        res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
         return res;
     }
-    if (clean_u == "shadowpay.vnet") {
+    if (clean_u == "corridor204863.vnet") {
+        res :: Array = [
+            "[TITLE] THE SILENT CORRIDOR // CASE FILE #204863",
+            "[HR]",
+            "[BADGE:POLICE FORENSICS:BLOOD] [BADGE:RADIO FREQ 18.0Hz:AMBER] [BADGE:VFS SEALED:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | CASE ID   : #1994-0820 | LOCATION: 204 HILLSIDE RD (SECTOR 09)   |",
+            "[BOX] | INCIDENT  : DOMESTIC HOMICIDE & RECURSIVE NEURAL PSYCHOSIS LOOP |",
+            "[BOX] | EVIDENCE  : BATTERY RADIO RECITING CARRIER WAVE [204863]        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:98:NEURAL_PSYCHOSIS_ENTROPY]",
+            "[TEXT] ",
+            "[ART:skull]",
+            "[TEXT] ",
+            "[SUBTITLE] FORENSIC EVIDENCE BRIEF (SECTOR 09 HOMICIDE DUMP):",
+            "[TEXT] Suspect executed spouse and two minors before sitting in the dark hallway.",
+            "[TEXT] Officers noted extreme frost anomalies and a rancid, yellow adipocere",
+            "[TEXT] fluid leaking under the floorboards—identical to tissue dumps at morgue.vnet.",
+            "[TEXT] Audio transducers logged an 18.0 Hz infrasound hum originating from the radio.",
+            "[CODE] CASE_HASH: 0x204863_DOMESTIC_MASSACRE_NOIR",
+            "[TEXT] ",
+            "[SUBTITLE] DECRYPTED JOURNAL TRANSCRIPTS (SUBJECT: FATHER):",
+            "[BLOOD] LOG 01 [AUG 12]: 'The radio won't stop. Unplugged it, but 204863 keeps looping.'",
+            "[TEXT]  'Maria's reflection moved when she turned away from the glass.'",
+            "[BLOOD] LOG 02 [AUG 16]: 'They replaced my family with replicas. I see them in the hall.'",
+            "[TEXT]  'The voice in the static says the only way out of the loop is blood.'",
+            "[BLOOD] LOG 03 [AUG 19]: 'She was crying inside the closet, but standing right behind me.'",
+            "[TEXT]  'I have the cleaver. Don't look back. Don't look into the monitor.'",
+            "[TEXT] "
+        ];
+
+        if (key_line != "") { res.push(key_line); }
+
+        res.push("[PULSE] WARNING: INFRASOUND HUMMING AT 18.0 Hz (TUNE VIA 'freq 18.0')");
+        res.push("[GLITCH] 'LOOK BEHIND YOU. THE DOOR IS ALREADY LOCKED.'");
+        res.push("[HR]");
+        res.push("[LINK:dollhouse.vnet] >> INSPECT ROOM 402 SURVEILLANCE FEED");
+        res.push("[LINK:morgue.vnet] >> CROSS-CHECK AUTOPSY DUMPS FOR CASE #204863");
+        res.push("[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.0 HZ");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+    if (clean_u == "vektrapay.vnet") {
         res :: Array = [
             "[TITLE] VEKTRAPAY // ZERO-KNOWLEDGE CRYPTO MIXER & TUMBLER",
             "[HR]",
@@ -2101,7 +2147,6 @@ fn load_page(url :: String) -> Array {
         return res;
     }
     if (clean_u == "cctv-core.vnet") {
-        # Active camera feed selector using runtime phase
         cam_id :: Int64 = int64(vmath.fmod(run_time / 10.0, 4.0)) + 1;
 
         res :: Array = [
@@ -3456,12 +3501,48 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[ERROR]: MINING ONLY AVAILABLE AT 'crypto.vnet'");
         } else if (cd_mine > 0.0) {
             cli_logs.push("[ERROR]: RIG COOLING DOWN (" + string(int64(cd_mine) + 1) + "s REMAINING)");
+        } else if (current_mined_blocks.length() == 0) {
+            cli_logs.push("[ERROR]: NO ACTIVE BLOCKS AVAILABLE IN POOL");
         } else {
-            crt_heat = vmath.clamp(crt_heat + 3.5, 35.0, 100.0);
-            btc_balance = btc_balance + 0.05;
-            cd_mine = 5.0;
-            vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS");
-            cli_logs.push("[MINER]: SUCCESSFUL BLOCK PROOF! +0.05 VCOIN REWARD.");
+            clean_target :: String = clean_str(args);
+            if (clean_target.length() > 0 && clean_target.substr(0, 1) == "#") {
+                clean_target = clean_target.substr(1, clean_target.length() - 1);
+            }
+
+            if (clean_target == "") {
+                cli_logs.push("[ERROR]: BLOCK TARGET REQUIRED (e.g., 'mine #3435')");
+            } else {
+                found_idx    :: Int64   = -1;
+                block_reward :: Float64 = 0.0;
+                target_id    :: String  = "";
+
+                through b_idx :: 0..(current_mined_blocks.length() - 1) -> loop {
+                    b_entry :: String = string(current_mined_blocks[b_idx]);
+                    b_parts = vnet.parse_package(b_entry, ":");
+                    if (string(b_parts[0]) == clean_target) {
+                        found_idx    = b_idx;
+                        target_id    = string(b_parts[0]);
+                        block_reward = float64(b_parts[1]);
+                        break;
+                    }
+                };
+
+                if (found_idx >= 0) {
+                    trace_level = int64(vmath.clamp(trace_level + 25.0, 0.0, 100.0));
+                    
+                    crt_heat = vmath.clamp(crt_heat + 3.5, 35.0, 100.0);
+                    btc_balance = btc_balance + block_reward;
+                    cd_mine = 5.0;
+                    current_mined_blocks.delete_at(found_idx);
+
+                    vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS:" + target_id);
+                    cli_logs.push("[MINER]: MINED BLOCK #" + target_id + "! +" + string(block_reward) + " VCOIN REWARD");
+                    
+                    page_body = load_page(current_url);
+                } else {
+                    cli_logs.push("[ERROR]: BLOCK #" + clean_target + " NOT FOUND IN ACTIVE POOL");
+                }
+            }
         }
     }
     else if (cmd == "calm" || cmd == "meds") {
@@ -3488,7 +3569,7 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("================ WALLET & DEFENSE ================");
         cli_logs.push("  VCOIN BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN");
         cli_logs.push("  TRACE THREAT : " + string(trace_level) + "%");
-        cli_logs.push("  ICE SHIELDS  : [" + string(ice_charges) + "/3] LAYERS ACTIVE");
+        cli_logs.push("  ICE SHIELDS  : [" + string(ice_charges) + "/1] LAYERS ACTIVE");
         cli_logs.push("  PATCH COOLDOWN: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"));
         cli_logs.push("==================================================");
     }
@@ -3553,12 +3634,16 @@ fn dispatch_cli_command(raw_input :: String) {
         cli_logs.push("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
         cli_logs.push("  spike <port>            - [0.20 VCOIN | 12s CD] Force +35% threat trace");
         cli_logs.push("  overload <url>          - [1.50 VCOIN | 240s CD] Force target node offline for 30s");
+        cli_logs.push("  crack <val>             - Send decryption challenge vector to network");
         cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
         cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
         cli_logs.push("  shift <bits>            - Tune hardware bit-shift offset (0-15)");
         cli_logs.push("  vdec <offset>           - Decode active carrier key on terminal overlay");
-        cli_logs.push("  cat /sys/config.txt     - Inspect config.txt hash key database");
-        cli_logs.push("  inspect <url>           - Dump raw page source markup");
+        cli_logs.push("  cat <path>              - Inspect remote VFS file/config key data");
+        cli_logs.push("  inspect <url>           - Dump raw page source markup & comments");
+        cli_logs.push("  calm / meds             - [0.15 VCOIN] Purge neural paranoia by -40%");
+        cli_logs.push("  purge                   - Clear unencrypted logs to bypass E-Raid");
+        cli_logs.push("  theme <name|list>       - Change system color palette (15 options)");
         cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
         cli_logs.push("  wallet                  - Display balance & trace stats");
         cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
@@ -3587,6 +3672,7 @@ while (vglib.running()) {
     vaudio.update_stream(stream_wind);
     vaudio.update_stream(stream_crt_hum);
     vaudio.update_stream(stream_crt_noise);
+    vaudio.update_stream(stream_pt_radio);
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
@@ -3851,6 +3937,13 @@ while (vglib.running()) {
         }
 
         canonical_curr :: String = extract_canonical_name(current_url);
+        
+        # === WEBSITE SPECIFIC EVENTS ===
+        if (canonical_curr == "corridor204863.vnet") {
+            vaudio.sound_volume(stream_pt_radio, 1.1);
+        } else {
+            vaudio.sound_volume(stream_pt_radio, 0.00);
+        }
 
         if (canonical_curr == "hellroom.vnet") {
             trace_level = 0;
@@ -3865,14 +3958,6 @@ while (vglib.running()) {
                     
                     trace_level = int64(vmath.clamp(float64(trace_level + 2), 0.0, 100.0));
                 }
-            }
-
-            if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
-                canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
-                canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet" ||
-                canonical_curr == "morgue.vnet" || canonical_curr == "skinwalker.vnet") {
-
-                neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 1.9), 0.0, 100.0);
             }
         }
 
@@ -4054,6 +4139,21 @@ while (vglib.running()) {
                     }
                 };
 
+                page_body = load_page(current_url);
+            }
+        }
+        else if (net_msg.length() >= 11 && net_msg.substr(0, 11) == "NEW_BLOCKS:") {
+            raw_blocks_str :: String = net_msg.substr(11, net_msg.length() - 11);
+            
+            current_mined_blocks.clear();
+            rem_blocks :: String = raw_blocks_str;
+            while (rem_blocks.length() > 0) {
+                b_parts = vnet.parse_package(rem_blocks, ";");
+                current_mined_blocks.push(string(b_parts[0]));
+                rem_blocks = string(b_parts[1]);
+            }
+            
+            if (extract_canonical_name(current_url) == "crypto.vnet") {
                 page_body = load_page(current_url);
             }
         }
@@ -4369,8 +4469,9 @@ while (vglib.running()) {
     } else if (canonical_curr == "schizo.vnet" || canonical_curr == "dollhouse.vnet" || 
                canonical_curr == "cult.vnet" || canonical_curr == "asylum.vnet" || 
                canonical_curr == "void.vnet" || canonical_curr == "snuff.vnet" ||
-               canonical_curr == "morgue.vnet" || canonical_curr == "skinwalker.vnet") {
-        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 3.5), 0.0, 100.0);
+               canonical_curr == "morgue.vnet" || canonical_curr == "skinwalker.vnet" ||
+               canonical_curr == "corridor204863.vnet") {
+        neural_paranoia = vmath.clamp(neural_paranoia + (0.016 * 2.5), 0.0, 100.0);
     }
 
     if (crt_heat > 75.0) {
@@ -4592,7 +4693,7 @@ while (vglib.running()) {
         vglib.line(945, 318, 1245, 318, COLOR_BORDER);
 
         # --- 5. SUBNET DEFENSE STATUS ---
-        vglib.text_ex(vcr_font, "ICE SHIELD   : [" + string(ice_charges) + "/3] LAYERS", 945 + jitter_x, 326, 9, COLOR_TOXIC);
+        vglib.text_ex(vcr_font, "ICE SHIELD   : [" + string(ice_charges) + "/1] LAYERS", 945 + jitter_x, 326, 9, COLOR_TOXIC);
         vglib.text_ex(vcr_font, "PATCH REBIND : " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"), 945 + jitter_x, 340, 9, (cd_patch > 0.0) ? COLOR_AMBER : COLOR_TOXIC);
         
         vglib.line(945, 356, 1245, 356, COLOR_BORDER);
@@ -4841,10 +4942,30 @@ while (vglib.running()) {
                         pulse_col = (pulse_val > 0.5) ? COLOR_AMBER : COLOR_BLOOD;
                         vglib.text_ex(vcr_font, line_str.substr(8, line_str.length() - 8), 40 + jitter_x, y_pos, 11, pulse_col);
                     }
-                    else if (line_str.length() > 9 && line_str.substr(0, 9) == "[GLITCH]") {
-                        glitch_off :: Float64 = vmath.sin(run_time * 30.0 + float64(line_idx)) * 6.0;
-                        glitch_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_TOXIC;
-                        vglib.text_ex(vcr_font, line_str.substr(10, line_str.length() - 10), 40.0 + glitch_off + jitter_x, y_pos, 11, glitch_col);
+                    else if (line_str.length() > 8 && line_str.substr(0, 8) == "[GLITCH]") {
+                        raw_glitch_text :: String = clean_str(line_str.substr(8, line_str.length() - 8));
+
+                        # Tightened position jitter (High speed, small displacement)
+                        glitch_off_x :: Float64 = vmath.sin(run_time * 48.0 + float64(line_idx * 7)) * 1.2; # Cut from 7.0 -> 1.8px
+                        glitch_off_y :: Float64 = vmath.cos(run_time * 32.0 + float64(line_idx * 3)) * 0.6; # Cut from 2.0 -> 0.6px
+
+                        # Tighter Chromatic Aberration (RGB channels stay closer to main text)
+                        red_shift_x  :: Float64 = vmath.sin(run_time * 65.0) * 1.2;                        # Cut from 4.0 -> 1.2px
+                        cyan_shift_x :: Float64 = -vmath.cos(run_time * 55.0) * 1.2;                       # Cut from 4.0 -> 1.2px
+
+                        col_cycle :: Int64 = int64(vmath.fmod(run_time * 28.0 + float64(line_idx), 4.0));
+                        primary_col :: Int64 = COLOR_BLOOD;
+                        if (col_cycle == 1) { primary_col = COLOR_TOXIC; }
+                        if (col_cycle == 2) { primary_col = COLOR_AMBER; }
+                        if (col_cycle == 3) { primary_col = COLOR_GHOST; }
+
+                        base_x :: Float64 = 40.0 + jitter_x + glitch_off_x;
+                        base_y :: Float64 = y_pos + glitch_off_y;
+
+                        vglib.text_ex(vcr_font, raw_glitch_text, base_x + red_shift_x, base_y - 0.5, 11, vglib.rgba(220, 20, 40, 190));
+                        vglib.text_ex(vcr_font, raw_glitch_text, base_x + cyan_shift_x, base_y + 0.5, 11, vglib.rgba(0, 220, 240, 190));
+
+                        vglib.text_ex(vcr_font, raw_glitch_text, base_x, base_y, 11, primary_col);
                     }
                     else if (line_str == "[HR]") {
                         vglib.line(40, y_pos + 12.0, 890, y_pos + 12.0, COLOR_BORDER);
@@ -5885,7 +6006,7 @@ while (vglib.running()) {
         # FEDERAL E-RAID SCREEN
         # ================================================================
         if (raid_active == 1) {
-            flash_alpha :: Float64 = vmath.abs(vmath.sin(run_time * 2.0));
+            flash_alpha = int64(vmath.abs(vmath.sin(run_time * 2.0)));
             bg_overlay_col = vglib.rgba(220, 10, 30, int64(flash_alpha * 60.0 + 20.0));
             
             vglib.rect(0, 0, 1280, 800, bg_overlay_col);
