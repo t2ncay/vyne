@@ -2721,17 +2721,105 @@ fn load_page(url :: String) -> Array {
         return res;
     }
     if (clean_u == "zeroday.vnet") {
+        # Frequency delta resonance check for payload extraction
+        target_hz :: Float64 = 18.0;
+        hz_delta  :: Float64 = vmath.abs(freq_tuner - target_hz);
+        sync_pct  :: Int64   = int64(vmath.clamp((1.0 - (hz_delta / 20.0)) * 100.0, 0.0, 100.0));
+
+        # Resonance state classification
+        sync_status :: String = "SIGNAL_LOST";
+        if (sync_pct >= 90) {
+            sync_status = "CARRIER_LOCK_ACTIVE // MEMORY_READ_READY";
+        } else if (sync_pct >= 50) {
+            sync_status = "SIGNAL_HARMONIC_DETECTED";
+        } else if (sync_pct > 10) {
+            sync_status = "CARRIER_DRIFT";
+        }
+
         res :: Array = [
-            "[TITLE] ZERODAY ARCHIVE DATABASE",
+            "[TITLE] ZERODAY ARCHIVE // EXPLOIT SYNTHESIS & PAYLOAD VAULT",
             "[HR]",
-            "[TEXT] Historical catalog of every major software exploit since 1995.",
-            "[BOX] +---------------------------------------------------------+",
-            "[BOX] | VULNERABILITIES INDEXED: 89,120                         |",
-            "[BOX] +---------------------------------------------------------+",
-            "[CODE] ZERODAY_DB_REF: 0x0DAY_ARCHIVE_99"
+            "[BADGE:UNPATCHED 0-DAYS:BLOOD] [BADGE:VFS MEMORY HOOK:AMBER] [BADGE:CARRIER: " + sync_status + ":TOXIC]",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | FACILITY : SUBTERRANEAN EXPLOIT REPOSITORY (SECTOR 09)                             |",
+            "[BOX] | INDEXED  : 89,120 VULNERABILITIES | ZERO-DAY ARSENAL: ONLINE                       |",
+            "[BOX] | PROTOCOL : DIRECT VYNE KERNEL ASSEMBLY / VMEM OVERRIDE HOOKS                       |",
+            "[BOX] | BALANCE  : " + string(btc_balance) + " VCOIN | CRT HEAT: " + string(crt_heat) + "°C                      |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] RF CARRIER FREQUENCY RESONANCE TELEMETRY:",
+            "[GAUGE:" + string(sync_pct) + ":EXPLOIT_CARRIER_RESONANCE_FREQ_" + string(freq_tuner) + "_HZ]",
+            "[TEXT] ",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | OPERATIONAL MECHANICS & EXPLOIT PROTOCOLS                                        |",
+            "[BOX] | 1. FREQUENCY ALIGNMENT: Tune RF hardware near 18.0 Hz to sync carrier resonance.  |",
+            "[BOX] | 2. MEMORY EXFILTRATION: Achieving >90% Carrier Lock exposes raw VFS registers.   |",
+            "[BOX] | 3. SYNTHESIS INJECTION: Select a lot code below and submit via terminal prompt.   |",
+            "[BOX] | 4. CRT OVERHEAT RISK: Raw zero-day synthesis generates intense neural strain.     |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[TEXT] ",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | CLI TERMINAL DIRECTIVES & MANUAL INJECTION SYNTAX                                 |",
+            "[BOX] | • DIRECT EXECUTION  : Type '0day <LOT_CODE>' in terminal while on this domain.   |",
+            "[BOX] | • EXAMPLES          : '0day LOT_0D1' or using aliases like '0day overclock'      |",
+            "[BOX] | • TARGETED PAYLOADS : '0day LOT_0D3 <URL>' to vector specific backbones.          |",
+            "[BOX] | • QUICK ALIASES     : 0day purge | 0day nuke | 0day bypass | 0day coldplate       |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] LIVE VFS MEMORY EXPLOIT STREAM (ALIGN BITS & FREQ TO EXTRACT):",
+            "[HEX_STREAM:0x0DAY_88F9:32:14]",
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE ZERO-DAY EXPLOIT MARKET & WEAPONIZATION LOTS:",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | LOT #0D1: OVERCLOCK KERNEL [0.80 VCOIN] | CLI: 0day LOT_0D1 / 0day overclock      |",
+            "[BOX] | EFFECT: Bypasses all exploit cooldowns (dos/spike/overload) instantly for 15s.   |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | LOT #0D2: CORTEX TRACE PURGE [0.50 VCOIN] | CLI: 0day LOT_0D2 / 0day purge        |",
+            "[BOX] | EFFECT: Instantly wipes 50% trace level & resets CRT thermal state to baseline. |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | LOT #0D3: BGP BACKBONE NUKE [1.20 VCOIN] | CLI: 0day LOT_0D3 / 0day nuke          |",
+            "[BOX] | EFFECT: Forces a immediate 60s blackout on target URL without triggering overload.|",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | LOT #0D4: VMEM SHELLCODE BYPASS [1.50 VCOIN] | CLI: 0day LOT_0D4 / 0day bypass    |",
+            "[BOX] | EFFECT: Forces instant exfiltration of key fragments bypassing RF carrier locks. |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[BOX] | LOT #0D5: NEURAL COLD-PLATE [0.90 VCOIN] | CLI: 0day LOT_0D5 / 0day coldplate      |",
+            "[BOX] | EFFECT: Locks CRT heat generation to 0°C for 30s during high-yield exploits.    |",
+            "[BOX] +-----------------------------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] EXECUTE ZERO-DAY EXPLOIT SYNTHESIS (UI INTERFACE):",
+            "[INPUT:zeroday_lot_code:ENTER EXPLOIT LOT CODE (e.g. LOT_0D1, LOT_0D2, LOT_0D3)]",
+            "[INPUT:zeroday_target:OPTIONAL TARGET VECTOR (PORT / IP / URL)]",
+            "[TEXT] ",
+            "[BTN:buy_zeroday_btn:>>> WEAPONIZE & INJECT ZERO-DAY PAYLOAD <<<]",
+            "[TEXT] "
         ];
-        if (key_line != "") { res.push(key_line); }
-        res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
+
+        # Contextual payload exfiltration block
+        if (sync_pct >= 90) {
+            res.push("[HR]");
+            res.push("[SUBTITLE] EXFILTRATED ZERO-DAY VFS REGISTER (RESONANCE LOCK ACHIEVED):");
+            if (key_line != "") {
+                res.push(key_line);
+                res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
+            } else {
+                res.push("[AMBER] CARRIER LOCKED — NO ACTIVE FRAGMENT DISCOVERED ON THIS SHIFT OFFSET.");
+            }
+        } else {
+            res.push("[HR]");
+            res.push("[TEXT] [CARRIER LOCK REQUIRED FOR REGISTER DECRYPTION — CURRENT SYNC: " + string(sync_pct) + "%]");
+        }
+
+        res.push("[TEXT] ");
+        res.push("[BLOOD] [WARNING]: WEAPONIZING RAW ZERO-DAYS SPIKES CRT HEAT (+15°C) & NEURAL PARANOIA.");
+        res.push("[PULSE] 'THE EXPLOIT IS NOT WRITTEN IN CODE. IT IS WRITTEN IN UNALLOCATED FLESH.'");
+        res.push("[HR]");
+        res.push("[LINK:market.vnet] >> PURCHASE ICE FIREWALL SHIELDS");
+        res.push("[LINK:zeroauction.vnet] >> BID ON PMC ZERO-DAY CONTRACTS");
+        res.push("[LINK:terminal.vnet] >> ACCESS MASTER VFS ROOT GATEWAY");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+
         return res;
     }
     if (clean_u == "deadchannel.vnet") {
@@ -2752,7 +2840,8 @@ fn load_page(url :: String) -> Array {
             "[BOX] | INCIDENT: RAIDED BY VEKTRA PMC DIRECTRATE 7 // COMMS DROPPED    |",
             "[BOX] | CARRIER FREQUENCY: " + string(freq_tuner) + " Hz | RF CARRIER LOCK: " + ((is_resonant == 1) ? "LOCKED" : "SEARCHING") + "  |",
             "[BOX] +-----------------------------------------------------------------+",
-            "[TEXT] "
+            "[TEXT] ",
+            "[HEX_STREAM:0x88F9:32:18]"
         ];
 
         # DYNAMIC MECHANIC 1: Live Interactive RF Waveform Display
@@ -3255,6 +3344,58 @@ fn dispatch_cli_command(raw_input :: String) {
         else {
             cli_logs.push("[ERROR]: Unknown palette '" + args + "'");
             cli_logs.push("[ERROR]: Type 'theme list' to view all 15 themes.");
+        }
+    }
+    else if (cmd == "0day" || cmd == "zeroday") {
+        if (extract_canonical_name(current_url) != "zeroday.vnet") {
+            cli_logs.push("[ERROR]: ZERO-DAY SYNTHESIS ONLY ACCESSIBLE AT 'zeroday.vnet'");
+        } else if (args == "LOT_0D1" || args == "overclock") {
+            if (btc_balance < 0.80) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.80 VCOIN)");
+            } else {
+                btc_balance = btc_balance - 0.80;
+                cd_dos = 0.0;
+                cd_spike = 0.0;
+                cd_overload = 0.0;
+                crt_heat = vmath.clamp(crt_heat + 15.0, 35.0, 100.0);
+                neural_paranoia = vmath.clamp(neural_paranoia + 20.0, 0.0, 100.0);
+                glitch_trigger = 0.8;
+                cli_logs.push("[0-DAY INJECTED]: KERNEL OVERCLOCK ACTIVE — COOLDOWNS WIPED!");
+            }
+        } else if (args == "LOT_0D2" || args == "purge") {
+            if (btc_balance < 0.50) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.50 VCOIN)");
+            } else {
+                btc_balance = btc_balance - 0.50;
+                trace_level = int64(vmath.clamp(float64(trace_level - 50), 0.0, 100.0));
+                crt_heat = 35.0;
+                glitch_trigger = 0.5;
+                cli_logs.push("[0-DAY INJECTED]: CORTEX TRACE WIPED (-50% TRACE | CRT HEAT RESET)");
+            }
+        } else if (args == "LOT_0D3" || args == "nuke") {
+            if (btc_balance < 1.20) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.20 VCOIN)");
+            } else {
+                btc_balance = btc_balance - 1.20;
+                crt_heat = vmath.clamp(crt_heat + 20.0, 35.0, 100.0);
+                cli_logs.push("[0-DAY INJECTED]: BGP BACKBONE NUKE DISPATCHED TO TARGET.");
+            }
+        } else if (args == "LOT_0D4" || args == "bypass") {
+            if (btc_balance < 1.50) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.50 VCOIN)");
+            } else {
+                btc_balance = btc_balance - 1.50;
+                freq_tuner = 18.0; # Automatically forces carrier alignment
+                cli_logs.push("[0-DAY INJECTED]: VMEM SHELLCODE BYPASS FORCED RF FREQUENCY TO 18.0 HZ.");
+            }
+        } else if (args == "LOT_0D5" || args == "coldplate") {
+            if (btc_balance < 0.90) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.90 VCOIN)");
+            } else {
+                btc_balance = btc_balance - 0.90;
+                crt_heat = 35.0;
+                cli_logs.push("[0-DAY INJECTED]: NEURAL COLD-PLATE ENGAGED — CRT HEAT STABILIZED.");
+            }
         }
     }
     else if (cmd == "inspect") {
