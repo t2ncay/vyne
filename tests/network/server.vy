@@ -46,7 +46,7 @@ all_50_sites :: Array = [
     "archival.vnet", "ghost.vnet", "cult.vnet", "void.vnet",
     "skinwalker.vnet", "watchtower.vnet", "terminal.vnet",
     # 31 EXPANDED DEEP WEB NODES (For a total of 50)
-    "silkroad.vnet", "zeroauction.vnet", "leaks.vnet",
+    "silkroad.vnet", "zeroauction.vnet", "lifeleaks.vnet",
     "cctv-core.vnet", "subcell.vnet", "feed99.vnet", "eye.vnet", 
     "orbital.vnet", "pastebin.vnet", "whisper.vnet", "deepwiki.vnet", 
     "dump.vnet", "index.vnet", "schizo.vnet", "project9.vnet", 
@@ -54,7 +54,8 @@ all_50_sites :: Array = [
     "deadchannel.vnet", "phantom.vnet", "glitch.vnet", "stasis.vnet", 
     "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
     "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", 
-    "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "forum.vnet", "corridor204863.vnet"
+    "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "forum.vnet", "corridor204863.vnet",
+    "norilsk-relay.vnet","oldnet-archive.vnet","newnet-industrial.vnet","frostline.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY

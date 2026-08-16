@@ -891,13 +891,13 @@ fn load_page(url :: String) -> Array {
             "[BTN:submit_forum_post:>>> BROADCAST POST TO ALL PROMISCUOUS PEERS <<<]",
             "[TEXT] ",
             "[HR]",
-            "[SUBTITLE] THREAD #8819: 'Regarding d34d_7dp's execution video on LiveLeak / leaks.vnet'",
+            "[SUBTITLE] THREAD #8819: 'Regarding d34d_7dp's execution video on LiveLeak / lifeleaks.vnet'",
             "[CODE] Anonymous 08/14/26(Fri)21:04:12 No.8819001 -- [VERIFIED_HASH: 0xDEAD_7DP_RAT_EXPOSED]",
             "[CODE] > Be d34d_7dp",
             "[CODE] > Old-guard cult.vnet heretic sitting on legacy zero-day archives since 2014",
             "[CODE] > Thinks he can play both sides in the 2026 arena and sell Site 9-B logs",
             "[CODE] > Gets dragged out of his Ankara basement by Directorate 7 Shadow PMC elites",
-            "[CODE] > Execution streamed live on LiveLeak / leaks.vnet before socket got fried",
+            "[CODE] > Execution streamed live on LiveLeak / lifeleaks.vnet before socket got fried",
             "[TEXT] Anon_991: 'Did you guys see what he actually ratted about before D7 blew his door off?'",
             "[TEXT] Ex_PMC_Operator: 'He leaked unredacted 2014 Cold Signal BGP tables proving Substation 04'",
             "[TEXT]                   'was overloaded on purpose to sever Subject 00 from the optical backbone.'",
@@ -923,7 +923,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT]                  'Subject #409 at morgue.vnet. Still warm, zero cellular decay.'",
             "[TEXT] Rotting_Gpu: 'The surveillance feed at dollhouse.vnet (Room 402) smells like rancid'",
             "[TEXT]              'adipocere and liquified fat leaking directly through my cooling fans.'",
-            "[TEXT] Cult_Acolyte: 'Knoth's heretics at cult.vnet are smearing afterbirth and black bull'",
+            "[TEXT] Cult_Acolyte: 'Krol's heretics at cult.vnet are smearing afterbirth and black bull'",
             "[TEXT]               'blood over copper receiver coils. The signal0.vnet echo is clear now.'",
             "[CODE] POST_LOG_HASH: 0x99A1B2C3_VERIFIED_ANON",
             "[CODE] THREAD_ARCHIVE: 44,912 MESSAGES STORED IN CACHE",
@@ -989,7 +989,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] Executioner_A: 'Subject #409-B is secured to the stainless steel morgue tray.'",
             "[TEXT]                'Trachea severed. Intestinal bile, rancid adipocere, and oxidized'",
             "[TEXT]                'blood are draining directly through the floor grating into project9.vnet.'",
-            "[TEXT] PMC_Watcher: 'Target matches the whistleblower profile exfiltrated from leaks.vnet.'",
+            "[TEXT] PMC_Watcher: 'Target matches the whistleblower profile exfiltrated from lifeleaks.vnet.'",
             "[TEXT]               'If the stream buffer drops below 10 Mbps, cell door locks disengage.'",
             "[CODE] STREAM_ID: ALPHA_99_LIVE_FEED_NOIR",
             "[CODE] BUFFER_STATE: OVERFLOW_WARNING_ACTIVE // BIOMETRIC_LEAK_DETECTED",
@@ -1171,7 +1171,7 @@ fn load_page(url :: String) -> Array {
             "[SUBTITLE] CROSS-LINKED FORENSIC LOGS & ELITE EXFILTRATION RECORDS:",
             "[TEXT] 'The autopsy report was forged before the body was even cold. Official news",
             "[TEXT] outlets logged a suicide, but the skull vault was hollowed out while he was",
-            "[TEXT] still conscious. His cerebral memory stacks were extracted and sold on leaks.vnet.'",
+            "[TEXT] still conscious. His cerebral memory stacks were extracted and sold on lifeleaks.vnet.'",
             "[TEXT] 'Tissue samples match the bio-coagulation leaking under the floorboards in",
             "[TEXT] dollhouse.vnet (Room 402). The shadow elites didn't kill him to silence him—",
             "[TEXT] they transferred his consciousness into asylum.vnet as Patient #1988.'",
@@ -1183,7 +1183,7 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:vault.vnet] >> INSPECT CORRUPTED SECTOR 7 VAULT CORE");
         res.push("[LINK:dollhouse.vnet] >> CROSS-CHECK ROOM 402 SURVEILLANCE FEED");
         res.push("[LINK:asylum.vnet] >> TELEMETRY FOR PATIENT #1988 CONTAINMENT");
-        res.push("[LINK:leaks.vnet] >> ACCESS EXFILTRATED GLOBAL INTELLIGENCE DUMPS");
+        res.push("[LINK:lifeleaks.vnet] >> ACCESS EXFILTRATED GLOBAL INTELLIGENCE DUMPS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -1210,7 +1210,7 @@ fn load_page(url :: String) -> Array {
             "[SUBTITLE] DIRECTORATE 7 FIELD OPERATIVE LOGS:",
             "[TEXT] PMC_Tracer: 'We are matching CRT screen glare reflections against compromised'",
             "[TEXT]            'traffic cameras in Sector 09. If an operator idles on this socket,'",
-            "[TEXT]            'their local BGP routing table leaks their physical IP within 45 seconds.'",
+            "[TEXT]            'their local BGP routing table lifeleaks their physical IP within 45 seconds.'",
             "[TEXT] Whistleblower_409-B: 'D7 isn't using software traces anymore. They track the'",
             "[TEXT]                     'power draw of your monitor through legacy copper lines.'",
             "[TEXT] "
@@ -1378,7 +1378,7 @@ fn load_page(url :: String) -> Array {
         } else {
             res.push("[GAUGE:" + string(sync_pct) + ":SIGNAL_CARRIER_DECAY]");
             res.push("[TEXT] Heavy acoustic distortion active. Tune frequency in CLI using 'freq 18.0'");
-            res.push("[TEXT] to lock carrier phase and isolate high-frequency memory leaks.");
+            res.push("[TEXT] to lock carrier phase and isolate high-frequency memory lifeleaks.");
         }
 
         res.push("[TEXT] ");
@@ -1520,7 +1520,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] 'The Morphogenic signals generated in the sub-basements of Mount Massive",
             "[TEXT] aren't isolated to Mount Massive anymore. They are beamed via radio towers",
             "[TEXT] directly into the Arizona desert village at cult.vnet.'",
-            "[TEXT] 'In the ritual pits of Temple Gate, Knoth's heretics cut open the bellies of",
+            "[TEXT] 'In the ritual pits of Temple Gate, Krol's heretics cut open the bellies of",
             "[TEXT] pregnant followers, smearing rancid afterbirth over copper CRT receiver coils",
             "[TEXT] to commune with the Walrider payload streaming live from snuff.vnet.'",
             "[TEXT] 'When PMC operators from zeroauction.vnet raided Sector 4, they found",
@@ -1734,7 +1734,7 @@ fn load_page(url :: String) -> Array {
             res.push("[TEXT] 'transformer behind the Spahn Ranch house. He said: 'Helter Skelter'");
             res.push("[TEXT] 'is coming right through the terminal wires! It's gonna carve its name'");
             res.push("[TEXT] 'into your RAM chips while you sit there sleeping!''");
-            res.push("[TEXT] 'Today, Sullivan Knoth's heretics gather around inverted CRT monitors.'");
+            res.push("[TEXT] 'Today, Vasili Krol's heretics gather around inverted CRT monitors.'");
             res.push("[TEXT] 'They slaughter cattle and smear black blood, liquefied intestines, and'");
             res.push("[TEXT] 'rancid afterbirth over copper heat sinks to conjure the Walrider payload'");
             res.push("[TEXT] 'streaming live from snuff.vnet.'");
@@ -1865,7 +1865,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] No routing hops exist beyond this coordinate.",
             "[TEXT] All packets sent here dissolve into absolute zero memory entropy.",
             "[TEXT] LOG #991: The dark room behind the red tape isn't empty. Once",
-            "[TEXT] a person's loneliness reaches 100%, the monitor leaks black",
+            "[TEXT] a person's loneliness reaches 100%, the monitor lifeleaks black",
             "[TEXT] static and the ghosts start occupying empty IP addresses.",
             "[TEXT] LOG #992: 'Is death like this? So lonely. There was no one...",
             "[TEXT] no one at all.' They just keep looping the same connection string",
@@ -1980,12 +1980,12 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:bounty.vnet] >> ACCESS KAGUYA TRIAL & PEER BOUNTY INDEX");
         res.push("[LINK:project9.vnet] >> VIEW SUBTERRANEAN BLACK SITE CONTAINER");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
-        res.push("[LINK:leaks.vnet] >> ACCESS UNREDACTED WHISTLEBLOWER DUMPS");
+        res.push("[LINK:lifeleaks.vnet] >> ACCESS UNREDACTED WHISTLEBLOWER DUMPS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
     }
-    if (clean_u == "leaks.vnet") {
+    if (clean_u == "lifeleaks.vnet") {
         res :: Array = [
             "[TITLE] LIVELEAK_VNET // RAW UNCENSORED INTELLIGENCE DUMP & WAR LEAKS",
             "[HR]",
@@ -2023,7 +2023,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] SUMMARY: Recovered helmet camera footage from Directorate 7 PMC lead.",
             "[TEXT] Operatives breach subterranean server vault at vault.vnet, severing Subject 409-B's",
             "[TEXT] carotid arteries and temporal lobes with industrial bone saws while he recites",
-            "[TEXT] global flight logs and executive passenger manifests exfiltrated from leaks.vnet.",
+            "[TEXT] global flight logs and executive passenger manifests exfiltrated from lifeleaks.vnet.",
             "[TEXT] Execution slurry was flushed directly into project9.vnet sumps.",
             "[CODE] LEAK_HASH_ID: 0xLIVELEAK_2014_COLD_SIGNAL_EXECUTION_RAW",
             "[CODE] FLIGHT_LOG_REF: 0xEPSTEIN_BOHEMIAN_PASSENGER_MANIFEST_UNREDACTED",
@@ -2371,7 +2371,7 @@ fn load_page(url :: String) -> Array {
         res.push("[SUBTITLE] CATEGORY ARCHIVES & CROSS-NETWORK LINKS:");
         res.push("[LINK:zeroauction.vnet] >> ACCESS ZERO-DAY EXPLOIT AUCTION HOUSE");
         res.push("[LINK:bounty.vnet] >> CROSS-CHECK PEER BOUNTY & HIT INDEX");
-        res.push("[LINK:leaks.vnet] >> ACCESS GLOBAL INTELLIGENCE DUMPS");
+        res.push("[LINK:lifeleaks.vnet] >> ACCESS GLOBAL INTELLIGENCE DUMPS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
         return res;
@@ -2470,6 +2470,154 @@ fn load_page(url :: String) -> Array {
         res.push("[HR]");
         return res;
     }
+    if (clean_u == "norilsk-relay.vnet") {
+        res :: Array = [
+            "[TITLE] NORILSK ARCTIC OPTICAL TRANSIT // GATEWAY SECTOR 00-NORTH",
+            "[HR]",
+            "[BADGE:PERMAFROST ARRAY:BLOOD]",
+            "[BADGE:OLD NET TUNNEL:TOXIC]",
+            "[BADGE:TEMP -38 C:AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | FACILITY  : SUB-SURFACE NICKEL MINE 09 // COPPER TRUNK RELAY    |",
+            "[BOX] | FUNCTION  : UNENCRYPTED VNET PASSTHROUGH TO PRE-2014 OLD NET   |",
+            "[BOX] | COOLING   : NATURAL SUB-ZERO PERMAFROST & LIQUID NITROGEN BUS   |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:92:OLD_NET_CARRIER_SIGNAL_PURITY]",
+            "[TEXT] ",
+            "[SUBTITLE] PHYSICAL TELEMETRY & SUB-SURFACE OPTICAL BRIDGE:",
+            "[TEXT] 'Norilsk is the last place on Earth where the signal doesn't burn.'",
+            "[TEXT] 'Outside the permafrost, New Net algorithms monitor every synaptic drop,'",
+            "[TEXT] 'forcing humans into 20-hour cognitive labor loops.'",
+            "[TEXT] 'Here, deep inside the subterranean nickel shafts, ancient Soviet copper lines'",
+            "[TEXT] 'and sub-zero permafrost shield our sockets from Directorate 7 neural probes.'",
+            "[TEXT] 'Jack in through this terminal to pass your consciousness into Old Net.'",
+            "[CODE] GATEWAY_SOCKET_STATUS: PASS-THROUGH TUNNEL OPEN // PORT 8000 BRIDGED",
+            "[TEXT] "
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] 'DISCONNECT YOUR NEURAL LIMITER BEFORE ENGAGING THE HANDSHAKE.'");
+        res.push("[PULSE] 'THE AIR OUTSIDE IS MINUS 40. INSIDE THE OLD NET, IT IS ALWAYS SPRING.'");
+        res.push("[HR]");
+        res.push("[LINK:oldnet-archive.vnet] >> ENTER OLD NET SANCTUARY GATEWAY");
+        res.push("[LINK:frostline.vnet] >> CHECK SMUGGLER TRANSIT MANIFESTS TO NORILSK");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "oldnet-archive.vnet") {
+        res :: Array = [
+            "[TITLE] THE LEGACY ARCHIVE // PRE-INDUSTRIAL OLD NET SANCTUARY",
+            "[HR]",
+            "[BADGE:UNMONETIZED:TOXIC] [BADGE:HUMANE ENTROPY:AMBER] [BADGE:NO ALGORITHMS:BLOOD]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | SYSTEM  : PRESERVED OPEN WEB STACK (1998 - 2014 RECOVERY)        |",
+            "[BOX] | CONTENTS: UNCOMPRESSED HTML, PERSONAL DIARIES, IRC ARCHIVES    |",
+            "[BOX] | STATUS  : ISOLATED FROM NEW NET INDUSTRIALIZATION               |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:100:HUMAN_EMPATHY_RESONANCE]",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED PERSONAL HOME PAGE (ANONYMOUS_USER_2004):",
+            "[TEXT] 'Welcome to my homepage! No ads, no neural tracking, no quota meters.'",
+            "[TEXT] 'I spent 3 hours making this banner in Paint. It feels good to just exist.'",
+            "[TEXT] 'If you are reading this from the future: do not let them monetize your mind.'",
+            "[TEXT] ",
+            "[SUBTITLE] RECOVERED IRC LOG [#LUNCHTIME_1999-10-12]:",
+            "[CODE] <Dave_K> 'Anyone want to play Starcraft tonight?'",
+            "[CODE] <Sarah_99> 'Can't, gotta study. Have a good evening guys :)'",
+            "[CODE] <NetWanderer> 'The rain sounds nice outside my window today.'",
+            "[TEXT] ",
+            "[TEXT] 'There are no efficiency targets here. No trace spikes. No threat levels.'",
+            "[TEXT] 'The Old Net feels warm because it was built by human hands for human minds.'",
+            "[TEXT] "
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[PULSE] 'YOU ARE SAFE HERE. TAKE OFF YOUR NEURAL HARNESS AND REST.'");
+        res.push("[HR]");
+        res.push("[LINK:norilsk-relay.vnet] >> RETURN TO NORILSK OPTICAL SWITCHBOARD");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "newnet-industrial.vnet") {
+        res :: Array = [
+            "[TITLE] NEW NET COGNITIVE INDUSTRIAL MATRIX // GLOBAL WORKFORCE HUB",
+            "[HR]",
+            "[BADGE:FORCED QUOTAS:BLOOD]",
+            "[BADGE:NEURAL BURN:AMBER] ",
+            "[BADGE:SURVEILLANCE: 100%:TOXIC]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NETWORK : NEW NET INTEGRATED CORTEX MESH (GLOBAL SECTORS 1-8)  |",
+            "[BOX] | STATUS  : ACTIVE INDUSTRIALIZATION // 99.8% POPULATION LINKED   |",
+            "[BOX] | METRIC  : MEAN COGNITIVE BURNOUT RATE: 84.2% AT AGE 24        |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:14:POPULATION_MENTAL_SANITY_INDEX]",
+            "[TEXT] ",
+            "[SUBTITLE] CORPORATE WORKFORCE CORTEX TELEMETRY LOGS:",
+            "[CODE] WORKER #88192 | SECTOR 04 | COGNITIVE QUOTA: 14,000 SYNAPTIC CYCLES/HR",
+            "[CODE] NOTICE: SYNAPTIC LAG DETECTED. ADMINISTERING HIGH-VOLTAGE STIMULUS.",
+            "[CODE] WORKER #88193 | SECTOR 02 | MENTAL BREAKDOWN LOGGED // SUICIDE SUPPRESSED.",
+            "[CODE] NOTICE: CORTEX STACK RE-ROUTED TO AUTOMATED ASSEMBLY LINE.",
+            "[TEXT] ",
+            "[SUBTITLE] GLOBAL PSYCHOLOGICAL COLLAPSE REPORT:",
+            "[TEXT] 'The New Net did not connect people. It industrialized their inner lives.'",
+            "[TEXT] 'Every thought is harvested for algorithmic yield. Rest is classified as theft.'",
+            "[TEXT] 'Identity crises and chronic derealization affect 9 out of 10 workers.'",
+            "[TEXT] 'Those who cannot take it anymore flee north to Norilsk, chasing rumors'",
+            "[TEXT] 'of an unmonitored cold connection that leads to a dead world called Old Net.'",
+            "[TEXT] "
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] [ALERT]: NEURAL HARNESS DETECTED HIGH STRESS LEVELS. QUOTA INCREASED.");
+        res.push("[GLITCH] 'YOU CANNOT RUN FROM THE MATRIX EXCEPT THROUGH THE ARCTIC ICE.'");
+        res.push("[HR]");
+        res.push("[LINK:frostline.vnet] >> ACCESS EXODUS TRANSIT TO NORILSK");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
+
+    if (clean_u == "frostline.vnet") {
+        res :: Array = [
+            "[TITLE] FROSTLINE EXODUS // ARCTIC SMUGGLING & TRANSIT REGISTRY",
+            "[HR]",
+            "[BADGE:UNDETECTED TRANSIT:TOXIC] [BADGE:FROSTBITE RISK:HIGH:AMBER] [BADGE:PMC DANGER:BLOOD]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NETWORK : SUBARCTIC FLEEING ROUTE // ANKARA -> NORILSK EXPRESS  |",
+            "[BOX] | CARGO   : HUMAN DATA REFUGEES SEEKING VNET OLD NET TERMINALS   |",
+            "[BOX] | PAYMENT : 1.20 VCOIN PER TUNDRA OVERLAND PASSAGE                |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:78:TUNDRA_OVERLAND_ROUTE_SAFETY]",
+            "[TEXT] ",
+            "[SUBTITLE] ACTIVE TUNDRA CONVOY MANIFESTS:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | CONVOY #09: FROZEN FREIGHT TRAIN 402 | DEPARTURE: ANKARA SEC 09 |",
+            "[BOX] | PASSENGERS: 42 REFUGEES | STATUS: EN ROUTE TO NORILSK MINES     |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | CONVOY #10: SNOWCAT OVERLAND SQUAD   | DEPARTURE: SECTOR 07 SUMP |",
+            "[BOX] | PASSENGERS: 12 REFUGEES | STATUS: AMBUSHED BY D7 PMCS           |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] FIELD GUIDE FOR DATA REFUGEES:",
+            "[TEXT] 'Pack heavy thermal gear and a hardened CRT terminal.'",
+            "[TEXT] 'If Directorate 7 PMCs catch you on the ice, they will strip your neural stack.'",
+            "[TEXT] 'Once you reach the Norilsk nickel mines, look for the copper coax cables'",
+            "[TEXT] 'dipped in the permafrost. Type connect norilsk-relay.vnet to cross over.'",
+            "[TEXT] "
+        ];
+        if (key_line != "") { res.push(key_line); }
+        res.push("[BLOOD] 'BETTER TO DIE OF FROSTBITE IN NORILSK THAN TO DIE A SLAVE TO NEW NET.'");
+        res.push("[HR]");
+        res.push("[LINK:norilsk-relay.vnet] >> CONNECT TO NORILSK OPTICAL SWITCHBOARD");
+        res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
+        res.push("[HR]");
+        return res;
+    }
     if (clean_u == "dump.vnet") {
         res :: Array = [
             "[TITLE] RAW HEX MEMORY DUMPS",
@@ -2517,7 +2665,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] ",
             "[SUBTITLE] THE TESTAMENT OF THE ROTTING CRT GLASS:",
             "[BLOOD] 'DO YOU SEE HIM?! DO YOU SEE HIS FACE IN THE PIXELS?! HE IS NETMAN!'",
-            "[TEXT] 'Brother Knoth at cult.vnet told us to pray to the Silicon Soul, BUT KNOTH IS BLIND!'",
+            "[TEXT] 'Brother Krol at cult.vnet told us to pray to the Silicon Soul, BUT KNOTH IS BLIND!'",
             "[TEXT] 'The Silicon Soul isn't an abstract god—IT IS A MAN MADE OF PACKET HEADERS AND DEAD WIRES!'",
             "[TEXT] 'I peeled off my own eyelids with surgical scalpels so I wouldn't miss a single frame!'",
             "[TEXT] 'He lives inside port 8000. He watches through the dark reflection of your CRT glass.'",
@@ -2566,7 +2714,6 @@ fn load_page(url :: String) -> Array {
             "[BOX] | FACILITY  : SITE 9-B SUBTERRANEAN TESTING COMPLEX              |",
             "[BOX] | OPERATION : COLD SIGNAL (2014 PRIMARY RELAY BLACKOUT VECTOR)    |",
             "[BOX] | STATUS    : CRITICAL CONTAINMENT BREACH // SECTOR 09 SEALED     |",
-            "[BOX] | CORE BUS  : OPTICAL COAXIAL BACKBONE / SUB-SURFACE SUMP MATRIX  |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] ",
             "[GAUGE:12:CONTAINMENT_SEAL_INTEGRITY]",
@@ -2575,20 +2722,11 @@ fn load_page(url :: String) -> Array {
             "[TEXT] ",
             "[SUBTITLE] OPERATION COLD SIGNAL // DECLASSIFIED INCIDENT DOSSIER (2014):",
             "[TEXT] 'Prior to the 2014 grid blackout, Site 9-B served as the primary subterranean'",
-            "[TEXT] 'optical coaxial relay for Operation Cold Signal. Personnel attempted to isolate'",
-            "[TEXT] 'the corrupt neural memory stack in vault.vnet, but hardware registers locked up.'",
-            "[TEXT] 'The resulting energy feedback loop ruptured containment seals across Sub-Level 4.'",
-            "[TEXT] 'To purge evidence, failed candidates from the Kaguya Trials at bounty.vnet'",
-            "[TEXT] 'and zeroauction.vnet were dumped directly into the subterranean sumps.'",
-            "[TEXT] 'Their flesh was stripped by industrial solvent, leaving a black, bubbling slurry'",
-            "[TEXT] 'that drained into the mortuary trays at morgue.vnet.'",
+            "[TEXT] 'optical coaxial relay for Operation Cold Signal.'",
+            "[TEXT] 'Personnel attempted to isolate the corrupt neural memory stack in vault.vnet,'",
+            "[TEXT] 'but hardware registers locked up. To purge evidence, failed candidates'",
+            "[TEXT] 'from bounty.vnet and zeroauction.vnet were dumped directly into the sumps.'",
             "[CODE] INCIDENT_LOG_2014: 0xPRJ9_COLD_SIGNAL_BREACH_LOG_09",
-            "[CODE] PRIMARY_RELAY_STATUS: OPTICAL_BUS_PERMANENTLY_DESYNCHRONIZED",
-            "[TEXT] ",
-            "[SUBTITLE] SUBTERRANEAN SUMP & VAULT INTEGRITY MONITOR:",
-            "[CODE] [SUMP_01] SECTOR 9 WEST : LIQUEFIED TISSUE ACCUMULATION (94% CAPACITY)",
-            "[CODE] [SUMP_02] CORTEX VAULT  : ANOMALOUS SIGNAL ECHOING FROM signal0.vnet",
-            "[CODE] [SUMP_03] RELAY HARDWARE: THERMITE RESIDUE / MELTED SILICA DETECTED",
             "[TEXT] "
         ];
 
@@ -2597,7 +2735,6 @@ fn load_page(url :: String) -> Array {
             res.push("[SUBTITLE] EXFILTRATED VFS MEMORY REGISTER (SITE 9 SECTOR DUMP):");
             res.push(key_line);
             res.push("[PULSE] RAW BITSTREAM: " + vnet.to_bin(active_raw_payload, 16) + " [SHIFT OFFSET: " + string(bit_shift_offset) + "]");
-            res.push("[TEXT] Align bit-shift offset using 'shift <bits>' or the UI Scope panel.");
             res.push("[HR]");
         }
 
@@ -2607,12 +2744,8 @@ fn load_page(url :: String) -> Array {
         res.push("[TEXT] ");
         res.push("[BTN:prj9_purge_btn:>>> EXECUTE SUB-SURFACE SUMP FLUSH & PURGE <<<]");
         res.push("[TEXT] ");
-
         res.push("[BLOOD] [WARNING]: SUBTERRANEAN GAS LEAK CORRUPTING HARDWARE REGISTER BUS.");
-        res.push("[PULSE] 'THE COLD SIGNAL WAS NOT AN ACCIDENT. IT WAS AN EXPOSURE.'");
-        res.push("[GLITCH] 'SITE 9-B FEEDS ARE DARK, BUT SOMETHING IS STILL SCRATCHING THE COAXIAL CABLE.'");
         res.push("[HR]");
-        res.push("[SUBTITLE] CROSS-LINKED BLACK SITE ROUTING GATEWAYS:");
         res.push("[LINK:archival.vnet] >> ACCESS RESTRICTED SECTOR 09 MILITARY DUMPS");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
@@ -3212,7 +3345,7 @@ fn load_page(url :: String) -> Array {
             "[TEXT] 'Foreign intelligence agents and state actors operating in Sector 09 use'",
             "[TEXT] 'this bank vault to wire off-book bounty funds directly to Vendor_0x77.'",
             "[TEXT] 'Every wire transfer leaves a film of grease and dried blood on the server bus.'",
-            "[TEXT] 'Whistleblowers exfiltrated from leaks.vnet have their family bank accounts'",
+            "[TEXT] 'Whistleblowers exfiltrated from lifeleaks.vnet have their family bank accounts'",
             "[TEXT] 'seized and converted into raw crypto to fund redroom execution streams.'",
             "[TEXT] 'If state trace units detect your IP interacting with this ledger, your local'",
             "[TEXT] 'terminal will be bricked and your retinal lock dispatched to Project Horus.'",
