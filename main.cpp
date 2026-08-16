@@ -25,20 +25,21 @@ int main(int argc, char* argv[]) {
     if (argc > 1) {
         std::string firstArg = argv[1];
         
+        if (firstArg == "--verify") {
+            if (argc < 3) return 1;
+            return runFile(argv[2], env, "ast", /* enforceIntegrity = */ true);
+        }
+
         if (argc == 3) {
             std::string filename = argv[2];
-            if (firstArg == "--ast") return runFile(filename, env, "ast");
-            if (firstArg == "--bytecode") return runFile(filename, env, "bytecode");
-            if (firstArg == "--c" || firstArg == "--compile") return runFile(filename, env, "c");
+            if (firstArg == "--ast") return runFile(filename, env, "ast", false);
+            if (firstArg == "--c" || firstArg == "--compile") return runFile(filename, env, "c", false);
         }
         
         if (firstArg.substr(0, 2) != "--") {
-            return runFile(firstArg, env, "ast");
+            return runFile(firstArg, env, "ast", false);
         }
-
-        std::cerr << "Error: Invalid arguments or file not found.\n";
-        return 1;
-    } 
+    }
     
     else {
         std::string input;

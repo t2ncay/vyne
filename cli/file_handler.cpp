@@ -1,6 +1,46 @@
 #include "file_handler.h"
+#include "../vyne/utils/sha256.h"
+#include <map>
 
-int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode){
+bool verifyIntegrity(const std::string& scriptPath) {
+    namespace fs = std::filesystem;
+    fs::path filePath(scriptPath);
+    fs::path baseDir = filePath.parent_path();
+    fs::path manifestPath = baseDir.empty() ? "checksums.dat" : baseDir / "checksums.dat";
+
+    if (!fs::exists(manifestPath)) return true;
+
+    std::ifstream manifest(manifestPath);
+    if (!manifest.is_open()) return true;
+
+    std::string relPath, expectedHash;
+    std::map<std::string, std::string> expectedHashes;
+    while (manifest >> relPath >> expectedHash) {
+        expectedHashes[relPath] = expectedHash;
+    }
+
+    std::string fileKey = filePath.filename().string();
+
+    auto it = expectedHashes.find(fileKey);
+    if (it == expectedHashes.end()) {
+        return true; 
+    }
+
+    std::string currentHash = SHA256::hashFile(scriptPath);
+    if (currentHash != it->second) {
+        std::cerr << RED << "[SECURITY ERROR] Integrity check failed for " 
+                  << scriptPath << "! File modified or corrupted." << RESET << "\n";
+        return false;
+    }
+
+    return true;
+}
+
+int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode, bool enforceIntegrity) {
+    if (enforceIntegrity && !verifyIntegrity(filename)) {
+        return 1;
+    }
+
     size_t dotPos = filename.find_last_of(".");
     if (dotPos == std::string::npos || filename.substr(dotPos + 1) != "vy") {
         std::cerr << RED << "Error: File must end in .vy ( .vyne )" << RESET << "\n";

@@ -21,8 +21,7 @@
 #define BOLD    "\033[1m"
 #define MAGENTA "\033[35m"
 
-int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode);
-
+int runFile(const std::string& filename, SymbolContainer& env, const std::string& mode, bool enforceIntegrity = false);
 template<typename... Args>
 static inline void vprint(std::string_view fmt, Args&&... args) {
     std::string s = std::vformat(fmt, std::make_format_args(args...));

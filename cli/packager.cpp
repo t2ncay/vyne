@@ -1,4 +1,5 @@
 #include "packager.h"
+#include "../vyne/utils/sha256.h"
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -33,8 +34,24 @@ void VynePackager::build() {
     std::set<std::string> processedFiles;
     scanDependencies(mainScript, outDir, processedFiles);
 
+    // for hashing gamefiles
+    std::ofstream manifest(outDir + "/checksums.dat");
+    std::cout << MAGENTA << "\n[INTEGRITY] Generating SHA-256 Manifest..." << RESET << "\n";
+
+    for (const auto& entry : fs::recursive_directory_iterator(outDir)) {
+        if (entry.is_regular_file()) {
+            std::string relativePath = fs::relative(entry.path(), outDir).string();
+            if (relativePath == "checksums.dat" || relativePath == "run.bat") continue;
+
+            std::string fileHash = SHA256::hashFile(entry.path().string());
+            manifest << relativePath << " " << fileHash << "\n";
+            std::cout << CYAN << "  [HASHED] " << RESET << relativePath << " -> " << fileHash.substr(0, 8) << "...\n";
+        }
+    }
+    manifest.close();
+
     std::ofstream bat(outDir + "/run.bat");
-    bat << "@echo off\nvynec.exe --ast " << mainScript << "\npause";
+    bat << "@echo off\nvynec.exe " << mainScript << "\npause";
     
     std::cout << GREEN << "\nBUILD SUCCESS: Recursive bundle is ready!" << RESET << "\n";
 }
