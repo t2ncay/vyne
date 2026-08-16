@@ -51,7 +51,7 @@ void VynePackager::build() {
     manifest.close();
 
     std::ofstream bat(outDir + "/run.bat");
-    bat << "@echo off\nvynec.exe " << mainScript << "\npause";
+    bat << "@echo off\nvynec.exe --verify " << mainScript << "\npause";
     
     std::cout << GREEN << "\nBUILD SUCCESS: Recursive bundle is ready!" << RESET << "\n";
 }

@@ -2114,22 +2114,9 @@ fn load_page(url :: String) -> Array {
             "[TEXT] ",
             "[GAUGE:88:ZK_PROOF_SCRAMBLE_ENTROPY]",
             "[TEXT] ",
-            "[SUBTITLE] LAUNDER VCOIN & PURGE NETWORK TRACE SIGNATURES:",
-            "[TEXT] Deposit raw VCOIN into the shadow tumbler pool. Scrambles wallet lineage",
-            "[TEXT] across 50 decentralized nodes and reduces active trace level.",
-            "[INPUT:tumble_vcoin_amt:ENTER VCOIN AMOUNT TO LAUNDER (e.g. 1.0)]",
-            "[TEXT] ",
-            "[BTN:execute_tumble_btn:>>> LAUNDER VCOIN & SCRUB WALLET TRACE <<<]",
-            "[TEXT] ",
-            "[SUBTITLE] VEKTRA STAKING & INTEREST POOL:",
-            "[TEXT] Lock VCOIN in escrow for 120 seconds to earn +15% yield funded by market fees:",
-            "[BTN:stake_vcoin_btn:>>> DEPOSIT VCOIN INTO 120s YIELD VAULT <<<]",
-            "[HR]"
+            "[SUBTITLE] ACTIVE NETWORK ESCROW LISTINGS (MASKED):"
         ];
 
-        # --- ACTIVE NETWORK ESCROW LISTINGS ---
-        res.push("[SUBTITLE] ACTIVE NETWORK ESCROW LISTINGS (MASKED):");
-        
         if (active_escrow_listings.length() == 0) {
             res.push("[TEXT] (No active escrow deposits found on network)");
         } else {
@@ -2144,6 +2131,18 @@ fn load_page(url :: String) -> Array {
                 res.push("[CODE] KEY: XXXXX | AMOUNT: " + string(amount) + " VCOIN | ORIGIN: " + masked_port + " | CREATED: " + string(time_stamp) + "s ago");
             };
         }
+
+        res.push("[HR]");
+        res.push("[SUBTITLE] LAUNDER VCOIN & PURGE NETWORK TRACE SIGNATURES:");
+        res.push("[TEXT] Deposit raw VCOIN into the shadow tumbler pool. Scrambles wallet lineage");
+        res.push("[TEXT] across 50 decentralized nodes and reduces active trace level.");
+        res.push("[INPUT:tumble_vcoin_amt:ENTER VCOIN AMOUNT TO LAUNDER (e.g. 1.0)]");
+        res.push("[TEXT] ");
+        res.push("[BTN:execute_tumble_btn:>>> LAUNDER VCOIN & SCRUB WALLET TRACE <<<]");
+        res.push("[TEXT] ");
+        res.push("[SUBTITLE] VEKTRA STAKING & INTEREST POOL:");
+        res.push("[TEXT] Lock VCOIN in escrow for 120 seconds to earn +15% yield funded by market fees:");
+        res.push("[BTN:stake_vcoin_btn:>>> DEPOSIT VCOIN INTO 120s YIELD VAULT <<<]");
         res.push("[HR]");
 
         if (key_line != "") { res.push(key_line); }
@@ -4749,6 +4748,7 @@ while (vglib.running()) {
                 }
             } else {
                 cli_logs.push("[SCAN TELEMETRY]: FREQUENCY RE-DETECTED KNOWN NODE -> vnet://" + discovered_site);
+                cd_scan = 0;
             }
             glitch_trigger = 0.5;
         }
