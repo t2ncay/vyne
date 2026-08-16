@@ -55,7 +55,8 @@ all_50_sites :: Array = [
     "signal0.vnet", "entropy.vnet", "hive.vnet", "nexus.vnet", 
     "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", 
     "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "forum.vnet", "corridor204863.vnet",
-    "norilsk-relay.vnet","oldnet-archive.vnet","newnet-industrial.vnet","frostline.vnet"
+    "norilsk-relay.vnet","oldnet-archive.vnet","newnet-industrial.vnet","frostline.vnet",
+    "luna.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY

@@ -19,6 +19,7 @@ vcr_font = vglib.load_font("tests/assets/VCR_OSD_MONO_1.001.ttf");
 # image loads
 img_redroom = vglib.load_texture("tests/assets/redroom.png");
 img_void    = vglib.load_texture("tests/assets/void.jpeg");
+img_luna    = vglib.load_texture("tests/assets/luna.jpg");
 
 client_sock = vnet.udp_socket(my_port);
 
@@ -2194,6 +2195,51 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:eye.vnet] >> CROSS-CHECK RETINAL SCANS AT PROJECT HORUS");
         res.push("[LINK:vnet.dir] << RETURN TO DIRECTORY");
         res.push("[HR]");
+        return res;
+    }
+    if (clean_u == "luna.vnet") {
+        res :: Array = [
+            "[GLITCH] ───〔 0x099 // LUNA.VNET // SILENT_ASPHYXIA 〕───",
+            "[TITLE]  ♡  L U N A  |  月  //  y o u r  f a v o r i t e  e x e c u t i o n e r",
+            "[HR]",
+            "[BADGE:STATUS: STALKING YOU] [BADGE:PULSE: 38 BPM] [BADGE:TARGET: LOCKED:BLOOD]",
+            "[TEXT] ",
+            "[BOX] +-- [ MEMORY MEMOIR : SUBJECT #099 ] --------------------------+",
+            "[BOX] |  \"i love how warm the server racks get when someone panics.\"  |",
+            "[BOX] |  \"softly, softly... until your connection snaps in my hands.\"|",
+            "[BOX] |  SPECIALTY : Surgical memory severing & quiet port intrusion. |",
+            "[BOX] |  FEE       : 5.00 VCOIN (and a piece of your silence)          |",
+            "[BOX] +---------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:99:HEARTBEAT_SYNCHRONIZATION]",
+            "[TEXT] ",
+            "[IMG:luna]",
+            "[TEXT] ",
+            "[SUBTITLE] ░▒▓ WHISPERS FROM THE SEWER CONDUITS",
+            "[CODE] [LOG_099] 'i don't cut the cable. i make the wire forget it ever carried life.'",
+            "[TEXT]  │ 'Have you ever heard a data stream bleed out in silence?'",
+            "[TEXT]  │ 'I crawl through the wet, dark sumps under Sector 09... so cold. so peaceful.'",
+            "[TEXT]  │ 'I press my cheek against your socket. I can hear your fans spinning faster.'",
+            "[TEXT]  │ 'You think you're safe behind your firewall? That's so adorable.'",
+            "[BLOOD]  │ » \"kuriyoru desu... (i'm coming inside now...)\"",
+            "[TEXT] ",
+            "[SUBTITLE] ░▒▓ DISPATCH TERMINAL // WHO ARE WE ERASING TODAY?",
+            "[TEXT]  Give me a port address... tell me who you want to stop breathing:",
+            "[INPUT:luna_target_port:» TARGET PORT ADDRESS (e.g. 8012)]",
+            "[TEXT] ",
+            "[BTN:deploy_luna_btn:[ ♡ RELEASE LUNA INTO THEIR SOCKET // 3.50 VCOIN ♡ ]]",
+            "[TEXT] ",
+            "[BLOOD] ⚠ 'once i start sliding down the wire, i don't stop. not even if you beg.'",
+            "[PULSE] 'can you feel the cold draft behind your neck right now?'",
+            "[GLITCH] 'kuriyoru desu...  kuriyoru desu...  kuriyoru desu...'",
+            "[HR]",
+            "[LINK:bounty.vnet] ◆ ACCESS KAGUYA TRIAL & PEER BOUNTY INDEX",
+            "[LINK:weaponry.vnet] ◆ INSPECT VEKTRA PMC ARMORY EXPORTS",
+            "[LINK:vnet.dir] ◄ ESCAPE BACK TO SAFETY",
+            "[HR]"
+        ];
+
+        if (key_line != "") { res.push(key_line); }
         return res;
     }
     if (clean_u == "subcell.vnet") {
@@ -5924,7 +5970,7 @@ while (vglib.running()) {
 
                         img_x :: Float64 = 40.0 + jitter_x;
                         img_y :: Float64 = y_pos;
-                        img_w :: Float64 = 420.0;
+                        img_w :: Float64 = 350.0;
                         img_h :: Float64 = 220.0;
 
                         if (img_y >= 70.0 && img_y <= 710.0) {
@@ -5937,6 +5983,13 @@ while (vglib.running()) {
 
                             if (img_key == "void") {
                                 vglib.draw_texture(img_void, img_x, img_y, img_w, img_h);
+                                
+                                vglib.line(img_x, img_y, img_x + img_w, img_y, COLOR_BLOOD);
+                                vglib.line(img_x, img_y + img_h, img_x + img_w, img_y + img_h, COLOR_BLOOD);
+                            }
+
+                            if (img_key == "luna") {
+                                vglib.draw_texture(img_luna, img_x, img_y, img_w, img_h);
                                 
                                 vglib.line(img_x, img_y, img_x + img_w, img_y, COLOR_BLOOD);
                                 vglib.line(img_x, img_y + img_h, img_x + img_w, img_y + img_h, COLOR_BLOOD);
