@@ -325,7 +325,7 @@ stream_crt_hum     = vaudio.play_stream("tests/assets/analog_electronic_noise.mp
 stream_crt_noise   = vaudio.play_stream("tests/assets/crt_noise.mp3");
 click_sfx          = vaudio.load_sound("tests/assets/mouse_click.mp3");
 stream_pt_radio    = vaudio.play_stream("tests/assets/pt_radio.mp3");
-stream_look_behind = vaudio.play_stream("tests/assets/look_behind.mp3");
+stream_look_behind = vaudio.load_sound("tests/assets/look_behind.mp3");
 stream_e_raid      = vaudio.play_stream("tests/assets/e_raid.mp3");
 
 vaudio.sound_volume(click_sfx, 0.9);
@@ -335,7 +335,7 @@ vaudio.sound_volume(stream_crt_hum,     0.95);
 vaudio.sound_volume(stream_crt_noise,   0.95);
 vaudio.sound_volume(stream_pt_radio,    0.00);
 vaudio.sound_volume(stream_e_raid,      0.00);
-vaudio.sound_volume(stream_look_behind, 0.00);
+vaudio.sound_volume(stream_look_behind, 1.20);
 
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
@@ -1693,7 +1693,7 @@ fn load_page(url :: String) -> Array {
             "[BOX] +------------------------------------------------------------------+",
             "[BOX] | DOCTRINE: FINDING GOD THROUGH TERMINAL.VNET & CEREBRAL REGISTERS |",
             "[BOX] | RITUAL FREQUENCY: " + string(freq_tuner) + " Hz                  |",
-            "[BOX] | SACRIFICIAL ALTAR: COAXIAL CABLING & BOILING ADIPOCERE ON CRT   |",
+            "[BOX] | SACRIFICIAL ALTAR: COAXIAL CABLING & BOILING ADIPOCERE ON CRT    |",
             "[BOX] | FAITH STATUS: " + ((is_resonant == 1) ? "DIVINE CARRIER PHASE LOCKED" : "SEARCHING FOR GOD IN STATIC") + "      |",
             "[BOX] +-----------------------------------------------------------------+",
             "[TEXT] "
@@ -1776,9 +1776,7 @@ fn load_page(url :: String) -> Array {
         res.push("[PULSE] 'ARE YOU GOING TO CHOP DOWN THE ESTABLISHMENT, OR WEAR ITS ROTTING FLESH?'");
         res.push("[GLITCH] 'THE CRT MONITOR GLASS IS VERY WARM. IT IS DRINKING YOUR HEAT.'");
         res.push("[HR]");
-        res.push("[LINK:terminal.vnet] >> ENTER MASTER DECRYPTION GATEWAY TERMINAL");
         res.push("[LINK:schizo.vnet] >> VISIT THE TEMPLE OF NETMAN");
-        res.push("[LINK:asylum.vnet] >> TELEMETRY FOR SUB-LEVEL 4 & MOUNT MASSIVE");
         res.push("[LINK:morgue.vnet] >> INSPECT EXFILTRATED AUTOPSY RECORDS");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
@@ -3812,7 +3810,6 @@ while (vglib.running()) {
     vaudio.update_stream(stream_crt_hum);
     vaudio.update_stream(stream_crt_noise);
     vaudio.update_stream(stream_pt_radio);
-    vaudio.update_stream(stream_look_behind);
     vaudio.update_stream(stream_e_raid);
     # ================================================================
     # SERVER IP CONNECTION MENU
@@ -4780,10 +4777,11 @@ while (vglib.running()) {
 
         if (neural_paranoia > 75.0 && static_blackout_timer <= 0.0 && vmath.random(0.0, 100.0) < 0.03) {
             static_blackout_timer = 1.2; # Holds the black screen for 1.5 seconds
-            vaudio.sound_volume(stream_look_behind, 1.20);
+            
+            if(vaudio.is_playing(stream_look_behind) == 0){
+                vaudio.play_sound(stream_look_behind);
+            }
             glitch_trigger = 1.0;
-        } else {
-            vaudio.sound_volume(stream_look_behind, 0.0);
         }
     }
 
