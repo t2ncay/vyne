@@ -2709,7 +2709,9 @@ fn load_page(url :: String) -> Array {
         res :: Array = [
             "[TITLE] PROJECT 9 - SUBTERRANEAN BLACK SITE DATABASE // SITE 9-B",
             "[HR]",
-            "[BADGE:SECTOR 09:BLOOD] [BADGE:COLD SIGNAL 2014:AMBER] [BADGE:CONTAINMENT BREACH:TOXIC]",
+            "[BADGE:SECTOR 09:BLOOD]",
+            "[BADGE:COLD SIGNAL 2014:AMBER]",
+            "[BADGE:CONTAINMENT BREACH:TOXIC]",
             "[BOX] +-----------------------------------------------------------------+",
             "[BOX] | FACILITY  : SITE 9-B SUBTERRANEAN TESTING COMPLEX              |",
             "[BOX] | OPERATION : COLD SIGNAL (2014 PRIMARY RELAY BLACKOUT VECTOR)    |",
@@ -3445,7 +3447,11 @@ fn dispatch_cli_command(raw_input :: String) {
             cli_logs.push("[ERROR]: Usage: whisper <handle> <message>");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "WHISPER:" + player_handle + ":" + target_handle + ":" + msg_body);
-            cli_logs.push("[WHISPER -> " + target_handle + "]: " + msg_body);
+            
+            # High-contrast visual formatting for outgoing whispers
+            out_formatted :: String = "[WHISPER TO <" + target_handle + ">]: " + msg_body;
+            cli_logs.push(out_formatted);
+            vnet_feed_logs.push(out_formatted);
         }
     }
     else if (cmd == "theme") {
@@ -4595,7 +4601,9 @@ while (vglib.running()) {
                 
                 vnet_feed_logs.push(whisper_formatted);
                 cli_logs.push(whisper_formatted);
-                glitch_trigger = 0.3;
+                
+                vaudio.play_sound(click_sfx);
+                glitch_trigger = 0.5;
             }
         }
         else if (net_msg.length() >= 18 && net_msg.substr(0, 18) == "PAY_CLAIM_SUCCESS:") {
@@ -5414,10 +5422,14 @@ while (vglib.running()) {
                     cf_txt_trunc :: String = truncate_str(cf_txt, 90);
 
                     cf_col = COLOR_GHOST;
-                    if (cf_txt.length() > 6 && cf_txt.substr(0, 6) == "[CHAT]") { cf_col = COLOR_TOXIC; }
-                    if (cf_txt.substr(0, 12) == "[DOS ATTACK]") { cf_col = COLOR_BLOOD; }
-                    if (cf_txt.substr(0, 12) == "[TRACE SPIKE]") { cf_col = COLOR_AMBER; }
-                    if (cf_txt.substr(0, 12) == "[BGP HIJACK]") { cf_col = COLOR_TOXIC; }
+                    
+                    if (cf_txt.length() >= 14 && cf_txt.substr(0, 14) == "[WHISPER FROM ") {
+                        cf_col = COLOR_AMBER;  # Bright Amber/Magenta accent for whispers
+                    } else if (cf_txt.length() >= 12 && cf_txt.substr(0, 12) == "[WHISPER TO ") {
+                        cf_col = COLOR_CYAN;   # Cyan accent for outgoing whispers
+                    } else if (cf_txt.length() > 6 && cf_txt.substr(0, 6) == "[CHAT]") {
+                        cf_col = COLOR_TOXIC;
+                    }
 
                     vglib.text_ex(vcr_font, cf_txt_trunc, 50 + jitter_x, c_line_y, 10, cf_col);
                 }
