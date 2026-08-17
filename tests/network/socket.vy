@@ -4022,7 +4022,7 @@ fn dispatch_cli_command(raw_input :: String) {
                 };
 
                 if (found_idx >= 0) {
-                    trace_level = int64(vmath.clamp(trace_level + 25.0, 0.0, 100.0));
+                    trace_level = int64(vmath.clamp(trace_level + 18.0, 0.0, 100.0));
                     
                     crt_heat = vmath.clamp(crt_heat + 3.5, 35.0, 100.0);
                     btc_balance = btc_balance + block_reward;
@@ -5281,7 +5281,6 @@ while (vglib.running()) {
         # ------------------------------------------------------------
         draw_cyber_frame(930.0 + jitter_x, 80.0 + jitter_y, 330.0, 670.0, COLOR_BORDER, 3.0);
 
-        vglib.rect(930 + jitter_x, 80 + jitter_y, 330, 670, COLOR_PANEL);
         vglib.line(930, 80, 1260, 80, COLOR_BORDER);
         vglib.line(1260, 80, 1260, 750, COLOR_BORDER);
         vglib.line(1260, 750, 930, 750, COLOR_BORDER);
@@ -5289,7 +5288,7 @@ while (vglib.running()) {
 
         radar_title_col = (trace_level > 80) ? COLOR_BLOOD : COLOR_AMBER;
         vglib.rect(930.0 + jitter_x, 80.0 + jitter_y, 330.0, 25.0, vglib.rgba(20, 25, 30, 200));
-        vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 945 + jitter_x, 95, 11, radar_title_col);
+        vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 1000 + jitter_x, 88, 11, radar_title_col);
         vglib.line(930.0 + jitter_x, 105.0 + jitter_y, 1260.0 + jitter_x, 105.0 + jitter_y, COLOR_BORDER);
 
         # --- 1. TRACE LEVEL GAUGE ---
