@@ -328,6 +328,7 @@ click_sfx          = vaudio.load_sound("tests/assets/mouse_click.mp3");
 stream_pt_radio    = vaudio.play_stream("tests/assets/pt_radio.mp3");
 stream_look_behind = vaudio.load_sound("tests/assets/look_behind.mp3");
 stream_e_raid      = vaudio.play_stream("tests/assets/e_raid.mp3");
+stream_amb_music   = vaudio.play_stream("tests/assets/ambiance_coldcore.mp3");
 
 vaudio.sound_volume(click_sfx, 0.9);
 vaudio.sound_volume(stream_brown_noise, 0.35);
@@ -337,6 +338,7 @@ vaudio.sound_volume(stream_crt_noise,   0.95);
 vaudio.sound_volume(stream_pt_radio,    0.00);
 vaudio.sound_volume(stream_e_raid,      0.00);
 vaudio.sound_volume(stream_look_behind, 1.20);
+vaudio.sound_volume(stream_amb_music,   0.45);
 
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
@@ -495,6 +497,26 @@ sniffer_mode          :: Int64   = 0;
 sniffer_upkeep_timer  :: Float64 = 0.0;
 my_sniffed_freqs      :: Array   = []; # Array of actively sniffed frequencies
 
+# ====================================================================
+# BACKGROUND FLOATING NODE NETWORK STATE
+# ====================================================================
+node_count :: Int64 = 16;
+node_px    :: Array = [120, 340, 890, 1100, 200, 750, 980, 450, 150, 600, 1050, 300, 800, 50, 680, 1180];
+node_py    :: Array = [100, 650, 150, 720, 400, 550, 300, 120, 700, 250, 600, 500, 380, 220, 680, 100];
+node_vx    :: Array = [0.8, -0.6, 0.5, -0.7, 0.9, -0.4, 0.6, -0.8, 0.4, -0.5, 0.7, -0.9, 0.3, -0.6, 0.5, -0.4];
+node_vy    :: Array = [0.4, 0.7, -0.6, -0.5, -0.3, 0.8, -0.7, 0.5, -0.6, 0.4, -0.8, 0.3, 0.6, -0.5, -0.7, 0.6];
+
+# ====================================================================
+# VDEC CRACKING ENGINE STATE
+# ====================================================================
+vdec_cracking_active :: Int64   = 0;
+vdec_crack_timer     :: Float64 = 0.0;
+vdec_crack_duration  :: Float64 = 0.0;
+vdec_decoded_val     :: Int64   = 0;
+vdec_input_offset    :: Int64   = 0;
+vdec_target_hz       :: Float64 = 0.0;
+vdec_raw_payload     :: Int64   = 0;
+
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -542,6 +564,34 @@ fn purchase_ice_firewall() -> Int64 {
     
     vnet.send_to(client_sock, server_ip, server_port, "ICE_BOUGHT:SUCCESS");
     return 1;
+}
+
+# ====================================================================
+# IMMERSIVE UI UTILITIES
+# ====================================================================
+fn draw_cyber_frame(x :: Float64, y :: Float64, w :: Float64, h :: Float64, col :: Int64, thickness :: Float64) {
+    vglib.rect(x, y, w, h, vglib.rgba(4, 6, 10, 180));
+    
+    # Base thin borders
+    vglib.line(x, y, x + w, y, col);
+    vglib.line(x + w, y, x + w, y + h, col);
+    vglib.line(x + w, y + h, x, y + h, col);
+    vglib.line(x, y + h, x, y, col);
+    
+    c_len :: Float64 = 15.0;
+    
+    vglib.rect(x - 2.0, y - 2.0, c_len, thickness, col);
+    vglib.rect(x - 2.0, y - 2.0, thickness, c_len, col);
+    
+    vglib.rect(x + w - c_len + 2.0, y - 2.0, c_len, thickness, col);
+    vglib.rect(x + w - 2.0, y - 2.0, thickness, c_len, col);
+    
+    vglib.rect(x - 2.0, y + h - 2.0, c_len, thickness, col);
+    vglib.rect(x - 2.0, y + h - c_len + 2.0, thickness, c_len, col);
+    
+    # Bottom Right
+    vglib.rect(x + w - c_len + 2.0, y + h - 2.0, c_len, thickness, col);
+    vglib.rect(x + w - 2.0, y + h - c_len + 2.0, thickness, c_len, col);
 }
 
 fn decode_sector(scrambled_val :: Int64, offset :: Int64) -> Int64 {
@@ -3648,16 +3698,22 @@ fn dispatch_cli_command(raw_input :: String) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold frequency.");
             } else if (input_offset != bit_shift_offset) {
                 cli_logs.push("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
+            } else if (vdec_cracking_active == 1) {
+                cli_logs.push("[vdec]: KERNEL CRACKING ALREADY IN PROGRESS...");
             } else {
-                decoded_val :: Int64 = decode_sector(active_raw_payload, input_offset);
+                # INITIATE THE CRACKING SEQUENCE
+                vdec_cracking_active = 1;
+                vdec_crack_timer     = 0.0;
+                vdec_crack_duration  = vmath.random(5.0, 8.0); # Random 5 to 8 second duration
+                
+                vdec_decoded_val     = decode_sector(active_raw_payload, input_offset);
+                vdec_input_offset    = input_offset;
+                vdec_target_hz       = target_hz;
+                vdec_raw_payload     = active_raw_payload;
 
-                cli_logs.push("--------------------------------------------------");
-                cli_logs.push("[vdec]: CARRIER DECRYPTION SUCCESSFUL");
-                cli_logs.push("  RAW SECTOR PAYLOAD : 0x" + string(active_raw_payload));
-                cli_logs.push("  BIT-SHIFT KEY      : " + string(input_offset));
-                cli_logs.push("  CARRIER FREQUENCY  : " + string(target_hz) + " Hz");
-                cli_logs.push("  DECRYPTED REGISTER : " + string(decoded_val));
-                cli_logs.push("--------------------------------------------------");
+                cli_overlay_open = 0; # Auto-close terminal so the cracking window is visible
+                glitch_trigger = 1.0;
+                cli_logs.push("[vdec]: DEPLOYING RING-0 BRUTEFORCE VECTOR. STAND BY...");
             }
         }
     }
@@ -4170,6 +4226,7 @@ while (vglib.running()) {
     vaudio.update_stream(stream_crt_noise);
     vaudio.update_stream(stream_pt_radio);
     vaudio.update_stream(stream_e_raid);
+    vaudio.update_stream(stream_amb_music);
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
@@ -5222,14 +5279,18 @@ while (vglib.running()) {
         # ------------------------------------------------------------
         # 4. SYSTEM THREAT RADAR (RIGHT PANEL)
         # ------------------------------------------------------------
+        draw_cyber_frame(930.0 + jitter_x, 80.0 + jitter_y, 330.0, 670.0, COLOR_BORDER, 3.0);
+
         vglib.rect(930 + jitter_x, 80 + jitter_y, 330, 670, COLOR_PANEL);
         vglib.line(930, 80, 1260, 80, COLOR_BORDER);
         vglib.line(1260, 80, 1260, 750, COLOR_BORDER);
         vglib.line(1260, 750, 930, 750, COLOR_BORDER);
         vglib.line(930, 750, 930, 80, COLOR_BORDER);
 
-        vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 945 + jitter_x, 95, 11, COLOR_AMBER);
-        vglib.line(945, 110, 1245, 110, COLOR_BORDER);
+        radar_title_col = (trace_level > 80) ? COLOR_BLOOD : COLOR_AMBER;
+        vglib.rect(930.0 + jitter_x, 80.0 + jitter_y, 330.0, 25.0, vglib.rgba(20, 25, 30, 200));
+        vglib.text_ex(vcr_font, "SYSTEM THREAT RADAR", 945 + jitter_x, 95, 11, radar_title_col);
+        vglib.line(930.0 + jitter_x, 105.0 + jitter_y, 1260.0 + jitter_x, 105.0 + jitter_y, COLOR_BORDER);
 
         # --- 1. TRACE LEVEL GAUGE ---
         vglib.text_ex(vcr_font, "TRACE LEVEL GAUGE:", 945 + jitter_x, 118, 10, COLOR_CYAN);
@@ -6752,6 +6813,38 @@ while (vglib.running()) {
             continue;
         }
 
+        # ================================================================
+        # VDEC CRACKING LOGIC TIMER & EXFILTRATION DUMP
+        # ================================================================
+        if (vdec_cracking_active == 1) {
+            vdec_crack_timer = vdec_crack_timer + 0.016;
+            
+            # Spike the system environment to build tension
+            glitch_trigger = vmath.clamp(glitch_trigger + 0.05, 0.0, 0.8);
+            crt_heat = vmath.clamp(crt_heat + (0.016 * 15.0), 35.0, 100.0);
+            
+            if (vdec_crack_timer >= vdec_crack_duration) {
+                vdec_cracking_active = 0;
+                glitch_trigger       = 1.0;
+                cli_overlay_open     = 1; # Pop terminal back open to show payload
+                
+                # Highly technical post-crack payload dump
+                cli_logs.push("======================================================================");
+                cli_logs.push("[KRNL_HOOK]: ZERO-DAY HEURISTIC BRUTEFORCE EXHAUSTED.");
+                cli_logs.push("  >> INJECTING REVERSE SHELLCODE INTO VFS PAGE ALLOCATOR BUS...");
+                cli_logs.push("  >> OVERRIDING RING-0 MEMORY REGISTERS AT 0x" + string(vdec_raw_payload));
+                cli_logs.push("  >> DISENGAGING SYNAPTIC PARITY LOCKS [OFFSET_KEY: " + string(vdec_input_offset) + "]");
+                cli_logs.push("  >> CARRIER PHASE DEMODULATION ALIGNED AT EXACTLY " + string(vdec_target_hz) + " Hz");
+                cli_logs.push("[!] CRITICAL VFS DECRYPTION SUCCESSFUL [!]");
+                cli_logs.push("  => EXFILTRATED ROOT REGISTER VALUE : " + string(vdec_decoded_val));
+                cli_logs.push("======================================================================");
+                
+                if (cli_logs.length() > 16) {
+                    cli_scroll_y = float64(cli_logs.length() - 16) * 22.0;
+                }
+            }
+        }
+
         # ====================================================================
         # MAIN RENDER LOOP STRUCTURE (Ensure CLI renders AFTER Raid Screen)
         # ====================================================================
@@ -6954,6 +7047,68 @@ while (vglib.running()) {
 
             # --- 6. AGGRESSIVE HEAVY SCANLINES & RGB DISPLACEMENT ---
             vglib.draw_scanlines(4.0, vglib.rgba(0, 0, 0, 180));
+        }
+
+        if (crt_heat > 50.0) {
+            heat_glow_alpha :: Int64 = int64(vmath.clamp((crt_heat - 50.0) * 2.0, 0.0, 60.0));
+            vglib.rect(0, 0, 1280, 800, vglib.rgba(220, 40, 20, heat_glow_alpha));
+        }
+
+        # ================================================================
+        # VDEC CRACKING OVERLAY INTERFACE
+        # ================================================================
+        if (vdec_cracking_active == 1) {
+            c_box_w :: Float64 = 700.0;
+            c_box_h :: Float64 = 420.0;
+            
+            # Jitter the UI heavily as the timer nears completion
+            crack_jitter :: Float64 = vmath.sin(run_time * 60.0) * (4.0 * (vdec_crack_timer / vdec_crack_duration));
+            c_box_x :: Float64 = 290.0 + crack_jitter; 
+            c_box_y :: Float64 = 190.0 + vmath.cos(run_time * 45.0) * 2.0;
+            
+            # Dark transparent backing
+            vglib.rect(c_box_x, c_box_y, c_box_w, c_box_h, vglib.rgba(6, 8, 12, 245));
+            
+            # Pulsing Frame
+            c_col = (vmath.fmod(run_time * 20.0, 1.0) > 0.5) ? COLOR_TOXIC : COLOR_CYAN;
+            vglib.line(c_box_x, c_box_y, c_box_x + c_box_w, c_box_y, c_col);
+            vglib.line(c_box_x + c_box_w, c_box_y, c_box_x + c_box_w, c_box_y + c_box_h, c_col);
+            vglib.line(c_box_x + c_box_w, c_box_y + c_box_h, c_box_x, c_box_y + c_box_h, c_col);
+            vglib.line(c_box_x, c_box_y + c_box_h, c_box_x, c_box_y, c_col);
+            
+            # Header
+            vglib.text_ex(vcr_font, "[!] VEKTRA PROTOCOL: VFS KERNEL DECRYPTION IN PROGRESS [!]", c_box_x + 45.0, c_box_y + 15.0, 14, COLOR_BLOOD);
+            vglib.line(c_box_x, c_box_y + 40.0, c_box_x + c_box_w, c_box_y + 40.0, c_col);
+            
+            # Streaming Hex & Number Matrix 
+            hex_chars :: Array = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
+            through row :: 0..14 -> loop {
+                row_str :: String = "0x" + string(int64(1000 + (row * 13) + (run_time * 10.0))) + " | ";
+                through col :: 0..24 -> loop {
+                    rnd_val :: Int64 = int64(vmath.random(0.0, 15.99));
+                    row_str = row_str + string(hex_chars[rnd_val]) + " ";
+                };
+                
+                # Vary color slightly row by row to create a technical depth map
+                row_color = (row % 3 == 0) ? COLOR_GHOST : COLOR_TOXIC;
+                vglib.text_ex(vcr_font, row_str, c_box_x + 20.0, c_box_y + 55.0 + float64(row * 18), 11, row_color);
+            };
+            
+            vglib.line(c_box_x, c_box_y + 340.0, c_box_x + c_box_w, c_box_y + 340.0, c_col);
+
+            # Progress Bar Telemetry
+            p_bar_w :: Float64 = 660.0;
+            pct :: Float64 = vmath.clamp(vdec_crack_timer / vdec_crack_duration, 0.0, 1.0);
+            
+            vglib.text_ex(vcr_font, "BRUTEFORCING MEMORY PARITY: " + string(int64(pct * 100.0)) + "%", c_box_x + 20.0, c_box_y + 355.0, 12, COLOR_AMBER);
+            
+            vglib.rect(c_box_x + 20.0, c_box_y + 380.0, p_bar_w, 20.0, COLOR_BLACK);
+            vglib.rect(c_box_x + 20.0, c_box_y + 380.0, p_bar_w * pct, 20.0, COLOR_BLOOD);
+            
+            vglib.line(c_box_x + 20.0, c_box_y + 380.0, c_box_x + 20.0 + p_bar_w, c_box_y + 380.0, COLOR_BORDER);
+            vglib.line(c_box_x + 20.0 + p_bar_w, c_box_y + 380.0, c_box_x + 20.0 + p_bar_w, c_box_y + 400.0, COLOR_BORDER);
+            vglib.line(c_box_x + 20.0 + p_bar_w, c_box_y + 400.0, c_box_x + 20.0, c_box_y + 400.0, COLOR_BORDER);
+            vglib.line(c_box_x + 20.0, c_box_y + 400.0, c_box_x + 20.0, c_box_y + 380.0, COLOR_BORDER);
         }
 
         # Scanlines main screen
