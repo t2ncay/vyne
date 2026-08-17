@@ -75,4 +75,23 @@ clean:
 	@$(DEL)
 	@$(DEL_URAGE)
 
-.PHONY: all clean
+check-copies:
+	@echo "Scanning for basic compiler copy/move warnings..."
+	@rm -f warning.txt
+	@$(foreach src,$(SRCS), \
+		echo "Checking $(src)..."; \
+		$(CXX) $(CXXFLAGS) -Wpessimizing-move -Wredundant-move -fsyntax-only -fsanitize=leak $(src) >> warning.txt 2>&1 || true; \
+	)
+	@echo "Scan complete. Results written to warning.txt"
+
+SAN_FLAGS = -fsanitize=address,leak -g -O1
+
+check-leaks:
+	@echo "Building Vyne with LeakSanitizer..."
+	$(CXX) $(CXXFLAGS) $(SAN_FLAGS) main.cpp $(filter-out main.cpp, $(SRCS)) -o vyne_leak_test $(LDFLAGS)
+	@echo "Build complete. Running executable (close the game/CLI normally to view leak report)..."
+	./vyne_leak_test tests/network/socket.vy
+	@echo "Leak check execution finished."
+
+
+.PHONY: all clean check-copies check-leaks
