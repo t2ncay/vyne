@@ -523,6 +523,29 @@ vdec_raw_payload     :: Int64   = 0;
 h1_str :: String = "VYNE VEKTRAOS v9.5 // OPERATION COLD SIGNAL";
 h1_sz  :: Array  = vglib.measure_text(vcr_font, h1_str, 14.0);
 
+h2_str :: String = "SUBTERRANEAN RELAY UPLINK TERMINAL [PORT: " + string(my_port) + "]";
+h2_sz  :: Array  = vglib.measure_text(vcr_font, h2_str, 11.0);
+
+# Centered Classification Notice
+class_str :: String = "[CLASSIFIED TOP SECRET] ANKARA SECTOR 09 BLACK-SITE RELAY";
+class_sz  :: Array  = vglib.measure_text(vcr_font, class_str, 10.0);
+
+# Centered Warning Notice
+warn_str :: String = "WARNING: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS";
+warn_sz  :: Array  = vglib.measure_text(vcr_font, warn_str, 10.0);
+
+# 3. IP Prompt Label (Centered)
+ip_lbl_str :: String = "TARGET GATEWAY HOST / SERVER IP ADDRESS:";
+ip_lbl_sz  :: Array  = vglib.measure_text(vcr_font, ip_lbl_str, 11.0);
+
+# 1. Main Header with Pulse Color Shift
+c1_str :: String = "[ TOR PROXY CIRCUIT HANDSHAKE ACTIVE ]";
+c1_sz  :: Array  = vglib.measure_text(vcr_font, c1_str, 16.0);
+
+# 2. Target URL Designation (Centered)
+c2_str :: String = "RESOLVING DESTINATION: vnet://" + pending_url;
+c2_sz  :: Array  = vglib.measure_text(vcr_font, c2_str, 13.0);
+
 # ====================================================================
 # GLOBAL PRE-ALLOCATED ARRAYS (NO LEAKS)
 # ====================================================================
@@ -4527,9 +4550,6 @@ while (vglib.running()) {
         h1_x   :: Float64 = 640.0 - (float64(h1_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, h1_str, h1_x, box_y + 25.0, 14, COLOR_BLOOD);
 
-        # 2. Sub-header Port Status
-        h2_str :: String = "SUBTERRANEAN RELAY UPLINK TERMINAL [PORT: " + string(my_port) + "]";
-        h2_sz  :: Array  = vglib.measure_text(vcr_font, h2_str, 11.0);
         h2_x   :: Float64 = 640.0 - (float64(h2_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, h2_str, h2_x, box_y + 50.0, 11, COLOR_CYAN);
 
@@ -4542,9 +4562,6 @@ while (vglib.running()) {
         vglib.line(box_x + 780.0, box_y + 260.0, box_x + 20.0, box_y + 260.0, COLOR_BORDER);
         vglib.line(box_x + 20.0, box_y + 260.0, box_x + 20.0, box_y + 80.0, COLOR_BORDER);
 
-        # Centered Classification Notice
-        class_str :: String = "[CLASSIFIED TOP SECRET] ANKARA SECTOR 09 BLACK-SITE RELAY";
-        class_sz  :: Array  = vglib.measure_text(vcr_font, class_str, 10.0);
         class_x   :: Float64 = 640.0 - (float64(class_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, class_str, class_x, box_y + 95.0, 10, pulse_col);
 
@@ -4553,16 +4570,10 @@ while (vglib.running()) {
         vglib.text_ex(vcr_font, "> SAT-99 ORBITAL OPTICS LOCKED ON LOCAL CRT GLARE COORDINATES", box_x + 40.0, box_y + 141.0, 10, COLOR_GHOST);
         vglib.text_ex(vcr_font, "> MORPHOGENIC STATIC LEAKING THROUGH VFS MEMORY ALLOCATION STACKS", box_x + 40.0, box_y + 164.0, 10, COLOR_GHOST);
         vglib.text_ex(vcr_font, "> KAGUYA TRIAL EXPLOIT HOOKS READY. AWAITING UDP HANDSHAKE...", box_x + 40.0, box_y + 187.0, 10, COLOR_TOXIC);
-
-        # Centered Warning Notice
-        warn_str :: String = "WARNING: UNREGISTERED EYE CONTACT DETECTED THROUGH MONITOR GLASS";
-        warn_sz  :: Array  = vglib.measure_text(vcr_font, warn_str, 10.0);
+        
         warn_x   :: Float64 = 640.0 - (float64(warn_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, warn_str, warn_x, box_y + 220.0, 10, COLOR_BLOOD);
 
-        # 3. IP Prompt Label (Centered)
-        ip_lbl_str :: String = "TARGET GATEWAY HOST / SERVER IP ADDRESS:";
-        ip_lbl_sz  :: Array  = vglib.measure_text(vcr_font, ip_lbl_str, 11.0);
         ip_lbl_x   :: Float64 = 640.0 - (float64(ip_lbl_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, ip_lbl_str, ip_lbl_x, box_y + 272.0, 11, COLOR_CYAN);
 
@@ -5607,16 +5618,11 @@ while (vglib.running()) {
             # Center X calculations based on the 850px container (40 + 850 / 2 = 465)
             center_x :: Float64 = 465.0 + jitter_x;
 
-            # 1. Main Header with Pulse Color Shift
-            c1_str :: String = "[ TOR PROXY CIRCUIT HANDSHAKE ACTIVE ]";
-            c1_sz  :: Array  = vglib.measure_text(vcr_font, c1_str, 16.0);
+            
             c1_x   :: Float64 = center_x - (float64(c1_sz[0]) / 2.0);
             head_col = (vmath.sin(run_time * 8.0) > 0.0) ? COLOR_AMBER : COLOR_BLOOD;
             vglib.text_ex(vcr_font, c1_str, c1_x, 200.0 + jitter_y, 16, head_col);
 
-            # 2. Target URL Designation (Centered)
-            c2_str :: String = "RESOLVING DESTINATION: vnet://" + pending_url;
-            c2_sz  :: Array  = vglib.measure_text(vcr_font, c2_str, 13.0);
             c2_x   :: Float64 = center_x - (float64(c2_sz[0]) / 2.0);
             vglib.text_ex(vcr_font, c2_str, c2_x, 245.0 + jitter_y, 13, COLOR_CYAN);
 
