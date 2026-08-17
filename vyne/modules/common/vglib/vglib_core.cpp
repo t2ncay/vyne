@@ -58,7 +58,7 @@ Value native_init(std::vector<Value>& args) {
     int w = (int)args[0].asInt();
     int h = (int)args[1].asInt();
     int fps = (int)args[2].asInt();
-    std::string title = args[3].asString();
+    const std::string& title = args[3].asString();
 
     unsigned int flags = FLAG_MSAA_4X_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_UNDECORATED;
 

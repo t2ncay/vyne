@@ -75,7 +75,7 @@ Value native_rgba(std::vector<Value>& args) {
 
 Value native_load_font(std::vector<Value>& args) {
     if (args.empty()) throw std::runtime_error("load_font() requires path");
-    std::string path = args[0].asString();
+    const std::string& path = args[0].asString();
     
     Font* font = new Font(LoadFont(path.c_str()));
     return Value(reinterpret_cast<int64_t>(font));
@@ -84,7 +84,7 @@ Value native_load_font(std::vector<Value>& args) {
 Value native_draw_text(std::vector<Value>& args) {
     if (args.size() < 5) throw std::runtime_error("draw_text() requires text, x, y, size, color");
     
-    std::string text = args[0].toString();
+    const std::string& text = args[0].toString();
     int x = (int)args[1].asInt();
     int y = (int)args[2].asInt();
     int fontSize = (int)args[3].asInt();
@@ -98,7 +98,7 @@ Value native_draw_text_ex(std::vector<Value>& args) {
     if (args.size() < 6) throw std::runtime_error("draw_text_ex() requires font, text, x, y, size, color");
 
     Font* font = reinterpret_cast<Font*>(args[0].asInt());
-    std::string text = args[1].asString();
+    const std::string& text = args[1].asString();
     Vector2 pos = { (float)args[2].asFloat(), (float)args[3].asFloat() };
     float fontSize = (float)args[4].asFloat();
     Color color = GetColor((uint32_t)args[5].asInt());
@@ -106,16 +106,17 @@ Value native_draw_text_ex(std::vector<Value>& args) {
     DrawTextEx(*font, text.c_str(), pos, fontSize, 2.0f, color);
     return Value();
 }
-
 Value native_measure_text_ex(std::vector<Value>& args) {
     if (args.size() < 3) throw std::runtime_error("measure_text() requires font, text, size");
     Font* font = reinterpret_cast<Font*>(args[0].asInt());
-    std::string text = args[1].asString();
+    
+    // Use string_view reference instead of copying into a new const std::string& heap allocation every frame!
+    const std::string& text = args[1].asString(); 
     float fontSize = (float)args[2].asFloat();
+    
     Vector2 size = MeasureTextEx(*font, text.c_str(), fontSize, 2.0f);
-    return Value(std::vector<Value>{ Value(size.x), Value(size.y) });
+    return Value(std::vector<Value>{ Value((double)size.x), Value((double)size.y) });
 }
-
 Value native_draw_phase_scope(std::vector<Value>& args) {
     if (args.size() < 8) {
         throw std::runtime_error("draw_phase_scope() requires x_start, x_end, y_center, phase_a, phase_b, intensity, play_a, play_b");
