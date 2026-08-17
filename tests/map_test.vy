@@ -6,4 +6,4 @@ hash :: Map = {
     "hello" : add(3,4)
 };
 
-out(hash.contains("hello"));
+out(hash.has("hello"));
