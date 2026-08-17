@@ -20,6 +20,10 @@ decoy_owners     :: Array = [];
 decoy_urls       :: Array = [];
 decoy_timer      :: Float64 = 0.0;
 
+# --- SNIFFER FREQUENCY MAPPING ---
+sniffer_active_ports :: Array = []; # Ports with active frequency sniffing enabled
+sniffer_targets      :: Array = []; # Target frequency array per active sniffer port
+
 # --- VEKTRAPAY ESCROW STORAGE ---
 pay_keys    :: Array = []; # Holds active 5-digit keys (e.g. 33241)
 pay_amounts :: Array = []; # Holds balance amount (e.g. 0.25)
@@ -220,6 +224,33 @@ fn resolve_hash(raw_url :: String) -> String {
     return raw_url;
 }
 
+fn check_and_alert_sniffers(event_sender_port :: Int64, tuned_freq :: Float64, target_url :: String) {
+    if (sniffer_active_ports.length() > 0) {
+        through s_idx :: 0..(sniffer_active_ports.length() - 1) -> loop {
+            s_port :: Int64 = int64(sniffer_active_ports[s_idx]);
+            
+            if (s_port != event_sender_port) {
+                target_freqs :: Array = sniffer_targets[s_idx];
+                
+                through f_idx :: 0..(target_freqs.length() - 1) -> loop {
+                    freq_val :: Float64 = float64(target_freqs[f_idx]);
+                    
+                    if (vmath.abs(freq_val - tuned_freq) <= 0.5) {
+                        alert_msg :: String = "FEED_EVENT:[SNIFFER_ALERT]: TARGET DETECTED TUNED TO FREQ " + string(int64(tuned_freq)) + " Hz AT " + target_url;
+                        
+                        through p_i :: 0..(active_ports.length() - 1) -> loop {
+                            if (int64(active_ports[p_i]) == s_port) {
+                                vnet.send_to(server_sock, string(active_ips[p_i]), s_port, alert_msg);
+                                break;
+                            }
+                        };
+                    }
+                };
+            }
+        };
+    }
+}
+
 fn update_peer_session(port :: Int64, ip :: String, url :: String, now_time :: Float64) -> Int64 {
     found_idx :: Int64 = -1;
     through i :: 0..(active_ports.length() - 1) -> loop {
@@ -320,6 +351,18 @@ fn unregister_peer(port :: Int64) {
         active_dos_hits.delete_at(found_idx);
         active_dirs.delete_at(found_idx);
         active_handles.delete_at(found_idx);
+
+        s_idx :: Int64 = -1;
+        through s :: 0..(sniffer_active_ports.length() - 1) -> loop {
+            if (int64(sniffer_active_ports[s]) == port) {
+                s_idx = s;
+                break;
+            }
+        };
+        if (s_idx >= 0) {
+            sniffer_active_ports.delete_at(s_idx);
+            sniffer_targets.delete_at(s_idx);
+        }
         
         out("[REGISTRY]: PURGED DISCONNECTED NODE PORT_" + string(port) + " FROM ACTIVE PEERS LIST");
     }
@@ -563,7 +606,7 @@ while (true) {
                     update_peer_session(sender_port, sender_ip, payload, server_uptime);
                 }
             } else {
-                broadcast_feed_event("[SNIFF]: " + mask_port(sender_port) + " -> " + payload);
+                broadcast_feed_event("[SNIFF]: " + string(sender_port) + " -> " + payload);
             }
 
             if (cmd == "GET") {
@@ -573,6 +616,10 @@ while (true) {
                 }
 
                 canonical_site :: String = resolve_canonical(clean_payload);
+
+                # Calculate site frequency and trigger active sniffers
+                site_freq :: Float64 = float64((canonical_site.length() * 13) % 100);
+                check_and_alert_sniffers(sender_port, site_freq, canonical_site);
 
                 site_is_down :: Int64 = 0;
                 through o_i :: 0..(overloaded_urls.length() - 1) -> loop {
@@ -742,6 +789,30 @@ while (true) {
 
                 out("[ION STRIKE]: SAT-99 ION BEAM FIRED AT " + target_param + "! " + string(struck_count) + " AGENT(S) OBLITERATED.");
                 broadcast_feed_event("[ION STRIKE]: SAT-99 ION CANNON FIRED AT " + target_param + "! " + string(struck_count) + " AGENT(S) FRIED & DESYNCED!");
+            }
+
+            if (cmd == "SNIFFER_ADD") {
+                target_freq :: Float64 = float64(int64(payload));
+
+                s_found :: Int64 = -1;
+                through s_idx :: 0..(sniffer_active_ports.length() - 1) -> loop {
+                    if (int64(sniffer_active_ports[s_idx]) == sender_port) {
+                        s_found = s_idx;
+                        break;
+                    }
+                };
+
+                if (s_found >= 0) {
+                    freq_list :: Array = sniffer_targets[s_found];
+                    freq_list.push(target_freq);
+                    sniffer_targets[s_found] = freq_list;
+                } else {
+                    sniffer_active_ports.push(sender_port);
+                    new_freq_list :: Array = [target_freq];
+                    sniffer_targets.push(new_freq_list);
+                }
+
+                vnet.send_to(server_sock, sender_ip, sender_port, "SNIFFER_ADD_ACK:" + string(int64(target_freq)));
             }
 
             if (cmd == "NETSCAN") {

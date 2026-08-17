@@ -490,6 +490,11 @@ hallucination_timer    :: Float64 = 0.0;   # Glitch URL duration
 phantom_attack_cd      :: Float64 = 0.0;   # Cooldown for fake DOS / Trace alerts
 static_blackout_timer  :: Float64 = 0.0;   # Duration of full-screen static blackout
 
+# CYBERWARFARE MECHANIC STATES
+sniffer_mode          :: Int64   = 0;
+sniffer_upkeep_timer  :: Float64 = 0.0;
+my_sniffed_freqs      :: Array   = []; # Array of actively sniffed frequencies
+
 fn clean_str(raw :: String) -> String {
     out_str = raw;
     while (out_str.length() > 0) {
@@ -2948,7 +2953,6 @@ fn load_page(url :: String) -> Array {
             "[TEXT] ",
             "[SUBTITLE] LIVE VFS MEMORY EXPLOIT STREAM (ALIGN BITS & FREQ TO EXTRACT):",
             "[HEX_STREAM:0x0DAY_88F9:32:14]",
-            "[TEXT] ",
             "[SUBTITLE] ACTIVE ZERO-DAY EXPLOIT MARKET & WEAPONIZATION LOTS:",
             "[BOX] +-----------------------------------------------------------------------------------+",
             "[BOX] | LOT #0D1: OVERCLOCK KERNEL [0.80 VCOIN] | CLI: 0day LOT_0D1 / 0day overclock      |",
@@ -3753,14 +3757,44 @@ fn dispatch_cli_command(raw_input :: String) {
         }
     }
     else if (cmd == "sniffer") {
-        if (sniffer_mode == 0 && btc_balance < 0.05) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO INITIALIZE PACKET SNIFFER (REQUIRES 0.05 VCOIN)");
+        sub_parsed = parse_input(args);
+        sub_cmd    = sub_parsed[0];
+        freq_arg   = sub_parsed[1];
+
+        if (sub_cmd == "add") {
+            if (freq_arg == "") {
+                cli_logs.push("[ERROR]: Usage: sniffer add <frequency> (e.g. sniffer add 76)");
+            } else if (btc_balance < 0.30) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO ADD FREQUENCY TO SNIFFER (REQUIRES 0.30 VCOIN)");
+            } else {
+                target_f :: Int64 = int64(freq_arg);
+                btc_balance = btc_balance - 0.30;
+                
+                my_sniffed_freqs.push(target_f);
+                vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_ADD:" + string(target_f));
+                
+                cli_logs.push("[SNIFFER]: ADDED FREQ " + string(target_f) + " Hz TO SNIFFING SYSTEM (-0.30 VCOIN)");
+            }
+        } else if (sub_cmd == "list") {
+            cli_logs.push("========== ACTIVELY MONITORED FREQUENCIES ==========");
+            if (my_sniffed_freqs.length() > 0) {
+                through sf_i :: 0..(my_sniffed_freqs.length() - 1) -> loop {
+                    cli_logs.push("  -> FREQ " + string(my_sniffed_freqs[sf_i]) + " Hz");
+                };
+            } else {
+                cli_logs.push("  [NO FREQUENCIES ADDED. USE 'sniffer add <freq>']");
+            }
+            cli_logs.push("====================================================");
         } else {
-            sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
-            status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
-            cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
-            sniffer_upkeep_timer = 0.0;
-            vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_STATUS:" + string(sniffer_mode));
+            if (sniffer_mode == 0 && btc_balance < 0.05) {
+                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO INITIALIZE PACKET SNIFFER (REQUIRES 0.05 VCOIN)");
+            } else {
+                sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
+                status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
+                cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
+                sniffer_upkeep_timer = 0.0;
+                vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_STATUS:" + string(sniffer_mode));
+            }
         }
     }
     else if (cmd == "freq") {
@@ -4361,9 +4395,8 @@ while (vglib.running()) {
             if (sniffer_upkeep_timer >= 4.0) {
                 sniffer_upkeep_timer = 0.0;
                 if (btc_balance >= 0.02) {
-                    btc_balance = btc_balance - 0.02;
-                    trace_level = int64(vmath.clamp(float64(trace_level + 3), 0.0, 100.0));
-                    cli_logs.push("[SNIFFER_UPKEEP]: -0.02 VCOIN | WARNING: PROMISCUOUS MODE INCREASING TRACE (+3%)");
+                    trace_level = int64(vmath.clamp(float64(trace_level + 25), 0.0, 100.0));
+                    cli_logs.push("[SNIFFER_UPKEEP]: WARNING: PROMISCUOUS MODE INCREASING TRACE (+25%)");
                 } else {
                     sniffer_mode = 0;
                     cli_logs.push("[POWER FAULT]: INSUFFICIENT VCOIN RESERVES! PACKET SNIFFER FORCED OFFLINE.");
@@ -4634,6 +4667,11 @@ while (vglib.running()) {
             if (extract_canonical_name(current_url) == "crypto.vnet") {
                 page_body = load_page(current_url);
             }
+        }
+        else if (net_msg.length() >= 16 && net_msg.substr(0, 16) == "SNIFFER_ADD_ACK:") {
+            added_f :: String = net_msg.substr(16, net_msg.length() - 16);
+            glitch_trigger = 0.4;
+            cli_logs.push("[SNIFFER_SYS]: FREQUENCY " + added_f + " Hz REGISTERED TO GLOBAL INTERCEPT GRID.");
         }
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "WHISPER_IN:") {
             w_raw :: String = net_msg.substr(11, net_msg.length() - 11);
