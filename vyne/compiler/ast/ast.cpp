@@ -121,8 +121,10 @@ Value AssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     }
 
     if (expectedType != VType::Unknown) {
-        val = convertIfNeeded(val, static_cast<int>(expectedType), lineNumber);
-        if (static_cast<int>(expectedType) != val.getType()) {
+        int expectedInt = vtypeToInt(expectedType);
+        val = convertIfNeeded(val, expectedInt, lineNumber);
+        
+        if (expectedInt != val.getType()) {
             throw std::runtime_error(
                 "Type Error : Type mismatch for '" + originalName + "': expected " + 
                 VTypeToString(expectedType) + " but got " + val.getTypeName() + 

@@ -143,7 +143,11 @@ struct Value {
     Value& operator=(Value&& other) noexcept;
     ~Value();
 
-    inline bool isObject() const { return type >= VType::Array && type <= VType::Struct; }
+    inline bool isObject() const { 
+        return type == VType::Array || type == VType::Function || 
+               type == VType::Module || type == VType::Struct || 
+               type == VType::Map; 
+    }
 
     int getType() const;
     std::string getTypeName() const;

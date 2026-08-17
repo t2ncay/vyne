@@ -295,3 +295,17 @@ inline void validateReturnType(const FunctionNode* funcNode,
         }
     }
 }
+
+inline int vtypeToInt(VType vt) {
+    switch (vt) {
+        case VType::Float64:  return Value::FLOAT64;
+        case VType::Int64:    return Value::INT64;
+        case VType::String:   return Value::STRING;
+        case VType::Array:    return Value::ARRAY;
+        case VType::Map:      return Value::MAP;
+        case VType::Struct:   return Value::STRUCT;
+        case VType::Function: return Value::FUNCTION;
+        case VType::Module:   return Value::MODULE;
+        default: return static_cast<int>(vt);
+    }
+}
