@@ -1074,6 +1074,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
         static const uint32_t hasId    = StringPool::intern("has");
         static const uint32_t keysId   = StringPool::intern("keys");
         static const uint32_t valuesId = StringPool::intern("values");
+        static const uint32_t setId      = StringPool::intern("set");
 
         if (methodId == hasId) {
             if (arguments.size() != 1) throw std::runtime_error("Argument Error: has() expects 1 argument");
@@ -1089,6 +1090,26 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
                 keys.emplace_back(Value(StringPool::get(k))); // Resolves ID back to string literal
             }
             return Value(keys);
+        }
+
+        if (methodId == setId) {
+            if (!target) {
+                throw std::runtime_error("Runtime Error: Cannot mutate anonymous map [ line " + std::to_string(lineNumber) + " ]");
+            }
+            if (arguments.size() != 2) {
+                throw std::runtime_error("Argument Error: set() expects 2 arguments (key, value) [ line " + std::to_string(lineNumber) + " ]");
+            }
+            
+            Value keyVal = arguments[0]->evaluate(env, currentGroupId);
+            if (keyVal.getType() != Value::STRING) {
+                throw std::runtime_error("Type Error: Map keys must be strings [ line " + std::to_string(lineNumber) + " ]");
+            }
+            
+            Value val = arguments[1]->evaluate(env, currentGroupId);
+            checkReadOnly(*target, "map", lineNumber);
+            
+            mapObj[keyVal.stringId] = val;
+            return val;
         }
 
         if (methodId == valuesId) {
