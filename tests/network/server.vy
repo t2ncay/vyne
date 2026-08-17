@@ -1150,7 +1150,7 @@ while (true) {
                 };
                 vnet.send_to(server_sock, target_ip, target_node, "EXPLOIT:TRACE_SPIKE");
                 vnet.send_to(server_sock, sender_ip, sender_port, "ATTACK_SUCCESS:PEER_TRACE_SPIKED");
-                broadcast_feed_event("[TRACE SPIKE]: NODE " + string(sender_port) + " SPIKED TRACE ON NODE " + string(target_node));
+                broadcast_feed_event("[TRACE SPIKE]: NODE " + mask_port(sender_port) + " SPIKED TRACE ON NODE " + string(target_node));
             }
 
             if (cmd == "SNIFFER_STATUS") {
