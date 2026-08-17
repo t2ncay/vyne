@@ -329,16 +329,18 @@ stream_pt_radio    = vaudio.play_stream("tests/assets/pt_radio.mp3");
 stream_look_behind = vaudio.load_sound("tests/assets/look_behind.mp3");
 stream_e_raid      = vaudio.play_stream("tests/assets/e_raid.mp3");
 stream_amb_music   = vaudio.play_stream("tests/assets/ambiance_coldcore.mp3");
+stream_wall_heater = vaudio.play_stream("tests/assets/electric_wall_heater.mp3");
 
 vaudio.sound_volume(click_sfx, 0.9);
 vaudio.sound_volume(stream_brown_noise, 0.35);
-vaudio.sound_volume(stream_wind,        0.35);
+vaudio.sound_volume(stream_wind,        0.45);
 vaudio.sound_volume(stream_crt_hum,     0.95);
-vaudio.sound_volume(stream_crt_noise,   0.95);
+vaudio.sound_volume(stream_crt_noise,   1.00);
 vaudio.sound_volume(stream_pt_radio,    0.00);
 vaudio.sound_volume(stream_e_raid,      0.00);
 vaudio.sound_volume(stream_look_behind, 1.20);
-vaudio.sound_volume(stream_amb_music,   0.45);
+vaudio.sound_volume(stream_amb_music,   0.50);
+vaudio.sound_volume(stream_wall_heater, 0.90);
 
 # ====================================================================
 # SYSTEM & GAME STATE VARIABLES
@@ -516,6 +518,154 @@ vdec_decoded_val     :: Int64   = 0;
 vdec_input_offset    :: Int64   = 0;
 vdec_target_hz       :: Float64 = 0.0;
 vdec_raw_payload     :: Int64   = 0;
+
+# static UI measurements
+h1_str :: String = "VYNE VEKTRAOS v9.5 // OPERATION COLD SIGNAL";
+h1_sz  :: Array  = vglib.measure_text(vcr_font, h1_str, 14.0);
+
+# ====================================================================
+# GLOBAL PRE-ALLOCATED ARRAYS (NO LEAKS)
+# ====================================================================
+fake_urls :: Array = [
+    "they.see.you.vnet",
+    "behind_your_desk.vnet",
+    "room402.eye.vnet",
+    "netman.cortex.vnet",
+    "void.nobody.vnet",
+    "CUT.YOUR.THROAT",
+    "OFF.YOURSELF"
+];
+hex_chars :: Array = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
+
+skull_top      :: Array = [
+    "         .------------------------.         ",
+    "        /    .----------------.    \\        ",
+    "       |    /   (X)      (X)   \\    |       ",
+    "       |   |      .------.      |   |       ",
+    "       |   |     /  /||\\  \\     |   |       "
+];
+skull_jaw      :: Array = [
+    "       |    \\   |  | || |  |   /    |       ",
+    "        \\    '--'--'--'--'--'  /        ",
+    "         '------------------------'         "
+];
+drug_art :: Array = [
+    "        .---.           .---.           ",
+    "       /     \\         /   /|           ",
+    "      |  RX   |       /   / |  [ SYNTHETIC ",
+    "       \\     /       |---|  |    OPIOIDS &",
+    "        '---'        |   | /     NEURALS ]",
+    "       .-----.       |___|/             ",
+    "      (  80  )        / \\               ",
+    "       '-----'       '---'              "
+];
+nf_art :: Array = [
+    "      .------------------------------------.      ",
+    "     /  404 // SIGNAL LOST IN THE MATRIX   \     ",
+    "    |   ================================   |    ",
+    "    |     _  _    ___   _  _               |    ",
+    "    |    | || |  / _ \\ | || |  [ VOID ]   |    ",
+    "    |    | || |_| | | || || |_             |    ",
+    "    |    |__   _| |_| ||__   _|            |    ",
+    "    |       |_|  \\___/    |_|             |    ",
+    "    |                                      |    ",
+    "    |   [!] SOCKET DESYNCHRONIZED          |    ",
+    "    |   [!] MEMORY BLOCK WIPED / SEIZED    |    ",
+    "     \\  --------------------------------  /     ",
+    "      '----------------------------------'      "
+];
+netman_art :: Array = [
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@%%%@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@=-.-..:.-=@@@@@@@@@@@@@",
+    "@@@@@@@@@@@+: . : .... :=@@@@@@@@@@@",
+    "@@@@@@@@@@+::.:.-.:::: -.+@@@@@@@@@@",
+    "@@@@@@@@@@:-=:-:=:----:=--@@@@@@@@@@",
+    "@@@@@@@@@@::-.::-::-:-.-::@@@@@@@@@@",
+    "@@@@@@@@@@..#@%=: .:=%@%..@@@@@@@@@@",
+    "@@@@@@@@@@+.: . : .:.. :.+@@@@@@@@@@",
+    "@@@@@@@@@@*.:.:.--=::: -.+@@@@@@@@@@",
+    "@@@@@@@@@@%--.:.----:: -:%@@@@@@@@@@",
+    "@@@@@@@@@@@%*--.-::-:=-*%@@@@@@@@@@@",
+    "@@@@@@@@@@@@=:+=@++@=*.=%@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@#=-.::=*@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+    "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
+];
+bio_art :: Array = [
+    "                 _  _                   ",
+    "                / \\/ \\                  ",
+    "              / \\  /\\  \\                ",
+    "             |   ()   |                 ",
+    "              \\ /  \\/  /                ",
+    "                \\_/\\_/                  ",
+    "     [ BIO-CONTAMINATION HAZARD ]       "
+];
+vmarket_art :: Array = [
+    "  _  _  _  _   _   ___  _  _____ _____ ",
+    " | || || || | / \\ |  _\\| |/ ____|_   _|",
+    " | || || || |/ _ \\| |_ | ' /|  _| | |  ",
+    "  \\__/  \\_//_/ \\_\\_|\\_\\_|_|\\_\\____||_|  ",
+    " [=== RED MARKET BLACKOUT EXCHANGE ===]"
+];
+morgue_art :: Array = [
+    "{__        {__    {____     {_______        {____    {__     {__{________",
+    "{_ {__   {___  {__    {__  {__    {__   {_    {__ {__     {__{__      ",
+    "{__ {__ { {__ {__        {__{__    {__  {__        {__     {__{__      ",
+    "{__  {__  {__{__        {__{_ {__      {__        {__     {__{______  ",
+    "{__   {_  {__{__        {__{__  {__    {__   {____{__     {__{__      ",
+    "{__       {__  {__     {__ {__    {__   {__    {_ {__     {__{__      ",
+    "{__       {__    {____     {__      {__  {_____     {_____   {________"
+];
+gun_art :: Array = [
+    "   .                       :     ",
+    "  *#%#################%%%%%%%.   ",
+    "  =%%%%%%%%######%%%%%%%%%%%%:   ",
+    "  .*###%%%%%%@%%%%###%%%##%%+.   ",
+    "            +=. :%%%#%%#*%%:     ",
+    "            #+  *:=%%%%%%%%*     ",
+    "              ...:. =%%%%%%@-    ",
+    "                    .#%%%%%%@-   ",
+    "                     .%%%%%%%@=  ",
+    "                      :%%%%%%%%. ",
+    "                       #%%%%%%%= ",
+    "                       .+****+:  "
+];
+vnet_art :: Array = [
+    " /$$    /$$ /$$    /$$ /$$$$$$$$ /$$$$$$$$",
+    "| $$   | $$| $$$  | $$| $$_____/|__  $$__/",
+    "| $$   | $$| $$$$ | $$| $$         | $$   ",
+    "|  $$ / $$/| $$ $$ $$| $$$$$      | $$   ",
+    " \\  $$ $$/ | $$  $$$$| $$__/      | $$   ",
+    "  \\  $$$/  | $$\\  $$$| $$         | $$   ",
+    "   \\  $/   | $$ \\  $$| $$$$$$$$   | $$   ",
+    "    \\_/    |__/  \\__/|________/   |__/   ",
+    "",
+    "      [=== VIRTUAL NETWORK MATRIX ===]"
+];
+
+shadow_art :: Array = [
+    "           /\\                               /\\           ",
+    "          /  \\     VEKTRA PMC DIRECTORATE  /  \\          ",
+    "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
+    "        / /  \\ \\                         / /  \\ \\        ",
+    "       / /____\\ \\    /=============\\    / /____\\ \\       ",
+    "      / /______\\ \\  |  (X) (X) (X)  |  / /______\\ \\      ",
+    "     /_/        \\_\\  \\_____________/  /_/        \\_\\     ",
+    "     =================================================== ",
+    "     [ FEDERAL E-RAID AUTHORIZATION: INTERCEPT ACTIVE ] "
+];
+
 
 fn clean_str(raw :: String) -> String {
     out_str = raw;
@@ -2000,6 +2150,58 @@ fn load_page(url :: String) -> Array {
         res.push("[LINK:zeroauction.vnet] >> BID ON PMC EXTRACTION & EXECUTION LOTS");
         res.push("[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY");
         res.push("[HR]");
+        return res;
+    }
+    if (clean_u == "hashbeat.vnet") {
+        res :: Array = [
+            "[TITLE] HASHBEAT.VNET // UNDERGROUND AUDIO MATRIX & BEAT VAULT [NODE #088]",
+            "[HR]",
+            "[BADGE:VAUDIO ENGINE:BLOOD] [BADGE:STREAM: 320kbps:TOXIC] [BADGE:INFRASOUND 18Hz:AMBER]",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | NODE ID   : HASHBEAT_0x808 | PROTOCOL: PROMISCUOUS VAUDIO P2P   |",
+            "[BOX] | FREQUENCY : 18.0 Hz | DSP: TAPE SATURATION / REVERB / OZONE MIX |",
+            "[BOX] | STATUS    : UNENCRYPTED AUDIO LEAKS & UNRELEASED BEAT AUCTIONS  |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[GAUGE:96:AUDIO_BUFFER_STREAM_INTEGRITY]",
+            "[TEXT] ",
+            "[SUBTITLE] NOW PLAYING // ACTIVE AUDIO STREAM TELEMETRY:",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[BOX] | TRACK #01 : \"COLD_SIGNAL_SHOEGAZE_LOOPS_18HZ.MP3\" [3:42]        |",
+            "[BOX] | PRODUCER  : SH4D0W_PRODUCER // NOISE & TAPE DISTORTION          |",
+            "[BOX] | BITRATE   : 320 KBPS WAV | SAMPLE RATE: 44.1 kHz / 24-BIT       |",
+            "[BOX] +-----------------------------------------------------------------+",
+            "[TEXT] ",
+            "[SUBTITLE] INTERACTIVE AUDIO CONTROLS & STREAM CHANNEL SELECTOR:",
+            "[BTN:play_shoegaze:>>> [PLAY] CHANNEL 01: COLD SIGNAL SHOEGAZE <<<]",
+            "[BTN:play_industrial:>>> [PLAY] CHANNEL 02: SUBSTATION 04 INDUSTRIAL BEAT <<<]",
+            "[BTN:play_coldcore:>>> [PLAY] CHANNEL 03: AMBIANCE COLDCORE / WIND <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] UNRELEASED BEAT VAULT & RAW LEAKED STEMS:",
+            "[CODE] STEM_01 | SHOEGAZE_GUITAR_WALL_18HZ.WAV  | 0.20 VCOIN | LEAKED FROM SECTOR 09",
+            "[CODE] STEM_02 | TRAP_DRUM_KIT_SATURATED.ZIP     | 0.35 VCOIN | TAPE WARMTH / OZONE MIX",
+            "[CODE] STEM_03 | WALRIDER_INFRASOUND_SUB_BASS.WAV| 0.15 VCOIN | TUNED TO 18.0 HZ",
+            "[TEXT] ",
+            "[SUBTITLE] DIRECT BEAT PROCUREMENT & MULTI-SIG ESCROW:",
+            "[TEXT] Enter stem ID and target delivery port to purchase unreleased audio files:",
+            "[INPUT:hashbeat_stem_id:ENTER STEM ID (e.g. STEM_01)]",
+            "[TEXT] ",
+            "[BTN:buy_beat_btn:>>> PURCHASE UNRELEASED STEM VIA ESCROW <<<]",
+            "[TEXT] ",
+            "[SUBTITLE] VFS AUDIO MEMORY REGISTER STREAM:",
+            "[HEX_STREAM:0x88F9:32:16]",
+            "[BLOOD] [WARNING]: HIGH-DECIBEL INFRASOUND MAY CAUSE NEURAL PARANOIA & CRT RESONANCE.",
+            "[PULSE] 'THE BEAT DOES NOT PLAY FROM SILICON. IT VIBRATES THROUGH THE CRT GLASS.'",
+            "[GLITCH] 'AUDIO SYNAPSE LOCK AT 18.0 HZ... DO NOT TURN DOWN THE VOLUME.'",
+            "[HR]",
+            "[LINK:silence.vnet] >> TUNE INFRASOUND ANALYZER TO 18.0 HZ",
+            "[LINK:market.vnet] >> ACCESS BLACK MARKET HARDWARE & ICE SHIELDS",
+            "[LINK:crypto.vnet] >> MINE VCOIN FOR BEAT PURCHASES",
+            "[LINK:vnet.dir] << RETURN TO MAIN DIRECTORY",
+            "[HR]"
+        ];
+
+        if (key_line != "") { res.push(key_line); }
         return res;
     }
     if (clean_u == "zeroauction.vnet") {
@@ -4227,6 +4429,7 @@ while (vglib.running()) {
     vaudio.update_stream(stream_pt_radio);
     vaudio.update_stream(stream_e_raid);
     vaudio.update_stream(stream_amb_music);
+    vaudio.update_stream(stream_wall_heater);
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
@@ -4321,8 +4524,6 @@ while (vglib.running()) {
         # ============================================================
         
         # 1. Title Header
-        h1_str :: String = "VYNE VEKTRAOS v9.5 // OPERATION COLD SIGNAL";
-        h1_sz  :: Array  = vglib.measure_text(vcr_font, h1_str, 14.0);
         h1_x   :: Float64 = 640.0 - (float64(h1_sz[0]) / 2.0) + jitter_x;
         vglib.text_ex(vcr_font, h1_str, h1_x, box_y + 25.0, 14, COLOR_BLOOD);
 
@@ -5185,15 +5386,6 @@ while (vglib.running()) {
             if (hallucination_timer <= 0.0) { hallucinated_url = ""; }
         } else if (neural_paranoia > 55.0 && vmath.random(0.0, 100.0) < 0.3) {
             hallucination_timer = 1.8;
-            fake_urls :: Array = [
-                "they.see.you.vnet",
-                "behind_your_desk.vnet",
-                "room402.eye.vnet",
-                "netman.cortex.vnet",
-                "void.nobody.vnet",
-                "CUT.YOUR.THROAT",
-                "OFF.YOURSELF"
-            ];
             u_idx :: Int64 = int64(vmath.random(0.0, 4.0));
             hallucinated_url = string(fake_urls[u_idx]);
         }
@@ -5578,7 +5770,9 @@ while (vglib.running()) {
                     vglib.text_ex(vcr_font, cf_txt_trunc, 50 + jitter_x, c_line_y, 10, cf_col);
                 }
             };
-        } else {
+        }
+        
+        else {
             line_idx :: Int64 = 0;
             through line_item :: page_body -> loop {
                 line_str :: String = string(line_item);
@@ -5707,7 +5901,6 @@ while (vglib.running()) {
 
                             # Render Hex Address Rows
                             base_addr_num :: Int64 = vcore.hex_to_int64(base_addr);
-                            hex_chars :: Array = ["0","1","2","3","4","5","6","7","8","9","A","B","C","D","E","F"];
 
                             through r_idx :: 0..(rows_cnt - 1) -> loop {
                                 row_y :: Float64 = hs_y + 26.0 + float64(r_idx * 22);
@@ -6192,20 +6385,6 @@ while (vglib.running()) {
                         if (art_key == "skull") {
                             jaw_offset_y :: Float64 = vmath.abs(vmath.sin(run_time * 16.0)) * 12.0;
 
-                            skull_top :: Array = [
-                                "         .------------------------.         ",
-                                "        /    .----------------.    \\        ",
-                                "       |    /   (X)      (X)   \\    |       ",
-                                "       |   |      .------.      |   |       ",
-                                "       |   |     /  /||\\  \\     |   |       "
-                            ];
-
-                            skull_jaw :: Array = [
-                                "       |    \\   |  | || |  |   /    |       ",
-                                "        \\    '--'--'--'--'--'  /        ",
-                                "         '------------------------'         "
-                            ];
-
                             skull_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
                             through st_i :: 0..(skull_top.length() - 1) -> loop {
@@ -6225,34 +6404,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 4;
                         }
                         else if (art_key == "netman") {
-                            netman_art :: Array = [
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@%%%@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@=-.-..:.-=@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@+: . : .... :=@@@@@@@@@@@",
-                                "@@@@@@@@@@+::.:.-.:::: -.+@@@@@@@@@@",
-                                "@@@@@@@@@@:-=:-:=:----:=--@@@@@@@@@@",
-                                "@@@@@@@@@@::-.::-::-:-.-::@@@@@@@@@@",
-                                "@@@@@@@@@@..#@%=: .:=%@%..@@@@@@@@@@",
-                                "@@@@@@@@@@+.: . : .:.. :.+@@@@@@@@@@",
-                                "@@@@@@@@@@*.:.:.--=::: -.+@@@@@@@@@@",
-                                "@@@@@@@@@@%--.:.----:: -:%@@@@@@@@@@",
-                                "@@@@@@@@@@@%*--.-::-:=-*%@@@@@@@@@@@",
-                                "@@@@@@@@@@@@=:+=@++@=*.=%@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@#=-.::=*@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
-                                "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-                            ];
 
                             netman_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
@@ -6266,17 +6417,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 14;
                         }
                         else if (art_key == "shadow_pmc") {
-                            shadow_art :: Array = [
-                                "           /\\                               /\\           ",
-                                "          /  \\     VEKTRA PMC DIRECTORATE  /  \\          ",
-                                "         / /\\ \\    [ BLACK-OPS TACTICAL ] / /\\ \\         ",
-                                "        / /  \\ \\                         / /  \\ \\        ",
-                                "       / /____\\ \\    /=============\\    / /____\\ \\       ",
-                                "      / /______\\ \\  |  (X) (X) (X)  |  / /______\\ \\      ",
-                                "     /_/        \\_\\  \\_____________/  /_/        \\_\\     ",
-                                "     =================================================== ",
-                                "     [ FEDERAL E-RAID AUTHORIZATION: INTERCEPT ACTIVE ] "
-                            ];
 
                             pmc_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
@@ -6290,16 +6430,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 6;
                         }
                         else if (art_key == "morgue") {
-                            morgue_art :: Array = [
-                                "{__        {__    {____     {_______        {____    {__     {__{________",
-                                "{_ {__   {___  {__    {__  {__    {__   {_    {__ {__     {__{__      ",
-                                "{__ {__ { {__ {__        {__{__    {__  {__        {__     {__{__      ",
-                                "{__  {__  {__{__        {__{_ {__      {__        {__     {__{______  ",
-                                "{__   {_  {__{__        {__{__  {__    {__   {____{__     {__{__      ",
-                                "{__       {__  {__     {__ {__    {__   {__    {_ {__     {__{__      ",
-                                "{__       {__    {____     {__      {__  {_____     {_____   {________"
-                            ];
-
                             morgue_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
                             through mp_i :: 0..(morgue_art.length() - 1) -> loop {
@@ -6312,18 +6442,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 4;
                         }
                         else if (art_key == "vnet") {
-                            vnet_art :: Array = [
-                                " /$$    /$$ /$$    /$$ /$$$$$$$$ /$$$$$$$$",
-                                "| $$   | $$| $$$  | $$| $$_____/|__  $$__/",
-                                "| $$   | $$| $$$$ | $$| $$         | $$   ",
-                                "|  $$ / $$/| $$ $$ $$| $$$$$      | $$   ",
-                                " \\  $$ $$/ | $$  $$$$| $$__/      | $$   ",
-                                "  \\  $$$/  | $$\\  $$$| $$         | $$   ",
-                                "   \\  $/   | $$ \\  $$| $$$$$$$$   | $$   ",
-                                "    \\_/    |__/  \\__/|________/   |__/   ",
-                                "",
-                                "      [=== VIRTUAL NETWORK MATRIX ===]"
-                            ];
                             vnet_col = (pulse_val > 0.5) ? COLOR_CYAN : COLOR_TOXIC;
                             through vn_i :: 0..(vnet_art.length() - 1) -> loop {
                                 vn_line_y :: Float64 = art_y + (float64(vn_i) * 16.0);
@@ -6334,13 +6452,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 3;
                         }
                         else if (art_key == "vmarket") {
-                            vmarket_art :: Array = [
-                                "  _  _  _  _   _   ___  _  _____ _____ ",
-                                " | || || || | / \\ |  _\\| |/ ____|_   _|",
-                                " | || || || |/ _ \\| |_ | ' /|  _| | |  ",
-                                "  \\__/  \\_//_/ \\_\\_|\\_\\_|_|\\_\\____||_|  ",
-                                " [=== RED MARKET BLACKOUT EXCHANGE ===]"
-                            ];
                             vmkt_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
                             through vm_i :: 0..(vmarket_art.length() - 1) -> loop {
                                 vm_line_y :: Float64 = art_y + (float64(vm_i) * 16.0);
@@ -6351,20 +6462,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 3;
                         }
                         else if (art_key == "gun") {
-                        gun_art :: Array = [
-                            "   .                       :     ",
-                            "  *#%#################%%%%%%%.   ",
-                            "  =%%%%%%%%######%%%%%%%%%%%%:   ",
-                            "  .*###%%%%%%@%%%%###%%%##%%+.   ",
-                            "            +=. :%%%#%%#*%%:     ",
-                            "            #+  *:=%%%%%%%%*     ",
-                            "              ...:. =%%%%%%@-    ",
-                            "                    .#%%%%%%@-   ",
-                            "                     .%%%%%%%@=  ",
-                            "                      :%%%%%%%%. ",
-                            "                       #%%%%%%%= ",
-                            "                       .+****+:  "
-                        ];
 
                         gun_col = COLOR_AMBER;
 
@@ -6378,16 +6475,6 @@ while (vglib.running()) {
                         line_idx = line_idx + 7;
                     }
                         else if (art_key == "drug") {
-                            drug_art :: Array = [
-                                "        .---.           .---.           ",
-                                "       /     \\         /   /|           ",
-                                "      |  RX   |       /   / |  [ SYNTHETIC ",
-                                "       \\     /       |---|  |    OPIOIDS &",
-                                "        '---'        |   | /     NEURALS ]",
-                                "       .-----.       |___|/             ",
-                                "      (  80  )        / \\               ",
-                                "       '-----'       '---'              "
-                            ];
                             drug_col = COLOR_TOXIC;
                             through dr_i :: 0..(drug_art.length() - 1) -> loop {
                                 dr_line_y :: Float64 = art_y + (float64(dr_i) * 16.0);
@@ -6398,15 +6485,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 4;
                         }
                         else if (art_key == "biohazard") {
-                            bio_art :: Array = [
-                                "                 _  _                   ",
-                                "                / \\/ \\                  ",
-                                "              / \\  /\\  \\                ",
-                                "             |   ()   |                 ",
-                                "              \\ /  \\/  /                ",
-                                "                \\_/\\_/                  ",
-                                "     [ BIO-CONTAMINATION HAZARD ]       "
-                            ];
                             bio_col = COLOR_BLOOD;
                             through bio_i :: 0..(bio_art.length() - 1) -> loop {
                                 bio_line_y :: Float64 = art_y + (float64(bio_i) * 16.0);
@@ -6417,22 +6495,6 @@ while (vglib.running()) {
                             line_idx = line_idx + 4;
                         }
                         else if (art_key == "not_found") {
-                            nf_art :: Array = [
-                                "      .------------------------------------.      ",
-                                "     /  404 // SIGNAL LOST IN THE MATRIX   \     ",
-                                "    |   ================================   |    ",
-                                "    |     _  _    ___   _  _               |    ",
-                                "    |    | || |  / _ \\ | || |  [ VOID ]   |    ",
-                                "    |    | || |_| | | || || |_             |    ",
-                                "    |    |__   _| |_| ||__   _|            |    ",
-                                "    |       |_|  \\___/    |_|             |    ",
-                                "    |                                      |    ",
-                                "    |   [!] SOCKET DESYNCHRONIZED          |    ",
-                                "    |   [!] MEMORY BLOCK WIPED / SEIZED    |    ",
-                                "     \\  --------------------------------  /     ",
-                                "      '----------------------------------'      "
-                            ];
-
                             nf_col = (pulse_val > 0.5) ? COLOR_BLOOD : COLOR_AMBER;
 
                             through nf_i :: 0..(nf_art.length() - 1) -> loop {
@@ -6834,7 +6896,7 @@ while (vglib.running()) {
                 cli_logs.push("  >> OVERRIDING RING-0 MEMORY REGISTERS AT 0x" + string(vdec_raw_payload));
                 cli_logs.push("  >> DISENGAGING SYNAPTIC PARITY LOCKS [OFFSET_KEY: " + string(vdec_input_offset) + "]");
                 cli_logs.push("  >> CARRIER PHASE DEMODULATION ALIGNED AT EXACTLY " + string(vdec_target_hz) + " Hz");
-                cli_logs.push("[!] CRITICAL VFS DECRYPTION SUCCESSFUL [!]");
+                cli_logs.push("  >> [!] CRITICAL VFS DECRYPTION SUCCESSFUL [!]");
                 cli_logs.push("  => EXFILTRATED ROOT REGISTER VALUE : " + string(vdec_decoded_val));
                 cli_logs.push("======================================================================");
                 

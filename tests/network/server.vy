@@ -60,13 +60,14 @@ all_50_sites :: Array = [
     "weaponry.vnet", "passports.vnet", "blackbank.vnet","stasi.vnet", 
     "substation04.vnet", "deepocean.vnet", "darkdrop.vnet", "forum.vnet", "corridor204863.vnet",
     "norilsk-relay.vnet","oldnet-archive.vnet","newnet-industrial.vnet","frostline.vnet",
-    "luna.vnet"
+    "luna.vnet", "hashbeat.vnet"
 ];
 
 # MUTUAL SITES GUARANTEED TO BE IN EVERY PLAYER'S DIRECTORY
 mutual_sites :: Array = [
     "market.vnet", "vault.vnet", "terminal.vnet", 
-    "forum.vnet", "crypto.vnet", "bounty.vnet", "vektrapay.vnet", "hellroom.vnet"
+    "forum.vnet", "crypto.vnet", "bounty.vnet", "vektrapay.vnet", "hellroom.vnet",
+    "hashbeat.vnet"
 ];
 
 session_salt :: Int64 = int64(vmath.random(100000, 999999));
