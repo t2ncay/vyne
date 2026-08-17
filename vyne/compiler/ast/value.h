@@ -31,7 +31,7 @@ struct Parameter {
 };
 
 struct VyneObject {
-    enum class ObjType { Array, Function, Module, Struct };
+    enum class ObjType { Array, Function, Module, Struct, Map };
     ObjType objType;
     virtual ~VyneObject() = default;
     VyneObject(ObjType t) : objType(t) {}
@@ -40,6 +40,12 @@ struct VyneObject {
 struct VyneArray : public VyneObject {
     std::vector<Value> elements;
     VyneArray(std::vector<Value> e) : VyneObject(ObjType::Array), elements(std::move(e)) {}
+};
+
+struct VyneMap : public VyneObject {
+    std::unordered_map<uint32_t, Value> elements;
+    VyneMap() : VyneObject(ObjType::Map) {}
+    VyneMap(std::unordered_map<uint32_t, Value> e) : VyneObject(ObjType::Map), elements(std::move(e)) {}
 };
 
 struct FunctionData : public VyneObject {
@@ -93,7 +99,8 @@ public:
 struct Value {
     enum TypeIndex { 
         NONE = 0, FLOAT64 = 1, INT64 = 2, STRING = 3, 
-        ARRAY = 4, FUNCTION = 5, MODULE = 6, STRUCT = 7, REFERENCE = 8
+        ARRAY = 4, FUNCTION = 5, MODULE = 6, STRUCT = 7, REFERENCE = 8, 
+        MAP = 9
     };
 
     union Data {
@@ -128,6 +135,7 @@ struct Value {
     Value(std::function<Value(std::vector<Value>&)> native);
     Value(std::shared_ptr<VyneStruct> s);
     Value(Value* refTarget) : type(VType::Reference) { data.ref = refTarget; }
+    Value(std::unordered_map<uint32_t, Value> m);
 
     Value(const Value& other);
     Value(Value&& other) noexcept;
@@ -147,6 +155,8 @@ struct Value {
     std::shared_ptr<FunctionData> asFunction() const;
     const std::string& asModule() const;
     std::shared_ptr<VyneStruct> asStruct() const;
+    std::unordered_map<uint32_t, Value>& asMap();
+    const std::unordered_map<uint32_t, Value>& asMap() const;
     bool isReference() const { return type == VType::Reference; }
     Value* getPointer() const;
 

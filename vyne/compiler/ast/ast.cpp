@@ -477,6 +477,8 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) c
             
         case BuiltInType::SEQUENCE:
             return handleSequence(argValues);
+        case BuiltInType::MAP:
+            return Value(std::unordered_map<uint32_t, Value>{});
             
         default:
             throw std::runtime_error("Syntax Error : Unknown built-in function [ line " + std::to_string(lineNumber) + " ]");
@@ -497,6 +499,16 @@ Value IndexAccessNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) c
         const std::string& str = baseVal.asString();
         size_t idx = validateIndex(idxVal, str.length(), lineNumber);
         return Value(std::string(1, str[idx]));
+    }
+
+    else if (baseVal.getType() == Value::MAP) {
+        if (idxVal.getType() != Value::STRING) {
+            throw std::runtime_error("Type Error: Map keys must be strings [ line " + std::to_string(lineNumber) + " ]");
+        }
+        auto& map = baseVal.asMap();
+        auto it = map.find(idxVal.stringId);
+        if (it != map.end()) return it->second;
+        return Value();
     }
     
     throw std::runtime_error("Type Error: Cannot index non-array, non-string type [ line " + std::to_string(lineNumber) + " ]");
@@ -519,6 +531,16 @@ Value IndexAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupI
     
     else if (baseVal.getType() == Value::STRING) {
         throw std::runtime_error("Runtime Error: Strings are immutable...");
+    }
+
+    else if (baseVal.getType() == Value::MAP) {
+        if (idxVal.getType() != Value::STRING) {
+            throw std::runtime_error("Type Error: Map keys must be strings [ line " + std::to_string(lineNumber) + " ]");
+        }
+        checkReadOnly(baseVal, arrayName, lineNumber);
+        auto& map = baseVal.asMap();
+        map[idxVal.stringId] = val;
+        return val;
     }
     
     throw std::runtime_error("Type Error: Cannot assign to index of non-array type...");
@@ -830,7 +852,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     }
     
     throw std::runtime_error("Module Error: Method '" + methodName + "' not found in module " + modName + " [ line " + std::to_string(lineNumber) + " ]");
-}
+}   
 
     // --- ARRAY METHODS ---
     // TODO USE STRING_VIEW TO COMPARE INPUT METHOD WITH AVAILABLE METHOD OPTIONS
@@ -1018,6 +1040,77 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             if (target->getType() != Value::ARRAY) throw std::runtime_error("Type Error: clear() called on non-array [ line " + std::to_string(lineNumber) + " ]");
             if (arguments.size() > 0) throw std::runtime_error("Argument Error: clear() expects 0 arguments, but got " + std::to_string(arguments.size()) + " instead [ line " + std::to_string(lineNumber) + " ]");
             target->asList().clear();
+            return Value(*target);
+        }
+    }
+
+    // --- MAP METHODS ---
+    if (receiverVal.getType() == Value::MAP) {
+        if (methodName == "length" || methodName == "size") {
+            return Value(static_cast<uint64_t>(receiverVal.asMap().size()));
+        }
+
+        Value* target = nullptr;
+        if (receiver->type() == NodeType::VARIABLE) {
+            auto* var = static_cast<VariableNode*>(receiver.get());
+            static uint32_t globalId = getGlobalId();
+            uint32_t targetGroupId = resolvePathId(var->getScope(), currentGroupId);
+            uint32_t varNameId = var->getNameId();
+
+            if (env.count(targetGroupId) && env[targetGroupId].count(varNameId)) {
+                target = &env[targetGroupId][varNameId];
+                env.markUsed(varNameId);
+            } 
+            else if (targetGroupId != globalId && env.count(globalId) && env[globalId].count(varNameId)) {
+                target = &env[globalId][varNameId];
+                env.markUsed(varNameId);
+            }
+        }
+
+        auto& mapObj = target ? target->asMap() : receiverVal.asMap();
+        
+        static const uint32_t hasId    = StringPool::intern("has");
+        static const uint32_t keysId   = StringPool::intern("keys");
+        static const uint32_t valuesId = StringPool::intern("values");
+
+        if (methodId == hasId) {
+            if (arguments.size() != 1) throw std::runtime_error("Argument Error: has() expects 1 argument");
+            Value keyVal = arguments[0]->evaluate(env, currentGroupId);
+            if (keyVal.getType() != Value::STRING) return Value(false);
+            return Value(mapObj.find(keyVal.stringId) != mapObj.end());
+        }
+
+        if (methodId == keysId) {
+            std::vector<Value> keys;
+            keys.reserve(mapObj.size());
+            for (const auto& [k, v] : mapObj) {
+                keys.emplace_back(Value(StringPool::get(k))); // Resolves ID back to string literal
+            }
+            return Value(keys);
+        }
+
+        if (methodId == valuesId) {
+            std::vector<Value> vals;
+            vals.reserve(mapObj.size());
+            for (const auto& [k, v] : mapObj) {
+                vals.emplace_back(v);
+            }
+            return Value(vals);
+        }
+
+        if (methodId == deleteId) {
+            if (!target) throw std::runtime_error("Runtime Error: Cannot mutate anonymous map");
+            if (arguments.size() != 1) throw std::runtime_error("Argument Error: delete() expects 1 argument");
+            Value keyVal = arguments[0]->evaluate(env, currentGroupId);
+            if (keyVal.getType() == Value::STRING) {
+                mapObj.erase(keyVal.stringId); // Sub-microsecond lookup erase
+            }
+            return Value(true);
+        }
+
+        if (methodId == clearId) {
+            if (!target) throw std::runtime_error("Runtime Error: Cannot mutate anonymous map");
+            mapObj.clear();
             return Value(*target);
         }
     }

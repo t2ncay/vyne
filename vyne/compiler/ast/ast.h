@@ -203,6 +203,7 @@ enum class NodeType {
     VARIABLE,
     ASSIGNMENT,
     INDEX_ASSIGNMENT,
+    MAP_LITERAL,
 
     BINARY_OP,
     POSTFIX,
@@ -500,7 +501,7 @@ public:
 
 class BuiltInCallNode : public ASTNode {
     enum class BuiltInType {
-        PRINT, EXIT, TYPE, STRING, INT64, FLOAT64, SIZEOF, SEQUENCE, UNKNOWN
+        PRINT, EXIT, TYPE, STRING, INT64, FLOAT64, SIZEOF, SEQUENCE, MAP, UNKNOWN
     };
 
     std::string funcName;
@@ -516,7 +517,8 @@ class BuiltInCallNode : public ASTNode {
             {"int64", BuiltInType::INT64},
             {"float64", BuiltInType::FLOAT64},
             {"sizeof", BuiltInType::SIZEOF},
-            {"sequence", BuiltInType::SEQUENCE}
+            {"sequence", BuiltInType::SEQUENCE},
+            {"map", BuiltInType::MAP}
         };
         
         auto it = map.find(name);
@@ -631,6 +633,31 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Array; }
+};
+
+class MapNode : public ASTNode {
+    std::vector<std::pair<std::unique_ptr<ASTNode>, std::unique_ptr<ASTNode>>> pairs;
+public:
+    MapNode(std::vector<std::pair<std::unique_ptr<ASTNode>, std::unique_ptr<ASTNode>>> p) 
+        : ASTNode(NodeType::MAP_LITERAL), pairs(std::move(p)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        std::unordered_map<uint32_t, Value> mapElements;
+        for (const auto& [keyNode, valNode] : pairs) {
+            Value keyVal = keyNode->evaluate(env, currentGroupId);
+            if (keyVal.getType() != Value::STRING) {
+                throw std::runtime_error("Type Error: Map keys must be strings [ line " + std::to_string(lineNumber) + " ]");
+            }
+            Value val = valNode->evaluate(env, currentGroupId);
+            mapElements[keyVal.stringId] = val;
+        }
+        if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
+        return Value(std::move(mapElements));
+    }
+
+    void compile(C_Emitter& e) const override {}
+    std::string getCExpr(C_Emitter& e) const override { return ""; }
+    VType getStaticType() const override { return VType::Map; }
 };
 
 class RangeNode : public ASTNode {

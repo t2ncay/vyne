@@ -546,6 +546,14 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
         case VTokenType::Left_Parenthese:         return parseGroupingExpr();
         case VTokenType::BuiltIn:                 return parseBuiltInCall();
         case VTokenType::Through:                 return parseForLoop();
+        case VTokenType::Left_CB: {               // ADDED DISAMBIGUATION
+            if (lookAhead(1).type == VTokenType::Right_CB || 
+                (lookAhead(1).type == VTokenType::String && lookAhead(2).type == VTokenType::Colon) ||
+                (lookAhead(1).type == VTokenType::Identifier && lookAhead(2).type == VTokenType::Colon)) {
+                return parseMapLiteral();
+            }
+            return parseBlock();
+        }
         default:
             throw std::runtime_error("Unexpected token in factor: " + current.name + "[ line " + std::to_string(current.line) + " ]");
     }
@@ -617,6 +625,34 @@ std::unique_ptr<ASTNode> Parser::parseArrayLiteral() {
     consume(VTokenType::Right_Bracket);
 
     auto node = std::make_unique<ArrayNode>(std::move(elements));
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseMapLiteral() {
+    int line = peekToken().line;
+    consume(VTokenType::Left_CB);
+    
+    std::vector<std::pair<std::unique_ptr<ASTNode>, std::unique_ptr<ASTNode>>> pairs;
+    
+    if (peekToken().type != VTokenType::Right_CB) {
+        do {
+            if (peekToken().type == VTokenType::Comma) {
+                consume(VTokenType::Comma);
+            }
+            if (peekToken().type == VTokenType::Right_CB) break;
+            
+            auto keyExpr = parseExpression();
+            consume(VTokenType::Colon);
+            auto valExpr = parseExpression();
+            
+            pairs.emplace_back(std::move(keyExpr), std::move(valExpr));
+        } while (peekToken().type == VTokenType::Comma);
+    }
+    
+    consume(VTokenType::Right_CB);
+
+    auto node = std::make_unique<MapNode>(std::move(pairs));
     node->lineNumber = line;
     return node;
 }

@@ -82,6 +82,7 @@ private:
     std::unique_ptr<ASTNode> parseNumberLiteral();
     std::unique_ptr<ASTNode> parseBooleanLiteral();
     std::unique_ptr<ASTNode> parseArrayLiteral();
+	std::unique_ptr<ASTNode> parseMapLiteral();
     std::unique_ptr<ASTNode> parseGroupingExpr();
     std::unique_ptr<ASTNode> parseIdentifierExpr();
 	std::unique_ptr<ASTNode> parseNullLiteral();

@@ -219,6 +219,15 @@ inline Value deepCopyValue(const Value& val) {
             
             return Value(newStruct);
         }
+        case Value::MAP: { // ADDED
+            auto& originalMap = val.asMap();
+            std::unordered_map<uint32_t, Value> copiedMap;
+            copiedMap.reserve(originalMap.size());
+            for (const auto& [id, fieldVal] : originalMap) {
+                copiedMap[id] = deepCopyValue(fieldVal);
+            }
+            return Value(std::move(copiedMap));
+        }
         default:
             return val;
     }

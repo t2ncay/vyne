@@ -7,6 +7,10 @@ Value::Value(std::vector<Value> l) : type(VType::Array) {
     new (&data.obj) std::shared_ptr<VyneObject>(std::make_shared<VyneArray>(std::move(l)));
 }
 
+Value::Value(std::unordered_map<uint32_t, Value> m) : type(VType::Map) {
+    new (&data.obj) std::shared_ptr<VyneObject>(std::make_shared<VyneMap>(std::move(m)));
+}
+
 Value::Value(std::shared_ptr<FunctionData> f) : type(VType::Function) {
     new (&data.obj) std::shared_ptr<VyneObject>(std::move(f));
 }
@@ -113,6 +117,7 @@ int Value::getType() const {
                 case VyneObject::ObjType::Function: return FUNCTION;
                 case VyneObject::ObjType::Module:   return MODULE;
                 case VyneObject::ObjType::Struct:   return STRUCT;
+                case VyneObject::ObjType::Map:      return MAP;
                 default: return NONE;
             }
         }
@@ -129,6 +134,7 @@ std::string Value::getTypeName() const {
         case FUNCTION: return "Function";
         case MODULE:  return "Module";
         case STRUCT:  return std::static_pointer_cast<VyneStruct>(data.obj)->typeName;
+        case MAP:     return "Map";
         default:      return "null";
     }
 }
@@ -158,6 +164,16 @@ std::vector<Value>& Value::asList() {
 const std::vector<Value>& Value::asList() const {
     if (type == VType::Reference) return data.ref->asList();
     return static_cast<VyneArray*>(data.obj.get())->elements;
+}
+
+std::unordered_map<uint32_t, Value>& Value::asMap() {
+    if (type == VType::Reference) return data.ref->asMap();
+    return static_cast<VyneMap*>(data.obj.get())->elements;
+}
+
+const std::unordered_map<uint32_t, Value>& Value::asMap() const {
+    if (type == VType::Reference) return data.ref->asMap();
+    return static_cast<VyneMap*>(data.obj.get())->elements;
 }
 
 std::shared_ptr<FunctionData> Value::asFunction() const {
@@ -200,6 +216,18 @@ void Value::print() const {
                     }
                     std::printf("]"); break;
                 }
+                case VyneObject::ObjType::Map: {
+                    auto& map = static_cast<VyneMap*>(data.obj.get())->elements;
+                    std::printf("{");
+                    auto it = map.begin();
+                    while (it != map.end()) {
+                        std::printf("\"%s\": ", StringPool::get(it->first).c_str());
+                        it->second.print();
+                        if (++it != map.end()) std::printf(", ");
+                    }
+                    std::printf("}"); 
+                    break;
+                }
                 case VyneObject::ObjType::Function: {
                     auto* func = static_cast<FunctionData*>(data.obj.get());
                     std::printf("%s", (func->isNative ? "<native function>" : "<function>")); 
@@ -230,6 +258,10 @@ size_t Value::getDeepBytes() const {
         auto arr = static_cast<VyneArray*>(data.obj.get());
         total += sizeof(VyneArray) + (arr->elements.capacity() * sizeof(Value));
         for (const auto& item : arr->elements) total += item.getDeepBytes();
+    } else if (data.obj->objType == VyneObject::ObjType::Map) { // ADDED
+        auto map = static_cast<VyneMap*>(data.obj.get());
+        total += sizeof(VyneMap) + (map->elements.bucket_count() * (sizeof(uint32_t) + sizeof(Value)));
+        for (const auto& [k, v] : map->elements) total += v.getDeepBytes();
     }
     return total;
 }
@@ -287,6 +319,16 @@ std::string Value::toString() const {
         case VType::Float64: return std::format("{}", data.f64);
         case VType::Int64:   return std::format("{}", data.i64);
         case VType::String:  return asString();
+        case VType::Map: {
+            auto& map = static_cast<VyneMap*>(data.obj.get())->elements;
+            std::string result = "{";
+            auto it = map.begin();
+            while (it != map.end()) {
+                result += "\"" + StringPool::get(it->first) + "\": " + it->second.toString();
+                if (++it != map.end()) result += ", ";
+            }
+            return result + "}";
+        }
         case VType::Array: {
             auto& list = static_cast<VyneArray*>(data.obj.get())->elements;
             std::string result = "[";

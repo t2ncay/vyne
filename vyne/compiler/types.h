@@ -13,7 +13,8 @@ enum class VType {
     Struct = 7,
     Reference = 8,
     Null = 9,
-    Bool = 10
+    Bool = 10,
+    Map = 11
 };
 
 inline VType stringToVType(std::string_view name) {
@@ -23,6 +24,7 @@ inline VType stringToVType(std::string_view name) {
     if (name == "String")   return VType::String;
     if (name == "Null")     return VType::Null;
     if (name == "Bool")     return VType::Bool;
+    if (name == "Map")      return VType::Map;
     return VType::Unknown;
 }
 
@@ -37,6 +39,7 @@ inline std::string VTypeToString(VType type) {
         case VType::Reference: return "Reference";
         case VType::Null:      return "Null";
         case VType::Bool:      return "Bool";
+        case VType::Map:       return "Map";
         default:               return "Unknown";
     }
 }
