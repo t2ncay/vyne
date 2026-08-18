@@ -1,6 +1,9 @@
 #include "vnet.h"
 
-static const Value EMPTY_PACKET_LIST = Value(std::vector<Value>{});
+static const Value& get_empty_packet() {
+    static Value empty(std::vector<Value>{});
+    return empty;
+}
 static std::unordered_map<std::string, in_addr> ip_cache;
 
 namespace VNetNative {
@@ -98,7 +101,7 @@ Value native_recv_from(std::vector<Value>& args) {
                              (sockaddr*)&senderAddr, &addrLen);
 
     if (bytesRead <= 0) {
-        return EMPTY_PACKET_LIST;
+        return get_empty_packet();
     }
 
     buffer[bytesRead] = '\0';
@@ -111,8 +114,7 @@ Value native_recv_from(std::vector<Value>& args) {
         Value(std::string(senderIP)),
         Value(static_cast<int64_t>(senderPort))
     };
-
-    return Value(result);
+    return Value(std::move(result));
 }
 
 Value native_close_socket(std::vector<Value>& args) {

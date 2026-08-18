@@ -468,7 +468,42 @@ Value BuiltInCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) c
             
         case BuiltInType::INT64:
             return handleInt64(argValues);
+        case BuiltInType::FREE: {
+            if (argValues.size() != 1) {
+                throw std::runtime_error("Argument Error: free() expects exactly 1 argument [ line " + 
+                                        std::to_string(lineNumber) + " ]");
+            }
             
+            Value& val = argValues[0];
+            
+            if (val.isObject()) {
+                if (val.getType() == Value::ARRAY) {
+                    val.asList().clear();
+                    val.asList().shrink_to_fit();
+                }
+                else if (val.getType() == Value::MAP) {
+                    val.asMap().clear();
+                }
+                else {
+                    val.data.obj.reset();
+                }
+            }
+            else if (val.getType() == Value::STRING) {
+                // Can't free interned strings from StringPool
+                // But we could warn or just ignore
+                if (val.stringId != 0) {
+                    // It's an interned string, can't free it
+                    // Just return quietly
+                }
+            }
+            
+            val.type = VType::Null;
+            val.data.i64 = 0;
+            val.stringId = 0;
+            val.isReadOnly = false;
+            
+            return Value(true); 
+        }
         case BuiltInType::FLOAT64:
             return handleFloat64(argValues);
             

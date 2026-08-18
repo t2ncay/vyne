@@ -6,6 +6,11 @@ module vmath;
 module vfs;
 module vaudio;
 
+# CONSTANTS
+# Add these constants near the top of socket.txt
+MAX_CLI_LOGS :: Int64 = 250;  # Keep a decent history for viewing
+MAX_FEED_LOGS :: Int64 = 100; # The feed display is smaller
+
 # ====================================================================
 # NETWORK CONFIGURATION & SOCKET SETUP
 # ====================================================================
@@ -719,24 +724,38 @@ fn parse_input(raw :: String) -> Array {
 
 fn purchase_ice_firewall() -> Int64 {
     if (extract_canonical_name(current_url) != "market.vnet") {
-        cli_logs.push("[ERROR]: ICE FIREWALL CAN ONLY BE PURCHASED FROM market.vnet");
+        push_cli_log("[ERROR]: ICE FIREWALL CAN ONLY BE PURCHASED FROM market.vnet");
         return 0;
     }
     if (ice_charges >= 1) {
-        cli_logs.push("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (1/1)");
+        push_cli_log("[ERROR]: MAX ICE FIREWALL CAPACITY REACHED (1/1)");
         return 0;
     }
     if (btc_balance < 0.15) {
-        cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ICE SHIELD (REQUIRES 0.15 VCOIN)");
+        push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR ICE SHIELD (REQUIRES 0.15 VCOIN)");
         return 0;
     }
     btc_balance = btc_balance - 0.15;
     ice_charges = ice_charges + 1;
     glitch_trigger = 0.2;
-    cli_logs.push("[STORE]: ICE FIREWALL LAYER INSTALLED! ACTIVE ICE: " + string(ice_charges) + "/3");
+    push_cli_log("[STORE]: ICE FIREWALL LAYER INSTALLED! ACTIVE ICE: " + string(ice_charges) + "/3");
     
     vnet.send_to(client_sock, server_ip, server_port, "ICE_BOUGHT:SUCCESS");
     return 1;
+}
+
+fn push_cli_log(msg :: String) {
+    cli_logs.push(msg);
+    if (cli_logs.length() > MAX_CLI_LOGS) {
+        cli_logs.pop_front();
+    }
+}
+
+fn push_feed_log(msg :: String) {
+    vnet_feed_logs.push(msg);
+    if (vnet_feed_logs.length() > MAX_FEED_LOGS) {
+        vnet_feed_logs.pop_front();
+    }
 }
 
 # ====================================================================
@@ -813,7 +832,7 @@ fn trigger_route_navigation(target_dest :: String) {
     clean_dest = clean_str(clean_dest);
     
     if (clean_dest == active_down_url && active_down_timer > 0.0) {
-        cli_logs.push("[ERROR]: CANNOT CONNECT TO " + clean_dest + " - SECTOR OFFLINE (OVERLOADED)");
+        push_cli_log("[ERROR]: CANNOT CONNECT TO " + clean_dest + " - SECTOR OFFLINE (OVERLOADED)");
     }
     
     pending_url            = clean_dest;
@@ -824,7 +843,7 @@ fn trigger_route_navigation(target_dest :: String) {
     lock_progress    = 0.0;
     bit_shift_offset = 0;
     
-    cli_logs.push("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
+    push_cli_log("[TOR_ROUTE]: INITIATING HANDSHAKE WITH " + clean_dest + "... ESTIMATED LATENCY: " + string(int64(target_connection_time)) + "s");
 }
 
 fn corrupt_text_paranoia(raw_txt :: String, paranoia :: Float64) -> String {
@@ -3750,14 +3769,14 @@ fn dispatch_cli_command(raw_input :: String) {
     clean_cmd = clean_str(raw_input);
     if (clean_cmd == "") { return null; }
 
-    cli_logs.push("> " + clean_cmd);
+    push_cli_log("> " + clean_cmd);
     parsed = parse_input(clean_cmd);
     cmd  = parsed[0];
     args = parsed[1];
 
     if (cmd == "chat" || cmd == "msg") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: chat <your_message_text>");
+            push_cli_log("[ERROR]: Usage: chat <your_message_text>");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "CHAT:" + player_handle + ":" + args);
         }
@@ -3768,53 +3787,53 @@ fn dispatch_cli_command(raw_input :: String) {
         msg_body      = sub_parsed[1];
         
         if (target_handle == "" || msg_body == "") {
-            cli_logs.push("[ERROR]: Usage: whisper <handle> <message>");
+            push_cli_log("[ERROR]: Usage: whisper <handle> <message>");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "WHISPER:" + player_handle + ":" + target_handle + ":" + msg_body);
             
             # High-contrast visual formatting for outgoing whispers
             out_formatted :: String = "[WHISPER TO <" + target_handle + ">]: " + msg_body;
-            cli_logs.push(out_formatted);
+            push_cli_log(out_formatted);
             vnet_feed_logs.push(out_formatted);
         }
     }
     else if (cmd == "theme") {
         if (args == "" || args == "list") {
-            cli_logs.push("[SYS_THEME]: AVAILABLE PALETTES:");
-            cli_logs.push("  -> classic");
-            cli_logs.push("  -> tokyo");
-            cli_logs.push("  -> redroom");
-            cli_logs.push("  -> amber");
-            cli_logs.push("  -> matrix");
-            cli_logs.push("  -> cyberpunk");
-            cli_logs.push("  -> nord");
-            cli_logs.push("  -> dracula");
-            cli_logs.push("  -> synthwave");
-            cli_logs.push("  -> cobalt");
-            cli_logs.push("  -> monokai");
-            cli_logs.push("  -> gruvbox");
-            cli_logs.push("  -> abyss");
-            cli_logs.push("  -> solaris");
-            cli_logs.push("  -> ghost");
-            cli_logs.push("[SYS_THEME]: Usage: theme <theme_name>");
+            push_cli_log("[SYS_THEME]: AVAILABLE PALETTES:");
+            push_cli_log("  -> classic");
+            push_cli_log("  -> tokyo");
+            push_cli_log("  -> redroom");
+            push_cli_log("  -> amber");
+            push_cli_log("  -> matrix");
+            push_cli_log("  -> cyberpunk");
+            push_cli_log("  -> nord");
+            push_cli_log("  -> dracula");
+            push_cli_log("  -> synthwave");
+            push_cli_log("  -> cobalt");
+            push_cli_log("  -> monokai");
+            push_cli_log("  -> gruvbox");
+            push_cli_log("  -> abyss");
+            push_cli_log("  -> solaris");
+            push_cli_log("  -> ghost");
+            push_cli_log("[SYS_THEME]: Usage: theme <theme_name>");
         } 
         else if (args == "classic" || args == "tokyo" || args == "redroom" || args == "amber" || args == "matrix" || 
                  args == "cyberpunk" || args == "nord" || args == "dracula" || args == "synthwave" || args == "cobalt" || 
                  args == "monokai" || args == "gruvbox" || args == "abyss" || args == "solaris" || args == "ghost") {
             set_active_theme(args);
-            cli_logs.push("[SYS_THEME]: Palette re-configured to [" + args + "]");
+            push_cli_log("[SYS_THEME]: Palette re-configured to [" + args + "]");
         } 
         else {
-            cli_logs.push("[ERROR]: Unknown palette '" + args + "'");
-            cli_logs.push("[ERROR]: Type 'theme list' to view all 15 themes.");
+            push_cli_log("[ERROR]: Unknown palette '" + args + "'");
+            push_cli_log("[ERROR]: Type 'theme list' to view all 15 themes.");
         }
     }
     else if (cmd == "0day" || cmd == "zeroday") {
         if (extract_canonical_name(current_url) != "zeroday.vnet") {
-            cli_logs.push("[ERROR]: ZERO-DAY SYNTHESIS ONLY ACCESSIBLE AT 'zeroday.vnet'");
+            push_cli_log("[ERROR]: ZERO-DAY SYNTHESIS ONLY ACCESSIBLE AT 'zeroday.vnet'");
         } else if (args == "LOT_0D1" || args == "overclock") {
             if (btc_balance < 0.80) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.80 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.80 VCOIN)");
             } else {
                 btc_balance = btc_balance - 0.80;
                 cd_dos = 0.0;
@@ -3823,41 +3842,41 @@ fn dispatch_cli_command(raw_input :: String) {
                 crt_heat = vmath.clamp(crt_heat + 15.0, 35.0, 100.0);
                 neural_paranoia = vmath.clamp(neural_paranoia + 20.0, 0.0, 100.0);
                 glitch_trigger = 0.8;
-                cli_logs.push("[0-DAY INJECTED]: KERNEL OVERCLOCK ACTIVE — COOLDOWNS WIPED!");
+                push_cli_log("[0-DAY INJECTED]: KERNEL OVERCLOCK ACTIVE — COOLDOWNS WIPED!");
             }
         } else if (args == "LOT_0D2" || args == "purge") {
             if (btc_balance < 0.50) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.50 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.50 VCOIN)");
             } else {
                 btc_balance = btc_balance - 0.50;
                 trace_level = int64(vmath.clamp(float64(trace_level - 50), 0.0, 100.0));
                 crt_heat = 35.0;
                 glitch_trigger = 0.5;
-                cli_logs.push("[0-DAY INJECTED]: CORTEX TRACE WIPED (-50% TRACE | CRT HEAT RESET)");
+                push_cli_log("[0-DAY INJECTED]: CORTEX TRACE WIPED (-50% TRACE | CRT HEAT RESET)");
             }
         } else if (args == "LOT_0D3" || args == "nuke") {
             if (btc_balance < 1.20) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.20 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.20 VCOIN)");
             } else {
                 btc_balance = btc_balance - 1.20;
                 crt_heat = vmath.clamp(crt_heat + 20.0, 35.0, 100.0);
-                cli_logs.push("[0-DAY INJECTED]: BGP BACKBONE NUKE DISPATCHED TO TARGET.");
+                push_cli_log("[0-DAY INJECTED]: BGP BACKBONE NUKE DISPATCHED TO TARGET.");
             }
         } else if (args == "LOT_0D4" || args == "bypass") {
             if (btc_balance < 1.50) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.50 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 1.50 VCOIN)");
             } else {
                 btc_balance = btc_balance - 1.50;
                 freq_tuner = 18.0; # Automatically forces carrier alignment
-                cli_logs.push("[0-DAY INJECTED]: VMEM SHELLCODE BYPASS FORCED RF FREQUENCY TO 18.0 HZ.");
+                push_cli_log("[0-DAY INJECTED]: VMEM SHELLCODE BYPASS FORCED RF FREQUENCY TO 18.0 HZ.");
             }
         } else if (args == "LOT_0D5" || args == "coldplate") {
             if (btc_balance < 0.90) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.90 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.90 VCOIN)");
             } else {
                 btc_balance = btc_balance - 0.90;
                 crt_heat = 35.0;
-                cli_logs.push("[0-DAY INJECTED]: NEURAL COLD-PLATE ENGAGED — CRT HEAT STABILIZED.");
+                push_cli_log("[0-DAY INJECTED]: NEURAL COLD-PLATE ENGAGED — CRT HEAT STABILIZED.");
             }
         }
     }
@@ -3868,7 +3887,7 @@ fn dispatch_cli_command(raw_input :: String) {
             target_inspect = clean_str(target_inspect.substr(7, target_inspect.length() - 7));
         }
 
-        cli_logs.push("========== RAW SOURCE: vnet://" + target_inspect + " ==========");
+        push_cli_log("========== RAW SOURCE: vnet://" + target_inspect + " ==========");
         
         raw_lines :: Array = load_page(target_inspect);
         
@@ -3877,13 +3896,13 @@ fn dispatch_cli_command(raw_input :: String) {
             
             if (line.length() > 9 && line.substr(0, 9) == "[COMMENT]") {
                 comment_body :: String = line.substr(10, line.length() - 10);
-                cli_logs.push("  [RAW_COMMENT]: " + truncate_str(comment_body, 70));
+                push_cli_log("  [RAW_COMMENT]: " + truncate_str(comment_body, 70));
             } else {
-                cli_logs.push("  [SRC]: " + truncate_str(line, 70));
+                push_cli_log("  [SRC]: " + truncate_str(line, 70));
             }
         };
         
-        cli_logs.push("==================================================");
+        push_cli_log("==================================================");
         
         if (cli_logs.length() > 16) {
             cli_scroll_y = float64(cli_logs.length() - 16) * 22.0;
@@ -3893,13 +3912,13 @@ fn dispatch_cli_command(raw_input :: String) {
         clean_arg :: String = clean_str(args);
 
         if (clean_arg == "") {
-            cli_logs.push("[ERROR]: Usage: shift <0-15>");
+            push_cli_log("[ERROR]: Usage: shift <0-15>");
         } else {
             raw_val :: Int64 = int64(clean_arg);
             
             bit_shift_offset = int64(vmath.clamp(float64(raw_val), 0.0, 15.0));
             
-            cli_logs.push("[SYSTEM]: Bit-shift offset set to " + string(bit_shift_offset));
+            push_cli_log("[SYSTEM]: Bit-shift offset set to " + string(bit_shift_offset));
         }
     }
     else if (cmd == "vdec" || cmd == "decode") {
@@ -3907,24 +3926,24 @@ fn dispatch_cli_command(raw_input :: String) {
         hz_delta  :: Float64 = vmath.abs(freq_tuner - target_hz);
 
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: vdec <key_offset> (e.g. vdec " + string(bit_shift_offset) + ")");
+            push_cli_log("[ERROR]: Usage: vdec <key_offset> (e.g. vdec " + string(bit_shift_offset) + ")");
         } else {
             input_offset :: Int64 = int64(args);
 
             if (active_raw_payload == 0) {
-                cli_logs.push("[vdec]: ERROR - No corrupted VFS memory payload on this site.");
+                push_cli_log("[vdec]: ERROR - No corrupted VFS memory payload on this site.");
             } else if (check_bit_alignment(active_raw_payload, bit_shift_offset) == 0) {
                 neural_paranoia = vmath.clamp(neural_paranoia + 12.0, 0.0, 100.0);
-                cli_logs.push("[vdec]: DECRYPTION FAILED - Bit alignment offset mismatch. Use 'shift <bits>'.");
+                push_cli_log("[vdec]: DECRYPTION FAILED - Bit alignment offset mismatch. Use 'shift <bits>'.");
             } else if (hz_delta > 0.8) {
                 neural_paranoia = vmath.clamp(neural_paranoia + 12.0, 0.0, 100.0);
-                cli_logs.push("[vdec]: FREQUENCY MISMATCH - RF signal carrier unaligned. Target: " + string(vmath.round(target_hz * 10.0) / 10.0) + " Hz.");
+                push_cli_log("[vdec]: FREQUENCY MISMATCH - RF signal carrier unaligned. Target: " + string(vmath.round(target_hz * 10.0) / 10.0) + " Hz.");
             } else if (lock_progress < 1.0) {
-                cli_logs.push("[vdec]: DECRYPTION FAILED - Carrier lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold frequency.");
+                push_cli_log("[vdec]: DECRYPTION FAILED - Carrier lock charging (" + string(int64(lock_progress * 100.0)) + "%)... Hold frequency.");
             } else if (input_offset != bit_shift_offset) {
-                cli_logs.push("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
+                push_cli_log("[vdec]: DECRYPTION FAILED - Key offset mismatch (" + string(input_offset) + " != " + string(bit_shift_offset) + ").");
             } else if (vdec_cracking_active == 1) {
-                cli_logs.push("[vdec]: KERNEL CRACKING ALREADY IN PROGRESS...");
+                push_cli_log("[vdec]: KERNEL CRACKING ALREADY IN PROGRESS...");
             } else {
                 # INITIATE THE CRACKING SEQUENCE
                 vdec_cracking_active = 1;
@@ -3938,61 +3957,61 @@ fn dispatch_cli_command(raw_input :: String) {
 
                 cli_overlay_open = 0; # Auto-close terminal so the cracking window is visible
                 glitch_trigger = 1.0;
-                cli_logs.push("[vdec]: DEPLOYING RING-0 BRUTEFORCE VECTOR. STAND BY...");
+                push_cli_log("[vdec]: DEPLOYING RING-0 BRUTEFORCE VECTOR. STAND BY...");
             }
         }
     }
     else if (cmd == "connect" || cmd == "goto") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: connect <url_address> (e.g. connect market.vnet)");
+            push_cli_log("[ERROR]: Usage: connect <url_address> (e.g. connect market.vnet)");
         } else {
             trigger_route_navigation(args);
         }
     }
     else if (cmd == "satscan") {
         if (extract_canonical_name(current_url) != "watchtower.vnet") {
-            cli_logs.push("[ERROR]: PANOPTICON SATELLITE ARRAY ONLY ACCESSIBLE FROM 'watchtower.vnet'");
+            push_cli_log("[ERROR]: PANOPTICON SATELLITE ARRAY ONLY ACCESSIBLE FROM 'watchtower.vnet'");
         } else if (cd_satscan > 0.0) {
-            cli_logs.push("[ERROR]: SAT-99 OPTICS RECHARGING (" + string(int64(cd_satscan) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: SAT-99 OPTICS RECHARGING (" + string(int64(cd_satscan) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.55) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR SATSCAN (REQUIRES 0.55 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR SATSCAN (REQUIRES 0.55 VCOIN)");
         } else {
             crt_heat = vmath.clamp(crt_heat + 12.0, 35.0, 100.0);
             btc_balance = btc_balance - 0.55;
             cd_satscan = 60.0;
             vnet.send_to(client_sock, server_ip, server_port, "SATSCAN:REQ");
             glitch_trigger = 0.6;
-            cli_logs.push("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL SWEEP (10 RANDOM NODES)...");
+            push_cli_log("[PANOPTICON SAT-99]: INITIATING SUB-ORBITAL SWEEP (10 RANDOM NODES)...");
         }
     }
     else if (cmd == "ion" || cmd == "ioncannon") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: ion <target_port_or_url> (e.g. ion market.vnet or ion 8012)");
+            push_cli_log("[ERROR]: Usage: ion <target_port_or_url> (e.g. ion market.vnet or ion 8012)");
         } else if (extract_canonical_name(current_url) != "orbital.vnet") {
-            cli_logs.push("[ERROR]: ORBITAL ION CANNON ONLY ACCESSIBLE FROM 'orbital_XXXXXXX.vnet'");
+            push_cli_log("[ERROR]: ORBITAL ION CANNON ONLY ACCESSIBLE FROM 'orbital_XXXXXXX.vnet'");
         } else if (btc_balance < 4.50) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ION CANNON STRIKE (REQUIRES 2.00 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR ION CANNON STRIKE (REQUIRES 2.00 VCOIN)");
         } else if (cd_ion > 0.0) {
-            cli_logs.push("[ERROR]: ORBITAL CANNON RECHARGING (" + string(int64(cd_ion) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: ORBITAL CANNON RECHARGING (" + string(int64(cd_ion) + 1) + "s REMAINING)");
         } else {
             crt_heat = vmath.clamp(crt_heat + 25.0, 35.0, 100.0);
             btc_balance = btc_balance - 4.50;
             glitch_trigger = 1.0;
             vnet.send_to(client_sock, server_ip, server_port, "ION_STRIKE:" + args);
-            cli_logs.push("[SAT-99 ION CANNON]: AUTHORIZING & FIRING SAT-99 KINETIC ION BEAM AT " + args + "...");
+            push_cli_log("[SAT-99 ION CANNON]: AUTHORIZING & FIRING SAT-99 KINETIC ION BEAM AT " + args + "...");
         }
     }
     else if (cmd == "probe") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: probe <target_port>");
+            push_cli_log("[ERROR]: Usage: probe <target_port>");
         } else if (btc_balance < 0.20) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.20;
             cd_probe = 10.0;
             vnet.send_to(client_sock, server_ip, server_port, "PROBE:" + args);
             glitch_trigger = 0.3;
-            cli_logs.push("[PROBE]: TRANSMITTING HARDWARE RECON PULSE TO PORT " + args + "...");
+            push_cli_log("[PROBE]: TRANSMITTING HARDWARE RECON PULSE TO PORT " + args + "...");
         }
     }
     else if (cmd == "purge") {
@@ -4000,11 +4019,11 @@ fn dispatch_cli_command(raw_input :: String) {
             raid_active = 0;
             raid_purged = 1;
             glitch_trigger = 0.5;
-            cli_logs.push("[SECURITY]: CRITICAL CACHE & SUSPECT LOGS PURGED!");
-            cli_logs.push("[SYS]: FEDERAL E-RAID BYPASSED. VEKTRA PMC DISENGAGED.");
+            push_cli_log("[SECURITY]: CRITICAL CACHE & SUSPECT LOGS PURGED!");
+            push_cli_log("[SYS]: FEDERAL E-RAID BYPASSED. VEKTRA PMC DISENGAGED.");
             vnet.send_to(client_sock, server_ip, server_port, "RAID_SUCCESS:" + string(my_port));
         } else {
-            cli_logs.push("[SYS]: NO ACTIVE E-RAID DETECTED.");
+            push_cli_log("[SYS]: NO ACTIVE E-RAID DETECTED.");
         }
     }
     else if (cmd == "proxy") {
@@ -4012,29 +4031,29 @@ fn dispatch_cli_command(raw_input :: String) {
         target_u = sub_parsed[0];
         via_node = sub_parsed[1]; # format: proxy target.vnet market.vnet
         if (target_u == "" || via_node == "") {
-            cli_logs.push("[ERROR]: Usage: proxy <target_url> <proxy_node_url>");
+            push_cli_log("[ERROR]: Usage: proxy <target_url> <proxy_node_url>");
         } else if (cd_proxy > 0.0) {
-            cli_logs.push("[ERROR]: PROXY COOLDOWN ACTIVE (" + string(int64(cd_proxy) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: PROXY COOLDOWN ACTIVE (" + string(int64(cd_proxy) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.40) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.40 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.40 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.40;
             cd_proxy = 120.0;
             vnet.send_to(client_sock, server_ip, server_port, "PROXY:" + via_node + ":" + target_u);
             trigger_route_navigation(target_u);
-            cli_logs.push("[PROXY]: ESTABLISHING MASKED CIRCUIT VIA " + via_node + " (COST: 0.40 VCOIN)...");
+            push_cli_log("[PROXY]: ESTABLISHING MASKED CIRCUIT VIA " + via_node + " (COST: 0.40 VCOIN)...");
         }
     }
     else if (cmd == "patch") {
         if (cd_patch > 0.0) {
-            cli_logs.push("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: PORT REBIND COOLDOWN ACTIVE (" + string(int64(cd_patch) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.70) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.70 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.70 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.70;
             cd_patch = 120.0;
             vnet.send_to(client_sock, server_ip, server_port, "PATCH:REBIND");
-            cli_logs.push("[SECURITY]: REQUESTING EMERGENCY PORT REBIND FROM GATEWAY...");
+            push_cli_log("[SECURITY]: REQUESTING EMERGENCY PORT REBIND FROM GATEWAY...");
         }
     }
     else if (cmd == "sniffer") {
@@ -4044,9 +4063,9 @@ fn dispatch_cli_command(raw_input :: String) {
 
         if (sub_cmd == "add") {
             if (freq_arg == "") {
-                cli_logs.push("[ERROR]: Usage: sniffer add <frequency> (e.g. sniffer add 76)");
+                push_cli_log("[ERROR]: Usage: sniffer add <frequency> (e.g. sniffer add 76)");
             } else if (btc_balance < 0.30) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO ADD FREQUENCY TO SNIFFER (REQUIRES 0.30 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN TO ADD FREQUENCY TO SNIFFER (REQUIRES 0.30 VCOIN)");
             } else {
                 target_f :: Int64 = int64(freq_arg);
                 btc_balance = btc_balance - 0.30;
@@ -4054,25 +4073,25 @@ fn dispatch_cli_command(raw_input :: String) {
                 my_sniffed_freqs.push(target_f);
                 vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_ADD:" + string(target_f));
                 
-                cli_logs.push("[SNIFFER]: ADDED FREQ " + string(target_f) + " Hz TO SNIFFING SYSTEM (-0.30 VCOIN)");
+                push_cli_log("[SNIFFER]: ADDED FREQ " + string(target_f) + " Hz TO SNIFFING SYSTEM (-0.30 VCOIN)");
             }
         } else if (sub_cmd == "list") {
-            cli_logs.push("========== ACTIVELY MONITORED FREQUENCIES ==========");
+            push_cli_log("========== ACTIVELY MONITORED FREQUENCIES ==========");
             if (my_sniffed_freqs.length() > 0) {
                 through sf_i :: 0..(my_sniffed_freqs.length() - 1) -> loop {
-                    cli_logs.push("  -> FREQ " + string(my_sniffed_freqs[sf_i]) + " Hz");
+                    push_cli_log("  -> FREQ " + string(my_sniffed_freqs[sf_i]) + " Hz");
                 };
             } else {
-                cli_logs.push("  [NO FREQUENCIES ADDED. USE 'sniffer add <freq>']");
+                push_cli_log("  [NO FREQUENCIES ADDED. USE 'sniffer add <freq>']");
             }
-            cli_logs.push("====================================================");
+            push_cli_log("====================================================");
         } else {
             if (sniffer_mode == 0 && btc_balance < 0.05) {
-                cli_logs.push("[ERROR]: INSUFFICIENT VCOIN TO INITIALIZE PACKET SNIFFER (REQUIRES 0.05 VCOIN)");
+                push_cli_log("[ERROR]: INSUFFICIENT VCOIN TO INITIALIZE PACKET SNIFFER (REQUIRES 0.05 VCOIN)");
             } else {
                 sniffer_mode = (sniffer_mode == 1) ? 0 : 1;
                 status_str :: String = (sniffer_mode == 1) ? "ENABLED" : "DISABLED";
-                cli_logs.push("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
+                push_cli_log("[SNIFFER]: GLOBAL PACKET INTERCEPTOR " + status_str);
                 sniffer_upkeep_timer = 0.0;
                 vnet.send_to(client_sock, server_ip, server_port, "SNIFFER_STATUS:" + string(sniffer_mode));
             }
@@ -4080,10 +4099,10 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "freq") {
         if (args == "") {
-            cli_logs.push("[FREQ]: CURRENT TUNED FREQUENCY: " + string(freq_tuner) + " Hz");
+            push_cli_log("[FREQ]: CURRENT TUNED FREQUENCY: " + string(freq_tuner) + " Hz");
         } else {
             freq_tuner = vmath.clamp(float64(int64(args)), 1.0, 100.0);
-            cli_logs.push("[FREQ]: TUNED TO " + string(freq_tuner) + " Hz");
+            push_cli_log("[FREQ]: TUNED TO " + string(freq_tuner) + " Hz");
             
             if (current_url == "silence.vnet") {
                 page_body = load_page(current_url);
@@ -4095,11 +4114,11 @@ fn dispatch_cli_command(raw_input :: String) {
         target_u = sub_parsed[0];
         target_p = sub_parsed[1];
         if (target_u == "" || target_p == "") {
-            cli_logs.push("[ERROR]: Usage: decoy <url> <dummy_port>");
+            push_cli_log("[ERROR]: Usage: decoy <url> <dummy_port>");
         } else if (cd_decoy > 0.0) {
-            cli_logs.push("[ERROR]: DECOY COOLDOWN (" + string(int64(cd_decoy) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: DECOY COOLDOWN (" + string(int64(cd_decoy) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.10) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.10 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN (REQUIRES 0.10 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.10;
             cd_decoy = 5.0;
@@ -4111,31 +4130,31 @@ fn dispatch_cli_command(raw_input :: String) {
             purchase_ice_firewall();
             if (current_url == "market.vnet") { page_body = load_page(current_url); }
         } else {
-            cli_logs.push("[ERROR]: Unknown store item. Usage: buy ice");
+            push_cli_log("[ERROR]: Unknown store item. Usage: buy ice");
         }
     }
     else if (cmd == "ice") {
-        cli_logs.push("[ICE STATUS]: ACTIVE FIREWALL SHIELDS: [" + string(ice_charges) + "/3]");
+        push_cli_log("[ICE STATUS]: ACTIVE FIREWALL SHIELDS: [" + string(ice_charges) + "/3]");
     }
     else if (cmd == "netscan") {
         if (current_url == "hellroom.vnet") {
-            cli_logs.push("[HELLROOM_CURSE]: SCANNERS ARE BLIND BEFORE THE HORDE. YOUR PACKETS BELONG TO THE FLAMES NOW.");
+            push_cli_log("[HELLROOM_CURSE]: SCANNERS ARE BLIND BEFORE THE HORDE. YOUR PACKETS BELONG TO THE FLAMES NOW.");
             glitch_trigger = 0.9;
         } else if (current_url == "vnet.dir") {
-            cli_logs.push("[ROOT_ANOMALY]: SCANNING THE MAIN DIRECTORY YIELDS NO NETWORK PEERS...");
+            push_cli_log("[ROOT_ANOMALY]: SCANNING THE MAIN DIRECTORY YIELDS NO NETWORK PEERS...");
             glitch_trigger = 1.2;
         } else {
-            cli_logs.push("[NETSCAN]: Scanning active peers on " + current_url + "...");
+            push_cli_log("[NETSCAN]: Scanning active peers on " + current_url + "...");
             vnet.send_to(client_sock, server_ip, server_port, "NETSCAN:" + current_url);
         }
     }
     else if (cmd == "dos") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: dos <target_port>");
+            push_cli_log("[ERROR]: Usage: dos <target_port>");
         } else if (cd_dos > 0.0) {
-            cli_logs.push("[ERROR]: DOS EXPLOIT RECHARGING (" + string(int64(cd_dos) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: DOS EXPLOIT RECHARGING (" + string(int64(cd_dos) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.25) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.25 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.25 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.25;
             cd_dos = 15.0;
@@ -4147,11 +4166,11 @@ fn dispatch_cli_command(raw_input :: String) {
         target_p = sub_parsed[0];
         target_u = sub_parsed[1];
         if (target_p == "" || target_u == "") {
-            cli_logs.push("[ERROR]: Usage: redirect <target_port> <destination_url>");
+            push_cli_log("[ERROR]: Usage: redirect <target_port> <destination_url>");
         } else if (cd_redirect > 0.0) {
-            cli_logs.push("[ERROR]: BGP HIJACK RECHARGING (" + string(int64(cd_redirect) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: BGP HIJACK RECHARGING (" + string(int64(cd_redirect) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.15) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.15 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.15 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.15;
             cd_redirect = 10.0;
@@ -4160,42 +4179,42 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "win") {
         if (extract_canonical_name(current_url) != "terminal.vnet") {
-            cli_logs.push("[ERROR]: MASTER GATEWAY UNAVAILABLE. NAVIGATE TO terminal.vnet FIRST.");
+            push_cli_log("[ERROR]: MASTER GATEWAY UNAVAILABLE. NAVIGATE TO terminal.vnet FIRST.");
         } else if (args == "") {
-            cli_logs.push("[ERROR]: Usage: win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>");
+            push_cli_log("[ERROR]: Usage: win <k1> <k2> <k3> <k4> <k5> <k6> <k7> <k8>");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "WIN:" + args + ":" + player_handle);
         }
     }
     else if (cmd == "takeover") {
         if (btc_balance < 30.0) {
-            cli_logs.push("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
+            push_cli_log("[ERROR]: TAKEOVER REQUIRES 25.00 VCOIN (CURRENT: " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN)");
         } else {
             vnet.send_to(client_sock, server_ip, server_port, "TAKEOVER:" + player_handle);
         }
     }
     else if (cmd == "overload") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: overload <target_url>");
+            push_cli_log("[ERROR]: Usage: overload <target_url>");
         } else if (cd_overload > 0.0) {
-            cli_logs.push("[ERROR]: OVERLOAD COOLDOWN ACTIVE (" + string(int64(cd_overload) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: OVERLOAD COOLDOWN ACTIVE (" + string(int64(cd_overload) + 1) + "s REMAINING)");
         } else if (btc_balance < 1.50) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 1.50 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 1.50 VCOIN)");
         } else {
             crt_heat = vmath.clamp(crt_heat + 15.0, 35.0, 100.0);
             btc_balance = btc_balance - 1.50;
             cd_overload = 25.0;
             vnet.send_to(client_sock, server_ip, server_port, "OVERLOAD:" + args + ":" + player_handle);
-            cli_logs.push("[OVERLOAD]: TRANSMITTING SUB-ROUTINE CASCADE TO " + args + " (COST: 1.50 VCOIN)...");
+            push_cli_log("[OVERLOAD]: TRANSMITTING SUB-ROUTINE CASCADE TO " + args + " (COST: 1.50 VCOIN)...");
         }
     }
     else if (cmd == "snoop") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: snoop <target_port>");
+            push_cli_log("[ERROR]: Usage: snoop <target_port>");
         } else if (cd_snoop > 0.0) {
-            cli_logs.push("[ERROR]: SNOOP RECHARGING (" + string(int64(cd_snoop) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: SNOOP RECHARGING (" + string(int64(cd_snoop) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.05) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.05 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.05 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.05;
             cd_snoop = 5.0;
@@ -4204,11 +4223,11 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "spike") {
         if (args == "") {
-            cli_logs.push("[ERROR]: Usage: spike <target_port>");
+            push_cli_log("[ERROR]: Usage: spike <target_port>");
         } else if (cd_spike > 0.0) {
-            cli_logs.push("[ERROR]: TRACE SPIKE RECHARGING (" + string(int64(cd_spike) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: TRACE SPIKE RECHARGING (" + string(int64(cd_spike) + 1) + "s REMAINING)");
         } else if (btc_balance < 0.20) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN BALANCE (REQUIRES 0.20 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.20;
             cd_spike = 12.0;
@@ -4217,11 +4236,11 @@ fn dispatch_cli_command(raw_input :: String) {
     }
     else if (cmd == "mine") {
         if (extract_canonical_name(current_url) != "crypto.vnet") {
-            cli_logs.push("[ERROR]: MINING ONLY AVAILABLE AT 'crypto.vnet'");
+            push_cli_log("[ERROR]: MINING ONLY AVAILABLE AT 'crypto.vnet'");
         } else if (cd_mine > 0.0) {
-            cli_logs.push("[ERROR]: RIG COOLING DOWN (" + string(int64(cd_mine) + 1) + "s REMAINING)");
+            push_cli_log("[ERROR]: RIG COOLING DOWN (" + string(int64(cd_mine) + 1) + "s REMAINING)");
         } else if (current_mined_blocks.length() == 0) {
-            cli_logs.push("[ERROR]: NO ACTIVE BLOCKS AVAILABLE IN POOL");
+            push_cli_log("[ERROR]: NO ACTIVE BLOCKS AVAILABLE IN POOL");
         } else {
             clean_target :: String = clean_str(args);
             if (clean_target.length() > 0 && clean_target.substr(0, 1) == "#") {
@@ -4229,7 +4248,7 @@ fn dispatch_cli_command(raw_input :: String) {
             }
 
             if (clean_target == "") {
-                cli_logs.push("[ERROR]: BLOCK TARGET REQUIRED (e.g., 'mine #3435')");
+                push_cli_log("[ERROR]: BLOCK TARGET REQUIRED (e.g., 'mine #3435')");
             } else {
                 found_idx    :: Int64   = -1;
                 block_reward :: Float64 = 0.0;
@@ -4255,74 +4274,74 @@ fn dispatch_cli_command(raw_input :: String) {
                     current_mined_blocks.delete_at(found_idx);
 
                     vnet.send_to(client_sock, server_ip, server_port, "MINE_EVENT:SUCCESS:" + target_id);
-                    cli_logs.push("[MINER]: MINED BLOCK #" + target_id + "! +" + string(block_reward) + " VCOIN REWARD");
+                    push_cli_log("[MINER]: MINED BLOCK #" + target_id + "! +" + string(block_reward) + " VCOIN REWARD");
                     
                     page_body = load_page(current_url);
                 } else {
-                    cli_logs.push("[ERROR]: BLOCK #" + clean_target + " NOT FOUND IN ACTIVE POOL");
+                    push_cli_log("[ERROR]: BLOCK #" + clean_target + " NOT FOUND IN ACTIVE POOL");
                 }
             }
         }
     }
     else if (cmd == "calm" || cmd == "meds") {
         if (btc_balance < 0.15) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR SYNAPTIC STABILIZER (REQUIRES 0.15 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR SYNAPTIC STABILIZER (REQUIRES 0.15 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.15;
             neural_paranoia = vmath.clamp(neural_paranoia - 40.0, 0.0, 100.0);
             glitch_trigger = 0.3;
-            cli_logs.push("[NEURAL_CALM]: SYNAPTIC STABILIZER DEPLOYED. PARANOIA PURGED BY -40%.");
+            push_cli_log("[NEURAL_CALM]: SYNAPTIC STABILIZER DEPLOYED. PARANOIA PURGED BY -40%.");
         }
     }
     else if (cmd == "flush") {
         if (btc_balance < 0.10) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR PROXY FLUSH (REQUIRES 0.10 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR PROXY FLUSH (REQUIRES 0.10 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.10;
             trace_level = int64(vmath.clamp(float64(trace_level - 30), 0.0, 100.0));
             neural_paranoia = vmath.clamp(neural_paranoia - 15.0, 0.0, 100.0);
-            cli_logs.push("[VPN]: ROUTE PURGED! TRACE -30% | NEURAL PARANOIA -15%.");
+            push_cli_log("[VPN]: ROUTE PURGED! TRACE -30% | NEURAL PARANOIA -15%.");
         }
     }
     else if (cmd == "wallet") {
-        cli_logs.push("================ WALLET & DEFENSE ================");
-        cli_logs.push("  VCOIN BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN");
-        cli_logs.push("  TRACE THREAT : " + string(trace_level) + "%");
-        cli_logs.push("  ICE SHIELDS  : [" + string(ice_charges) + "/1] LAYERS ACTIVE");
-        cli_logs.push("  PATCH COOLDOWN: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"));
-        cli_logs.push("==================================================");
+        push_cli_log("================ WALLET & DEFENSE ================");
+        push_cli_log("  VCOIN BALANCE  : " + string(vmath.round(btc_balance * 100.0) / 100.0) + " VCOIN");
+        push_cli_log("  TRACE THREAT : " + string(trace_level) + "%");
+        push_cli_log("  ICE SHIELDS  : [" + string(ice_charges) + "/1] LAYERS ACTIVE");
+        push_cli_log("  PATCH COOLDOWN: " + ((cd_patch > 0.0) ? (string(int64(cd_patch)) + "s") : "READY"));
+        push_cli_log("==================================================");
     }
     else if (cmd == "scan") {
         if (cd_scan > 0.0) {
-            cli_logs.push("[ERROR]: DEEP SCAN COOLING DOWN (" + string(int64(cd_scan)) + "s REMAINING)");
+            push_cli_log("[ERROR]: DEEP SCAN COOLING DOWN (" + string(int64(cd_scan)) + "s REMAINING)");
         } else {
             cd_scan = 240.0; # 4 minutes = 240 seconds
             vnet.send_to(client_sock, server_ip, server_port, "SCAN:REQ");
-            cli_logs.push("[SCAN]: INITIATING DEEP SUBNET FREQUENCY SWEEP...");
+            push_cli_log("[SCAN]: INITIATING DEEP SUBNET FREQUENCY SWEEP...");
         }
     }
     else if (cmd == "history") {
-        cli_logs.push("========== DISCOVERED SUBNET DIRECTORY ==========");
+        push_cli_log("========== DISCOVERED SUBNET DIRECTORY ==========");
         if (my_assigned_sites.length() > 0) {
             through h_i :: 0..(my_assigned_sites.length() - 1) -> loop {
-                cli_logs.push("  -> vnet://" + string(my_assigned_sites[h_i]));
+                push_cli_log("  -> vnet://" + string(my_assigned_sites[h_i]));
             };
         } else {
-            cli_logs.push("  [NO SITES STORED IN CURRENT ROUTING TABLE]");
+            push_cli_log("  [NO SITES STORED IN CURRENT ROUTING TABLE]");
         }
-        cli_logs.push("==================================================");
+        push_cli_log("==================================================");
     }
     else if (cmd == "bounty") {
         trigger_route_navigation("bounty.vnet");
-        cli_logs.push("[BOUNTY]: ROUTING TO CONTRACT DIRECTORY...");
+        push_cli_log("[BOUNTY]: ROUTING TO CONTRACT DIRECTORY...");
     }
     else if (cmd == "crack") {
-        if (args == "") { cli_logs.push("[ERROR]: Usage: crack <val>"); }
+        if (args == "") { push_cli_log("[ERROR]: Usage: crack <val>"); }
         else { vnet.send_to(client_sock, server_ip, server_port, "CRACK:" + args); }
     }
     else if (cmd == "vektrapay") {
             if (extract_canonical_name(current_url) != "vektrapay.vnet") {
-            cli_logs.push("[ERROR]: VEKTRAPAY GATEWAY UNREACHABLE. CONNECT TO vektrapay.vnet FIRST.");
+            push_cli_log("[ERROR]: VEKTRAPAY GATEWAY UNREACHABLE. CONNECT TO vektrapay.vnet FIRST.");
         } else {
             sub_parsed = parse_input(args);
             action :: String = sub_parsed[0];
@@ -4331,12 +4350,12 @@ fn dispatch_cli_command(raw_input :: String) {
             if (action == "transfer" || action == "lock" || action == "create") {
                 amt :: Float64 = float64(val_str);
                 if (amt <= 0.0 || btc_balance < amt) {
-                    cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR ESCROW CREATION");
+                    push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR ESCROW CREATION");
                 } else {
                     btc_balance = btc_balance - amt;
                     escrow_key :: Int64 = int64(vmath.random(10000, 99999));
                     vnet.send_to(client_sock, server_ip, server_port, "PAY_TRANSFER:" + string(escrow_key) + ":" + string(amt));
-                    cli_logs.push("[VEKTRAPAY]: GENERATED ESCROW KEY " + string(escrow_key) + " FOR " + string(amt) + " VCOIN");
+                    push_cli_log("[VEKTRAPAY]: GENERATED ESCROW KEY " + string(escrow_key) + " FOR " + string(amt) + " VCOIN");
                     
                     if (extract_canonical_name(current_url) == "vektrapay.vnet") {
                         page_body = load_page(current_url);
@@ -4345,93 +4364,93 @@ fn dispatch_cli_command(raw_input :: String) {
             }
             else if (action == "claim") {
                 if (val_str == "") {
-                    cli_logs.push("[ERROR]: Usage: vektrapay claim <5_digit_key>");
+                    push_cli_log("[ERROR]: Usage: vektrapay claim <5_digit_key>");
                 } else {
                     vnet.send_to(client_sock, server_ip, server_port, "PAY_CLAIM:" + val_str);
-                    cli_logs.push("[VEKTRAPAY]: SUBMITTING CLAIM FOR ESCROW KEY " + val_str + "...");
+                    push_cli_log("[VEKTRAPAY]: SUBMITTING CLAIM FOR ESCROW KEY " + val_str + "...");
                 }
             }
             else {
-                cli_logs.push("========== VEKTRAPAY COMMANDS ==========");
-                cli_logs.push("  vektrapay create <amount>  - Lock VCOIN into a 5-digit escrow key");
-                cli_logs.push("  vektrapay claim <key>      - Redeem a 5-digit VektraPay escrow key");
-                cli_logs.push("========================================");
+                push_cli_log("========== VEKTRAPAY COMMANDS ==========");
+                push_cli_log("  vektrapay create <amount>  - Lock VCOIN into a 5-digit escrow key");
+                push_cli_log("  vektrapay claim <key>      - Redeem a 5-digit VektraPay escrow key");
+                push_cli_log("========================================");
             }
         }
     }
     else if (cmd == "cat") {
         if (args == "") { 
-            cli_logs.push("[ERROR]: Usage: cat <vfs_path>"); 
+            push_cli_log("[ERROR]: Usage: cat <vfs_path>"); 
         } else if (btc_balance < 0.05) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR VFS BUS READ (REQUIRES 0.05 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR VFS BUS READ (REQUIRES 0.05 VCOIN)");
         } else {
             trace_level = int64(vmath.clamp(float64(trace_level + 15), 0.0, 100.0));
 
             btc_balance = btc_balance - 0.05;
             vnet.send_to(client_sock, server_ip, server_port, "CAT:" + args);
-            cli_logs.push("[VFS_BUS]: READING REGISTER " + args + "...");
+            push_cli_log("[VFS_BUS]: READING REGISTER " + args + "...");
         }
     }
     else if (cmd == "ls" || cmd == "dir") {
         path_arg :: String = (args == "") ? "/" : clean_str(args);
         if (btc_balance < 0.02) {
-            cli_logs.push("[ERROR]: INSUFFICIENT VCOIN FOR VFS DIRECTORY ENUMERATION (REQUIRES 0.02 VCOIN)");
+            push_cli_log("[ERROR]: INSUFFICIENT VCOIN FOR VFS DIRECTORY ENUMERATION (REQUIRES 0.02 VCOIN)");
         } else {
             btc_balance = btc_balance - 0.02;
             vnet.send_to(client_sock, server_ip, server_port, "LS:" + path_arg);
-            cli_logs.push("[VFS_BUS]: SCANNING DIRECTORY PATH " + path_arg + "...");
+            push_cli_log("[VFS_BUS]: SCANNING DIRECTORY PATH " + path_arg + "...");
         }
     }
     else if (cmd == "help") {
-        cli_logs.push("========== THREE VICTORY GOALS ==========");
-        cli_logs.push("  1. Root Breach    : win <k1> ... <k8> at terminal.vnet");
-        cli_logs.push("  2. Grid Blackout  : overload 5 mutual pages (market, vault, terminal, crypto, hellroom)");
-        cli_logs.push("  3. Economic Control: Reach 25.0 VCOIN and type 'takeover'");
-        cli_logs.push("========== CYBERWARFARE & SENSING COMMANDS ==========");
-        cli_logs.push("  connect <url>           - Navigate browser to target .vnet URL");
-        cli_logs.push("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
-        cli_logs.push("  sniffer                 - Toggle global UDP packet sniffer mode");
-        cli_logs.push("  satscan                 - [0.55 VCOIN | 60s CD] Sweep network thermal radar (watchtower.vnet)");
-        cli_logs.push("  freq <hz>               - Tune RF signal analyzer frequency");
-        cli_logs.push("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
-        cli_logs.push("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
-        cli_logs.push("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
-        cli_logs.push("  takeover                - [25.0 VCOIN] Buy out network for victory");
-        cli_logs.push("  overload <url>          - [1.50 VCOIN] Force site offline for 30s");
-        cli_logs.push("  chat <msg> / msg <msg>  - Send real-time P2P message");
-        cli_logs.push("  netscan                 - Discover active peers on current URL");
-        cli_logs.push("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
-        cli_logs.push("  history                 - Display all known assigned routing nodes");
-        cli_logs.push("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy");
-        cli_logs.push("  bounty                  - Quick jump to target bounty board");
-        cli_logs.push("========== OFFENSIVE EXPLOIT COMMANDS ==========");
-        cli_logs.push("  probe <port>            - [0.20 VCOIN |  NO CD] Probe target node defenses & state");
-        cli_logs.push("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
-        cli_logs.push("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
-        cli_logs.push("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
-        cli_logs.push("  spike <port>            - [0.20 VCOIN | 12s CD] Force +35% threat trace");
-        cli_logs.push("  overload <url>          - [1.50 VCOIN | 240s CD] Force target node offline for 30s");
-        cli_logs.push("  crack <val>             - Send decryption challenge vector to network");
-        cli_logs.push("========== ECONOMY & UTILITY COMMANDS ==========");
-        cli_logs.push("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
-        cli_logs.push("  shift <bits>            - Tune hardware bit-shift offset (0-15)");
-        cli_logs.push("  vdec <offset>           - Decode active carrier key on terminal overlay");
-        cli_logs.push("  cat <path>              - Inspect remote VFS file/config key data");
-        cli_logs.push("  inspect <url>           - Dump raw page source markup & comments");
-        cli_logs.push("  calm / meds             - [0.15 VCOIN] Purge neural paranoia by -40%");
-        cli_logs.push("  purge                   - Clear unencrypted logs to bypass E-Raid");
-        cli_logs.push("  theme <name|list>       - Change system color palette (15 options)");
-        cli_logs.push("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
-        cli_logs.push("  wallet                  - Display balance & trace stats");
-        cli_logs.push("  clear                   - Wipe overlay terminal log buffer");
-        cli_logs.push("==================================================");
+        push_cli_log("========== THREE VICTORY GOALS ==========");
+        push_cli_log("  1. Root Breach    : win <k1> ... <k8> at terminal.vnet");
+        push_cli_log("  2. Grid Blackout  : overload 5 mutual pages (market, vault, terminal, crypto, hellroom)");
+        push_cli_log("  3. Economic Control: Reach 25.0 VCOIN and type 'takeover'");
+        push_cli_log("========== CYBERWARFARE & SENSING COMMANDS ==========");
+        push_cli_log("  connect <url>           - Navigate browser to target .vnet URL");
+        push_cli_log("  patch                   - [0.70 VCOIN | 120s CD] Emergency rebind new socket port");
+        push_cli_log("  sniffer                 - Toggle global UDP packet sniffer mode");
+        push_cli_log("  satscan                 - [0.55 VCOIN | 60s CD] Sweep network thermal radar (watchtower.vnet)");
+        push_cli_log("  freq <hz>               - Tune RF signal analyzer frequency");
+        push_cli_log("  decoy <url> <port>      - [0.10 VCOIN] Deploy ambush trap on node");
+        push_cli_log("  buy ice                 - [0.30 VCOIN] Purchase 1 layer of ICE");
+        push_cli_log("  win <k1> ... <k8>       - Submit all 8 key codes to breach vault");
+        push_cli_log("  takeover                - [25.0 VCOIN] Buy out network for victory");
+        push_cli_log("  overload <url>          - [1.50 VCOIN] Force site offline for 30s");
+        push_cli_log("  chat <msg> / msg <msg>  - Send real-time P2P message");
+        push_cli_log("  netscan                 - Discover active peers on current URL");
+        push_cli_log("  scan                    - [240s CD] Initiate deep subnet frequency sweep");
+        push_cli_log("  history                 - Display all known assigned routing nodes");
+        push_cli_log("  proxy <url> <node>      - [0.40 VCOIN | 120s CD] Route connection through intermediate proxy");
+        push_cli_log("  bounty                  - Quick jump to target bounty board");
+        push_cli_log("========== OFFENSIVE EXPLOIT COMMANDS ==========");
+        push_cli_log("  probe <port>            - [0.20 VCOIN |  NO CD] Probe target node defenses & state");
+        push_cli_log("  dos <port>              - [0.25 VCOIN | 15s CD] Freeze peer (3x = Drop Key)");
+        push_cli_log("  redirect <port> <url>   - [0.15 VCOIN | 10s CD] BGP Hijack peer browser");
+        push_cli_log("  snoop <port>            - [0.05 VCOIN |  5s CD] Interrogate target URL");
+        push_cli_log("  spike <port>            - [0.20 VCOIN | 12s CD] Force +35% threat trace");
+        push_cli_log("  overload <url>          - [1.50 VCOIN | 240s CD] Force target node offline for 30s");
+        push_cli_log("  crack <val>             - Send decryption challenge vector to network");
+        push_cli_log("========== ECONOMY & UTILITY COMMANDS ==========");
+        push_cli_log("  mine                    - Mine +0.05 VCOIN at crypto.vnet");
+        push_cli_log("  shift <bits>            - Tune hardware bit-shift offset (0-15)");
+        push_cli_log("  vdec <offset>           - Decode active carrier key on terminal overlay");
+        push_cli_log("  cat <path>              - Inspect remote VFS file/config key data");
+        push_cli_log("  inspect <url>           - Dump raw page source markup & comments");
+        push_cli_log("  calm / meds             - [0.15 VCOIN] Purge neural paranoia by -40%");
+        push_cli_log("  purge                   - Clear unencrypted logs to bypass E-Raid");
+        push_cli_log("  theme <name|list>       - Change system color palette (15 options)");
+        push_cli_log("  flush                   - [0.10 VCOIN] Lower trace level by -30%");
+        push_cli_log("  wallet                  - Display balance & trace stats");
+        push_cli_log("  clear                   - Wipe overlay terminal log buffer");
+        push_cli_log("==================================================");
     }
     else if (cmd == "clear") {
         cli_logs.clear();
         cli_logs = ["[OVERLAY TERMINAL BUFFER CLEARED]"];
     }
     else {
-        cli_logs.push("[ERR]: UNKNOWN COMMAND '" + cmd + "'");
+        push_cli_log("[ERR]: UNKNOWN COMMAND '" + cmd + "'");
     }
 
     if (cli_logs.length() > 16) {
@@ -4453,10 +4472,13 @@ while (vglib.running()) {
     vaudio.update_stream(stream_e_raid);
     vaudio.update_stream(stream_amb_music);
     vaudio.update_stream(stream_wall_heater);
+
+
     # ================================================================
     # SERVER IP CONNECTION MENU
     # ================================================================
     if (is_in_ip_menu == 1) {
+        
         run_time = run_time + 0.016;
         
         m_pos   = vglib.mouse_pos();
@@ -4626,6 +4648,27 @@ while (vglib.running()) {
     run_time     = run_time + 0.016;
     cursor_blink = cursor_blink + 0.016;
 
+    # ================================================================
+    # GARBAGE COLLECTOR - Runs every 30 seconds
+    # ================================================================
+    if (vmath.fmod(run_time, 30.0) < 0.016) {
+        if (cli_logs.length() > MAX_CLI_LOGS) {
+            while (cli_logs.length() > MAX_CLI_LOGS) {
+                cli_logs.pop_front();
+            }
+        }
+        if (vnet_feed_logs.length() > MAX_FEED_LOGS) {
+            while (vnet_feed_logs.length() > MAX_FEED_LOGS) {
+                vnet_feed_logs.pop_front();
+            }
+        }
+        if (current_mined_blocks.length() > 50) {
+            while (current_mined_blocks.length() > 50) {
+                current_mined_blocks.pop_front();
+            }
+        }
+    }
+
     heartbeat_timer = heartbeat_timer + 0.016;
     if (heartbeat_timer >= 3.0) {
         heartbeat_timer = 0.0;
@@ -4665,10 +4708,10 @@ while (vglib.running()) {
                 sniffer_upkeep_timer = 0.0;
                 if (btc_balance >= 0.02) {
                     trace_level = int64(vmath.clamp(float64(trace_level + 25), 0.0, 100.0));
-                    cli_logs.push("[SNIFFER_UPKEEP]: WARNING: PROMISCUOUS MODE INCREASING TRACE (+25%)");
+                    push_cli_log("[SNIFFER_UPKEEP]: WARNING: PROMISCUOUS MODE INCREASING TRACE (+25%)");
                 } else {
                     sniffer_mode = 0;
-                    cli_logs.push("[POWER FAULT]: INSUFFICIENT VCOIN RESERVES! PACKET SNIFFER FORCED OFFLINE.");
+                    push_cli_log("[POWER FAULT]: INSUFFICIENT VCOIN RESERVES! PACKET SNIFFER FORCED OFFLINE.");
                 }
             }
         }
@@ -4682,8 +4725,8 @@ while (vglib.running()) {
                 trace_level = int64(vmath.clamp(float64(trace_level + 50), 0.0, 100.0));
                 glitch_trigger = 1.0;
                 
-                cli_logs.push("[PENALTY]: E-RAID PURGE FAILED!");
-                cli_logs.push("[VEKTRA PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
+                push_cli_log("[PENALTY]: E-RAID PURGE FAILED!");
+                push_cli_log("[VEKTRA PMC]: SEIZED 5.00 VCOIN & SPIKED BASE TRACE LEVEL (+50%)!");
             }
         } else {
             vaudio.sound_volume(stream_e_raid, 0.00);
@@ -4700,7 +4743,7 @@ while (vglib.running()) {
                 vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
                 trace_level = int64(vmath.clamp(float64(trace_level + 5), 0.0, 100.0));
                 glitch_trigger = 0.4;
-                cli_logs.push("[TOR_ROUTE]: CONNECTION ESTABLISHED TO " + current_url);
+                push_cli_log("[TOR_ROUTE]: CONNECTION ESTABLISHED TO " + current_url);
             }
         }
 
@@ -4741,7 +4784,7 @@ while (vglib.running()) {
             vnet.send_to(client_sock, server_ip, server_port, "TRACE_BUST:LOCKOUT");
             
             glitch_trigger = 0.9;
-            cli_logs.push("[EMERGENCY_ICE]: TRACE REACHED 100%! NODE DISCONNECTED & FINED 0.30 VCOIN!");
+            push_cli_log("[EMERGENCY_ICE]: TRACE REACHED 100%! NODE DISCONNECTED & FINED 0.30 VCOIN!");
         }
 
         if (dos_timer > 0.0) {
@@ -4940,7 +4983,7 @@ while (vglib.running()) {
         else if (net_msg.length() >= 16 && net_msg.substr(0, 16) == "SNIFFER_ADD_ACK:") {
             added_f :: String = net_msg.substr(16, net_msg.length() - 16);
             glitch_trigger = 0.4;
-            cli_logs.push("[SNIFFER_SYS]: FREQUENCY " + added_f + " Hz REGISTERED TO GLOBAL INTERCEPT GRID.");
+            push_cli_log("[SNIFFER_SYS]: FREQUENCY " + added_f + " Hz REGISTERED TO GLOBAL INTERCEPT GRID.");
         }
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "WHISPER_IN:") {
             w_raw :: String = net_msg.substr(11, net_msg.length() - 11);
@@ -4952,7 +4995,7 @@ while (vglib.running()) {
                 whisper_formatted :: String = "[WHISPER FROM <" + from_handle + ">]: " + w_msg;
                 
                 vnet_feed_logs.push(whisper_formatted);
-                cli_logs.push(whisper_formatted);
+                push_cli_log(whisper_formatted);
                 
                 vaudio.play_sound(click_sfx);
                 glitch_trigger = 0.5;
@@ -4962,12 +5005,12 @@ while (vglib.running()) {
             claimed_amt :: Float64 = float64(net_msg.substr(18, net_msg.length() - 18));
             btc_balance = btc_balance + claimed_amt;
             glitch_trigger = 0.4;
-            cli_logs.push("[VEKTRAPAY]: ESCROW CLAIM SUCCESSFUL! +" + string(claimed_amt) + " VCOIN ADDED TO WALLET");
+            push_cli_log("[VEKTRAPAY]: ESCROW CLAIM SUCCESSFUL! +" + string(claimed_amt) + " VCOIN ADDED TO WALLET");
         }
         else if (net_msg.length() >= 17 && net_msg.substr(0, 17) == "PAY_CLAIM_FAILED:") {
             reason_err :: String = net_msg.substr(17, net_msg.length() - 17);
             glitch_trigger = 0.6;
-            cli_logs.push("[VEKTRAPAY ERROR]: CLAIM FAILED - " + reason_err);
+            push_cli_log("[VEKTRAPAY ERROR]: CLAIM FAILED - " + reason_err);
         }
         else if (net_msg.length() >= 12 && net_msg.substr(0, 12) == "ESCROW_LIST:") {
             raw_escrows :: String = net_msg.substr(12, net_msg.length() - 12);
@@ -5010,13 +5053,13 @@ while (vglib.running()) {
             if (active_down_url != parsed_down_url || active_down_timer <= 0.0) {
                 active_down_url = parsed_down_url;
                 active_down_timer = 45.0;
-                cli_logs.push("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
+                push_cli_log("[CRITICAL]: " + active_down_url + " HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
             }
             glitch_trigger = 0.8;
         }
         else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "VFS_DATA:") {
             raw_vfs :: String = net_msg.substr(9, net_msg.length() - 9);
-            cli_logs.push("[VFS_READ]: " + raw_vfs);
+            push_cli_log("[VFS_READ]: " + raw_vfs);
             
             btc_balance = btc_balance + 0.30;
             
@@ -5033,18 +5076,18 @@ while (vglib.running()) {
                 dir_path :: String = raw_list_payload.substr(0, sep_ls);
                 files_str :: String = raw_list_payload.substr(sep_ls + 1, raw_list_payload.length() - sep_ls - 1);
 
-                cli_logs.push("========== VFS DIRECTORY: " + dir_path + " ==========");
+                push_cli_log("========== VFS DIRECTORY: " + dir_path + " ==========");
                 
                 file_tokens :: Array = vnet.parse_package(files_str, " ");
                 through f_idx :: 0..(file_tokens.length() - 1) -> loop {
                     f_item :: String = string(file_tokens[f_idx]);
                     if (f_item != "") {
-                        cli_logs.push("  [NODE] " + f_item);
+                        push_cli_log("  [NODE] " + f_item);
                     }
                 };
-                cli_logs.push("==================================================");
+                push_cli_log("==================================================");
             } else {
-                cli_logs.push("[VFS_LIST]: " + raw_list_payload);
+                push_cli_log("[VFS_LIST]: " + raw_list_payload);
             }
             glitch_trigger = 0.3;
         }
@@ -5057,7 +5100,7 @@ while (vglib.running()) {
             cli_overlay_open = 0;
             glitch_trigger   = 1.5;
             
-            cli_logs.push("[CRITICAL KERNEL OVERLOAD]: SAT-99 ION BEAM FRIED NEURAL CORTEX STACK!");
+            push_cli_log("[CRITICAL KERNEL OVERLOAD]: SAT-99 ION BEAM FRIED NEURAL CORTEX STACK!");
         }
         else if (net_msg == "EXPLOIT:BOT_STALK") {
             bot_stalk_active = 1;
@@ -5094,13 +5137,13 @@ while (vglib.running()) {
 
             if (already_known == 0) {
                 my_assigned_sites.push(discovered_site);
-                cli_logs.push("[SCAN SUCCESS]: DISCOVERED NEW SUBNET NODE -> vnet://" + discovered_site);
+                push_cli_log("[SCAN SUCCESS]: DISCOVERED NEW SUBNET NODE -> vnet://" + discovered_site);
                 
                 if (current_url == "vnet.dir") {
                     page_body = load_page(current_url);
                 }
             } else {
-                cli_logs.push("[SCAN TELEMETRY]: FREQUENCY RE-DETECTED KNOWN NODE -> vnet://" + discovered_site);
+                push_cli_log("[SCAN TELEMETRY]: FREQUENCY RE-DETECTED KNOWN NODE -> vnet://" + discovered_site);
                 cd_scan = 0;
             }
             glitch_trigger = 0.5;
@@ -5108,9 +5151,9 @@ while (vglib.running()) {
         else if (net_msg.length() > 12 && net_msg.substr(0, 12) == "SATSCAN_RES:") {
             raw_payload :: String = net_msg.substr(12, net_msg.length() - 12);
             
-            cli_logs.push("================ SAT-99 TRAFFIC FEED ================");
-            cli_logs.push("  SUBNET NODE                     | TRAFFIC (KB/s) | STATUS");
-            cli_logs.push("-----------------------------------------------------");
+            push_cli_log("================ SAT-99 TRAFFIC FEED ================");
+            push_cli_log("  SUBNET NODE                     | TRAFFIC (KB/s) | STATUS");
+            push_cli_log("-----------------------------------------------------");
 
             rem_scan :: String = raw_payload;
             while (rem_scan.length() > 0) {
@@ -5127,10 +5170,10 @@ while (vglib.running()) {
                     traffic_kb :: String = string(data_parts[0]);
                     status_str :: String = string(data_parts[1]);
 
-                    cli_logs.push("  " + truncate_str(node_addr, 30) + " | " + traffic_kb + " KB/s | [" + status_str + "]");
+                    push_cli_log("  " + truncate_str(node_addr, 30) + " | " + traffic_kb + " KB/s | [" + status_str + "]");
                 }
             }
-            cli_logs.push("================================---------------------");
+            push_cli_log("================================---------------------");
 
             if (current_url == "vnet.dir") {
                 page_body = load_page(current_url);
@@ -5144,10 +5187,10 @@ while (vglib.running()) {
             raid_purged      = 0;
             bot_stalk_active = 0;
             glitch_trigger   = 1.0;
-            cli_logs.push("--------------------------------------------------");
-            cli_logs.push("[CRITICAL EMERGENCY]: FEDERAL E-RAID INITIATED!");
-            cli_logs.push("TYPE 'purge' IN OVERLAY TERMINAL [TAB] WITHIN 30s!");
-            cli_logs.push("--------------------------------------------------");
+            push_cli_log("--------------------------------------------------");
+            push_cli_log("[CRITICAL EMERGENCY]: FEDERAL E-RAID INITIATED!");
+            push_cli_log("TYPE 'purge' IN OVERLAY TERMINAL [TAB] WITHIN 30s!");
+            push_cli_log("--------------------------------------------------");
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "PATCH_SUCCESS:") {
             new_assigned_port :: Int64 = int64(net_msg.substr(14, net_msg.length() - 14));
@@ -5157,41 +5200,41 @@ while (vglib.running()) {
             client_sock = vnet.udp_socket(my_port);
             
             glitch_trigger = 0.8;
-            cli_logs.push("[SECURITY]: PORT REBOUND SUCCESSFUL! NEW ACTIVE PORT: " + string(my_port));
+            push_cli_log("[SECURITY]: PORT REBOUND SUCCESSFUL! NEW ACTIVE PORT: " + string(my_port));
             
             vnet.send_to(client_sock, server_ip, server_port, "GET:" + current_url);
         }
         else if (net_msg == "EXPLOIT_REFUND") {
             btc_balance = btc_balance + 0.20;
             cd_dos = 0.0;
-            cli_logs.push("[DOS]: HIT DECOY/EMPTY SOCKET -> 0.20 VCOIN REFUNDED (-0.05 NET) & COOLDOWN BYPASSED.");
+            push_cli_log("[DOS]: HIT DECOY/EMPTY SOCKET -> 0.20 VCOIN REFUNDED (-0.05 NET) & COOLDOWN BYPASSED.");
         }
         else if (net_msg == "EXPLOIT:MARKET_OVERLOADED") {
             active_down_url = "market.vnet";
             active_down_timer = 30.0;
             glitch_trigger = 0.8;
-            cli_logs.push("[CRITICAL]: market.vnet HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
+            push_cli_log("[CRITICAL]: market.vnet HAS BEEN FORCED OFFLINE FOR 30 SECONDS!");
         }
         else if (net_msg.length() > 14 && net_msg.substr(0, 14) == "DECOY_TRIPPED:") {
-            cli_logs.push("[DECOY ALERT]: " + net_msg.substr(14, net_msg.length() - 14));
+            push_cli_log("[DECOY ALERT]: " + net_msg.substr(14, net_msg.length() - 14));
             glitch_trigger = 0.6;
         }
         else if (net_msg.length() > 13 && net_msg.substr(0, 13) == "DOS_DROP_DIR:") {
             dropped_dir :: String = net_msg.substr(13, net_msg.length() - 13);
-            cli_logs.push("[REWARD]: TARGET DIRECTORY EXFILTRATED! (2 DOS HITS)");
+            push_cli_log("[REWARD]: TARGET DIRECTORY EXFILTRATED! (2 DOS HITS)");
             
             rem_dir :: String = dropped_dir;
             while (rem_dir.length() > 0) {
                 parts = vnet.parse_package(rem_dir, ":");
                 site = string(parts[0]);
-                if (site != "") { cli_logs.push("  -> " + site); }
+                if (site != "") { push_cli_log("  -> " + site); }
                 rem_dir = string(parts[1]);
             }
             
             glitch_trigger = 0.5;
         }
         else if (net_msg.length() > 9 && net_msg.substr(0, 9) == "DOS_DROP:") {
-            cli_logs.push("[REWARD]: " + net_msg.substr(9, net_msg.length() - 9));
+            push_cli_log("[REWARD]: " + net_msg.substr(9, net_msg.length() - 9));
             btc_balance = btc_balance + 0.20;
         }
         else if (net_msg.length() > 11 && net_msg.substr(0, 11) == "FEED_EVENT:") {
@@ -5199,7 +5242,7 @@ while (vglib.running()) {
             
             if (feed_text.substr(0, 8) == "[SNIFF]:") {
                 if (sniffer_mode == 1) {
-                    cli_logs.push(feed_text);
+                    push_cli_log(feed_text);
                 }
             } else {
                 vnet_feed_logs.push(feed_text);
@@ -5209,18 +5252,18 @@ while (vglib.running()) {
                 feed_scroll_y = float64(vnet_feed_logs.length() - 12) * 20.0;
             }
         } else {
-            cli_logs.push("[NET_IN] " + net_msg);
+            push_cli_log("[NET_IN] " + net_msg);
 
             if (net_msg == "EXPLOIT:DOS") {
                 if (ice_charges > 0) {
                     ice_charges = ice_charges - 1;
                     glitch_trigger = 0.1;
-                    cli_logs.push("[ICE_DEFENSE]: INBOUND DOS BLOCKED BY ICE FIREWALL! (" + string(ice_charges) + "/3 REMAINING)");
+                    push_cli_log("[ICE_DEFENSE]: INBOUND DOS BLOCKED BY ICE FIREWALL! (" + string(ice_charges) + "/3 REMAINING)");
                     if (current_url == "market.vnet") { page_body = load_page(current_url); }
                 } else {
                     dos_timer = 8.0;
                     glitch_trigger = 0.8;
-                    cli_logs.push("[CRITICAL_ALERT] INBOUND DOS EXPLOIT RECEIVED! SYSTEM FROZEN FOR 8s!");
+                    push_cli_log("[CRITICAL_ALERT] INBOUND DOS EXPLOIT RECEIVED! SYSTEM FROZEN FOR 8s!");
                 }
             }
             else if (net_msg.length() > 17 && net_msg.substr(0, 17) == "EXPLOIT:REDIRECT:") {
@@ -5228,7 +5271,7 @@ while (vglib.running()) {
                 if (ice_charges > 0) {
                     ice_charges = ice_charges - 1;
                     glitch_trigger = 0.1;
-                    cli_logs.push("[ICE_DEFENSE]: BGP HIJACK TO " + forced_dest + " BLOCKED BY ICE FIREWALL!");
+                    push_cli_log("[ICE_DEFENSE]: BGP HIJACK TO " + forced_dest + " BLOCKED BY ICE FIREWALL!");
                     if (current_url == "market.vnet") { page_body = load_page(current_url); }
                 } else {
                     is_connecting = 0;
@@ -5237,24 +5280,24 @@ while (vglib.running()) {
                     page_body   = load_page(current_url);
                     scroll_y    = 0.0;
                     glitch_trigger = 0.5;
-                    cli_logs.push("[WARNING] BGP ROUTE HIJACK DETECTED! FORCED TO " + forced_dest);
+                    push_cli_log("[WARNING] BGP ROUTE HIJACK DETECTED! FORCED TO " + forced_dest);
                 }
             }
             else if (net_msg == "EXPLOIT:TRACE_SPIKE") {
                 if (ice_charges > 0) {
                     ice_charges = ice_charges - 1;
                     glitch_trigger = 0.1;
-                    cli_logs.push("[ICE_DEFENSE]: REVERSE TRACE SPIKE ABSORBED BY ICE FIREWALL!");
+                    push_cli_log("[ICE_DEFENSE]: REVERSE TRACE SPIKE ABSORBED BY ICE FIREWALL!");
                     if (current_url == "market.vnet") { page_body = load_page(current_url); }
                 } else {
                     trace_level = int64(vmath.clamp(float64(trace_level + 35), 0.0, 100.0));
                     glitch_trigger = 0.4;
-                    cli_logs.push("[WARNING] REVERSE TRACE PULSE DETECTED! TRACE LEVEL +35%");
+                    push_cli_log("[WARNING] REVERSE TRACE PULSE DETECTED! TRACE LEVEL +35%");
                 }
             }
             else if (net_msg.length() > 10 && net_msg.substr(0, 10) == "FILE_DATA:") {
                 btc_balance = btc_balance + 0.50;
-                cli_logs.push("[REWARD]: EXFILTRATED DATA SOLD ON BLACK MARKET! +0.50 VCOIN");
+                push_cli_log("[REWARD]: EXFILTRATED DATA SOLD ON BLACK MARKET! +0.50 VCOIN");
             }
         }
         packet_in = vnet.recv_from(client_sock);
@@ -5304,7 +5347,7 @@ while (vglib.running()) {
         heat_warning_cd = heat_warning_cd + 0.016;
         if (heat_warning_cd >= 6.0) {
             heat_warning_cd = 0.0;
-            cli_logs.push("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
+            push_cli_log("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
         }
     }
 
@@ -5316,11 +5359,11 @@ while (vglib.running()) {
             
             p_roll :: Float64 = vmath.random(0.0, 1.0);
             if (p_roll > 0.6) {
-                cli_logs.push("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
+                push_cli_log("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
             } else if (p_roll > 0.3) {
-                cli_logs.push("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
+                push_cli_log("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
             } else {
-                cli_logs.push("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
+                push_cli_log("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
             }
         }
     }
@@ -5352,7 +5395,7 @@ while (vglib.running()) {
         heat_warning_cd = heat_warning_cd + 0.016;
         if (heat_warning_cd >= 6.0) {
             heat_warning_cd = 0.0;
-            cli_logs.push("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
+            push_cli_log("[THERMAL_CRITICAL]: CRT GLASS TEMP @ " + string(int64(crt_heat)) + "°C - RANCID OIL BOILING ON HEAT SINKS!");
         }
     }
 
@@ -5368,13 +5411,13 @@ while (vglib.running()) {
 
             p_roll :: Float64 = vmath.random(0.0, 1.0);
             if (p_roll > 0.75) {
-                cli_logs.push("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
+                push_cli_log("[PARANOIA_ECHO]: SOMETHING WET IS PRESSING AGAINST THE CRT DISPLAY GLASS...");
             } else if (p_roll > 0.50) {
-                cli_logs.push("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
+                push_cli_log("[PARANOIA_ECHO]: UNMAPPED PORT 0 READ YOUR PUPIL DILATION RATE.");
             } else if (p_roll > 0.25) {
-                cli_logs.push("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
+                push_cli_log("[PARANOIA_ECHO]: 'DO NOT TURN AROUND. THEY ARE LOOKING THROUGH YOUR EYES.'");
             } else {
-                cli_logs.push("[PARANOIA_ECHO]: OPTICAL COAXIAL REFLECTION MATCHED TO ROOM 402.");
+                push_cli_log("[PARANOIA_ECHO]: OPTICAL COAXIAL REFLECTION MATCHED TO ROOM 402.");
             }
         }
 
@@ -5424,7 +5467,7 @@ while (vglib.running()) {
             "[KERNEL]: CORTEX SYNC AT 99% -- DO NOT PURGE SOCKET"
         ];
         rnd_p_idx :: Int64 = int64(vmath.random(0.0, 3.0));
-        cli_logs.push(string(phantom_logs[rnd_p_idx]));
+        push_cli_log(string(phantom_logs[rnd_p_idx]));
     }
 
     # ================================================================
@@ -5884,9 +5927,9 @@ while (vglib.running()) {
                                 hex_stream_locked = (hex_stream_locked == 1) ? 0 : 1;
                                 glitch_trigger = 0.3;
                                 if (hex_stream_locked == 1) {
-                                    cli_logs.push("[HEX_STREAM]: VFS REGISTER STREAM LOCKED AT " + base_addr);
+                                    push_cli_log("[HEX_STREAM]: VFS REGISTER STREAM LOCKED AT " + base_addr);
                                 } else {
-                                    cli_logs.push("[HEX_STREAM]: BYTE STREAM UNLOCKED - CYCLING SECTORS...");
+                                    push_cli_log("[HEX_STREAM]: BYTE STREAM UNLOCKED - CYCLING SECTORS...");
                                 }
                             }
 
@@ -6080,7 +6123,7 @@ while (vglib.running()) {
                             vglib.text_ex(vcr_font, btn_lbl, bx + 15.0, by + 6.0, 11, is_hover == 1 ? COLOR_BLACK : COLOR_TOXIC);
 
                             if (is_hover == 1 && m_click == 1) {
-                                cli_logs.push("[ACTION]: TRIGGERED IN-PAGE EVENT '" + act_id + "'");
+                                push_cli_log("[ACTION]: TRIGGERED IN-PAGE EVENT '" + act_id + "'");
                                 glitch_trigger = 0.3;
                             }
                         }
@@ -6198,7 +6241,7 @@ while (vglib.running()) {
                                         if (var_id == "retinal_eye_auth")    { retinal_eye_auth = 1; }
                                         if (var_id == "watchtower_sat_auth") { watchtower_sat_auth = 1; }
 
-                                        cli_logs.push("[BIOMETRIC_SCANNER]: OPTICAL RETINA VERIFIED. ACCESS GRANTED.");
+                                        push_cli_log("[BIOMETRIC_SCANNER]: OPTICAL RETINA VERIFIED. ACCESS GRANTED.");
                                         page_body = load_page(current_url); # Reload page view to reflect unlocked elements
                                     } else {
                                         scanner_state = "FAILED";
@@ -6207,7 +6250,7 @@ while (vglib.running()) {
 
                                         # Trigger Gameplay Penalty Mechanics
                                         trace_level = int64(vmath.clamp(float64(trace_level + 30), 0.0, 100.0));
-                                        cli_logs.push("[BIOMETRIC_FAIL]: INVALID BIOMETRIC ALIAS! TRACE SPIKE (+30%) & HOSTILE BOT DISPATCHED!");
+                                        push_cli_log("[BIOMETRIC_FAIL]: INVALID BIOMETRIC ALIAS! TRACE SPIKE (+30%) & HOSTILE BOT DISPATCHED!");
 
                                         vnet.send_to(client_sock, server_ip, server_port, "EXPLOIT:TRACE_SPIKE");
                                     }
@@ -6234,7 +6277,7 @@ while (vglib.running()) {
                                 scanner_req_alias     = req_alias;
                                 scanner_status_msg    = "SCANNING PUPIL REFLECTION...";
                                 glitch_trigger        = 0.2;
-                                cli_logs.push("[BIOMETRIC_SCANNER]: ENGAGING OPTICAL RETINAL SCANNER...");
+                                push_cli_log("[BIOMETRIC_SCANNER]: ENGAGING OPTICAL RETINAL SCANNER...");
                             }
 
                             line_idx = line_idx + 5; # Reserve vertical layout height
@@ -6896,15 +6939,15 @@ while (vglib.running()) {
                 cli_overlay_open     = 1; # Pop terminal back open to show payload
                 
                 # Highly technical post-crack payload dump
-                cli_logs.push("======================================================================");
-                cli_logs.push("[KRNL_HOOK]: ZERO-DAY HEURISTIC BRUTEFORCE EXHAUSTED.");
-                cli_logs.push("  >> INJECTING REVERSE SHELLCODE INTO VFS PAGE ALLOCATOR BUS...");
-                cli_logs.push("  >> OVERRIDING RING-0 MEMORY REGISTERS AT 0x" + string(vdec_raw_payload));
-                cli_logs.push("  >> DISENGAGING SYNAPTIC PARITY LOCKS [OFFSET_KEY: " + string(vdec_input_offset) + "]");
-                cli_logs.push("  >> CARRIER PHASE DEMODULATION ALIGNED AT EXACTLY " + string(vdec_target_hz) + " Hz");
-                cli_logs.push("  >> [!] CRITICAL VFS DECRYPTION SUCCESSFUL [!]");
-                cli_logs.push("  => EXFILTRATED ROOT REGISTER VALUE : " + string(vdec_decoded_val));
-                cli_logs.push("======================================================================");
+                push_cli_log("======================================================================");
+                push_cli_log("[KRNL_HOOK]: ZERO-DAY HEURISTIC BRUTEFORCE EXHAUSTED.");
+                push_cli_log("  >> INJECTING REVERSE SHELLCODE INTO VFS PAGE ALLOCATOR BUS...");
+                push_cli_log("  >> OVERRIDING RING-0 MEMORY REGISTERS AT 0x" + string(vdec_raw_payload));
+                push_cli_log("  >> DISENGAGING SYNAPTIC PARITY LOCKS [OFFSET_KEY: " + string(vdec_input_offset) + "]");
+                push_cli_log("  >> CARRIER PHASE DEMODULATION ALIGNED AT EXACTLY " + string(vdec_target_hz) + " Hz");
+                push_cli_log("  >> [!] CRITICAL VFS DECRYPTION SUCCESSFUL [!]");
+                push_cli_log("  => EXFILTRATED ROOT REGISTER VALUE : " + string(vdec_decoded_val));
+                push_cli_log("======================================================================");
                 
                 if (cli_logs.length() > 16) {
                     cli_scroll_y = float64(cli_logs.length() - 16) * 22.0;

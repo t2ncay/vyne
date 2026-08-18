@@ -501,7 +501,7 @@ public:
 
 class BuiltInCallNode : public ASTNode {
     enum class BuiltInType {
-        PRINT, EXIT, TYPE, STRING, INT64, FLOAT64, SIZEOF, SEQUENCE, MAP, UNKNOWN
+        PRINT, EXIT, TYPE, STRING, INT64, FLOAT64, SIZEOF, SEQUENCE, MAP, FREE, UNKNOWN
     };
 
     std::string funcName;
@@ -518,7 +518,8 @@ class BuiltInCallNode : public ASTNode {
             {"float64", BuiltInType::FLOAT64},
             {"sizeof", BuiltInType::SIZEOF},
             {"sequence", BuiltInType::SEQUENCE},
-            {"map", BuiltInType::MAP}
+            {"map", BuiltInType::MAP},
+            {"free", BuiltInType::FREE}
         };
         
         auto it = map.find(name);

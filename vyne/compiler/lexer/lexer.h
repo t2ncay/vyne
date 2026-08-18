@@ -129,7 +129,8 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"warnings",        VTokenType::Warnings},
     {"dynamic_casting", VTokenType::Dynamic_Casting},
     {"memory_limit",    VTokenType::Memory_Limit},
-    {"enum",            VTokenType::Enum}
+    {"enum",            VTokenType::Enum},
+    {"free",            VTokenType::BuiltIn}
 };
 
 using TokenData = std::variant<std::monostate, double, int64_t, std::string>;
