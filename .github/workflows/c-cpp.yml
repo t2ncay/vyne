@@ -29,7 +29,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git g++-13 libstdc++-13-dev \
             libasound2-dev libx11-dev libxrandr-dev libxi-dev \
-            libxcursor-dev libxinerama-dev libgl1-mesa-dev xvfb
+            libxcursor-dev libxinerama-dev libgl1-mesa-dev xvfb \
+            libssl-dev pkg-config
 
       - name: Build Raylib from Source
         run: |
@@ -46,7 +47,7 @@ jobs:
               -I./vendor/stb \
               $(find . -type f -name "*.cpp" ! -path "./raylib_src/*" ! -path "*/build/*" ! -path "*/CMakeFiles/*") \
               -o vyne_run \
-              -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+              -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -lssl -lcrypto
 
       - name: Run Tests with Virtual Display
         run: |
