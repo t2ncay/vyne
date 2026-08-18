@@ -4,8 +4,11 @@
 // VServ Setup - Register all native functions
 // ============================================================
 
+SymbolContainer* g_vserv_env = nullptr;
+
 void setupVServ(SymbolContainer& env, StringPool& pool) {
-    // Initialize Winsock on Windows
+    g_vserv_env = &env; 
+    
     init_winsock();
     
     const std::string& path = "vserv";

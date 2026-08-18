@@ -50,6 +50,8 @@
     #define INVALID_SOCKET -1
 #endif
 
+extern SymbolContainer* g_vserv_env;
+
 namespace VServNative {
     Value native_parse_request(std::vector<Value>& args);
     Value native_create_response(std::vector<Value>& args);
@@ -268,8 +270,28 @@ static inline void handle_request(Server* server, int client_sock) {
     bool handled = false;
     for (const auto& route : server->routes) {
         if (route.first == method && route.second.first == path) {
-            // Call handler
-            // route.second.second.asFunction().nativeFn({req_val, resp_val});
+            auto funcData = route.second.second.asFunction();
+            
+            if (!g_vserv_env) {
+                throw std::runtime_error("Global environment not set!");
+            }
+            
+            // Create a unique scope name
+            static uint64_t call_id = 0;
+            std::string scopeName = "call_" + std::to_string(call_id++);
+            uint32_t scopeId = StringPool::intern(scopeName);
+            (*g_vserv_env)[scopeId] = SymbolTable();
+            
+            static uint32_t reqId = StringPool::intern("req");
+            static uint32_t resId = StringPool::intern("res");
+            (*g_vserv_env)[scopeId][reqId] = req_val;
+            (*g_vserv_env)[scopeId][resId] = resp_val;
+            
+            // Execute the function body
+            for (const auto& stmt : funcData->body) {
+                if (stmt) stmt->evaluate(*g_vserv_env, scopeId);
+            }
+            
             handled = true;
             break;
         }
@@ -282,10 +304,10 @@ static inline void handle_request(Server* server, int client_sock) {
         status_args.push_back(Value((int64_t)404));
         resp_val = VServNative::native_response_set_status(status_args);
         
-        std::vector<Value> send_args;
-        send_args.push_back(resp_val);
-        send_args.push_back(Value("404 - Not Found"));
-        // resp_val = VServNative::native_response_send(send_args);
+        // Set the 404 body
+        auto resp_map = resp_val.asMap();
+        resp_map[StringPool::intern("body")] = Value("404 - Not Found");
+        resp_val = Value(resp_map);
     }
     
     // Send response
