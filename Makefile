@@ -26,7 +26,7 @@ ifeq ($(OS),Windows_NT)
     URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
     RAYLIB_LIB_PATH = -L./vendor/raylib/lib
     LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH) -static -static-libgcc -static-libstdc++
-    LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread -lws2_32
+    LDFLAGS += -lraylib -lopengl32 -lgdi32 -lwinmm -lshell32 -lwinpthread -lssl -lcrypto -lcrypt32 -lbcrypt -lws2_32
     MKDIR_P = mkdir -p $(1)
     RM = rm -rf $(BUILD_DIR)
     DEL = rm -f $(TARGET)
@@ -37,7 +37,6 @@ else
     TARGET = $(TARGET_BASE)
     URAGE_LIB = liburage.so
     URAGE_CFLAGS = -shared -fPIC
-    # Don't use RAYLIB_LIB_PATH here if vendor/ contains a Windows .a file
     LDFLAGS = -lssl -lcrypto -ldl -pthread
     LDFLAGS += -lraylib -lGL -lm -lrt -lX11
     MKDIR_P = mkdir -p $(1)

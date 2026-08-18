@@ -3,6 +3,7 @@
 
 #include "../../modules/common/vcore/vcore.h"
 #include "../../modules/common/vglib/vglib.h"
+#include "../../modules/common/vserv/vserv.h"
 #include "../../modules/common/vmem/vmem.h"
 #include "../../modules/common/vmath/vmath.h"
 #include "../../modules/common/vfs/vfs.h"
@@ -1290,16 +1291,62 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             checkCallableType(funcVal, ctx);
             
             auto funcData = funcVal.asFunction();
-            
+
             std::vector<Value> argValues;
             argValues.reserve(arguments.size());
             for (auto& arg : arguments) {
                 argValues.emplace_back(arg->evaluate(env, currentGroupId));
             }
+
+            // ================================================================
+            // Check argument count
+            // ================================================================
+            if (argValues.size() != funcData->params.size()) {
+                throw std::runtime_error(
+                    "Type Error: Method '" + methodName + 
+                    "' expects " + std::to_string(funcData->params.size()) + 
+                    " argument(s), but got " + std::to_string(argValues.size()) + 
+                    " [ line " + std::to_string(lineNumber) + " ]"
+                );
+            }
+
+            // ================================================================
+            // Type checking - simple and clean now!
+            // ================================================================
+            for (size_t i = 0; i < argValues.size(); ++i) {
+                const auto& param = funcData->params[i];
+                VType expectedType = param.type;
+                int actualType = argValues[i].getType();
+                
+                if (expectedType == VType::Unknown) {
+                    continue;
+                }
+                
+                // Implicit conversion: Int64 -> Float64
+                if (expectedType == VType::Float64 && actualType == Value::INT64) {
+                    argValues[i] = Value(argValues[i].asFloat());
+                    continue;
+                }
+                
+                // ================================================================
+                // SIMPLE: Direct comparison now works because enums match!
+                // ================================================================
+                if (static_cast<int>(expectedType) != actualType) {
+                    std::string expectedStr = VTypeToString(expectedType);
+                    std::string actualStr = argValues[i].getTypeName();
+                    
+                    throw std::runtime_error(
+                        "Type Error: Argument " + std::to_string(i+1) + 
+                        " of method '" + methodName + "' expects " + expectedStr + 
+                        ", but got " + actualStr + 
+                        " [ line " + std::to_string(lineNumber) + " ]"
+                    );
+                }
+            }
             
             std::vector<Value> allArgs = { receiverVal };
             allArgs.insert(allArgs.end(), argValues.begin(), argValues.end());
-            
+
             if (funcData->isNative) {
                 if (funcData->arity != -1) {
                     checkArgumentCount(funcData->arity, allArgs.size() - 1, ctx);
@@ -1317,10 +1364,32 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
             
             for (size_t i = 1; i < allArgs.size(); ++i) {
                 if (i-1 < funcData->params.size()) {
-                    scope.bind(funcData->params[i-1].id, allArgs[i]);
+                    const auto& param = funcData->params[i-1];
+                    
+                    if (param.isReference) {
+                        Value* sourcePtr = nullptr;
+                        if (arguments[i-1]->type() == NodeType::VARIABLE) {
+                            auto* varNode = static_cast<VariableNode*>(arguments[i-1].get());
+                            sourcePtr = env.getInternalPointer(currentGroupId, varNode->getNameId());
+                        }
+                        if (!sourcePtr) {
+                            throw std::runtime_error(
+                                "Reference Error: Cannot bind to non-variable for reference parameter '" + 
+                                param.name + "' [ line " + std::to_string(lineNumber) + " ]"
+                            );
+                        }
+                        Value refValue(sourcePtr);
+                        scope.bind(param.id, refValue);
+                    } else {
+                        if (allArgs[i].getType() == Value::ARRAY) {
+                            scope.bind(param.id, deepCopyValue(allArgs[i]));
+                        } else {
+                            scope.bind(param.id, allArgs[i]);
+                        }
+                    }
                 }
             }
-            
+
             return executeFunction(funcData, allArgs, env, scope.getScopeId(), lineNumber);
         }
         
@@ -1540,7 +1609,6 @@ Value MemberAccessNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) 
         auto obj = receiverVal.data.obj;
         auto mod = static_cast<ModuleData*>(obj.get());
         
-        // Modulun öz ID-si ModuleData-da varsa onu istifadə et, yoxdursa:
         uint32_t moduleId = StringPool::instance().intern(mod->name);
         
         if (env.contains(moduleId)) {
@@ -1679,6 +1747,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const 
     if (originalName == "vcv")    setupVCV(env, StringPool::instance());
     if (originalName == "vaudio") setupVAudio(env, StringPool::instance());
     if (originalName == "vnet")   setupVNet(env, StringPool::instance());
+    if (originalName == "vserv")  setupVServ(env, StringPool::instance());
 
     auto& groupTable = env[currentGroupId]; 
 

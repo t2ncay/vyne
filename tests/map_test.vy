@@ -1,9 +1,24 @@
-fn add(a :: Int64, b :: Int64) -> Int64 {
-    return a + b;
+ruleset { dynamic_casting };
+
+interface Response {
+    headers :: Map,
+    body :: String
+    
+    set_header(key :: String, value :: String) {
+        self.headers[key] = value;
+    }
+
+    send(data :: Map) {
+        self.body = data;
+    }
 }
 
-hash :: Map = {
-    "hello" : add(3,4)
-};
+fn create_response() -> Response {
+    return Response({}, "");
+}
 
-out(hash.has("hello"));
+resp = create_response();
+resp.set_header("Content-Type", "application/json");
+resp.send({"message": "OK"});
+out(resp.headers["Content-Type"]);
+out(resp.body);

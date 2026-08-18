@@ -12,9 +12,9 @@ enum class VType {
     Module = 6,
     Struct = 7,
     Reference = 8,
-    Null = 9,
-    Bool = 10,
-    Map = 11
+    Map = 9,
+    Null = 10,
+    Bool = 11
 };
 
 inline VType stringToVType(std::string_view name) {

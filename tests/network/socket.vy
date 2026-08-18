@@ -4482,7 +4482,6 @@ while (vglib.running()) {
     if (gc_timer >= gc_interval) {
         gc_timer = 0.0;
 
-        # Also trim your arrays
         if (cli_logs.length() > MAX_CLI_LOGS) {
             while (cli_logs.length() > MAX_CLI_LOGS) {
                 cli_logs.pop_front();
