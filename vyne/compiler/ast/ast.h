@@ -342,8 +342,8 @@ public:
                 std::string fullPath;
                 fullPath.reserve(64);
                 for (const auto& segment : specificGroup) {
-                    fullPath += ".";
-                    fullPath += segment;
+                    fullPath.push_back('.');
+                    fullPath.append(segment);
                 }
                 specificGroupId = StringPool::intern(fullPath);
             }
@@ -393,9 +393,10 @@ public:
                 scopeGroupId = 0;
             } else {
                 std::string fullPath;
-                for (const auto& s : scopePath) {
-                    fullPath += ".";
-                    fullPath += s;
+                fullPath.reserve(64);  // Pre-allocate
+                for (const auto& segment : scopePath) {
+                    fullPath.push_back('.');
+                    fullPath.append(segment);
                 }
                 scopeGroupId = StringPool::intern(fullPath);
             }

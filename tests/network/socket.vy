@@ -11,6 +11,10 @@ module vaudio;
 MAX_CLI_LOGS :: Int64 = 250;  # Keep a decent history for viewing
 MAX_FEED_LOGS :: Int64 = 100; # The feed display is smaller
 
+# Add near the top of your game variables
+gc_timer :: Float64 = 0.0;
+gc_interval :: Float64 = 10.0;  # Cleanup every 10 seconds
+
 # ====================================================================
 # NETWORK CONFIGURATION & SOCKET SETUP
 # ====================================================================
@@ -4472,6 +4476,29 @@ while (vglib.running()) {
     vaudio.update_stream(stream_e_raid);
     vaudio.update_stream(stream_amb_music);
     vaudio.update_stream(stream_wall_heater);
+
+    gc_timer = gc_timer + 0.016;
+
+    if (gc_timer >= gc_interval) {
+        gc_timer = 0.0;
+
+        # Also trim your arrays
+        if (cli_logs.length() > MAX_CLI_LOGS) {
+            while (cli_logs.length() > MAX_CLI_LOGS) {
+                cli_logs.pop_front();
+            }
+        }
+        if (vnet_feed_logs.length() > MAX_FEED_LOGS) {
+            while (vnet_feed_logs.length() > MAX_FEED_LOGS) {
+                vnet_feed_logs.pop_front();
+            }
+        }
+        if (current_mined_blocks.length() > 50) {
+            while (current_mined_blocks.length() > 50) {
+                current_mined_blocks.pop_front();
+            }
+        }
+    }
 
 
     # ================================================================

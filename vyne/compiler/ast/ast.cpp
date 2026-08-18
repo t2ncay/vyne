@@ -849,7 +849,7 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
                 auto func = funcVal.asFunction();
 
                 if (arguments.empty() && func->isNative) {
-                    static std::vector<Value> emptyArgs; 
+                    std::vector<Value> emptyArgs; 
                     return func->nativeFn(emptyArgs);
                 }
 

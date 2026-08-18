@@ -74,6 +74,7 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             parser.checkUnusedVariables(env);
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
+
             return 0;
 
         } else if (mode == "c") {
