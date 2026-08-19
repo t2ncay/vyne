@@ -100,6 +100,8 @@ private:
 	std::unique_ptr<ASTNode> parseLoopControl();
 	std::unique_ptr<ASTNode> parseStatement();
 	std::unique_ptr<ASTNode> parseRuleset();
+	std::unique_ptr<ASTNode> parseInterpolatedString();
+	std::unique_ptr<ASTNode> parseDeferStatement();
 	std::unique_ptr<ASTNode> parseEnum();
 	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
 

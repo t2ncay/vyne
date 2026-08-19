@@ -368,6 +368,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Interface:  return parseInterfaceDefinition();
         case VTokenType::Ruleset:    return parseRuleset();
         case VTokenType::Enum:       return parseEnum();
+        case VTokenType::Defer:      return parseDeferStatement();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -546,6 +547,8 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
         case VTokenType::Left_Parenthese:         return parseGroupingExpr();
         case VTokenType::BuiltIn:                 return parseBuiltInCall();
         case VTokenType::Through:                 return parseForLoop();
+        case VTokenType::InterpolatedString:
+            return parseInterpolatedString();
         case VTokenType::Left_CB: {               // ADDED DISAMBIGUATION
             if (lookAhead(1).type == VTokenType::Right_CB || 
                 (lookAhead(1).type == VTokenType::String && lookAhead(2).type == VTokenType::Colon) ||
@@ -1328,6 +1331,45 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consumeSemicolon();
     
     auto node = std::make_unique<NullNode>();
+    node->lineNumber = line;
+    return node;
+}
+std::unique_ptr<ASTNode> Parser::parseInterpolatedString() {
+    Token tok = getNextToken();
+    auto parts = std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
+    
+    auto node = std::make_unique<InterpolatedStringNode>();
+    node->lineNumber = tok.line;
+    
+    for (const auto& [part, isExpr] : parts) {
+        if (isExpr) {
+            auto exprTokens = tokenize(part);
+            Parser exprParser(std::move(exprTokens));
+            auto expr = exprParser.parseExpression();
+            
+            if (!expr) {
+                throw std::runtime_error(
+                    "Failed to parse expression: " + part +
+                    " at line " + std::to_string(tok.line)
+                );
+            }
+            
+            node->addExpressionPart(std::move(expr));
+        } else {
+            node->addStringPart(part);
+        }
+    }
+    
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseDeferStatement() {
+    int line = peekToken().line;
+    consume(VTokenType::Defer);
+    
+    auto body = parseStatement();
+    
+    auto node = std::make_unique<DeferNode>(std::move(body));
     node->lineNumber = line;
     return node;
 }

@@ -769,6 +769,8 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
     static const uint32_t fieldsId   = StringPool::intern("fields");
     static const uint32_t substrId   = StringPool::intern("substr");
     static const uint32_t findId     = StringPool::intern("find");
+    static const uint32_t uppercaseId = StringPool::intern("uppercase");
+    static const uint32_t lowercaseId = StringPool::intern("lowercase");
 
     if (receiverVal.getType() == Value::STRING) {
         std::string str = receiverVal.asString();
@@ -806,6 +808,18 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
                 return Value(static_cast<int64_t>(-1));
             }
             return Value(static_cast<int64_t>(pos));
+        }
+
+        if (methodId == uppercaseId) {
+            std::string result = str;
+            std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+            return Value(result);
+        }
+
+        if (methodId == lowercaseId) {
+            std::string result = str;
+            std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+            return Value(result);
         }
 
         if (methodId == replaceId) {
@@ -1717,17 +1731,25 @@ Value MemberAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroup
     throw std::runtime_error("Type Error: Cannot assign to member of non-struct, non-module type " + 
         recVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
 }
-
 Value BlockNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
-    // TEMPORARY FIX: we won't create new scopes for now
-    // TODO ADD IT
     Value lastValue;
-    for (const auto& statement : statements) {
-        lastValue = statement->evaluate(env, currentGroupId);
+    
+    // Save current defer stack size
+    size_t deferCount = env.getDeferCount();
+    
+    try {
+        for (const auto& statement : statements) {
+            lastValue = statement->evaluate(env, currentGroupId);
+        }
+    } catch (...) {
+        env.executeDeferStack(deferCount);
+        throw;
     }
-    return lastValue; 
+    
+    env.executeDeferStack(deferCount);
+    
+    return lastValue;
 }
-
 /**
  * @brief Registers and initializes external modules within the current scope.
  * * When a `module` keyword is encountered, this node triggers the setup functions 

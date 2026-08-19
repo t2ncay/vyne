@@ -79,6 +79,9 @@ enum class VTokenType {
     Semicolon,          // ;
     Dot,                // .
     Double_Dot,         // ..
+    InterpolatedString,  // For strings with {expr}
+    InterpolationStart,  // '{' inside string
+    InterpolationEnd,    // '}' inside string
 
     // --- RULESETS ---
     Ruleset,            // Ruleset
@@ -88,6 +91,7 @@ enum class VTokenType {
 
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
+    Defer,              // defer
     End                 // End of File (EOF)
 };
 
@@ -130,10 +134,18 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"dynamic_casting", VTokenType::Dynamic_Casting},
     {"memory_limit",    VTokenType::Memory_Limit},
     {"enum",            VTokenType::Enum},
+    {"defer",           VTokenType::Defer},
     {"free",            VTokenType::BuiltIn}
 };
 
-using TokenData = std::variant<std::monostate, double, int64_t, std::string>;
+// tokens
+using TokenData = std::variant<
+    std::monostate, 
+    double, 
+    int64_t, 
+    std::string,
+    std::vector<std::pair<std::string, bool>>
+>;
 
 struct Token {
     std::string name;

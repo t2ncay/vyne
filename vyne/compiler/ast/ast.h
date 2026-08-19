@@ -30,6 +30,7 @@ class SymbolContainer {
     std::unordered_map<uint32_t, SymbolTable> table;
     std::vector<std::string> deployedModules;
     std::string currentSourceDir = ".";
+    std::vector<std::function<void()>> deferStack;
 
     mutable std::unordered_map<uint32_t, bool> variableUsage;
 
@@ -180,9 +181,27 @@ public:
         return currentSourceDir; 
     }
 
+    void pushDefer(std::function<void()> fn) {
+        deferStack.emplace_back(std::move(fn));
+    }
+    
+    void executeDeferStack(size_t fromCount) {
+        while (deferStack.size() > fromCount) {
+            auto fn = std::move(deferStack.back());
+            deferStack.pop_back();
+            fn();
+        }
+    }
+    
+    void clearDeferStack() {
+        deferStack.clear();
+    }
+
     // Utility
     size_t size() const { return table.size(); }
     bool empty() const { return table.empty(); }
+    size_t getDeferCount() const { return deferStack.size(); }
+
 };
 
 // exception signals
@@ -237,6 +256,8 @@ enum class NodeType {
     MEMBER_ASSIGNMENT,
 
     RULESET, 
+    INTERPOLATED_STRING,
+    DEFER,
 
     BREAK,
     CONTINUE
@@ -1132,6 +1153,81 @@ struct ContinueNode : public ASTNode {
     }
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+};
+
+// new stuff 2026 needs to be reviewed
+
+class InterpolatedStringNode : public ASTNode {
+    std::vector<std::pair<std::string, bool>> parts;
+    std::vector<std::unique_ptr<ASTNode>> exprNodes;
+    
+public:
+    InterpolatedStringNode() 
+        : ASTNode(NodeType::INTERPOLATED_STRING) {}
+    
+    void addStringPart(const std::string& str) {
+        parts.emplace_back(str, false);
+    }
+    
+    void addExpressionPart(std::unique_ptr<ASTNode> expr) {
+        exprNodes.emplace_back(std::move(expr));
+        parts.emplace_back("", true);
+    }
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        std::string result;
+        size_t exprIndex = 0;
+        
+        for (const auto& [part, isExpr] : parts) {
+            if (isExpr) {
+                if (exprIndex >= exprNodes.size()) {
+                    throw std::runtime_error(
+                        "Missing expression for interpolation at line " + 
+                        std::to_string(lineNumber)
+                    );
+                }
+                
+                Value val = exprNodes[exprIndex++]->evaluate(env, currentGroupId);
+                result += val.toString();
+            } else {
+                result += part;
+            }
+        }
+        
+        return Value(result);
+    }
+    
+    void compile(C_Emitter& e) const override {}
+    std::string getCExpr(C_Emitter& e) const override { return ""; }
+};
+
+class DeferNode : public ASTNode {
+    std::unique_ptr<ASTNode> body;
+    
+public:
+    DeferNode(std::unique_ptr<ASTNode> b) 
+        : ASTNode(NodeType::DEFER), body(std::move(b)) {}
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        env.pushDefer([this, &env, currentGroupId]() {
+            this->body->evaluate(env, currentGroupId);
+        });
+        return Value();
+    }
+    
+    void execute(SymbolContainer& env, uint32_t currentGroupId) {
+        body->evaluate(env, currentGroupId);
+    }
+    
+    void compile(C_Emitter& e) const override {
+        // For now, just emit as normal string concatenation
+        // TODO: Implement proper codegen
+    }
+    
+    std::string getCExpr(C_Emitter& e) const override {
+        // Generate C++ expression
+        return "";
+    }
 };
 
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId);

@@ -908,3 +908,4 @@ std::string EnumNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 void EnumNode::compile(C_Emitter& e) const {
     e.emit("/* enum — not yet supported in codegen */");
 }
+

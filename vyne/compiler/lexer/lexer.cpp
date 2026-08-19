@@ -19,35 +19,65 @@ std::vector<Token> tokenize(std::string_view input) {
         if (character == '"') {
             i++;
             std::string strBuffer;
-
+            std::vector<std::pair<std::string, bool>> parts; // bool = is_interpolation
+            bool isInterpolated = false;
+            bool inInterpolation = false;
+            std::string exprBuffer;
+            
             while (i < input.length() && input[i] != '"') {
-                if (input[i] == '\n') currentLine++;
-
                 if (input[i] == '\\' && i + 1 < input.length()) {
                     char next = input[i+1];
-                    if (next == 'n') {
-                        strBuffer += '\n'; i += 2; continue;
-                    } else if (next == 't') {
-                        strBuffer += '\t'; i += 2; continue;
-                    } else if (next == '\"') {
-                        strBuffer += '\"'; i += 2; continue;
-                    } else if (next == '0') {
-                        if (i + 3 < input.length() && std::isdigit(input[i+2]) && std::isdigit(input[i+3])) {
-                            std::string octal{ input.substr(i + 1, 3) };
-                            strBuffer += (char)std::stoi(octal, nullptr, 8);
-                            i += 4;
-                            continue;
-                        }
-                    }
+                    if (next == 'n') { strBuffer += '\n'; i += 2; continue; }
+                    else if (next == 't') { strBuffer += '\t'; i += 2; continue; }
+                    else if (next == '\"') { strBuffer += '\"'; i += 2; continue; }
+                    else if (next == '{') { strBuffer += '{'; i += 2; continue; }
+                    else if (next == '}') { strBuffer += '}'; i += 2; continue; }
                 }
-                strBuffer += input[i];
+                
+                if (input[i] == '{' && i + 1 < input.length() && input[i+1] != '{') {
+                    // Flush current string part
+                    if (!strBuffer.empty()) {
+                        parts.emplace_back(strBuffer, false);
+                        strBuffer.clear();
+                    }
+                    isInterpolated = true;
+                    inInterpolation = true;
+                    i++; // Skip '{'
+                    continue;
+                }
+                
+                if (input[i] == '}' && inInterpolation) {
+                    // End of interpolation
+                    if (!exprBuffer.empty()) {
+                        parts.emplace_back(exprBuffer, true);
+                        exprBuffer.clear();
+                    }
+                    inInterpolation = false;
+                    i++;
+                    continue;
+                }
+                
+                if (inInterpolation) {
+                    exprBuffer += input[i];
+                } else {
+                    strBuffer += input[i];
+                }
                 i++;
             }
-
-            if (i < input.length()) {
-                i++;
+            
+            if (!strBuffer.empty()) {
+                parts.emplace_back(strBuffer, false);
             }
-            tokens.emplace_back(VTokenType::String, currentLine, strBuffer, "");
+            
+            if (i < input.length()) i++; // Skip closing "
+            
+            // If not interpolated, just return normal string
+            if (!isInterpolated) {
+                tokens.emplace_back(VTokenType::String, currentLine, strBuffer, "");
+            } else {
+                // Create InterpolatedString token with parts
+                tokens.emplace_back(VTokenType::InterpolatedString, currentLine, parts, "");
+            }
             continue;
         }
 
