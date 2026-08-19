@@ -14,6 +14,7 @@ urage.dll
 *.idx
 lsp/bin/*
 *.o
+*.d
 *.dll
 editors/vscode/lsp/node_modules/*
 editors/vscode/lsp/client/node_modules*
