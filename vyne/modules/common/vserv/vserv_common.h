@@ -272,24 +272,35 @@ static inline void handle_request(Server* server, int client_sock) {
         if (route.first == method && route.second.first == path) {
             auto funcData = route.second.second.asFunction();
             
-            if (!g_vserv_env) {
-                throw std::runtime_error("Global environment not set!");
+            if (!funcData) {
+                throw std::runtime_error("Handler is not a function!");
             }
             
-            // Create a unique scope name
-            static uint64_t call_id = 0;
-            std::string scopeName = "call_" + std::to_string(call_id++);
-            uint32_t scopeId = StringPool::intern(scopeName);
-            (*g_vserv_env)[scopeId] = SymbolTable();
-            
-            static uint32_t reqId = StringPool::intern("req");
-            static uint32_t resId = StringPool::intern("res");
-            (*g_vserv_env)[scopeId][reqId] = req_val;
-            (*g_vserv_env)[scopeId][resId] = resp_val;
-            
-            // Execute the function body
-            for (const auto& stmt : funcData->body) {
-                if (stmt) stmt->evaluate(*g_vserv_env, scopeId);
+            if (funcData->isNative) {
+                std::vector<Value> handler_args = {req_val, resp_val};
+                funcData->nativeFn(handler_args);
+            } else {
+                if (funcData->body.empty()) {
+                    throw std::runtime_error("Function body is empty!");
+                }
+                
+                if (!g_vserv_env) {
+                    throw std::runtime_error("Global environment not set!");
+                }
+                
+                static uint64_t call_id = 0;
+                std::string scopeName = "call_" + std::to_string(call_id++);
+                uint32_t scopeId = StringPool::intern(scopeName);
+                (*g_vserv_env)[scopeId] = SymbolTable();
+                
+                static uint32_t reqId = StringPool::intern("req");
+                static uint32_t resId = StringPool::intern("res");
+                (*g_vserv_env)[scopeId][reqId] = req_val;
+                (*g_vserv_env)[scopeId][resId] = resp_val;
+                
+                for (const auto& stmt : funcData->body) {
+                    if (stmt) stmt->evaluate(*g_vserv_env, scopeId);
+                }
             }
             
             handled = true;
