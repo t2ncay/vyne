@@ -18,7 +18,8 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
 CXXFLAGS = -std=c++23 -O3 -I. \
             $(RAYLIB_INCLUDE) \
            -I./lsp/backend/src -I./lsp/backend/include \
-           -DCPPHTTPLIB_OPENSSL_SUPPORT -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER
+           -DCPPHTTPLIB_OPENSSL_SUPPORT -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER \
+           -MMD -MP
 
 ifeq ($(OS),Windows_NT)
     TARGET = $(TARGET_BASE).exe
@@ -55,6 +56,7 @@ SRCS = $(wildcard *.cpp) \
        $(wildcard editors/vscode/lsp/backend/src/*.cpp) 
 
 OBJS = $(addprefix $(BUILD_DIR)/, $(SRCS:.cpp=.o))
+DEPS = $(OBJS:.o=.d)
 
 all: $(URAGE_LIB) $(TARGET)
 
@@ -92,5 +94,5 @@ check-leaks:
 	./vyne_leak_test tests/network/socket.vy
 	@echo "Leak check execution finished."
 
-
+-include $(DEPS)
 .PHONY: all clean check-copies check-leaks
