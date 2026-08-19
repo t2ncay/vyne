@@ -113,7 +113,7 @@
         },
         {
           "name": "support.type.vyne",
-          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|warnings|dynamic_casting|memory_limit|String|Array|Number|Int64|Float64)\\b"
+          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|vnet|vserv|warnings|dynamic_casting|memory_limit|String|Array|Number|Int64|Float64|Map)\\b"
         }
       ]
     },
