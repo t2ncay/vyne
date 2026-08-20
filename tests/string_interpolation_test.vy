@@ -11,6 +11,3 @@ out("Upper: {msg.uppercase()}");
 a = 10;
 b = 20;
 out("{a} + {b} = {a + b}");
-
-out("Just a normal string");
-out("Escaped {{ not interpolated }}");
