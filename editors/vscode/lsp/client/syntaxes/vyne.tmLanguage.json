@@ -26,7 +26,7 @@
       "patterns": [
         {
           "name": "keyword.control.vyne",
-          "match": "\\b(if|else|while|return|dismiss|break|continue|through|as|use|lib|loop|collect|every|filter|unique)\\b"
+          "match": "\\b(if|else|while|return|dismiss|break|continue|through|as|use|lib|loop|collect|every|filter|unique|in)\\b"
         }
       ]
     },
