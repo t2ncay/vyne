@@ -1289,8 +1289,8 @@ public:
         return Value(static_cast<int64_t>(result ? 1 : 0));
     }
     
-    void compile(C_Emitter& e) const override {}
-    std::string getCExpr(C_Emitter& e) const override { return ""; }
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Bool; }
 };
 

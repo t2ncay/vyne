@@ -908,4 +908,20 @@ std::string EnumNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 void EnumNode::compile(C_Emitter& e) const {
     e.emit("/* enum — not yet supported in codegen */");
 }
+// ============================================================
+// IN OPERATOR
+// ============================================================
 
+std::string InNode::getCExpr(C_Emitter& e) const {
+    std::string leftVal = left->getCExpr(e);
+    std::string rightVal = right->getCExpr(e);
+    std::string temp = e.newTemp("in");
+    
+    e.emit("VyneValue " + temp + " = vyne_in_operator(" + 
+           leftVal + ", " + rightVal + ", " + (isNot ? "1" : "0") + ");");
+    return temp;
+}
+
+void InNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}

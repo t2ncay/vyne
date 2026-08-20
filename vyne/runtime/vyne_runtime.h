@@ -566,3 +566,50 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
             vyne_get_type_name(left), vyne_get_type_name(right));
     exit(1);
 }
+
+static inline VyneValue vyne_in_operator(VyneValue left, VyneValue right, int isNot) {
+    bool result = false;
+    
+    if (right.type == V_ARRAY) {
+        VyneArray* arr = right.as.arr;
+        for (int i = 0; i < arr->size; i++) {
+            if (vyne_values_equal(left, arr->elements[i])) {
+                result = true;
+                break;
+            }
+        }
+    }
+    else if (right.type == V_STRUCT) {
+        VyneStruct* s = right.as.strct;
+        if (left.type == V_STRING) {
+            for (int i = 0; i < s->field_count; i++) {
+                if (strcmp(s->fields[i].name, left.as.str) == 0) {
+                    result = true;
+                    break;
+                }
+            }
+        } else {
+            fprintf(stderr, "Runtime Error: Map keys must be strings\n");
+            return vyne_bool(0);
+        }
+    }
+    else if (right.type == V_STRING) {
+        if (left.type != V_STRING) {
+            fprintf(stderr, "Runtime Error: String membership requires string left operand\n");
+            return vyne_bool(0);
+        }
+        const char* str = right.as.str;
+        const char* substr = left.as.str;
+        result = strstr(str, substr) != NULL;
+    }
+    else {
+        fprintf(stderr, "Runtime Error: 'in' operator requires array, map, or string on right side\n");
+        return vyne_bool(0);
+    }
+    
+    if (isNot) {
+        result = !result;
+    }
+    
+    return vyne_bool(result);
+}
