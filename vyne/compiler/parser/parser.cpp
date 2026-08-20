@@ -415,7 +415,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseExpression() {
-    return parseTernary();
+    return parseLogicalOr();
 }
 
 std::unique_ptr<ASTNode> Parser::parseTernary() {
@@ -465,14 +465,15 @@ std::unique_ptr<ASTNode> Parser::parseLogicalAnd() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseEquality() {
-    auto left = parseRelational();
+    auto left = parseInExpression();
     while (peekToken().type == VTokenType::Double_Equals || peekToken().type == VTokenType::Not_Equal) {
-        Token opToken = getNextToken();
-        auto right = parseRelational();
-        left = std::make_unique<BinOpNode>(opToken.type, std::move(left), std::move(right));
+        Token op = getNextToken();
+        auto right = parseInExpression();
+        left = std::make_unique<BinOpNode>(op.type, std::move(left), std::move(right));
     }
     return left;
 }
+
 
 std::unique_ptr<ASTNode> Parser::parseRelational() {
     auto left = parseAdditive();
@@ -1372,4 +1373,18 @@ std::unique_ptr<ASTNode> Parser::parseDeferStatement() {
     auto node = std::make_unique<DeferNode>(std::move(body));
     node->lineNumber = line;
     return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseInExpression() {
+    auto left = parseRelational();
+    
+    if (peekToken().type == VTokenType::In) {
+        consume(VTokenType::In);
+        auto right = parseRelational();
+        auto node = std::make_unique<InNode>(std::move(left), std::move(right));
+        node->lineNumber = peekToken().line;
+        return node;
+    }
+    
+    return left;
 }

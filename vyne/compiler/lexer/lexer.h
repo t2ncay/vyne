@@ -88,6 +88,7 @@ enum class VTokenType {
     Warnings,
     Dynamic_Casting,
     Memory_Limit,
+    In,
 
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
@@ -135,7 +136,8 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"memory_limit",    VTokenType::Memory_Limit},
     {"enum",            VTokenType::Enum},
     {"defer",           VTokenType::Defer},
-    {"free",            VTokenType::BuiltIn}
+    {"free",            VTokenType::BuiltIn},
+    {"in",              VTokenType::In}
 };
 
 // tokens

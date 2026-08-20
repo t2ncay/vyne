@@ -258,6 +258,7 @@ enum class NodeType {
     RULESET, 
     INTERPOLATED_STRING,
     DEFER,
+    IN_OP,
 
     BREAK,
     CONTINUE
@@ -509,6 +510,8 @@ public:
     UnaryNode(VTokenType op, std::unique_ptr<ASTNode> rhs)
         : ASTNode(NodeType::UNARY), op(op), right(std::move(rhs)) {}
     
+    VTokenType getOp() const { return op; }
+    std::unique_ptr<ASTNode> takeRight() { return std::move(right); }
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
@@ -1228,6 +1231,67 @@ public:
         // Generate C++ expression
         return "";
     }
+};
+
+class InNode : public ASTNode {
+    std::unique_ptr<ASTNode> left;
+    std::unique_ptr<ASTNode> right;
+    bool isNot;
+    
+public:
+    InNode(std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r, bool notOp = false)
+        : ASTNode(NodeType::IN_OP), left(std::move(l)), right(std::move(r)), isNot(notOp) {}
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        Value leftVal = left->evaluate(env, currentGroupId);
+        Value rightVal = right->evaluate(env, currentGroupId);
+        
+        bool result = false;
+        
+        if (rightVal.getType() == Value::ARRAY) {
+            const auto& vec = rightVal.asList();
+            for (const auto& item : vec) {
+                if (leftVal == item) {
+                    result = true;
+                    break;
+                }
+            }
+        }
+        else if (rightVal.getType() == Value::MAP) {
+            if (leftVal.getType() != Value::STRING) {
+                throw std::runtime_error(
+                    "Type Error: Map keys must be strings [ line " + 
+                    std::to_string(lineNumber) + " ]"
+                );
+            }
+            const auto& map = rightVal.asMap();
+            result = map.find(leftVal.stringId) != map.end();
+        }
+        else if (rightVal.getType() == Value::STRING) {
+            if (leftVal.getType() != Value::STRING) {
+                throw std::runtime_error(
+                    "Type Error: String membership requires string left operand [ line " + 
+                    std::to_string(lineNumber) + " ]"
+                );
+            }
+            const std::string& str = rightVal.asString();
+            const std::string& substr = leftVal.asString();
+            result = str.find(substr) != std::string::npos;
+        }
+        else {
+            throw std::runtime_error(
+                "Type Error: 'in' operator requires array, map, or string on right side [ line " + 
+                std::to_string(lineNumber) + " ]"
+            );
+        }
+        
+        if (isNot) result = !result;
+        return Value(static_cast<int64_t>(result ? 1 : 0));
+    }
+    
+    void compile(C_Emitter& e) const override {}
+    std::string getCExpr(C_Emitter& e) const override { return ""; }
+    VType getStaticType() const override { return VType::Bool; }
 };
 
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId);
