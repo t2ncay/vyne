@@ -145,7 +145,21 @@ std::vector<Token> tokenize(std::string_view input) {
             case ';': tokens.emplace_back(VTokenType::Semicolon, currentLine, 0, ";"); break;
             case '%': tokens.emplace_back(VTokenType::Modulo, currentLine, 0, "%"); break;
             case '$': tokens.emplace_back(VTokenType::Addresser, currentLine, 0, "$"); break;
-            case '?': tokens.emplace_back(VTokenType::Question, currentLine, 0, "?"); break;
+            case '?' : {
+                if (i + 1 < input.length() && input[i + 1] == '?') {
+                    if (i + 2 < input.length() && input[i + 2] == '=') {
+                        tokens.emplace_back(VTokenType::NullCoalesceAssign, currentLine, 0, "??=");
+                        i += 3;
+                    } else {
+                        tokens.emplace_back(VTokenType::NullCoalesce, currentLine, 0, "??");
+                        i += 2;
+                    }
+                } else {
+                    tokens.emplace_back(VTokenType::Question, currentLine, 0, "?");
+                    i++;
+                }
+                continue;
+            }
             case '/': {
                 if (i + 1 < input.length() && input[i + 1] == '/') {
                     tokens.emplace_back(VTokenType::Floor_Divide, currentLine, 0, "//");

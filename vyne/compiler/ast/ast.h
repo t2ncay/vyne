@@ -260,6 +260,12 @@ enum class NodeType {
     DEFER,
     IN_OP,
 
+    NULL_COALESCE,
+    NULL_COALESCE_ASSIGN,
+    NULL_COALESCE_MEMBER_ASSIGN,
+
+    PIPELINE,
+
     BREAK,
     CONTINUE
 };
@@ -831,6 +837,11 @@ public:
         
         return Value(std::move(copiedVec));
     }
+
+    uint32_t getTargetNameId() const { return targetNameId; }
+    uint32_t getTargetGroupId() const { return targetGroupId; }
+    const std::string& getOriginalName() const { return originalName; }
+    const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
 };
 
 class ReturnNode : public ASTNode {
@@ -1292,6 +1303,107 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Bool; }
+};
+
+class NullCoalesceNode : public ASTNode {
+    std::unique_ptr<ASTNode> left;
+    std::unique_ptr<ASTNode> right;
+    
+public:
+    NullCoalesceNode(std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r)
+        : ASTNode(NodeType::NULL_COALESCE), left(std::move(l)), right(std::move(r)) {}
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override {
+        return left->getStaticType();
+    }
+};
+
+class NullCoalesceAssignmentNode : public ASTNode {
+    uint32_t varId;
+    std::string varName;
+    std::unique_ptr<ASTNode> rhs;
+    VType expectedType;
+    std::vector<std::string> scopePath;
+    uint32_t scopeGroupId;
+    
+public:
+    NullCoalesceAssignmentNode(uint32_t id, std::string name, 
+                               std::unique_ptr<ASTNode> r,
+                               VType type = VType::Unknown,
+                               std::vector<std::string> scope = {})
+        : ASTNode(NodeType::NULL_COALESCE_ASSIGN),
+          varId(id), varName(std::move(name)), rhs(std::move(r)),
+          expectedType(type), scopePath(std::move(scope)) {
+        if (scopePath.empty()) {
+            scopeGroupId = 0;
+        } else {
+            std::string fullPath;
+            for (const auto& segment : scopePath) {
+                fullPath.push_back('.');
+                fullPath.append(segment);
+            }
+            scopeGroupId = StringPool::intern(fullPath);
+        }
+    }
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+};
+
+class NullCoalesceMemberAssignmentNode : public ASTNode {
+    std::unique_ptr<ASTNode> receiver;
+    std::string memberName;
+    uint32_t memberId;
+    std::unique_ptr<ASTNode> rhs;
+    
+public:
+    NullCoalesceMemberAssignmentNode(std::unique_ptr<ASTNode> rec, 
+                                     std::string mem, 
+                                     std::unique_ptr<ASTNode> r)
+        : ASTNode(NodeType::NULL_COALESCE_MEMBER_ASSIGN),
+          receiver(std::move(rec)), memberName(std::move(mem)),
+          rhs(std::move(r)) {
+        memberId = StringPool::intern(memberName);
+    }
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+};
+
+class PipedValueNode : public ASTNode {
+    Value pipedValue;
+    
+public:
+    PipedValueNode(Value val) : ASTNode(NodeType::VARIABLE), pipedValue(std::move(val)) {}
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override {
+        return pipedValue;
+    }
+    
+    void compile(C_Emitter& e) const override {}
+    std::string getCExpr(C_Emitter& e) const override { return ""; }
+};
+
+class PipelineNode : public ASTNode {
+    std::unique_ptr<ASTNode> left;
+    std::unique_ptr<ASTNode> right;
+    
+public:
+    PipelineNode(std::unique_ptr<ASTNode> l, std::unique_ptr<ASTNode> r)
+        : ASTNode(NodeType::PIPELINE), left(std::move(l)), right(std::move(r)) {}
+    
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+    
+    ASTNode* getLeft() const { return left.get(); }
+    ASTNode* getRight() const { return right.get(); }
 };
 
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId);

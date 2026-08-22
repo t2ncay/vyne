@@ -103,6 +103,8 @@ private:
 	std::unique_ptr<ASTNode> parseInterpolatedString();
 	std::unique_ptr<ASTNode> parseDeferStatement();
 	std::unique_ptr<ASTNode> parseInExpression();
+	std::unique_ptr<ASTNode> parseNullCoalesce();
+	std::unique_ptr<ASTNode> parsePipeline();
 	std::unique_ptr<ASTNode> parseEnum();
 	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
 

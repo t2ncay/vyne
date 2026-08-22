@@ -82,6 +82,8 @@ enum class VTokenType {
     InterpolatedString,  // For strings with {expr}
     InterpolationStart,  // '{' inside string
     InterpolationEnd,    // '}' inside string
+    NullCoalesceAssign,
+    NullCoalesce,
 
     // --- RULESETS ---
     Ruleset,            // Ruleset

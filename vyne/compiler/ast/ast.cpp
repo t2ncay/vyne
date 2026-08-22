@@ -1952,10 +1952,327 @@ Value NullNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     return Value();
 }
 
+Value NullCoalesceNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value leftVal = left->evaluate(env, currentGroupId);
+    
+    if (leftVal.getType() == Value::NONE) {
+        return right->evaluate(env, currentGroupId);
+    }
+    
+    return leftVal;
+}
+
+Value NullCoalesceAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    static uint32_t globalId = getGlobalId();
+    uint32_t targetGroupId = (scopeGroupId != 0) ? scopeGroupId : currentGroupId;
+    
+    auto* valPtr = lookupSymbol(env, targetGroupId, varId);
+    if (!valPtr && targetGroupId != globalId) {
+        valPtr = lookupSymbol(env, globalId, varId);
+    }
+    
+    if (!valPtr) {
+        Value rhsVal = rhs->evaluate(env, currentGroupId);
+        env[targetGroupId][varId] = rhsVal;
+        return rhsVal;
+    }
+    
+    if (valPtr->getType() == Value::NONE) {
+        Value rhsVal = rhs->evaluate(env, currentGroupId);
+        
+        if (Vyne::isTypeStrict() && expectedType != VType::Unknown) {
+            int expectedInt = vtypeToInt(expectedType);
+            int newType = rhsVal.getType();
+            if (expectedInt != newType) {
+                throw std::runtime_error(
+                    "Type Error: Cannot assign " + rhsVal.getTypeName() + 
+                    " to '" + varName + "' of type " + VTypeToString(expectedType) +
+                    " in strict mode [ line " + std::to_string(lineNumber) + " ]"
+                );
+            }
+        }
+        
+        *valPtr = rhsVal;
+        return rhsVal;
+    }
+    
+    return *valPtr;
+}
+
+Value NullCoalesceMemberAssignmentNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value recVal = receiver->evaluate(env, currentGroupId);
+    Value rhsVal = rhs->evaluate(env, currentGroupId);
+    
+    if (recVal.getType() == Value::STRUCT) {
+        auto structPtr = recVal.asStruct();
+        auto fieldIt = structPtr->fields.find(memberId);
+        
+        if (fieldIt != structPtr->fields.end()) {
+            if (fieldIt->second.getType() == Value::NONE) {
+                structPtr->fields[memberId] = rhsVal;
+                return rhsVal;
+            }
+            return fieldIt->second;
+        } else {
+            structPtr->fields[memberId] = rhsVal;
+            return rhsVal;
+        }
+    }
+    else if (recVal.getType() == Value::MODULE || recVal.getType() == Value::NONE) {
+        std::string moduleName = "";
+        uint32_t moduleId = 0;
+        
+        if (recVal.getType() == Value::MODULE && recVal.isObject()) {
+            auto& obj = recVal.data.obj;
+            if (auto mod = static_cast<ModuleData*>(obj.get())) {
+                moduleName = mod->name;
+                moduleId = StringPool::instance().intern(moduleName);
+            }
+        } else if (recVal.getType() == Value::MODULE) {
+            moduleName = recVal.asString();
+            moduleId = StringPool::instance().intern(moduleName);
+        } else if (receiver->type() == NodeType::VARIABLE) {
+            moduleId = static_cast<VariableNode*>(receiver.get())->getNameId();
+            moduleName = static_cast<VariableNode*>(receiver.get())->getOriginalName();
+        }
+        
+        if (moduleId != 0 && env.contains(moduleId)) {
+            auto& moduleTable = env[moduleId];
+            auto it = moduleTable.find(memberId);
+            
+            if (it != moduleTable.end()) {
+                if (it->second.getType() == Value::NONE) {
+                    moduleTable[memberId] = rhsVal;
+                    return rhsVal;
+                }
+                return it->second;
+            } else {
+                moduleTable[memberId] = rhsVal;
+                return rhsVal;
+            }
+        }
+    }
+    
+    throw std::runtime_error("Type Error: Cannot use '??=' on non-struct, non-module type " + 
+        recVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]");
+}
+
+Value PipelineNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    // Evaluate the left side first (the value to pipe)
+    Value leftVal = left->evaluate(env, currentGroupId);
+    
+    // Handle function call pipeline: a |> fn(b) -> fn(a, b)
+    if (right->type() == NodeType::FUNCTION_CALL) {
+        auto* funcCall = static_cast<FunctionCallNode*>(right.get());
+        
+        // Get the function name and arguments
+        // We need to create a new FunctionCallNode with the piped value prepended
+        // But since we can't easily modify the AST, we'll evaluate directly
+        
+        // Look up the function in the environment
+        uint32_t targetNameId = funcCall->getTargetNameId();
+        uint32_t targetGroupId = funcCall->getTargetGroupId();
+        
+        // Find the function
+        Value funcVal;
+        bool found = false;
+        
+        // Check the target group
+        if (env.contains(targetGroupId)) {
+            auto& groupMap = env[targetGroupId];
+            auto it = groupMap.find(targetNameId);
+            if (it != groupMap.end()) {
+                funcVal = it->second;
+                found = true;
+            }
+        }
+        
+        // If not found, check global
+        if (!found) {
+            static uint32_t globalId = getGlobalId();
+            if (targetGroupId != globalId && env.contains(globalId)) {
+                auto& globalMap = env[globalId];
+                auto it = globalMap.find(targetNameId);
+                if (it != globalMap.end()) {
+                    funcVal = it->second;
+                    found = true;
+                }
+            }
+        }
+        
+        if (!found) {
+            throw std::runtime_error("Runtime Error: Function '" + funcCall->getOriginalName() + 
+                                    "' not found in pipeline [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        if (funcVal.getType() != Value::FUNCTION) {
+            throw std::runtime_error("Type Error: '" + funcCall->getOriginalName() + 
+                                    "' is not a callable function [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        auto funcData = funcVal.asFunction();
+        
+        // Evaluate arguments (excluding the piped value which we'll prepend)
+        std::vector<Value> evaluatedArgs;
+        evaluatedArgs.reserve(funcCall->getArguments().size() + 1);
+        
+        // First argument is the piped value
+        evaluatedArgs.push_back(leftVal);
+        
+        // Then evaluate the rest of the arguments
+        for (const auto& arg : funcCall->getArguments()) {
+            if (arg) {
+                evaluatedArgs.emplace_back(arg->evaluate(env, currentGroupId));
+            }
+        }
+        
+        // Call the function
+        std::string currentGroupNameStr = StringPool::instance().get(currentGroupId);
+        CallContext ctx{env, currentGroupNameStr, lineNumber, funcCall->getOriginalName()};
+        
+        if (funcData->isNative) {
+            if (funcData->arity != -1) {
+                checkArgumentCount(funcData->arity, evaluatedArgs.size(), ctx);
+            }
+            return funcData->nativeFn(evaluatedArgs);
+        }
+        
+        checkArgumentCount(funcData->params.size(), evaluatedArgs.size(), ctx);
+        
+        std::string localScopeName = createLocalScope("pipeline", funcCall->getOriginalName());
+        ScopedEnvironment scope(env, localScopeName, currentGroupId);
+        uint32_t localScopeId = scope.getScopeId();
+        
+        // Bind parameters
+        for (size_t i = 0; i < funcData->params.size() && i < evaluatedArgs.size(); ++i) {
+            const auto& param = funcData->params[i];
+            if (param.isReference) {
+                // For reference params, we need to pass by reference
+                // This is complex for pipeline - we'll use a simpler approach
+                Value refValue(&evaluatedArgs[i]);
+                scope.bind(param.id, refValue);
+            } else {
+                if (evaluatedArgs[i].getType() == Value::ARRAY) {
+                    scope.bind(param.id, deepCopyValue(evaluatedArgs[i]));
+                } else {
+                    scope.bind(param.id, evaluatedArgs[i]);
+                }
+            }
+        }
+        
+        // Execute the function
+        return executeFunction(funcData, evaluatedArgs, env, localScopeId, lineNumber);
+    }
+    
+    // Handle method call pipeline: a |> obj.method(b) -> obj.method(a, b)
+    if (right->type() == NodeType::METHOD_CALL) {
+        auto* methodCall = static_cast<MethodCallNode*>(right.get());
+        
+        // We need to evaluate the method with the piped value as the receiver
+        // This is complex - for now, we'll use a workaround
+        
+        // The piped value becomes the receiver
+        // We need to create a new MethodCallNode or evaluate differently
+        
+        // For now, we'll use the existing MethodCallNode evaluation
+        // but we need to inject the piped value as the receiver
+        
+        // This requires MethodCallNode to support piped values
+        // For simplicity, we'll just return leftVal for now
+        return leftVal;
+    }
+    
+    // If right is a variable (function name), treat as fn(piped)
+    if (right->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(right.get());
+        
+        // Call the function with the piped value
+        std::vector<std::unique_ptr<ASTNode>> args;
+        // We need to create a node from the piped value
+        // This is tricky - we'll use a PipedValueNode
+        
+        // Instead, we'll evaluate the function directly
+        uint32_t varId = var->getNameId();
+        std::string varName = var->getOriginalName();
+        
+        // Find the function
+        Value funcVal;
+        bool found = false;
+        
+        static uint32_t globalId = getGlobalId();
+        if (env.contains(currentGroupId)) {
+            auto& groupMap = env[currentGroupId];
+            auto it = groupMap.find(varId);
+            if (it != groupMap.end()) {
+                funcVal = it->second;
+                found = true;
+            }
+        }
+        
+        if (!found && currentGroupId != globalId && env.contains(globalId)) {
+            auto& globalMap = env[globalId];
+            auto it = globalMap.find(varId);
+            if (it != globalMap.end()) {
+                funcVal = it->second;
+                found = true;
+            }
+        }
+        
+        if (!found) {
+            throw std::runtime_error("Runtime Error: Function '" + varName + 
+                                    "' not found in pipeline [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        if (funcVal.getType() != Value::FUNCTION) {
+            throw std::runtime_error("Type Error: '" + varName + 
+                                    "' is not a callable function [ line " + std::to_string(lineNumber) + " ]");
+        }
+        
+        auto funcData = funcVal.asFunction();
+        std::vector<Value> argsList;
+        argsList.push_back(leftVal);
+        
+        std::string currentGroupNameStr = StringPool::instance().get(currentGroupId);
+        CallContext ctx{env, currentGroupNameStr, lineNumber, varName};
+        
+        if (funcData->isNative) {
+            if (funcData->arity != -1) {
+                checkArgumentCount(funcData->arity, argsList.size(), ctx);
+            }
+            return funcData->nativeFn(argsList);
+        }
+        
+        checkArgumentCount(funcData->params.size(), argsList.size(), ctx);
+        
+        std::string localScopeName = createLocalScope("pipeline", varName);
+        ScopedEnvironment scope(env, localScopeName, currentGroupId);
+        uint32_t localScopeId = scope.getScopeId();
+        
+        for (size_t i = 0; i < funcData->params.size() && i < argsList.size(); ++i) {
+            const auto& param = funcData->params[i];
+            if (param.isReference) {
+                // Handle reference
+                Value refValue(&argsList[i]);
+                scope.bind(param.id, refValue);
+            } else {
+                if (argsList[i].getType() == Value::ARRAY) {
+                    scope.bind(param.id, deepCopyValue(argsList[i]));
+                } else {
+                    scope.bind(param.id, argsList[i]);
+                }
+            }
+        }
+        
+        return executeFunction(funcData, argsList, env, localScopeId, lineNumber);
+    }
+    
+    // Generic fallback
+    return leftVal;
+}
+
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId) {
     if (scope.empty()) return currentGroupId;
     
-    // Məcbur qalıb string birləşdiririksə, bunu ancaq mürəkkəb yollarda edirik
     std::string path = "global";
     for (const auto& part : scope) {
         path += "." + part;

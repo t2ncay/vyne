@@ -925,3 +925,60 @@ std::string InNode::getCExpr(C_Emitter& e) const {
 void InNode::compile(C_Emitter& e) const {
     getCExpr(e);
 }
+
+void NullCoalesceNode::compile(C_Emitter& e) const {
+    // TODO: Implement compilation
+}
+
+std::string NullCoalesceNode::getCExpr(C_Emitter& e) const {
+    return ""; // TODO: Implement
+}
+
+void NullCoalesceAssignmentNode::compile(C_Emitter& e) const {
+    // TODO: Implement compilation
+}
+
+std::string NullCoalesceAssignmentNode::getCExpr(C_Emitter& e) const {
+    return ""; // TODO: Implement
+}
+
+void NullCoalesceMemberAssignmentNode::compile(C_Emitter& e) const {
+    // TODO: Implement compilation
+}
+
+std::string NullCoalesceMemberAssignmentNode::getCExpr(C_Emitter& e) const {
+    return ""; // TODO: Implement
+}
+
+void PipelineNode::compile(C_Emitter& e) const {
+    // For now, compile the left side then the right side
+    // A proper implementation would transform the pipeline
+    if (left) left->compile(e);
+    if (right) right->compile(e);
+}
+
+std::string PipelineNode::getCExpr(C_Emitter& e) const {
+    std::string result;
+    
+    if (right->type() == NodeType::FUNCTION_CALL) {
+        auto* funcCall = static_cast<FunctionCallNode*>(right.get());
+        // Generate function call with piped value as first argument
+        result += funcCall->getCExpr(e);
+        // Note: This is a placeholder - proper implementation would
+        // prepend the left value as the first argument
+        return result;
+    }
+    
+    if (right->type() == NodeType::METHOD_CALL) {
+        auto* methodCall = static_cast<MethodCallNode*>(right.get());
+        result += methodCall->getCExpr(e);
+        return result;
+    }
+    
+    // Default: emit left then right
+    if (left) result += left->getCExpr(e);
+    result += " |> ";
+    if (right) result += right->getCExpr(e);
+    
+    return result;
+}

@@ -415,7 +415,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseExpression() {
-    return parseLogicalOr();
+    return parseNullCoalesce();
 }
 
 std::unique_ptr<ASTNode> Parser::parseTernary() {
@@ -980,6 +980,48 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
 
     auto lhs = parsePostfix();
 
+    if (peekToken().type == VTokenType::NullCoalesceAssign) {
+        if (lhs->type() == NodeType::VARIABLE) {
+            auto* var = static_cast<VariableNode*>(lhs.get());
+            consume(VTokenType::NullCoalesceAssign);
+            auto rhs = parseExpression();
+            consumeSemicolon();
+            
+            auto node = std::make_unique<NullCoalesceAssignmentNode>(
+                var->getNameId(),
+                var->getOriginalName(),
+                std::move(rhs),
+                var->getStaticType(),
+                var->getScope()
+            );
+            node->lineNumber = line;
+            return node;
+        }
+        else if (lhs->type() == NodeType::MEMBER_ACCESS) {
+            auto* mem = static_cast<MemberAccessNode*>(lhs.get());
+            consume(VTokenType::NullCoalesceAssign);
+            auto rhs = parseExpression();
+            consumeSemicolon();
+            
+            auto node = std::make_unique<NullCoalesceMemberAssignmentNode>(
+                mem->takeReceiver(),
+                mem->getMemberName(),
+                std::move(rhs)
+            );
+            node->lineNumber = line;
+            return node;
+        }
+        else {
+            throw std::runtime_error("Syntax Error: Left side of '??=' must be a variable or member access [ line " + std::to_string(line) + " ]");
+        }
+    }
+
+    if (peekToken().type == VTokenType::Pipeline) {
+        auto rhs = parseExpression();
+        consumeSemicolon();
+    }
+
+
     if (peekToken().type == VTokenType::Equals) {
         if (lhs->type() == NodeType::MEMBER_ACCESS) {
             auto* mem = static_cast<MemberAccessNode*>(lhs.get());
@@ -1384,6 +1426,63 @@ std::unique_ptr<ASTNode> Parser::parseInExpression() {
         auto node = std::make_unique<InNode>(std::move(left), std::move(right));
         node->lineNumber = peekToken().line;
         return node;
+    }
+    
+    return left;
+}
+
+std::unique_ptr<ASTNode> Parser::parseNullCoalesce() {
+    auto left = parsePipeline();
+    
+    while (peekToken().type == VTokenType::NullCoalesce) {
+        consume(VTokenType::NullCoalesce);
+        auto right = parsePipeline();  // Changed from parseLogicalOr()
+        auto node = std::make_unique<NullCoalesceNode>(std::move(left), std::move(right));
+        node->lineNumber = peekToken().line;
+        left = std::move(node);
+    }
+    
+    return left;
+}
+
+std::unique_ptr<ASTNode> Parser::parsePipeline() {
+    auto left = parseLogicalOr();
+    
+    while (peekToken().type == VTokenType::Pipeline) {
+        consume(VTokenType::Pipeline);
+        
+        auto right = parseLogicalOr();
+        
+        if (right->type() == NodeType::FUNCTION_CALL) {
+            auto* funcCall = static_cast<FunctionCallNode*>(right.get());
+            
+            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+            node->lineNumber = peekToken().line;
+            left = std::move(node);
+        } 
+        else if (right->type() == NodeType::METHOD_CALL) {
+            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+            node->lineNumber = peekToken().line;
+            left = std::move(node);
+        }
+        else if (right->type() == NodeType::VARIABLE) {
+            auto* var = static_cast<VariableNode*>(right.get());
+            std::vector<std::unique_ptr<ASTNode>> args;
+            args.push_back(std::move(left));
+            
+            auto funcCall = std::make_unique<FunctionCallNode>(
+                var->getNameId(),
+                var->getOriginalName(),
+                std::move(args)
+            );
+            funcCall->lineNumber = right->lineNumber;
+            left = std::move(funcCall);
+        }
+        else {
+            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+            node->lineNumber = peekToken().line;
+            left = std::move(node);
+        }
     }
     
     return left;
