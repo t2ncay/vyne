@@ -982,3 +982,31 @@ std::string PipelineNode::getCExpr(C_Emitter& e) const {
     
     return result;
 }
+
+void ThrowNode::compile(C_Emitter& e) const {
+    // TODO: Codegen implementation
+}
+
+std::string ThrowNode::getCExpr(C_Emitter& e) const {
+    // TODO: Codegen implementation
+    return "vyne_null()";
+}
+
+void FinallyNode::compile(C_Emitter& e) const {
+    // TODO: Codegen implementation
+}
+
+std::string FinallyNode::getCExpr(C_Emitter& e) const {
+    // TODO: Codegen implementation
+    return "vyne_null()";
+}
+
+
+void TryCatchNode::compile(C_Emitter& e) const {
+    // TODO: Codegen implementation
+}
+
+std::string TryCatchNode::getCExpr(C_Emitter& e) const {
+    // TODO: Codegen implementation
+    return "vyne_null()";
+}

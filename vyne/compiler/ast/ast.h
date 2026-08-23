@@ -266,6 +266,10 @@ enum class NodeType {
 
     PIPELINE,
 
+    TRY_CATCH,
+    THROW,
+    FINALLY,
+
     BREAK,
     CONTINUE
 };
@@ -1172,6 +1176,66 @@ struct ContinueNode : public ASTNode {
 };
 
 // new stuff 2026 needs to be reviewed
+
+// ============================================================
+// ERROR HANDLING NODES
+// ============================================================
+
+class TryCatchNode : public ASTNode {
+    std::unique_ptr<ASTNode> tryBody;
+    std::unique_ptr<ASTNode> catchBody;
+    std::string catchVarName;
+    uint32_t catchVarId;
+    std::unique_ptr<ASTNode> finallyBody;
+
+public:
+    TryCatchNode(std::unique_ptr<ASTNode> tryBody,
+                 std::unique_ptr<ASTNode> catchBody,
+                 std::string catchVarName,
+                 std::unique_ptr<ASTNode> finallyBody = nullptr)
+        : ASTNode(NodeType::TRY_CATCH),
+          tryBody(std::move(tryBody)),
+          catchBody(std::move(catchBody)),
+          catchVarName(std::move(catchVarName)),
+          finallyBody(std::move(finallyBody)) {
+        catchVarId = StringPool::instance().intern(catchVarName);
+    }
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+};
+
+class ThrowNode : public ASTNode {
+    std::unique_ptr<ASTNode> expression;
+
+public:
+    ThrowNode(std::unique_ptr<ASTNode> expr)
+        : ASTNode(NodeType::THROW), expression(std::move(expr)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+};
+
+struct CatchException {
+    Value value;
+};
+
+class FinallyNode : public ASTNode {
+    std::unique_ptr<ASTNode> body;
+
+public:
+    FinallyNode(std::unique_ptr<ASTNode> b)
+        : ASTNode(NodeType::FINALLY), body(std::move(b)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+};
 
 class InterpolatedStringNode : public ASTNode {
     std::vector<std::pair<std::string, bool>> parts;

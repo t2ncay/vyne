@@ -390,6 +390,8 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Ruleset:    return parseRuleset();
         case VTokenType::Enum:       return parseEnum();
         case VTokenType::Defer:      return parseDeferStatement();
+        case VTokenType::Try:          return parseTryCatch();
+        case VTokenType::Throw:        return parseThrowStatement();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -436,11 +438,11 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseExpression() {
-    return parseNullCoalesce();
+    return parseTernary();
 }
 
 std::unique_ptr<ASTNode> Parser::parseTernary() {
-    auto expr = parseRange();
+    auto expr = parseNullCoalesce();
 
     if (peekToken().type == VTokenType::Question) {
         consume(VTokenType::Question);
@@ -1869,4 +1871,84 @@ void Parser::applyRulesetArrayValue(const Token& ruleName, std::unique_ptr<ASTNo
             Vyne::ignoreWarnings(ignored);
         }
     }
+}
+
+std::unique_ptr<ASTNode> Parser::parseThrowStatement() {
+    int line = peekToken().line;
+    consume(VTokenType::Throw);
+    
+    std::unique_ptr<ASTNode> expr = nullptr;
+    
+    // Throw can have an optional expression
+    if (peekToken().type != VTokenType::Semicolon) {
+        expr = parseExpression();
+    }
+    
+    consumeSemicolon();
+    
+    auto node = std::make_unique<ThrowNode>(std::move(expr));
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseTryCatch() {
+    int line = peekToken().line;
+    consume(VTokenType::Try);
+    
+    // Parse try body (must be a block)
+    if (peekToken().type != VTokenType::Left_CB) {
+        throw std::runtime_error("Syntax Error: 'try' must be followed by a block [ line " + 
+                                std::to_string(line) + " ]");
+    }
+    auto tryBody = parseBlock();
+    
+    std::unique_ptr<ASTNode> catchBody = nullptr;
+    std::string catchVarName = "_err";
+    std::unique_ptr<ASTNode> finallyBody = nullptr;
+    
+    // Parse catch block (optional)
+    if (peekToken().type == VTokenType::Catch) {
+        consume(VTokenType::Catch);
+        
+        // Optional catch variable: catch (err)
+        if (peekToken().type == VTokenType::Left_Parenthese) {
+            consume(VTokenType::Left_Parenthese);
+            Token varTok = consume(VTokenType::Identifier);
+            catchVarName = varTok.name;
+            consume(VTokenType::Right_Parenthese);
+        }
+        
+        // Catch body must be a block
+        if (peekToken().type != VTokenType::Left_CB) {
+            throw std::runtime_error("Syntax Error: 'catch' must be followed by a block [ line " + 
+                                    std::to_string(line) + " ]");
+        }
+        catchBody = parseBlock();
+    }
+    
+    // Parse finally block (optional)
+    if (peekToken().type == VTokenType::Finally) {
+        consume(VTokenType::Finally);
+        
+        if (peekToken().type != VTokenType::Left_CB) {
+            throw std::runtime_error("Syntax Error: 'finally' must be followed by a block [ line " + 
+                                    std::to_string(line) + " ]");
+        }
+        finallyBody = parseBlock();
+    }
+    
+    // Must have at least catch or finally
+    if (!catchBody && !finallyBody) {
+        throw std::runtime_error("Syntax Error: 'try' must be followed by 'catch' or 'finally' [ line " + 
+                                std::to_string(line) + " ]");
+    }
+    
+    auto node = std::make_unique<TryCatchNode>(
+        std::move(tryBody),
+        std::move(catchBody),
+        catchVarName,
+        std::move(finallyBody)
+    );
+    node->lineNumber = line;
+    return node;
 }

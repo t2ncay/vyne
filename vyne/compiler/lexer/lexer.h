@@ -92,6 +92,12 @@ enum class VTokenType {
     Memory_Limit,
     In,
 
+    // --- KEYWORDS: ERROR HANDLING ---
+    Try,                // try block
+    Catch,              // catch block
+    Throw,              // throw statement
+    Finally,            // finally block
+
     // --- SPECIAL ---
     BuiltIn,            // Pre-defined functions
     Defer,              // defer
@@ -139,7 +145,11 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"enum",            VTokenType::Enum},
     {"defer",           VTokenType::Defer},
     {"free",            VTokenType::BuiltIn},
-    {"in",              VTokenType::In}
+    {"in",              VTokenType::In},
+    {"try",             VTokenType::Try},
+    {"catch",           VTokenType::Catch},
+    {"throw",           VTokenType::Throw},
+    {"finally",         VTokenType::Finally},
 };
 
 // tokens

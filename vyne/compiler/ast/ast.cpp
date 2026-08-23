@@ -2270,6 +2270,77 @@ Value PipelineNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) cons
     return leftVal;
 }
 
+// ============================================================
+// TRY/CATCH/THROW/FINALLY - EVALUATION
+// ============================================================
+
+Value TryCatchNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    // Push a new scope for the catch variable
+    std::string catchScopeName = createLocalScope("catch", catchVarName);
+    ScopedEnvironment catchScope(env, catchScopeName, currentGroupId);
+    uint32_t catchScopeId = catchScope.getScopeId();
+
+    // Store current defer stack size
+    size_t deferCount = env.getDeferCount();
+
+    Value result;
+
+    try {
+        // Execute try body
+        if (tryBody) {
+            result = tryBody->evaluate(env, currentGroupId);
+        }
+        
+        // Execute finally if present (no exception path)
+        if (finallyBody) {
+            finallyBody->evaluate(env, currentGroupId);
+        }
+        
+        return result;
+    }
+    catch (const CatchException& e) {
+        // IMPORTANT: Bind caught value to catch variable BEFORE evaluating catch body
+        catchScope.bind(catchVarId, e.value);
+        
+        // Execute catch body in the catch scope so it can see the variable
+        if (catchBody) {
+            result = catchBody->evaluate(env, catchScopeId);
+        }
+        
+        // Execute finally if present (exception path)
+        if (finallyBody) {
+            finallyBody->evaluate(env, currentGroupId);
+        }
+        
+        return result;
+    }
+    catch (...) {
+        // Execute finally if present (unhandled exception path)
+        if (finallyBody) {
+            finallyBody->evaluate(env, currentGroupId);
+        }
+        throw;
+    }
+}
+// ============================================================
+
+Value ThrowNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value val;
+    if (expression) {
+        val = expression->evaluate(env, currentGroupId);
+    }
+    throw CatchException{val};
+}
+
+// ============================================================
+
+Value FinallyNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    if (body) {
+        return body->evaluate(env, currentGroupId);
+    }
+    return Value();
+}
+
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId) {
     if (scope.empty()) return currentGroupId;
     

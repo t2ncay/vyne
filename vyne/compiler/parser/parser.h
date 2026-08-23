@@ -106,6 +106,8 @@ private:
 	std::unique_ptr<ASTNode> parseNullCoalesce();
 	std::unique_ptr<ASTNode> parsePipeline();
 	std::unique_ptr<ASTNode> parseEnum();
+	std::unique_ptr<ASTNode> parseTryCatch();
+	std::unique_ptr<ASTNode> parseThrowStatement();
 	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
 
     void applyRulesetValue(const Token& ruleName, int64_t value, int line);
