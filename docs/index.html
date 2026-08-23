@@ -778,6 +778,284 @@
           display: none;
         }
       }
+
+      /* ============================================================
+   VGLIB API REFERENCE
+   ============================================================ */
+
+      .api-intro {
+        margin-bottom: 2.5rem;
+      }
+
+      .api-intro p {
+        max-width: 100%;
+      }
+
+      .api-stats {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding: 0.8rem 1.2rem;
+        background: var(--bg-card);
+        border-radius: var(--radius);
+        border: 1px solid var(--border-subtle);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      .api-stats span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .api-stats i {
+        color: var(--accent-cyan);
+      }
+
+      .api-module {
+        margin-bottom: 1.2rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--bg-card);
+        transition: border-color 0.2s;
+      }
+
+      .api-module:hover {
+        border-color: rgba(43, 198, 183, 0.25);
+      }
+
+      .module-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+        background: rgba(255, 255, 255, 0.01);
+      }
+
+      .module-head:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .module-head-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .module-head-left i {
+        color: var(--accent-cyan);
+        font-size: 1.1rem;
+        width: 20px;
+      }
+
+      .module-head-left h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+      }
+
+      .fn-count {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        background: var(--bg-base);
+        padding: 2px 10px;
+        border-radius: 40px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .module-toggle {
+        color: var(--text-muted);
+        transition: transform 0.3s ease;
+        font-size: 0.9rem;
+      }
+
+      .module-head.open .module-toggle {
+        transform: rotate(180deg);
+      }
+
+      .module-body {
+        padding: 0 1.5rem 1.5rem;
+        display: none;
+        border-top: 1px solid var(--border-subtle);
+        animation: slideDown 0.25s ease;
+      }
+
+      .module-body.open {
+        display: block;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .api-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .api-grid.cols-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .api-card {
+        background: var(--bg-base);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        transition:
+          border-color 0.2s,
+          transform 0.15s;
+      }
+
+      .api-card:hover {
+        border-color: rgba(43, 198, 183, 0.3);
+        transform: translateY(-1px);
+      }
+
+      .api-signature {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        margin-bottom: 0.4rem;
+        word-break: break-word;
+      }
+
+      .fn-name {
+        color: var(--accent-cyan);
+        font-weight: 500;
+      }
+
+      .fn-parens {
+        color: var(--text-muted);
+      }
+
+      .fn-param {
+        color: var(--accent-amber);
+      }
+
+      .fn-arrow {
+        color: var(--text-muted);
+        margin: 0 4px;
+      }
+
+      .fn-return {
+        color: var(--accent-purple);
+        font-weight: 500;
+      }
+
+      .api-desc {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+
+      .api-desc code.inline {
+        font-size: 0.8em;
+      }
+
+      .api-example {
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        padding: 4px 0;
+      }
+
+      .example-label {
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-right: 4px;
+      }
+
+      .api-example code {
+        font-family: var(--font-mono);
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+
+      .api-note {
+        margin-top: 2rem;
+        padding: 1rem 1.5rem;
+        background: var(--glow-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.15);
+        border-radius: var(--radius);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
+
+      .api-note i {
+        color: var(--accent-cyan);
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+
+      .api-note code.inline {
+        font-size: 0.85em;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .api-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .api-grid.cols-3 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .api-grid,
+        .api-grid.cols-3 {
+          grid-template-columns: 1fr;
+        }
+        .module-head {
+          padding: 0.8rem 1rem;
+        }
+        .module-body {
+          padding: 0 1rem 1rem;
+        }
+        .module-head-left h3 {
+          font-size: 0.9rem;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .api-stats {
+          flex-direction: column;
+          gap: 0.4rem;
+        }
+        .module-head-left {
+          gap: 8px;
+        }
+        .fn-count {
+          font-size: 0.55rem;
+          padding: 1px 8px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -855,7 +1133,7 @@
               <a href="#vmath"><i class="fas fa-calculator"></i> VMath</a>
             </li>
             <li>
-              <a href="#vglib"><i class="fas fa-gamepad"></i> VGLib</a>
+              <a href="#vglib-api"><i class="fas fa-gamepad"></i> VGLib</a>
             </li>
             <li>
               <a href="#vaudio"><i class="fas fa-music"></i> VAudio</a>
@@ -2034,55 +2312,1433 @@
         </div>
       </section>
 
-      <!-- VGLIB -->
-      <section id="vglib">
+      <!-- VGLIB API REFERENCE - Full Comprehensive -->
+      <section id="vglib-api">
         <div class="section-header">
-          <h2>VGLib</h2>
-          <span class="badge">graphics · 3D · AI</span>
+          <h2>VGLib API Reference</h2>
+          <span class="badge purple"><i class="fas fa-cube"></i> full API</span>
         </div>
-        <p>Hardware‑accelerated 2D/3D, shaders, map loading, and nextbot AI.</p>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="filename">selena.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
-          </div>
-          <div class="code-body">
-            <span class="keyword">module</span> vglib;<br />
-            vglib.init(1920, 1080, <span class="string">"Vyne Pro"</span>,
-            vglib.FULLSCREEN);<br />
-            cam = vglib.camera(60);<br />
-            <span class="keyword">while</span> (vglib.running()) {<br />
-            &nbsp;&nbsp;vglib.begin();<br />
-            &nbsp;&nbsp;vglib.begin3d(cam);<br />
-            &nbsp;&nbsp;vglib.cube(0,0,0, 2, 0, vglib.CYAN);<br />
-            &nbsp;&nbsp;vglib.end3d();<br />
-            &nbsp;&nbsp;vglib.end();<br />
-            }
+
+        <div class="api-intro">
+          <p>
+            VGLib is Vyne's hardware-accelerated graphics, audio, and AI engine
+            — a full-featured 2D/3D framework built on top of
+            <strong>Raylib</strong>. Every function listed here is a native
+            binding exposed directly to Vyne scripts.
+          </p>
+          <div class="api-stats">
+            <span><i class="fas fa-fw fa-layer-group"></i> 8 modules</span>
+            <span><i class="fas fa-fw fa-code"></i> 65+ functions</span>
+            <span
+              ><i class="fas fa-fw fa-shield-halved"></i> typed bindings</span
+            >
           </div>
         </div>
-        <div class="api-table-wrap">
-          <table class="api-table">
-            <tr>
-              <th>Function</th>
-              <th>Description</th>
-            </tr>
-            <tr>
-              <td>vglib.load_map(path)</td>
-              <td>parse .dat map</td>
-            </tr>
-            <tr>
-              <td>vglib.pathfind(start, target, map, size)</td>
-              <td>AI obstacle avoidance</td>
-            </tr>
-            <tr>
-              <td>vglib.billboard(cam, tex, pos, size)</td>
-              <td>always‑facing sprite</td>
-            </tr>
-            <tr>
-              <td>vglib.export_obj(map, filename)</td>
-              <td>export as OBJ</td>
-            </tr>
-          </table>
+
+        <!-- ============================================================ -->
+        <!--  CORE                                                         -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-microchip"></i>
+              <h3>Core — window &amp; frame loop</h3>
+              <span class="fn-count">10 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.init</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">width</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">height</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">fps</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">title</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">flags</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Initializes the window and sets the target frame rate. Returns
+                  <code class="inline">true</code> on success.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vglib.init(1280, 720, 60, "My Game", vglib.VSYNC)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.running</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code class="inline">true</code> while the window is
+                  open and the close button hasn't been pressed.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>while (vglib.running()) { ... }</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.begin</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Begins the drawing frame. Must be called before any draw
+                  operations and paired with <code class="inline">end()</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.end</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Ends the drawing frame and presents the rendered image to the
+                  screen.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.clear</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Clears the background with the specified color. Defaults to
+                  black (<code class="inline">0x000000FF</code>).
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vglib.clear(vglib.rgba(20, 30, 40, 255))</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.close</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Closes the window and releases all GPU resources.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.get_fps</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Int64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the current frames-per-second counter.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.clear_gradient</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">top</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">bottom</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Fills the screen with a vertical gradient from
+                  <code>top</code> to <code>bottom</code> color.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.rgba</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">r</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">g</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">b</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">a</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Int64</span>
+                </div>
+                <div class="api-desc">
+                  Packs 4 8‑bit channels into a single 32‑bit color integer.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.donut</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">A</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">B</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Renders an ASCII donut to the terminal. A and B are the
+                  rotation angles.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  2D RENDERING                                                -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-vector-square"></i>
+              <h3>2D Rendering — shapes, text, textures</h3>
+              <span class="fn-count">12 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.line</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x1</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y1</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x2</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y2</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws a line from (x1, y1) to (x2, y2).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.rect</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a filled rectangle.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.circle</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">r</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a filled circle.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.text</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">text</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws text using the default font.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.text_ex</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">font</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">text</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws text with a custom <code class="inline">font</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_font</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Font</span>
+                </div>
+                <div class="api-desc">
+                  Loads a TrueType font from a file. Returns a font handle.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.measure_text</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">font</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">text</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Returns the width and height of the given text as a 2‑element
+                  array.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_texture</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Texture</span>
+                </div>
+                <div class="api-desc">
+                  Loads an image from disk into GPU memory. Supports PNG, JPG,
+                  BMP, TGA.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_texture</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">tex</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a texture with scaling.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_phase_scope</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x_start</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x_end</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y_center</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">phase_a</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">phase_b</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">intensity</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">play_a</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">play_b</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws an animated dual‑phase Lissajous‑style scope with neon
+                  glow.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_spectrum_analyzer</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">num_bars</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">time</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">intensity</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws an animated spectrum analyzer with gradient bars.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_scanlines</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">spacing</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Overlays horizontal scanlines for a retro / VHS effect.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  3D RENDERING                                                -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-cube"></i>
+              <h3>3D Rendering — cameras, meshes, models</h3>
+              <span class="fn-count">20 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.camera</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">fovy</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Camera</span>
+                </div>
+                <div class="api-desc">
+                  Creates a 3D perspective camera with the given field of view.
+                  Defaults to 45°.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.begin3d</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Begins 3D rendering mode with the specified camera. All 3D
+                  draw calls must be inside a <code>begin3d</code> /
+                  <code>end3d</code>
+                  pair.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.end3d</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Ends 3D rendering mode.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.line_3d</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x1</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y1</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z1</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x2</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y2</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z2</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a line in 3D space.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.cube</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">rotation</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a colored 3D cube.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.plane</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a 3D plane.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.grid</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">slices</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">spacing</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws a 3D grid on the XZ plane. Slices and spacing are
+                  optional.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_model</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Model</span>
+                </div>
+                <div class="api-desc">
+                  Loads a 3D model from an OBJ, GLTF, or IQM file.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_model</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">model</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">scale</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a loaded 3D model.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.cube_texture</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">tex</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a texture‑mapped cube.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.plane_texture</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">tex</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Draws a texture‑mapped plane.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.billboard</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">tex</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">color</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws a 2D sprite always facing the camera.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.update_camera</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">mode</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Updates camera controls using the specified mode
+                  (<code>vglib.CAMERA_FREE</code>,
+                  <code>CAMERA_ORBITAL</code>, etc.).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.get_pos</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64, Float64]</span>
+                </div>
+                <div class="api-desc">Returns the camera's position.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.set_pos</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">x</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">y</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">z</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Sets the camera's absolute position.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.move_forward</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">distance</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Moves the camera forward along its look vector.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.move_right</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">distance</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Moves the camera right along its local X axis.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.rotate_view</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">sensitivity</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Rotates the camera using mouse delta, multiplied by
+                  sensitivity.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_instances</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">model</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">instances</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Draws multiple instances of a model. Each instance is
+                  <code>[x, y, z, scale]</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_instances_ex</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">model</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">instances</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">cam_pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">max_dist</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Instance renderer with distance culling — only instances
+                  within
+                  <code>max_dist</code> are drawn.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  SHADERS & POST‑PROCESSING                                   -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-palette"></i>
+              <h3>Shaders &amp; Post‑Processing</h3>
+              <span class="fn-count">8 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_shader</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[vs_path]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Shader</span>
+                </div>
+                <div class="api-desc">
+                  Loads a GLSL shader. If one path is given, it's treated as a
+                  fragment shader; if two, vertex and fragment.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.begin_shader</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">shader</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Begins a shader mode.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.end_shader</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Ends shader mode.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.set_shader_value</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">shader</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">uniform</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">value</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Sets a uniform value. Supports <code>Float64</code> or
+                  <code>[Float64, Float64]</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_render_texture</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">w</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">h</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">RenderTexture</span>
+                </div>
+                <div class="api-desc">
+                  Creates an offscreen render target. Useful for multi‑pass
+                  effects.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.begin_texture_mode</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">target</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Begins rendering to a <code>RenderTexture</code> target.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.end_texture_mode</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Ends offscreen rendering.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_canvas_scaled</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">target</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Draws a <code>RenderTexture</code> scaled to fit the screen.
+                  Returns <code>[scale, offsetX, offsetY]</code>.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  MAP / AI / COLLISION                                        -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-map"></i>
+              <h3>Map, AI &amp; collision</h3>
+              <span class="fn-count">7 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.load_map</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[MapData]</span>
+                </div>
+                <div class="api-desc">
+                  Parses a <code>.dat</code> map file. Returns an array of
+                  <code>[x, y, z, size]</code> world blocks.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.pathfind</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">start</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">target</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">map</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">grid_size</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  AI obstacle‑avoidance pathfinder. Returns a normalized
+                  direction vector.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.check_collision</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">cube_pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">cube_size</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Box‑vs‑box collision test between a player and a single cube.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.check_collision_map</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">size</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">map</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Tests the player box against every block in a map. Returns
+                  <code>true</code> if any collision is detected.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.export_obj</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">map</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">filename</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Exports a map as a Wavefront OBJ file. Useful for external
+                  editing in Blender.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.get_ray_grid</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">camera</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">distance</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">grid_size</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Snaps a ray from the camera to the nearest grid position.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.distance_3d</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">a</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">b</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Euclidean distance between two 3D points.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  INPUT                                                       -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-keyboard"></i>
+              <h3>Input — keyboard, mouse</h3>
+              <span class="fn-count">10 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.key_down</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">key</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code>true</code> while a key is held.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.key_pressed</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">key</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code>true</code> on the frame a key was pressed.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.get_char</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">String</span>
+                </div>
+                <div class="api-desc">
+                  Returns the last character typed, or an empty string if none.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.get_key</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Int64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the last physical key pressed, or <code>0</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.mouse_down</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">button</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code>true</code> while a mouse button is held.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.mouse_pos</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64]</span>
+                </div>
+                <div class="api-desc">Returns the current mouse position.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.mouse_delta</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Returns the mouse movement since the last frame.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.mouse_wheel</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">Returns the mouse wheel delta.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.disable_cursor</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Locks and hides the cursor (FPS mode).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.enable_cursor</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">Unlocks and shows the cursor.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  CONSTANTS & KEY CODES                                       -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-hashtag"></i>
+              <h3>Constants — key codes, colors, modes</h3>
+              <span class="fn-count">40+ constants</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid cols-3">
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.KEY_*</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >A–Z · 0–9 · F1–F12 · LEFT_SHIFT · LEFT_CTRL · LEFT_ALT ·
+                    RIGHT_SHIFT · RIGHT_CTRL · RIGHT_ALT</code
+                  >
+                </div>
+                <div class="api-example" style="margin-top: 4px">
+                  <span class="example-label">Also:</span>
+                  <code
+                    >UP · DOWN · LEFT · RIGHT · SPACE · ENTER · ESCAPE ·
+                    BACKSPACE · TAB · DELETE</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.COLOR_*</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >WHITE · BLACK · RED · GREEN · BLUE · CYAN · MAGENTA ·
+                    PURPLE · GRAY</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.FULLSCREEN · VSYNC</span>
+                </div>
+                <div class="api-desc">
+                  Window mode flags for <code>init()</code>.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.CAMERA_*</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >CAMERA_FREE · CAMERA_ORBITAL · CAMERA_FIRST_P ·
+                    CAMERA_THIRD_P</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.MOUSE_*</span>
+                </div>
+                <div class="api-desc">
+                  <code>MOUSE_LEFT · MOUSE_RIGHT · MOUSE_MIDDLE</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vglib.version</span>
+                </div>
+                <div class="api-desc">
+                  Read‑only property: <code>"v0.0.4-alpha"</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  PERSISTENT GROUPS (advanced)                               -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-database"></i>
+              <h3>Persistent groups — advanced instancing</h3>
+              <span class="fn-count">2 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.upload_persistent_group</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">name</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">data</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Stores an instance array under a named group. The group
+                  persists across frames.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vglib.draw_persistent_group</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">name</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">model</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">cam_pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">max_dist</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Renders a persistent group with distance culling.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- footer note -->
+        <div class="api-note">
+          <i class="fas fa-info-circle"></i>
+          <span
+            >All VGLib functions are native bindings written in C++ and
+            statically linked. Returned pointers (Camera, Texture, Model,
+            Shader, RenderTexture, Font) are opaque handles — pass them back to
+            subsequent calls as <code class="inline">Int64</code> values.</span
+          >
         </div>
       </section>
 
@@ -2396,6 +4052,45 @@
           a.addEventListener("click", () => sidebar.classList.remove("open")),
         );
       })();
+
+      // ============================================================
+      // VGLIB API REFERENCE — module toggles
+      // ============================================================
+
+      function toggleModule(el) {
+        const head = el;
+        const body = head.nextElementSibling;
+        const isOpen = body.classList.contains("open");
+
+        // Close all other modules (optional, uncomment for accordion behavior)
+        // document.querySelectorAll('.module-body.open').forEach(b => {
+        //   if (b !== body) {
+        //     b.classList.remove('open');
+        //     b.previousElementSibling.classList.remove('open');
+        //   }
+        // });
+
+        if (isOpen) {
+          body.classList.remove("open");
+          head.classList.remove("open");
+        } else {
+          body.classList.add("open");
+          head.classList.add("open");
+        }
+      }
+
+      // Auto-open first module on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        const firstModule = document.querySelector(".module-head");
+        if (firstModule) {
+          // Open the first module by default
+          const body = firstModule.nextElementSibling;
+          if (body) {
+            body.classList.add("open");
+            firstModule.classList.add("open");
+          }
+        }
+      });
     </script>
   </body>
 </html>
