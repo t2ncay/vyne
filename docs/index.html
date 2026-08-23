@@ -516,8 +516,16 @@
         overflow: hidden;
         border-bottom: 1px solid var(--border-subtle);
         background:
-          radial-gradient(600px 300px at 12% -10%, var(--glow-cyan), transparent 60%),
-          radial-gradient(500px 260px at 92% 0%, var(--glow-purple), transparent 55%);
+          radial-gradient(
+            600px 300px at 12% -10%,
+            var(--glow-cyan),
+            transparent 60%
+          ),
+          radial-gradient(
+            500px 260px at 92% 0%,
+            var(--glow-purple),
+            transparent 55%
+          );
       }
       .hero::before {
         content: "";
@@ -525,7 +533,11 @@
         inset: 0;
         background-image:
           linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.035) 1px,
+            transparent 1px
+          );
         background-size: 42px 42px;
         mask-image: linear-gradient(to bottom, black, transparent 85%);
         pointer-events: none;
@@ -566,7 +578,12 @@
         margin-bottom: 1.1rem;
       }
       .hero h1 .grad {
-        background: linear-gradient(120deg, var(--accent-cyan) 10%, var(--accent-purple) 60%, var(--accent-pink) 100%);
+        background: linear-gradient(
+          120deg,
+          var(--accent-cyan) 10%,
+          var(--accent-purple) 60%,
+          var(--accent-pink) 100%
+        );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
@@ -892,11 +909,12 @@
             </div>
             <h1>The <span class="grad">Vyne</span><br />language</h1>
             <p class="hero-sub">
-              A C‑flavored scripting language with <strong>optional strict
-              typing</strong>, structs via <code class="inline">interface</code>,
-              and a standard library that reaches from <strong>VMath</strong> to
-              <strong>VGLib</strong> 3D and <strong>VServ</strong> HTTP. Run it on
-              the tree‑walking interpreter, or lower it straight to native C.
+              A C‑flavored scripting language with
+              <strong>optional strict typing</strong>, structs via
+              <code class="inline">interface</code>, and a standard library that
+              reaches from <strong>VMath</strong> to <strong>VGLib</strong> 3D
+              and <strong>VServ</strong> HTTP. Run it on the tree‑walking
+              interpreter, or lower it straight to native C.
             </p>
             <div class="hero-cta">
               <a href="#basics" class="btn btn-primary"
@@ -905,7 +923,7 @@
               <a href="#playground" class="btn btn-ghost"
                 ><i class="fas fa-flask"></i> Try the playground</a
               >
-              <a href="#" class="btn btn-ghost"
+              <a href="https://github.com/t2ncay/vyne" class="btn btn-ghost"
                 ><i class="fab fa-github"></i> Source</a
               >
             </div>
@@ -1148,9 +1166,10 @@
           <span class="badge">enum</span>
         </div>
         <p>
-          Named integer constants declared with <code class="inline">enum</code>.
-          Members auto‑increment from the previous value, and an explicit
-          <code class="inline">= N</code> resets the counter.
+          Named integer constants declared with
+          <code class="inline">enum</code>. Members auto‑increment from the
+          previous value, and an explicit <code class="inline">= N</code> resets
+          the counter.
         </p>
         <div class="code-block">
           <div class="code-header">
@@ -1180,10 +1199,10 @@
           <span class="badge purple">interface</span>
         </div>
         <p>
-          Vyne has no separate <code class="inline">struct</code> keyword —
-          an <code class="inline">interface</code> block declares typed
-          fields <em>and</em> method bodies together, and doubles as a
-          positional constructor when called.
+          Vyne has no separate <code class="inline">struct</code> keyword — an
+          <code class="inline">interface</code> block declares typed fields
+          <em>and</em> method bodies together, and doubles as a positional
+          constructor when called.
         </p>
         <div class="code-block">
           <div class="code-header">
@@ -1235,9 +1254,9 @@
         </div>
         <p>
           <code class="inline">try</code> must be followed by
-          <code class="inline">catch</code>, <code class="inline">finally</code>,
-          or both. An unnamed catch binds the error to
-          <code class="inline">_err</code> by default.
+          <code class="inline">catch</code>,
+          <code class="inline">finally</code>, or both. An unnamed catch binds
+          the error to <code class="inline">_err</code> by default.
         </p>
         <div class="code-block">
           <div class="code-header">
@@ -1269,8 +1288,8 @@
               <i class="fas fa-layer-group"></i> defer
             </div>
             <div class="card-desc">
-              <code class="inline">defer stmt;</code> queues a single
-              statement to run when the enclosing scope exits.
+              <code class="inline">defer stmt;</code> queues a single statement
+              to run when the enclosing scope exits.
             </div>
           </div>
         </div>
@@ -1872,7 +1891,9 @@
       <section id="architecture">
         <div class="section-header">
           <h2>Architecture</h2>
-          <span class="badge"><i class="fas fa-diagram-project"></i> engine</span>
+          <span class="badge"
+            ><i class="fas fa-diagram-project"></i> engine</span
+          >
         </div>
         <p>
           One AST, two ways to run it: a tree‑walking interpreter for fast
@@ -1889,7 +1910,9 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fas fa-code-branch"></i> Parser</div>
+            <div class="card-title">
+              <i class="fas fa-code-branch"></i> Parser
+            </div>
             <div class="card-desc">
               A recursive‑descent <code class="inline">Parser</code> builds a
               typed <code class="inline">unique_ptr&lt;ASTNode&gt;</code> tree,
@@ -1897,7 +1920,9 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fas fa-play"></i> Interpreter</div>
+            <div class="card-title">
+              <i class="fas fa-play"></i> Interpreter
+            </div>
             <div class="card-desc">
               Each node's <code class="inline">evaluate(env, scopeId)</code>
               walks the tree directly against a
@@ -1905,26 +1930,34 @@
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fas fa-gears"></i> Transpiler</div>
+            <div class="card-title">
+              <i class="fas fa-gears"></i> Transpiler
+            </div>
             <div class="card-desc">
-              <code class="inline">Codegen</code> + <code class="inline">C_Emitter</code>
-              lower the same AST into a single C translation unit, then hand
-              off to <code class="inline">arena_free_all()</code> at exit.
+              <code class="inline">Codegen</code> +
+              <code class="inline">C_Emitter</code> lower the same AST into a
+              single C translation unit, then hand off to
+              <code class="inline">arena_free_all()</code> at exit.
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fas fa-layer-group"></i> Value model</div>
+            <div class="card-title">
+              <i class="fas fa-layer-group"></i> Value model
+            </div>
             <div class="card-desc">
               <code class="inline">Value</code> is a tagged union — primitives
               live inline, while Array / Map / Struct / Function / Module are
-              boxed behind <code class="inline">shared_ptr&lt;VyneObject&gt;</code>.
+              boxed behind
+              <code class="inline">shared_ptr&lt;VyneObject&gt;</code>.
             </div>
           </div>
           <div class="card">
-            <div class="card-title"><i class="fas fa-hashtag"></i> StringPool</div>
+            <div class="card-title">
+              <i class="fas fa-hashtag"></i> StringPool
+            </div>
             <div class="card-desc">
-              Identifiers and field names are interned once into a global
-              pool, so symbol lookups compare <code class="inline">uint32_t</code>
+              Identifiers and field names are interned once into a global pool,
+              so symbol lookups compare <code class="inline">uint32_t</code>
               ids instead of strings.
             </div>
           </div>
