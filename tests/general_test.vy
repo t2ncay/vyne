@@ -1,4 +1,11 @@
-ruleset { warnings, dynamic_casting };
+ruleset {
+    warnings = all,
+    type_check = hybrid,
+    implicit_casting = warn,
+    profiling = on,
+    debug = on,
+    trace = on
+};
 #===============================================================================
 # Vyne Language Comprehensive Test Suite
 #===============================================================================

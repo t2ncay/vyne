@@ -108,6 +108,11 @@ private:
 	std::unique_ptr<ASTNode> parseEnum();
 	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
 
+    void applyRulesetValue(const Token& ruleName, int64_t value, int line);
+    void applyRulesetValue(const Token& ruleName, const std::string& value, int line);
+    void applyRulesetArrayValue(const Token& ruleName, std::unique_ptr<ASTNode> values, int line);
+    void applyRulesetFlag(const Token& ruleName, int line);
+
 public:
 	// --- Navigation ---
     Token peekToken();
@@ -141,11 +146,11 @@ public:
 	std::unique_ptr<ProgramNode> parseProgram(SymbolContainer& env);
 
 	void checkUnusedVariables(const SymbolContainer& env) {
-		if (Vyne::isQuietMode()) return;
-		
+    	if (Vyne::isQuietMode()) return;
+    
 		for (const auto& scope : scopeStack) {
 			for (const auto& [id, info] : scope) {
-				if (!env.wasUsed(id)) {
+				if (!info.used && !env.wasUsed(id)) {
 					Vyne::warn("Unused variable '" + info.name + "'", info.line);
 				}
 			}

@@ -1,5 +1,6 @@
 #include "parser.h"
 #include "../ast/value.h"
+#include "../../runtime/diagnostics.h"
 
 #define RESET   "\033[0m"
 #define RED     "\033[31m"
@@ -38,9 +39,16 @@ Token Parser::consume(VTokenType expected) {
     if (t.type == expected) {
         return tokens[pos++];
     }
-    throw std::runtime_error("Error: Unexpected token type! Expected " +
-        VTokenTypeToString(expected) + ", but got " +
-        VTokenTypeToString(peekToken().type) + " instead [ line " + std::to_string(t.line) + " ]");
+    
+    emitError(
+        "Unexpected token! Expected " + VTokenTypeToString(expected) + 
+        ", but got " + VTokenTypeToString(peekToken().type),
+        t.line,
+        "VNE-001",
+        {"Check the syntax at this position"}
+    );
+    
+    throw std::runtime_error("Compilation failed");
 }
 
 bool Parser::isAtEnd() {
@@ -103,7 +111,15 @@ VType Parser::resolveType(std::string_view typeName) {
         }
     }
 
-    throw std::runtime_error("Type Error: '" + name + "' is not a defined type.");
+    emitError(
+        "'" + name + "' is not a defined type",
+        0, // We don't have line info here
+        "VNE-003",
+        {"Check the type name spelling",
+         "Use: Int64, Float64, String, Array, Bool, or a defined struct/enum"}
+    );
+    
+    throw std::runtime_error("Type resolution failed");
 }
 
 std::string Parser::parseTypePath() {
@@ -333,9 +349,13 @@ void Parser::consumeSemicolon() {
     if (t.type == VTokenType::Semicolon) {
         consume(VTokenType::Semicolon);
     } else if (t.type != VTokenType::End && t.type != VTokenType::Right_CB) {
-        throw std::runtime_error("Runtime/Compilation Error: Expected ';' at end of statement on line " 
-            + std::to_string(t.line) + 
-            ", but got '" + t.name + "' instead.");
+        emitError(
+            "Expected ';' at end of statement, but got '" + t.name + "'",
+            t.line,
+            "VNE-002",
+            {"Add a semicolon ';' at the end of this statement"}
+        );
+        throw std::runtime_error("Compilation failed at line " + std::to_string(t.line));
     }
 }
 
@@ -346,6 +366,7 @@ std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
         statements.emplace_back(parseStatement());
     }
 
+    checkUnusedVariables(env);
     return std::make_unique<ProgramNode>(std::move(statements));
 }
 
@@ -811,6 +832,10 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     std::string lastName = tok.name;
     uint32_t currentId = StringPool::instance().intern(lastName);
 
+    if (SymbolInfo* info = lookupSymbol(currentId)) {
+        info->used = true;
+    }
+
     VType explicitType = VType::Unknown;
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
@@ -948,7 +973,7 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
         consume(VTokenType::Extends);
     }
 
-    auto iterable = parseExpression(); 
+    auto iterable = parseRange(); 
 
     if (peekToken().type == VTokenType::Arrow) {
         consume(VTokenType::Arrow);
@@ -1087,8 +1112,8 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                     "[ line " + std::to_string(line) + " ]"
                 );
             } else {
-                if (!Vyne::isQuietMode()) {
-                    Vyne::warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+                if (!isQuietMode()) {
+                    warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
                 }
             }
         }
@@ -1096,7 +1121,12 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         std::unique_ptr<ASTNode> rhs = nullptr;
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
-            rhs = parseExpression();
+
+            if(peekToken().type == VTokenType::Int64 && lookAhead(1).type == VTokenType::Double_Dot){
+                rhs = parseRange();
+            } else {
+                rhs = parseExpression();
+            }
         } else {
             if (isReference) {
                 rhs = std::make_unique<NullNode>();
@@ -1315,12 +1345,50 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
         consume(VTokenType::Semicolon);
     }
     
+    // Use the new Vyne
     if (rulesetType.type == VTokenType::Warnings) {
         Vyne::setQuietMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Warnings enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-010"
+        });
     } else if (rulesetType.type == VTokenType::Dynamic_Casting) {
-        Vyne::setTypeStrictMode(false);
+        setStrictMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Type,
+            "Dynamic casting enabled (type checking relaxed)",
+            "",
+            line,
+            0,
+            {"Use 'strict' mode for better type safety"},
+            "VNE-011"
+        });
     } else if (rulesetType.type == VTokenType::Memory_Limit) {
-        Vyne::setMemoryLimitEnabled(true);
+        setMemoryLimit(1024 * 1024);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Memory,
+            "Memory limit tracking enabled",
+            "",
+            line,
+            0,
+            {"Set limit with `memory_limit = <bytes>`"},
+            "VNE-012"
+        });
+    } else {
+        emitError(
+            "Unknown ruleset flag: " + rulesetType.name,
+            line,
+            "VNE-013",
+            {"Available flags: warnings, dynamic_casting, memory_limit"}
+        );
     }
     
     auto node = std::make_unique<NullNode>();
@@ -1332,40 +1400,45 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
     
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
-        // İdentifier gözləmirik, çünki bunlar artıq keyword-dür
-        Token ruleName = getNextToken(); 
+        Token ruleName = getNextToken();
         
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
             
-            Token valueToken = consume(VTokenType::Int64); 
-
-            double value = 0;
-            if (std::holds_alternative<int64_t>(valueToken.literal)) 
-                value = static_cast<double>(std::get<int64_t>(valueToken.literal));
-            else if (std::holds_alternative<double>(valueToken.literal))
-                value = std::get<double>(valueToken.literal);
-
-            if (ruleName.type == VTokenType::Memory_Limit) { 
-                Vyne::setMemoryLimitEnabled(true);
-                Vyne::setMemoryLimit(static_cast<size_t>(value));
-                if (!Vyne::isQuietMode())
-                    std::cout << "[RULES] Memory limit set to: " << value << " bytes\n";
-            } else {
-                throw std::runtime_error("Rule '" + ruleName.name + "' requires a value, but is unknown.");
+            if (peekToken().type == VTokenType::Int64) {
+                Token valueToken = consume(VTokenType::Int64);
+                int64_t value = std::get<int64_t>(valueToken.literal);
+                applyRulesetValue(ruleName, value, line);
+            } 
+            else if (peekToken().type == VTokenType::String) {
+                Token valueToken = consume(VTokenType::String);
+                std::string value = std::get<std::string>(valueToken.literal);
+                applyRulesetValue(ruleName, value, line);
+            }
+            else if (peekToken().type == VTokenType::Identifier) {
+                // Handle non-quoted strings like 'all', 'strict', 'on', 'off'
+                Token valueToken = consume(VTokenType::Identifier);
+                applyRulesetValue(ruleName, valueToken.name, line);
+            }
+            else if (peekToken().type == VTokenType::Left_Bracket) {
+                auto values = parseArrayLiteral();
+                applyRulesetArrayValue(ruleName, std::move(values), line);
+            }
+            else {
+                emitError(
+                    "Expected value for ruleset '" + ruleName.name + "'",
+                    line,
+                    "VNE-014",
+                    {"Use: " + ruleName.name + " = <value>"}
+                );
             }
         } 
         else {
-            if (ruleName.type == VTokenType::Warnings) {
-                Vyne::setQuietMode(false);
-            } else if (ruleName.type == VTokenType::Dynamic_Casting) {
-                Vyne::setTypeStrictMode(false);
-            } else {
-                throw std::runtime_error("Unknown ruleset flag: " + ruleName.name);
-            }
+            applyRulesetFlag(ruleName, line);
         }
-
-        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+        
+        if (peekToken().type == VTokenType::Comma || 
+            peekToken().type == VTokenType::Semicolon) {
             getNextToken();
         }
     }
@@ -1377,6 +1450,7 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     node->lineNumber = line;
     return node;
 }
+
 std::unique_ptr<ASTNode> Parser::parseInterpolatedString() {
     Token tok = getNextToken();
     auto parts = std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
@@ -1446,7 +1520,7 @@ std::unique_ptr<ASTNode> Parser::parseNullCoalesce() {
 }
 
 std::unique_ptr<ASTNode> Parser::parsePipeline() {
-    auto left = parseLogicalOr();
+    auto left = parseRange();
     
     while (peekToken().type == VTokenType::Pipeline) {
         consume(VTokenType::Pipeline);
@@ -1486,4 +1560,313 @@ std::unique_ptr<ASTNode> Parser::parsePipeline() {
     }
     
     return left;
+}
+
+void Parser::applyRulesetValue(const Token& ruleName, const std::string& value, int line) {
+    // Handle warning level settings
+    if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings" || ruleName.name == "warning") {
+        Vyne::setWarningLevel(value);
+
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Warning level set to: " + value,
+            "",
+            line,
+            0,
+            {"Levels: all, none, error_only"},
+            "VNE-017"
+        });
+        return;
+    }
+    
+    // Handle type check mode
+    if (ruleName.name == "type_check" || ruleName.name == "type") {
+        if (value == "hybrid" || value == "strict" || value == "dynamic") {
+            if (value == "strict") {
+                setStrictMode(true);
+            } else {
+                setStrictMode(false);
+            }
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Type checking mode set to: " + value,
+                "",
+                line,
+                0,
+                {"Modes: strict, hybrid, dynamic"},
+                "VNE-021"
+            });
+        } else {
+            emitWarning(
+                "Unknown type_check mode: " + value,
+                line,
+                Vyne::Category::Type,
+                "VNE-022",
+                {"Available: strict, hybrid, dynamic"}
+            );
+        }
+        return;
+    }
+    
+    // Handle implicit casting
+    if (ruleName.name == "implicit_casting" || ruleName.name == "casting") {
+        if (value == "warn" || value == "allow" || value == "deny") {
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Implicit casting set to: " + value,
+                "",
+                line,
+                0,
+                {"Modes: warn, allow, deny"},
+                "VNE-023"
+            });
+        }
+        return;
+    }
+    
+    // Handle profiling
+    if (ruleName.name == "profiling") {
+        if (value == "on" || value == "true") {
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Performance,
+                "Profiling enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-024"
+            });
+        } else {
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Performance,
+                "Profiling disabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-025"
+            });
+        }
+        return;
+    }
+    
+    // Handle debug
+    if (ruleName.name == "debug") {
+        if (value == "on" || value == "true") {
+            // Enable debug mode
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Debug mode enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-026"
+            });
+        }
+        return;
+    }
+    
+    if (ruleName.name == "trace") {
+        if (value == "on" || value == "true") {
+            emit(Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Trace mode enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-027"
+            });
+        }
+        return;
+    }
+    
+    // Default: unknown rule
+    emitWarning(
+        "Unknown ruleset value: " + ruleName.name + " = " + value,
+        line,
+        Vyne::Category::Runtime,
+        "VNE-016",
+        {"Available: warnings, memory_limit, type_check, implicit_casting, profiling, debug, trace"}
+    );
+}
+
+void Parser::applyRulesetValue(const Token& ruleName, int64_t value, int line) {
+    if (ruleName.type == VTokenType::Memory_Limit || ruleName.name == "memory_limit") {
+        setMemoryLimit(static_cast<size_t>(value));
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Memory,
+            "Memory limit set to: " + std::to_string(value) + " bytes",
+            "",
+            line,
+            0,
+            {},
+            "VNE-015"
+        });
+        return;
+    }
+    
+    if (ruleName.name == "max_iterations" || ruleName.name == "max_iter") {
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Performance,
+            "Max iterations set to: " + std::to_string(value),
+            "",
+            line,
+            0,
+            {},
+            "VNE-028"
+        });
+        return;
+    }
+    
+    emitWarning(
+        "Unknown ruleset value: " + ruleName.name + " = " + std::to_string(value),
+        line,
+        Vyne::Category::Runtime,
+        "VNE-016",
+        {"Available: memory_limit, max_iterations"}
+    );
+}
+
+void Parser::applyRulesetFlag(const Token& ruleName, int line) {
+    // Warnings
+    if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings") {
+        Vyne::setQuietMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Warnings enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-010"
+        });
+        return;
+    }
+    
+    // Dynamic casting
+    if (ruleName.type == VTokenType::Dynamic_Casting || ruleName.name == "dynamic_casting") {
+        setStrictMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Type,
+            "Dynamic casting enabled",
+            "",
+            line,
+            0,
+            {"Use 'strict' mode for better type safety"},
+            "VNE-011"
+        });
+        return;
+    }
+    
+    // Memory limit (flag only)
+    if (ruleName.type == VTokenType::Memory_Limit || ruleName.name == "memory_limit") {
+        setMemoryLimit(1024 * 1024 * 1024); // 1GB default
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Memory,
+            "Memory limit tracking enabled (default: 1GB)",
+            "",
+            line,
+            0,
+            {"Set specific limit with: memory_limit = <bytes>"},
+            "VNE-012"
+        });
+        return;
+    }
+    
+    // Type check flag
+    if (ruleName.name == "type_check" || ruleName.name == "type") {
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Type,
+            "Type checking enabled (default: hybrid)",
+            "",
+            line,
+            0,
+            {"Set mode with: type_check = <strict|hybrid|dynamic>"},
+            "VNE-029"
+        });
+        return;
+    }
+    
+    // Profiling flag
+    if (ruleName.name == "profiling") {
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Performance,
+            "Profiling enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-024"
+        });
+        return;
+    }
+    
+    // Debug flag
+    if (ruleName.name == "debug") {
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Debug mode enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-026"
+        });
+        return;
+    }
+    
+    if (ruleName.name == "trace") {
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Trace mode enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-027"
+        });
+        return;
+    }
+    
+    // Unknown flag
+    emitWarning(
+        "Unknown ruleset flag: " + ruleName.name,
+        line,
+        Vyne::Category::Runtime,
+        "VNE-020",
+        {"Available: warnings, dynamic_casting, memory_limit, type_check, profiling, debug, trace"}
+    );
+}
+
+void Parser::applyRulesetArrayValue(const Token& ruleName, std::unique_ptr<ASTNode> values, int line) {
+    if (ruleName.name == "warnings_ignore") {
+        if (values->type() == NodeType::ARRAY) {
+            auto* arrayNode = static_cast<ArrayNode*>(values.get());
+            std::vector<std::string> ignored;
+            for (const auto& elem : arrayNode->getElements()) {
+                if (elem->type() == NodeType::VARIABLE) {
+                    ignored.push_back(static_cast<VariableNode*>(elem.get())->getOriginalName());
+                }
+            }
+            Vyne::ignoreWarnings(ignored);
+        }
+    }
 }

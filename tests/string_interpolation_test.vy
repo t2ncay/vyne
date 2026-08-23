@@ -10,4 +10,7 @@ out("Upper: {msg.uppercase()}");
 
 a = 10;
 b = 20;
+
+xd
+
 out("{a} + {b} = {a + b}");

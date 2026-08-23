@@ -1,13 +1,19 @@
 ruleset {
-    dynamic_casting
+    warnings = all,
+    warnings_ignore = [unused_variable, implicit_type],
+    type_check = hybrid,
+    implicit_casting = warn,
+    profiling = on,
+    debug = on,
+    trace = on
 };
 
 x = [];
 a = 5;
 b = 7;
 
-zirt :: Array = 1..5;
+zirt = 1..5;
 
 x.push(a,b);
-out(x);
+out(x.size());
 out(zirt);

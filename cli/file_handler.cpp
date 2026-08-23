@@ -63,6 +63,18 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
         auto programRoot = parser.parseProgram(env);
         std::shared_ptr<ASTNode> rootShared = std::move(programRoot);
 
+        auto& diags = Vyne::DiagnosticEngine::getDiagnostics();
+        bool hasErrors = false;
+        for (const auto& d : diags) {
+            if (d.severity == Vyne::Severity::Error || d.severity == Vyne::Severity::Critical) {
+                hasErrors = true;
+            }
+        }
+        if (hasErrors) {
+            std::cerr << RED << "Compilation failed due to errors" << RESET << "\n";
+            return 1;
+        }
+
         if (mode == "ast") {
             auto start = std::chrono::high_resolution_clock::now();
 
@@ -74,6 +86,16 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             parser.checkUnusedVariables(env);
             std::chrono::duration<double, std::milli> ms = end - start;
             std::cout << GREEN << "\nExecution finished in: " << ms.count() << "ms" << RESET;
+            auto& diags2 = Vyne::DiagnosticEngine::getDiagnostics();
+            bool hasErrors2 = false;
+            for (const auto& d : diags2) {
+                if (d.severity == Vyne::Severity::Error || d.severity == Vyne::Severity::Critical) {
+                    hasErrors2 = true;
+                }
+            }
+            if (hasErrors2) {
+                return 1;
+            }
 
             return 0;
 
@@ -178,8 +200,17 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
 
     } catch (const std::exception& e) {
         std::cerr << RED << "Error: " << e.what() << RESET << "\n";
+        
+        // ============ ADD THIS ============
+        auto& diags = Vyne::DiagnosticEngine::getDiagnostics();
+        for (const auto& d : diags) {
+            if (d.severity == Vyne::Severity::Error || d.severity == Vyne::Severity::Critical) {
+            }
+        }
+        
         return 1;
     }
+
 
     return 0;
 }

@@ -665,6 +665,8 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Array; }
+    
+    const std::vector<std::unique_ptr<ASTNode>>& getElements() const { return elements; }
 };
 
 class MapNode : public ASTNode {
