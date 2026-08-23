@@ -3,1186 +3,1779 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vyne Documentation | Official Walkthrough</title>
-    <link rel="icon" type="image/x-icon" href="assets/vyneLogo.png" />
+    <title>Vyne · language & API reference</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap"
       rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --bg-base: #0d0e12;
+        --bg-surface: #13161c;
+        --bg-card: #1a1e28;
+        --bg-sidebar: #0a0c11;
+        --border-subtle: rgba(255, 255, 255, 0.06);
+        --border-active: #2bc6b7;
+        --text-primary: #f0f4fc;
+        --text-secondary: #9aa8c7;
+        --text-muted: #5d6d8a;
+        --accent-cyan: #2bc6b7;
+        --accent-green: #8cd46a;
+        --accent-pink: #ff5e9a;
+        --accent-amber: #f5b85b;
+        --accent-purple: #b8a0ff;
+        --code-bg: #0b0d14;
+        --glow-cyan: rgba(43, 198, 183, 0.12);
+        --glow-purple: rgba(184, 160, 255, 0.1);
+        --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+        --sidebar-w: 280px;
+        --radius: 14px;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #2a3140;
+        border-radius: 12px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-cyan);
+      }
+
+      /* sidebar */
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: var(--sidebar-w);
+        background: var(--bg-sidebar);
+        border-right: 1px solid var(--border-subtle);
+        padding: 2rem 1.2rem 1.5rem;
+        overflow-y: auto;
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+      }
+      .sidebar-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 2.8rem;
+      }
+      .logo-badge {
+        width: 36px;
+        height: 36px;
+        background: var(--accent-cyan);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        font-size: 1.3rem;
+        color: #0b0d14;
+        box-shadow: 0 0 20px var(--glow-cyan);
+      }
+      .logo-text {
+        font-weight: 700;
+        font-size: 1.6rem;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, #f0f4fc 30%, var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .sidebar-nav {
+        flex: 1;
+      }
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+      .nav-section-title {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: var(--text-muted);
+        margin-bottom: 0.8rem;
+        font-weight: 600;
+      }
+      .nav-links {
+        list-style: none;
+      }
+      .nav-links li {
+        margin-bottom: 2px;
+      }
+      .nav-links a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 450;
+        transition: 0.2s ease;
+        border-left: 2px solid transparent;
+      }
+      .nav-links a i {
+        width: 18px;
+        font-size: 0.9rem;
+        opacity: 0.6;
+      }
+      .nav-links a:hover {
+        background: rgba(255, 255, 255, 0.03);
+        color: #fff;
+      }
+      .nav-links a.active {
+        background: var(--glow-cyan);
+        color: var(--accent-cyan);
+        border-left-color: var(--accent-cyan);
+      }
+      .nav-links a.active i {
+        opacity: 1;
+      }
+
+      /* main */
+      .main {
+        margin-left: var(--sidebar-w);
+        flex: 1;
+        padding: 2.5rem 3.5rem 5rem;
+        max-width: 1200px;
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 3rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .mobile-toggle {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.4rem;
+        cursor: pointer;
+      }
+      .breadcrumb {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+      .breadcrumb span {
+        color: var(--text-secondary);
+      }
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      .search-box {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 40px;
+        padding: 6px 16px 6px 14px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--text-muted);
+        transition: 0.2s;
+      }
+      .search-box:focus-within {
+        border-color: var(--accent-cyan);
+        box-shadow: 0 0 0 3px var(--glow-cyan);
+      }
+      .search-box input {
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: 0.9rem;
+        width: 160px;
+      }
+      .search-box input::placeholder {
+        color: var(--text-muted);
+      }
+      .theme-toggle {
+        background: var(--bg-surface);
+        border: 1px solid var(--border-subtle);
+        border-radius: 40px;
+        padding: 6px 12px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: 0.2s;
+        font-size: 0.9rem;
+      }
+      .theme-toggle:hover {
+        border-color: var(--accent-cyan);
+      }
+
+      section {
+        margin-bottom: 4.5rem;
+        scroll-margin-top: 2rem;
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 1.2rem;
+        flex-wrap: wrap;
+      }
+      .section-header h2 {
+        font-size: 2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .section-header .badge {
+        background: var(--glow-cyan);
+        color: var(--accent-cyan);
+        font-size: 0.7rem;
+        font-weight: 600;
+        padding: 2px 12px;
+        border-radius: 40px;
+        text-transform: uppercase;
+      }
+      .section-header .badge.purple {
+        background: var(--glow-purple);
+        color: var(--accent-purple);
+      }
+      .section-header .badge.amber {
+        background: rgba(245, 184, 91, 0.15);
+        color: var(--accent-amber);
+      }
+      .section-header .badge.pink {
+        background: rgba(255, 94, 154, 0.15);
+        color: var(--accent-pink);
+      }
+      p {
+        color: var(--text-secondary);
+        margin-bottom: 1.2rem;
+        max-width: 720px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+      }
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        transition: 0.2s;
+      }
+      .card:hover {
+        border-color: rgba(43, 198, 183, 0.3);
+      }
+      .card-title {
+        font-weight: 600;
+        font-size: 1.05rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card-title i {
+        color: var(--accent-cyan);
+      }
+      .card-desc {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+      .card-desc code {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+        color: var(--accent-cyan);
+      }
+      .tag {
+        display: inline-block;
+        background: rgba(43, 198, 183, 0.08);
+        color: var(--accent-cyan);
+        border-radius: 40px;
+        padding: 0 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+      }
+
+      .code-block {
+        background: var(--code-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin: 1.8rem 0;
+      }
+      .code-header {
+        background: rgba(255, 255, 255, 0.02);
+        padding: 0.7rem 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border-subtle);
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+      .code-header .filename {
+        font-family: var(--font-mono);
+      }
+      .code-header .copy-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.75rem;
+        transition: 0.2s;
+      }
+      .code-header .copy-btn:hover {
+        color: var(--accent-cyan);
+      }
+      .code-body {
+        padding: 1.2rem 1.5rem;
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        line-height: 1.7;
+        overflow-x: auto;
+        color: #dde5f0;
+      }
+      .code-body .comment {
+        color: #5d6d8a;
+        font-style: italic;
+      }
+      .code-body .keyword {
+        color: var(--accent-cyan);
+        font-weight: 500;
+      }
+      .code-body .string {
+        color: var(--accent-green);
+      }
+      .code-body .number {
+        color: var(--accent-amber);
+      }
+      .code-body .function {
+        color: var(--accent-purple);
+      }
+      .code-body .type {
+        color: #7fc9ff;
+      }
+      .code-body .operator {
+        color: var(--accent-pink);
+      }
+      .code-body .property {
+        color: #7fc9ff;
+      }
+
+      .api-table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        background: var(--bg-card);
+        margin: 1.8rem 0;
+      }
+      .api-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      .api-table th {
+        text-align: left;
+        padding: 1rem 1.2rem;
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text-secondary);
+        font-weight: 600;
+        border-bottom: 1px solid var(--border-subtle);
+      }
+      .api-table td {
+        padding: 0.9rem 1.2rem;
+        border-bottom: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+      }
+      .api-table td:first-child {
+        font-family: var(--font-mono);
+        color: var(--accent-cyan);
+      }
+      .api-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      code.inline {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.1rem 0.5rem;
+        border-radius: 6px;
+        font-family: var(--font-mono);
+        font-size: 0.85em;
+        color: var(--accent-cyan);
+      }
+
+      .ruleset-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.2rem;
+        margin: 1.5rem 0;
+      }
+      .ruleset-item {
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        padding: 1.2rem 1.5rem;
+        transition: 0.2s;
+      }
+      .ruleset-item:hover {
+        border-color: rgba(43, 198, 183, 0.3);
+        transform: translateY(-2px);
+      }
+      .ruleset-item .rule-name {
+        font-family: var(--font-mono);
+        color: var(--accent-cyan);
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+      .ruleset-item .rule-type {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-left: 0.5rem;
+      }
+      .ruleset-item .rule-desc {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        margin-top: 0.3rem;
+      }
+      .ruleset-item .rule-values {
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        margin-top: 0.3rem;
+        font-family: var(--font-mono);
+      }
+
+      .footer {
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--border-subtle);
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .footer a {
+        color: var(--accent-cyan);
+        text-decoration: none;
+      }
+
+      @media (max-width: 1024px) {
+        .main {
+          padding: 1.8rem 2rem 3rem;
+        }
+        .grid-3 {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 768px) {
+        .sidebar {
+          transform: translateX(-100%);
+          transition: 0.25s ease;
+          width: 280px;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .main {
+          margin-left: 0;
+          padding: 1.2rem 1.2rem 3rem;
+        }
+        .mobile-toggle {
+          display: block;
+        }
+        .topbar-left .breadcrumb {
+          display: none;
+        }
+        .search-box input {
+          width: 100px;
+        }
+        .grid-2,
+        .grid-3 {
+          grid-template-columns: 1fr;
+        }
+        .ruleset-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 480px) {
+        .topbar-actions .search-box {
+          width: 100%;
+        }
+        .topbar-actions .theme-toggle span {
+          display: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div class="container">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="logo">
-            <div class="logo-wrapper">
-              <img src="assets/sidebarVyneLogo.png" alt="V" width="22" />
+    <!-- sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-badge">V</div>
+        <span class="logo-text">vyne</span>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">language</div>
+          <ul class="nav-links">
+            <li>
+              <a href="#basics" class="active"
+                ><i class="fas fa-code"></i> Basics</a
+              >
+            </li>
+            <li>
+              <a href="#types"><i class="fas fa-cube"></i> Types</a>
+            </li>
+            <li>
+              <a href="#control"
+                ><i class="fas fa-code-branch"></i> Control flow</a
+              >
+            </li>
+            <li>
+              <a href="#functions"><i class="fas fa-terminal"></i> Functions</a>
+            </li>
+            <li>
+              <a href="#rulesets"><i class="fas fa-sliders-h"></i> Rulesets</a>
+            </li>
+            <li>
+              <a href="#modules"
+                ><i class="fas fa-box"></i> Modules &amp; groups</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">standard library</div>
+          <ul class="nav-links">
+            <li>
+              <a href="#vcore"><i class="fas fa-microchip"></i> VCore</a>
+            </li>
+            <li>
+              <a href="#vmath"><i class="fas fa-calculator"></i> VMath</a>
+            </li>
+            <li>
+              <a href="#vglib"><i class="fas fa-gamepad"></i> VGLib</a>
+            </li>
+            <li>
+              <a href="#vaudio"><i class="fas fa-music"></i> VAudio</a>
+            </li>
+            <li>
+              <a href="#vserv"><i class="fas fa-globe"></i> VServ</a>
+            </li>
+            <li>
+              <a href="#vmem"><i class="fas fa-memory"></i> VMem</a>
+            </li>
+          </ul>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">resources</div>
+          <ul class="nav-links">
+            <li>
+              <a href="#playground"><i class="fas fa-flask"></i> Playground</a>
+            </li>
+            <li>
+              <a href="#guide"
+                ><i class="fas fa-book-open"></i> Integration guide</a
+              >
+            </li>
+          </ul>
+        </div>
+      </nav>
+      <div
+        style="
+          margin-top: auto;
+          border-top: 1px solid var(--border-subtle);
+          padding-top: 1.2rem;
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        "
+      >
+        <span class="tag"><i class="fas fa-code"></i> v0.0.4</span>
+        <span class="tag"><i class="fas fa-shield-alt"></i> strict</span>
+        <span class="tag"><i class="fab fa-github"></i> github</span>
+      </div>
+    </aside>
+
+    <!-- main -->
+    <main class="main">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="mobile-toggle" id="menuToggle">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="breadcrumb"><span>Vyne</span> / API reference</div>
+        </div>
+        <div class="topbar-actions">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search docs..." id="searchInput" />
+            <kbd style="font-size: 0.65rem; color: var(--text-muted)">⌘K</kbd>
+          </div>
+          <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i> <span>Dark</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- BASICS -->
+      <section id="basics">
+        <div class="section-header">
+          <h2>Basics</h2>
+          <span class="badge">syntax</span>
+        </div>
+        <p>
+          Vyne is a hybrid, interpreted language with C-style syntax, strong
+          type inference, and a rich standard library. Everything is an
+          expression.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">hello.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="comment">// variable with type inference</span><br />
+            msg = <span class="string">"vyne"</span> +
+            <span class="string">" language"</span>;<br />
+            <span class="keyword">out</span>(msg);
+            <span class="comment">// => "vyne language"</span>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-feather"></i> Implicit typing
             </div>
-            <h2>VYNE</h2>
+            <div class="card-desc">
+              Use <code class="inline">=</code> for type inference. Explicit
+              types via <code class="inline">::</code>.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-bolt"></i> Rulesets</div>
+            <div class="card-desc">
+              Toggle warnings, strict mode, memory limits with
+              <code class="inline">ruleset { warnings, strict }</code>.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TYPES -->
+      <section id="types">
+        <div class="section-header">
+          <h2>Types</h2>
+          <span class="badge">built-in</span>
+        </div>
+        <p>
+          Vyne provides <code class="inline">Int64</code>,
+          <code class="inline">Float64</code>,
+          <code class="inline">String</code>, <code class="inline">Array</code>,
+          <code class="inline">Map</code>, <code class="inline">Bool</code> and
+          <code class="inline">null</code>.
+        </p>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <tr>
+              <th>Type</th>
+              <th>Example</th>
+              <th>Notes</th>
+            </tr>
+            <tr>
+              <td>Int64</td>
+              <td><code class="inline">age :: Int64 = 30;</code></td>
+              <td>64‑bit signed</td>
+            </tr>
+            <tr>
+              <td>Float64</td>
+              <td><code class="inline">pi :: Float64 = 3.14;</code></td>
+              <td>double precision</td>
+            </tr>
+            <tr>
+              <td>String</td>
+              <td><code class="inline">"hello"</code></td>
+              <td>UTF‑8, immutable</td>
+            </tr>
+            <tr>
+              <td>Array</td>
+              <td><code class="inline">[1, "two", 3.0]</code></td>
+              <td>heterogeneous</td>
+            </tr>
+            <tr>
+              <td>Map</td>
+              <td><code class="inline">{ "key": 42 }</code></td>
+              <td>string keys only</td>
+            </tr>
+            <tr>
+              <td>Bool</td>
+              <td>
+                <code class="inline">true</code> /
+                <code class="inline">false</code>
+              </td>
+              <td>boolean logic</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- CONTROL FLOW -->
+      <section id="control">
+        <div class="section-header">
+          <h2>Control flow</h2>
+          <span class="badge">if / while / through</span>
+        </div>
+        <p>
+          Standard <code class="inline">if</code>,
+          <code class="inline">while</code> and the functional
+          <code class="inline">through</code> operator for collections.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">control.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="comment">// through with collect</span><br />
+            doubled = <span class="keyword">through</span> x :: [1,2,3] ->
+            <span class="keyword">collect</span> { x * 2 };
+            <span class="comment">// [2,4,6]</span><br />
+            <span class="comment">// filter</span><br />
+            evens = <span class="keyword">through</span> n :: 0..10 ->
+            <span class="keyword">filter</span> { n % 2 == 0 };
+          </div>
+        </div>
+      </section>
+
+      <!-- FUNCTIONS -->
+      <section id="functions">
+        <div class="section-header">
+          <h2>Functions</h2>
+          <span class="badge">fn</span>
+        </div>
+        <p>
+          First‑class functions with explicit types or inference, recursion, and
+          closures.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">fn.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">fn</span> <span class="function">add</span>(a
+            :: Int64, b :: Int64) -> Int64 {
+            <span class="keyword">return</span> a + b; }<br />
+            <span class="keyword">fn</span> <span class="function">mul</span>(x,
+            y) { x * y } <span class="comment">// inferred</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RULESETS - EXPANDED & IMPRESSIVE -->
+      <section id="rulesets">
+        <div class="section-header">
+          <h2>Rulesets</h2>
+          <span class="badge purple"
+            ><i class="fas fa-sliders-h"></i> engine config</span
+          >
+        </div>
+        <p>
+          Vyne's <code class="inline">ruleset</code> system gives you
+          fine-grained control over the engine's behavior — from type checking
+          to memory limits, performance optimization to security.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">config.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">ruleset</span> {<br />
+            &nbsp;&nbsp;<span class="comment">// Type System</span><br />
+            &nbsp;&nbsp;<span class="property">strict_mode</span> =
+            <span class="keyword">true</span>,<br />
+            &nbsp;&nbsp;<span class="property">type_check</span> =
+            <span class="string">"strict"</span>,<br />
+            &nbsp;&nbsp;<span class="property">dynamic_casting</span> =
+            <span class="keyword">false</span>,<br />
+            &nbsp;&nbsp;<span class="property">implicit_conversion</span> =
+            <span class="string">"warn"</span>,<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Memory</span><br />
+            &nbsp;&nbsp;<span class="property">memory_limit</span> =
+            <span class="number">256</span> * <span class="number">1024</span> *
+            <span class="number">1024</span>,
+            <span class="comment">// 256MB</span><br />
+            &nbsp;&nbsp;<span class="property">memory_tracking</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">garbage_collection</span> =
+            <span class="keyword">on</span>,<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Performance</span><br />
+            &nbsp;&nbsp;<span class="property">optimization</span> =
+            <span class="number">2</span>, <span class="comment">// 0-3</span
+            ><br />
+            &nbsp;&nbsp;<span class="property">profiling</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">jit</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">loop_unrolling</span> =
+            <span class="keyword">on</span>,<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Runtime</span><br />
+            &nbsp;&nbsp;<span class="property">debug</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">trace</span> =
+            <span class="keyword">off</span>,<br />
+            &nbsp;&nbsp;<span class="property">stack_trace</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">recursion_limit</span> =
+            <span class="number">1000</span>,<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Security</span><br />
+            &nbsp;&nbsp;<span class="property">safe_mode</span> =
+            <span class="keyword">off</span>,<br />
+            &nbsp;&nbsp;<span class="property">sandbox</span> =
+            <span class="keyword">off</span>,<br />
+            &nbsp;&nbsp;<span class="property">allow_vmem</span> =
+            <span class="keyword">on</span>,<br />
+            &nbsp;&nbsp;<span class="property">allow_network</span> =
+            <span class="keyword">on</span>,<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Warnings</span><br />
+            &nbsp;&nbsp;<span class="property">warnings</span> =
+            <span class="string">"all"</span>,<br />
+            &nbsp;&nbsp;<span class="property">warnings_ignore</span> = [<span
+              class="string"
+              >"unused_variable"</span
+            >, <span class="string">"shadow_variable"</span>],<br />
+            <br />
+            &nbsp;&nbsp;<span class="comment">// Experimental</span><br />
+            &nbsp;&nbsp;<span class="property">async</span> =
+            <span class="keyword">off</span>,<br />
+            &nbsp;&nbsp;<span class="property">simd</span> =
+            <span class="keyword">on</span><br />
+            };
           </div>
         </div>
 
-        <nav class="sidebar-nav">
-          <div class="nav-section">
-            <h4 class="nav-section-title">Getting Started</h4>
-            <ul class="nav-links">
-              <li>
-                <a href="#intro" class="active"
-                  ><i class="fas fa-flag"></i> Introduction</a
-                >
-              </li>
-              <li>
-                <a href="#ruleset"
-                  ><i class="fas fa-sliders"></i> Engine Rulesets</a
-                >
-              </li>
-            </ul>
-          </div>
+        <h3
+          style="
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          Available Rules
+        </h3>
 
-          <div class="nav-section">
-            <h4 class="nav-section-title">Syntax Fundamentals</h4>
-            <ul class="nav-links">
-              <li>
-                <a href="#types"
-                  ><i class="fas fa-cube"></i> Types & Variables</a
-                >
-              </li>
-              <li>
-                <a href="#control-flow"
-                  ><i class="fas fa-code-branch"></i> Control Flow</a
-                >
-              </li>
-              <li>
-                <a href="#loops"><i class="fas fa-redo"></i> Loops & Through</a>
-              </li>
-              <li>
-                <a href="#functions"
-                  ><i class="fas fa-terminal"></i> Functions</a
-                >
-              </li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <h4 class="nav-section-title">Data Architectures</h4>
-            <ul class="nav-links">
-              <li>
-                <a href="#interfaces"
-                  ><i class="fas fa-id-card"></i> Interfaces (OOP)</a
-                >
-              </li>
-              <li>
-                <a href="#modules"
-                  ><i class="fas fa-box"></i> Modules & Groups</a
-                >
-              </li>
-              <li>
-                <a href="#linalg"
-                  ><i class="fas fa-vector-square"></i> Linear Algebra</a
-                >
-              </li>
-            </ul>
-          </div>
-
-          <div class="nav-section">
-            <h4 class="nav-section-title">Standard Library</h4>
-            <ul class="nav-links">
-              <li>
-                <a href="#vcore"
-                  ><i class="fas fa-microchip"></i> VCore & VMath</a
-                >
-              </li>
-              <li>
-                <a href="#vmem"
-                  ><i class="fas fa-brain"></i> VMem (Introspection)</a
-                >
-              </li>
-              <li>
-                <a href="#vglib"
-                  ><i class="fas fa-palette"></i> VGLib (Graphics)</a
-                >
-              </li>
-            </ul>
-          </div>
-          <div class="nav-section">
-            <h4 class="nav-section-title">Tools</h4>
-            <ul class="nav-links">
-              <li>
-                <a href="#builder"
-                  ><i class="fas fa-hammer"></i> Vyne Builder</a
-                >
-              </li>
-            </ul>
-          </div>
-        </nav>
-      </aside>
-
-      <main class="main-content">
-        <section id="intro">
-          <div class="badge">v0.0.2-alpha</div>
-          <h2>The Vyne Programming Language</h2>
-          <p>
-            Vyne is a hybrid interpreted language engineered for
-            performance-critical algorithm testing and low-level memory control.
-            Designed in Baku, it provides a clean, C-style syntax with advanced
-            functional primitives.
-          </p>
-          <div class="explanation">
-            <i class="fas fa-info-circle"></i> Vyne code is executed
-            line-by-line via a high-performance C++ backend, bridging the gap
-            between high-level logic and native execution.
-          </div>
-        </section>
-
-        <section id="ruleset">
-          <h2>Engine Rulesets</h2>
-          <p>
-            Vyne allows you to configure engine behavior at runtime using the
-            <code>ruleset</code> block.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">config.vy</span>
+        <div class="ruleset-grid">
+          <!-- Type System -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">strict_mode</span>
+              <span class="rule-type">boolean</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">ruleset</span> {
-    <span class = "token type">warnings</span>,       <span class="token comment"># Enable/Disable semantic warnings</span>
-    <span class = "token type">dynamic_casting</span> <span class="token comment"># Control strictness of type conversions</span>
-};</code></pre>
+            <div class="rule-desc">
+              Enforce strict type checking. Disallows implicit type coercion.
             </div>
-          </div>
-        </section>
-
-        <section id="types">
-          <h2>Types & Variables</h2>
-          <p>
-            Vyne supports both implicit inference and strict explicit typing
-            using the <code>::</code> operator.
-          </p>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Declaration Example</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>Int64</code></td>
-                  <td>
-                    <code>
-                      a :: <span class="token type">Int64</span> = 42;</code
-                    >
-                  </td>
-                  <td>64-bit signed integer.</td>
-                </tr>
-                <tr>
-                  <td><code>Float64</code></td>
-                  <td>
-                    <code
-                      >x :: <span class="token type">Float64</span> =
-                      3.14;</code
-                    >
-                  </td>
-                  <td>Double precision floating point.</td>
-                </tr>
-                <tr>
-                  <td><code>Array</code></td>
-                  <td>
-                    <code
-                      >list :: <span class="token type">Array</span> = [1, 2,
-                      3];</code
-                    >
-                  </td>
-                  <td>Dynamic list with native methods.</td>
-                </tr>
-                <tr>
-                  <td><code>String</code></td>
-                  <td>
-                    <code
-                      >s :: <span class="token type">String</span> =
-                      "Vyne";</code
-                    >
-                  </td>
-                  <td>UTF-8 compatible strings.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="control-flow">
-          <h2>Control Flow & Logic</h2>
-          <p>
-            Vyne provides standard imperative control structures alongside
-            advanced functional iteration patterns.
-          </p>
-
-          <h3>Conditionals (If/Else)</h3>
-          <p>
-            Vyne uses standard <code>if</code>, <code>else if</code>, and
-            <code>else</code> blocks. Braces are mandatory for clarity.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">logic.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code>score :: <span class="token keyword">Int64</span> = <span class="token number">85</span>;
-
-<span class="token keyword">if</span> score >= <span class="token number">90</span> {
-    <span class="token function">out</span>(<span class="token string">"Grade: A"</span>);
-} <span class="token keyword">else if</span> score >= <span class="token number">80</span> {
-    <span class="token function">out</span>(<span class="token string">"Grade: B"</span>);
-} <span class="token keyword">else</span> {
-    <span class="token function">out</span>(<span class="token string">"Grade: F"</span>);
-}</code></pre>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
 
-          <h3>Iterative Loops</h3>
-          <p>
-            Standard <code>while</code> loops are used for condition-based
-            iteration. You can use <code>break</code> to exit early.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">while_loop.vy</span>
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">type_check</span>
+              <span class="rule-type">string</span>
             </div>
-            <div class="code-body">
-              <pre><code>i = <span class="token number">0</span>;
-<span class="token keyword">while</span> i < <span class="token number">100</span> {
-    <span class="token keyword">if</span> i == <span class="token number">50</span> { <span class="token keyword">break</span>; }
-    <span class="token function">out</span>(i);
-    i++;
-}</code></pre>
+            <div class="rule-desc">
+              Set type checking mode. <code>strict</code> = full checks,
+              <code>hybrid</code> = balanced, <code>dynamic</code> = runtime
+              only.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">strict</span> ·
+              <span style="color: var(--accent-amber)">hybrid</span> ·
+              <span style="color: var(--accent-pink)">dynamic</span>
             </div>
           </div>
 
-          <h3>Advanced Iteration: <code>through</code></h3>
-          <p>
-            The <code>through</code> operator is Vyne's signature feature for
-            data processing. It transforms or filters collections natively.
-          </p>
-
-          [Image of data flowing through a filter and map process in
-          programming]
-
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Pattern</th>
-                  <th>Keyword</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Mapping</strong></td>
-                  <td><code>collect</code></td>
-                  <td>Transforms every element and returns a new array.</td>
-                </tr>
-                <tr>
-                  <td><strong>Filtering</strong></td>
-                  <td><code>filter</code></td>
-                  <td>Returns only elements that meet a condition.</td>
-                </tr>
-                <tr>
-                  <td><strong>Deduplication</strong></td>
-                  <td><code>unique</code></td>
-                  <td>Removes all duplicate values from the stream.</td>
-                </tr>
-                <tr>
-                  <td><strong>Standard</strong></td>
-                  <td><code>loop</code></td>
-                  <td>
-                    Executes a block for each item without returning a value.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">functional.vy</span>
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">dynamic_casting</span>
+              <span class="rule-type">boolean</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token comment"># Unique filter</span>
-raw_data = [<span class="token number">1</span>, <span class="token number">1</span>, <span class="token number">2</span>, <span class="token number">3</span>, <span class="token number">3</span>];
-clean = <span class="token keyword">through</span> item :: raw_data -> <span class="token keyword">unique</span>;
-
-<span class="token comment"># Fibonacci with through loop</span>
-<span class="token keyword">through</span> i :: <span class="token number">0</span>..n -> <span class="token keyword">loop</span> {
-    next = a + b;
-    a = b;
-    b = next;
-};</code></pre>
+            <div class="rule-desc">
+              Allow dynamic type conversions at runtime. Useful for flexible
+              code.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
 
-          <h3>Engine Control: <code>ruleset</code></h3>
-          <p>
-            Unlike other languages, Vyne allows you to toggle engine-level
-            features like <code>warnings</code> or
-            <code>dynamic_casting</code> mid-script.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">engine_config.vy</span>
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">implicit_conversion</span>
+              <span class="rule-type">string</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">ruleset</span> { 
-    warnings: <span class="token keyword">on</span>, 
-    dynamic_casting: <span class="token keyword">off</span> 
-};</code></pre>
+            <div class="rule-desc">
+              Control implicit type conversions. <code>allow</code> = permitted,
+              <code>warn</code> = warn, <code>deny</code> = forbidden.
             </div>
-          </div>
-        </section>
-
-        <section id="loops">
-          <h2>Iteration & Through Loops</h2>
-          <p>
-            While Vyne supports standard <code>while</code> loops, its true
-            power lies in the <code>through</code> operator for functional-style
-            data processing.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">iteration.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token comment"># Standard While</span>
-<span class="token keyword">while</span> i < <span class="token number">10</span> { i++; }
-
-<span class="token comment"># Through: Filter and Unique</span>
-y = [<span class="token number">1</span>, <span class="token number">1</span>, <span class="token number">2</span>, <span class="token number">2</span>, <span class="token number">3</span>];
-uniques = <span class="token keyword">through</span> item :: y -> <span class="token keyword">unique</span>;
-
-<span class="token comment"># Through: Collect (Map)</span>
-doubled = <span class="token keyword">through</span> x :: [<span class="token number">10</span>, <span class="token number">20</span>] -> <span class="token keyword">collect</span> { x * <span class="token number">2</span> };</code></pre>
-            </div>
-          </div>
-        </section>
-
-        <section id="functions">
-          <h2>Functions</h2>
-          <p>
-            Functions in Vyne are first-class citizens. They support explicit
-            type checking, type inference, and can be scoped to specific modules
-            using the <code>::</code> operator.
-          </p>
-
-          <div class="explanation">
-            <i class="fas fa-info-circle"></i> <strong>Note:</strong> Braces
-            <code>{}</code> are mandatory for function bodies, and the
-            <code>return</code> keyword is used to exit with a value.
-          </div>
-
-          <h3>Defining Functions</h3>
-          <p>
-            Vyne allows you to define functions with strict typing for
-            parameters and return values, or you can let the engine infer the
-            types dynamically.
-          </p>
-
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">functions.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token comment"># 1. Explicitly Typed Function</span>
-<span class="token keyword">fn</span> <span class="token function">add</span>(a :: <span class="token type">Int64</span>, b :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
-    <span class="token keyword">return</span> a + b;
-}
-
-<span class="token comment"># 2. Type Inference (Dynamic)</span>
-<span class="token keyword">fn</span> <span class="token function">multiply</span>(x, y) {
-    <span class="token keyword">return</span> x * y;
-}
-
-<span class="token comment"># 3. Recursive Logic</span>
-<span class="token keyword">fn</span> <span class="token function">factorial</span>(n :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
-    <span class="token keyword">if</span> n <= <span class="token number">1</span> { <span class="token keyword">return</span> <span class="token number">1</span>; }
-    <span class="token keyword">return</span> n * <span class="token function">factorial</span>(n - <span class="token number">1</span>);
-}</code></pre>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">allow</span> ·
+              <span style="color: var(--accent-amber)">warn</span> ·
+              <span style="color: var(--accent-pink)">deny</span>
             </div>
           </div>
 
-          <h3>Function Scoping (Namespacing)</h3>
-          <p>
-            To organize logic, you can bind functions directly to a module. This
-            prevents naming collisions in large projects.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">scoped_fn.vy</span>
+          <!-- Memory -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">memory_limit</span>
+              <span class="rule-type">integer (bytes)</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> MathUtils;
-
-<span class="token comment"># Scoping a function to MathUtils</span>
-<span class="token keyword">fn</span> :: MathUtils <span class="token function">square</span>(x :: <span class="token type">Int64</span>) -> <span class="token type">Int64</span> {
-    <span class="token keyword">return</span> x * x;
-}
-
-<span class="token function">out</span>(MathUtils.<span class="token function">square</span>(<span class="token number">7</span>)); <span class="token comment"># Outputs: 49</span></code></pre>
+            <div class="rule-desc">
+              Set maximum memory usage. Prevents out-of-memory crashes. 0 =
+              unlimited.
             </div>
-          </div>
-          <h3>Type Checking Table</h3>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Feature</th>
-                  <th>Syntax</th>
-                  <th>Behavior</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Parameter Typing</strong></td>
-                  <td><code>(var :: Type)</code></td>
-                  <td>Strict validation at call-time.</td>
-                </tr>
-                <tr>
-                  <td><strong>Return Type</strong></td>
-                  <td><code>-> Type</code></td>
-                  <td>Ensures the returned value matches the signature.</td>
-                </tr>
-                <tr>
-                  <td><strong>Void Functions</strong></td>
-                  <td><code>fn name() { ... }</code></td>
-                  <td>
-                    Implicitly returns a <code>Null</code> value if no return is
-                    present.
-                  </td>
-                </tr>
-                <tr>
-                  <td><strong>Recursion</strong></td>
-                  <td><code>factorial(n-1)</code></td>
-                  <td>Fully supported with engine-level stack protection.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="interfaces">
-          <h2>Interfaces & Methods</h2>
-          <p>
-            Interfaces in Vyne are more than just structs; they support methods
-            with <code>self</code> reference and pointer-based relationships.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">oop.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">interface</span> <span class="token function">Node</span> {
-    kind :: <span class="token type">Int64</span>,
-    data :: <span class="token type">Int64</span>, 
-    left :: <span class="token type">Node&</span>,  <span class="token comment"># Reference type</span>
-    right :: <span class="token type">Node&</span> 
-
-    <span class="token function">isValid</span>() {
-        <span class="token keyword">if</span> <span class="token keyword">self</span>.data == <span class="token number">0</span> { <span class="token keyword">return</span> <span class="token keyword">false</span>; }
-        <span class="token keyword">return</span> <span class="token keyword">true</span>;
-    }
-}</code></pre>
-            </div>
-          </div>
-        </section>
-
-        <section id="modules">
-          <h2>Modular Architecture</h2>
-          <p>
-            Organize large projects using <code>module</code> and
-            <code>group</code>. Use <code>deploy</code> to expose namespaced
-            logic to the global scope.
-          </p>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">modules.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> physics;
-
-<span class="token keyword">group</span> Constants :: physics {
-    pi :: <span class = "token type">Float64</span> = <span class="token number">3.1415</span>;
-};
-
-<span class="token keyword">deploy</span> physics;
-<span class="token function">out</span>(Constants.pi);</code></pre>
-            </div>
-          </div>
-        </section>
-
-        <section id="linalg">
-          <h2>Linear Algebra (vlinalg)</h2>
-          <p>
-            The <code>vlinalg</code> module provides high-level abstractions for
-            vector spaces and matrix operations, leveraging Vyne's functional
-            primitives for heavy numerical computations.
-          </p>
-
-          <div class="explanation">
-            <i class="fas fa-microchip"></i>
-            <strong>Performance Tip:</strong> Vyne uses internal pooling for
-            matrix data arrays, making <code>vlinalg</code> ideal for MLP and
-            Neural Network prototyping.
-          </div>
-
-          <h3>Defining Architectures</h3>
-          <p>
-            Use <code>interface</code> to define custom mathematical structures.
-            The <code>vlinalg.Types</code>
-            group includes standard definitions for Matrices and Vectors.
-          </p>
-
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">linear_types.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">interface</span> <span class="token function">Vector</span> {
-    x :: <span class="token type">Int64</span>,
-    y :: <span class="token type">Int64</span>,
-
-    <span class="token function">magnitude</span>() -> <span class="token type">Float64</span> {
-        <span class="token keyword">return</span> vmath.<span class="token function">sqrt</span>(<span class="token keyword">self</span>.x * <span class="token keyword">self</span>.x + <span class="token keyword">self</span>.y * <span class="token keyword">self</span>.y);
-    }
-}</code></pre>
+            <div class="rule-values">
+              Example:
+              <span style="color: var(--accent-cyan)">256 * 1024 * 1024</span>
+              (256MB)
             </div>
           </div>
 
-          <h3>Matrix Operations</h3>
-          <p>
-            Vyne excels at matrix transformations by combining
-            <code>through</code> loops with <code>collect</code> or
-            <code>loop</code> patterns.
-          </p>
-
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Operation</th>
-                  <th>Function</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Addition</strong></td>
-                  <td><code>vlinalg.add(a, b)</code></td>
-                  <td>Element-wise addition of two matrices.</td>
-                </tr>
-                <tr>
-                  <td><strong>Multiplication</strong></td>
-                  <td><code>vlinalg.multiply(a, b)</code></td>
-                  <td>Standard dot product multiplication ($O(n^3)$).</td>
-                </tr>
-                <tr>
-                  <td><strong>Activation</strong></td>
-                  <td><code>vlinalg.apply_sigmoid(m)</code></td>
-                  <td>Applies sigmoid function to all elements.</td>
-                </tr>
-                <tr>
-                  <td><strong>Transpose</strong></td>
-                  <td><code>vlinalg.transpose(m)</code></td>
-                  <td>Swaps rows and columns.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3>Practical Usage: Matrix Multiplication</h3>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">neural_net_snippet.vy</span>
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">memory_tracking</span>
+              <span class="rule-type">boolean</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> vlinalg;
-<span class="token keyword">deploy</span> vlinalg;
-
-<span class="token comment"># Initialize a 2x2 Matrix</span>
-m1 = Types.Matrix(<span class="token number">2</span>, <span class="token number">2</span>, [[<span class="token number">1</span>, <span class="token number">2</span>], [<span class="token number">3</span>, <span class="token number">4</span>]]);
-m2 = Types.Matrix(<span class="token number">2</span>, <span class="token number">2</span>, [[<span class="token number">5</span>, <span class="token number">6</span>], [<span class="token number">7</span>, <span class="token number">8</span>]]);
-
-<span class="token comment"># Perform dot product</span>
-result = <span class="token function">multiply</span>(m1, m2);
-<span class="token function">out</span>(result.data); <span class="token comment"># [[19, 22], [43, 50]]</span></code></pre>
+            <div class="rule-desc">
+              Enable detailed memory usage tracking. Useful for debugging leaks.
             </div>
-          </div>
-        </section>
-
-        <section id="vcore">
-          <h2>VCore (System Standard)</h2>
-          <p>
-            The <code>vcore</code> module is the backbone of the Vyne runtime,
-            providing essential utilities for I/O, process management, and
-            environment introspection.
-          </p>
-
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Method</th>
-                  <th>Signature</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>input</code></td>
-                  <td><code>(prompt) -> String</code></td>
-                  <td>Pauses execution and reads a line from stdin.</td>
-                </tr>
-                <tr>
-                  <td><code>now</code></td>
-                  <td><code>() -> String</code></td>
-                  <td>Returns current system time in ISO format.</td>
-                </tr>
-                <tr>
-                  <td><code>sleep</code></td>
-                  <td><code>(ms :: Int64)</code></td>
-                  <td>Blocks the current thread for specified milliseconds.</td>
-                </tr>
-                <tr>
-                  <td><code>platform</code></td>
-                  <td><code>() -> String</code></td>
-                  <td>Returns OS and Architecture (e.g., "Windows x64").</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3>System Properties</h3>
-          <div class="explanation">
-            <i class="fas fa-microchip"></i> <strong>Runtime Data:</strong>
-            Access internal engine metrics directly via static properties.
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Property</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>vcore.pid</code></td>
-                  <td><code>Float64</code></td>
-                  <td>The current Process ID.</td>
-                </tr>
-                <tr>
-                  <td><code>vcore.memory_usage</code></td>
-                  <td><code>Float64</code></td>
-                  <td>
-                    Physical memory (RSS) consumed by the engine in bytes.
-                  </td>
-                </tr>
-                <tr>
-                  <td><code>vcore.version</code></td>
-                  <td><code>String</code></td>
-                  <td>Vyne engine semantic version.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="vmath">
-          <h2>VMath (Numerical Primitives)</h2>
-          <p>
-            Native C++ math implementations for heavy numerical tasks.
-            <code>vmath</code>
-            functions operate on 64-bit precision floats.
-          </p>
-
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">math_test.vy</span>
-            </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> vmath;
-<span class="token keyword">deploy</span> vmath;
-
-val = <span class="token function">sin</span>(<span class="token number">3.14</span> / <span class="token number">2</span>); <span class="token comment"># Approx 1.0</span>
-active = <span class="token function">sigmoid</span>(<span class="token number">0.5</span>); <span class="token comment"># High-perf activation</span>
-rand_val = <span class="token function">random</span>(<span class="token number">1</span>, <span class="token number">100</span>);</code></pre>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
 
-          <h3>Function Index</h3>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Category</th>
-                  <th>Methods</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>Trigonometry</strong></td>
-                  <td>
-                    <code>sin</code>, <code>cos</code>, <code>tan</code>,
-                    <code>asin</code>, <code>acos</code>, <code>atan2</code>
-                  </td>
-                </tr>
-                <tr>
-                  <td><strong>Calculus/Log</strong></td>
-                  <td>
-                    <code>sqrt</code>, <code>log</code>, <code>log10</code>,
-                    <code>exp</code>, <code>pow</code>
-                  </td>
-                </tr>
-                <tr>
-                  <td><strong>Machine Learning</strong></td>
-                  <td>
-                    <code>sigmoid</code>, <code>relu</code>, <code>clamp</code>
-                  </td>
-                </tr>
-                <tr>
-                  <td><strong>Rounding</strong></td>
-                  <td>
-                    <code>floor</code>, <code>ceil</code>, <code>round</code>,
-                    <code>abs</code>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3>Mathematical Constants</h3>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Constant</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>vmath.pi</code></td>
-                  <td>$3.141592653589793$</td>
-                </tr>
-                <tr>
-                  <td><code>vmath.e</code></td>
-                  <td>$2.718281828459045$</td>
-                </tr>
-                <tr>
-                  <td><code>vmath.tau</code></td>
-                  <td>$6.283185307179586$</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="vmem">
-          <div class="badge">Low-Level Access</div>
-          <h2>vmem (Memory Engine)</h2>
-          <p>
-            The <code>vmem</code> module provides native introspection and raw
-            memory manipulation capabilities. It allows Vyne to behave as a
-            systems-level tool for debugging heap structures.
-          </p>
-
-          <div class="explanation warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>God Mode:</strong> <code>peek</code> and
-            <code>poke</code> bypass the safety of the Vyne runtime. Incorrect
-            addresses will lead to a C++ segmentation fault.
-          </div>
-
-          <h3>Core Functions</h3>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Method</th>
-                  <th>Signature</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>usage</code></td>
-                  <td><code>() -> Int64</code></td>
-                  <td>Returns the total deep-memory footprint in bytes.</td>
-                </tr>
-                <tr>
-                  <td><code>addrOf</code></td>
-                  <td><code>(any) -> Int64</code></td>
-                  <td>Returns the native memory address of a Vyne object.</td>
-                </tr>
-                <tr>
-                  <td><code>peek</code></td>
-                  <td><code>(addr) -> any</code></td>
-                  <td>Reads a <code>Value</code> from a raw memory address.</td>
-                </tr>
-                <tr>
-                  <td><code>poke</code></td>
-                  <td><code>(addr, val)</code></td>
-                  <td>
-                    Writes a <code>Value</code> directly to a memory address.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <h3>Example: Memory Manipulation</h3>
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">raw_access.vy</span>
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">garbage_collection</span>
+              <span class="rule-type">boolean</span>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> vmem;
-<span class="token keyword">deploy</span> vmem;
-
-target = <span class="token string">"Original"</span>;
-addr = <span class="token function">vmem.peek</span>(target);
-
-<span class="token comment"># Directly overwrite the value in memory</span>
-<span class="token function">vmem.poke</span>(addr, <span class="token string">"Injected via vmem"</span>);
-
-<span class="token function">out</span>(target); <span class="token comment"># Outputs: Injected via vmem</span></code></pre>
+            <div class="rule-desc">
+              Enable automatic garbage collection. Turn off for manual memory
+              management.
             </div>
-          </div>
-        </section>
-
-        <section id="vglib" class="ultra-module">
-          <div class="module-header">
-            <div class="header-main">
-              <h2>vglib <span class="version-tag">v0.0.4-alpha</span></h2>
-              <div class="status-indicators">
-                <span class="badge performance">Hardware Accelerated</span>
-                <span class="badge audio">3D Spatial Audio</span>
-                <span class="badge rtx">Post-Processing Stack</span>
-                <span class="badge ai">Neural Pathfinding</span>
-              </div>
-            </div>
-            <p class="module-intro">
-              <strong>vglib</strong> is Vyne's high-performance graphics, audio,
-              and physics ecosystem. Engineered on a multi-threaded C++ backend,
-              it bridges the gap between high-level Vyne scripting and raw
-              hardware power.
-            </p>
-          </div>
-
-          <div class="features-grid">
-            <div class="feature-card">
-              <i class="icon-render"></i>
-              <h3>Hybrid 2D/3D Pipeline</h3>
-              <p>
-                Seamlessly switch between native OpenGL 3D modes and high-speed
-                texture rendering with Z-buffer support.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="icon-vhs"></i>
-              <h3>Shader Stack</h3>
-              <p>
-                Native GLSL support for Bodycam filters, VHS glitches, VHS-Color
-                correction, and Volumetric Fog.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="icon-bot"></i>
-              <h3>Nextbot AI (BETA)</h3>
-              <p>
-                Built-in <code>vglib.pathfind()</code> utilizing dynamic
-                grid-avoidance for high-tension chase sequences.
-              </p>
-            </div>
-            <div class="feature-card">
-              <i class="icon-map"></i>
-              <h3>Architect Suite</h3>
-              <p>
-                Native <code>.dat</code> map loader and OBJ exporter for modular
-                level design and external engine porting.
-              </p>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
 
-          <div class="code-container ultra-shadow">
-            <div class="code-header">
-              <span class="code-title"
-                >selena_chase.vy (Bodycam AI implementation)</span
+          <!-- Performance -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">optimization</span>
+              <span class="rule-type">integer (0-3)</span>
+            </div>
+            <div class="rule-desc">
+              Optimization level. 0=none, 1=basic, 2=standard, 3=aggressive.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--text-muted)">0</span> ·
+              <span style="color: var(--accent-amber)">1</span> ·
+              <span style="color: var(--accent-cyan)">2</span> ·
+              <span style="color: var(--accent-pink)">3</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">profiling</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable performance profiling. Collects execution metrics.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">jit</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable Just-In-Time compilation for hot code paths.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">loop_unrolling</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable loop unrolling optimization for better performance.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <!-- Runtime -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">debug</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable debug mode. Includes additional runtime checks and logging.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">trace</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable execution tracing. Logs every step of program execution.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">stack_trace</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">Include stack traces in error messages.</div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">recursion_limit</span>
+              <span class="rule-type">integer</span>
+            </div>
+            <div class="rule-desc">
+              Maximum recursion depth. Prevents stack overflow.
+            </div>
+            <div class="rule-values">
+              Default: <span style="color: var(--accent-cyan)">1000</span>
+            </div>
+          </div>
+
+          <!-- Security -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">safe_mode</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable safe mode. Restricts dangerous operations (vmem,
+              filesystem, network).
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">sandbox</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable sandboxing. Isolates execution environment.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">allow_vmem</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Allow direct memory access via <code>vmem</code> module.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">allow_network</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Allow network operations via <code>vserv</code> module.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
+
+          <!-- Warnings -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">warnings</span>
+              <span class="rule-type">string</span>
+            </div>
+            <div class="rule-desc">
+              Set warning level. <code>all</code> = all warnings,
+              <code>none</code> = no warnings, <code>error_only</code> = only
+              errors.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">all</span> ·
+              <span style="color: var(--text-muted)">none</span> ·
+              <span style="color: var(--accent-amber)">error_only</span>
+            </div>
+          </div>
+
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">warnings_ignore</span>
+              <span class="rule-type">array</span>
+            </div>
+            <div class="rule-desc">List of warning types to ignore.</div>
+            <div class="rule-values">
+              Example:
+              <span style="color: var(--accent-cyan)"
+                >["unused_variable", "shadow_variable"]</span
               >
-              <div class="window-controls">
-                <span class="dot-red"></span><span class="dot-yellow"></span
-                ><span class="dot-green"></span>
-              </div>
             </div>
-            <div class="code-body">
-              <pre><code><span class="token keyword">module</span> <span class = "token type">vglib;</span>
-<span class="token keyword">module</span> <span class = "token type">vaudio;</span>
-<span class="token keyword">module</span> <span class = "token type">vmath;</span>
+          </div>
 
-<span class="token comment"># Initialize high-end bodycam environment</span>
-vglib.<span class="token function">init</span>(1920, 1080, "Vyne Pro - Selena Nextbot", vglib.FULLSCREEN);
-vhs_shader = vglib.<span class="token function">load_shader</span>("shaders/vhs.fs");
-selena_tex = vglib.<span class="token function">load_texture</span>("assets/selena.jpg");
+          <!-- Experimental -->
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">async</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable asynchronous execution mode. (Experimental)
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
 
-<span class="token comment"># Global AI State</span>
-bot_pos = [60.0, 1.8, 60.0];
-walls = vglib.<span class="token function">load_map</span>("tau_map.dat");
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">simd</span>
+              <span class="rule-type">boolean</span>
+            </div>
+            <div class="rule-desc">
+              Enable SIMD vectorization for performance-critical loops.
+            </div>
+            <div class="rule-values">
+              Values: <span style="color: var(--accent-cyan)">on</span> ·
+              <span style="color: var(--text-muted)">off</span>
+            </div>
+          </div>
 
-<span class="token keyword">while</span> (vglib.<span class="token function">running</span>()) {
-    cam_pos = vglib.<span class="token function">get_pos</span>(camera);
-    
-    <span class="token comment"># AI Neural Tick: Pathfind through modular walls</span>
-    res = vglib.<span class="token function">pathfind</span>(bot_pos, cam_pos, walls, 1.0);
-    bot_pos[0] = bot_pos[0] + res[0] * 0.4;
-    bot_pos[2] = bot_pos[2] + res[2] * 0.4;
+          <div class="ruleset-item">
+            <div>
+              <span class="rule-name">max_iterations</span>
+              <span class="rule-type">integer</span>
+            </div>
+            <div class="rule-desc">
+              Maximum loop iterations. Prevents infinite loops. 0 = unlimited.
+            </div>
+            <div class="rule-values">
+              Default: <span style="color: var(--accent-cyan)">0</span>
+            </div>
+          </div>
+        </div>
 
-    <span class="token comment"># 3D Render with VHS Post-Processing</span>
-    vglib.<span class="token function">begin_texture_mode</span>(screen_target);
-        vglib.<span class="token function">begin3d</span>(cam);
-            vglib.<span class="token function">billboard</span>(cam, selena_tex, bot_pos, 4.0, vglib.WHITE);
-            <span class="token keyword">through</span> w :: walls -> <span class="token keyword">loop</span> {
-                vglib.<span class="token function">cube_texture</span>(wall_tex, w[0], w[1], w[2], w[3], vglib.WHITE);
+        <h3
+          style="
+            color: var(--text-primary);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+          "
+        >
+          Preset Profiles
+        </h3>
+        <div class="grid-3">
+          <div class="card" style="border-left: 3px solid var(--accent-cyan)">
+            <div class="card-title">
+              <i class="fas fa-rocket"></i> Performance
+            </div>
+            <div class="card-desc">
+              <code>optimization = 3</code><br />
+              <code>jit = on</code><br />
+              <code>profiling = off</code><br />
+              <code>loop_unrolling = on</code>
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-pink)">
+            <div class="card-title"><i class="fas fa-bug"></i> Debug</div>
+            <div class="card-desc">
+              <code>debug = on</code><br />
+              <code>trace = on</code><br />
+              <code>stack_trace = on</code><br />
+              <code>memory_tracking = on</code>
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-amber)">
+            <div class="card-title">
+              <i class="fas fa-shield-alt"></i> Secure
+            </div>
+            <div class="card-desc">
+              <code>safe_mode = on</code><br />
+              <code>sandbox = on</code><br />
+              <code>allow_vmem = off</code><br />
+              <code>allow_network = off</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODULES -->
+      <section id="modules">
+        <div class="section-header">
+          <h2>Modules &amp; groups</h2>
+          <span class="badge">namespace</span>
+        </div>
+        <p>
+          Organize code with <code class="inline">module</code>,
+          <code class="inline">group</code> and
+          <code class="inline">deploy</code> to expose members.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">math.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">module</span> math;<br />
+            <span class="keyword">group</span> Constants :: math { pi :: Float64
+            = 3.1415; }<br />
+            <span class="keyword">deploy</span> math;<br />
+            <span class="keyword">out</span>(Constants.pi);
+          </div>
+        </div>
+      </section>
+
+      <!-- VCORE -->
+      <section id="vcore">
+        <div class="section-header">
+          <h2>VCore</h2>
+          <span class="badge">system</span>
+        </div>
+        <p>Core runtime utilities: I/O, time, platform.</p>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <tr>
+              <th>Function</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>vcore.input(prompt)</td>
+              <td>read line from stdin</td>
+            </tr>
+            <tr>
+              <td>vcore.now()</td>
+              <td>ISO timestamp</td>
+            </tr>
+            <tr>
+              <td>vcore.sleep(ms)</td>
+              <td>block thread</td>
+            </tr>
+            <tr>
+              <td>vcore.memory_usage</td>
+              <td>RSS bytes</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- VMATH -->
+      <section id="vmath">
+        <div class="section-header">
+          <h2>VMath</h2>
+          <span class="badge">numerics</span>
+        </div>
+        <p>High‑performance C++ math primitives.</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-sine"></i> Trig</div>
+            <div class="card-desc">
+              <code class="inline">sin, cos, tan, atan2</code>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-chart-line"></i> ML</div>
+            <div class="card-desc">
+              <code class="inline">sigmoid, relu, clamp</code>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-square-root-variable"></i> Log
+            </div>
+            <div class="card-desc">
+              <code class="inline">sqrt, log, exp, pow</code>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-arrow-up"></i> Round</div>
+            <div class="card-desc">
+              <code class="inline">floor, ceil, round, abs</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VGLIB -->
+      <section id="vglib">
+        <div class="section-header">
+          <h2>VGLib</h2>
+          <span class="badge">graphics · 3D · AI</span>
+        </div>
+        <p>Hardware‑accelerated 2D/3D, shaders, map loading, and nextbot AI.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">selena.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">module</span> vglib;<br />
+            vglib.init(1920, 1080, <span class="string">"Vyne Pro"</span>,
+            vglib.FULLSCREEN);<br />
+            cam = vglib.camera(60);<br />
+            <span class="keyword">while</span> (vglib.running()) {<br />
+            &nbsp;&nbsp;vglib.begin();<br />
+            &nbsp;&nbsp;vglib.begin3d(cam);<br />
+            &nbsp;&nbsp;vglib.cube(0,0,0, 2, 0, vglib.CYAN);<br />
+            &nbsp;&nbsp;vglib.end3d();<br />
+            &nbsp;&nbsp;vglib.end();<br />
             }
-        vglib.<span class="token function">end3d</span>();
-    vglib.<span class="token function">end_texture_mode</span>();
-}</code></pre>
+          </div>
+        </div>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <tr>
+              <th>Function</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>vglib.load_map(path)</td>
+              <td>parse .dat map</td>
+            </tr>
+            <tr>
+              <td>vglib.pathfind(start, target, map, size)</td>
+              <td>AI obstacle avoidance</td>
+            </tr>
+            <tr>
+              <td>vglib.billboard(cam, tex, pos, size)</td>
+              <td>always‑facing sprite</td>
+            </tr>
+            <tr>
+              <td>vglib.export_obj(map, filename)</td>
+              <td>export as OBJ</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- VAUDIO -->
+      <section id="vaudio">
+        <div class="section-header">
+          <h2>VAudio</h2>
+          <span class="badge">DSP · 3D</span>
+        </div>
+        <p>Real‑time audio with compressor, reverb, EQ, LUFS, BPM detection.</p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-wave-square"></i> Effects
+            </div>
+            <div class="card-desc">
+              <code class="inline"
+                >attach_compressor, attach_reverb, attach_eq</code
+              >
             </div>
           </div>
-
-          <div class="reference-section">
-            <h3>Module Reference: vglib</h3>
-            <div class="table-wrapper">
-              <table class="docs-table">
-                <thead>
-                  <tr>
-                    <th>Method</th>
-                    <th>Parameters</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code>vglib.load_map(path)</code></td>
-                    <td><code>string</code></td>
-                    <td>
-                      Parses <code>.dat</code> files and returns an array of
-                      modular world blocks.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>vglib.pathfind(start, target, map, size)</code>
-                    </td>
-                    <td><code>list, list, array, float</code></td>
-                    <td>
-                      Native AI routine for obstacle avoidance in modular
-                      environments.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><code>vglib.billboard(cam, tex, pos, size)</code></td>
-                    <td><code>ptr, ptr, list, float</code></td>
-                    <td>
-                      Renders a 2D texture always facing the camera (Ideal for
-                      Nextbots).
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code>vglib.check_collision_map(pos, size, map)</code>
-                    </td>
-                    <td><code>list, list, array</code></td>
-                    <td>
-                      Iterates through world data for high-speed AABB sliding
-                      collision.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><code>vglib.export_obj(map, filename)</code></td>
-                    <td><code>array, string</code></td>
-                    <td>
-                      Bakes modular world data into a standard 3D mesh (OBJ
-                      format).
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-chart-simple"></i> Analysis
+            </div>
+            <div class="card-desc">
+              <code class="inline">get_lufs, get_bpm, get_spectrum</code>
             </div>
           </div>
-          <br />
-          <div class="reference-section">
-            <h3>Technical Constants</h3>
-            <div class="table-wrapper">
-              <table class="docs-table">
-                <thead>
-                  <tr>
-                    <th>Constant</th>
-                    <th>Type</th>
-                    <th>Value / Mapping</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code>vglib.VSYNC</code></td>
-                    <td><code>System</code></td>
-                    <td><code>0x00000040</code> - Synchronization Hint</td>
-                  </tr>
-                  <tr>
-                    <td><code>vglib.LEFT_SHIFT</code></td>
-                    <td><code>Input</code></td>
-                    <td><code>340</code> - Standard Sprint Mapping</td>
-                  </tr>
-                  <tr>
-                    <td><code>vglib.CYAN</code></td>
-                    <td><code>Color</code></td>
-                    <td>
-                      <code>0x00AAFFFF</code> - Vyne Standard Branding Color
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-arrows-alt"></i> 3D</div>
+            <div class="card-desc">
+              <code class="inline"
+                >sound_3d(sound, listener, source, maxDist)</code
+              >
             </div>
           </div>
-        </section>
-
-        <section id="builder">
-          <h2>Vyne Builder (CLI)</h2>
-          <div class="badge">SDK Tooling</div>
-          <p>
-            Vyne includes a native deployment tool designed to package your
-            projects into standalone, distributable environments. The builder
-            automatically resolves dependencies, bundles assets, and generates
-            bootstrap scripts.
-          </p>
-
-          <div class="explanation">
-            <i class="fas fa-box-open"></i> <strong>Automated Bundling:</strong>
-            The builder performs a static scan of your source code to identify
-            and collect all referenced textures, sounds, shaders, and data maps.
-          </div>
-
-          <h3>Usage</h3>
-          <p>
-            Execute the builder via the primary compiler CLI using the
-            <code>-b</code> flag.
-          </p>
-
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">terminal</span>
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-file-wave"></i> Offline
             </div>
-            <div class="code-body">
-              <pre><code><span class="token comment"># Synthesizing a standalone release qovluğu</span>
-./vynec.exe <span class="token keyword">--build-game</span> main.vy</code></pre>
+            <div class="card-desc">
+              <code class="inline">render_offline(input, output)</code>
             </div>
           </div>
+        </div>
+      </section>
 
-          <h3>Deployment Pipeline</h3>
-          <p>
-            When <code>vynec -b</code> is invoked, the engine executes the
-            following high-speed deployment sequence:
-          </p>
-
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Phase</th>
-                  <th>Action</th>
-                  <th>Output</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><strong>1. Workspace Init</strong></td>
-                  <td>
-                    Creates a dynamic output directory based on script name.
-                  </td>
-                  <td><code>/main_release/</code></td>
-                </tr>
-                <tr>
-                  <td><strong>2. Binary Injection</strong></td>
-                  <td>
-                    Copies <code>vynec.exe</code> and <code>urage.dll</code> to
-                    the root.
-                  </td>
-                  <td>Engine Binaries</td>
-                </tr>
-                <tr>
-                  <td><strong>3. Asset Discovery</strong></td>
-                  <td>
-                    Regex-based scanning of strings for
-                    <code>.png, .wav, .fs, .dat</code>, etc.
-                  </td>
-                  <td>Virtualized Assets</td>
-                </tr>
-                <tr>
-                  <td><strong>4. Bootstrap Generation</strong></td>
-                  <td>
-                    Writes a <code>run.bat</code> to handle interpreted
-                    execution.
-                  </td>
-                  <td>Executable Script</td>
-                </tr>
-              </tbody>
-            </table>
+      <!-- VSERV -->
+      <section id="vserv">
+        <div class="section-header">
+          <h2>VServ</h2>
+          <span class="badge">HTTP · WS</span>
+        </div>
+        <p>Web server, routing, middleware, WebSocket support.</p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">server.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
-
-          <div class="explanation warning">
-            <i class="fas fa-terminal"></i> <strong>Pro Tip:</strong>
-            Ensure your asset paths are relative to the project root. The
-            builder recreates the entire sub-directory structure inside the
-            release folder to maintain VFS (Virtual File System) integrity.
+          <div class="code-body">
+            <span class="keyword">module</span> vserv;<br />
+            app = vserv.create_app();<br />
+            vserv.app_get(app, <span class="string">"/"</span>,
+            <span class="keyword">fn</span>(req, res) {<br />
+            &nbsp;&nbsp;vserv.send(res,
+            <span class="string">"Hello Vyne"</span>);<br />
+            });<br />
+            vserv.app_listen(app, 8080);
           </div>
-        </section>
+        </div>
+      </section>
 
-        <footer class="footer">
-          <p>Vyne Engine Documentation &copy; 2026. Engineered with love.</p>
-        </footer>
-      </main>
-    </div>
+      <!-- VMEM -->
+      <section id="vmem">
+        <div class="section-header">
+          <h2>VMem</h2>
+          <span class="badge pink">low-level</span>
+        </div>
+        <p>Memory introspection and raw manipulation. Use with extreme care.</p>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <tr>
+              <th>Function</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td>vmem.usage()</td>
+              <td>total deep memory in bytes</td>
+            </tr>
+            <tr>
+              <td>vmem.addrOf(obj)</td>
+              <td>native memory address</td>
+            </tr>
+            <tr>
+              <td>vmem.peek(addr)</td>
+              <td>read value from address</td>
+            </tr>
+            <tr>
+              <td>vmem.poke(addr, val)</td>
+              <td>write value to address</td>
+            </tr>
+          </table>
+        </div>
+      </section>
+
+      <!-- PLAYGROUND -->
+      <section id="playground">
+        <div class="section-header">
+          <h2>Playground</h2>
+          <span class="badge amber">interactive</span>
+        </div>
+        <p>Experiment with Vyne snippets. (Live evaluation simulation)</p>
+        <div class="card" style="background: var(--code-bg); padding: 1.5rem">
+          <div
+            style="
+              display: flex;
+              gap: 12px;
+              flex-wrap: wrap;
+              margin-bottom: 1rem;
+            "
+          >
+            <input
+              type="text"
+              id="codeInput"
+              value="out('vyne rocks!')"
+              style="
+                flex: 1;
+                background: var(--bg-surface);
+                border: 1px solid var(--border-subtle);
+                border-radius: 8px;
+                padding: 10px 14px;
+                color: #fff;
+                font-family: var(--font-mono);
+              "
+            />
+            <button
+              id="runBtn"
+              style="
+                background: var(--accent-cyan);
+                border: none;
+                color: #0b0d14;
+                font-weight: 600;
+                padding: 0 20px;
+                border-radius: 8px;
+                cursor: pointer;
+              "
+            >
+              Run
+            </button>
+          </div>
+          <div
+            id="playgroundOutput"
+            style="
+              background: var(--bg-base);
+              padding: 0.8rem 1rem;
+              border-radius: 8px;
+              color: var(--text-secondary);
+              font-family: var(--font-mono);
+              min-height: 48px;
+            "
+          >
+            → vyne rocks!
+          </div>
+        </div>
+      </section>
+
+      <!-- INTEGRATION GUIDE -->
+      <section id="guide">
+        <div class="section-header">
+          <h2>Integration guide</h2>
+          <span class="badge">readme</span>
+        </div>
+        <p>
+          Add Vyne to your project: include
+          <code class="inline">vynec</code> and link with
+          <code class="inline">libvyne</code>. Use the builder
+          <code class="inline">vynec -b</code> to bundle assets.
+        </p>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <i class="fab fa-react"></i> React / Vite
+            </div>
+            <div class="card-desc">
+              Use <code class="inline">useVyne()</code> hook or embed via
+              WebAssembly.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-terminal"></i> CLI</div>
+            <div class="card-desc">
+              <code class="inline">vynec main.vy</code> — run scripts,
+              <code class="inline">--build-game</code> for standalone.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <span>Vyne documentation — built with ❤️</span>
+        <span><a href="#">GitHub</a> · <a href="#">Discord</a></span>
+      </footer>
+    </main>
 
     <script>
-      const sections = document.querySelectorAll("section");
-      const navLinks = document.querySelectorAll(".nav-links a");
+      (function () {
+        const menuBtn = document.getElementById("menuToggle");
+        const sidebar = document.getElementById("sidebar");
+        menuBtn.addEventListener("click", () =>
+          sidebar.classList.toggle("open"),
+        );
 
-      window.addEventListener("scroll", () => {
-        let current = "";
-        sections.forEach((section) => {
-          const sectionTop = section.offsetTop;
-          if (pageYOffset >= sectionTop - 150) {
-            current = section.getAttribute("id");
+        const searchInput = document.getElementById("searchInput");
+        const navLinks = document.querySelectorAll(".nav-links a");
+        searchInput.addEventListener("input", function (e) {
+          const term = e.target.value.toLowerCase();
+          navLinks.forEach((link) => {
+            const txt = link.textContent.toLowerCase();
+            const parent = link.closest("li");
+            if (txt.includes(term)) parent.style.display = "";
+            else parent.style.display = "none";
+          });
+        });
+
+        const themeBtn = document.getElementById("themeToggle");
+        let dark = true;
+        themeBtn.addEventListener("click", function () {
+          dark = !dark;
+          const root = document.documentElement;
+          if (!dark) {
+            root.style.setProperty("--bg-base", "#f4f6fa");
+            root.style.setProperty("--bg-surface", "#ffffff");
+            root.style.setProperty("--bg-card", "#eef1f5");
+            root.style.setProperty("--bg-sidebar", "#e8ecf2");
+            root.style.setProperty("--text-primary", "#1a1e2a");
+            root.style.setProperty("--text-secondary", "#3a4055");
+            root.style.setProperty("--text-muted", "#6a7a95");
+            root.style.setProperty("--border-subtle", "rgba(0,0,0,0.08)");
+            root.style.setProperty("--code-bg", "#f0f2f6");
+            this.innerHTML = '<i class="fas fa-sun"></i> <span>Light</span>';
+          } else {
+            root.style.setProperty("--bg-base", "#0d0e12");
+            root.style.setProperty("--bg-surface", "#13161c");
+            root.style.setProperty("--bg-card", "#1a1e28");
+            root.style.setProperty("--bg-sidebar", "#0a0c11");
+            root.style.setProperty("--text-primary", "#f0f4fc");
+            root.style.setProperty("--text-secondary", "#9aa8c7");
+            root.style.setProperty("--text-muted", "#5d6d8a");
+            root.style.setProperty("--border-subtle", "rgba(255,255,255,0.06)");
+            root.style.setProperty("--code-bg", "#0b0d14");
+            this.innerHTML = '<i class="fas fa-moon"></i> <span>Dark</span>';
           }
         });
 
-        navLinks.forEach((a) => {
-          a.classList.remove("active");
-          if (a.getAttribute("href").includes(current)) {
-            a.classList.add("active");
+        document.querySelectorAll(".copy-btn").forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const block = this.closest(".code-block");
+            const body = block.querySelector(".code-body");
+            const text = body.textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+              const orig = this.innerHTML;
+              this.innerHTML = '<i class="fas fa-check"></i> copied';
+              setTimeout(() => (this.innerHTML = orig), 1800);
+            });
+          });
+        });
+
+        const runBtn = document.getElementById("runBtn");
+        const codeInput = document.getElementById("codeInput");
+        const outputDiv = document.getElementById("playgroundOutput");
+        runBtn.addEventListener("click", function () {
+          const code = codeInput.value.trim();
+          if (!code) {
+            outputDiv.textContent = "⏎ enter some code";
+            return;
+          }
+          try {
+            let result = "";
+            if (code.includes("out(")) {
+              const match = code.match(/out\(['"](.*?)['"]\)/);
+              if (match) result = "→ " + match[1];
+              else result = "→ (executed)";
+            } else {
+              result = "→ " + code;
+            }
+            outputDiv.textContent = result;
+          } catch (e) {
+            outputDiv.textContent = "⚠️ " + e.message;
           }
         });
-      });
+
+        const sections = document.querySelectorAll("section[id]");
+        const links = document.querySelectorAll(".nav-links a");
+        function updateActive() {
+          let current = "";
+          sections.forEach((s) => {
+            const top = s.offsetTop - 120;
+            if (window.scrollY >= top) current = s.id;
+          });
+          links.forEach((a) => {
+            a.classList.remove("active");
+            if (a.getAttribute("href") === "#" + current)
+              a.classList.add("active");
+          });
+        }
+        window.addEventListener("scroll", updateActive);
+        updateActive();
+
+        links.forEach((a) =>
+          a.addEventListener("click", () => sidebar.classList.remove("open")),
+        );
+      })();
     </script>
   </body>
 </html>
