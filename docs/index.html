@@ -506,6 +506,215 @@
         text-decoration: none;
       }
 
+      /* ============================================================
+         HERO
+      ============================================================ */
+      .hero {
+        position: relative;
+        margin: -2.5rem -3.5rem 3.5rem;
+        padding: 4.5rem 3.5rem 3.5rem;
+        overflow: hidden;
+        border-bottom: 1px solid var(--border-subtle);
+        background:
+          radial-gradient(600px 300px at 12% -10%, var(--glow-cyan), transparent 60%),
+          radial-gradient(500px 260px at 92% 0%, var(--glow-purple), transparent 55%);
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 42px 42px;
+        mask-image: linear-gradient(to bottom, black, transparent 85%);
+        pointer-events: none;
+      }
+      .hero-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 3rem;
+        align-items: center;
+      }
+      .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.6px;
+        color: var(--accent-cyan);
+        background: var(--glow-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.25);
+        padding: 5px 12px;
+        border-radius: 40px;
+        margin-bottom: 1.4rem;
+      }
+      .hero-eyebrow .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-cyan);
+        box-shadow: 0 0 8px var(--accent-cyan);
+      }
+      .hero h1 {
+        font-size: 3.6rem;
+        line-height: 1.02;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-bottom: 1.1rem;
+      }
+      .hero h1 .grad {
+        background: linear-gradient(120deg, var(--accent-cyan) 10%, var(--accent-purple) 60%, var(--accent-pink) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero-sub {
+        font-size: 1.08rem;
+        color: var(--text-secondary);
+        max-width: 540px;
+        margin-bottom: 1.9rem;
+      }
+      .hero-sub strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .hero-cta {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 2.4rem;
+        flex-wrap: wrap;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 22px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: 0.2s ease;
+        border: 1px solid transparent;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--accent-cyan);
+        color: #06110f;
+        box-shadow: 0 0 0 0 var(--glow-cyan);
+      }
+      .btn-primary:hover {
+        box-shadow: 0 6px 24px -4px var(--glow-cyan);
+        transform: translateY(-1px);
+      }
+      .btn-ghost {
+        background: rgba(255, 255, 255, 0.02);
+        border-color: var(--border-subtle);
+        color: var(--text-primary);
+      }
+      .btn-ghost:hover {
+        border-color: var(--accent-cyan);
+        color: var(--accent-cyan);
+      }
+      .hero-stats {
+        display: flex;
+        gap: 2.2rem;
+        flex-wrap: wrap;
+      }
+      .hero-stat b {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .hero-stat span {
+        font-size: 0.76rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      /* pipeline diagram (signature element) */
+      .pipeline {
+        background: var(--code-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        padding: 1.6rem 1.5rem;
+        font-family: var(--font-mono);
+        position: relative;
+      }
+      .pipeline-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--text-muted);
+        margin-bottom: 1.1rem;
+      }
+      .pipe-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pipe-node {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 12px;
+        border-radius: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+      }
+      .pipe-node i {
+        color: var(--accent-cyan);
+        font-size: 0.85rem;
+      }
+      .pipe-arrow {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
+      .pipe-down {
+        text-align: center;
+        color: var(--text-muted);
+        margin: 6px 0;
+        font-size: 0.8rem;
+      }
+      .pipe-branch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .pipe-branch .pipe-node {
+        border-color: rgba(184, 160, 255, 0.25);
+      }
+      .pipe-branch .pipe-node:first-child i {
+        color: var(--accent-amber);
+      }
+      .pipe-branch .pipe-node:last-child i {
+        color: var(--accent-purple);
+      }
+
+      @media (max-width: 1024px) {
+        .hero {
+          margin: -1.8rem -2rem 2.5rem;
+          padding: 3rem 2rem 2.5rem;
+        }
+        .hero-grid {
+          grid-template-columns: 1fr;
+        }
+        .hero h1 {
+          font-size: 2.6rem;
+        }
+      }
+      @media (max-width: 768px) {
+        .hero {
+          margin: -1.2rem -1.2rem 2rem;
+          padding: 2.4rem 1.2rem 2rem;
+        }
+      }
       @media (max-width: 1024px) {
         .main {
           padding: 1.8rem 2rem 3rem;
@@ -582,11 +791,39 @@
               <a href="#functions"><i class="fas fa-terminal"></i> Functions</a>
             </li>
             <li>
+              <a href="#enums"><i class="fas fa-list-ol"></i> Enums</a>
+            </li>
+            <li>
+              <a href="#structs"
+                ><i class="fas fa-shapes"></i> Structs &amp; interfaces</a
+              >
+            </li>
+            <li>
+              <a href="#errors"
+                ><i class="fas fa-triangle-exclamation"></i> Error handling</a
+              >
+            </li>
+            <li>
+              <a href="#operators"
+                ><i class="fas fa-arrow-right-arrow-left"></i> Operators</a
+              >
+            </li>
+            <li>
               <a href="#rulesets"><i class="fas fa-sliders-h"></i> Rulesets</a>
             </li>
             <li>
               <a href="#modules"
                 ><i class="fas fa-box"></i> Modules &amp; groups</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="nav-section">
+          <div class="nav-section-title">internals</div>
+          <ul class="nav-links">
+            <li>
+              <a href="#architecture"
+                ><i class="fas fa-diagram-project"></i> Architecture</a
               >
             </li>
           </ul>
@@ -646,6 +883,91 @@
 
     <!-- main -->
     <main class="main">
+      <!-- HERO -->
+      <section class="hero" aria-label="Introduction">
+        <div class="hero-grid">
+          <div>
+            <div class="hero-eyebrow">
+              <span class="dot"></span> v0.0.4 · interpreted, transpiles to C
+            </div>
+            <h1>The <span class="grad">Vyne</span><br />language</h1>
+            <p class="hero-sub">
+              A C‑flavored scripting language with <strong>optional strict
+              typing</strong>, structs via <code class="inline">interface</code>,
+              and a standard library that reaches from <strong>VMath</strong> to
+              <strong>VGLib</strong> 3D and <strong>VServ</strong> HTTP. Run it on
+              the tree‑walking interpreter, or lower it straight to native C.
+            </p>
+            <div class="hero-cta">
+              <a href="#basics" class="btn btn-primary"
+                ><i class="fas fa-book"></i> Read the docs</a
+              >
+              <a href="#playground" class="btn btn-ghost"
+                ><i class="fas fa-flask"></i> Try the playground</a
+              >
+              <a href="#" class="btn btn-ghost"
+                ><i class="fab fa-github"></i> Source</a
+              >
+            </div>
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <b>2</b>
+                <span>execution modes</span>
+              </div>
+              <div class="hero-stat">
+                <b>10</b>
+                <span>value kinds</span>
+              </div>
+              <div class="hero-stat">
+                <b>6</b>
+                <span>runtime modules</span>
+              </div>
+              <div class="hero-stat">
+                <b>0</b>
+                <span>GC pauses in C output</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- signature element: real compilation pipeline -->
+          <div class="pipeline">
+            <div class="pipeline-label">
+              <i class="fas fa-diagram-project"></i>&nbsp; source.vy → output
+            </div>
+            <div class="pipe-row">
+              <div class="pipe-node">
+                <i class="fas fa-file-code"></i> Lexer
+              </div>
+              <span class="pipe-arrow"><i class="fas fa-arrow-right"></i></span>
+              <div class="pipe-node">
+                <i class="fas fa-code-branch"></i> Parser
+              </div>
+            </div>
+            <div class="pipe-down"><i class="fas fa-arrow-down"></i></div>
+            <div class="pipe-row">
+              <div class="pipe-node" style="flex: none; width: 100%">
+                <i class="fas fa-sitemap"></i> AST
+                <span style="color: var(--text-muted); margin-left: auto"
+                  >ASTNode tree</span
+                >
+              </div>
+            </div>
+            <div class="pipe-down"><i class="fas fa-arrow-down"></i></div>
+            <div class="pipe-branch">
+              <div class="pipe-node">
+                <i class="fas fa-play"></i> Interpreter
+              </div>
+              <div class="pipe-node">
+                <i class="fas fa-gears"></i> C transpiler
+              </div>
+            </div>
+            <div class="pipe-down" style="margin-top: 4px">
+              evaluate(env, scope) · Codegen + C_Emitter → arena‑allocated C
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="topbar">
         <div class="topbar-left">
           <button class="mobile-toggle" id="menuToggle">
@@ -816,6 +1138,208 @@
             <span class="keyword">fn</span> <span class="function">mul</span>(x,
             y) { x * y } <span class="comment">// inferred</span>
           </div>
+        </div>
+      </section>
+
+      <!-- ENUMS -->
+      <section id="enums">
+        <div class="section-header">
+          <h2>Enums</h2>
+          <span class="badge">enum</span>
+        </div>
+        <p>
+          Named integer constants declared with <code class="inline">enum</code>.
+          Members auto‑increment from the previous value, and an explicit
+          <code class="inline">= N</code> resets the counter.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">direction.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">enum</span> Direction {<br />
+            &nbsp;&nbsp;North,<br />
+            &nbsp;&nbsp;East,<br />
+            &nbsp;&nbsp;South = <span class="number">10</span>,<br />
+            &nbsp;&nbsp;West<br />
+            }
+            <span class="comment"
+              >// North = 0, East = 1, South = 10, West = 11</span
+            ><br />
+            <span class="keyword">out</span>(Direction.South);
+            <span class="comment">// => 10</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- STRUCTS & INTERFACES -->
+      <section id="structs">
+        <div class="section-header">
+          <h2>Structs &amp; interfaces</h2>
+          <span class="badge purple">interface</span>
+        </div>
+        <p>
+          Vyne has no separate <code class="inline">struct</code> keyword —
+          an <code class="inline">interface</code> block declares typed
+          fields <em>and</em> method bodies together, and doubles as a
+          positional constructor when called.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">shapes.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">interface</span> Circle {<br />
+            &nbsp;&nbsp;r :: Float64;<br />
+            <br />
+            &nbsp;&nbsp;area() -> Float64 {<br />
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> r * r *
+            <span class="number">3.14159</span>;<br />
+            &nbsp;&nbsp;}<br />
+            }<br />
+            <br />
+            c = Circle(<span class="number">4.0</span>);
+            <span class="comment">// fields fill positionally</span><br />
+            <span class="keyword">out</span>(c.area());
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-copy"></i> Value semantics
+            </div>
+            <div class="card-desc">
+              Struct instances deep‑copy their fields on assignment; method
+              tables are shared, so behavior never gets duplicated.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-check-double"></i> Checked calls
+            </div>
+            <div class="card-desc">
+              Method calls validate argument count, argument types, and the
+              declared return type before and after the call runs.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ERROR HANDLING -->
+      <section id="errors">
+        <div class="section-header">
+          <h2>Error handling</h2>
+          <span class="badge pink">try / catch / finally</span>
+        </div>
+        <p>
+          <code class="inline">try</code> must be followed by
+          <code class="inline">catch</code>, <code class="inline">finally</code>,
+          or both. An unnamed catch binds the error to
+          <code class="inline">_err</code> by default.
+        </p>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">safe.vy</span
+            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="keyword">try</span> {<br />
+            &nbsp;&nbsp;risky();<br />
+            &nbsp;&nbsp;<span class="keyword">throw</span>
+            <span class="string">"boom"</span>;<br />
+            } <span class="keyword">catch</span> (err) {<br />
+            &nbsp;&nbsp;<span class="keyword">out</span>(err);<br />
+            } <span class="keyword">finally</span> {<br />
+            &nbsp;&nbsp;cleanup();<br />
+            }
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-bolt"></i> throw</div>
+            <div class="card-desc">
+              Takes an optional expression — <code class="inline">throw;</code>
+              on its own is valid too.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-layer-group"></i> defer
+            </div>
+            <div class="card-desc">
+              <code class="inline">defer stmt;</code> queues a single
+              statement to run when the enclosing scope exits.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- OPERATORS -->
+      <section id="operators">
+        <div class="section-header">
+          <h2>Operators</h2>
+          <span class="badge amber">beyond arithmetic</span>
+        </div>
+        <p>
+          A compact set of operators for ranges, defaults, and data flow —
+          layered on top of the usual
+          <code class="inline">+ - * / % **</code>.
+        </p>
+        <div class="api-table-wrap">
+          <table class="api-table">
+            <tr>
+              <th>Operator</th>
+              <th>Name</th>
+              <th>Example</th>
+            </tr>
+            <tr>
+              <td>..</td>
+              <td>range</td>
+              <td><code class="inline">0..10</code></td>
+            </tr>
+            <tr>
+              <td>? :</td>
+              <td>ternary</td>
+              <td><code class="inline">ready ? "go" : "wait"</code></td>
+            </tr>
+            <tr>
+              <td>??</td>
+              <td>null‑coalesce</td>
+              <td><code class="inline">name ?? "anon"</code></td>
+            </tr>
+            <tr>
+              <td>??=</td>
+              <td>coalesce‑assign</td>
+              <td><code class="inline">cfg.mode ??= "default"</code></td>
+            </tr>
+            <tr>
+              <td>|&gt;</td>
+              <td>pipeline</td>
+              <td><code class="inline">data |> normalize</code></td>
+            </tr>
+            <tr>
+              <td>in</td>
+              <td>membership</td>
+              <td><code class="inline">x in [1, 2, 3]</code></td>
+            </tr>
+            <tr>
+              <td>//</td>
+              <td>floor divide</td>
+              <td><code class="inline">7 // 2</code></td>
+            </tr>
+            <tr>
+              <td>&amp;</td>
+              <td>reference param</td>
+              <td><code class="inline">fn bump(v :: Int64&amp;)</code></td>
+            </tr>
+            <tr>
+              <td>$</td>
+              <td>addresser</td>
+              <td><code class="inline">$target</code></td>
+            </tr>
+          </table>
         </div>
       </section>
 
@@ -1340,6 +1864,69 @@
             = 3.1415; }<br />
             <span class="keyword">deploy</span> math;<br />
             <span class="keyword">out</span>(Constants.pi);
+          </div>
+        </div>
+      </section>
+
+      <!-- ARCHITECTURE -->
+      <section id="architecture">
+        <div class="section-header">
+          <h2>Architecture</h2>
+          <span class="badge"><i class="fas fa-diagram-project"></i> engine</span>
+        </div>
+        <p>
+          One AST, two ways to run it: a tree‑walking interpreter for fast
+          iteration, or a C transpiler for a standalone native binary.
+        </p>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-title"><i class="fas fa-file-code"></i> Lexer</div>
+            <div class="card-desc">
+              <code class="inline">tokenize()</code> streams a flat
+              <code class="inline">vector&lt;Token&gt;</code>, handling string
+              interpolation (<code class="inline">"{expr}"</code>) inline as it
+              scans.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-code-branch"></i> Parser</div>
+            <div class="card-desc">
+              A recursive‑descent <code class="inline">Parser</code> builds a
+              typed <code class="inline">unique_ptr&lt;ASTNode&gt;</code> tree,
+              tracking scopes to warn on shadowed or unused variables.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-play"></i> Interpreter</div>
+            <div class="card-desc">
+              Each node's <code class="inline">evaluate(env, scopeId)</code>
+              walks the tree directly against a
+              <code class="inline">SymbolContainer</code> keyed by scope.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-gears"></i> Transpiler</div>
+            <div class="card-desc">
+              <code class="inline">Codegen</code> + <code class="inline">C_Emitter</code>
+              lower the same AST into a single C translation unit, then hand
+              off to <code class="inline">arena_free_all()</code> at exit.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-layer-group"></i> Value model</div>
+            <div class="card-desc">
+              <code class="inline">Value</code> is a tagged union — primitives
+              live inline, while Array / Map / Struct / Function / Module are
+              boxed behind <code class="inline">shared_ptr&lt;VyneObject&gt;</code>.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title"><i class="fas fa-hashtag"></i> StringPool</div>
+            <div class="card-desc">
+              Identifiers and field names are interned once into a global
+              pool, so symbol lookups compare <code class="inline">uint32_t</code>
+              ids instead of strings.
+            </div>
           </div>
         </div>
       </section>
