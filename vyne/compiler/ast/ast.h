@@ -1299,17 +1299,9 @@ public:
         body->evaluate(env, currentGroupId);
     }
     
-    void compile(C_Emitter& e) const override {
-        // For now, just emit as normal string concatenation
-        // TODO: Implement proper codegen
-    }
-    
-    std::string getCExpr(C_Emitter& e) const override {
-        // Generate C++ expression
-        return "";
-    }
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
-
 class InNode : public ASTNode {
     std::unique_ptr<ASTNode> left;
     std::unique_ptr<ASTNode> right;
@@ -1382,9 +1374,6 @@ public:
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
-    VType getStaticType() const override {
-        return left->getStaticType();
-    }
 };
 
 class NullCoalesceAssignmentNode : public ASTNode {
