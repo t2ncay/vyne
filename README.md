@@ -565,26 +565,215 @@ make
 make test
 ```
 
-### Project Structure
+### 📁 Project Structure
 
 ```
 vyne/
-├── compiler/          # Lexer, Parser, AST
-│   ├── ast/           # AST node definitions
-│   ├── codegen/       # C transpiler
-│   ├── lexer/         # Tokenizer
-│   └── parser/        # Recursive-descent parser
-├── core/              # Execution engine & Value system
-├── modules/           # Native C++ extensions
-│   ├── vaudio/        # Audio DSP engine
-│   ├── vcore/         # System utilities
-│   ├── vglib/         # Graphics engine (Raylib)
-│   ├── vmath/         # Math library
-│   ├── vmem/          # Memory introspection
-│   └── vserv/         # HTTP/WebSocket server
-├── vendor/            # Third-party libraries
-│   └── raylib/        # Raylib for graphics/audio
-└── tests/             # Test suite
+├── cli/                          # Command-line interface tools
+│   ├── file_handler.cpp/h        # File I/O operations
+│   ├── packager.cpp/h            # Module packaging
+│   └── repl.cpp/h                # Read-Eval-Print Loop
+│
+├── compiler/                     # Core compiler (source)
+│   ├── ast/                      # Abstract Syntax Tree
+│   │   ├── ast.cpp/h             # AST node definitions
+│   │   ├── ast_helpers.h         # Symbol lookup & type helpers
+│   │   └── value.cpp/h           # Value system (tagged union)
+│   ├── codegen/                  # C transpiler
+│   │   ├── codegen.cpp/h         # AST → C code generation
+│   │   └── emitter.h             # C emitter with context management
+│   ├── lexer/                    # Tokenizer
+│   │   └── lexer.cpp/h           # Lexical analysis
+│   ├── parser/                   # Recursive-descent parser
+│   │   └── parser.cpp/h          # Parser with type resolution
+│   └── types.h                   # VType enum definitions
+│
+├── docs/                         # Documentation website
+│   ├── assets/                   # Images and logos
+│   ├── theme/                    # Documentation theme
+│   ├── tutorials/                # Tutorial markdown files
+│   ├── core-concepts.html        # Core concepts guide
+│   ├── index.html                # Main docs page
+│   ├── index.js                  # Documentation scripts
+│   └── style.css                 # Documentation styles
+│
+├── editors/                      # Editor integrations
+│   ├── nvim/                     # Neovim plugin
+│   │   ├── ftdetect/vyne.lua     # File type detection
+│   │   ├── lua/vyne_lsp.lua      # LSP client
+│   │   └── syntax/vyne.vim       # Syntax highlighting
+│   └── vscode/                   # VS Code extension
+│       └── lsp/                  # Language Server Protocol
+│           ├── backend/          # LSP server (C++)
+│           │   ├── include/      # Headers
+│           │   └── src/          # LSP server implementation
+│           ├── client/           # VS Code extension
+│           │   ├── src/          # Extension source
+│           │   └── syntaxes/     # TM Language grammar
+│           ├── server/           # Node.js LSP server
+│           └── samples/          # Example Vyne files
+│
+├── models/                       # Pre-trained ML models (VML)
+│   ├── crypto_deep_v1/           # Cryptocurrency prediction
+│   ├── crypto_market_v1/         # Market analysis
+│   ├── metu_grader_v1/           # Grade prediction
+│   └── xor_trained_v1/           # XOR logic gate
+│
+├── modules/                      # Runtime modules (source)
+│   ├── common/                   # Core modules
+│   │   ├── vaudio/               # Audio DSP engine
+│   │   │   ├── docs/             # DSP documentation
+│   │   │   │   ├── compressor.md
+│   │   │   │   ├── equalizer.md
+│   │   │   │   └── reverb.md
+│   │   │   ├── dsp/              # DSP implementation
+│   │   │   │   ├── analyzer.h
+│   │   │   │   ├── compressor.h
+│   │   │   │   ├── dsp_utils.h
+│   │   │   │   ├── equalizer.h
+│   │   │   │   ├── lufs.h
+│   │   │   │   ├── reverb.h
+│   │   │   │   ├── saturator.h
+│   │   │   │   └── shared_state.h
+│   │   │   ├── vaudio.cpp/h      # VAudio bindings
+│   │   │   └── vaudio.h
+│   │   ├── vcore/                # System utilities
+│   │   │   └── vcore.cpp/h
+│   │   ├── vcv/                  # Computer vision
+│   │   │   └── vcv.cpp/h
+│   │   ├── vfs/                  # Filesystem operations
+│   │   │   └── vfs.cpp/h
+│   │   ├── vglib/                # Graphics engine (Raylib)
+│   │   │   ├── vglib.cpp/h       # Main bindings
+│   │   │   ├── vglib_camera.cpp  # 3D camera
+│   │   │   ├── vglib_common.h    # Shared definitions
+│   │   │   ├── vglib_core.cpp    # Window & frame loop
+│   │   │   ├── vglib_input.cpp   # Keyboard & mouse
+│   │   │   ├── vglib_render2d.cpp # 2D rendering
+│   │   │   ├── vglib_render3d.cpp # 3D rendering
+│   │   │   └── vglib_shaders.cpp # Shaders & post-processing
+│   │   ├── vmath/                # High-performance math
+│   │   │   └── vmath.cpp/h
+│   │   ├── vmem/                 # Memory introspection
+│   │   │   └── vmem.cpp/h
+│   │   ├── vml/                  # Machine Learning
+│   │   │   ├── vml.cpp/h         # Main bindings
+│   │   │   ├── vml_common.h      # Shared definitions
+│   │   │   ├── vml_activation.cpp # Activation functions
+│   │   │   ├── vml_layers.cpp    # Neural network layers
+│   │   │   ├── vml_loss.cpp      # Loss functions
+│   │   │   ├── vml_model.cpp     # Model management
+│   │   │   ├── vml_ops.cpp       # Tensor operations
+│   │   │   ├── vml_optimizer.cpp # Optimizers (SGD, Adam)
+│   │   │   └── vml_tensor.cpp    # Tensor implementation
+│   │   ├── vnet/                 # Networking (raw sockets)
+│   │   │   └── vnet.cpp/h
+│   │   ├── vserv/                # HTTP/WebSocket server
+│   │   │   ├── vserv.h           # Main definitions
+│   │   │   ├── vserv_common.h    # Shared helpers
+│   │   │   ├── vserv_request.cpp # Request parsing
+│   │   │   ├── vserv_server.cpp  # Server core
+│   │   │   ├── vserv_setup.cpp   # Module registration
+│   │   │   ├── vserv_static.cpp  # Static file serving
+│   │   │   ├── vserv_web.cpp     # Express-style web framework
+│   │   │   └── vserv_ws.cpp      # WebSocket support
+│   │   └── vurage/               # Database engine (Urage)
+│   │       └── vurage.cpp/h
+│   └── external/                 # External module libraries
+│       ├── vcolors.vy            # Color utilities
+│       ├── vconvert.vy           # Data conversion
+│       ├── vjson.vy              # JSON parsing
+│       ├── vlinalg.vy            # Linear algebra
+│       ├── vml.vy                # ML wrapper
+│       ├── vplot.vy              # Plotting
+│       └── vstring.vy            # String utilities
+│
+├── runtime/                      # Runtime system
+│   ├── diagnostics.h             # Error & warning reporting
+│   ├── vyne_runtime.h            # Core runtime API
+│   └── modules/                  # Runtime module headers
+│       ├── vcore.h
+│       └── vmath.h
+│
+├── scripts/                      # Build & utility scripts
+│   ├── build_path.sh
+│   ├── run_all_tests.sh
+│   └── test_ast.sh
+│
+├── tests/                        # Test suite
+│   ├── assets/                   # Test assets (audio, images, models)
+│   ├── compiler/                 # Compiler tests
+│   ├── dsp/                      # Audio DSP tests
+│   │   ├── configs/              # DSP test configurations
+│   │   └── *.vy                  # DSP test scripts
+│   ├── graphics/                 # Graphics tests
+│   │   ├── shaders/              # Test shaders
+│   │   └── *.vy                  # Graphics test scripts
+│   ├── network/                  # Networking tests
+│   │   ├── vdnet/                # vnet tests
+│   │   └── vserv/                # VServ tests
+│   ├── training/                 # ML training tests
+│   │   └── vnet/                 # vnet training tests
+│   └── *.vy                      # Language feature tests
+│
+├── utils/                        # Utilities
+│   ├── file_utils.h              # File I/O helpers
+│   └── sha256.h                  # SHA-256 hashing
+│
+├── vendor/                       # Third-party dependencies
+│   ├── raylib/                   # Raylib (graphics/audio)
+│   │   ├── include/              # Raylib headers
+│   │   └── lib/                  # Raylib static libraries
+│   ├── stb/                      # STB libraries (image, font, etc.)
+│   │   ├── stb_image.h
+│   │   ├── stb_image_write.h
+│   │   ├── stb_truetype.h
+│   │   └── ... (other STB headers)
+│   └── urage/                    # Urage embedded database
+│       ├── bindings/cpp/         # C++ bindings
+│       └── core/                 # Urage core
+│           ├── include/          # Urage headers
+│           └── src/              # Urage source
+│
+├── build/                        # Compiled object files
+│   ├── cli/
+│   ├── editors/vscode/lsp/backend/src/
+│   └── vyne/
+│       ├── compiler/
+│       │   ├── ast/
+│       │   ├── codegen/
+│       │   ├── lexer/
+│       │   └── parser/
+│       └── modules/common/
+│           ├── vaudio/
+│           ├── vcore/
+│           ├── vcv/
+│           ├── vfs/
+│           ├── vglib/
+│           ├── vmath/
+│           ├── vmem/
+│           ├── vml/
+│           ├── vnet/
+│           ├── vserv/
+│           └── vurage/
+│
+├── .github/                      # GitHub Actions & templates
+│   ├── ISSUE_TEMPLATE/
+│   └── workflows/
+│
+├── .vscode/                      # VS Code project settings
+├── docs/                         # User documentation (HTML)
+├── main.cpp                      # Entry point
+├── Makefile                      # Build system
+├── Doxyfile                      # Doxygen configuration
+├── LICENSE                       # MIT License
+├── README.md                     # This file
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── build.bat                     # Windows build script
+├── build.sh                      # Linux/Mac build script
+└── vynec.exe                     # Vyne compiler executable
 ```
 
 ---
