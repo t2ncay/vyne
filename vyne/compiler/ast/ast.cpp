@@ -11,6 +11,7 @@
 #include "../../modules/common/vcv/vcv.h"
 #include "../../modules/common/vaudio/vaudio.h"
 #include "../../modules/common/vnet/vnet.h"
+#include "../../modules/common/vml/vml.h"
 
 #include "../parser/parser.h"
 #include "../lexer/lexer.h"
@@ -1770,6 +1771,7 @@ Value ModuleNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const 
     if (originalName == "vaudio") setupVAudio(env, StringPool::instance());
     if (originalName == "vnet")   setupVNet(env, StringPool::instance());
     if (originalName == "vserv")  setupVServ(env, StringPool::instance());
+    if (originalName == "vml")    setupVML(env, StringPool::instance());
 
     auto& groupTable = env[currentGroupId]; 
 
