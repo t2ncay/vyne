@@ -42,6 +42,16 @@ Value VariableNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) cons
     Value* valPtr = lookupSymbol(env, targetId, nameId);
     env.markUsed(nameId);
     
+    if (!valPtr) {
+        std::string currentGroupName = StringPool::instance().get(targetId);
+        size_t lastDot = currentGroupName.find_last_of('.');
+        if (lastDot != std::string::npos) {
+            std::string parentName = currentGroupName.substr(0, lastDot);
+            uint32_t parentId = StringPool::instance().intern(parentName);
+            valPtr = lookupSymbol(env, parentId, nameId);
+        }
+    }
+    
     if (!valPtr && targetId != globalId) {
         valPtr = lookupSymbol(env, globalId, nameId);
     }
@@ -53,7 +63,6 @@ Value VariableNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) cons
 
     return valPtr->isReference() ? *(valPtr->getPointer()) : *valPtr;
 }
-
 /**
  * @brief Handles variable assignment and updates the SymbolContainer.
  * * @note Throws a runtime_error if attempting to reassign a Read-Only value.
@@ -2276,55 +2285,68 @@ Value PipelineNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) cons
 // TRY/CATCH/THROW/FINALLY - EVALUATION
 // ============================================================
 
+// File: compiler/ast/ast.cpp
+
+// File: compiler/ast/ast.cpp
+
 Value TryCatchNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
-    // Push a new scope for the catch variable
-    std::string catchScopeName = createLocalScope("catch", catchVarName);
-    ScopedEnvironment catchScope(env, catchScopeName, currentGroupId);
-    uint32_t catchScopeId = catchScope.getScopeId();
-
-    // Store current defer stack size
-    size_t deferCount = env.getDeferCount();
-
     Value result;
 
+    auto runCatchBlock = [&](Value errVal) {
+        if (!catchBody) return;
+
+        std::string catchScopeName = createLocalScope("catch", catchVarName);
+        // Pass currentGroupId so parent walking works in lookupSymbol!
+        ScopedEnvironment catchScope(env, catchScopeName, currentGroupId);
+        catchScope.bind(catchVarId, errVal);
+
+        result = catchBody->evaluate(env, catchScope.getScopeId());
+    };
+
     try {
-        // Execute try body
         if (tryBody) {
             result = tryBody->evaluate(env, currentGroupId);
         }
-        
-        // Execute finally if present (no exception path)
         if (finallyBody) {
             finallyBody->evaluate(env, currentGroupId);
         }
-        
         return result;
     }
     catch (const CatchException& e) {
-        // IMPORTANT: Bind caught value to catch variable BEFORE evaluating catch body
-        catchScope.bind(catchVarId, e.value);
-        
-        // Execute catch body in the catch scope so it can see the variable
-        if (catchBody) {
-            result = catchBody->evaluate(env, catchScopeId);
+        try {
+            runCatchBlock(e.value);
+        } catch (...) {
+            if (finallyBody) finallyBody->evaluate(env, currentGroupId);
+            throw;
         }
-        
-        // Execute finally if present (exception path)
-        if (finallyBody) {
-            finallyBody->evaluate(env, currentGroupId);
+    }
+    catch (const std::runtime_error& e) {
+        try {
+            runCatchBlock(Value(std::string(e.what())));
+        } catch (...) {
+            if (finallyBody) finallyBody->evaluate(env, currentGroupId);
+            throw;
         }
-        
-        return result;
+    }
+    catch (const std::exception& e) {
+        try {
+            runCatchBlock(Value(std::string(e.what())));
+        } catch (...) {
+            if (finallyBody) finallyBody->evaluate(env, currentGroupId);
+            throw;
+        }
     }
     catch (...) {
-        // Execute finally if present (unhandled exception path)
-        if (finallyBody) {
-            finallyBody->evaluate(env, currentGroupId);
-        }
+        if (finallyBody) finallyBody->evaluate(env, currentGroupId);
         throw;
     }
+
+    if (finallyBody) {
+        finallyBody->evaluate(env, currentGroupId);
+    }
+
+    return result;
 }
-// ============================================================
 
 Value ThrowNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     Value val;

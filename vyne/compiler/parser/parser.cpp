@@ -1891,11 +1891,11 @@ std::unique_ptr<ASTNode> Parser::parseThrowStatement() {
     return node;
 }
 
+// source: 33
 std::unique_ptr<ASTNode> Parser::parseTryCatch() {
     int line = peekToken().line;
     consume(VTokenType::Try);
     
-    // Parse try body (must be a block)
     if (peekToken().type != VTokenType::Left_CB) {
         throw std::runtime_error("Syntax Error: 'try' must be followed by a block [ line " + 
                                 std::to_string(line) + " ]");
@@ -1906,11 +1906,9 @@ std::unique_ptr<ASTNode> Parser::parseTryCatch() {
     std::string catchVarName = "_err";
     std::unique_ptr<ASTNode> finallyBody = nullptr;
     
-    // Parse catch block (optional)
     if (peekToken().type == VTokenType::Catch) {
         consume(VTokenType::Catch);
         
-        // Optional catch variable: catch (err)
         if (peekToken().type == VTokenType::Left_Parenthese) {
             consume(VTokenType::Left_Parenthese);
             Token varTok = consume(VTokenType::Identifier);
@@ -1918,26 +1916,31 @@ std::unique_ptr<ASTNode> Parser::parseTryCatch() {
             consume(VTokenType::Right_Parenthese);
         }
         
-        // Catch body must be a block
         if (peekToken().type != VTokenType::Left_CB) {
             throw std::runtime_error("Syntax Error: 'catch' must be followed by a block [ line " + 
                                     std::to_string(line) + " ]");
         }
+
+        // --- FIX HERE: Define the catch variable symbol before parsing catch block ---
+        pushScope();
+        uint32_t cId = StringPool::instance().intern(catchVarName);
+        defineSymbol(cId, VType::Unknown, false, line, catchVarName);
+        
         catchBody = parseBlock();
+        
+        popScope();
     }
     
-    // Parse finally block (optional)
     if (peekToken().type == VTokenType::Finally) {
         consume(VTokenType::Finally);
         
         if (peekToken().type != VTokenType::Left_CB) {
-            throw std::runtime_error("Syntax Error: 'finally' must be followed by a block [ line " + 
+            throw std::runtime_error("Syntax Error: 'catch' must be followed by a block [ line " + 
                                     std::to_string(line) + " ]");
         }
         finallyBody = parseBlock();
     }
     
-    // Must have at least catch or finally
     if (!catchBody && !finallyBody) {
         throw std::runtime_error("Syntax Error: 'try' must be followed by 'catch' or 'finally' [ line " + 
                                 std::to_string(line) + " ]");

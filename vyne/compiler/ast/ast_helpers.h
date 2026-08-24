@@ -15,10 +15,20 @@ inline uint32_t getGlobalId() {
 }
 
 inline Value* lookupSymbol(SymbolContainer& env, uint32_t groupId, uint32_t id) {
-    auto gIt = env.find(groupId);
-    if (gIt != env.end()) {
-        auto vIt = gIt->second.find(id);
-        if (vIt != gIt->second.end()) return &vIt->second;
+    while (groupId != 0) {
+        auto gIt = env.find(groupId);
+        if (gIt != env.end()) {
+            auto vIt = gIt->second.find(id);
+            if (vIt != gIt->second.end()) return &vIt->second;
+        }
+
+        // Fast string manipulation on the path without heap re-allocations
+        const std::string& groupName = StringPool::get(groupId);
+        size_t lastDot = groupName.find_last_of('.');
+        if (lastDot == std::string::npos) break;
+
+        // Traverse up the dot-separated namespace (e.g., global.foo.bar -> global.foo)
+        groupId = StringPool::intern(std::string_view(groupName.data(), lastDot));
     }
     return nullptr;
 }
@@ -133,16 +143,31 @@ inline Value* findVariableInScope(SymbolContainer& env,
 // Scope Management Helpers
 // ============================================================================
 
+// File: compiler/ast/ast_helpers.h
+
 class ScopedEnvironment {
     SymbolContainer& env;
-    uint32_t scopeId;    // string yox, ID saxlayırıq
-    uint32_t parentId;   
-    std::string scopeNameStr; // debug üçün lazım ola bilər
+    uint32_t scopeId;
 
 public:
-    ScopedEnvironment(SymbolContainer& e, std::string name, uint32_t parent = 0) 
-        : env(e), scopeNameStr(name), parentId(parent) {
-        scopeId = StringPool::instance().intern(scopeNameStr);
+    ScopedEnvironment(SymbolContainer& e, std::string_view name, uint32_t parent = 0) 
+        : env(e) {
+        
+        if (parent != 0) {
+            const std::string& parentName = StringPool::get(parent);
+            if (!parentName.empty()) {
+                std::string fullScope;
+                fullScope.reserve(parentName.size() + 1 + name.size());
+                fullScope.append(parentName).append(".").append(name);
+                scopeId = StringPool::intern(fullScope);
+            } else {
+                scopeId = StringPool::intern(name);
+            }
+        } else {
+            scopeId = StringPool::intern(name);
+        }
+
+        // Initialize symbol table frame
         env[scopeId] = SymbolTable();
     }
     
@@ -150,11 +175,11 @@ public:
         env.erase(scopeId);
     }
     
-    void bind(uint32_t id, Value val) {
+    inline void bind(uint32_t id, Value val) {
         env[scopeId][id] = std::move(val);
     }
 
-    uint32_t getScopeId() const { return scopeId; }
+    inline uint32_t getScopeId() const { return scopeId; }
 };
 
 // ============================================================================
