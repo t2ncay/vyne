@@ -565,7 +565,7 @@ make
 make test
 ```
 
-### 📁 Project Structure
+### Project Structure
 
 ```
 vyne/
