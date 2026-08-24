@@ -1136,10 +1136,10 @@
               <a href="#vglib-api"><i class="fas fa-gamepad"></i> VGLib</a>
             </li>
             <li>
-              <a href="#vaudio"><i class="fas fa-music"></i> VAudio</a>
+              <a href="#vaudio-api"><i class="fas fa-music"></i> VAudio</a>
             </li>
             <li>
-              <a href="#vserv"><i class="fas fa-globe"></i> VServ</a>
+              <a href="#vserv-api"><i class="fas fa-globe"></i> VServ</a>
             </li>
             <li>
               <a href="#vmem"><i class="fas fa-memory"></i> VMem</a>
@@ -3742,73 +3742,1598 @@
         </div>
       </section>
 
-      <!-- VAUDIO -->
-      <section id="vaudio">
+      <!-- VAUDIO API REFERENCE - Full Comprehensive -->
+      <section id="vaudio-api">
         <div class="section-header">
-          <h2>VAudio</h2>
-          <span class="badge">DSP · 3D</span>
+          <h2>VAudio API Reference</h2>
+          <span class="badge purple"
+            ><i class="fas fa-wave-square"></i> full audio engine</span
+          >
         </div>
-        <p>Real‑time audio with compressor, reverb, EQ, LUFS, BPM detection.</p>
-        <div class="grid-2">
-          <div class="card">
-            <div class="card-title">
-              <i class="fas fa-wave-square"></i> Effects
+
+        <div class="api-intro">
+          <p>
+            VAudio is Vyne's professional-grade audio processing engine — a
+            complete DSP toolkit featuring
+            <strong>real-time compression</strong>,
+            <strong>7-band parametric EQ</strong>,
+            <strong>algorithmic reverb</strong>, <strong>LUFS metering</strong>,
+            <strong>BPM detection</strong>, and
+            <strong>hardware-accelerated 3D audio</strong>. Built on Raylib's
+            audio subsystem with custom C++ DSP extensions.
+          </p>
+          <div class="api-stats">
+            <span><i class="fas fa-fw fa-microchip"></i> 8 DSP modules</span>
+            <span><i class="fas fa-fw fa-code"></i> 45+ functions</span>
+            <span
+              ><i class="fas fa-fw fa-chart-line"></i> Real-time analysis</span
+            >
+            <span><i class="fas fa-fw fa-cube"></i> 3D spatial audio</span>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  CORE AUDIO                                                   -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-play-circle"></i>
+              <h3>Core — device control &amp; sound management</h3>
+              <span class="fn-count">12 functions</span>
             </div>
-            <div class="card-desc">
-              <code class="inline"
-                >attach_compressor, attach_reverb, attach_eq</code
-              >
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.init_audio</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Initializes the audio device with default settings (48000Hz,
+                  32-bit float, stereo). Returns
+                  <code class="inline">true</code> on success.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.init_audio()</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.close_audio</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Closes the audio device and releases all resources.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.volume</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">level</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">Sets the master volume (0.0 – 1.0).</div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.volume(0.75)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.load_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">SoundHandle</span>
+                </div>
+                <div class="api-desc">
+                  Loads an audio file (WAV, MP3, FLAC, OGG) into memory. Returns
+                  a handle.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>sfx = vaudio.load_sound("explosion.wav")</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.play_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Plays a loaded sound. Supports multiple simultaneous
+                  instances.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.is_playing</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code class="inline">true</code> if the sound is
+                  currently playing.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.pause_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Pauses a playing sound. Use <code>resume_sound()</code> to
+                  continue.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.resume_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">Resumes a paused sound.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.is_paused</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code class="inline">true</code> if the sound is
+                  paused.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.stop_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Stops a playing sound and resets its position to the
+                  beginning.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.sound_volume</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">level</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Sets the volume for a specific sound (0.0 – 1.0).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.set_pitch</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">pitch</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Changes playback pitch (0.5 = octave down, 2.0 = octave up).
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.set_pitch(sfx, 1.5)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.seek_sound</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">seconds</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Seeks to a position in the sound (in seconds).
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-title">
-              <i class="fas fa-chart-simple"></i> Analysis
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  STREAMING AUDIO                                              -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-infinity"></i>
+              <h3>Streaming — music &amp; large files</h3>
+              <span class="fn-count">10 functions</span>
             </div>
-            <div class="card-desc">
-              <code class="inline">get_lufs, get_bpm, get_spectrum</code>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.play_stream</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">StreamHandle</span>
+                </div>
+                <div class="api-desc">
+                  Streams an audio file from disk (MP3, OGG, FLAC, WAV). Loops
+                  indefinitely.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>music = vaudio.play_stream("background.ogg")</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.update_stream</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Updates stream playback. Must be called every frame while
+                  streaming.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.pause_stream</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">Pauses a streaming track.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.resume_stream</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">Resumes a paused stream.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.is_stream_playing</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Returns <code class="inline">true</code> if the stream is
+                  playing.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.seek_stream</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">seconds</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Seeks to a position in the stream (in seconds).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_stream_pos</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the current playback position as a percentage (0.0 –
+                  1.0).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_waveform</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path_or_handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[bins]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Extracts waveform peaks from an audio file. Returns an array
+                  of normalized peaks.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>peaks = vaudio.get_waveform("track.wav", 200)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_master_limiter</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches a true-peak limiter (-0.9 dBFS) to prevent digital
+                  clipping.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.set_dsp</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">drive</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">mode</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">void</span>
+                </div>
+                <div class="api-desc">
+                  Sets global saturation parameters. Modes: 0=Soft Tube, 1=Hard
+                  Clip, 2=Asymmetric, 3=Tape, 4=GameBoy.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.set_dsp(0.7, 0) // Soft tube warmth</code>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-title"><i class="fas fa-arrows-alt"></i> 3D</div>
-            <div class="card-desc">
-              <code class="inline"
-                >sound_3d(sound, listener, source, maxDist)</code
-              >
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  COMPRESSOR                                                   -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-compress-alt"></i>
+              <h3>Compressor — dynamic range control</h3>
+              <span class="fn-count">5 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_compressor</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches the compressor DSP chain to a sound or stream.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.set_compressor</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">threshold</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">ratio</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">attack_ms</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">release_ms</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">makeup_db</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[enabled]</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[auto_makeup]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Configures the compressor with studio-grade parameters.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code
+                    >vaudio.set_compressor(-12, 4, 15, 120, 2, true, true)</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_gr</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the current gain reduction in dB. Real-time metering.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_rms</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the normalized RMS level (0.0 – 1.0) for volume
+                  metering.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_env</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the current input envelope for visualization.
+                </div>
+              </div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-title">
-              <i class="fas fa-file-wave"></i> Offline
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  EQUALIZER                                                    -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-sliders-h"></i>
+              <h3>Equalizer — 7-band parametric EQ</h3>
+              <span class="fn-count">5 functions</span>
             </div>
-            <div class="card-desc">
-              <code class="inline">render_offline(input, output)</code>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_eq</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches the 7-band parametric EQ to a sound or stream.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.set_eq</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">band</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">freq</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">gain_or_type</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">Q</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[mode]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Configures an EQ band. Mode: 0=LPF, 1=HPF, 2=Peaking
+                  (default). ISO frequencies: 60, 150, 400, 1000, 2500, 6000,
+                  14000 Hz.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.set_eq(2, 400, 4.5, 1.2) // Boost 400Hz</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.enable_eq</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">enabled</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">Enables or disables the EQ globally.</div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_spectrum</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Returns 64-bin FFT spectrum data (0.0 – 1.0) for real-time
+                  visualization.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_eq_peaks</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">[Float64, Float64, Float64]</span>
+                </div>
+                <div class="api-desc">
+                  Returns the weighted center frequencies for Low, Mid, High
+                  bands.
+                </div>
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  REVERB                                                       -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-echo"></i>
+              <h3>Reverb — algorithmic FDN reverb</h3>
+              <span class="fn-count">3 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_reverb</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches the algorithmic reverb (FDN with 4 modulated delay
+                  lines).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.set_reverb</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">decay</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">mix</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[predelay_ms]</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[damping]</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[enabled]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Configures reverb parameters. Decay: 0.0–1.0, Mix: 0.0–1.0,
+                  Predelay: 0–100ms, Damping: 0.0–1.0.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.set_reverb(0.8, 0.4, 25, 0.5, true)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_analyzer_env</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the analyzer envelope for visual feedback.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  ANALYSIS & METERING                                          -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-chart-bar"></i>
+              <h3>Analysis — LUFS, BPM, spectrum</h3>
+              <span class="fn-count">5 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_lufs</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the current LUFS (Loudness Units Full Scale)
+                  measurement. ITU-R BS.1770 compliant.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>loudness = vaudio.get_lufs() // -16.5 dB</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_bpm</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches a BPM detector to a stream. Uses low-pass filtered
+                  beat tracking.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.get_bpm</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Returns the detected BPM (50–200 BPM range).
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.attach_analyzer</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Attaches a real-time audio analyzer for envelope and spectrum
+                  tracking.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.render_offline</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">input_path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">output_path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Processes an audio file through the entire DSP chain and
+                  exports to WAV. Applies EQ, compressor, reverb, and saturation
+                  offline.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vaudio.render_offline("dry.wav", "mastered.wav")</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  3D AUDIO                                                     -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-cube"></i>
+              <h3>3D Audio — spatial positioning</h3>
+              <span class="fn-count">1 function</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vaudio.sound_3d</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">handle</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">listener_pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">source_pos</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">max_distance</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[max_volume]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Float64</span>
+                </div>
+                <div class="api-desc">
+                  Positions a sound in 3D space with distance-based attenuation.
+                  Returns the calculated volume.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code
+                    >vol = vaudio.sound_3d(sfx, [10,0,5], [2,0,3], 20.0,
+                    1.0)</code
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  SATURATION MODES                                            -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-fire"></i>
+              <h3>Saturation — distortion modes</h3>
+              <span class="fn-count">5 modes</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">Mode 0 — Soft Tube</span>
+                </div>
+                <div class="api-desc">
+                  Smooth <code class="inline">tanh()</code> saturation. Warm,
+                  musical distortion. Ideal for analog warmth.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">Mode 1 — Hard Clip</span>
+                </div>
+                <div class="api-desc">
+                  Aggressive brickwall clipping. Creates punchy, in-your-face
+                  character.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">Mode 2 — Asymmetric</span>
+                </div>
+                <div class="api-desc">
+                  Different curves for positive and negative peaks. Adds
+                  odd/even harmonic imbalance for vintage character.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">Mode 3 — Tape</span>
+                </div>
+                <div class="api-desc">
+                  Polynomial tape saturation. Smooth compression with natural
+                  soft-clipping. Classic reel-to-reel sound.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">Mode 4 — GameBoy</span>
+                </div>
+                <div class="api-desc">
+                  4-bit DAC emulation with sample-rate reduction. Retro 8-bit
+                  crunch with LPF smoothing.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- footer note -->
+        <div class="api-note">
+          <i class="fas fa-info-circle"></i>
+          <span>
+            All VAudio DSP functions process audio in
+            <strong>real-time</strong> at 48kHz with 32-bit float precision.
+            Attach processors to any <code class="inline">SoundHandle</code> or
+            <code class="inline">StreamHandle</code> — the DSP chain processes
+            in order:
+            <strong>EQ → Compressor → Saturation → Reverb → Limiter</strong>.
+            Use <code class="inline">vaudio.render_offline()</code> for batch
+            processing without real-time constraints.
+          </span>
         </div>
       </section>
 
-      <!-- VSERV -->
-      <section id="vserv">
+      <!-- VSERV API REFERENCE - Full Comprehensive -->
+      <section id="vserv-api">
         <div class="section-header">
-          <h2>VServ</h2>
-          <span class="badge">HTTP · WS</span>
+          <h2>VServ API Reference</h2>
+          <span class="badge purple"
+            ><i class="fas fa-globe"></i> full web engine</span
+          >
         </div>
-        <p>Web server, routing, middleware, WebSocket support.</p>
-        <div class="code-block">
-          <div class="code-header">
-            <span class="filename">server.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+
+        <div class="api-intro">
+          <p>
+            VServ is Vyne's production-ready web framework — a complete
+            HTTP/WebSocket server featuring
+            <strong>Express-style routing</strong>,
+            <strong>middleware chains</strong>,
+            <strong>static file serving</strong>,
+            <strong>WebSocket upgrades</strong>, and
+            <strong>native C performance</strong>. Build REST APIs, real-time
+            apps, and full-stack web services entirely in Vyne.
+          </p>
+          <div class="api-stats">
+            <span><i class="fas fa-fw fa-server"></i> Native C server</span>
+            <span><i class="fas fa-fw fa-code"></i> 20+ functions</span>
+            <span><i class="fas fa-fw fa-bolt"></i> Middleware support</span>
+            <span><i class="fas fa-fw fa-plug"></i> WebSocket ready</span>
           </div>
-          <div class="code-body">
-            <span class="keyword">module</span> vserv;<br />
-            app = vserv.create_app();<br />
-            vserv.app_get(app, <span class="string">"/"</span>,
-            <span class="keyword">fn</span>(req, res) {<br />
-            &nbsp;&nbsp;vserv.send(res,
-            <span class="string">"Hello Vyne"</span>);<br />
-            });<br />
-            vserv.app_listen(app, 8080);
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  CORE SERVER                                                  -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-server"></i>
+              <h3>Core Server — create, route, listen</h3>
+              <span class="fn-count">8 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
           </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.create_server</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">port</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">ServerHandle</span>
+                </div>
+                <div class="api-desc">
+                  Creates a new HTTP server instance bound to the specified
+                  port.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>srv = vserv.create_server(8080)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_get</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Registers a GET route handler for the specified path.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.server_get(srv, "/", fn(req, res) { ... })</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_post</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Registers a POST route handler for the specified path.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_put</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Registers a PUT route handler for the specified path.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_delete</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Registers a DELETE route handler for the specified path.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_use</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">middleware</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Registers middleware that runs on every request before route
+                  handlers.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.server_use(srv, fn(req, res, next) { ... })</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.server_listen</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">server</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Starts the server and begins accepting connections. Blocks
+                  until the server stops.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.serve_file</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">path</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Response</span>
+                </div>
+                <div class="api-desc">
+                  Creates a response that serves a static file with the correct
+                  MIME type.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>res = vserv.serve_file("index.html")</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  REQUEST & RESPONSE                                           -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-exchange-alt"></i>
+              <h3>Request &amp; Response — handle HTTP</h3>
+              <span class="fn-count">6 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.parse_request</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">raw_data</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Request</span>
+                </div>
+                <div class="api-desc">
+                  Parses raw HTTP request data into a structured Request object
+                  with method, path, headers, and body.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.create_response</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Response</span>
+                </div>
+                <div class="api-desc">
+                  Creates a new empty Response object with default status 200.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.set_status</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">response</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">code</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Response</span>
+                </div>
+                <div class="api-desc">
+                  Sets the HTTP status code on a response object.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>res = vserv.set_status(res, vserv.NOT_FOUND)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.set_header</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">response</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">key</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">value</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Response</span>
+                </div>
+                <div class="api-desc">
+                  Sets a response header. Returns the modified response object.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code
+                    >res = vserv.set_header(res, "Content-Type",
+                    "application/json")</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.send</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">response</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">[body]</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">String</span>
+                </div>
+                <div class="api-desc">
+                  Builds and returns the full HTTP response string. Sets the
+                  body if provided.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.send(res, "Hello World")</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.send_json</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">response</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">data</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">String</span>
+                </div>
+                <div class="api-desc">
+                  Sends a JSON response with the correct Content-Type header.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.send_json(res, { "status": "ok" })</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  EXPRESS-STYLE APP                                            -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-rocket"></i>
+              <h3>Express-Style App — modern web framework</h3>
+              <span class="fn-count">4 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.create_app</span>
+                  <span class="fn-parens">(</span
+                  ><span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">AppHandle</span>
+                </div>
+                <div class="api-desc">
+                  Creates an Express-style application with built-in routing and
+                  middleware.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>app = vserv.create_app()</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.app_get</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">app</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">AppHandle</span>
+                </div>
+                <div class="api-desc">
+                  Registers a GET route. Returns the app for chaining.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.app_post</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">app</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">path</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">handler</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">AppHandle</span>
+                </div>
+                <div class="api-desc">
+                  Registers a POST route. Returns the app for chaining.
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.app_listen</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">app</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">port</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Starts the app on the specified port. Blocks until the server
+                  stops.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.app_listen(app, 3000)</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  WEBSOCKET                                                    -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-plug"></i>
+              <h3>WebSocket — real-time communication</h3>
+              <span class="fn-count">2 functions</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid">
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.ws_upgrade</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">request</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">response</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Response</span>
+                </div>
+                <div class="api-desc">
+                  Upgrades an HTTP request to a WebSocket connection. Validates
+                  the WebSocket handshake and returns the response.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>res = vserv.ws_upgrade(req, res)</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature">
+                  <span class="fn-name">vserv.ws_send</span>
+                  <span class="fn-parens">(</span>
+                  <span class="fn-param">socket</span
+                  ><span class="fn-parens">,</span>
+                  <span class="fn-param">message</span>
+                  <span class="fn-parens">)</span>
+                  <span class="fn-arrow">→</span>
+                  <span class="fn-return">Bool</span>
+                </div>
+                <div class="api-desc">
+                  Sends a message over a WebSocket connection. Handles framing
+                  and masking automatically.
+                </div>
+                <div class="api-example">
+                  <span class="example-label">Example:</span>
+                  <code>vserv.ws_send(client_sock, "Hello from server")</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  CONSTANTS & STATUS CODES                                    -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-hashtag"></i>
+              <h3>Constants — status codes &amp; MIME types</h3>
+              <span class="fn-count">30+ constants</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="api-grid cols-3">
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">2xx — Success</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >vserv.OK · vserv.CREATED · vserv.ACCEPTED ·
+                    vserv.NO_CONTENT</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">3xx — Redirection</span>
+                </div>
+                <div class="api-desc">
+                  <code>vserv.MOVED_PERMANENTLY · vserv.FOUND</code>
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">4xx — Client Error</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >vserv.BAD_REQUEST · vserv.UNAUTHORIZED · vserv.FORBIDDEN ·
+                    vserv.NOT_FOUND · vserv.METHOD_NOT_ALLOWED</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">5xx — Server Error</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >vserv.SERVER_ERROR · vserv.NOT_IMPLEMENTED ·
+                    vserv.BAD_GATEWAY · vserv.SERVICE_UNAVAILABLE</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">MIME Types</span>
+                </div>
+                <div class="api-desc">
+                  <code
+                    >vserv.MIME_HTML · vserv.MIME_JSON · vserv.MIME_CSS ·
+                    vserv.MIME_JS · vserv.MIME_PNG · vserv.MIME_JPG ·
+                    vserv.MIME_GIF · vserv.MIME_TXT · vserv.MIME_XML ·
+                    vserv.MIME_PDF · vserv.MIME_WASM · vserv.MIME_MP4 ·
+                    vserv.MIME_WEBM · vserv.MIME_MP3 · vserv.MIME_WAV ·
+                    vserv.MIME_OGG</code
+                  >
+                </div>
+              </div>
+
+              <div class="api-card">
+                <div class="api-signature" style="font-size: 0.8rem">
+                  <span class="fn-name">vserv.version</span>
+                </div>
+                <div class="api-desc">
+                  Read‑only property: <code>"v0.1.0-alpha"</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!--  COMPLETE EXAMPLE                                            -->
+        <!-- ============================================================ -->
+        <div class="api-module">
+          <div class="module-head" onclick="toggleModule(this)">
+            <div class="module-head-left">
+              <i class="fas fa-fw fa-code"></i>
+              <h3>Complete Example — full REST API</h3>
+              <span class="fn-count">working server</span>
+            </div>
+            <i class="fas fa-chevron-down module-toggle"></i>
+          </div>
+          <div class="module-body">
+            <div class="code-block" style="margin: 0">
+              <div class="code-header">
+                <span class="filename">api.vy</span
+                ><button class="copy-btn">
+                  <i class="far fa-copy"></i> copy
+                </button>
+              </div>
+              <div class="code-body">
+                <span class="keyword">module</span> vserv;<br />
+                <span class="keyword">module</span> vcore;<br />
+                <br />
+                <span class="comment">// Create app</span><br />
+                app = vserv.create_app();<br />
+                <br />
+                <span class="comment">// Logger middleware</span><br />
+                <span class="keyword">fn</span>
+                <span class="function">logger</span>(req, res, next) {<br />
+                &nbsp;&nbsp;vcore.out(<span class="string">"["</span> +
+                req.method + <span class="string">"] "</span> + req.path);<br />
+                &nbsp;&nbsp;next();<br />
+                };<br />
+                vserv.app_use(app, logger);<br />
+                <br />
+                <span class="comment">// GET /hello</span><br />
+                vserv.app_get(app, <span class="string">"/hello"</span>,
+                <span class="keyword">fn</span>(req, res) {<br />
+                &nbsp;&nbsp;vserv.send(res,
+                <span class="string">"Hello, World!"</span>);<br />
+                });<br />
+                <br />
+                <span class="comment">// POST /api/users</span><br />
+                vserv.app_post(app, <span class="string">"/api/users"</span>,
+                <span class="keyword">fn</span>(req, res) {<br />
+                &nbsp;&nbsp;data = req.body;<br />
+                &nbsp;&nbsp;vserv.send_json(res, {
+                <span class="property">"created"</span>:
+                <span class="keyword">true</span>,
+                <span class="property">"data"</span>: data });<br />
+                });<br />
+                <br />
+                <span class="comment">// Static files</span><br />
+                vserv.app_get(app, <span class="string">"/static/*"</span>,
+                <span class="keyword">fn</span>(req, res) {<br />
+                &nbsp;&nbsp;file_path = req.path;<br />
+                &nbsp;&nbsp;res = vserv.serve_file(file_path);<br />
+                &nbsp;&nbsp;vserv.send(res);<br />
+                });<br />
+                <br />
+                <span class="comment">// Start server</span><br />
+                vserv.app_listen(app, <span class="number">3000</span>);<br />
+                vcore.out(<span class="string"
+                  >"🚀 Server running on port 3000"</span
+                >);
+              </div>
+            </div>
+
+            <div class="api-note" style="margin-top: 1rem">
+              <i class="fas fa-rocket"></i>
+              <span>
+                This complete example demonstrates a production-ready REST API
+                with logging middleware, JSON endpoints, static file serving,
+                and error handling. Run it with
+                <code class="inline">vynec api.vy</code> to start your server.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- footer note -->
+        <div class="api-note">
+          <i class="fas fa-info-circle"></i>
+          <span>
+            VServ runs a <strong>native C HTTP server</strong> with no external
+            dependencies. Each request is handled in a non-blocking loop with
+            support for <strong>WebSocket upgrades</strong>,
+            <strong>middleware chains</strong>, and
+            <strong>static file serving</strong>. The server runs until stopped
+            by the user or an error occurs.
+          </span>
         </div>
       </section>
 
