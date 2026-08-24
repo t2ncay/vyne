@@ -3,8 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vyne · language & API reference</title>
-    <!-- Fonts & Icons -->
+    <title>Vyne · The C‑flavored creative language</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,6 +15,9 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
     />
     <style>
+      /* ============================================================
+         RESET & VARIABLES
+         ============================================================ */
       * {
         margin: 0;
         padding: 0;
@@ -39,10 +41,12 @@
         --code-bg: #0b0d14;
         --glow-cyan: rgba(43, 198, 183, 0.12);
         --glow-purple: rgba(184, 160, 255, 0.1);
+        --glow-pink: rgba(255, 94, 154, 0.08);
         --font-sans: "Inter", system-ui, -apple-system, sans-serif;
         --font-mono: "JetBrains Mono", "Fira Code", monospace;
         --sidebar-w: 280px;
         --radius: 14px;
+        --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
       html {
         scroll-behavior: smooth;
@@ -70,7 +74,9 @@
         background: var(--accent-cyan);
       }
 
-      /* sidebar */
+      /* ============================================================
+         SIDEBAR
+         ============================================================ */
       .sidebar {
         position: fixed;
         top: 0;
@@ -84,25 +90,36 @@
         z-index: 50;
         display: flex;
         flex-direction: column;
+        transition: transform var(--transition);
       }
       .sidebar-header {
         display: flex;
         align-items: center;
         gap: 10px;
         margin-bottom: 2.8rem;
+        padding-bottom: 1.2rem;
+        border-bottom: 1px solid var(--border-subtle);
       }
       .logo-badge {
-        width: 36px;
-        height: 36px;
-        background: var(--accent-cyan);
+        width: 38px;
+        height: 38px;
+        background: linear-gradient(
+          135deg,
+          var(--accent-cyan),
+          var(--accent-purple)
+        );
         border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-weight: 800;
-        font-size: 1.3rem;
+        font-size: 1.4rem;
         color: #0b0d14;
-        box-shadow: 0 0 20px var(--glow-cyan);
+        box-shadow: 0 0 30px var(--glow-cyan);
+        transition: transform var(--transition);
+      }
+      .logo-badge:hover {
+        transform: scale(1.05) rotate(-3deg);
       }
       .logo-text {
         font-weight: 700;
@@ -119,12 +136,13 @@
         margin-bottom: 2rem;
       }
       .nav-section-title {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         text-transform: uppercase;
-        letter-spacing: 1.5px;
+        letter-spacing: 1.8px;
         color: var(--text-muted);
         margin-bottom: 0.8rem;
-        font-weight: 600;
+        font-weight: 700;
+        opacity: 0.6;
       }
       .nav-links {
         list-style: none;
@@ -142,17 +160,22 @@
         text-decoration: none;
         font-size: 0.9rem;
         font-weight: 450;
-        transition: 0.2s ease;
+        transition: var(--transition);
         border-left: 2px solid transparent;
+        position: relative;
       }
       .nav-links a i {
         width: 18px;
         font-size: 0.9rem;
-        opacity: 0.6;
+        opacity: 0.5;
+        transition: var(--transition);
       }
       .nav-links a:hover {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.04);
         color: #fff;
+      }
+      .nav-links a:hover i {
+        opacity: 0.8;
       }
       .nav-links a.active {
         background: var(--glow-cyan);
@@ -162,8 +185,45 @@
       .nav-links a.active i {
         opacity: 1;
       }
+      .nav-links a.active::after {
+        content: "";
+        position: absolute;
+        right: 8px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-cyan);
+        box-shadow: 0 0 12px var(--accent-cyan);
+      }
+      .sidebar-footer {
+        margin-top: auto;
+        border-top: 1px solid var(--border-subtle);
+        padding-top: 1.2rem;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tag {
+        display: inline-block;
+        background: rgba(43, 198, 183, 0.08);
+        color: var(--accent-cyan);
+        border-radius: 40px;
+        padding: 0 12px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        line-height: 1.8;
+        border: 1px solid rgba(43, 198, 183, 0.1);
+        transition: var(--transition);
+      }
+      .tag:hover {
+        border-color: var(--accent-cyan);
+        background: rgba(43, 198, 183, 0.15);
+      }
 
-      /* main */
+      /* ============================================================
+         MAIN LAYOUT
+         ============================================================ */
       .main {
         margin-left: var(--sidebar-w);
         flex: 1;
@@ -190,6 +250,13 @@
         color: var(--text-secondary);
         font-size: 1.4rem;
         cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 8px;
+        transition: var(--transition);
+      }
+      .mobile-toggle:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
       }
       .breadcrumb {
         color: var(--text-muted);
@@ -212,11 +279,11 @@
         align-items: center;
         gap: 10px;
         color: var(--text-muted);
-        transition: 0.2s;
+        transition: var(--transition);
       }
       .search-box:focus-within {
         border-color: var(--accent-cyan);
-        box-shadow: 0 0 0 3px var(--glow-cyan);
+        box-shadow: 0 0 0 4px var(--glow-cyan);
       }
       .search-box input {
         background: transparent;
@@ -237,13 +304,316 @@
         padding: 6px 12px;
         color: var(--text-secondary);
         cursor: pointer;
-        transition: 0.2s;
+        transition: var(--transition);
         font-size: 0.9rem;
       }
       .theme-toggle:hover {
         border-color: var(--accent-cyan);
+        color: var(--accent-cyan);
       }
 
+      /* ============================================================
+         HERO — ENHANCED
+         ============================================================ */
+      .hero {
+        position: relative;
+        margin: -2.5rem -3.5rem 3.5rem;
+        padding: 5rem 3.5rem 4rem;
+        overflow: hidden;
+        border-bottom: 1px solid var(--border-subtle);
+        border-radius: 0 0 var(--radius) var(--radius);
+        background:
+          radial-gradient(
+            800px 400px at 8% -20%,
+            var(--glow-cyan),
+            transparent 65%
+          ),
+          radial-gradient(
+            600px 300px at 95% 0%,
+            var(--glow-purple),
+            transparent 60%
+          ),
+          radial-gradient(
+            400px 200px at 50% 100%,
+            var(--glow-pink),
+            transparent 50%
+          );
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: linear-gradient(to bottom, black, transparent 80%);
+        pointer-events: none;
+      }
+      .hero::after {
+        content: "";
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(
+          circle,
+          rgba(43, 198, 183, 0.03),
+          transparent 70%
+        );
+        pointer-events: none;
+        animation: heroGlow 20s ease-in-out infinite alternate;
+      }
+      @keyframes heroGlow {
+        0% {
+          transform: translate(0, 0) scale(1);
+          opacity: 0.5;
+        }
+        100% {
+          transform: translate(-100px, 50px) scale(1.2);
+          opacity: 1;
+        }
+      }
+      .hero-grid {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 3rem;
+        align-items: center;
+        z-index: 1;
+      }
+      .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--font-mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.6px;
+        color: var(--accent-cyan);
+        background: var(--glow-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.2);
+        padding: 5px 14px;
+        border-radius: 40px;
+        margin-bottom: 1.6rem;
+        animation: fadeInUp 0.8s ease both;
+      }
+      .hero-eyebrow .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--accent-cyan);
+        box-shadow: 0 0 12px var(--accent-cyan);
+        animation: pulseDot 2s ease-in-out infinite;
+      }
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.4;
+          transform: scale(0.8);
+        }
+      }
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .hero h1 {
+        font-size: 4rem;
+        line-height: 1.02;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-bottom: 0.5rem;
+        animation: fadeInUp 0.8s ease 0.1s both;
+      }
+      .hero h1 .grad {
+        background: linear-gradient(
+          135deg,
+          var(--accent-cyan) 0%,
+          var(--accent-purple) 50%,
+          var(--accent-pink) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-size: 200% 200%;
+        animation: gradientShift 6s ease-in-out infinite alternate;
+      }
+      @keyframes gradientShift {
+        0% {
+          background-position: 0% 50%;
+        }
+        100% {
+          background-position: 100% 50%;
+        }
+      }
+      .hero-tagline {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.3rem;
+        font-weight: 400;
+        animation: fadeInUp 0.8s ease 0.2s both;
+      }
+      .hero-tagline strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .hero-sub {
+        font-size: 1.08rem;
+        color: var(--text-secondary);
+        max-width: 540px;
+        margin-bottom: 2rem;
+        animation: fadeInUp 0.8s ease 0.3s both;
+      }
+      .hero-sub strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      .hero-cta {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 2.4rem;
+        flex-wrap: wrap;
+        animation: fadeInUp 0.8s ease 0.4s both;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+        transition: var(--transition);
+        border: 1px solid transparent;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-primary {
+        background: var(--accent-cyan);
+        color: #06110f;
+        box-shadow: 0 0 20px var(--glow-cyan);
+      }
+      .btn-primary:hover {
+        box-shadow: 0 8px 32px -4px var(--glow-cyan);
+        transform: translateY(-2px) scale(1.02);
+      }
+      .btn-ghost {
+        background: rgba(255, 255, 255, 0.03);
+        border-color: var(--border-subtle);
+        color: var(--text-primary);
+      }
+      .btn-ghost:hover {
+        border-color: var(--accent-cyan);
+        color: var(--accent-cyan);
+        background: rgba(43, 198, 183, 0.05);
+        transform: translateY(-2px);
+      }
+      .hero-stats {
+        display: flex;
+        gap: 2.8rem;
+        flex-wrap: wrap;
+        animation: fadeInUp 0.8s ease 0.5s both;
+      }
+      .hero-stat b {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        background: linear-gradient(135deg, #fff, var(--text-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .hero-stat span {
+        font-size: 0.76rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 500;
+      }
+
+      /* pipeline diagram */
+      .pipeline {
+        background: var(--code-bg);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        padding: 1.6rem 1.5rem;
+        font-family: var(--font-mono);
+        position: relative;
+        animation: fadeInUp 0.8s ease 0.2s both;
+        backdrop-filter: blur(4px);
+      }
+      .pipeline-label {
+        font-size: 0.68rem;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        color: var(--text-muted);
+        margin-bottom: 1.1rem;
+      }
+      .pipe-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .pipe-node {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 9px 12px;
+        border-radius: 8px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-subtle);
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        transition: var(--transition);
+      }
+      .pipe-node:hover {
+        border-color: var(--accent-cyan);
+        background: rgba(43, 198, 183, 0.05);
+      }
+      .pipe-node i {
+        color: var(--accent-cyan);
+        font-size: 0.85rem;
+      }
+      .pipe-arrow {
+        color: var(--text-muted);
+        font-size: 0.8rem;
+      }
+      .pipe-down {
+        text-align: center;
+        color: var(--text-muted);
+        margin: 6px 0;
+        font-size: 0.8rem;
+      }
+      .pipe-branch {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .pipe-branch .pipe-node {
+        border-color: rgba(184, 160, 255, 0.2);
+      }
+      .pipe-branch .pipe-node:first-child i {
+        color: var(--accent-amber);
+      }
+      .pipe-branch .pipe-node:last-child i {
+        color: var(--accent-purple);
+      }
+
+      /* ============================================================
+         TYPOGRAPHY & COMPONENTS — ENHANCED
+         ============================================================ */
       section {
         margin-bottom: 4.5rem;
         scroll-margin-top: 2rem;
@@ -251,40 +621,54 @@
       .section-header {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 1.2rem;
+        gap: 14px;
+        margin-bottom: 1.4rem;
         flex-wrap: wrap;
       }
       .section-header h2 {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 700;
         letter-spacing: -0.02em;
+        background: linear-gradient(
+          135deg,
+          var(--text-primary),
+          var(--text-secondary)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
       }
       .section-header .badge {
         background: var(--glow-cyan);
         color: var(--accent-cyan);
-        font-size: 0.7rem;
+        font-size: 0.65rem;
         font-weight: 600;
-        padding: 2px 12px;
+        padding: 3px 14px;
         border-radius: 40px;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid rgba(43, 198, 183, 0.15);
       }
       .section-header .badge.purple {
         background: var(--glow-purple);
         color: var(--accent-purple);
+        border-color: rgba(184, 160, 255, 0.15);
       }
       .section-header .badge.amber {
-        background: rgba(245, 184, 91, 0.15);
+        background: rgba(245, 184, 91, 0.12);
         color: var(--accent-amber);
+        border-color: rgba(245, 184, 91, 0.15);
       }
       .section-header .badge.pink {
-        background: rgba(255, 94, 154, 0.15);
+        background: rgba(255, 94, 154, 0.12);
         color: var(--accent-pink);
+        border-color: rgba(255, 94, 154, 0.15);
       }
       p {
         color: var(--text-secondary);
         margin-bottom: 1.2rem;
         max-width: 720px;
+        font-size: 1.02rem;
+        line-height: 1.7;
       }
 
       .grid-2 {
@@ -304,10 +688,32 @@
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius);
         padding: 1.5rem;
-        transition: 0.2s;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+      }
+      .card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          var(--accent-cyan),
+          var(--accent-purple)
+        );
+        opacity: 0;
+        transition: var(--transition);
       }
       .card:hover {
         border-color: rgba(43, 198, 183, 0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.5);
+      }
+      .card:hover::before {
+        opacity: 1;
       }
       .card-title {
         font-weight: 600;
@@ -316,6 +722,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        color: var(--text-primary);
       }
       .card-title i {
         color: var(--accent-cyan);
@@ -323,6 +730,7 @@
       .card-desc {
         color: var(--text-secondary);
         font-size: 0.9rem;
+        line-height: 1.6;
       }
       .card-desc code {
         background: rgba(255, 255, 255, 0.05);
@@ -331,23 +739,21 @@
         font-size: 0.85em;
         color: var(--accent-cyan);
       }
-      .tag {
-        display: inline-block;
-        background: rgba(43, 198, 183, 0.08);
-        color: var(--accent-cyan);
-        border-radius: 40px;
-        padding: 0 12px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-      }
 
+      /* ============================================================
+         CODE BLOCKS — ENHANCED
+         ============================================================ */
       .code-block {
         background: var(--code-bg);
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius);
         overflow: hidden;
         margin: 1.8rem 0;
+        transition: var(--transition);
+        position: relative;
+      }
+      .code-block:hover {
+        border-color: rgba(43, 198, 183, 0.2);
       }
       .code-header {
         background: rgba(255, 255, 255, 0.02);
@@ -360,6 +766,13 @@
       }
       .code-header .filename {
         font-family: var(--font-mono);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .code-header .filename::before {
+        content: "📄";
+        font-size: 0.85rem;
       }
       .code-header .copy-btn {
         background: none;
@@ -367,10 +780,13 @@
         color: var(--text-muted);
         cursor: pointer;
         font-size: 0.75rem;
-        transition: 0.2s;
+        transition: var(--transition);
+        padding: 4px 8px;
+        border-radius: 6px;
       }
       .code-header .copy-btn:hover {
         color: var(--accent-cyan);
+        background: rgba(43, 198, 183, 0.08);
       }
       .code-body {
         padding: 1.2rem 1.5rem;
@@ -379,6 +795,26 @@
         line-height: 1.7;
         overflow-x: auto;
         color: #dde5f0;
+        counter-reset: line;
+      }
+      .code-body .line {
+        display: block;
+        padding-left: 2.5rem;
+        position: relative;
+        min-height: 1.7em;
+      }
+      .code-body .line::before {
+        counter-increment: line;
+        content: counter(line);
+        position: absolute;
+        left: 0;
+        color: var(--text-muted);
+        opacity: 0.3;
+        font-size: 0.75rem;
+        width: 2rem;
+        text-align: right;
+        padding-right: 0.8rem;
+        user-select: none;
       }
       .code-body .comment {
         color: #5d6d8a;
@@ -407,12 +843,19 @@
         color: #7fc9ff;
       }
 
+      /* ============================================================
+         TABLES — ENHANCED
+         ============================================================ */
       .api-table-wrap {
         overflow-x: auto;
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius);
         background: var(--bg-card);
         margin: 1.8rem 0;
+        transition: var(--transition);
+      }
+      .api-table-wrap:hover {
+        border-color: rgba(43, 198, 183, 0.15);
       }
       .api-table {
         width: 100%;
@@ -426,11 +869,18 @@
         color: var(--text-secondary);
         font-weight: 600;
         border-bottom: 1px solid var(--border-subtle);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
       }
       .api-table td {
         padding: 0.9rem 1.2rem;
         border-bottom: 1px solid var(--border-subtle);
         color: var(--text-secondary);
+        transition: var(--transition);
+      }
+      .api-table tr:hover td {
+        background: rgba(255, 255, 255, 0.02);
       }
       .api-table td:first-child {
         font-family: var(--font-mono);
@@ -447,8 +897,12 @@
         font-family: var(--font-mono);
         font-size: 0.85em;
         color: var(--accent-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.08);
       }
 
+      /* ============================================================
+         RULESET GRID — ENHANCED
+         ============================================================ */
       .ruleset-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -460,11 +914,28 @@
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius);
         padding: 1.2rem 1.5rem;
-        transition: 0.2s;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+      }
+      .ruleset-item::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: linear-gradient(180deg, var(--accent-cyan), transparent);
+        opacity: 0.3;
+        transition: var(--transition);
       }
       .ruleset-item:hover {
         border-color: rgba(43, 198, 183, 0.3);
-        transform: translateY(-2px);
+        transform: translateY(-3px);
+        box-shadow: 0 8px 30px -8px rgba(0, 0, 0, 0.4);
+      }
+      .ruleset-item:hover::before {
+        opacity: 1;
       }
       .ruleset-item .rule-name {
         font-family: var(--font-mono);
@@ -473,277 +944,346 @@
         font-size: 0.95rem;
       }
       .ruleset-item .rule-type {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px;
         color: var(--text-muted);
         margin-left: 0.5rem;
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1px 8px;
+        border-radius: 40px;
       }
       .ruleset-item .rule-desc {
         color: var(--text-secondary);
         font-size: 0.85rem;
         margin-top: 0.3rem;
+        line-height: 1.5;
       }
       .ruleset-item .rule-values {
         color: var(--text-muted);
         font-size: 0.75rem;
         margin-top: 0.3rem;
         font-family: var(--font-mono);
+        background: rgba(255, 255, 255, 0.02);
+        padding: 4px 8px;
+        border-radius: 6px;
+        display: inline-block;
       }
 
+      /* ============================================================
+         API MODULES — ENHANCED
+         ============================================================ */
+      .api-intro {
+        margin-bottom: 2.5rem;
+      }
+      .api-intro p {
+        max-width: 100%;
+      }
+      .api-stats {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+        padding: 0.8rem 1.5rem;
+        background: var(--bg-card);
+        border-radius: var(--radius);
+        border: 1px solid var(--border-subtle);
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+      .api-stats span {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .api-stats i {
+        color: var(--accent-cyan);
+        font-size: 1rem;
+      }
+
+      .api-module {
+        margin-bottom: 1.2rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius);
+        overflow: hidden;
+        background: var(--bg-card);
+        transition: var(--transition);
+      }
+      .api-module:hover {
+        border-color: rgba(43, 198, 183, 0.2);
+      }
+      .module-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        cursor: pointer;
+        user-select: none;
+        transition: var(--transition);
+        background: rgba(255, 255, 255, 0.01);
+      }
+      .module-head:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .module-head-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .module-head-left i {
+        color: var(--accent-cyan);
+        font-size: 1.1rem;
+        width: 20px;
+      }
+      .module-head-left h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+      }
+      .fn-count {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--text-muted);
+        background: var(--bg-base);
+        padding: 2px 12px;
+        border-radius: 40px;
+        border: 1px solid var(--border-subtle);
+      }
+      .module-toggle {
+        color: var(--text-muted);
+        transition: transform 0.3s ease;
+        font-size: 0.9rem;
+      }
+      .module-head.open .module-toggle {
+        transform: rotate(180deg);
+      }
+      .module-body {
+        padding: 0 1.5rem 1.5rem;
+        display: none;
+        border-top: 1px solid var(--border-subtle);
+        animation: slideDown 0.3s ease;
+      }
+      .module-body.open {
+        display: block;
+      }
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          transform: translateY(-12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .api-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .api-grid.cols-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+      .api-card {
+        background: var(--bg-base);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        transition: var(--transition);
+      }
+      .api-card:hover {
+        border-color: rgba(43, 198, 183, 0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.4);
+      }
+      .api-signature {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        margin-bottom: 0.4rem;
+        word-break: break-word;
+      }
+      .fn-name {
+        color: var(--accent-cyan);
+        font-weight: 500;
+      }
+      .fn-parens {
+        color: var(--text-muted);
+      }
+      .fn-param {
+        color: var(--accent-amber);
+      }
+      .fn-arrow {
+        color: var(--text-muted);
+        margin: 0 4px;
+      }
+      .fn-return {
+        color: var(--accent-purple);
+        font-weight: 500;
+      }
+      .api-desc {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+      .api-desc code.inline {
+        font-size: 0.8em;
+      }
+      .api-example {
+        margin-top: 0.4rem;
+        font-size: 0.78rem;
+        color: var(--text-muted);
+        padding: 4px 0;
+      }
+      .example-label {
+        color: var(--text-muted);
+        font-weight: 500;
+        margin-right: 4px;
+      }
+      .api-example code {
+        font-family: var(--font-mono);
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.03);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      .api-note {
+        margin-top: 2rem;
+        padding: 1rem 1.5rem;
+        background: var(--glow-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.12);
+        border-radius: var(--radius);
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        transition: var(--transition);
+      }
+      .api-note:hover {
+        border-color: rgba(43, 198, 183, 0.25);
+      }
+      .api-note i {
+        color: var(--accent-cyan);
+        margin-top: 2px;
+        flex-shrink: 0;
+        font-size: 1.1rem;
+      }
+      .api-note code.inline {
+        font-size: 0.85em;
+      }
+
+      /* ============================================================
+         FOOTER — ENHANCED
+         ============================================================ */
       .footer {
         margin-top: 4rem;
-        padding-top: 2rem;
+        padding-top: 2.5rem;
         border-top: 1px solid var(--border-subtle);
         color: var(--text-muted);
         font-size: 0.85rem;
         display: flex;
         justify-content: space-between;
         flex-wrap: wrap;
+        gap: 1rem;
+      }
+      .footer-left {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .footer-left .heart {
+        color: var(--accent-pink);
+        display: inline-block;
+        animation: heartBeat 2s ease-in-out infinite;
+      }
+      @keyframes heartBeat {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.2);
+        }
       }
       .footer a {
         color: var(--accent-cyan);
         text-decoration: none;
+        transition: var(--transition);
+        border-bottom: 1px solid transparent;
+      }
+      .footer a:hover {
+        border-bottom-color: var(--accent-cyan);
+        color: #fff;
+      }
+      .footer-right {
+        display: flex;
+        gap: 1.2rem;
+        align-items: center;
+      }
+      .footer-right .version-badge {
+        background: rgba(43, 198, 183, 0.08);
+        padding: 2px 12px;
+        border-radius: 40px;
+        font-family: var(--font-mono);
+        font-size: 0.7rem;
+        color: var(--accent-cyan);
+        border: 1px solid rgba(43, 198, 183, 0.1);
       }
 
       /* ============================================================
-         HERO
-      ============================================================ */
-      .hero {
-        position: relative;
-        margin: -2.5rem -3.5rem 3.5rem;
-        padding: 4.5rem 3.5rem 3.5rem;
-        overflow: hidden;
-        border-bottom: 1px solid var(--border-subtle);
-        background:
-          radial-gradient(
-            600px 300px at 12% -10%,
-            var(--glow-cyan),
-            transparent 60%
-          ),
-          radial-gradient(
-            500px 260px at 92% 0%,
-            var(--glow-purple),
-            transparent 55%
-          );
-      }
-      .hero::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0.035) 1px,
-            transparent 1px
-          );
-        background-size: 42px 42px;
-        mask-image: linear-gradient(to bottom, black, transparent 85%);
-        pointer-events: none;
-      }
-      .hero-grid {
-        position: relative;
-        display: grid;
-        grid-template-columns: 1.1fr 0.9fr;
-        gap: 3rem;
-        align-items: center;
-      }
-      .hero-eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-family: var(--font-mono);
-        font-size: 0.72rem;
-        letter-spacing: 0.6px;
-        color: var(--accent-cyan);
-        background: var(--glow-cyan);
-        border: 1px solid rgba(43, 198, 183, 0.25);
-        padding: 5px 12px;
-        border-radius: 40px;
-        margin-bottom: 1.4rem;
-      }
-      .hero-eyebrow .dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--accent-cyan);
-        box-shadow: 0 0 8px var(--accent-cyan);
-      }
-      .hero h1 {
-        font-size: 3.6rem;
-        line-height: 1.02;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        margin-bottom: 1.1rem;
-      }
-      .hero h1 .grad {
-        background: linear-gradient(
-          120deg,
-          var(--accent-cyan) 10%,
-          var(--accent-purple) 60%,
-          var(--accent-pink) 100%
-        );
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-      .hero-sub {
-        font-size: 1.08rem;
-        color: var(--text-secondary);
-        max-width: 540px;
-        margin-bottom: 1.9rem;
-      }
-      .hero-sub strong {
-        color: var(--text-primary);
-        font-weight: 600;
-      }
-      .hero-cta {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 2.4rem;
-        flex-wrap: wrap;
-      }
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 11px 22px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        text-decoration: none;
-        transition: 0.2s ease;
-        border: 1px solid transparent;
-        cursor: pointer;
-      }
-      .btn-primary {
-        background: var(--accent-cyan);
-        color: #06110f;
-        box-shadow: 0 0 0 0 var(--glow-cyan);
-      }
-      .btn-primary:hover {
-        box-shadow: 0 6px 24px -4px var(--glow-cyan);
-        transform: translateY(-1px);
-      }
-      .btn-ghost {
-        background: rgba(255, 255, 255, 0.02);
-        border-color: var(--border-subtle);
-        color: var(--text-primary);
-      }
-      .btn-ghost:hover {
-        border-color: var(--accent-cyan);
-        color: var(--accent-cyan);
-      }
-      .hero-stats {
-        display: flex;
-        gap: 2.2rem;
-        flex-wrap: wrap;
-      }
-      .hero-stat b {
-        display: block;
-        font-size: 1.5rem;
-        font-weight: 800;
-        letter-spacing: -0.02em;
-      }
-      .hero-stat span {
-        font-size: 0.76rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-
-      /* pipeline diagram (signature element) */
-      .pipeline {
-        background: var(--code-bg);
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius);
-        padding: 1.6rem 1.5rem;
-        font-family: var(--font-mono);
-        position: relative;
-      }
-      .pipeline-label {
-        font-size: 0.68rem;
-        text-transform: uppercase;
-        letter-spacing: 1.2px;
-        color: var(--text-muted);
-        margin-bottom: 1.1rem;
-      }
-      .pipe-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .pipe-node {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        padding: 9px 12px;
-        border-radius: 8px;
-        background: var(--bg-card);
-        border: 1px solid var(--border-subtle);
-        font-size: 0.82rem;
-        color: var(--text-secondary);
-      }
-      .pipe-node i {
-        color: var(--accent-cyan);
-        font-size: 0.85rem;
-      }
-      .pipe-arrow {
-        color: var(--text-muted);
-        font-size: 0.8rem;
-      }
-      .pipe-down {
-        text-align: center;
-        color: var(--text-muted);
-        margin: 6px 0;
-        font-size: 0.8rem;
-      }
-      .pipe-branch {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-      .pipe-branch .pipe-node {
-        border-color: rgba(184, 160, 255, 0.25);
-      }
-      .pipe-branch .pipe-node:first-child i {
-        color: var(--accent-amber);
-      }
-      .pipe-branch .pipe-node:last-child i {
-        color: var(--accent-purple);
-      }
-
+         RESPONSIVE — ENHANCED
+         ============================================================ */
       @media (max-width: 1024px) {
         .hero {
           margin: -1.8rem -2rem 2.5rem;
-          padding: 3rem 2rem 2.5rem;
+          padding: 3.5rem 2rem 3rem;
         }
         .hero-grid {
           grid-template-columns: 1fr;
         }
         .hero h1 {
-          font-size: 2.6rem;
+          font-size: 3rem;
         }
-      }
-      @media (max-width: 768px) {
-        .hero {
-          margin: -1.2rem -1.2rem 2rem;
-          padding: 2.4rem 1.2rem 2rem;
-        }
-      }
-      @media (max-width: 1024px) {
         .main {
           padding: 1.8rem 2rem 3rem;
         }
         .grid-3 {
           grid-template-columns: 1fr 1fr;
         }
+        .api-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .api-grid.cols-3 {
+          grid-template-columns: 1fr 1fr;
+        }
       }
       @media (max-width: 768px) {
+        .hero {
+          margin: -1.2rem -1.2rem 2rem;
+          padding: 2.8rem 1.2rem 2.5rem;
+        }
+        .hero h1 {
+          font-size: 2.4rem;
+        }
+        .hero-tagline {
+          font-size: 1rem;
+        }
+        .hero-stats {
+          gap: 1.5rem;
+        }
+        .hero-stat b {
+          font-size: 1.4rem;
+        }
         .sidebar {
           transform: translateX(-100%);
-          transition: 0.25s ease;
           width: 280px;
         }
         .sidebar.open {
@@ -769,265 +1309,6 @@
         .ruleset-grid {
           grid-template-columns: 1fr;
         }
-      }
-      @media (max-width: 480px) {
-        .topbar-actions .search-box {
-          width: 100%;
-        }
-        .topbar-actions .theme-toggle span {
-          display: none;
-        }
-      }
-
-      /* ============================================================
-   VGLIB API REFERENCE
-   ============================================================ */
-
-      .api-intro {
-        margin-bottom: 2.5rem;
-      }
-
-      .api-intro p {
-        max-width: 100%;
-      }
-
-      .api-stats {
-        display: flex;
-        gap: 2rem;
-        flex-wrap: wrap;
-        margin-top: 1rem;
-        padding: 0.8rem 1.2rem;
-        background: var(--bg-card);
-        border-radius: var(--radius);
-        border: 1px solid var(--border-subtle);
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-      }
-
-      .api-stats span {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .api-stats i {
-        color: var(--accent-cyan);
-      }
-
-      .api-module {
-        margin-bottom: 1.2rem;
-        border: 1px solid var(--border-subtle);
-        border-radius: var(--radius);
-        overflow: hidden;
-        background: var(--bg-card);
-        transition: border-color 0.2s;
-      }
-
-      .api-module:hover {
-        border-color: rgba(43, 198, 183, 0.25);
-      }
-
-      .module-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.5rem;
-        cursor: pointer;
-        user-select: none;
-        transition: background 0.2s;
-        background: rgba(255, 255, 255, 0.01);
-      }
-
-      .module-head:hover {
-        background: rgba(255, 255, 255, 0.03);
-      }
-
-      .module-head-left {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-
-      .module-head-left i {
-        color: var(--accent-cyan);
-        font-size: 1.1rem;
-        width: 20px;
-      }
-
-      .module-head-left h3 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin: 0;
-      }
-
-      .fn-count {
-        font-size: 0.65rem;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: var(--text-muted);
-        background: var(--bg-base);
-        padding: 2px 10px;
-        border-radius: 40px;
-        border: 1px solid var(--border-subtle);
-      }
-
-      .module-toggle {
-        color: var(--text-muted);
-        transition: transform 0.3s ease;
-        font-size: 0.9rem;
-      }
-
-      .module-head.open .module-toggle {
-        transform: rotate(180deg);
-      }
-
-      .module-body {
-        padding: 0 1.5rem 1.5rem;
-        display: none;
-        border-top: 1px solid var(--border-subtle);
-        animation: slideDown 0.25s ease;
-      }
-
-      .module-body.open {
-        display: block;
-      }
-
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          transform: translateY(-8px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      .api-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-top: 1rem;
-      }
-
-      .api-grid.cols-3 {
-        grid-template-columns: 1fr 1fr 1fr;
-      }
-
-      .api-card {
-        background: var(--bg-base);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-        padding: 1rem 1.2rem;
-        transition:
-          border-color 0.2s,
-          transform 0.15s;
-      }
-
-      .api-card:hover {
-        border-color: rgba(43, 198, 183, 0.3);
-        transform: translateY(-1px);
-      }
-
-      .api-signature {
-        font-family: var(--font-mono);
-        font-size: 0.85rem;
-        line-height: 1.5;
-        color: var(--text-secondary);
-        margin-bottom: 0.4rem;
-        word-break: break-word;
-      }
-
-      .fn-name {
-        color: var(--accent-cyan);
-        font-weight: 500;
-      }
-
-      .fn-parens {
-        color: var(--text-muted);
-      }
-
-      .fn-param {
-        color: var(--accent-amber);
-      }
-
-      .fn-arrow {
-        color: var(--text-muted);
-        margin: 0 4px;
-      }
-
-      .fn-return {
-        color: var(--accent-purple);
-        font-weight: 500;
-      }
-
-      .api-desc {
-        font-size: 0.85rem;
-        color: var(--text-secondary);
-        line-height: 1.5;
-      }
-
-      .api-desc code.inline {
-        font-size: 0.8em;
-      }
-
-      .api-example {
-        margin-top: 0.4rem;
-        font-size: 0.78rem;
-        color: var(--text-muted);
-        padding: 4px 0;
-      }
-
-      .example-label {
-        color: var(--text-muted);
-        font-weight: 500;
-        margin-right: 4px;
-      }
-
-      .api-example code {
-        font-family: var(--font-mono);
-        color: var(--text-secondary);
-        background: rgba(255, 255, 255, 0.03);
-        padding: 1px 6px;
-        border-radius: 4px;
-      }
-
-      .api-note {
-        margin-top: 2rem;
-        padding: 1rem 1.5rem;
-        background: var(--glow-cyan);
-        border: 1px solid rgba(43, 198, 183, 0.15);
-        border-radius: var(--radius);
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-      }
-
-      .api-note i {
-        color: var(--accent-cyan);
-        margin-top: 2px;
-        flex-shrink: 0;
-      }
-
-      .api-note code.inline {
-        font-size: 0.85em;
-      }
-
-      /* Responsive */
-      @media (max-width: 1024px) {
-        .api-grid {
-          grid-template-columns: 1fr 1fr;
-        }
-        .api-grid.cols-3 {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-
-      @media (max-width: 768px) {
         .api-grid,
         .api-grid.cols-3 {
           grid-template-columns: 1fr;
@@ -1041,9 +1322,17 @@
         .module-head-left h3 {
           font-size: 0.9rem;
         }
+        .code-body .line::before {
+          opacity: 0.15;
+        }
       }
-
       @media (max-width: 480px) {
+        .topbar-actions .search-box {
+          width: 100%;
+        }
+        .topbar-actions .theme-toggle span {
+          display: none;
+        }
         .api-stats {
           flex-direction: column;
           gap: 0.4rem;
@@ -1052,14 +1341,25 @@
           gap: 8px;
         }
         .fn-count {
-          font-size: 0.55rem;
+          font-size: 0.5rem;
           padding: 1px 8px;
+        }
+        .hero-cta .btn {
+          width: 100%;
+          justify-content: center;
+        }
+        .footer {
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
         }
       }
     </style>
   </head>
   <body>
-    <!-- sidebar -->
+    <!-- ============================================================
+    SIDEBAR
+    ============================================================ -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
         <div class="logo-badge">V</div>
@@ -1160,25 +1460,20 @@
           </ul>
         </div>
       </nav>
-      <div
-        style="
-          margin-top: auto;
-          border-top: 1px solid var(--border-subtle);
-          padding-top: 1.2rem;
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        "
-      >
+      <div class="sidebar-footer">
         <span class="tag"><i class="fas fa-code"></i> v0.0.4</span>
         <span class="tag"><i class="fas fa-shield-alt"></i> strict</span>
         <span class="tag"><i class="fab fa-github"></i> github</span>
       </div>
     </aside>
 
-    <!-- main -->
+    <!-- ============================================================
+    MAIN
+    ============================================================ -->
     <main class="main">
-      <!-- HERO -->
+      <!-- ============================================================
+      HERO — ENHANCED
+      ============================================================ -->
       <section class="hero" aria-label="Introduction">
         <div class="hero-grid">
           <div>
@@ -1186,6 +1481,10 @@
               <span class="dot"></span> v0.0.4 · interpreted, transpiles to C
             </div>
             <h1>The <span class="grad">Vyne</span><br />language</h1>
+            <p class="hero-tagline">
+              <strong>Where C meets creativity.</strong> Build games, audio
+              tools, and web servers — all in one language.
+            </p>
             <p class="hero-sub">
               A C‑flavored scripting language with
               <strong>optional strict typing</strong>, structs via
@@ -1206,26 +1505,16 @@
               >
             </div>
             <div class="hero-stats">
+              <div class="hero-stat"><b>2</b><span>execution modes</span></div>
+              <div class="hero-stat"><b>10</b><span>value kinds</span></div>
+              <div class="hero-stat"><b>6</b><span>runtime modules</span></div>
               <div class="hero-stat">
-                <b>2</b>
-                <span>execution modes</span>
-              </div>
-              <div class="hero-stat">
-                <b>10</b>
-                <span>value kinds</span>
-              </div>
-              <div class="hero-stat">
-                <b>6</b>
-                <span>runtime modules</span>
-              </div>
-              <div class="hero-stat">
-                <b>0</b>
-                <span>GC pauses in C output</span>
+                <b>0</b><span>GC pauses in C output</span>
               </div>
             </div>
           </div>
 
-          <!-- signature element: real compilation pipeline -->
+          <!-- Pipeline Diagram -->
           <div class="pipeline">
             <div class="pipeline-label">
               <i class="fas fa-diagram-project"></i>&nbsp; source.vy → output
@@ -1264,6 +1553,9 @@
         </div>
       </section>
 
+      <!-- ============================================================
+      TOPBAR
+      ============================================================ -->
       <div class="topbar">
         <div class="topbar-left">
           <button class="mobile-toggle" id="menuToggle">
@@ -1283,7 +1575,9 @@
         </div>
       </div>
 
-      <!-- BASICS -->
+      <!-- ============================================================
+      BASICS
+      ============================================================ -->
       <section id="basics">
         <div class="section-header">
           <h2>Basics</h2>
@@ -1296,15 +1590,23 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">hello.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">hello.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="comment">// variable with type inference</span><br />
-            msg = <span class="string">"vyne"</span> +
-            <span class="string">" language"</span>;<br />
-            <span class="keyword">out</span>(msg);
-            <span class="comment">// => "vyne language"</span>
+            <span class="line"
+              ><span class="comment"
+                >// variable with type inference</span
+              ></span
+            >
+            <span class="line"
+              >msg = <span class="string">"vyne"</span> +
+              <span class="string">" language"</span>;</span
+            >
+            <span class="line"
+              ><span class="keyword">out</span>(msg);
+              <span class="comment">// => "vyne language"</span></span
+            >
           </div>
         </div>
         <div class="grid-2">
@@ -1327,7 +1629,9 @@
         </div>
       </section>
 
-      <!-- TYPES -->
+      <!-- ============================================================
+      TYPES
+      ============================================================ -->
       <section id="types">
         <div class="section-header">
           <h2>Types</h2>
@@ -1384,7 +1688,9 @@
         </div>
       </section>
 
-      <!-- CONTROL FLOW -->
+      <!-- ============================================================
+      CONTROL FLOW
+      ============================================================ -->
       <section id="control">
         <div class="section-header">
           <h2>Control flow</h2>
@@ -1397,22 +1703,30 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">control.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">control.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="comment">// through with collect</span><br />
-            doubled = <span class="keyword">through</span> x :: [1,2,3] ->
-            <span class="keyword">collect</span> { x * 2 };
-            <span class="comment">// [2,4,6]</span><br />
-            <span class="comment">// filter</span><br />
-            evens = <span class="keyword">through</span> n :: 0..10 ->
-            <span class="keyword">filter</span> { n % 2 == 0 };
+            <span class="line"
+              ><span class="comment">// through with collect</span></span
+            >
+            <span class="line"
+              >doubled = <span class="keyword">through</span> x :: [1,2,3] ->
+              <span class="keyword">collect</span> { x * 2 };
+              <span class="comment">// [2,4,6]</span></span
+            >
+            <span class="line"><span class="comment">// filter</span></span>
+            <span class="line"
+              >evens = <span class="keyword">through</span> n :: 0..10 ->
+              <span class="keyword">filter</span> { n % 2 == 0 };</span
+            >
           </div>
         </div>
       </section>
 
-      <!-- FUNCTIONS -->
+      <!-- ============================================================
+      FUNCTIONS
+      ============================================================ -->
       <section id="functions">
         <div class="section-header">
           <h2>Functions</h2>
@@ -1424,20 +1738,30 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">fn.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">fn.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">fn</span> <span class="function">add</span>(a
-            :: Int64, b :: Int64) -> Int64 {
-            <span class="keyword">return</span> a + b; }<br />
-            <span class="keyword">fn</span> <span class="function">mul</span>(x,
-            y) { x * y } <span class="comment">// inferred</span>
+            <span class="line"
+              ><span class="keyword">fn</span>
+              <span class="function">add</span>(a :: Int64, b :: Int64) -> Int64
+              {</span
+            >
+            <span class="line">
+              <span class="keyword">return</span> a + b; }</span
+            >
+            <span class="line"
+              ><span class="keyword">fn</span>
+              <span class="function">mul</span>(x, y) { x * y }
+              <span class="comment">// inferred</span></span
+            >
           </div>
         </div>
       </section>
 
-      <!-- ENUMS -->
+      <!-- ============================================================
+      ENUMS
+      ============================================================ -->
       <section id="enums">
         <div class="section-header">
           <h2>Enums</h2>
@@ -1451,26 +1775,34 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">direction.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">direction.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">enum</span> Direction {<br />
-            &nbsp;&nbsp;North,<br />
-            &nbsp;&nbsp;East,<br />
-            &nbsp;&nbsp;South = <span class="number">10</span>,<br />
-            &nbsp;&nbsp;West<br />
-            }
-            <span class="comment"
-              >// North = 0, East = 1, South = 10, West = 11</span
-            ><br />
-            <span class="keyword">out</span>(Direction.South);
-            <span class="comment">// => 10</span>
+            <span class="line"
+              ><span class="keyword">enum</span> Direction {</span
+            >
+            <span class="line"> North,</span>
+            <span class="line"> East,</span>
+            <span class="line"> South = <span class="number">10</span>,</span>
+            <span class="line"> West</span>
+            <span class="line"
+              >}
+              <span class="comment"
+                >// North = 0, East = 1, South = 10, West = 11</span
+              ></span
+            >
+            <span class="line"
+              ><span class="keyword">out</span>(Direction.South);
+              <span class="comment">// => 10</span></span
+            >
           </div>
         </div>
       </section>
 
-      <!-- STRUCTS & INTERFACES -->
+      <!-- ============================================================
+      STRUCTS & INTERFACES
+      ============================================================ -->
       <section id="structs">
         <div class="section-header">
           <h2>Structs &amp; interfaces</h2>
@@ -1484,22 +1816,28 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">shapes.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">shapes.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">interface</span> Circle {<br />
-            &nbsp;&nbsp;r :: Float64;<br />
-            <br />
-            &nbsp;&nbsp;area() -> Float64 {<br />
-            &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> r * r *
-            <span class="number">3.14159</span>;<br />
-            &nbsp;&nbsp;}<br />
-            }<br />
-            <br />
-            c = Circle(<span class="number">4.0</span>);
-            <span class="comment">// fields fill positionally</span><br />
-            <span class="keyword">out</span>(c.area());
+            <span class="line"
+              ><span class="keyword">interface</span> Circle {</span
+            >
+            <span class="line"> r :: Float64;</span>
+            <span class="line"> area() -> Float64 {</span>
+            <span class="line">
+              <span class="keyword">return</span> r * r *
+              <span class="number">3.14159</span>;</span
+            >
+            <span class="line"> }</span>
+            <span class="line">}</span>
+            <span class="line"
+              >c = Circle(<span class="number">4.0</span>);
+              <span class="comment">// fields fill positionally</span></span
+            >
+            <span class="line"
+              ><span class="keyword">out</span>(c.area());</span
+            >
           </div>
         </div>
         <div class="grid-2">
@@ -1524,7 +1862,9 @@
         </div>
       </section>
 
-      <!-- ERROR HANDLING -->
+      <!-- ============================================================
+      ERROR HANDLING
+      ============================================================ -->
       <section id="errors">
         <div class="section-header">
           <h2>Error handling</h2>
@@ -1538,19 +1878,23 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">safe.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">safe.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">try</span> {<br />
-            &nbsp;&nbsp;risky();<br />
-            &nbsp;&nbsp;<span class="keyword">throw</span>
-            <span class="string">"boom"</span>;<br />
-            } <span class="keyword">catch</span> (err) {<br />
-            &nbsp;&nbsp;<span class="keyword">out</span>(err);<br />
-            } <span class="keyword">finally</span> {<br />
-            &nbsp;&nbsp;cleanup();<br />
-            }
+            <span class="line"><span class="keyword">try</span> {</span>
+            <span class="line"> risky();</span>
+            <span class="line">
+              <span class="keyword">throw</span>
+              <span class="string">"boom"</span>;</span
+            >
+            <span class="line"
+              >} <span class="keyword">catch</span> (err) {</span
+            >
+            <span class="line"> <span class="keyword">out</span>(err);</span>
+            <span class="line">} <span class="keyword">finally</span> {</span>
+            <span class="line"> cleanup();</span>
+            <span class="line">}</span>
           </div>
         </div>
         <div class="grid-2">
@@ -1573,7 +1917,9 @@
         </div>
       </section>
 
-      <!-- OPERATORS -->
+      <!-- ============================================================
+      OPERATORS
+      ============================================================ -->
       <section id="operators">
         <div class="section-header">
           <h2>Operators</h2>
@@ -1640,7 +1986,9 @@
         </div>
       </section>
 
-      <!-- RULESETS - EXPANDED & IMPRESSIVE -->
+      <!-- ============================================================
+      RULESETS
+      ============================================================ -->
       <section id="rulesets">
         <div class="section-header">
           <h2>Rulesets</h2>
@@ -1656,76 +2004,123 @@
 
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">config.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">config.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">ruleset</span> {<br />
-            &nbsp;&nbsp;<span class="comment">// Type System</span><br />
-            &nbsp;&nbsp;<span class="property">strict_mode</span> =
-            <span class="keyword">true</span>,<br />
-            &nbsp;&nbsp;<span class="property">type_check</span> =
-            <span class="string">"strict"</span>,<br />
-            &nbsp;&nbsp;<span class="property">dynamic_casting</span> =
-            <span class="keyword">false</span>,<br />
-            &nbsp;&nbsp;<span class="property">implicit_conversion</span> =
-            <span class="string">"warn"</span>,<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Memory</span><br />
-            &nbsp;&nbsp;<span class="property">memory_limit</span> =
-            <span class="number">256</span> * <span class="number">1024</span> *
-            <span class="number">1024</span>,
-            <span class="comment">// 256MB</span><br />
-            &nbsp;&nbsp;<span class="property">memory_tracking</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">garbage_collection</span> =
-            <span class="keyword">on</span>,<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Performance</span><br />
-            &nbsp;&nbsp;<span class="property">optimization</span> =
-            <span class="number">2</span>, <span class="comment">// 0-3</span
-            ><br />
-            &nbsp;&nbsp;<span class="property">profiling</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">jit</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">loop_unrolling</span> =
-            <span class="keyword">on</span>,<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Runtime</span><br />
-            &nbsp;&nbsp;<span class="property">debug</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">trace</span> =
-            <span class="keyword">off</span>,<br />
-            &nbsp;&nbsp;<span class="property">stack_trace</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">recursion_limit</span> =
-            <span class="number">1000</span>,<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Security</span><br />
-            &nbsp;&nbsp;<span class="property">safe_mode</span> =
-            <span class="keyword">off</span>,<br />
-            &nbsp;&nbsp;<span class="property">sandbox</span> =
-            <span class="keyword">off</span>,<br />
-            &nbsp;&nbsp;<span class="property">allow_vmem</span> =
-            <span class="keyword">on</span>,<br />
-            &nbsp;&nbsp;<span class="property">allow_network</span> =
-            <span class="keyword">on</span>,<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Warnings</span><br />
-            &nbsp;&nbsp;<span class="property">warnings</span> =
-            <span class="string">"all"</span>,<br />
-            &nbsp;&nbsp;<span class="property">warnings_ignore</span> = [<span
-              class="string"
-              >"unused_variable"</span
-            >, <span class="string">"shadow_variable"</span>],<br />
-            <br />
-            &nbsp;&nbsp;<span class="comment">// Experimental</span><br />
-            &nbsp;&nbsp;<span class="property">async</span> =
-            <span class="keyword">off</span>,<br />
-            &nbsp;&nbsp;<span class="property">simd</span> =
-            <span class="keyword">on</span><br />
-            };
+            <span class="line"><span class="keyword">ruleset</span> {</span>
+            <span class="line">
+              <span class="comment">// Type System</span></span
+            >
+            <span class="line">
+              <span class="property">strict_mode</span> =
+              <span class="keyword">true</span>,</span
+            >
+            <span class="line">
+              <span class="property">type_check</span> =
+              <span class="string">"strict"</span>,</span
+            >
+            <span class="line">
+              <span class="property">dynamic_casting</span> =
+              <span class="keyword">false</span>,</span
+            >
+            <span class="line">
+              <span class="property">implicit_conversion</span> =
+              <span class="string">"warn"</span>,</span
+            >
+            <span class="line"> <span class="comment">// Memory</span></span>
+            <span class="line">
+              <span class="property">memory_limit</span> =
+              <span class="number">256</span> *
+              <span class="number">1024</span> *
+              <span class="number">1024</span>,
+              <span class="comment">// 256MB</span></span
+            >
+            <span class="line">
+              <span class="property">memory_tracking</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">garbage_collection</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="comment">// Performance</span></span
+            >
+            <span class="line">
+              <span class="property">optimization</span> =
+              <span class="number">2</span>,
+              <span class="comment">// 0-3</span></span
+            >
+            <span class="line">
+              <span class="property">profiling</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">jit</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">loop_unrolling</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line"> <span class="comment">// Runtime</span></span>
+            <span class="line">
+              <span class="property">debug</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">trace</span> =
+              <span class="keyword">off</span>,</span
+            >
+            <span class="line">
+              <span class="property">stack_trace</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">recursion_limit</span> =
+              <span class="number">1000</span>,</span
+            >
+            <span class="line"> <span class="comment">// Security</span></span>
+            <span class="line">
+              <span class="property">safe_mode</span> =
+              <span class="keyword">off</span>,</span
+            >
+            <span class="line">
+              <span class="property">sandbox</span> =
+              <span class="keyword">off</span>,</span
+            >
+            <span class="line">
+              <span class="property">allow_vmem</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line">
+              <span class="property">allow_network</span> =
+              <span class="keyword">on</span>,</span
+            >
+            <span class="line"> <span class="comment">// Warnings</span></span>
+            <span class="line">
+              <span class="property">warnings</span> =
+              <span class="string">"all"</span>,</span
+            >
+            <span class="line">
+              <span class="property">warnings_ignore</span> = [<span
+                class="string"
+                >"unused_variable"</span
+              >, <span class="string">"shadow_variable"</span>],</span
+            >
+            <span class="line">
+              <span class="comment">// Experimental</span></span
+            >
+            <span class="line">
+              <span class="property">async</span> =
+              <span class="keyword">off</span>,</span
+            >
+            <span class="line">
+              <span class="property">simd</span> =
+              <span class="keyword">on</span></span
+            >
+            <span class="line">};</span>
           </div>
         </div>
 
@@ -1738,7 +2133,6 @@
         >
           Available Rules
         </h3>
-
         <div class="ruleset-grid">
           <!-- Type System -->
           <div class="ruleset-item">
@@ -1754,7 +2148,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">type_check</span>
@@ -1771,7 +2164,6 @@
               <span style="color: var(--accent-pink)">dynamic</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">dynamic_casting</span>
@@ -1786,7 +2178,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">implicit_conversion</span>
@@ -1802,7 +2193,6 @@
               <span style="color: var(--accent-pink)">deny</span>
             </div>
           </div>
-
           <!-- Memory -->
           <div class="ruleset-item">
             <div>
@@ -1819,7 +2209,6 @@
               (256MB)
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">memory_tracking</span>
@@ -1833,7 +2222,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">garbage_collection</span>
@@ -1848,7 +2236,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <!-- Performance -->
           <div class="ruleset-item">
             <div>
@@ -1865,7 +2252,6 @@
               <span style="color: var(--accent-pink)">3</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">profiling</span>
@@ -1879,7 +2265,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">jit</span>
@@ -1893,7 +2278,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">loop_unrolling</span>
@@ -1907,7 +2291,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <!-- Runtime -->
           <div class="ruleset-item">
             <div>
@@ -1922,7 +2305,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">trace</span>
@@ -1936,7 +2318,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">stack_trace</span>
@@ -1948,7 +2329,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">recursion_limit</span>
@@ -1961,7 +2341,6 @@
               Default: <span style="color: var(--accent-cyan)">1000</span>
             </div>
           </div>
-
           <!-- Security -->
           <div class="ruleset-item">
             <div>
@@ -1977,7 +2356,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">sandbox</span>
@@ -1991,7 +2369,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">allow_vmem</span>
@@ -2005,7 +2382,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">allow_network</span>
@@ -2019,7 +2395,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <!-- Warnings -->
           <div class="ruleset-item">
             <div>
@@ -2037,7 +2412,6 @@
               <span style="color: var(--accent-amber)">error_only</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">warnings_ignore</span>
@@ -2051,7 +2425,6 @@
               >
             </div>
           </div>
-
           <!-- Experimental -->
           <div class="ruleset-item">
             <div>
@@ -2066,7 +2439,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">simd</span>
@@ -2080,7 +2452,6 @@
               <span style="color: var(--text-muted)">off</span>
             </div>
           </div>
-
           <div class="ruleset-item">
             <div>
               <span class="rule-name">max_iterations</span>
@@ -2139,7 +2510,9 @@
         </div>
       </section>
 
-      <!-- MODULES -->
+      <!-- ============================================================
+      MODULES & GROUPS
+      ============================================================ -->
       <section id="modules">
         <div class="section-header">
           <h2>Modules &amp; groups</h2>
@@ -2152,20 +2525,26 @@
         </p>
         <div class="code-block">
           <div class="code-header">
-            <span class="filename">math.vy</span
-            ><button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+            <span class="filename">math.vy</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
           </div>
           <div class="code-body">
-            <span class="keyword">module</span> math;<br />
-            <span class="keyword">group</span> Constants :: math { pi :: Float64
-            = 3.1415; }<br />
-            <span class="keyword">deploy</span> math;<br />
-            <span class="keyword">out</span>(Constants.pi);
+            <span class="line"><span class="keyword">module</span> math;</span>
+            <span class="line"
+              ><span class="keyword">group</span> Constants :: math { pi ::
+              Float64 = 3.1415; }</span
+            >
+            <span class="line"><span class="keyword">deploy</span> math;</span>
+            <span class="line"
+              ><span class="keyword">out</span>(Constants.pi);</span
+            >
           </div>
         </div>
       </section>
 
-      <!-- ARCHITECTURE -->
+      <!-- ============================================================
+      ARCHITECTURE
+      ============================================================ -->
       <section id="architecture">
         <div class="section-header">
           <h2>Architecture</h2>
@@ -2242,7 +2621,9 @@
         </div>
       </section>
 
-      <!-- VCORE -->
+      <!-- ============================================================
+      VCORE
+      ============================================================ -->
       <section id="vcore">
         <div class="section-header">
           <h2>VCore</h2>
@@ -2275,7 +2656,9 @@
         </div>
       </section>
 
-      <!-- VMATH -->
+      <!-- ============================================================
+      VMATH
+      ============================================================ -->
       <section id="vmath">
         <div class="section-header">
           <h2>VMath</h2>
@@ -2312,13 +2695,14 @@
         </div>
       </section>
 
-      <!-- VGLIB API REFERENCE - Full Comprehensive -->
+      <!-- ============================================================
+      VGLIB API REFERENCE — FULL (PRESERVED)
+      ============================================================ -->
       <section id="vglib-api">
         <div class="section-header">
           <h2>VGLib API Reference</h2>
           <span class="badge purple"><i class="fas fa-cube"></i> full API</span>
         </div>
-
         <div class="api-intro">
           <p>
             VGLib is Vyne's hardware-accelerated graphics, audio, and AI engine
@@ -2335,9 +2719,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  CORE                                                         -->
-        <!-- ============================================================ -->
+        <!-- Core -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -2375,11 +2757,10 @@
                   <code>vglib.init(1280, 720, 60, "My Game", vglib.VSYNC)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.running</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.running</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Bool</span>
@@ -2393,11 +2774,10 @@
                   <code>while (vglib.running()) { ... }</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.begin</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.begin</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -2407,11 +2787,10 @@
                   operations and paired with <code class="inline">end()</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.end</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.end</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -2421,7 +2800,6 @@
                   screen.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.clear</span>
@@ -2440,11 +2818,10 @@
                   <code>vglib.clear(vglib.rgba(20, 30, 40, 255))</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.close</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.close</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -2453,11 +2830,10 @@
                   Closes the window and releases all GPU resources.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.get_fps</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.get_fps</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Int64</span>
@@ -2466,7 +2842,6 @@
                   Returns the current frames-per-second counter.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.clear_gradient</span>
@@ -2483,7 +2858,6 @@
                   <code>top</code> to <code>bottom</code> color.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.rgba</span>
@@ -2503,7 +2877,6 @@
                   Packs 4 8‑bit channels into a single 32‑bit color integer.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.donut</span>
@@ -2524,9 +2897,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  2D RENDERING                                                -->
-        <!-- ============================================================ -->
+        <!-- 2D Rendering -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -2559,7 +2930,6 @@
                   Draws a line from (x1, y1) to (x2, y2).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.rect</span>
@@ -2579,7 +2949,6 @@
                 </div>
                 <div class="api-desc">Draws a filled rectangle.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.circle</span>
@@ -2597,7 +2966,6 @@
                 </div>
                 <div class="api-desc">Draws a filled circle.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.text</span>
@@ -2617,7 +2985,6 @@
                 </div>
                 <div class="api-desc">Draws text using the default font.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.text_ex</span>
@@ -2641,7 +3008,6 @@
                   Draws text with a custom <code class="inline">font</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.load_font</span>
@@ -2655,7 +3021,6 @@
                   Loads a TrueType font from a file. Returns a font handle.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.measure_text</span>
@@ -2674,7 +3039,6 @@
                   array.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.load_texture</span>
@@ -2689,7 +3053,6 @@
                   BMP, TGA.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_texture</span>
@@ -2711,7 +3074,6 @@
                 </div>
                 <div class="api-desc">Draws a texture with scaling.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_phase_scope</span>
@@ -2740,7 +3102,6 @@
                   glow.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_spectrum_analyzer</span>
@@ -2766,7 +3127,6 @@
                   Draws an animated spectrum analyzer with gradient bars.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_scanlines</span>
@@ -2786,9 +3146,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  3D RENDERING                                                -->
-        <!-- ============================================================ -->
+        <!-- 3D Rendering -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -2814,7 +3172,6 @@
                   Defaults to 45°.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.begin3d</span>
@@ -2827,22 +3184,19 @@
                 <div class="api-desc">
                   Begins 3D rendering mode with the specified camera. All 3D
                   draw calls must be inside a <code>begin3d</code> /
-                  <code>end3d</code>
-                  pair.
+                  <code>end3d</code> pair.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.end3d</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.end3d</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
                 </div>
                 <div class="api-desc">Ends 3D rendering mode.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.line_3d</span>
@@ -2866,7 +3220,6 @@
                 </div>
                 <div class="api-desc">Draws a line in 3D space.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.cube</span>
@@ -2888,7 +3241,6 @@
                 </div>
                 <div class="api-desc">Draws a colored 3D cube.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.plane</span>
@@ -2910,7 +3262,6 @@
                 </div>
                 <div class="api-desc">Draws a 3D plane.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.grid</span>
@@ -2927,7 +3278,6 @@
                   optional.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.load_model</span>
@@ -2941,7 +3291,6 @@
                   Loads a 3D model from an OBJ, GLTF, or IQM file.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_model</span>
@@ -2963,7 +3312,6 @@
                 </div>
                 <div class="api-desc">Draws a loaded 3D model.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.cube_texture</span>
@@ -2985,7 +3333,6 @@
                 </div>
                 <div class="api-desc">Draws a texture‑mapped cube.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.plane_texture</span>
@@ -3007,7 +3354,6 @@
                 </div>
                 <div class="api-desc">Draws a texture‑mapped plane.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.billboard</span>
@@ -3029,7 +3375,6 @@
                   Draws a 2D sprite always facing the camera.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.update_camera</span>
@@ -3043,11 +3388,10 @@
                 </div>
                 <div class="api-desc">
                   Updates camera controls using the specified mode
-                  (<code>vglib.CAMERA_FREE</code>,
-                  <code>CAMERA_ORBITAL</code>, etc.).
+                  (<code>vglib.CAMERA_FREE</code>, <code>CAMERA_ORBITAL</code>,
+                  etc.).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.get_pos</span>
@@ -3059,7 +3403,6 @@
                 </div>
                 <div class="api-desc">Returns the camera's position.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.set_pos</span>
@@ -3077,7 +3420,6 @@
                 </div>
                 <div class="api-desc">Sets the camera's absolute position.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.move_forward</span>
@@ -3093,7 +3435,6 @@
                   Moves the camera forward along its look vector.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.move_right</span>
@@ -3109,7 +3450,6 @@
                   Moves the camera right along its local X axis.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.rotate_view</span>
@@ -3126,7 +3466,6 @@
                   sensitivity.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_instances</span>
@@ -3143,7 +3482,6 @@
                   <code>[x, y, z, scale]</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_instances_ex</span>
@@ -3161,17 +3499,14 @@
                 </div>
                 <div class="api-desc">
                   Instance renderer with distance culling — only instances
-                  within
-                  <code>max_dist</code> are drawn.
+                  within <code>max_dist</code> are drawn.
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  SHADERS & POST‑PROCESSING                                   -->
-        <!-- ============================================================ -->
+        <!-- Shaders & Post-Processing -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3199,7 +3534,6 @@
                   fragment shader; if two, vertex and fragment.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.begin_shader</span>
@@ -3211,18 +3545,16 @@
                 </div>
                 <div class="api-desc">Begins a shader mode.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.end_shader</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.end_shader</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
                 </div>
                 <div class="api-desc">Ends shader mode.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.set_shader_value</span>
@@ -3241,7 +3573,6 @@
                   <code>[Float64, Float64]</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.load_render_texture</span>
@@ -3258,7 +3589,6 @@
                   effects.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.begin_texture_mode</span>
@@ -3272,18 +3602,16 @@
                   Begins rendering to a <code>RenderTexture</code> target.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.end_texture_mode</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.end_texture_mode</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
                 </div>
                 <div class="api-desc">Ends offscreen rendering.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_canvas_scaled</span>
@@ -3302,9 +3630,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  MAP / AI / COLLISION                                        -->
-        <!-- ============================================================ -->
+        <!-- Map / AI / Collision -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3330,7 +3656,6 @@
                   <code>[x, y, z, size]</code> world blocks.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.pathfind</span>
@@ -3351,7 +3676,6 @@
                   direction vector.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.check_collision</span>
@@ -3371,7 +3695,6 @@
                   Box‑vs‑box collision test between a player and a single cube.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.check_collision_map</span>
@@ -3390,7 +3713,6 @@
                   <code>true</code> if any collision is detected.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.export_obj</span>
@@ -3407,7 +3729,6 @@
                   editing in Blender.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.get_ray_grid</span>
@@ -3425,7 +3746,6 @@
                   Snaps a ray from the camera to the nearest grid position.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.distance_3d</span>
@@ -3445,9 +3765,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  INPUT                                                       -->
-        <!-- ============================================================ -->
+        <!-- Input -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3472,7 +3790,6 @@
                   Returns <code>true</code> while a key is held.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.key_pressed</span>
@@ -3486,11 +3803,10 @@
                   Returns <code>true</code> on the frame a key was pressed.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.get_char</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.get_char</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">String</span>
@@ -3499,11 +3815,10 @@
                   Returns the last character typed, or an empty string if none.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.get_key</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.get_key</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Int64</span>
@@ -3512,7 +3827,6 @@
                   Returns the last physical key pressed, or <code>0</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.mouse_down</span>
@@ -3526,22 +3840,20 @@
                   Returns <code>true</code> while a mouse button is held.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.mouse_pos</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.mouse_pos</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">[Float64, Float64]</span>
                 </div>
                 <div class="api-desc">Returns the current mouse position.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.mouse_delta</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.mouse_delta</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">[Float64, Float64]</span>
@@ -3550,22 +3862,20 @@
                   Returns the mouse movement since the last frame.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.mouse_wheel</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.mouse_wheel</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
                 </div>
                 <div class="api-desc">Returns the mouse wheel delta.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.disable_cursor</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.disable_cursor</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -3574,11 +3884,10 @@
                   Locks and hides the cursor (FPS mode).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vglib.enable_cursor</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vglib.enable_cursor</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -3589,9 +3898,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  CONSTANTS & KEY CODES                                       -->
-        <!-- ============================================================ -->
+        <!-- Constants -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3621,7 +3928,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vglib.COLOR_*</span>
@@ -3633,7 +3939,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vglib.FULLSCREEN · VSYNC</span>
@@ -3642,7 +3947,6 @@
                   Window mode flags for <code>init()</code>.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vglib.CAMERA_*</span>
@@ -3654,7 +3958,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vglib.MOUSE_*</span>
@@ -3663,7 +3966,6 @@
                   <code>MOUSE_LEFT · MOUSE_RIGHT · MOUSE_MIDDLE</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vglib.version</span>
@@ -3676,9 +3978,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  PERSISTENT GROUPS (advanced)                               -->
-        <!-- ============================================================ -->
+        <!-- Persistent Groups -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3706,7 +4006,6 @@
                   persists across frames.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vglib.draw_persistent_group</span>
@@ -3730,7 +4029,6 @@
           </div>
         </div>
 
-        <!-- footer note -->
         <div class="api-note">
           <i class="fas fa-info-circle"></i>
           <span
@@ -3742,7 +4040,9 @@
         </div>
       </section>
 
-      <!-- VAUDIO API REFERENCE - Full Comprehensive -->
+      <!-- ============================================================
+      VAUDIO API REFERENCE — FULL (PRESERVED)
+      ============================================================ -->
       <section id="vaudio-api">
         <div class="section-header">
           <h2>VAudio API Reference</h2>
@@ -3750,7 +4050,6 @@
             ><i class="fas fa-wave-square"></i> full audio engine</span
           >
         </div>
-
         <div class="api-intro">
           <p>
             VAudio is Vyne's professional-grade audio processing engine — a
@@ -3772,9 +4071,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  CORE AUDIO                                                   -->
-        <!-- ============================================================ -->
+        <!-- Core Audio -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -3788,8 +4085,8 @@
             <div class="api-grid">
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.init_audio</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.init_audio</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Bool</span>
@@ -3804,11 +4101,10 @@
                   <code>vaudio.init_audio()</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.close_audio</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.close_audio</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">void</span>
@@ -3817,7 +4113,6 @@
                   Closes the audio device and releases all resources.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.volume</span>
@@ -3833,7 +4128,6 @@
                   <code>vaudio.volume(0.75)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.load_sound</span>
@@ -3852,7 +4146,6 @@
                   <code>sfx = vaudio.load_sound("explosion.wav")</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.play_sound</span>
@@ -3867,7 +4160,6 @@
                   instances.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.is_playing</span>
@@ -3882,7 +4174,6 @@
                   currently playing.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.pause_sound</span>
@@ -3897,7 +4188,6 @@
                   continue.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.resume_sound</span>
@@ -3909,7 +4199,6 @@
                 </div>
                 <div class="api-desc">Resumes a paused sound.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.is_paused</span>
@@ -3924,7 +4213,6 @@
                   paused.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.stop_sound</span>
@@ -3939,7 +4227,6 @@
                   beginning.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.sound_volume</span>
@@ -3955,7 +4242,6 @@
                   Sets the volume for a specific sound (0.0 – 1.0).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.set_pitch</span>
@@ -3975,7 +4261,6 @@
                   <code>vaudio.set_pitch(sfx, 1.5)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.seek_sound</span>
@@ -3995,9 +4280,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  STREAMING AUDIO                                              -->
-        <!-- ============================================================ -->
+        <!-- Streaming Audio -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4027,7 +4310,6 @@
                   <code>music = vaudio.play_stream("background.ogg")</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.update_stream</span>
@@ -4042,7 +4324,6 @@
                   streaming.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.pause_stream</span>
@@ -4054,7 +4335,6 @@
                 </div>
                 <div class="api-desc">Pauses a streaming track.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.resume_stream</span>
@@ -4066,7 +4346,6 @@
                 </div>
                 <div class="api-desc">Resumes a paused stream.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.is_stream_playing</span>
@@ -4081,7 +4360,6 @@
                   playing.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.seek_stream</span>
@@ -4097,7 +4375,6 @@
                   Seeks to a position in the stream (in seconds).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.get_stream_pos</span>
@@ -4112,7 +4389,6 @@
                   1.0).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.get_waveform</span>
@@ -4133,7 +4409,6 @@
                   <code>peaks = vaudio.get_waveform("track.wav", 200)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.attach_master_limiter</span>
@@ -4148,7 +4423,6 @@
                   clipping.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.set_dsp</span>
@@ -4173,9 +4447,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  COMPRESSOR                                                   -->
-        <!-- ============================================================ -->
+        <!-- Compressor -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4200,7 +4472,6 @@
                   Attaches the compressor DSP chain to a sound or stream.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.set_compressor</span>
@@ -4232,11 +4503,10 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_gr</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_gr</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
@@ -4245,11 +4515,10 @@
                   Returns the current gain reduction in dB. Real-time metering.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_rms</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_rms</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
@@ -4259,11 +4528,10 @@
                   metering.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_env</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_env</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
@@ -4276,9 +4544,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  EQUALIZER                                                    -->
-        <!-- ============================================================ -->
+        <!-- Equalizer -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4303,7 +4569,6 @@
                   Attaches the 7-band parametric EQ to a sound or stream.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.set_eq</span>
@@ -4331,7 +4596,6 @@
                   <code>vaudio.set_eq(2, 400, 4.5, 1.2) // Boost 400Hz</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.enable_eq</span>
@@ -4343,11 +4607,10 @@
                 </div>
                 <div class="api-desc">Enables or disables the EQ globally.</div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_spectrum</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_spectrum</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">[Float64]</span>
@@ -4357,11 +4620,10 @@
                   visualization.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_eq_peaks</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_eq_peaks</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">[Float64, Float64, Float64]</span>
@@ -4375,9 +4637,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  REVERB                                                       -->
-        <!-- ============================================================ -->
+        <!-- Reverb -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4403,7 +4663,6 @@
                   lines).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.set_reverb</span>
@@ -4430,11 +4689,10 @@
                   <code>vaudio.set_reverb(0.8, 0.4, 25, 0.5, true)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_analyzer_env</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_analyzer_env</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
@@ -4447,9 +4705,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  ANALYSIS & METERING                                          -->
-        <!-- ============================================================ -->
+        <!-- Analysis & Metering -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4463,8 +4719,8 @@
             <div class="api-grid">
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vaudio.get_lufs</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vaudio.get_lufs</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Float64</span>
@@ -4478,7 +4734,6 @@
                   <code>loudness = vaudio.get_lufs() // -16.5 dB</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.attach_bpm</span>
@@ -4493,7 +4748,6 @@
                   beat tracking.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.get_bpm</span>
@@ -4507,7 +4761,6 @@
                   Returns the detected BPM (50–200 BPM range).
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.attach_analyzer</span>
@@ -4522,7 +4775,6 @@
                   tracking.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vaudio.render_offline</span>
@@ -4548,9 +4800,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  3D AUDIO                                                     -->
-        <!-- ============================================================ -->
+        <!-- 3D Audio -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4595,9 +4845,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  SATURATION MODES                                            -->
-        <!-- ============================================================ -->
+        <!-- Saturation Modes -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4618,7 +4866,6 @@
                   musical distortion. Ideal for analog warmth.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">Mode 1 — Hard Clip</span>
@@ -4628,7 +4875,6 @@
                   character.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">Mode 2 — Asymmetric</span>
@@ -4638,7 +4884,6 @@
                   odd/even harmonic imbalance for vintage character.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">Mode 3 — Tape</span>
@@ -4648,7 +4893,6 @@
                   soft-clipping. Classic reel-to-reel sound.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">Mode 4 — GameBoy</span>
@@ -4662,23 +4906,24 @@
           </div>
         </div>
 
-        <!-- footer note -->
         <div class="api-note">
           <i class="fas fa-info-circle"></i>
-          <span>
-            All VAudio DSP functions process audio in
+          <span
+            >All VAudio DSP functions process audio in
             <strong>real-time</strong> at 48kHz with 32-bit float precision.
             Attach processors to any <code class="inline">SoundHandle</code> or
             <code class="inline">StreamHandle</code> — the DSP chain processes
             in order:
             <strong>EQ → Compressor → Saturation → Reverb → Limiter</strong>.
             Use <code class="inline">vaudio.render_offline()</code> for batch
-            processing without real-time constraints.
-          </span>
+            processing without real-time constraints.</span
+          >
         </div>
       </section>
 
-      <!-- VSERV API REFERENCE - Full Comprehensive -->
+      <!-- ============================================================
+      VSERV API REFERENCE — FULL (PRESERVED)
+      ============================================================ -->
       <section id="vserv-api">
         <div class="section-header">
           <h2>VServ API Reference</h2>
@@ -4686,7 +4931,6 @@
             ><i class="fas fa-globe"></i> full web engine</span
           >
         </div>
-
         <div class="api-intro">
           <p>
             VServ is Vyne's production-ready web framework — a complete
@@ -4706,9 +4950,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  CORE SERVER                                                  -->
-        <!-- ============================================================ -->
+        <!-- Core Server -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4738,7 +4980,6 @@
                   <code>srv = vserv.create_server(8080)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_get</span>
@@ -4760,7 +5001,6 @@
                   <code>vserv.server_get(srv, "/", fn(req, res) { ... })</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_post</span>
@@ -4778,7 +5018,6 @@
                   Registers a POST route handler for the specified path.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_put</span>
@@ -4796,7 +5035,6 @@
                   Registers a PUT route handler for the specified path.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_delete</span>
@@ -4814,7 +5052,6 @@
                   Registers a DELETE route handler for the specified path.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_use</span>
@@ -4835,7 +5072,6 @@
                   <code>vserv.server_use(srv, fn(req, res, next) { ... })</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.server_listen</span>
@@ -4850,7 +5086,6 @@
                   until the server stops.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.serve_file</span>
@@ -4873,9 +5108,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  REQUEST & RESPONSE                                           -->
-        <!-- ============================================================ -->
+        <!-- Request & Response -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -4901,11 +5134,10 @@
                   with method, path, headers, and body.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vserv.create_response</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vserv.create_response</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">Response</span>
@@ -4914,7 +5146,6 @@
                   Creates a new empty Response object with default status 200.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.set_status</span>
@@ -4934,7 +5165,6 @@
                   <code>res = vserv.set_status(res, vserv.NOT_FOUND)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.set_header</span>
@@ -4959,7 +5189,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.send</span>
@@ -4980,7 +5209,6 @@
                   <code>vserv.send(res, "Hello World")</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.send_json</span>
@@ -5004,9 +5232,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  EXPRESS-STYLE APP                                            -->
-        <!-- ============================================================ -->
+        <!-- Express-Style App -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -5020,8 +5246,8 @@
             <div class="api-grid">
               <div class="api-card">
                 <div class="api-signature">
-                  <span class="fn-name">vserv.create_app</span>
-                  <span class="fn-parens">(</span
+                  <span class="fn-name">vserv.create_app</span
+                  ><span class="fn-parens">(</span
                   ><span class="fn-parens">)</span>
                   <span class="fn-arrow">→</span>
                   <span class="fn-return">AppHandle</span>
@@ -5035,7 +5261,6 @@
                   <code>app = vserv.create_app()</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.app_get</span>
@@ -5053,7 +5278,6 @@
                   Registers a GET route. Returns the app for chaining.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.app_post</span>
@@ -5071,7 +5295,6 @@
                   Registers a POST route. Returns the app for chaining.
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.app_listen</span>
@@ -5096,9 +5319,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  WEBSOCKET                                                    -->
-        <!-- ============================================================ -->
+        <!-- WebSocket -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -5130,7 +5351,6 @@
                   <code>res = vserv.ws_upgrade(req, res)</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature">
                   <span class="fn-name">vserv.ws_send</span>
@@ -5155,9 +5375,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  CONSTANTS & STATUS CODES                                    -->
-        <!-- ============================================================ -->
+        <!-- Constants -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -5180,7 +5398,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">3xx — Redirection</span>
@@ -5189,7 +5406,6 @@
                   <code>vserv.MOVED_PERMANENTLY · vserv.FOUND</code>
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">4xx — Client Error</span>
@@ -5201,7 +5417,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">5xx — Server Error</span>
@@ -5213,7 +5428,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">MIME Types</span>
@@ -5229,7 +5443,6 @@
                   >
                 </div>
               </div>
-
               <div class="api-card">
                 <div class="api-signature" style="font-size: 0.8rem">
                   <span class="fn-name">vserv.version</span>
@@ -5242,9 +5455,7 @@
           </div>
         </div>
 
-        <!-- ============================================================ -->
-        <!--  COMPLETE EXAMPLE                                            -->
-        <!-- ============================================================ -->
+        <!-- Complete Example -->
         <div class="api-module">
           <div class="module-head" onclick="toggleModule(this)">
             <div class="module-head-left">
@@ -5257,87 +5468,117 @@
           <div class="module-body">
             <div class="code-block" style="margin: 0">
               <div class="code-header">
-                <span class="filename">api.vy</span
-                ><button class="copy-btn">
+                <span class="filename">api.vy</span>
+                <button class="copy-btn">
                   <i class="far fa-copy"></i> copy
                 </button>
               </div>
               <div class="code-body">
-                <span class="keyword">module</span> vserv;<br />
-                <span class="keyword">module</span> vcore;<br />
-                <br />
-                <span class="comment">// Create app</span><br />
-                app = vserv.create_app();<br />
-                <br />
-                <span class="comment">// Logger middleware</span><br />
-                <span class="keyword">fn</span>
-                <span class="function">logger</span>(req, res, next) {<br />
-                &nbsp;&nbsp;vcore.out(<span class="string">"["</span> +
-                req.method + <span class="string">"] "</span> + req.path);<br />
-                &nbsp;&nbsp;next();<br />
-                };<br />
-                vserv.app_use(app, logger);<br />
-                <br />
-                <span class="comment">// GET /hello</span><br />
-                vserv.app_get(app, <span class="string">"/hello"</span>,
-                <span class="keyword">fn</span>(req, res) {<br />
-                &nbsp;&nbsp;vserv.send(res,
-                <span class="string">"Hello, World!"</span>);<br />
-                });<br />
-                <br />
-                <span class="comment">// POST /api/users</span><br />
-                vserv.app_post(app, <span class="string">"/api/users"</span>,
-                <span class="keyword">fn</span>(req, res) {<br />
-                &nbsp;&nbsp;data = req.body;<br />
-                &nbsp;&nbsp;vserv.send_json(res, {
-                <span class="property">"created"</span>:
-                <span class="keyword">true</span>,
-                <span class="property">"data"</span>: data });<br />
-                });<br />
-                <br />
-                <span class="comment">// Static files</span><br />
-                vserv.app_get(app, <span class="string">"/static/*"</span>,
-                <span class="keyword">fn</span>(req, res) {<br />
-                &nbsp;&nbsp;file_path = req.path;<br />
-                &nbsp;&nbsp;res = vserv.serve_file(file_path);<br />
-                &nbsp;&nbsp;vserv.send(res);<br />
-                });<br />
-                <br />
-                <span class="comment">// Start server</span><br />
-                vserv.app_listen(app, <span class="number">3000</span>);<br />
-                vcore.out(<span class="string"
-                  >"🚀 Server running on port 3000"</span
-                >);
+                <span class="line"
+                  ><span class="keyword">module</span> vserv;</span
+                >
+                <span class="line"
+                  ><span class="keyword">module</span> vcore;</span
+                >
+                <span class="line"
+                  ><span class="comment">// Create app</span></span
+                >
+                <span class="line">app = vserv.create_app();</span>
+                <span class="line"
+                  ><span class="comment">// Logger middleware</span></span
+                >
+                <span class="line"
+                  ><span class="keyword">fn</span>
+                  <span class="function">logger</span>(req, res, next) {</span
+                >
+                <span class="line">
+                  vcore.out(<span class="string">"["</span> + req.method +
+                  <span class="string">"] "</span> + req.path);</span
+                >
+                <span class="line"> next();</span>
+                <span class="line">};</span>
+                <span class="line">vserv.app_use(app, logger);</span>
+                <span class="line"
+                  ><span class="comment">// GET /hello</span></span
+                >
+                <span class="line"
+                  >vserv.app_get(app, <span class="string">"/hello"</span>,
+                  <span class="keyword">fn</span>(req, res) {</span
+                >
+                <span class="line">
+                  vserv.send(res,
+                  <span class="string">"Hello, World!"</span>);</span
+                >
+                <span class="line">});</span>
+                <span class="line"
+                  ><span class="comment">// POST /api/users</span></span
+                >
+                <span class="line"
+                  >vserv.app_post(app, <span class="string">"/api/users"</span>,
+                  <span class="keyword">fn</span>(req, res) {</span
+                >
+                <span class="line"> data = req.body;</span>
+                <span class="line">
+                  vserv.send_json(res, {
+                  <span class="property">"created"</span>:
+                  <span class="keyword">true</span>,
+                  <span class="property">"data"</span>: data });</span
+                >
+                <span class="line">});</span>
+                <span class="line"
+                  ><span class="comment">// Static files</span></span
+                >
+                <span class="line"
+                  >vserv.app_get(app, <span class="string">"/static/*"</span>,
+                  <span class="keyword">fn</span>(req, res) {</span
+                >
+                <span class="line"> file_path = req.path;</span>
+                <span class="line"> res = vserv.serve_file(file_path);</span>
+                <span class="line"> vserv.send(res);</span>
+                <span class="line">});</span>
+                <span class="line"
+                  ><span class="comment">// Start server</span></span
+                >
+                <span class="line"
+                  >vserv.app_listen(app,
+                  <span class="number">3000</span>);</span
+                >
+                <span class="line"
+                  >vcore.out(<span class="string"
+                    >"🚀 Server running on port 3000"</span
+                  >);</span
+                >
               </div>
             </div>
-
             <div class="api-note" style="margin-top: 1rem">
               <i class="fas fa-rocket"></i>
-              <span>
-                This complete example demonstrates a production-ready REST API
+              <span
+                >This complete example demonstrates a production-ready REST API
                 with logging middleware, JSON endpoints, static file serving,
                 and error handling. Run it with
-                <code class="inline">vynec api.vy</code> to start your server.
-              </span>
+                <code class="inline">vynec api.vy</code> to start your
+                server.</span
+              >
             </div>
           </div>
         </div>
 
-        <!-- footer note -->
         <div class="api-note">
           <i class="fas fa-info-circle"></i>
-          <span>
-            VServ runs a <strong>native C HTTP server</strong> with no external
+          <span
+            >VServ runs a <strong>native C HTTP server</strong> with no external
             dependencies. Each request is handled in a non-blocking loop with
             support for <strong>WebSocket upgrades</strong>,
             <strong>middleware chains</strong>, and
             <strong>static file serving</strong>. The server runs until stopped
-            by the user or an error occurs.
-          </span>
+            by the user or an error occurs.</span
+          >
         </div>
       </section>
 
-      <!-- VMEM -->
+      <!-- ============================================================
+      VMEM
+      ============================================================ -->
       <section id="vmem">
         <div class="section-header">
           <h2>VMem</h2>
@@ -5370,7 +5611,9 @@
         </div>
       </section>
 
-      <!-- PLAYGROUND -->
+      <!-- ============================================================
+      PLAYGROUND
+      ============================================================ -->
       <section id="playground">
         <div class="section-header">
           <h2>Playground</h2>
@@ -5431,7 +5674,9 @@
         </div>
       </section>
 
-      <!-- INTEGRATION GUIDE -->
+      <!-- ============================================================
+      INTEGRATION GUIDE
+      ============================================================ -->
       <section id="guide">
         <div class="section-header">
           <h2>Integration guide</h2>
@@ -5463,12 +5708,29 @@
         </div>
       </section>
 
+      <!-- ============================================================
+      FOOTER — ENHANCED
+      ============================================================ -->
       <footer class="footer">
-        <span>Vyne documentation — built with ❤️</span>
-        <span><a href="#">GitHub</a> · <a href="#">Discord</a></span>
+        <div class="footer-left">
+          <span
+            >Vyne documentation — built with <span class="heart">❤️</span> by
+            <strong>Tuncay Qafarlı</strong></span
+          >
+        </div>
+        <div class="footer-right">
+          <span class="version-badge"><i class="fas fa-tag"></i> v0.0.4</span>
+          <a href="https://github.com/t2ncay/vyne"
+            ><i class="fab fa-github"></i> GitHub</a
+          >
+          <a href="#"><i class="fab fa-discord"></i> Discord</a>
+        </div>
       </footer>
     </main>
 
+    <!-- ============================================================
+    SCRIPTS
+    ============================================================ -->
     <script>
       (function () {
         const menuBtn = document.getElementById("menuToggle");
@@ -5578,22 +5840,11 @@
         );
       })();
 
-      // ============================================================
-      // VGLIB API REFERENCE — module toggles
-      // ============================================================
-
+      // Module toggles
       function toggleModule(el) {
         const head = el;
         const body = head.nextElementSibling;
         const isOpen = body.classList.contains("open");
-
-        // Close all other modules (optional, uncomment for accordion behavior)
-        // document.querySelectorAll('.module-body.open').forEach(b => {
-        //   if (b !== body) {
-        //     b.classList.remove('open');
-        //     b.previousElementSibling.classList.remove('open');
-        //   }
-        // });
 
         if (isOpen) {
           body.classList.remove("open");
@@ -5608,7 +5859,6 @@
       document.addEventListener("DOMContentLoaded", function () {
         const firstModule = document.querySelector(".module-head");
         if (firstModule) {
-          // Open the first module by default
           const body = firstModule.nextElementSibling;
           if (body) {
             body.classList.add("open");
