@@ -5,8 +5,8 @@ module vmath;
 
 # Create a simple XOR model
 model = vml.sequential("xor");
-model.add(vml.dense(2, 4, "relu"));
-model.add(vml.dense(4, 1, "sigmoid"));
+model.add_layer(vml.dense(2, 4, "relu"));
+model.add_layer(vml.dense(4, 1, "sigmoid"));
 
 # XOR training data
 X = vml.tensor(4, 2);
