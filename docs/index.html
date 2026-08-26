@@ -234,9 +234,35 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 3rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border-subtle);
+        margin-bottom: 2rem;
+        padding: 0.8rem 1.5rem;
+        border-radius: var(--radius);
+        background: rgba(13, 14, 18, 0.65);
+        backdrop-filter: blur(16px) saturate(1.2);
+        -webkit-backdrop-filter: blur(16px) saturate(1.2);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      }
+      .topbar::before {
+        content: "";
+        position: absolute;
+        inset: -50%;
+        background:
+          radial-gradient(
+            400px 150px at 10% 50%,
+            var(--glow-cyan),
+            transparent 70%
+          ),
+          radial-gradient(
+            300px 120px at 90% 50%,
+            var(--glow-purple),
+            transparent 60%
+          );
+        opacity: 0.3;
+        pointer-events: none;
+        animation: topbarGlow 12s ease-in-out infinite alternate;
       }
       .topbar-left {
         display: flex;
@@ -269,6 +295,11 @@
         display: flex;
         align-items: center;
         gap: 1rem;
+      }
+      .topbar-left,
+      .topbar-actions {
+        position: relative;
+        z-index: 1;
       }
       .search-box {
         background: var(--bg-surface);
@@ -317,11 +348,10 @@
          ============================================================ */
       .hero {
         position: relative;
-        margin: -2.5rem -3.5rem 3.5rem;
-        padding: 5rem 3.5rem 4rem;
+        margin: -0.5rem -3.5rem 3.5rem;
+        padding: 4rem 3.5rem 4rem;
         overflow: hidden;
-        border-bottom: 1px solid var(--border-subtle);
-        border-radius: 0 0 var(--radius) var(--radius);
+        border-radius: var(--radius);
         background:
           radial-gradient(
             800px 400px at 8% -20%,
@@ -338,6 +368,7 @@
             var(--glow-pink),
             transparent 50%
           );
+        border: 1px solid var(--border-subtle);
       }
       .hero::before {
         content: "";
@@ -373,6 +404,16 @@
         100% {
           transform: translate(-100px, 50px) scale(1.2);
           opacity: 1;
+        }
+      }
+      @keyframes topbarGlow {
+        0% {
+          opacity: 0.2;
+          transform: translateX(-10px);
+        }
+        100% {
+          opacity: 0.5;
+          transform: translateX(10px);
         }
       }
       .hero-grid {
@@ -1266,9 +1307,12 @@
         }
       }
       @media (max-width: 768px) {
-        .hero {
-          margin: -1.2rem -1.2rem 2rem;
-          padding: 2.8rem 1.2rem 2.5rem;
+        .topbar {
+          padding: 0.6rem 1rem;
+          border-radius: var(--radius);
+          margin-bottom: 1.2rem;
+          flex-wrap: wrap;
+          gap: 0.5rem;
         }
         .hero h1 {
           font-size: 2.4rem;
@@ -1296,6 +1340,14 @@
         .mobile-toggle {
           display: block;
         }
+        .topbar {
+          padding: 0.6rem 1rem;
+          border-radius: var(--radius);
+          margin-bottom: 1.2rem;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+        }
+
         .topbar-left .breadcrumb {
           display: none;
         }
@@ -1472,6 +1524,27 @@
     ============================================================ -->
     <main class="main">
       <!-- ============================================================
+      TOPBAR
+      ============================================================ -->
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="mobile-toggle" id="menuToggle">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="breadcrumb"><span>Vyne</span> / API reference</div>
+        </div>
+        <div class="topbar-actions">
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search docs..." id="searchInput" />
+            <kbd style="font-size: 0.65rem; color: var(--text-muted)">⌘K</kbd>
+          </div>
+          <button class="theme-toggle" id="themeToggle">
+            <i class="fas fa-moon"></i> <span>Dark</span>
+          </button>
+        </div>
+      </div>
+      <!-- ============================================================
       HERO — ENHANCED
       ============================================================ -->
       <section class="hero" aria-label="Introduction">
@@ -1552,28 +1625,6 @@
           </div>
         </div>
       </section>
-
-      <!-- ============================================================
-      TOPBAR
-      ============================================================ -->
-      <div class="topbar">
-        <div class="topbar-left">
-          <button class="mobile-toggle" id="menuToggle">
-            <i class="fas fa-bars"></i>
-          </button>
-          <div class="breadcrumb"><span>Vyne</span> / API reference</div>
-        </div>
-        <div class="topbar-actions">
-          <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" placeholder="Search docs..." id="searchInput" />
-            <kbd style="font-size: 0.65rem; color: var(--text-muted)">⌘K</kbd>
-          </div>
-          <button class="theme-toggle" id="themeToggle">
-            <i class="fas fa-moon"></i> <span>Dark</span>
-          </button>
-        </div>
-      </div>
 
       <!-- ============================================================
       BASICS
