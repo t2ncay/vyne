@@ -47,6 +47,11 @@
         --sidebar-w: 280px;
         --radius: 14px;
         --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        --hero-fade: linear-gradient(
+          to bottom,
+          rgba(13, 14, 18, 0) 0%,
+          var(--bg-base) 100%
+        );
       }
       html {
         scroll-behavior: smooth;
@@ -229,6 +234,29 @@
         flex: 1;
         padding: 2.5rem 3.5rem 5rem;
         max-width: 1200px;
+        margin-left: var(--sidebar-w);
+        flex: 1;
+        padding: 2.5rem 3.5rem 5rem;
+        max-width: 1200px;
+        position: relative;
+      }
+      .main::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 200px;
+        background:
+          radial-gradient(ellipse at 30% 0%, var(--glow-cyan), transparent 60%),
+          radial-gradient(
+            ellipse at 70% 0%,
+            var(--glow-purple),
+            transparent 50%
+          );
+        opacity: 0.15;
+        pointer-events: none;
+        z-index: 0;
       }
       .topbar {
         display: flex;
@@ -348,8 +376,8 @@
          ============================================================ */
       .hero {
         position: relative;
-        margin: -0.5rem -3.5rem 3.5rem;
-        padding: 4rem 3.5rem 4rem;
+        margin: -0.5rem -3.5rem 2.5rem; /* reduced bottom margin */
+        padding: 4rem 3.5rem 3rem; /* reduced bottom padding */
         overflow: hidden;
         border-radius: var(--radius);
         background:
@@ -369,6 +397,20 @@
             transparent 50%
           );
         border: 1px solid var(--border-subtle);
+        transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* Add a subtle fade gradient at the bottom of hero */
+      .hero::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 80px;
+        background: linear-gradient(to top, var(--bg-base), transparent);
+        pointer-events: none;
+        z-index: 2;
       }
       .hero::before {
         content: "";
@@ -380,21 +422,6 @@
         background-size: 48px 48px;
         mask-image: linear-gradient(to bottom, black, transparent 80%);
         pointer-events: none;
-      }
-      .hero::after {
-        content: "";
-        position: absolute;
-        top: -50%;
-        right: -20%;
-        width: 600px;
-        height: 600px;
-        background: radial-gradient(
-          circle,
-          rgba(43, 198, 183, 0.03),
-          transparent 70%
-        );
-        pointer-events: none;
-        animation: heroGlow 20s ease-in-out infinite alternate;
       }
       @keyframes heroGlow {
         0% {
@@ -658,6 +685,52 @@
       section {
         margin-bottom: 4.5rem;
         scroll-margin-top: 2rem;
+        opacity: 0;
+        transform: translateY(30px);
+        animation: sectionReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        transition: all 0.6s ease;
+      }
+
+      section:nth-child(1) {
+        animation-delay: 0.05s;
+      }
+      section:nth-child(2) {
+        animation-delay: 0.1s;
+      }
+      section:nth-child(3) {
+        animation-delay: 0.15s;
+      }
+      section:nth-child(4) {
+        animation-delay: 0.2s;
+      }
+      section:nth-child(5) {
+        animation-delay: 0.25s;
+      }
+      section:nth-child(6) {
+        animation-delay: 0.3s;
+      }
+      section:nth-child(7) {
+        animation-delay: 0.35s;
+      }
+      section:nth-child(8) {
+        animation-delay: 0.4s;
+      }
+      section:nth-child(9) {
+        animation-delay: 0.45s;
+      }
+      section:nth-child(10) {
+        animation-delay: 0.5s;
+      }
+
+      @keyframes sectionReveal {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
       .section-header {
         display: flex;
@@ -665,7 +738,20 @@
         gap: 14px;
         margin-bottom: 1.4rem;
         flex-wrap: wrap;
+        position: relative;
       }
+
+      .section-header::after {
+        content: "";
+        position: absolute;
+        bottom: -8px;
+        left: 0;
+        width: 60px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-cyan), transparent);
+        border-radius: 4px;
+      }
+
       .section-header h2 {
         font-size: 2.2rem;
         font-weight: 700;
@@ -677,6 +763,7 @@
         );
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        position: relative;
       }
       .section-header .badge {
         background: var(--glow-cyan);
@@ -729,7 +816,7 @@
         border: 1px solid var(--border-subtle);
         border-radius: var(--radius);
         padding: 1.5rem;
-        transition: var(--transition);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         position: relative;
         overflow: hidden;
       }
@@ -746,11 +833,29 @@
           var(--accent-purple)
         );
         opacity: 0;
-        transition: var(--transition);
+        transition: opacity 0.4s ease;
       }
+      .card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at 30% 0%,
+          var(--glow-cyan),
+          transparent 70%
+        );
+        opacity: 0;
+        transition: opacity 0.6s ease;
+        pointer-events: none;
+      }
+
+      .card:hover::after {
+        opacity: 0.05;
+      }
+
       .card:hover {
-        border-color: rgba(43, 198, 183, 0.3);
-        transform: translateY(-3px);
+        border-color: rgba(43, 198, 183, 0.2);
+        transform: translateY(-4px);
         box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.5);
       }
       .card:hover::before {
@@ -1622,6 +1727,350 @@
             <div class="pipe-down" style="margin-top: 4px">
               evaluate(env, scope) · Codegen + C_Emitter → arena‑allocated C
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+STATUS BANNER
+============================================================ -->
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.6rem 1.2rem;
+          background: var(--glow-cyan);
+          border: 1px solid rgba(43, 198, 183, 0.15);
+          border-radius: 40px;
+          margin: -2rem 0 2.5rem;
+          font-size: 0.85rem;
+          color: var(--text-secondary);
+          flex-wrap: wrap;
+        "
+      >
+        <span style="display: inline-flex; align-items: center; gap: 6px">
+          <span
+            style="
+              display: inline-block;
+              width: 8px;
+              height: 8px;
+              border-radius: 50%;
+              background: var(--accent-green);
+              box-shadow: 0 0 12px rgba(140, 212, 106, 0.5);
+              animation: pulseDot 2s ease-in-out infinite;
+            "
+          ></span>
+          <strong style="color: var(--text-primary)">Active development</strong>
+        </span>
+        <span style="color: var(--text-muted)">·</span>
+        <span><i class="fas fa-code"></i> v0.0.4</span>
+        <span style="color: var(--text-muted)">·</span>
+        <span><i class="fas fa-star"></i> 25 stars on GitHub</span>
+        <span style="color: var(--text-muted)">·</span>
+        <span><i class="fas fa-users"></i> 17 contributors</span>
+      </div>
+
+      <!-- ============================================================
+      WHY VYNE
+      ============================================================ -->
+      <section id="why-vyne">
+        <div class="section-header">
+          <h2>Why Vyne?</h2>
+          <span class="badge">the pitch</span>
+        </div>
+        <div class="grid-3">
+          <div class="card" style="border-left: 3px solid var(--accent-cyan)">
+            <div class="card-title">
+              <i class="fas fa-bolt"></i> Performance
+            </div>
+            <div class="card-desc">
+              Native C performance with scripting convenience. Transpile to C
+              for zero-overhead production builds.
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-purple)">
+            <div class="card-title">
+              <i class="fas fa-paint-brush"></i> Creativity
+            </div>
+            <div class="card-desc">
+              Built-in game, audio, and web libraries. Build anything from games
+              to audio tools to web servers.
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-pink)">
+            <div class="card-title">
+              <i class="fas fa-brain"></i> Simplicity
+            </div>
+            <div class="card-desc">
+              Optional strict typing, C-style syntax, and a small feature set.
+              Easy to learn, powerful to master.
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ============================================================
+GALLERY
+============================================================ -->
+      <section id="gallery">
+        <div class="section-header">
+          <h2>What can you build?</h2>
+          <span class="badge purple"
+            ><i class="fas fa-images"></i> showcase</span
+          >
+        </div>
+        <p>
+          Vyne comes with batteries included — here's what you can create out of
+          the box.
+        </p>
+        <div class="grid-3">
+          <div class="card" style="text-align: center; padding: 2rem 1.5rem">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem">🎮</div>
+            <div class="card-title" style="justify-content: center">Games</div>
+            <div class="card-desc">
+              VGLib gives you 2D/3D rendering, input, collision, and AI. Build
+              your dream game.
+            </div>
+          </div>
+          <div class="card" style="text-align: center; padding: 2rem 1.5rem">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem">🎵</div>
+            <div class="card-title" style="justify-content: center">
+              Audio Tools
+            </div>
+            <div class="card-desc">
+              VAudio is a pro-grade DSP engine with EQ, compression, reverb, and
+              LUFS metering.
+            </div>
+          </div>
+          <div class="card" style="text-align: center; padding: 2rem 1.5rem">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem">🌐</div>
+            <div class="card-title" style="justify-content: center">
+              Web Servers
+            </div>
+            <div class="card-desc">
+              VServ is a production-ready HTTP/WebSocket server with
+              Express-style routing.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+      QUICK START
+      ============================================================ -->
+      <section id="quick-start">
+        <div class="section-header">
+          <h2>Get started</h2>
+          <span class="badge amber"><i class="fas fa-rocket"></i> quick</span>
+        </div>
+        <div class="code-block">
+          <div class="code-header">
+            <span class="filename">Terminal</span>
+            <button class="copy-btn"><i class="far fa-copy"></i> copy</button>
+          </div>
+          <div class="code-body">
+            <span class="line"
+              ><span class="comment"># Clone the repo</span></span
+            >
+            <span class="line"
+              >git clone https://github.com/t2ncay/vyne.git</span
+            >
+            <span class="line"><span class="comment"># Build</span></span>
+            <span class="line">cd vyne && make</span>
+            <span class="line"
+              ><span class="comment"># Run your first script</span></span
+            >
+            <span class="line">./vynec examples/hello.vy</span>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top: 1.5rem">
+          <div class="card">
+            <div class="card-title">
+              <i class="fas fa-book"></i> Documentation
+            </div>
+            <div class="card-desc">
+              Full API reference, tutorials, and examples in the docs.
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">
+              <i class="fab fa-discord"></i> Community
+            </div>
+            <div class="card-desc">
+              Join the Discord, ask questions, and share what you build.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+ROADMAP PREVIEW
+============================================================ -->
+      <section id="roadmap">
+        <div class="section-header">
+          <h2>What's coming</h2>
+          <span class="badge amber"><i class="fas fa-road"></i> roadmap</span>
+        </div>
+        <div
+          style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem"
+        >
+          <div class="card" style="border-left: 3px solid var(--accent-cyan)">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.3rem;
+              "
+            >
+              <span class="card-title" style="margin: 0; font-size: 0.95rem"
+                >WASM Support</span
+              >
+              <span
+                style="
+                  font-size: 0.65rem;
+                  background: var(--glow-cyan);
+                  color: var(--accent-cyan);
+                  padding: 2px 10px;
+                  border-radius: 40px;
+                  font-weight: 600;
+                "
+                >Coming soon</span
+              >
+            </div>
+            <div class="card-desc">
+              Run Vyne in the browser — playground, demos, and web integration.
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-purple)">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.3rem;
+              "
+            >
+              <span class="card-title" style="margin: 0; font-size: 0.95rem"
+                >Package Manager</span
+              >
+              <span
+                style="
+                  font-size: 0.65rem;
+                  background: var(--glow-purple);
+                  color: var(--accent-purple);
+                  padding: 2px 10px;
+                  border-radius: 40px;
+                  font-weight: 600;
+                "
+                >Q3 2026</span
+              >
+            </div>
+            <div class="card-desc">
+              Simple dependency management for Vyne projects.
+            </div>
+          </div>
+          <div class="card" style="border-left: 3px solid var(--accent-pink)">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.3rem;
+              "
+            >
+              <span class="card-title" style="margin: 0; font-size: 0.95rem"
+                >Vyne Playground</span
+              >
+              <span
+                style="
+                  font-size: 0.65rem;
+                  background: rgba(255, 94, 154, 0.12);
+                  color: var(--accent-pink);
+                  padding: 2px 10px;
+                  border-radius: 40px;
+                  font-weight: 600;
+                "
+                >Q4 2026</span
+              >
+            </div>
+            <div class="card-desc">
+              Full interactive editor with examples, sharing, and live
+              execution.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================
+COMMUNITY SHOWCASE
+============================================================ -->
+      <section id="showcase">
+        <div class="section-header">
+          <h2>Built with Vyne</h2>
+          <span class="badge purple"
+            ><i class="fas fa-users"></i> community</span
+          >
+        </div>
+        <div class="grid-3">
+          <div class="card" style="text-align: center; padding: 1.5rem">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem">🕹️</div>
+            <div class="card-title" style="justify-content: center">
+              Retro Space Shooter
+            </div>
+            <div class="card-desc">
+              A complete game built with VGLib — 2D rendering, collision, and
+              AI.
+            </div>
+            <a
+              href="#"
+              style="
+                color: var(--accent-cyan);
+                font-size: 0.85rem;
+                display: inline-block;
+                margin-top: 0.5rem;
+              "
+              >View project →</a
+            >
+          </div>
+          <div class="card" style="text-align: center; padding: 1.5rem">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem">🎛️</div>
+            <div class="card-title" style="justify-content: center">
+              Spectrum Analyzer
+            </div>
+            <div class="card-desc">
+              Real-time audio visualization using VAudio's FFT and DSP engine.
+            </div>
+            <a
+              href="#"
+              style="
+                color: var(--accent-cyan);
+                font-size: 0.85rem;
+                display: inline-block;
+                margin-top: 0.5rem;
+              "
+              >View project →</a
+            >
+          </div>
+          <div class="card" style="text-align: center; padding: 1.5rem">
+            <div style="font-size: 2.5rem; margin-bottom: 0.5rem">📡</div>
+            <div class="card-title" style="justify-content: center">
+              Vyne API Server
+            </div>
+            <div class="card-desc">
+              A production API server built with VServ — REST endpoints and
+              WebSocket.
+            </div>
+            <a
+              href="#"
+              style="
+                color: var(--accent-cyan);
+                font-size: 0.85rem;
+                display: inline-block;
+                margin-top: 0.5rem;
+              "
+              >View project →</a
+            >
           </div>
         </div>
       </section>
