@@ -149,6 +149,8 @@ through k_idx :: 0..7 -> loop {
 mine_block_timer :: Float64 = 0.0;
 active_blocks    :: Array   = [];
 
+VYNE_VNET_ROOT_ACCESS :: String = "VYNE_VNET_ROOT_ACCESS";
+
 # CONFIG.TXT & VFS STORAGE WITH PROCEDURAL MASTER KEYS
 vfs_paths :: Array = ["/sys/firewall.cfg", "/sys/logs.txt", "/vault/data.key", "/sys/config.txt"];
 vfs_data  :: Array = ["PORT_80_OPEN=TRUE", "LOG_INIT_SUCCESS", "FLAG{VYNE_VNET_ROOT_ACCESS}", master_keys_str];
@@ -182,10 +184,11 @@ out("=========================================================================")
 proxy_chains_source :: Array = [];
 proxy_chains_proxy  :: Array = [];
 proxy_chains_target :: Array = [];
+proxy_mask_target   :: Array = [];
 
 # RIVAL BOT STALKER STATE
 bot_port  :: Int64   = 8999;
-bot_url   :: String  = "market.vnet";
+bot_url   :: String  = "zeroday.vnet";
 bot_timer :: Float64 = 0.0;
 
 # Add at top of server initialization:
