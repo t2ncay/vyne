@@ -57,6 +57,8 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
     buffer << file.rdbuf();
     const std::string content = buffer.str();
 
+    Vyne::DiagnosticEngine::setSourceText(content);
+
     try {
         auto tokens = tokenize(content);
         Parser parser(std::move(tokens));
@@ -93,10 +95,12 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
                     hasErrors2 = true;
                 }
             }
+
+            Vyne::DiagnosticEngine::printSummary();
+
             if (hasErrors2) {
                 return 1;
             }
-
             return 0;
 
         } else if (mode == "c") {
@@ -195,22 +199,17 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             if (run_result != 0)
                 std::cout << RED << "  >> exited with code " << run_result << RESET << "\n\n";
 
+            Vyne::DiagnosticEngine::printSummary();
+
             return 0;
         }
-
     } catch (const std::exception& e) {
         std::cerr << RED << "Error: " << e.what() << RESET << "\n";
-        
-        // ============ ADD THIS ============
-        auto& diags = Vyne::DiagnosticEngine::getDiagnostics();
-        for (const auto& d : diags) {
-            if (d.severity == Vyne::Severity::Error || d.severity == Vyne::Severity::Critical) {
-            }
-        }
-        
+
+        Vyne::DiagnosticEngine::printSummary();
+
         return 1;
     }
-
-
+    
     return 0;
 }
