@@ -1455,7 +1455,7 @@ Value ForNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     }
 
     const auto& elements = collection.asList();
-    auto& scope = env[currentGroupId];  // uses current group directly!!!!
+    auto& scope = env[currentGroupId];
     uint32_t itId = StringPool::instance().intern(iteratorName);
 
     Value savedIt;
@@ -1465,22 +1465,28 @@ Value ForNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     std::vector<Value> resultList;
     std::unordered_set<uint32_t> seenIds;
     Value lastVal;
+    bool everyResult = true;
 
     for (const auto& element : elements) {
-        scope[itId] = element;  // direct assignment in current group ( for now )
-        
+        scope[itId] = element;
+
         try {
             Value currentResult = body->evaluate(env, currentGroupId);
 
             switch(mode) {
-                case ForMode::COLLECT: 
-                    resultList.emplace_back(currentResult); 
-                    if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage(); 
+                case ForMode::COLLECT:
+                    resultList.emplace_back(currentResult);
+                    if (Vyne::getMemoryLimitEnabled()) Vyne::checkMemoryUsage();
                     break;
                 case ForMode::FILTER:
                     if (currentResult.isTruthy()) resultList.emplace_back(element);
                     break;
-                case ForMode::LOOP: lastVal = currentResult; break;
+                case ForMode::LOOP:
+                    lastVal = currentResult;
+                    break;
+                case ForMode::EVERY:
+                    if (!currentResult.isTruthy()) everyResult = false;
+                    break;
                 case ForMode::UNIQUE: {
                     uint32_t elementId = StringPool::instance().intern(element.toString());
                     if (seenIds.insert(elementId).second) {
@@ -1500,6 +1506,9 @@ Value ForNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
 
     if (mode == ForMode::COLLECT || mode == ForMode::FILTER || mode == ForMode::UNIQUE) {
         return Value(resultList);
+    }
+    if (mode == ForMode::EVERY) {
+        return Value(static_cast<int64_t>(everyResult ? 1 : 0));
     }
     return lastVal;
 }

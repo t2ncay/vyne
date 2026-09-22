@@ -879,6 +879,10 @@ public:
     Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     std::string getCExpr(C_Emitter& e) const override;
     void compile(C_Emitter& e) const override;
+
+    ASTNode* getReceiver() const { return receiver.get(); }
+    const std::string& getMethodName() const { return methodName; }
+    const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
 };
 
 class WhileNode : public ASTNode {
