@@ -1256,41 +1256,41 @@ void DeferNode::compile(C_Emitter& e) const {
 // ============================================================
 
 void NullCoalesceAssignmentNode::compile(C_Emitter& e) const {
-    std::string varName = "v_" + varName;
-    std::replace(varName.begin(), varName.end(), '.', '_');
-    
+    std::string cVar = "v_" + this->varName;
+    std::replace(cVar.begin(), cVar.end(), '.', '_');
+
     if (e.isGlobalContext()) {
-        if (e.getGlobalVars().count(varName) == 0) {
-            e.registerDeclaration(varName);
-            e.emitGlobalDecl("VyneValue " + varName + ";");
+        if (e.getGlobalVars().count(cVar) == 0) {
+            e.registerDeclaration(cVar);
+            e.emitGlobalDecl("VyneValue " + cVar + ";");
         }
         e.pushMainContext();
         std::string val = rhs->getCExpr(e);
-        e.emit("if (" + varName + ".type == V_NULL) {");
-        e.emit("    " + varName + " = " + val + ";");
+        e.emit("if (" + cVar + ".type == V_NULL) {");
+        e.emit("    " + cVar + " = " + val + ";");
         e.emit("}");
         e.popMainContext();
     } else {
-        if (!e.isLocalDeclared(varName)) {
-            e.registerDeclaration(varName);
+        if (!e.isLocalDeclared(cVar)) {
+            e.registerDeclaration(cVar);
             std::string val = rhs->getCExpr(e);
-            e.emit("VyneValue " + varName + " = vyne_null();");
-            e.emit("if (" + varName + ".type == V_NULL) {");
-            e.emit("    " + varName + " = " + val + ";");
+            e.emit("VyneValue " + cVar + " = vyne_null();");
+            e.emit("if (" + cVar + ".type == V_NULL) {");
+            e.emit("    " + cVar + " = " + val + ";");
             e.emit("}");
         } else {
             std::string val = rhs->getCExpr(e);
-            e.emit("if (" + varName + ".type == V_NULL) {");
-            e.emit("    " + varName + " = " + val + ";");
+            e.emit("if (" + cVar + ".type == V_NULL) {");
+            e.emit("    " + cVar + " = " + val + ";");
             e.emit("}");
         }
     }
 }
 
 std::string NullCoalesceAssignmentNode::getCExpr(C_Emitter& e) const {
-    std::string varName = "v_" + varName;
-    std::replace(varName.begin(), varName.end(), '.', '_');
-    return varName;
+    std::string cVar = "v_" + this->varName;
+    std::replace(cVar.begin(), cVar.end(), '.', '_');
+    return cVar;
 }
 
 // ============================================================
