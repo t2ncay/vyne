@@ -130,6 +130,9 @@ typedef struct VyneStruct {
     int method_count;
 } VyneStruct;
 
+static inline bool vyne_values_equal(VyneValue a, VyneValue b);
+static inline VyneValue vyne_to_string(VyneValue v);
+
 // ============================================================================
 // FUNCTION
 // ============================================================================
@@ -337,21 +340,27 @@ static inline VyneValue vyne_struct_get(VyneValue s_val, uint32_t field_id) {
     return vyne_null();
 }
 
-static inline void vyne_struct_set(VyneValue s_val, uint32_t field_id, VyneValue val) {
+static inline void vyne_struct_set(VyneValue s_val, uint32_t field_id,
+                                   const char* field_name, VyneValue val) {
     if (s_val.type != V_STRUCT) return;
     VyneStruct* s = s_val.as.strct;
+
     for (int i = 0; i < s->field_count; i++) {
         if (s->fields[i].id == field_id) {
             s->fields[i].value = val;
             return;
         }
     }
-    // Add new field if not exists
+
+    VyneField* new_fields = (VyneField*)arena_alloc(sizeof(VyneField) * (s->field_count + 1));
+    if (s->fields && s->field_count > 0) {
+        memcpy(new_fields, s->fields, sizeof(VyneField) * s->field_count);
+    }
+    new_fields[s->field_count].id = field_id;
+    new_fields[s->field_count].name = field_name;
+    new_fields[s->field_count].value = val;
+    s->fields = new_fields;
     s->field_count++;
-    s->fields = (VyneField*)arena_alloc(sizeof(VyneField) * s->field_count);
-    s->fields[s->field_count - 1].id = field_id;
-    s->fields[s->field_count - 1].name = StringPool::get(field_id);
-    s->fields[s->field_count - 1].value = val;
 }
 
 static inline void vyne_register_method(const char* type, const char* method, VyneMethodFn fn) {
@@ -486,24 +495,24 @@ static inline VyneValue vyne_to_string(VyneValue v) {
         case V_STRING:  return v;
         case V_ARRAY: {
             VyneArray* arr = v.as.arr;
-            size_t cap = 64;
-            char* tmp = (char*)arena_alloc(cap);
+            size_t total = 2; // '[' + ']'
+            for (int i = 0; i < arr->size; i++) {
+                VyneValue elem = vyne_to_string(arr->elements[i]);
+                total += strlen(elem.as.str);
+                if (i > 0) total += 2; // ", "
+            }
+            char* tmp = (char*)arena_alloc(total + 1);
             size_t pos = 0;
             tmp[pos++] = '[';
             for (int i = 0; i < arr->size; i++) {
-                if (i > 0) {
-                    if (pos + 2 >= cap) { cap *= 2; tmp = (char*)arena_alloc(cap); }
-                    tmp[pos++] = ','; tmp[pos++] = ' ';
-                }
+                if (i > 0) { tmp[pos++] = ','; tmp[pos++] = ' '; }
                 VyneValue elem = vyne_to_string(arr->elements[i]);
-                const char* s = (elem.type == V_STRING) ? elem.as.str : "null";
-                size_t slen = strlen(s);
-                if (pos + slen + 2 >= cap) { cap *= 2; tmp = (char*)arena_alloc(cap); }
-                memcpy(tmp + pos, s, slen);
+                size_t slen = strlen(elem.as.str);
+                memcpy(tmp + pos, elem.as.str, slen);
                 pos += slen;
             }
             tmp[pos++] = ']';
-            tmp[pos] = '\0';
+            tmp[pos]   = '\0';
             return vyne_string(tmp);
         }
         default: strcpy(buf, "[object]"); break;
