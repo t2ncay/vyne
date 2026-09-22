@@ -75,7 +75,7 @@ inline void CompressorProcessCallback(void *buffer, unsigned int frames) {
 
         last_gr_db = g_comp_enabled ? control_db : 0.0f;
 
-        // Bypass Path
+        // Bypass Path ( works for RBJ components )
         if (!g_comp_enabled) {
             float clean_peak = std::max(std::abs(left), std::abs(right));
             if (clean_peak > local_out_env) {
