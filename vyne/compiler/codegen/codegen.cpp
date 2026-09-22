@@ -54,13 +54,27 @@ void NullNode::compile(C_Emitter& e) const {}
 // ============================================================
 
 std::string VariableNode::getCExpr(C_Emitter& e) const {
-    std::string name = "v_" + originalName;
-    // Sanitize name for C
-    std::replace(name.begin(), name.end(), '.', '_');
-    if (e.isReference(name)) {
-        return "(*" + name + ")";
+    std::string sanitized = originalName;
+    std::replace(sanitized.begin(), sanitized.end(), '.', '_');
+
+    std::string prefix = e.getActiveFunctionPrefix();
+    std::string resolved;
+
+    if (!prefix.empty()) {
+        std::string localName = "v_" + prefix + "_" + sanitized;
+        if (e.isLocalDeclared(localName)) {
+            resolved = localName;
+        } else {
+            resolved = "v_" + sanitized;
+        }
+    } else {
+        resolved = "v_" + sanitized;
     }
-    return name;
+
+    if (e.isReference(resolved)) {
+        return "(*" + resolved + ")";
+    }
+    return resolved;
 }
 
 void VariableNode::compile(C_Emitter& e) const {
@@ -74,18 +88,39 @@ std::string AssignmentNode::getCExpr(C_Emitter& e) const {
 }
 
 void AssignmentNode::compile(C_Emitter& e) const {
-    std::string varName = "v_" + originalName;
-    std::replace(varName.begin(), varName.end(), '.', '_');
+    if (isReference) {
+        throw std::runtime_error(
+            "Compile Error: Reference variables are not supported by the C backend "
+            "(line " + std::to_string(lineNumber) + "). Use the interpreter instead.");
+    }
 
-    if (e.isGlobalContext()) {
-        if (e.getGlobalVars().count(varName) == 0) {
-            e.registerDeclaration(varName);
-            e.emitGlobalDecl("VyneValue " + varName + ";");
+    std::string sanitized = originalName;
+    std::replace(sanitized.begin(), sanitized.end(), '.', '_');
+
+    std::string prefix = e.getActiveFunctionPrefix();
+    std::string bareName = "v_" + sanitized;
+    bool hasGlobal = e.getGlobalVars().count(bareName) > 0;
+    bool isDeclaration = (expectedType != VType::Unknown);
+
+    bool useGlobal;
+    if (prefix.empty()) {
+        useGlobal = true;                      // top-level → global
+    } else if (!isDeclaration && hasGlobal) {
+        useGlobal = true;                      // inside fn, assigning existing global
+    } else {
+        useGlobal = false;                     // inside fn, local
+    }
+
+    std::string varName = useGlobal ? bareName
+                                    : ("v_" + prefix + "_" + sanitized);
+
+    if (useGlobal) {
+        if (!hasGlobal) {
+            e.registerDeclaration(bareName);
+            e.emitGlobalDecl("VyneValue " + bareName + ";");
         }
-        e.pushMainContext();
         std::string val = rhs->getCExpr(e);
-        e.emit(varName + " = " + val + ";");
-        e.popMainContext();
+        e.emit(bareName + " = " + val + ";");
     } else {
         if (!e.isLocalDeclared(varName)) {
             e.registerDeclaration(varName);
@@ -136,13 +171,19 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
 void BinOpNode::compile(C_Emitter& e) const { getCExpr(e); }
 
 std::string UnaryNode::getCExpr(C_Emitter& e) const {
+    if (op == VTokenType::Addresser) {
+        throw std::runtime_error(
+            "Compile Error: '&' (address-of) is not supported by the C backend "
+            "(line " + std::to_string(lineNumber) + "). Use the interpreter instead.");
+    }
+
     std::string val = right->getCExpr(e);
     std::string temp = e.newTemp("un");
     int opCode = static_cast<int>(op);
-    
+
     if (op == VTokenType::Exclamatory) opCode = 44;
     else if (op == VTokenType::Substract) opCode = 30;
-    
+
     e.emit("VyneValue " + temp + " = vyne_unary(" + val +
            ", " + std::to_string(opCode) + ");");
     return temp;
@@ -246,12 +287,35 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         return "vyne_null()";
     }
 
-    std::string listTemp = e.newTemp("res");
     std::string collection = iterable->getCExpr(e);
     std::string iTemp = e.newTemp("i");
     std::string sizeTemp = e.newTemp("sz");
     std::string elemVar = "v_" + iteratorName;
 
+    // --- EVERY mode: short-circuiting boolean AND over elements ---
+    if (mode == ForMode::EVERY) {
+        std::string everyTemp = e.newTemp("every");
+        std::string resTemp = e.newTemp("every_res");
+        e.emit("bool " + everyTemp + " = true;");
+        e.emitBlockOpen("if (" + collection + ".type == V_ARRAY) {");
+        e.emit("int64_t " + sizeTemp + " = " + collection + ".as.arr->size;");
+        e.emitBlockOpen("for (int64_t " + iTemp + " = 0; " +
+                        iTemp + " < " + sizeTemp + "; " + iTemp + "++) {");
+        e.emit("VyneValue " + elemVar + " = vyne_array_get(" +
+               collection + ", vyne_int(" + iTemp + "));");
+        std::string cond = body->getCExpr(e);
+        e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+        e.emit(everyTemp + " = false;");
+        e.emit("break;");
+        e.emitBlockClose();
+        e.emitBlockClose();
+        e.emitBlockClose();
+        e.emit("VyneValue " + resTemp + " = vyne_bool(" + everyTemp + ");");
+        return resTemp;
+    }
+
+    // --- COLLECT / FILTER / UNIQUE mode ---
+    std::string listTemp = e.newTemp("res");
     e.emit("VyneValue " + listTemp + " = vyne_array_create(0);");
     e.emitBlockOpen("if (" + collection + ".type == V_ARRAY) {");
     e.emit("int64_t " + sizeTemp + " = " + collection + ".as.arr->size;");
@@ -300,21 +364,23 @@ void FunctionNode::compile(C_Emitter& e) const {
 
     e.emitGlobalDecl("VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args);");
     e.pushFunctionContext();
+    e.enterFunction(mangledName);
 
     e.emit("// fn: " + originalName);
     e.emitBlockOpen("VyneValue fn_" + mangledName +
                     "(int arg_count, VyneValue* args) {");
 
     for (size_t i = 0; i < parameters.size(); ++i) {
-        std::string paramName = "v_" + parameters[i].name;
-        std::replace(paramName.begin(), paramName.end(), '.', '_');
+        std::string paramSanitized = parameters[i].name;
+        std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
+        std::string paramName = "v_" + mangledName + "_" + paramSanitized;
+
+        e.registerDeclaration(paramName);
         e.emit("VyneValue " + paramName +
                " = (arg_count > " + std::to_string(i) +
                ") ? args[" + std::to_string(i) + "] : vyne_null();");
     }
 
-    // Declare frame for local variables (optimized)
-    e.emit("// Function frame");
     for (const auto& stmt : body)
         if (stmt) stmt->compile(e);
 
@@ -322,6 +388,7 @@ void FunctionNode::compile(C_Emitter& e) const {
     e.emitBlockClose();
     e.emit("");
 
+    e.exitFunction();
     e.popFunctionContext();
 }
 
@@ -331,12 +398,16 @@ void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const
 
     e.emitGlobalDecl("VyneValue fn_" + name + "(int arg_count, VyneValue* args);");
     e.pushFunctionContext();
+    e.enterFunction(name);
     e.emit("// fn (aliased): " + mangledName);
     e.emitBlockOpen("VyneValue fn_" + name + "(int arg_count, VyneValue* args) {");
 
     for (size_t i = 0; i < parameters.size(); ++i) {
-        std::string paramName = "v_" + parameters[i].name;
-        std::replace(paramName.begin(), paramName.end(), '.', '_');
+        std::string paramSanitized = parameters[i].name;
+        std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
+        std::string paramName = "v_" + name + "_" + paramSanitized;
+
+        e.registerDeclaration(paramName);
         e.emit("VyneValue " + paramName +
                " = (arg_count > " + std::to_string(i) +
                ") ? args[" + std::to_string(i) + "] : vyne_null();");
@@ -348,6 +419,8 @@ void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const
     e.emit("return vyne_null();");
     e.emitBlockClose();
     e.emit("");
+
+    e.exitFunction();
     e.popFunctionContext();
 }
 
@@ -375,7 +448,11 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                std::to_string(argSize) + ");");
         for (int i = 0; i < argSize; ++i) {
             std::string val = arguments[i]->getCExpr(e);
-            e.emit(argArr + "[" + std::to_string(i) + "] = " + val + ";");
+            std::string copyTmp = e.newTemp("argc");
+            e.emit("VyneValue " + copyTmp + " = " + val + ";");
+            e.emit("if (" + copyTmp + ".type == V_ARRAY) " + copyTmp + " = vyne_array_deepcopy(" + copyTmp + ");");
+            e.emit("else if (" + copyTmp + ".type == V_MAP) " + copyTmp + " = vyne_map_deepcopy(" + copyTmp + ");");
+            e.emit(argArr + "[" + std::to_string(i) + "] = " + copyTmp + ";");
         }
     } else {
         e.emit("VyneValue* " + argArr + " = NULL;");
@@ -548,10 +625,17 @@ void BlockNode::compile(C_Emitter& e) const {
 }
 
 std::string BlockNode::getCExpr(C_Emitter& e) const {
-    compile(e);
-    return "vyne_null()";
-}
+    if (statements.empty()) return "vyne_null()";
 
+    if (statements.size() == 1) {
+        return statements[0]->getCExpr(e);
+    }
+
+    for (size_t i = 0; i + 1 < statements.size(); ++i) {
+        if (statements[i]) statements[i]->compile(e);
+    }
+    return statements.back()->getCExpr(e);
+}
 // ============================================================
 // TERNARY
 // ============================================================
@@ -844,6 +928,89 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         return temp;
     }
 
+    if (methodName == "pop_front") {
+        std::string temp = e.newTemp("pf");
+        e.emit("VyneValue " + temp + " = vyne_array_pop_front(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "back") {
+        std::string temp = e.newTemp("bk");
+        e.emit("VyneValue " + temp + " = vyne_array_back(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "delete_at") {
+        std::string idx = arguments[0]->getCExpr(e);
+        std::string temp = e.newTemp("delat");
+        e.emit("VyneValue " + temp + " = vyne_array_delete_at(" + recv +
+               ", (" + idx + ").as.i64);");
+        return temp;
+    }
+    if (methodName == "sort") {
+        e.emit("vyne_array_sort(" + recv + ");");
+        return recv;
+    }
+    if (methodName == "place_all") {
+        std::string v = arguments[0]->getCExpr(e);
+        std::string c = arguments[1]->getCExpr(e);
+        e.emit("vyne_array_place_all(" + recv + ", " + v +
+               ", (" + c + ").as.i64);");
+        return recv;
+    }
+
+        // --- String methods ---
+    if (methodName == "substr") {
+        if (arguments.empty()) {
+            throw std::runtime_error(
+                "Compile Error: substr() requires at least 1 argument (line " +
+                std::to_string(lineNumber) + ")");
+        }
+        std::string s = arguments[0]->getCExpr(e);
+        std::string c = (arguments.size() >= 2) ? arguments[1]->getCExpr(e) : "vyne_int(-1)";
+        std::string temp = e.newTemp("substr");
+        e.emit("VyneValue " + temp + " = vyne_string_substr(" + recv +
+               ", (" + s + ").as.i64, (" + c + ").as.i64);");
+        return temp;
+    }
+    if (methodName == "find") {
+        if (arguments.empty()) {
+            throw std::runtime_error(
+                "Compile Error: find() requires 1 argument (line " +
+                std::to_string(lineNumber) + ")");
+        }
+        std::string target = arguments[0]->getCExpr(e);
+        std::string temp = e.newTemp("find");
+        e.emit("VyneValue " + temp + " = vyne_string_find(" + recv + ", " + target + ");");
+        return temp;
+    }
+    if (methodName == "uppercase") {
+        std::string temp = e.newTemp("up");
+        e.emit("VyneValue " + temp + " = vyne_string_uppercase(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "lowercase") {
+        std::string temp = e.newTemp("lo");
+        e.emit("VyneValue " + temp + " = vyne_string_lowercase(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "trim") {
+        std::string temp = e.newTemp("tr");
+        e.emit("VyneValue " + temp + " = vyne_string_trim(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "replace") {
+        if (arguments.size() < 2) {
+            throw std::runtime_error(
+                "Compile Error: replace() requires 2 arguments (line " +
+                std::to_string(lineNumber) + ")");
+        }
+        std::string o = arguments[0]->getCExpr(e);
+        std::string n = arguments[1]->getCExpr(e);
+        std::string temp = e.newTemp("rep");
+        e.emit("VyneValue " + temp + " = vyne_string_replace(" + recv +
+               ", " + o + ", " + n + ");");
+        return temp;
+    }
+
     if (methodName == "has") {
         std::string arg = arguments[0]->getCExpr(e);
         std::string temp = e.newTemp("has");
@@ -868,11 +1035,12 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
     }
     if (methodName == "delete") {
         std::string k = arguments[0]->getCExpr(e);
-        e.emit("vyne_map_delete(" + recv + ", " + k + ");");
-        return "vyne_bool(1)";
+        std::string temp = e.newTemp("del");
+        e.emit("VyneValue " + temp + " = vyne_delete_any(" + recv + ", " + k + ");");
+        return temp;
     }
     if (methodName == "clear") {
-        e.emit("vyne_map_clear(" + recv + ");");
+        e.emit("vyne_clear_any(" + recv + ");");
         return recv;
     }
 
@@ -1058,7 +1226,24 @@ std::string ImportNode::getCExpr(C_Emitter& e) const {
 std::string EnumNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 void EnumNode::compile(C_Emitter& e) const {
-    e.emit("/* enum — values are inlined as constants */");
+    e.registerGroup(enumName);
+
+    // 1. Declare each member as a global VyneValue
+    for (const auto& [name, value] : members) {
+        std::string mangled = "v_" + enumName + "_" + name;
+        std::replace(mangled.begin(), mangled.end(), '.', '_');
+        e.emitGlobalDecl("VyneValue " + mangled + ";");
+        e.registerDeclaration(mangled);
+    }
+
+    // 2. Initialize in main
+    e.pushMainContext();
+    for (const auto& [name, value] : members) {
+        std::string mangled = "v_" + enumName + "_" + name;
+        std::replace(mangled.begin(), mangled.end(), '.', '_');
+        e.emit(mangled + " = vyne_int(" + std::to_string(value) + ");");
+    }
+    e.popMainContext();
 }
 
 void DeferNode::compile(C_Emitter& e) const {
@@ -1196,19 +1381,70 @@ void PipelineNode::compile(C_Emitter& e) const {
 }
 
 std::string PipelineNode::getCExpr(C_Emitter& e) const {
+    std::string leftVal = left->getCExpr(e);
+
+    // --- Case 1: right is a FUNCTION_CALL: a |> f(b, c) -> f(a, b, c) ---
     if (right->type() == NodeType::FUNCTION_CALL) {
-        return right->getCExpr(e);
+        auto* fc = static_cast<FunctionCallNode*>(right.get());
+        const auto& args = fc->getArguments();
+        int totalArgs = 1 + (int)args.size();
+
+        std::string argArr = e.newTemp("pipe_args");
+        std::string retTemp = e.newTemp("pipe_ret");
+
+        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+               std::to_string(totalArgs) + ");");
+        e.emit(argArr + "[0] = " + leftVal + ";");
+
+        for (size_t i = 0; i < args.size(); ++i) {
+            std::string v = args[i]->getCExpr(e);
+            e.emit(argArr + "[" + std::to_string(i + 1) + "] = " + v + ";");
+        }
+
+        std::string mangledName = fc->getOriginalName();
+        std::replace(mangledName.begin(), mangledName.end(), '.', '_');
+
+        e.emit("VyneValue " + retTemp + " = fn_" + mangledName +
+               "(" + std::to_string(totalArgs) + ", " + argArr + ");");
+        return retTemp;
     }
+
+    // --- Case 2: right is a METHOD_CALL: a |> obj.m(b) -> obj.m(a, b) ---
     if (right->type() == NodeType::METHOD_CALL) {
-        return right->getCExpr(e);
+        auto* mc = static_cast<MethodCallNode*>(right.get());
+        const auto& args = mc->getArguments();
+        int totalArgs = 1 + (int)args.size();
+
+        std::string recv = mc->getReceiver()->getCExpr(e);
+        std::string methodName = mc->getMethodName();
+
+        // Route through struct method call if method wasn't one of the
+        // built-in array/map ones. Otherwise fall back to a struct call.
+        std::string temp = e.newTemp("pipe_mret");
+        std::string argArr = e.newTemp("pipe_m_args");
+
+        e.emit("VyneValue " + temp + " = vyne_null();");
+        e.emitBlockOpen("if (" + recv + ".type == V_STRUCT) {");
+        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+               std::to_string(totalArgs + 1) + ");");
+        e.emit(argArr + "[0] = " + recv + ";");
+        e.emit(argArr + "[1] = " + leftVal + ";");
+        for (size_t i = 0; i < args.size(); ++i) {
+            e.emit(argArr + "[" + std::to_string(i + 2) + "] = " +
+                   args[i]->getCExpr(e) + ";");
+        }
+        e.emit(temp + " = vyne_struct_call(" + recv + ", \"" + methodName + "\", " +
+               std::to_string(totalArgs + 1) + ", " + argArr + ");");
+        e.emitBlockClose();
+        return temp;
     }
-    if (left) left->compile(e);
+
     if (right) right->compile(e);
-    return "vyne_null()";
+    return leftVal;
 }
 
 // ============================================================
-// TRY/CATCH/THROW/FINALLY (stubs for codegen)
+// TRY/CATCH/THROW/FINALLY (stubs for Compile)
 // ============================================================
 
 void ThrowNode::compile(C_Emitter& e) const {

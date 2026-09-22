@@ -26,6 +26,7 @@ class C_Emitter {
 
     std::unordered_set<std::string> importedFiles;
     std::string sourceDir;
+    std::string activeFunctionPrefix;
 
     int tempVarCount = 0;
 
@@ -60,6 +61,9 @@ public:
     void setSourceDir(const std::string& dir) { sourceDir = dir; }
 
     const std::unordered_set<std::string>& getGlobalVars() const { return globalVars; }
+    void enterFunction(const std::string& prefix) { activeFunctionPrefix = prefix; }
+    void exitFunction() { activeFunctionPrefix.clear(); }
+    const std::string& getActiveFunctionPrefix() const { return activeFunctionPrefix; }
 
     void pushMainContext() {
         contextStack.emplace_back(EmitContext::MAIN);
@@ -238,6 +242,7 @@ public:
         references.clear();
         importedFiles.clear();
         sourceDir = "";
+        activeFunctionPrefix.clear();
         tempVarCount = 0;
         indentLevel  = 1;
     }
