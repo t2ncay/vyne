@@ -60,8 +60,8 @@ Vyne uses a single AST with two execution paths:
 
 ```
 source.vy → Lexer → Parser → AST → ┌─ Interpreter ────┐
-                                    │                  │
-                                    └─ C Transpiler ──┘
+                                   │                  │
+                                   └─ C Transpiler  ──┘
                                            │
                                            ▼
                                       arena‑allocated C
