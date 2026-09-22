@@ -531,8 +531,6 @@ void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 // ============================================================
 
 void ProgramNode::compile(C_Emitter& e) const {
-    // Add proper includes
-    e.addInclude("vyne_runtime.h");
     for (const auto& stmt : statements)
         if (stmt) stmt->compile(e);
 }
@@ -616,14 +614,14 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
 
         if (modName == "self") {
             uint32_t fid = StringPool::intern(memberName);
-            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) + ", " + val + ");");
+            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
             return;
         }
     }
 
     std::string recv = receiver->getCExpr(e);
     uint32_t fid = StringPool::intern(memberName);
-    e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", " + val + ");");
+    e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
 }
 
 std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
@@ -1089,7 +1087,7 @@ void NullCoalesceMemberAssignmentNode::compile(C_Emitter& e) const {
     uint32_t fid = StringPool::intern(memberName);
     
     e.emit("{");  // scope
-    e.emit("VyneValue _field = vyne_struct_get(" + recv + ", " + std::to_string(fid) + ");");
+    e.emit("    vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
     e.emit("if (_field.type == V_NULL) {");
     e.emit("    vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", " + val + ");");
     e.emit("}");
