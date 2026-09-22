@@ -693,8 +693,8 @@ public:
         return Value(std::move(mapElements));
     }
 
-    void compile(C_Emitter& e) const override {}
-    std::string getCExpr(C_Emitter& e) const override { return ""; }
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Map; }
 };
 
@@ -1277,8 +1277,8 @@ public:
         return Value(result);
     }
     
-    void compile(C_Emitter& e) const override {}
-    std::string getCExpr(C_Emitter& e) const override { return ""; }
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class DeferNode : public ASTNode {

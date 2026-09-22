@@ -97,6 +97,7 @@ struct VyneValue {
         struct VyneArray* arr;
         struct VyneStruct* strct;
         struct VyneFunction* fn;
+        struct VyneMap* map;
         void* ptr;
     } as;
     int ref_count;
@@ -111,6 +112,20 @@ typedef struct VyneArray {
     int size;
     int capacity;
 } VyneArray;
+
+// ============================================================================
+// MAP
+// ============================================================================
+typedef struct VyneMapEntry {
+    const char* key;
+    VyneValue value;
+} VyneMapEntry;
+
+typedef struct VyneMap {
+    VyneMapEntry* entries;
+    int size;
+    int capacity;
+} VyneMap;
 
 // ============================================================================
 // STRUCT
@@ -132,6 +147,13 @@ typedef struct VyneStruct {
 
 static inline bool vyne_values_equal(VyneValue a, VyneValue b);
 static inline VyneValue vyne_to_string(VyneValue v);
+
+static inline bool vyne_values_equal(VyneValue a, VyneValue b);
+static inline VyneValue vyne_to_string(VyneValue v);
+
+static inline VyneValue vyne_array_get(VyneValue arr_val, VyneValue index_val);
+static inline void vyne_array_set(VyneValue arr_val, VyneValue index_val, VyneValue rhs);
+static inline void vyne_array_push(VyneValue arr_val, VyneValue val);
 
 // ============================================================================
 // FUNCTION
@@ -230,6 +252,118 @@ static inline VyneValue vyne_struct_create(const char* type_name) {
     s->method_count = 0;
     val.as.strct = s;
     return val;
+}
+
+// ============================================================================
+// MAP OPERATIONS
+// ============================================================================
+
+static inline VyneValue vyne_map_create(void) {
+    VyneValue val = { .type = V_MAP, .ref_count = 0 };
+    VyneMap* m = (VyneMap*)arena_alloc(sizeof(VyneMap));
+    m->capacity = 8;
+    m->size = 0;
+    m->entries = (VyneMapEntry*)arena_alloc(sizeof(VyneMapEntry) * m->capacity);
+    val.as.map = m;
+    return val;
+}
+
+static inline int _vyne_map_find(VyneMap* m, const char* key) {
+    for (int i = 0; i < m->size; i++) {
+        if (strcmp(m->entries[i].key, key) == 0) return i;
+    }
+    return -1;
+}
+
+static inline void vyne_map_set(VyneValue map_val, VyneValue key, VyneValue val) {
+    if (map_val.type != V_MAP || key.type != V_STRING) return;
+    VyneMap* m = map_val.as.map;
+    int idx = _vyne_map_find(m, key.as.str);
+    if (idx >= 0) { m->entries[idx].value = val; return; }
+
+    if (m->size >= m->capacity) {
+        int new_cap = m->capacity * 2;
+        VyneMapEntry* new_e = (VyneMapEntry*)arena_alloc(sizeof(VyneMapEntry) * new_cap);
+        memcpy(new_e, m->entries, sizeof(VyneMapEntry) * m->size);
+        m->entries = new_e;
+        m->capacity = new_cap;
+    }
+    m->entries[m->size].key = key.as.str;
+    m->entries[m->size].value = val;
+    m->size++;
+}
+
+static inline VyneValue vyne_map_get(VyneValue map_val, VyneValue key) {
+    if (map_val.type != V_MAP || key.type != V_STRING) return vyne_null();
+    VyneMap* m = map_val.as.map;
+    int idx = _vyne_map_find(m, key.as.str);
+    if (idx >= 0) return m->entries[idx].value;
+    return vyne_null();
+}
+
+static inline bool vyne_map_has(VyneValue map_val, VyneValue key) {
+    if (map_val.type != V_MAP || key.type != V_STRING) return false;
+    VyneMap* m = map_val.as.map;
+    return _vyne_map_find(m, key.as.str) >= 0;
+}
+
+static inline void vyne_map_delete(VyneValue map_val, VyneValue key) {
+    if (map_val.type != V_MAP || key.type != V_STRING) return;
+    VyneMap* m = map_val.as.map;
+    int idx = _vyne_map_find(m, key.as.str);
+    if (idx < 0) return;
+    for (int i = idx; i < m->size - 1; i++) {
+        m->entries[i] = m->entries[i + 1];
+    }
+    m->size--;
+}
+
+static inline void vyne_map_clear(VyneValue map_val) {
+    if (map_val.type != V_MAP) return;
+    map_val.as.map->size = 0;
+}
+
+static inline VyneValue vyne_map_keys(VyneValue map_val) {
+    if (map_val.type != V_MAP) return vyne_array_create(0);
+    VyneMap* m = map_val.as.map;
+    VyneValue res = vyne_array_create(0);
+    for (int i = 0; i < m->size; i++) {
+        vyne_array_push(res, vyne_string(m->entries[i].key));
+    }
+    return res;
+}
+
+static inline VyneValue vyne_map_values(VyneValue map_val) {
+    if (map_val.type != V_MAP) return vyne_array_create(0);
+    VyneMap* m = map_val.as.map;
+    VyneValue res = vyne_array_create(0);
+    for (int i = 0; i < m->size; i++) {
+        vyne_array_push(res, m->entries[i].value);
+    }
+    return res;
+}
+
+static inline VyneValue vyne_index_get(VyneValue base, VyneValue index) {
+    if (base.type == V_ARRAY) return vyne_array_get(base, index);
+    if (base.type == V_MAP) return vyne_map_get(base, index);
+    if (base.type == V_STRING && index.type == V_INT64) {
+        const char* s = base.as.str;
+        int len = (int)strlen(s);
+        int idx = (int)index.as.i64;
+        if (idx < 0 || idx >= len) return vyne_null();
+        char buf[2] = { s[idx], '\0' };
+        return vyne_string(buf);
+    }
+    return vyne_null();
+}
+
+static inline void vyne_index_set(VyneValue base, VyneValue index, VyneValue val) {
+    if (base.type == V_ARRAY) { vyne_array_set(base, index, val); return; }
+    if (base.type == V_MAP)   { vyne_map_set(base, index, val);   return; }
+}
+
+static inline void vyne_dismiss_module(const char* name) {
+    (void)name;
 }
 
 // ============================================================================
@@ -419,6 +553,17 @@ static inline void _vyne_print_internal(VyneValue v) {
             printf("]");
             break;
         }
+        case V_MAP: {
+            VyneMap* m = v.as.map;
+            printf("{");
+            for (int i = 0; i < m->size; i++) {
+                printf("\"%s\": ", m->entries[i].key);
+                _vyne_print_internal(m->entries[i].value);
+                if (i < m->size - 1) printf(", ");
+            }
+            printf("}");
+            break;
+        }
         case V_STRUCT: {
             VyneStruct* s = v.as.strct;
             printf("%s { ", s->type_name);
@@ -474,6 +619,7 @@ static inline const char* vyne_get_type_name(VyneValue v) {
 
 static inline int64_t vyne_get_sizeof(VyneValue v) {
     if (v.type == V_ARRAY) return (int64_t)v.as.arr->size;
+    if (v.type == V_MAP) return (int64_t)v.as.map->size;
     if (v.type == V_STRING) return (int64_t)strlen(v.as.str);
     if (v.type == V_STRUCT) return (int64_t)v.as.strct->field_count;
     return (int64_t)sizeof(VyneValue);
@@ -515,6 +661,35 @@ static inline VyneValue vyne_to_string(VyneValue v) {
             tmp[pos]   = '\0';
             return vyne_string(tmp);
         }
+        case V_MAP: {
+            VyneMap* m = v.as.map;
+            size_t total = 3;
+            for (int i = 0; i < m->size; i++) {
+                total += strlen(m->entries[i].key) + 6;
+                VyneValue vs = vyne_to_string(m->entries[i].value);
+                total += strlen(vs.as.str) + 2;
+            }
+            char* tmp = (char*)arena_alloc(total);
+            size_t pos = 0;
+            tmp[pos++] = '{';
+            for (int i = 0; i < m->size; i++) {
+                if (i > 0) { tmp[pos++] = ','; tmp[pos++] = ' '; }
+                tmp[pos++] = '"';
+                size_t kl = strlen(m->entries[i].key);
+                memcpy(tmp + pos, m->entries[i].key, kl);
+                pos += kl;
+                tmp[pos++] = '"';
+                tmp[pos++] = ':';
+                tmp[pos++] = ' ';
+                VyneValue vs = vyne_to_string(m->entries[i].value);
+                size_t vl = strlen(vs.as.str);
+                memcpy(tmp + pos, vs.as.str, vl);
+                pos += vl;
+            }
+            tmp[pos++] = '}';
+            tmp[pos] = '\0';
+            return vyne_string(tmp);
+        }
         default: strcpy(buf, "[object]"); break;
     }
     return vyne_string(buf);
@@ -536,6 +711,18 @@ static inline bool vyne_values_equal(VyneValue a, VyneValue b) {
         case V_INT64:   return a.as.i64 == b.as.i64;
         case V_FLOAT64: return a.as.f64 == b.as.f64;
         case V_STRING:  return strcmp(a.as.str, b.as.str) == 0;
+        case V_MAP: {
+            VyneMap* am = a.as.map;
+            VyneMap* bm = b.as.map;
+            if (am == bm) return true;
+            if (am->size != bm->size) return false;
+            for (int i = 0; i < am->size; i++) {
+                int idx = _vyne_map_find(bm, am->entries[i].key);
+                if (idx < 0) return false;
+                if (!vyne_values_equal(am->entries[i].value, bm->entries[idx].value)) return false;
+            }
+            return true;
+        }
         default:        return false;
     }
 }
@@ -682,6 +869,12 @@ static inline VyneValue vyne_in_operator(VyneValue left, VyneValue right, int is
             return vyne_bool(0);
         }
         result = strstr(right.as.str, left.as.str) != NULL;
+    } else if (right.type == V_MAP) {
+        if (left.type != V_STRING) {
+            fprintf(stderr, "Runtime Error: Map keys must be strings\n");
+            return vyne_bool(0);
+        }
+        result = vyne_map_has(right, left);
     } else {
         fprintf(stderr, "Runtime Error: 'in' operator requires array, map, or string on right side\n");
         return vyne_bool(0);

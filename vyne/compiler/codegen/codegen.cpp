@@ -421,7 +421,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     std::string b = base->getCExpr(e);
     std::string idx = index->getCExpr(e);
     std::string temp = e.newTemp("idx");
-    e.emit("VyneValue " + temp + " = vyne_array_get(" + b + ", " + idx + ");");
+    e.emit("VyneValue " + temp + " = vyne_index_get(" + b + ", " + idx + ");");
     return temp;
 }
 
@@ -431,7 +431,7 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
     std::string b = base->getCExpr(e);
     std::string i = index->getCExpr(e);
     std::string r = rhs->getCExpr(e);
-    e.emit("vyne_array_set(" + b + ", " + i + ", " + r + ");");
+    e.emit("vyne_index_set(" + b + ", " + i + ", " + r + ");");
 }
 
 std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const {
@@ -840,9 +840,40 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
     }
     if (methodName == "length" || methodName == "size") {
         std::string temp = e.newTemp("len");
-        e.emit("VyneValue " + temp +
-               " = vyne_int((int64_t)" + recv + ".as.arr->size);");
+        e.emit("VyneValue " + temp + " = vyne_int(vyne_get_sizeof(" + recv + "));");
         return temp;
+    }
+
+    if (methodName == "has") {
+        std::string arg = arguments[0]->getCExpr(e);
+        std::string temp = e.newTemp("has");
+        e.emit("VyneValue " + temp + " = vyne_bool(vyne_map_has(" + recv + ", " + arg + "));");
+        return temp;
+    }
+    if (methodName == "keys") {
+        std::string temp = e.newTemp("keys");
+        e.emit("VyneValue " + temp + " = vyne_map_keys(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "values") {
+        std::string temp = e.newTemp("vals");
+        e.emit("VyneValue " + temp + " = vyne_map_values(" + recv + ");");
+        return temp;
+    }
+    if (methodName == "set") {
+        std::string k = arguments[0]->getCExpr(e);
+        std::string v = arguments[1]->getCExpr(e);
+        e.emit("vyne_map_set(" + recv + ", " + k + ", " + v + ");");
+        return v;
+    }
+    if (methodName == "delete") {
+        std::string k = arguments[0]->getCExpr(e);
+        e.emit("vyne_map_delete(" + recv + ", " + k + ");");
+        return "vyne_bool(1)";
+    }
+    if (methodName == "clear") {
+        e.emit("vyne_map_clear(" + recv + ");");
+        return recv;
     }
 
     // Struct method call
@@ -1085,12 +1116,12 @@ void NullCoalesceMemberAssignmentNode::compile(C_Emitter& e) const {
     std::string recv = receiver->getCExpr(e);
     std::string val = rhs->getCExpr(e);
     uint32_t fid = StringPool::intern(memberName);
-    
-    e.emit("{");  // scope
-    e.emit("    vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
-    e.emit("if (_field.type == V_NULL) {");
-    e.emit("    vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", " + val + ");");
-    e.emit("}");
+
+    e.emit("{");
+    e.emit("    VyneValue _field = vyne_struct_get(" + recv + ", " + std::to_string(fid) + ");");
+    e.emit("    if (_field.type == V_NULL) {");
+    e.emit("        vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
+    e.emit("    }");
     e.emit("}");
 }
 
@@ -1108,7 +1139,9 @@ std::string DeferNode::getCExpr(C_Emitter& e) const {
     return "vyne_null()";
 }
 
-void DismissNode::compile(C_Emitter& e) const {}
+void DismissNode::compile(C_Emitter& e) const {
+    e.emit("vyne_dismiss_module(\"" + originalName + "\");");
+}
 
 std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
@@ -1204,3 +1237,57 @@ std::string TryCatchNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
+
+// ============================================================
+// MAP LITERAL
+// ============================================================
+
+std::string MapNode::getCExpr(C_Emitter& e) const {
+    std::string temp = e.newTemp("map");
+    e.emit("VyneValue " + temp + " = vyne_map_create();");
+    for (const auto& [keyNode, valNode] : pairs) {
+        std::string k = keyNode->getCExpr(e);
+        std::string v = valNode->getCExpr(e);
+        e.emit("vyne_map_set(" + temp + ", " + k + ", " + v + ");");
+    }
+    return temp;
+}
+
+void MapNode::compile(C_Emitter& e) const { getCExpr(e); }
+
+// ============================================================
+// INTERPOLATED STRING
+// ============================================================
+
+std::string InterpolatedStringNode::getCExpr(C_Emitter& e) const {
+    std::string acc = "vyne_string(\"\")";
+    size_t exprIdx = 0;
+
+    for (const auto& [part, isExpr] : parts) {
+        std::string piece;
+        if (isExpr) {
+            if (exprIdx >= exprNodes.size()) break;
+            std::string v = exprNodes[exprIdx++]->getCExpr(e);
+            piece = e.newTemp("is");
+            e.emit("VyneValue " + piece + " = vyne_to_string(" + v + ");");
+        } else {
+            std::string esc;
+            esc.reserve(part.size());
+            for (char c : part) {
+                if      (c == '\\') esc += "\\\\";
+                else if (c == '"')  esc += "\\\"";
+                else if (c == '\n') esc += "\\n";
+                else if (c == '\t') esc += "\\t";
+                else                esc += c;
+            }
+            piece = "vyne_string(\"" + esc + "\")";
+        }
+
+        std::string next = e.newTemp("icc");
+        e.emit("VyneValue " + next + " = vyne_binop(" + acc + ", " + piece + ", 29);");
+        acc = next;
+    }
+    return acc;
+}
+
+void InterpolatedStringNode::compile(C_Emitter& e) const { getCExpr(e); }
