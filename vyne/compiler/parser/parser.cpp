@@ -1794,6 +1794,57 @@ void Parser::applyRulesetFlag(const Token& ruleName, int line) {
         });
         return;
     }
+
+    // Strict: warnings become errors
+    if (ruleName.name == "strict") {
+        Vyne::DiagnosticEngine::setWarningsAsErrors(true);
+        Vyne::DiagnosticEngine::setQuietMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Strict mode: warnings escalate to errors",
+            "",
+            line,
+            0,
+            {"Disable with: ruleset { warnings }"},
+            "VNE-030"
+        });
+        return;
+    }
+
+    // Pedantic: enable style + performance hints
+    if (ruleName.name == "pedantic") {
+        Vyne::DiagnosticEngine::setPedanticMode(true);
+        Vyne::DiagnosticEngine::setQuietMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Style,
+            "Pedantic mode: style and performance hints enabled",
+            "",
+            line,
+            0,
+            {},
+            "VNE-031"
+        });
+        return;
+    }
+
+    // Verbose: show every diagnostic including notes
+    if (ruleName.name == "verbose") {
+        Vyne::DiagnosticEngine::setVerboseMode(true);
+        Vyne::DiagnosticEngine::setQuietMode(false);
+        emit(Vyne::Diagnostic{
+            Vyne::Severity::Note,
+            Vyne::Category::Runtime,
+            "Verbose mode: all diagnostics shown",
+            "",
+            line,
+            0,
+            {},
+            "VNE-032"
+        });
+        return;
+    }
     
     // Type check flag
     if (ruleName.name == "type_check" || ruleName.name == "type") {

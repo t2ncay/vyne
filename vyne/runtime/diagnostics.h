@@ -42,6 +42,28 @@ struct Diagnostic {
 class DiagnosticEngine;
 
 // =============================================================================
+// Source Code Getter
+// =============================================================================
+
+inline std::string vyne_getSourceLine(const std::string& src, int targetLine) {
+    if (targetLine <= 0 || src.empty()) return "";
+    int current = 1;
+    size_t start = 0;
+    for (size_t i = 0; i <= src.size(); ++i) {
+        if (i == src.size() || src[i] == '\n') {
+            if (current == targetLine) {
+                size_t end = i;
+                if (end > start && src[end - 1] == '\r') end--;
+                return src.substr(start, end - start);
+            }
+            current++;
+            start = i + 1;
+        }
+    }
+    return "";
+}
+
+// =============================================================================
 // Configuration System - Declaration only (no implementation)
 // =============================================================================
 
@@ -71,13 +93,29 @@ struct WarningConfig {
 class DiagnosticEngine {
     static inline bool quietMode = true;
     static inline bool strictMode = true;
+    static inline bool warningsAsErrors = false;
+    static inline bool pedanticMode = false;
+    static inline bool verboseMode = false;
     static inline size_t memoryLimit = 0;
     static inline WarningConfig config;
     static inline std::vector<Diagnostic> diagnostics;
+    static inline std::string sourceText;
 
 public:
     static void setQuietMode(bool quiet) { quietMode = quiet; }
     static bool isQuietMode() { return quietMode; }
+
+    static void setWarningsAsErrors(bool v) { warningsAsErrors = v; }
+    static bool areWarningsErrors() { return warningsAsErrors; }
+
+    static void setPedanticMode(bool v) { pedanticMode = v; }
+    static bool isPedantic() { return pedanticMode; }
+
+    static void setVerboseMode(bool v) { verboseMode = v; }
+    static bool isVerbose() { return verboseMode; }
+
+    static void setSourceText(const std::string& s) { sourceText = s; }
+    static void printSummary();
     
     static void setStrictMode(bool strict) { strictMode = strict; }
     static bool isStrictMode() { return strictMode; }
@@ -160,9 +198,20 @@ inline bool WarningConfig::shouldShow(Category category) const {
 // =============================================================================
 
 inline void DiagnosticEngine::emit(Diagnostic diag) {
-    if (quietMode && diag.severity != Severity::Critical) return;
-    if (diag.severity == Severity::Warning && !config.shouldShow(diag.category)) return;
-    
+    if (diag.severity == Severity::Warning && warningsAsErrors) {
+        diag.severity = Severity::Error;
+    }
+
+    bool isError = (diag.severity == Severity::Error ||
+                    diag.severity == Severity::Critical);
+
+    if (diag.severity == Severity::Note && !verboseMode) return;
+
+    if (quietMode && !isError && !verboseMode) return;
+
+    if (diag.severity == Severity::Warning && !pedanticMode &&
+        !config.shouldShow(diag.category)) return;
+
     diagnostics.push_back(diag);
     printDiagnostic(diag);
 }
@@ -195,28 +244,80 @@ inline void DiagnosticEngine::printDiagnostic(const Diagnostic& diag) {
         {Severity::Critical, {COLOR_RED, "[Critical]"}},
         {Severity::Performance, {COLOR_MAGENTA, "[Performance]"}},
     };
-    
+
     auto it = severityInfo.find(diag.severity);
+    std::string sevColor = COLOR_RESET;
     if (it != severityInfo.end()) {
-        std::cerr << it->second.first << it->second.second << COLOR_RESET;
+        sevColor = it->second.first;
+        std::cerr << sevColor << it->second.second << COLOR_RESET;
     }
-    
+
     if (!diag.code.empty()) {
         std::cerr << " " << COLOR_BOLD << diag.code << COLOR_RESET << ":";
     }
-    
+
     std::cerr << " " << diag.message;
     if (diag.line > 0) {
         std::cerr << " [line " << diag.line << "]";
     }
     std::cerr << "\n";
-    
+
+    // --- Source-context rendering with caret ---
+    if (!sourceText.empty() && diag.line > 0) {
+        std::string snippet = vyne_getSourceLine(sourceText, diag.line);
+        if (!snippet.empty()) {
+            std::string lineStr = std::to_string(diag.line);
+            std::string gutter(lineStr.size(), ' ');
+            std::cerr << COLOR_CYAN << "  " << gutter << " |" << COLOR_RESET << "\n";
+            std::cerr << COLOR_CYAN << "  " << lineStr << " | " << COLOR_RESET
+                      << snippet << "\n";
+            int col = (diag.column > 0) ? diag.column - 1 : 0;
+            std::cerr << COLOR_CYAN << "  " << gutter << " | " << COLOR_RESET;
+            for (int i = 0; i < col; ++i) std::cerr << ' ';
+            std::cerr << sevColor << COLOR_BOLD << "^" << COLOR_RESET << "\n";
+        }
+    }
+
     if (!diag.suggestions.empty()) {
         std::cerr << COLOR_CYAN << "  Suggestions:\n" << COLOR_RESET;
         for (const auto& suggestion : diag.suggestions) {
             std::cerr << "    - " << suggestion << "\n";
         }
     }
+}
+
+inline void DiagnosticEngine::printSummary() {
+    int notes = 0, warnings = 0, errors = 0, critical = 0, perf = 0;
+    for (const auto& d : diagnostics) {
+        switch (d.severity) {
+            case Severity::Note:        notes++;    break;
+            case Severity::Warning:     warnings++; break;
+            case Severity::Error:       errors++;   break;
+            case Severity::Critical:    critical++; break;
+            case Severity::Performance: perf++;     break;
+        }
+    }
+
+    int total = notes + warnings + errors + critical + perf;
+    if (total == 0) return;
+
+    std::cerr << "\n" << COLOR_BOLD << "[Summary]" << COLOR_RESET << " ";
+
+    bool first = true;
+    auto emitPart = [&](int count, const char* label, const char* color) {
+        if (count == 0) return;
+        if (!first) std::cerr << ", ";
+        first = false;
+        std::cerr << color << count << " " << label << COLOR_RESET;
+    };
+
+    emitPart(errors,   "error(s)",     COLOR_RED);
+    emitPart(warnings, "warning(s)",   COLOR_YELLOW);
+    emitPart(notes,    "note(s)",      COLOR_CYAN);
+    emitPart(perf,     "perf hint(s)", COLOR_MAGENTA);
+    emitPart(critical, "critical",     COLOR_RED);
+
+    std::cerr << "\n";
 }
 
 // =============================================================================
