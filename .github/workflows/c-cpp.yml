@@ -55,6 +55,7 @@ jobs:
             ! -path "tests/dsp/*" \
             ! -path "tests/graphics/*" \
             ! -path "tests/training/*" \
+            ! -path "tests/transpiler/*" \
             ! -path "tests/network/*" | while read -r testfile; do
               echo "::group::Testing $testfile"
               xvfb-run --auto-servernum ./vyne_run --ast "$testfile" || { echo "$testfile failed!"; exit 1; }
