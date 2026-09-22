@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include <time.h>
+#include <ctype.h>
 
 #define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
 #define VYNE_MAX_METHODS 256
@@ -154,6 +155,7 @@ static inline VyneValue vyne_to_string(VyneValue v);
 static inline VyneValue vyne_array_get(VyneValue arr_val, VyneValue index_val);
 static inline void vyne_array_set(VyneValue arr_val, VyneValue index_val, VyneValue rhs);
 static inline void vyne_array_push(VyneValue arr_val, VyneValue val);
+static inline VyneValue vyne_map_deepcopy(VyneValue mp);
 
 // ============================================================================
 // FUNCTION
@@ -367,6 +369,104 @@ static inline void vyne_dismiss_module(const char* name) {
 }
 
 // ============================================================================
+// STRING OPERATIONS
+// ============================================================================
+
+static inline VyneValue vyne_string_substr(VyneValue str, int64_t start, int64_t count) {
+    if (str.type != V_STRING) return vyne_null();
+    const char* s = str.as.str;
+    int64_t len = (int64_t)strlen(s);
+    if (start < 0) start = 0;
+    if (start > len) start = len;
+    if (count < 0) {
+        // till end
+        return vyne_string(s + start);
+    }
+    if (start + count > len) count = len - start;
+    char* buf = (char*)arena_alloc(count + 1);
+    memcpy(buf, s + start, count);
+    buf[count] = '\0';
+    return vyne_string(buf);
+}
+
+static inline VyneValue vyne_string_find(VyneValue str, VyneValue target) {
+    if (str.type != V_STRING || target.type != V_STRING) return vyne_int(-1);
+    const char* found = strstr(str.as.str, target.as.str);
+    if (!found) return vyne_int(-1);
+    return vyne_int((int64_t)(found - str.as.str));
+}
+
+static inline VyneValue vyne_string_uppercase(VyneValue str) {
+    if (str.type != V_STRING) return vyne_null();
+    size_t len = strlen(str.as.str);
+    char* buf = (char*)arena_alloc(len + 1);
+    for (size_t i = 0; i < len; i++) buf[i] = (char)toupper((unsigned char)str.as.str[i]);
+    buf[len] = '\0';
+    return vyne_string(buf);
+}
+
+static inline VyneValue vyne_string_lowercase(VyneValue str) {
+    if (str.type != V_STRING) return vyne_null();
+    size_t len = strlen(str.as.str);
+    char* buf = (char*)arena_alloc(len + 1);
+    for (size_t i = 0; i < len; i++) buf[i] = (char)tolower((unsigned char)str.as.str[i]);
+    buf[len] = '\0';
+    return vyne_string(buf);
+}
+
+static inline VyneValue vyne_string_trim(VyneValue str) {
+    if (str.type != V_STRING) return vyne_null();
+    const char* s = str.as.str;
+    size_t len = strlen(s);
+    size_t start = 0;
+    while (start < len && isspace((unsigned char)s[start])) start++;
+    size_t end = len;
+    while (end > start && isspace((unsigned char)s[end-1])) end--;
+    size_t new_len = end - start;
+    char* buf = (char*)arena_alloc(new_len + 1);
+    memcpy(buf, s + start, new_len);
+    buf[new_len] = '\0';
+    return vyne_string(buf);
+}
+
+static inline VyneValue vyne_string_replace(VyneValue str, VyneValue old_s, VyneValue new_s) {
+    if (str.type != V_STRING || old_s.type != V_STRING || new_s.type != V_STRING) return vyne_null();
+    const char* src = str.as.str;
+    const char* o = old_s.as.str;
+    const char* n = new_s.as.str;
+    size_t olen = strlen(o);
+    if (olen == 0) return str;
+    size_t nlen = strlen(n);
+
+    size_t count = 0;
+    const char* p = src;
+    while ((p = strstr(p, o)) != NULL) { count++; p += olen; }
+
+    size_t src_len = strlen(src);
+    size_t result_len = src_len + count * (nlen >= olen ? (nlen - olen) : 0);
+    if (nlen < olen) result_len = src_len - count * (olen - nlen);
+
+    char* buf = (char*)arena_alloc(result_len + 1);
+    size_t pos = 0;
+    p = src;
+    while (1) {
+        const char* found = strstr(p, o);
+        if (!found) {
+            size_t tail = strlen(p);
+            memcpy(buf + pos, p, tail);
+            pos += tail;
+            break;
+        }
+        size_t head = found - p;
+        memcpy(buf + pos, p, head); pos += head;
+        memcpy(buf + pos, n, nlen); pos += nlen;
+        p = found + olen;
+    }
+    buf[pos] = '\0';
+    return vyne_string(buf);
+}
+
+// ============================================================================
 // ARRAY OPERATIONS
 // ============================================================================
 
@@ -400,6 +500,32 @@ static inline void vyne_array_push(VyneValue arr_val, VyneValue val) {
     arr->elements[arr->size++] = val;
 }
 
+static inline VyneValue vyne_array_deepcopy(VyneValue arr) {
+    if (arr.type != V_ARRAY) return arr;
+    VyneValue result = vyne_array_create(0);
+    VyneArray* src = arr.as.arr;
+    for (int i = 0; i < src->size; i++) {
+        VyneValue elem = src->elements[i];
+        if (elem.type == V_ARRAY) elem = vyne_array_deepcopy(elem);
+        else if (elem.type == V_MAP) elem = vyne_map_deepcopy(elem);
+        vyne_array_push(result, elem);
+    }
+    return result;
+}
+
+static inline VyneValue vyne_map_deepcopy(VyneValue mp) {
+    if (mp.type != V_MAP) return mp;
+    VyneValue result = vyne_map_create();
+    VyneMap* src = mp.as.map;
+    for (int i = 0; i < src->size; i++) {
+        VyneValue elem = src->entries[i].value;
+        if (elem.type == V_ARRAY) elem = vyne_array_deepcopy(elem);
+        else if (elem.type == V_MAP) elem = vyne_map_deepcopy(elem);
+        vyne_map_set(result, vyne_string(src->entries[i].key), elem);
+    }
+    return result;
+}
+
 static inline VyneValue vyne_array_pop(VyneValue arr_val) {
     if (arr_val.type != V_ARRAY) return vyne_null();
     VyneArray* arr = arr_val.as.arr;
@@ -429,6 +555,106 @@ static inline bool vyne_array_contains(VyneValue arr_val, VyneValue target) {
         if (vyne_values_equal(arr->elements[i], target)) return true;
     }
     return false;
+}
+
+// ============================================================================
+// EXTENDED ARRAY OPERATIONS
+// ============================================================================
+
+static inline VyneValue vyne_array_pop_front(VyneValue arr_val) {
+    if (arr_val.type != V_ARRAY) return vyne_null();
+    VyneArray* arr = arr_val.as.arr;
+    if (arr->size == 0) return vyne_null();
+    VyneValue front = arr->elements[0];
+    for (int i = 1; i < arr->size; i++) arr->elements[i - 1] = arr->elements[i];
+    arr->size--;
+    return front;
+}
+
+static inline VyneValue vyne_array_back(VyneValue arr_val) {
+    if (arr_val.type != V_ARRAY) return vyne_null();
+    VyneArray* arr = arr_val.as.arr;
+    if (arr->size == 0) return vyne_null();
+    return arr->elements[arr->size - 1];
+}
+
+static inline bool vyne_array_delete(VyneValue arr_val, VyneValue target) {
+    if (arr_val.type != V_ARRAY) return false;
+    VyneArray* arr = arr_val.as.arr;
+    for (int i = 0; i < arr->size; i++) {
+        if (vyne_values_equal(arr->elements[i], target)) {
+            for (int j = i + 1; j < arr->size; j++) arr->elements[j - 1] = arr->elements[j];
+            arr->size--;
+            return true;
+        }
+    }
+    return false;
+}
+
+static inline VyneValue vyne_array_delete_at(VyneValue arr_val, int64_t idx) {
+    if (arr_val.type != V_ARRAY) return vyne_null();
+    VyneArray* arr = arr_val.as.arr;
+    if (idx < 0 || idx >= arr->size) return vyne_null();
+    VyneValue removed = arr->elements[idx];
+    for (int i = (int)idx + 1; i < arr->size; i++) arr->elements[i - 1] = arr->elements[i];
+    arr->size--;
+    return removed;
+}
+
+static inline int _vyne_cmp_values(const void* a, const void* b) {
+    VyneValue va = *(const VyneValue*)a;
+    VyneValue vb = *(const VyneValue*)b;
+    if ((va.type == V_INT64 || va.type == V_FLOAT64) &&
+        (vb.type == V_INT64 || vb.type == V_FLOAT64)) {
+        double da = (va.type == V_FLOAT64) ? va.as.f64 : (double)va.as.i64;
+        double db = (vb.type == V_FLOAT64) ? vb.as.f64 : (double)vb.as.i64;
+        if (da < db) return -1;
+        if (da > db) return  1;
+        return 0;
+    }
+    return 0;
+}
+
+static inline void vyne_array_sort(VyneValue arr_val) {
+    if (arr_val.type != V_ARRAY) return;
+    VyneArray* arr = arr_val.as.arr;
+    if (arr->size <= 1) return;
+    qsort(arr->elements, arr->size, sizeof(VyneValue), _vyne_cmp_values);
+}
+
+static inline void vyne_array_clear(VyneValue arr_val) {
+    if (arr_val.type != V_ARRAY) return;
+    arr_val.as.arr->size = 0;
+}
+
+static inline void vyne_array_place_all(VyneValue arr_val, VyneValue val, int64_t count) {
+    if (arr_val.type != V_ARRAY || count < 0) return;
+    VyneArray* arr = arr_val.as.arr;
+    if (count > arr->capacity) {
+        int new_cap = count < 4 ? 4 : (int)count;
+        VyneValue* new_elems = (VyneValue*)arena_alloc(sizeof(VyneValue) * new_cap);
+        arr->elements = new_elems;
+        arr->capacity = new_cap;
+    }
+    for (int64_t i = 0; i < count; i++) arr->elements[i] = val;
+    arr->size = (int)count;
+}
+
+// Polymorphic dispatch for methods that exist on both arrays and maps
+static inline VyneValue vyne_delete_any(VyneValue recv, VyneValue val) {
+    if (recv.type == V_ARRAY) {
+        return vyne_bool(vyne_array_delete(recv, val));
+    }
+    if (recv.type == V_MAP && val.type == V_STRING) {
+        vyne_map_delete(recv, val);
+        return vyne_bool(true);
+    }
+    return vyne_bool(false);
+}
+
+static inline void vyne_clear_any(VyneValue recv) {
+    if (recv.type == V_ARRAY)      vyne_array_clear(recv);
+    else if (recv.type == V_MAP)   vyne_map_clear(recv);
 }
 
 // ============================================================================
