@@ -416,7 +416,9 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
                 }
 
                 VTokenType next = lookAhead(checkPos).type;
-                if (next == VTokenType::Extends || next == VTokenType::Equals) {
+                if (next == VTokenType::Extends || 
+                    next == VTokenType::Equals || 
+                    next == VTokenType::NullCoalesceAssign) {
                     return parseAssignment();
                 }
             }
@@ -853,8 +855,6 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         if (explicitType == VType::Unknown) {
             throw std::runtime_error("Type Error : Unexpected type " + std::string(startTypeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
-
-        defineSymbol(currentId, explicitType, true, line, lastName);
     }
     std::vector<std::string> scope;
     std::unique_ptr<ASTNode> node;
