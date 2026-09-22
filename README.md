@@ -59,12 +59,12 @@ make
 Vyne uses a single AST with two execution paths:
 
 ```
-source.vy → Lexer → Parser → AST → ┌─ Interpreter ────┐
-                                   │                  │
+                                   ┌─ Interpreter ────┐
+source.vy → Lexer → Parser → AST → │                  │
                                    └─ C Transpiler  ──┘
                                            │
                                            ▼
-                                      arena‑allocated C
+                                    arena‑allocated C code
 ```
 
 | Component       | Description                                                                                                                    |
