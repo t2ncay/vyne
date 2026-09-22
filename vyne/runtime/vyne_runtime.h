@@ -837,6 +837,7 @@ static inline const char* vyne_get_type_name(VyneValue v) {
         case V_STRING:  return "String";
         case V_BOOL:    return "Boolean";
         case V_ARRAY:   return "Array";
+        case V_MAP:     return "Map";
         case V_STRUCT:  return "Struct";
         case V_NULL:    return "Null";
         default:        return "Unknown";
