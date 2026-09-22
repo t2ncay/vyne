@@ -1086,90 +1086,96 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     }
 
     if (lhs->type() == NodeType::VARIABLE) [[likely]] {
-        auto* var = static_cast<VariableNode*>(lhs.get());
-        uint32_t varId = var->getNameId();
-        std::string originalName = var->getOriginalName();
-        
-        VType varType = var->getStaticType();
-        bool isReference = var->isRefVar();
-        std::string customTypeName = "";
-        
-        bool hasTypeDecl = (peekToken().type == VTokenType::Extends) && (varType == VType::Unknown);
-        
-        if (hasTypeDecl) {
-            consume(VTokenType::Extends);
-            customTypeName = parseTypePath();
-            varType = resolveType(customTypeName);
-
-            if (peekToken().type == VTokenType::Referencer) {
-                consume(VTokenType::Referencer);
-                isReference = true;
-            }
-        } else if (varType == VType::Unknown) {
-            if (Vyne::isTypeStrict()) {
-                throw std::runtime_error(
-                    "Type Error: Variable '" + originalName + 
-                    "' requires explicit type declaration in strict mode. " +
-                    "Use ':: <type>' or enable dynamic typing with `ruleset` declarations " +
-                    "[ line " + std::to_string(line) + " ]"
-                );
-            } else {
-                if (!isQuietMode()) {
-                    warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
-                }
-            }
-        }
-
-        std::unique_ptr<ASTNode> rhs = nullptr;
-        if (peekToken().type == VTokenType::Equals) {
-            consume(VTokenType::Equals);
-
-            if(peekToken().type == VTokenType::Int64 && lookAhead(1).type == VTokenType::Double_Dot){
-                rhs = parseRange();
-            } else {
-                rhs = parseExpression();
-            }
-        } else {
-            if (isReference) {
-                rhs = std::make_unique<NullNode>();
-            } else {
-                switch (varType) {
-                    case VType::String:  rhs = std::make_unique<StringNode>(""); break;
-                    case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
-                    case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
-                    case VType::Bool:    rhs = std::make_unique<BooleanNode>(false); break;
-                    case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
-                    case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
-                    default:             
-                        if (!Vyne::isTypeStrict()) {
-                            rhs = std::make_unique<NullNode>(); 
-                        } else {
-                            throw std::runtime_error(
-                                "Type Error: Cannot default initialize '" + originalName + 
-                                "' without type declaration in strict mode [ line " + 
-                                std::to_string(line) + " ]"
-                            );
-                        }
-                        break;
-                }
-            }
-        }
-
-        consumeSemicolon();
-        
-        if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
-            defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
-        }
-
-        auto node = std::make_unique<AssignmentNode>(
-            varId, originalName, std::move(rhs), 
-            isConst, isReference, varType, std::vector<std::string>{}
-        );
-        node->lineNumber = line;
-        return node;
+        return parseVariableAssignment(std::move(lhs), line, isConst);
     }
     
     return lhs;
+}
+
+std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
+        std::unique_ptr<ASTNode> lhs, int line, bool isConst)
+{
+    auto* var = static_cast<VariableNode*>(lhs.get());
+    uint32_t varId = var->getNameId();
+    std::string originalName = var->getOriginalName();
+
+    VType varType = var->getStaticType();
+    bool isReference = var->isRefVar();
+    std::string customTypeName = "";
+
+    bool hasTypeDecl = (peekToken().type == VTokenType::Extends) && (varType == VType::Unknown);
+
+    if (hasTypeDecl) {
+        consume(VTokenType::Extends);
+        customTypeName = parseTypePath();
+        varType = resolveType(customTypeName);
+
+        if (peekToken().type == VTokenType::Referencer) {
+            consume(VTokenType::Referencer);
+            isReference = true;
+        }
+    } else if (varType == VType::Unknown) {
+        if (Vyne::isTypeStrict()) {
+            throw std::runtime_error(
+                "Type Error: Variable '" + originalName +
+                "' requires explicit type declaration in strict mode. "
+                "Use ':: <type>' or enable dynamic typing with `ruleset` declarations "
+                "[ line " + std::to_string(line) + " ]"
+            );
+        } else {
+            if (!isQuietMode()) {
+                warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+            }
+        }
+    }
+
+    std::unique_ptr<ASTNode> rhs = nullptr;
+    if (peekToken().type == VTokenType::Equals) {
+        consume(VTokenType::Equals);
+
+        if (peekToken().type == VTokenType::Int64 && lookAhead(1).type == VTokenType::Double_Dot) {
+            rhs = parseRange();
+        } else {
+            rhs = parseExpression();
+        }
+    } else {
+        if (isReference) {
+            rhs = std::make_unique<NullNode>();
+        } else {
+            switch (varType) {
+                case VType::String:  rhs = std::make_unique<StringNode>(""); break;
+                case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
+                case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
+                case VType::Bool:    rhs = std::make_unique<BooleanNode>(false); break;
+                case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
+                case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
+                default:
+                    if (!Vyne::isTypeStrict()) {
+                        rhs = std::make_unique<NullNode>();
+                    } else {
+                        throw std::runtime_error(
+                            "Type Error: Cannot default initialize '" + originalName +
+                            "' without type declaration in strict mode [ line " +
+                            std::to_string(line) + " ]"
+                        );
+                    }
+                    break;
+            }
+        }
+    }
+
+    consumeSemicolon();
+
+    if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
+        defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
+    }
+
+    auto node = std::make_unique<AssignmentNode>(
+        varId, originalName, std::move(rhs),
+        isConst, isReference, varType, std::vector<std::string>{}
+    );
+    node->lineNumber = line;
+    return node;
 }
 
 std::unique_ptr<ASTNode> Parser::parseEnum() {

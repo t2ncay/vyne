@@ -94,6 +94,7 @@ private:
 	std::unique_ptr<ASTNode> parseWhileLoop();
 	std::unique_ptr<ASTNode> parseForLoop();
 	std::unique_ptr<ASTNode> parseAssignment();
+	std::unique_ptr<ASTNode> parseVariableAssignment(std::unique_ptr<ASTNode> lhs, int line, bool isConst);
 	std::unique_ptr<ASTNode> parseGroupDefinition();
 	std::unique_ptr<ASTNode> parseModuleStatement();
 	std::unique_ptr<ASTNode> parseDismissStatement();
