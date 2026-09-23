@@ -30,6 +30,7 @@ private:
 	std::string currentGroupName;
 	std::string currentModuleName;
 	std::vector<std::string> groupPath;
+	std::string sourceDir;
 
 	void pushScope() { scopeStack.push_back({}); }
 	void popScope()  { scopeStack.pop_back(); }
@@ -128,6 +129,7 @@ public:
 	std::string parseTypePath();
 
 	Parser(std::vector<Token>&& t) : tokens(std::move(t)) {};
+	void setSourceDir(const std::string& dir) { sourceDir = dir; }
 
 	std::unique_ptr<ASTNode>     parseFunctionDefinition();
 	std::unique_ptr<ASTNode>     parseBuiltInCall();

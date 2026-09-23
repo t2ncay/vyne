@@ -176,7 +176,7 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     if (isExtern) {
         finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" / "modules" / "external" / cleanPath;
     } else {
-        finalPath = std::filesystem::current_path() / cleanPath;
+        finalPath = std::filesystem::path(sourceDir) / cleanPath;
     }
 
     if (std::filesystem::exists(finalPath)) {

@@ -100,6 +100,7 @@ class DiagnosticEngine {
     static inline WarningConfig config;
     static inline std::vector<Diagnostic> diagnostics;
     static inline std::string sourceText;
+    static inline std::string currentFile;
 
 public:
     static void setQuietMode(bool quiet) { quietMode = quiet; }
@@ -115,6 +116,9 @@ public:
     static bool isVerbose() { return verboseMode; }
 
     static void setSourceText(const std::string& s) { sourceText = s; }
+    static const std::string& getSourceText() { return sourceText; }
+    static void setCurrentFile(const std::string& f) { currentFile = f; }
+    static const std::string& getCurrentFile() { return currentFile; }
     static void printSummary();
     
     static void setStrictMode(bool strict) { strictMode = strict; }
@@ -198,6 +202,8 @@ inline bool WarningConfig::shouldShow(Category category) const {
 // =============================================================================
 
 inline void DiagnosticEngine::emit(Diagnostic diag) {
+    if (diag.file.empty()) diag.file = currentFile;
+
     if (diag.severity == Severity::Warning && warningsAsErrors) {
         diag.severity = Severity::Error;
     }
@@ -257,8 +263,14 @@ inline void DiagnosticEngine::printDiagnostic(const Diagnostic& diag) {
     }
 
     std::cerr << " " << diag.message;
-    if (diag.line > 0) {
-        std::cerr << " [line " << diag.line << "]";
+    if (!diag.file.empty() || diag.line > 0) {
+        std::cerr << " [";
+        if (!diag.file.empty()) {
+            std::cerr << diag.file;
+            if (diag.line > 0) std::cerr << ":";
+        }
+        if (diag.line > 0) std::cerr << diag.line;
+        std::cerr << "]";
     }
     std::cerr << "\n";
 
