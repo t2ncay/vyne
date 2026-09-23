@@ -3,12 +3,9 @@ use lib "vml.vy";
 use lib "vcolors.vy";
 use lib "vlinalg.vy";
 
-module vcore;
-module vfs;
-
 out(vcolors.cyan("=== VyneNet Deep Intelligence: Balanced Mode ==="));
 
-raw_data = vfs.parse_csv("crypto.csv");
+raw_data = 0;
 inputs_list = [];
 targets_list :: Array = [];
 
