@@ -344,7 +344,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     
     auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
     node->lineNumber = line;
-    node->setModuleName(currentModuleName);
+    node->setModuleName(namespacePart);
     return node;
 }
 

@@ -1,5 +1,16 @@
 ruleset { dynamic_casting, warnings };
 
+group Colors {
+    interface RGB {
+        r :: Int64,
+        g :: Int64,
+        b :: Int64,
+    }
+};
+
+c = Colors.RGB(255, 0, 0);
+out(c.r);
+
 # ============================================================
 # 1. Pipeline operator  |>
 # ============================================================
