@@ -231,6 +231,12 @@ static inline VyneValue vyne_string(const char* s) {
     return val;
 }
 
+static inline VyneValue vyne_string_own(char* s) {
+    VyneValue val = { .type = V_STRING, .ref_count = 0 };
+    val.as.str = s;
+    return val;
+}
+
 static inline VyneValue vyne_array_create(int initial_size) {
     VyneValue val = { .type = V_ARRAY, .ref_count = 0 };
     VyneArray* arr = (VyneArray*)arena_alloc(sizeof(VyneArray));
@@ -978,7 +984,7 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         memcpy(res, ls.as.str, llen);
         memcpy(res + llen, rs.as.str, rlen);
         res[llen + rlen] = '\0';
-        return vyne_string(res);
+        return vyne_string_own(res);
     }
 
     // Array concatenation
