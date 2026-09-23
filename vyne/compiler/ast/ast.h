@@ -773,6 +773,7 @@ class FunctionNode : public ASTNode {
     std::vector<Parameter> parameters;
     std::vector<std::shared_ptr<ASTNode>> body;
     VType returnType;
+    std::vector<std::string> typeParams;
 
 public:
     FunctionNode(std::string tm, uint32_t n, std::string on, std::vector<Parameter> pid, 
@@ -798,7 +799,11 @@ public:
     const std::vector<Parameter>& getParameters() const { return parameters; }
     VType getReturnType() const { return returnType; }
     const std::vector<std::shared_ptr<ASTNode>>& getBody() const { return body; }
+
+    void setTypeParams(std::vector<std::string> tp) { typeParams = std::move(tp); }
+    const std::vector<std::string>& getTypeParams() const { return typeParams; }
 };
+
 class FunctionCallNode : public ASTNode {
     uint32_t targetGroupId;
     uint32_t targetNameId;
@@ -806,6 +811,7 @@ class FunctionCallNode : public ASTNode {
     std::vector<std::unique_ptr<ASTNode>> arguments;
     std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> namedArguments;
     bool isNamespaced;
+    std::vector<std::string> typeArgs;
 
 public:
     FunctionCallNode(uint32_t fn, std::string name, std::vector<std::unique_ptr<ASTNode>> args)
@@ -859,6 +865,9 @@ public:
         return namedArguments;
     }
     bool hasNamedArguments() const { return !namedArguments.empty(); }
+
+    void setTypeArgs(std::vector<std::string> ta) { typeArgs = std::move(ta); }
+    const std::vector<std::string>& getTypeArgs() const { return typeArgs; }
 };
 
 class ReturnNode : public ASTNode {
@@ -1035,6 +1044,7 @@ class InterfaceNode : public ASTNode {
     std::vector<InterfaceMember> members;
     std::vector<std::shared_ptr<ASTNode>> methods;
     std::string moduleName;
+    std::vector<std::string> typeParams;   // NEW — e.g. ["T"] for interface Box<T>
 public:
 
     InterfaceNode(std::string in, std::vector<InterfaceMember> m, std::vector<std::shared_ptr<ASTNode>> meth) 
@@ -1067,6 +1077,9 @@ public:
 
     const std::string& getInterfaceName() const { return interfaceName; }
     const std::string& getModuleName() const { return moduleName; }
+
+    void setTypeParams(std::vector<std::string> tp) { typeParams = std::move(tp); }
+    const std::vector<std::string>& getTypeParams() const { return typeParams; }
 };
 
 class EnumNode : public ASTNode {
