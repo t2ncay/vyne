@@ -5,60 +5,240 @@
   "fileTypes": ["vy", "vyne"],
   "patterns": [
     { "include": "#comments" },
-    { "include": "#storage_types" },
+    { "include": "#ruleset" },
+    { "include": "#imports" },
+    { "include": "#function-declaration" },
+    { "include": "#interface-declaration" },
+    { "include": "#group-declaration" },
+    { "include": "#enum-declaration" },
+    { "include": "#module-declaration" },
+    { "include": "#exception-handlers" },
+    { "include": "#control-keywords" },
+    { "include": "#storage-modifiers" },
+    { "include": "#builtin-functions" },
+    { "include": "#builtin-modules" },
     { "include": "#constants" },
-    { "include": "#keywords" },
-    { "include": "#builtin_functions" },
-    { "include": "#modules" },
+    { "include": "#builtin-types" },
+    { "include": "#type-annotation" },
+    { "include": "#generic-invocation" },
     { "include": "#strings" },
     { "include": "#numbers" },
+    { "include": "#module-receiver" },
+    { "include": "#member-access" },
+    { "include": "#function-call" },
     { "include": "#operators" },
-    { "include": "#variables" }
+    { "include": "#punctuation" },
+    { "include": "#identifiers" }
   ],
   "repository": {
     "comments": {
+      "patterns": [{ "name": "comment.line.number-sign.vyne", "match": "#.*$" }]
+    },
+
+    "ruleset": {
       "patterns": [
         {
-          "name": "comment.line.number-sign.vyne",
-          "match": "#.*$"
+          "name": "meta.ruleset.vyne",
+          "begin": "\\b(ruleset)\\b",
+          "end": "(?=;|\\})",
+          "beginCaptures": {
+            "1": { "name": "storage.type.ruleset.vyne" }
+          },
+          "patterns": [
+            { "include": "#ruleset-flags" },
+            { "include": "#ruleset-values" }
+          ]
+        },
+        {
+          "name": "meta.ruleset.vyne",
+          "match": "\\bruleset\\s+([a-z_][a-zA-Z0-9_]*)\\s*;",
+          "captures": {
+            "0": { "name": "storage.type.ruleset.vyne" },
+            "1": { "name": "support.constant.ruleset.vyne" }
+          }
         }
       ]
     },
 
-    "keywords": {
+    "ruleset-flags": {
       "patterns": [
         {
-          "name": "keyword.control.vyne",
-          "match": "\\b(if|else|while|through|loop|collect|every|filter|unique|return|break|continue|in)\\b"
+          "name": "support.constant.ruleset.vyne",
+          "match": "\\b(warnings|dynamic_casting|memory_limit|strict|pedantic|verbose|debug|trace|profiling|type_check|implicit_casting|max_iterations|max_iter)\\b"
+        }
+      ]
+    },
+
+    "ruleset-values": {
+      "patterns": [
+        {
+          "name": "support.constant.ruleset-value.vyne",
+          "match": "\\b(all|none|error_only|hybrid|dynamic|warn|allow|deny|on|off|true|false)\\b"
+        }
+      ]
+    },
+
+    "imports": {
+      "patterns": [
+        {
+          "name": "meta.import.vyne",
+          "match": "\\b(use)\\s+(lib\\s+)?(\"(?:[^\"\\\\]|\\\\.)*\")(?:\\s+(as)\\s+([a-zA-Z_][a-zA-Z0-9_]*))?\\s*;?",
+          "captures": {
+            "1": { "name": "keyword.control.import.vyne" },
+            "2": { "name": "storage.modifier.lib.vyne" },
+            "3": { "name": "string.quoted.double.path.vyne" },
+            "4": { "name": "keyword.control.as.vyne" },
+            "5": { "name": "entity.name.namespace.alias.vyne" }
+          }
         },
+        {
+          "name": "meta.deploy.vyne",
+          "match": "\\b(deploy|dismiss)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+          "captures": {
+            "1": { "name": "keyword.control.module-lifecycle.vyne" },
+            "2": { "name": "entity.name.namespace.vyne" }
+          }
+        }
+      ]
+    },
+
+    "function-declaration": {
+      "patterns": [
+        {
+          "name": "meta.function.vyne",
+          "begin": "\\b(fn)\\s+(?:::)?\\s*([a-zA-Z_][a-zA-Z0-9_]*)?\\s*([a-zA-Z_][a-zA-Z0-9_]*)?",
+          "end": "(?=\\{)",
+          "beginCaptures": {
+            "1": { "name": "storage.type.function.vyne" },
+            "2": { "name": "entity.name.namespace.vyne" },
+            "3": { "name": "entity.name.function.vyne" }
+          },
+          "patterns": [
+            { "include": "#generic-params" },
+            { "include": "#parameters" },
+            { "include": "#return-arrow" }
+          ]
+        }
+      ]
+    },
+
+    "interface-declaration": {
+      "patterns": [
+        {
+          "name": "meta.interface.vyne",
+          "begin": "\\b(interface)\\s+([A-Z][a-zA-Z0-9_]*)",
+          "end": "(?=\\{)",
+          "beginCaptures": {
+            "1": { "name": "storage.type.interface.vyne" },
+            "2": { "name": "entity.name.type.interface.vyne" }
+          },
+          "patterns": [
+            { "include": "#generic-params" },
+            {
+              "name": "meta.interface-parent.vyne",
+              "match": "(::)\\s*([A-Z][a-zA-Z0-9_.]*)",
+              "captures": {
+                "1": { "name": "keyword.operator.injection.vyne" },
+                "2": { "name": "entity.name.namespace.vyne" }
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    "group-declaration": {
+      "patterns": [
+        {
+          "name": "meta.group.vyne",
+          "begin": "\\b(group)(?:\\s+(::)\\s*([a-zA-Z_][a-zA-Z0-9_]*))?\\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+          "end": "(?=\\{)",
+          "beginCaptures": {
+            "1": { "name": "storage.type.group.vyne" },
+            "2": { "name": "keyword.operator.injection.vyne" },
+            "3": { "name": "entity.name.namespace.vyne" },
+            "4": { "name": "entity.name.type.group.vyne" }
+          }
+        }
+      ]
+    },
+
+    "enum-declaration": {
+      "patterns": [
+        {
+          "name": "meta.enum.vyne",
+          "begin": "\\b(enum)\\s+([A-Z][a-zA-Z0-9_]*)",
+          "end": "(?=\\{)",
+          "beginCaptures": {
+            "1": { "name": "storage.type.enum.vyne" },
+            "2": { "name": "entity.name.type.enum.vyne" }
+          }
+        }
+      ]
+    },
+
+    "module-declaration": {
+      "patterns": [
+        {
+          "name": "meta.module.vyne",
+          "match": "\\b(module)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
+          "captures": {
+            "1": { "name": "storage.type.module.vyne" },
+            "2": { "name": "entity.name.namespace.vyne" }
+          }
+        }
+      ]
+    },
+
+    "exception-handlers": {
+      "patterns": [
         {
           "name": "keyword.control.exception.vyne",
           "match": "\\b(try|catch|finally|throw)\\b"
-        },
-        {
-          "name": "keyword.control.defer.vyne",
-          "match": "\\bdefer\\b"
-        },
-        {
-          "name": "keyword.other.import.vyne",
-          "match": "\\b(use|lib|as|deploy|dismiss)\\b"
-        },
-        {
-          "name": "keyword.other.ruleset.vyne",
-          "match": "\\b(ruleset|warnings|dynamic_casting|memory_limit|strict|pedantic|verbose)\\b"
         }
       ]
     },
 
-    "storage_types": {
+    "control-keywords": {
       "patterns": [
         {
-          "name": "storage.type.function.vyne",
-          "match": "\\bfn\\b"
+          "name": "keyword.control.vyne",
+          "match": "\\b(if|else|while|through|return|break|continue|in)\\b"
         },
         {
-          "name": "storage.type.vyne",
-          "match": "\\b(group|interface|enum|module)\\b"
+          "name": "keyword.control.loop-mode.vyne",
+          "match": "\\b(loop|collect|every|filter|unique)\\b"
+        }
+      ]
+    },
+
+    "storage-modifiers": {
+      "patterns": [
+        {
+          "name": "storage.modifier.const.vyne",
+          "match": "\\bconst\\b"
+        },
+        {
+          "name": "storage.modifier.defer.vyne",
+          "match": "\\bdefer\\b"
+        }
+      ]
+    },
+
+    "builtin-functions": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.vyne",
+          "match": "\\b(out|sizeof|type|string|int64|float64|sequence|exit|free|map)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+
+    "builtin-modules": {
+      "patterns": [
+        {
+          "name": "support.constant.builtin-module.vyne",
+          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|vnet|vserv|vml)\\b"
         }
       ]
     },
@@ -74,38 +254,134 @@
           "match": "\\bnull\\b"
         },
         {
-          "name": "storage.modifier.vyne",
-          "match": "\\bconst\\b"
-        },
-        {
           "name": "variable.language.self.vyne",
           "match": "\\bself\\b"
         }
       ]
     },
 
-    "builtin_functions": {
+    "builtin-types": {
       "patterns": [
         {
-          "name": "support.function.builtin.vyne",
-          "match": "\\b(out|sizeof|type|string|int64|float64|sequence|exit|free)\\b(?=\\s*\\()"
+          "name": "support.type.primitive.vyne",
+          "match": "\\b(Int64|Float64|String|Array|Bool|Map|Null|Function|Module|Reference)\\b"
         }
       ]
     },
 
-    "modules": {
+    "type-annotation": {
       "patterns": [
         {
-          "name": "support.function.vyne",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*(?=\\s*\\()"
-        },
+          "name": "meta.type-annotation.vyne",
+          "match": "(::)\\s*([A-Za-z_][a-zA-Z0-9_.]*)",
+          "captures": {
+            "1": { "name": "keyword.operator.type-annotation.vyne" },
+            "2": { "name": "entity.name.type.vyne" }
+          }
+        }
+      ]
+    },
+
+    "generic-invocation": {
+      "patterns": [
         {
-          "name": "support.type.module.vyne",
-          "match": "\\b(vcore|vglib|vaudio|vmem|vmath|vfs|vcv|vurage|vnet|vserv|vml)\\b"
-        },
+          "name": "meta.generic.vyne",
+          "begin": "\\b([A-Z][A-Za-z0-9_]*)(<)",
+          "end": ">",
+          "beginCaptures": {
+            "1": { "name": "entity.name.type.generic.vyne" },
+            "2": { "name": "punctuation.definition.generic.begin.vyne" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.generic.end.vyne" }
+          },
+          "patterns": [
+            { "include": "#builtin-types" },
+            {
+              "name": "entity.name.type.generic-arg.vyne",
+              "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "punctuation.separator.generic.vyne",
+              "match": ","
+            },
+            {
+              "name": "punctuation.definition.generic.begin.vyne",
+              "match": "<"
+            },
+            {
+              "name": "punctuation.definition.generic.end.vyne",
+              "match": ">"
+            }
+          ]
+        }
+      ]
+    },
+
+    "generic-params": {
+      "patterns": [
         {
-          "name": "support.type.primitive.vyne",
-          "match": "\\b(Int64|Float64|String|Array|Bool|Map|Null|Function|Module)\\b"
+          "name": "meta.generic-params.vyne",
+          "begin": "<",
+          "end": ">",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.generic.begin.vyne" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.generic.end.vyne" }
+          },
+          "patterns": [
+            {
+              "name": "entity.name.type.generic-param.vyne",
+              "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+            },
+            {
+              "name": "punctuation.separator.generic.vyne",
+              "match": ","
+            }
+          ]
+        }
+      ]
+    },
+
+    "parameters": {
+      "patterns": [
+        {
+          "name": "meta.parameters.vyne",
+          "begin": "\\(",
+          "end": "\\)",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.parameters.begin.vyne" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.section.parameters.end.vyne" }
+          },
+          "patterns": [
+            {
+              "name": "variable.parameter.vyne",
+              "match": "\\b[a-z_][a-zA-Z0-9_]*\\b(?=\\s*(?:::|\\)|,|&))"
+            },
+            { "include": "#type-annotation" },
+            { "include": "#builtin-types" },
+            { "include": "#generic-params" },
+            {
+              "name": "punctuation.separator.parameter.vyne",
+              "match": ","
+            }
+          ]
+        }
+      ]
+    },
+
+    "return-arrow": {
+      "patterns": [
+        {
+          "name": "meta.return-type.vyne",
+          "match": "(->)\\s*([A-Za-z_][A-Za-z0-9_.]*)",
+          "captures": {
+            "1": { "name": "keyword.operator.return-type.vyne" },
+            "2": { "name": "entity.name.type.return.vyne" }
+          }
         }
       ]
     },
@@ -116,29 +392,43 @@
           "name": "string.quoted.double.vyne",
           "begin": "\"",
           "end": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.vyne" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.vyne" }
+          },
           "patterns": [
-            { "include": "#string_interpolation" },
+            { "include": "#string-interpolation" },
             {
               "name": "constant.character.escape.vyne",
-              "match": "\\\\."
+              "match": "\\\\(?:[ntre\"\\\\{}]|[0-7]{1,3})"
             }
           ]
         }
       ]
     },
 
-    "string_interpolation": {
+    "string-interpolation": {
       "patterns": [
         {
-          "name": "meta.interpolation.vyne",
+          "name": "meta.embedded.expression.vyne",
           "begin": "\\{",
           "end": "\\}",
+          "beginCaptures": {
+            "0": { "name": "punctuation.section.interpolation.begin.vyne" }
+          },
+          "endCaptures": {
+            "0": { "name": "punctuation.section.interpolation.end.vyne" }
+          },
           "patterns": [
-            { "include": "#keywords" },
-            { "include": "#operators" },
-            { "include": "#numbers" },
+            { "include": "#builtin-functions" },
             { "include": "#constants" },
-            { "include": "#variables" }
+            { "include": "#numbers" },
+            { "include": "#operators" },
+            { "include": "#function-call" },
+            { "include": "#member-access" },
+            { "include": "#identifiers" }
           ]
         }
       ]
@@ -148,11 +438,45 @@
       "patterns": [
         {
           "name": "constant.numeric.float.vyne",
-          "match": "\\b[0-9]+\\.[0-9]+\\b"
+          "match": "\\b\\d+\\.\\d+\\b"
         },
         {
-          "name": "constant.numeric.int.vyne",
-          "match": "\\b[0-9]+\\b"
+          "name": "constant.numeric.integer.vyne",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    },
+
+    "module-receiver": {
+      "patterns": [
+        {
+          "name": "entity.name.namespace.vyne",
+          "match": "\\b[A-Z][A-Za-z0-9_]*(?=\\.[a-z_][A-Za-z0-9_]*\\s*\\()"
+        }
+      ]
+    },
+
+    "member-access": {
+      "patterns": [
+        {
+          "name": "meta.member-access.vyne",
+          "match": "\\.\\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "0": { "name": "meta.member.vyne" },
+            "1": { "name": "variable.other.member.vyne" }
+          }
+        }
+      ]
+    },
+
+    "function-call": {
+      "patterns": [
+        {
+          "name": "meta.function-call.vyne",
+          "match": "\\b([a-z_][a-zA-Z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.function.call.vyne" }
+          }
         }
       ]
     },
@@ -172,7 +496,7 @@
           "match": "->"
         },
         {
-          "name": "keyword.operator.scope.vyne",
+          "name": "keyword.operator.injection.vyne",
           "match": "::"
         },
         {
@@ -198,9 +522,14 @@
         {
           "name": "keyword.operator.ternary.vyne",
           "match": "\\?"
-        },
+        }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
         {
-          "name": "punctuation.separator.vyne",
+          "name": "punctuation.separator.colon.vyne",
           "match": ":"
         },
         {
@@ -216,17 +545,21 @@
           "match": "\\."
         },
         {
-          "name": "punctuation.bracket.vyne",
+          "name": "punctuation.section.bracket.vyne",
           "match": "[(){}\\[\\]]"
         }
       ]
     },
 
-    "variables": {
+    "identifiers": {
       "patterns": [
         {
           "name": "variable.other.vyne",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+          "match": "\\b[a-z_][a-zA-Z0-9_]*\\b"
+        },
+        {
+          "name": "entity.name.type.vyne",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
         }
       ]
     }
