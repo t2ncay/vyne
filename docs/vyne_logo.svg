@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="vyne-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2bc6b7"/>
+      <stop offset="100%" stop-color="#b8a0ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="134" ry="134" fill="url(#vyne-grad)"/>
+
+  <!-- Bold "V" as a path — no font needed -->
+  <path d="M 130 150
+           L 200 150
+           L 256 340
+           L 312 150
+           L 382 150
+           L 256 420
+           Z"
+        fill="#0b0d14"/>
+</svg>
