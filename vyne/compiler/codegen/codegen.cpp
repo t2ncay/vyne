@@ -420,25 +420,26 @@ static void emitFunctionBody(C_Emitter& e,
         e.pushDeferContext(cleanupLabel, retVar);
     }
 
-    // Body
     for (const auto& stmt : body)
         if (stmt) stmt->compile(e);
 
-    // Fall-through goes to cleanup too.
-    e.emit("goto " + cleanupLabel + ";");
+        if (!defers.empty()) {
+        e.emit("goto " + cleanupLabel + ";");
 
-    // Cleanup label: run defers, then return the value.
-    e.dedent();
-    e.emit(cleanupLabel + ":");
-    e.indent();
+        e.dedent();
+        e.emit(cleanupLabel + ":");
+        e.indent();
 
-    for (auto it = defers.rbegin(); it != defers.rend(); ++it) {
-        (*it)->getBody()->compile(e);
+        for (auto it = defers.rbegin(); it != defers.rend(); ++it) {
+            (*it)->getBody()->compile(e);
+        }
+
+        e.emit("return " + retVar + ";");
+        e.popDeferContext();
+    } else {
+        e.emit("return " + retVar + ";");
     }
 
-    e.emit("return " + retVar + ";");
-
-    if (!defers.empty()) e.popDeferContext();
     e.clearReturnVars();
 }
 
@@ -543,27 +544,16 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     }
 
     int argSize = (int)orderedArgs.size();
-    std::string argArr = e.newTemp("args");
     std::string retTemp = e.newTemp("ret");
 
     std::string mangledName = originalName;
     std::replace(mangledName.begin(), mangledName.end(), '.', '_');
 
-    if (argSize > 0) {
-        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
-               std::to_string(argSize) + ");");
-        for (int i = 0; i < argSize; ++i) {
-            std::string val = orderedArgs[i]->getCExpr(e);
-            std::string copyTmp = e.newTemp("argc");
-            e.emit("VyneValue " + copyTmp + " = " + val + ";");
-            e.emit("if (" + copyTmp + ".type == V_ARRAY) " + copyTmp + " = vyne_array_deepcopy(" + copyTmp + ");");
-            e.emit("else if (" + copyTmp + ".type == V_MAP) " + copyTmp + " = vyne_map_deepcopy(" + copyTmp + ");");
-            e.emit(argArr + "[" + std::to_string(i) + "] = " + copyTmp + ";");
-        }
-    } else {
-        e.emit("VyneValue* " + argArr + " = NULL;");
-    }
-
+    // ----------------------------------------------------------------
+    // Interface constructors take their arguments directly — no
+    // `args[]` array, no arena allocation, no deep-copy dance.
+    // Handle that case first so we don't emit dead argument code.
+    // ----------------------------------------------------------------
     if (e.isInterface(originalName) || e.isInterface(mangledName)) {
         if (hasNamedArguments()) {
             throw std::runtime_error(
@@ -593,8 +583,30 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             directArgs += argStrs[i];
         }
 
-        e.emit("VyneValue " + retTemp + " = struct_" + mangledName + "(" + directArgs + ");");
+        e.emit("VyneValue " + retTemp + " = struct_" + mangledName +
+               "(" + directArgs + ");");
         return retTemp;
+    }
+
+    // ----------------------------------------------------------------
+    // Normal function call: build args[] on the arena, deep-copy
+    // arrays/maps so callee mutations don't leak back to the caller.
+    // ----------------------------------------------------------------
+    std::string argArr = e.newTemp("args");
+
+    if (argSize > 0) {
+        e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+               std::to_string(argSize) + ");");
+        for (int i = 0; i < argSize; ++i) {
+            std::string val = orderedArgs[i]->getCExpr(e);
+            std::string copyTmp = e.newTemp("argc");
+            e.emit("VyneValue " + copyTmp + " = " + val + ";");
+            e.emit("if (" + copyTmp + ".type == V_ARRAY) " + copyTmp + " = vyne_array_deepcopy(" + copyTmp + ");");
+            e.emit("else if (" + copyTmp + ".type == V_MAP) " + copyTmp + " = vyne_map_deepcopy(" + copyTmp + ");");
+            e.emit(argArr + "[" + std::to_string(i) + "] = " + copyTmp + ";");
+        }
+    } else {
+        e.emit("VyneValue* " + argArr + " = NULL;");
     }
 
     e.emit("VyneValue " + retTemp + " = fn_" + mangledName +
