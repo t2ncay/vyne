@@ -802,6 +802,7 @@ class FunctionCallNode : public ASTNode {
     uint32_t targetNameId;
     std::string originalName;
     std::vector<std::unique_ptr<ASTNode>> arguments;
+    std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> namedArguments;
     bool isNamespaced;
 
 public:
@@ -848,6 +849,14 @@ public:
     uint32_t getTargetGroupId() const { return targetGroupId; }
     const std::string& getOriginalName() const { return originalName; }
     const std::vector<std::unique_ptr<ASTNode>>& getArguments() const { return arguments; }
+
+    void setNamedArguments(std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> args) {
+        namedArguments = std::move(args);
+    }
+    const std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>>& getNamedArguments() const {
+        return namedArguments;
+    }
+    bool hasNamedArguments() const { return !namedArguments.empty(); }
 };
 
 class ReturnNode : public ASTNode {
@@ -1287,6 +1296,7 @@ public:
 
 class DeferNode : public ASTNode {
     std::unique_ptr<ASTNode> body;
+    mutable bool collected = false;
     
 public:
     DeferNode(std::unique_ptr<ASTNode> b) 
@@ -1305,6 +1315,10 @@ public:
     
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+    
+    ASTNode* getBody() const { return body.get(); }
+    void markCollected() const { collected = true; }
+    bool isCollected() const { return collected; }
 };
 class InNode : public ASTNode {
     std::unique_ptr<ASTNode> left;

@@ -640,10 +640,48 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) 
     }
 
     auto funcData = funcVal.asFunction();
+
+    // --- Reorder arguments if using named-arg call syntax ---
+    std::vector<ASTNode*> orderedArgNodes;
+    if (hasNamedArguments()) {
+        std::unordered_map<std::string, ASTNode*> nameToArg;
+        for (const auto& [name, arg] : namedArguments) {
+            if (nameToArg.count(name)) {
+                throw std::runtime_error(
+                    "Runtime Error: duplicate named argument '" + name +
+                    "' in call to '" + originalName + "' [ line " +
+                    std::to_string(lineNumber) + " ]");
+            }
+            nameToArg[name] = arg.get();
+        }
+        for (const auto& param : funcData->params) {
+            auto argIt = nameToArg.find(param.name);
+            if (argIt == nameToArg.end()) {
+                throw std::runtime_error(
+                    "Runtime Error: missing argument '" + param.name +
+                    "' in call to '" + originalName + "' [ line " +
+                    std::to_string(lineNumber) + " ]");
+            }
+            orderedArgNodes.push_back(argIt->second);
+        }
+        for (const auto& [name, _] : nameToArg) {
+            bool found = false;
+            for (const auto& p : funcData->params) if (p.name == name) { found = true; break; }
+            if (!found) {
+                throw std::runtime_error(
+                    "Runtime Error: unknown argument '" + name +
+                    "' in call to '" + originalName + "' [ line " +
+                    std::to_string(lineNumber) + " ]");
+            }
+        }
+    } else {
+        for (const auto& a : arguments) orderedArgNodes.push_back(a.get());
+    }
+
     std::vector<Value> evaluatedArgs;
-    evaluatedArgs.reserve(arguments.size());
-    
-    for (const auto& arg : arguments) {
+    evaluatedArgs.reserve(orderedArgNodes.size());
+
+    for (auto* arg : orderedArgNodes) {
         if (arg) evaluatedArgs.emplace_back(arg->evaluate(env, currentGroupId));
     }
 
@@ -688,13 +726,13 @@ Value FunctionCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) 
         if (param.isReference) {
             Value* sourcePtr = nullptr;
             
-            if (arguments[i]->type() == NodeType::VARIABLE) {
-                auto* varNode = static_cast<VariableNode*>(arguments[i].get());
+            if (orderedArgNodes[i]->type() == NodeType::VARIABLE) {
+                auto* varNode = static_cast<VariableNode*>(orderedArgNodes[i]);
                 sourcePtr = env.getInternalPointer(currentGroupId, varNode->getNameId());
                 env.markUsed(varNode->getNameId());
             }
-            else if (arguments[i]->type() == NodeType::MEMBER_ACCESS) {
-                auto* memNode = static_cast<MemberAccessNode*>(arguments[i].get());
+            else if (orderedArgNodes[i]->type() == NodeType::MEMBER_ACCESS) {
+                auto* memNode = static_cast<MemberAccessNode*>(orderedArgNodes[i]);
                 Value memberVal = memNode->evaluate(env, currentGroupId);
                 if (memberVal.isReference()) {
                     sourcePtr = memberVal.getPointer();
