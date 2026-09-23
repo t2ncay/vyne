@@ -10,7 +10,7 @@ ruleset {
 #===============================================================================
 # Vyne Language Comprehensive Test Suite
 #===============================================================================
-# use lib "vcolors.vy";  # Test external module import
+use lib "vcolors.vy";  # Test external module import
 
 #===============================================================================
 # 1. BASIC TYPES AND OPERATIONS
@@ -455,7 +455,7 @@ through i :: start..end -> loop {
 
 out("Sum of 0..1000 = " + string(sum));
 
-out("\n=== ALL TESTS COMPLETED SUCCESSFULLY ===");
+out(vcolors.green("\n=== ALL TESTS COMPLETED SUCCESSFULLY ==="));
 
 #===============================================================================
 # 21. ENUMERATION TEST
