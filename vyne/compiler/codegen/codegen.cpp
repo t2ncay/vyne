@@ -244,8 +244,12 @@ std::string WhileNode::getCExpr(C_Emitter& e) const {
 void ReturnNode::compile(C_Emitter& e) const {
     std::string expr = expression ? expression->getCExpr(e) : "vyne_null()";
 
-    if (e.hasDeferContext()) {
-        e.emit(e.getDeferRetVar() + " = " + expr + ";");
+    if (e.hasTryCleanup() && e.hasReturnVars()) {
+        e.emit(e.getReturnVar() + " = " + expr + ";");
+        e.emit(e.getReturningVar() + " = 1;");
+        e.emit("goto " + e.currentTryCleanup() + ";");
+    } else if (e.hasDeferContext() && e.hasReturnVars()) {
+        e.emit(e.getReturnVar() + " = " + expr + ";");
         e.emit("goto " + e.getDeferCleanupLabel() + ";");
     } else {
         e.emit("return " + expr + ";");
@@ -257,10 +261,25 @@ std::string ReturnNode::getCExpr(C_Emitter& e) const {
     return "vyne_null()";
 }
 
-void BreakNode::compile(C_Emitter& e) const { e.emit("break;"); }
+void BreakNode::compile(C_Emitter& e) const {
+    if (e.hasTryCleanup()) {
+        throw std::runtime_error(
+            "Compile Error: 'break' inside try/catch/finally is not supported by "
+            "the C backend (line " + std::to_string(lineNumber) + "). "
+            "Use a flag variable and break outside the try.");
+    }
+    e.emit("break;");
+}
 std::string BreakNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
-void ContinueNode::compile(C_Emitter& e) const { e.emit("continue;"); }
+void ContinueNode::compile(C_Emitter& e) const {
+    if (e.hasTryCleanup()) {
+        throw std::runtime_error(
+            "Compile Error: 'continue' inside try/catch/finally is not supported by "
+            "the C backend (line " + std::to_string(lineNumber) + ").");
+    }
+    e.emit("continue;");
+}
 std::string ContinueNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 
 // ============================================================
@@ -365,6 +384,7 @@ static void emitFunctionBody(C_Emitter& e,
                              const std::vector<Parameter>& parameters,
                              const std::vector<std::shared_ptr<ASTNode>>& body,
                              const std::string& mangledName) {
+    // Parameters
     for (size_t i = 0; i < parameters.size(); ++i) {
         std::string paramSanitized = parameters[i].name;
         std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
@@ -376,6 +396,17 @@ static void emitFunctionBody(C_Emitter& e,
                ") ? args[" + std::to_string(i) + "] : vyne_null();");
     }
 
+    // Return-value slot (shared by defer and try/catch paths).
+    std::string retVar = "__ret_" + mangledName;
+    std::string retFlag = "__returning_" + mangledName;
+    std::string cleanupLabel = "__cleanup_" + mangledName;
+
+    e.emit("VyneValue " + retVar + " = vyne_null();");
+    e.emit("int " + retFlag + " = 0;");
+
+    e.setReturnVars(retVar, retFlag);
+
+    // Top-level defers (unchanged collection logic)
     std::vector<DeferNode*> defers;
     for (const auto& s : body) {
         if (s && s->type() == NodeType::DEFER) {
@@ -385,36 +416,30 @@ static void emitFunctionBody(C_Emitter& e,
         }
     }
 
-    std::string retVar = "__ret_" + mangledName;
-    std::string cleanupLabel = "__cleanup_" + mangledName;
-
     if (!defers.empty()) {
-        e.emit("VyneValue " + retVar + " = vyne_null();");
         e.pushDeferContext(cleanupLabel, retVar);
     }
 
+    // Body
     for (const auto& stmt : body)
         if (stmt) stmt->compile(e);
 
-    if (!defers.empty()) {
-        e.emit("goto " + cleanupLabel + ";");
-        e.dedent();
-        e.emit(cleanupLabel + ":");
-        e.indent();
+    // Fall-through goes to cleanup too.
+    e.emit("goto " + cleanupLabel + ";");
 
-        for (auto it = defers.rbegin(); it != defers.rend(); ++it) {
-            (*it)->getBody()->compile(e);
-        }
+    // Cleanup label: run defers, then return the value.
+    e.dedent();
+    e.emit(cleanupLabel + ":");
+    e.indent();
 
-        e.emit("return " + retVar + ";");
-        e.popDeferContext();
-    } else {
-        bool lastWasReturn = !body.empty() && body.back() &&
-                             body.back()->type() == NodeType::RETURN;
-        if (!lastWasReturn) {
-            e.emit("return vyne_null();");
-        }
+    for (auto it = defers.rbegin(); it != defers.rend(); ++it) {
+        (*it)->getBody()->compile(e);
     }
+
+    e.emit("return " + retVar + ";");
+
+    if (!defers.empty()) e.popDeferContext();
+    e.clearReturnVars();
 }
 
 void FunctionNode::compile(C_Emitter& e) const {
@@ -1643,7 +1668,8 @@ std::string PipelineNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 void ThrowNode::compile(C_Emitter& e) const {
-    e.emit("// throw statement - requires runtime support");
+    std::string expr = expression ? expression->getCExpr(e) : "vyne_null()";
+    e.emit("vyne_throw(" + expr + ");");
 }
 
 std::string ThrowNode::getCExpr(C_Emitter& e) const {
@@ -1659,9 +1685,90 @@ std::string FinallyNode::getCExpr(C_Emitter& e) const {
 }
 
 void TryCatchNode::compile(C_Emitter& e) const {
+    std::string mark        = e.newTemp("try_mark");
+    std::string cmark       = e.newTemp("catch_mark");
+    std::string frameLive   = e.newTemp("frame_live");
+    std::string cframeLive  = e.newTemp("cframe_live");
+    std::string caught      = e.newTemp("caught");
+    std::string errVar      = e.newTemp("try_err");
+    std::string cleanup     = e.newTemp("try_cleanup");
+
+    e.emit("VyneValue " + errVar + " = vyne_null();");
+    e.emit("int " + caught + " = 0;");
+    e.emit("int " + frameLive + " = 1;");
+    e.emit("int " + cframeLive + " = 0;");
+    e.emit("int " + mark + " = vyne_try_push();");
+
+    // ---- try body ----
+    e.emitBlockOpen("if (setjmp(g_exc_stack[" + mark + "].buf) == 0) {");
+    e.pushTryCleanup(cleanup);
     if (tryBody) tryBody->compile(e);
-    if (catchBody) catchBody->compile(e);
+    e.popTryCleanup();
+    e.emit("goto " + cleanup + ";");
+    e.emitBlockClose();
+
+    // ---- landed from a throw in the try body ----
+    // vyne_throw already popped the frame before the longjmp.
+    e.emit(frameLive + " = 0;");
+    e.emit(caught + " = 1;");
+    e.emit(errVar + " = g_exc_value;");
+
+    // ---- catch body in its own frame ----
+    if (catchBody) {
+        e.emit("int " + cmark + " = vyne_try_push();");
+        e.emit(cframeLive + " = 1;");
+        e.emitBlockOpen("if (setjmp(g_exc_stack[" + cmark + "].buf) == 0) {");
+
+        // Bind the catch variable in the current function scope
+        std::string prefix = e.getActiveFunctionPrefix();
+        std::string catchSanitized = catchVarName;
+        std::replace(catchSanitized.begin(), catchSanitized.end(), '.', '_');
+        std::string cVar = prefix.empty()
+            ? ("v_" + catchSanitized)
+            : ("v_" + prefix + "_" + catchSanitized);
+        e.registerDeclaration(cVar);
+        e.emit("VyneValue " + cVar + " = " + errVar + ";");
+
+        e.pushTryCleanup(cleanup);
+        catchBody->compile(e);
+        e.popTryCleanup();
+
+        e.emit("goto " + cleanup + ";");
+        e.emitBlockClose();
+
+        // ---- landed from a throw in the catch body ----
+        // vyne_throw already popped the catch frame.
+        e.emit(cframeLive + " = 0;");
+        e.emit(errVar + " = g_exc_value;");
+    }
+
+    // ---- cleanup label: run finally, decide what to do next ----
+    e.dedent();
+    e.emit(cleanup + ":");
+    e.indent();
+
+    // Pop whichever frame is still live (skip if throw already popped it).
+    e.emit("if (" + frameLive + ") vyne_try_pop();");
+    e.emit("if (" + cframeLive + ") { vyne_try_pop(); " + caught + " = 0; }");
+
     if (finallyBody) finallyBody->compile(e);
+
+    // Pending return takes priority — if the user wrote `return` inside the
+    // try or catch, the finally already ran above, so bubble it up now.
+    if (e.hasReturnVars()) {
+        e.emit("if (" + e.getReturningVar() + ") {");
+        if (e.hasTryCleanup()) {
+            e.emit("    goto " + e.currentTryCleanup() + ";");
+        } else if (e.hasDeferContext()) {
+            e.emit("    goto " + e.getDeferCleanupLabel() + ";");
+        } else {
+            e.emit("    return " + e.getReturnVar() + ";");
+        }
+        e.emit("}");
+    }
+
+    // If the try (or catch) threw and nothing cleared the flag, re-throw.
+    e.emit("if (" + caught + ") vyne_throw(" + errVar + ");");
 }
 
 std::string TryCatchNode::getCExpr(C_Emitter& e) const {

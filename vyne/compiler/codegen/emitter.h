@@ -40,6 +40,10 @@ class C_Emitter {
     };
     DeferContext deferCtx;
 
+    std::vector<std::string> tryCleanupStack;
+    std::string currentReturnVar;     // __ret_<fn>
+    std::string currentReturningVar;  // __returning_<fn>
+
     int tempVarCount = 0;
 
     enum class EmitContext { GLOBAL, FUNCTION, MAIN };
@@ -265,6 +269,19 @@ public:
         return nullptr;
     }
 
+    void pushTryCleanup(const std::string& label) { tryCleanupStack.push_back(label); }
+    void popTryCleanup() { if (!tryCleanupStack.empty()) tryCleanupStack.pop_back(); }
+    bool hasTryCleanup() const { return !tryCleanupStack.empty(); }
+    const std::string& currentTryCleanup() const { return tryCleanupStack.back(); }
+
+    void setReturnVars(const std::string& rv, const std::string& rf) {
+        currentReturnVar = rv; currentReturningVar = rf;
+    }
+    void clearReturnVars() { currentReturnVar.clear(); currentReturningVar.clear(); }
+    bool hasReturnVars() const { return !currentReturnVar.empty(); }
+    const std::string& getReturnVar() const { return currentReturnVar; }
+    const std::string& getReturningVar() const { return currentReturningVar; }
+
     // --- Defer context ---
     void pushDeferContext(const std::string& label, const std::string& retVar) {
         deferCtx = {label, retVar, true};
@@ -290,6 +307,9 @@ public:
         functionSignatures.clear();
         sourceDir = "";
         activeFunctionPrefix.clear();
+        tryCleanupStack.clear();
+        currentReturnVar.clear();
+        currentReturningVar.clear();
         tempVarCount = 0;
         indentLevel  = 1;
     }
