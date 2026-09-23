@@ -1,7 +1,4 @@
-#include "../ast/ast.h"
-#include "../parser/parser.h"
-#include <algorithm>
-#include <cctype>
+#include "codegen.h"
 
 // ============================================================
 // LITERALS
@@ -16,20 +13,25 @@ std::string NumberNode::getCExpr(C_Emitter& e) const {
 void NumberNode::compile(C_Emitter& e) const { /* literals are expressions only */ }
 
 std::string StringNode::getCExpr(C_Emitter& e) const {
-    std::string escaped = text;
-    // Escape quotes and backslashes for C output
-    size_t pos = 0;
-    while ((pos = escaped.find('"', pos)) != std::string::npos) {
-        escaped.replace(pos, 1, "\\\"");
-        pos += 2;
-    }
-    pos = 0;
-    while ((pos = escaped.find('\\', pos)) != std::string::npos) {
-        if (pos + 1 < escaped.size() && escaped[pos + 1] != '\\') {
-            escaped.replace(pos, 1, "\\\\");
-            pos += 2;
-        } else {
-            pos += 2;
+    (void)e;
+    std::string escaped;
+    escaped.reserve(text.size() * 2);
+    for (unsigned char c : text) {
+        switch (c) {
+            case '"':  escaped += "\\\""; break;
+            case '\\': escaped += "\\\\"; break;
+            case '\n': escaped += "\\n";  break;
+            case '\r': escaped += "\\r";  break;
+            case '\t': escaped += "\\t";  break;
+            default:
+                if (c < 0x20 || c == 0x7F) {
+                    // Non-printable byte → \xHH
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\x%02x", c);
+                    escaped += buf;
+                } else {
+                    escaped += static_cast<char>(c);
+                }
         }
     }
     return "vyne_string(\"" + escaped + "\")";
@@ -447,6 +449,10 @@ void FunctionNode::compile(C_Emitter& e) const {
     std::string mangledName = originalName;
     std::replace(mangledName.begin(), mangledName.end(), '.', '_');
 
+    if (!targetModule.empty()) {
+        mangledName = targetModule + "_" + mangledName;
+    }
+
     e.emitGlobalDecl("VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args);");
     e.pushFunctionContext();
     e.enterFunction(mangledName);
@@ -487,6 +493,9 @@ std::string FunctionNode::getCExpr(C_Emitter& e) const {
     compile(e);
     std::string name = originalName;
     std::replace(name.begin(), name.end(), '.', '_');
+    if (!targetModule.empty()) {
+        name = targetModule + "_" + name;
+    }
     return "fn_" + name;
 }
 
