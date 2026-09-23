@@ -29,13 +29,27 @@ std::vector<Token> tokenize(std::string_view input) {
                     char next = input[i+1];
                     if (next == 'n') { strBuffer += '\n'; i += 2; continue; }
                     else if (next == 't') { strBuffer += '\t'; i += 2; continue; }
+                    else if (next == 'r') { strBuffer += '\r'; i += 2; continue; }
+                    else if (next == 'e') { strBuffer += '\x1b'; i += 2; continue; }
+                    else if (next == '\\') { strBuffer += '\\'; i += 2; continue; }
                     else if (next == '\"') { strBuffer += '\"'; i += 2; continue; }
                     else if (next == '{') { strBuffer += '{'; i += 2; continue; }
                     else if (next == '}') { strBuffer += '}'; i += 2; continue; }
+                    else if (next >= '0' && next <= '7') {
+                        int val = 0, digits = 0;
+                        size_t j = i + 1;
+                        while (j < input.length() && digits < 3 &&
+                               input[j] >= '0' && input[j] <= '7') {
+                            val = val * 8 + (input[j] - '0');
+                            digits++; j++;
+                        }
+                        strBuffer += (char)val;
+                        i = j;
+                        continue;
+                    }
                 }
                 
                 if (input[i] == '{' && i + 1 < input.length() && input[i+1] != '{') {
-                    // Flush current string part
                     if (!strBuffer.empty()) {
                         parts.emplace_back(strBuffer, false);
                         strBuffer.clear();
