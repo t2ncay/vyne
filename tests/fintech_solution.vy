@@ -4,11 +4,6 @@
 
 ruleset {  dynamic_casting };
 
-module vmath;
-module vmem;
-module vfs;
-module vcv;
-
 interface AcademicProfile {
     gpa :: Float64,
     uni_rating :: Float64,
