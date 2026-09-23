@@ -8,6 +8,14 @@
 #include <time.h>
 #include <ctype.h>
 
+#if defined(_MSC_VER)
+    #define VYNE_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+    #define VYNE_NOINLINE __attribute__((noinline))
+#else
+    #define VYNE_NOINLINE
+#endif
+
 #define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
 #define VYNE_MAX_METHODS 256
 #define VYNE_MAX_FRAME_SIZE 1024
@@ -973,7 +981,8 @@ enum {
     VBOP_FLOOR_DIV = 51
 };
 
-static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
+__declspec(noinline)
+static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
     // String concatenation
     if (op == VBOP_ADD && (left.type == V_STRING || right.type == V_STRING)) {
         VyneValue ls = vyne_to_string(left);
@@ -987,7 +996,6 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         return vyne_string_own(res);
     }
 
-    // Array concatenation
     if (op == VBOP_ADD && left.type == V_ARRAY && right.type == V_ARRAY) {
         VyneArray* la = left.as.arr;
         VyneArray* ra = right.as.arr;
@@ -997,16 +1005,11 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         return result;
     }
 
-    // Short-circuit logical operators
-    if (op == VBOP_AND) {
-        return vyne_bool(vyne_is_truthy(left) && vyne_is_truthy(right));
-    }
-    if (op == VBOP_OR) {
-        return vyne_bool(vyne_is_truthy(left) || vyne_is_truthy(right));
-    }
+    if (op == VBOP_AND) return vyne_bool(vyne_is_truthy(left) && vyne_is_truthy(right));
+    if (op == VBOP_OR)  return vyne_bool(vyne_is_truthy(left) || vyne_is_truthy(right));
 
+    // Float math
     bool is_float_math = (left.type == V_FLOAT64 || right.type == V_FLOAT64);
-
     if (is_float_math &&
         (left.type == V_FLOAT64 || left.type == V_INT64) &&
         (right.type == V_FLOAT64 || right.type == V_INT64)) {
@@ -1033,7 +1036,16 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
         return vyne_null();
     }
 
-    if (left.type == V_INT64 && right.type == V_INT64) {
+    if (op == VBOP_EQ)  return vyne_bool(vyne_values_equal(left, right));
+    if (op == VBOP_NEQ) return vyne_bool(!vyne_values_equal(left, right));
+
+    fprintf(stderr, "Runtime error: Invalid operation between %s and %s\n",
+            vyne_get_type_name(left), vyne_get_type_name(right));
+    exit(1);
+}
+
+static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
+    if (__builtin_expect(left.type == V_INT64 && right.type == V_INT64, 1)) {
         int64_t l = left.as.i64;
         int64_t r = right.as.i64;
         switch (op) {
@@ -1056,16 +1068,14 @@ static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
             case VBOP_LT:  return vyne_bool(l < r);
             case VBOP_GTE: return vyne_bool(l >= r);
             case VBOP_LTE: return vyne_bool(l <= r);
+            case VBOP_AND: return vyne_bool((l != 0) && (r != 0));
+            case VBOP_OR:  return vyne_bool((l != 0) || (r != 0));
+            // Any other op with two int64 operands: not a valid combination.
+            default: break;
         }
-        return vyne_null();
     }
 
-    if (op == VBOP_EQ) return vyne_bool(vyne_values_equal(left, right));
-    if (op == VBOP_NEQ) return vyne_bool(!vyne_values_equal(left, right));
-
-    fprintf(stderr, "Runtime error: Invalid operation between %s and %s\n",
-            vyne_get_type_name(left), vyne_get_type_name(right));
-    exit(1);
+    return vyne_binop_slow(left, right, op);
 }
 
 // ============================================================================
