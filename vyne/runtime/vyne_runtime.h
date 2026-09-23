@@ -860,10 +860,10 @@ static inline const char* vyne_get_type_name(VyneValue v) {
 
 static inline int64_t vyne_get_sizeof(VyneValue v) {
     if (v.type == V_ARRAY) return (int64_t)v.as.arr->size;
-    if (v.type == V_MAP) return (int64_t)v.as.map->size;
+    if (v.type == V_MAP)   return (int64_t)v.as.map->size;
     if (v.type == V_STRING) return (int64_t)strlen(v.as.str);
     if (v.type == V_STRUCT) return (int64_t)v.as.strct->field_count;
-    return (int64_t)sizeof(VyneValue);
+    return 8;
 }
 
 static inline void _vyne_format_float(char* buf, double val) {
@@ -929,6 +929,31 @@ static inline VyneValue vyne_to_string(VyneValue v) {
             }
             tmp[pos++] = '}';
             tmp[pos] = '\0';
+            return vyne_string(tmp);
+        }
+        case V_STRUCT: {
+            VyneStruct* s = v.as.strct;
+            size_t total = strlen(s->type_name) + 4;
+            for (int i = 0; i < s->field_count; i++) {
+                total += strlen(s->fields[i].name) + 2;
+                VyneValue fv = vyne_to_string(s->fields[i].value);
+                total += strlen(fv.as.str) + 2;
+            }
+            char* tmp = (char*)arena_alloc(total);
+            size_t pos = 0;
+            memcpy(tmp + pos, s->type_name, strlen(s->type_name));
+            pos += strlen(s->type_name);
+            tmp[pos++]=' '; tmp[pos++]='{'; tmp[pos++]=' ';
+            for (int i = 0; i < s->field_count; i++) {
+                if (i) { tmp[pos++]=','; tmp[pos++]=' '; }
+                size_t kl = strlen(s->fields[i].name);
+                memcpy(tmp + pos, s->fields[i].name, kl); pos += kl;
+                tmp[pos++]=':'; tmp[pos++]=' ';
+                VyneValue fv = vyne_to_string(s->fields[i].value);
+                size_t vl = strlen(fv.as.str);
+                memcpy(tmp + pos, fv.as.str, vl); pos += vl;
+            }
+            tmp[pos++]=' '; tmp[pos++]='}'; tmp[pos]='\0';
             return vyne_string(tmp);
         }
         default: strcpy(buf, "[object]"); break;

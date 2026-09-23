@@ -738,9 +738,14 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
     if (funcName == "sequence") {
         if (arguments.size() < 2) return "vyne_array_create(0)";
         std::string start = arguments[0]->getCExpr(e);
-        std::string end = arguments[1]->getCExpr(e);
-        std::string temp = e.newTemp("seq");
-        e.emit("VyneValue " + temp + " = vyne_range_create(" + start + ", " + end + ");");
+        std::string end   = arguments[1]->getCExpr(e);
+        std::string temp  = e.newTemp("seq");
+        std::string iv    = e.newTemp("i");
+        e.emit("VyneValue " + temp + " = vyne_array_create(0);");
+        e.emitBlockOpen("for (int64_t " + iv + " = (" + start + ").as.i64; "
+                        + iv + " < (" + end + ").as.i64; " + iv + "++) {");
+        e.emit("vyne_array_push(" + temp + ", vyne_int(" + iv + "));");
+        e.emitBlockClose();
         return temp;
     }
     if (funcName == "map") {
@@ -1325,6 +1330,18 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         std::string temp = e.newTemp("rep");
         e.emit("VyneValue " + temp + " = vyne_string_replace(" + recv +
                ", " + o + ", " + n + ");");
+        return temp;
+    }
+
+    if (methodName == "fields") {
+        std::string temp = e.newTemp("flds");
+        e.emit("VyneValue " + temp + " = vyne_array_create(0);");
+        e.emitBlockOpen("if (" + recv + ".type == V_STRUCT) {");
+        e.emit("VyneStruct* __s = " + recv + ".as.strct;");
+        e.emitBlockOpen("for (int __i = 0; __i < __s->field_count; __i++) {");
+        e.emit("vyne_array_push(" + temp + ", vyne_string(__s->fields[__i].name));");
+        e.emitBlockClose();
+        e.emitBlockClose();
         return temp;
     }
 
