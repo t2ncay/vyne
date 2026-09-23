@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <unordered_set>
+#include <unordered_map>
 
 #include "../../modules/common/vcore/vcore.h"
 
@@ -27,6 +28,15 @@ class C_Emitter {
     std::unordered_set<std::string> importedFiles;
     std::string sourceDir;
     std::string activeFunctionPrefix;
+
+    std::unordered_map<std::string, std::vector<std::string>> functionSignatures;
+
+    struct DeferContext {
+        std::string cleanupLabel;
+        std::string retVar;
+        bool active = false;
+    };
+    DeferContext deferCtx;
 
     int tempVarCount = 0;
 
@@ -230,6 +240,26 @@ public:
     bool isInterface(const std::string& name) const { return interfaceSet.count(name) > 0; }
     bool isGroup(const std::string& name) const     { return groupSet.count(name) > 0; }
 
+    void registerFunctionSignature(const std::string& name, std::vector<std::string> params) {
+        functionSignatures[name] = std::move(params);
+    }
+    const std::vector<std::string>* getFunctionSignature(const std::string& name) const {
+        auto it = functionSignatures.find(name);
+        if (it != functionSignatures.end()) return &it->second;
+        return nullptr;
+    }
+
+    // --- Defer context ---
+    void pushDeferContext(const std::string& label, const std::string& retVar) {
+        deferCtx = {label, retVar, true};
+    }
+    void popDeferContext() {
+        deferCtx = {"", "", false};
+    }
+    bool hasDeferContext() const { return deferCtx.active; }
+    const std::string& getDeferCleanupLabel() const { return deferCtx.cleanupLabel; }
+    const std::string& getDeferRetVar() const { return deferCtx.retVar; }
+
     void reset() {
         globalsStream.str("");   globalsStream.clear();
         functionStream.str(""); functionStream.clear();
@@ -241,6 +271,7 @@ public:
         declaredVars.clear();
         references.clear();
         importedFiles.clear();
+        functionSignatures.clear();
         sourceDir = "";
         activeFunctionPrefix.clear();
         tempVarCount = 0;

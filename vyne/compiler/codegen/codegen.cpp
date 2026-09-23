@@ -242,10 +242,13 @@ std::string WhileNode::getCExpr(C_Emitter& e) const {
 }
 
 void ReturnNode::compile(C_Emitter& e) const {
-    if (expression) {
-        e.emit("return " + expression->getCExpr(e) + ";");
+    std::string expr = expression ? expression->getCExpr(e) : "vyne_null()";
+
+    if (e.hasDeferContext()) {
+        e.emit(e.getDeferRetVar() + " = " + expr + ";");
+        e.emit("goto " + e.getDeferCleanupLabel() + ";");
     } else {
-        e.emit("return vyne_null();");
+        e.emit("return " + expr + ";");
     }
 }
 
@@ -358,6 +361,62 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
 // FUNCTIONS
 // ============================================================
 
+static void emitFunctionBody(C_Emitter& e,
+                             const std::vector<Parameter>& parameters,
+                             const std::vector<std::shared_ptr<ASTNode>>& body,
+                             const std::string& mangledName) {
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        std::string paramSanitized = parameters[i].name;
+        std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
+        std::string paramName = "v_" + mangledName + "_" + paramSanitized;
+
+        e.registerDeclaration(paramName);
+        e.emit("VyneValue " + paramName +
+               " = (arg_count > " + std::to_string(i) +
+               ") ? args[" + std::to_string(i) + "] : vyne_null();");
+    }
+
+    std::vector<DeferNode*> defers;
+    for (const auto& s : body) {
+        if (s && s->type() == NodeType::DEFER) {
+            auto* d = static_cast<DeferNode*>(s.get());
+            d->markCollected();
+            defers.push_back(d);
+        }
+    }
+
+    std::string retVar = "__ret_" + mangledName;
+    std::string cleanupLabel = "__cleanup_" + mangledName;
+
+    if (!defers.empty()) {
+        e.emit("VyneValue " + retVar + " = vyne_null();");
+        e.pushDeferContext(cleanupLabel, retVar);
+    }
+
+    for (const auto& stmt : body)
+        if (stmt) stmt->compile(e);
+
+    if (!defers.empty()) {
+        e.emit("goto " + cleanupLabel + ";");
+        e.dedent();
+        e.emit(cleanupLabel + ":");
+        e.indent();
+
+        for (auto it = defers.rbegin(); it != defers.rend(); ++it) {
+            (*it)->getBody()->compile(e);
+        }
+
+        e.emit("return " + retVar + ";");
+        e.popDeferContext();
+    } else {
+        bool lastWasReturn = !body.empty() && body.back() &&
+                             body.back()->type() == NodeType::RETURN;
+        if (!lastWasReturn) {
+            e.emit("return vyne_null();");
+        }
+    }
+}
+
 void FunctionNode::compile(C_Emitter& e) const {
     std::string mangledName = originalName;
     std::replace(mangledName.begin(), mangledName.end(), '.', '_');
@@ -370,21 +429,8 @@ void FunctionNode::compile(C_Emitter& e) const {
     e.emitBlockOpen("VyneValue fn_" + mangledName +
                     "(int arg_count, VyneValue* args) {");
 
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        std::string paramSanitized = parameters[i].name;
-        std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
-        std::string paramName = "v_" + mangledName + "_" + paramSanitized;
+    emitFunctionBody(e, parameters, body, mangledName);
 
-        e.registerDeclaration(paramName);
-        e.emit("VyneValue " + paramName +
-               " = (arg_count > " + std::to_string(i) +
-               ") ? args[" + std::to_string(i) + "] : vyne_null();");
-    }
-
-    for (const auto& stmt : body)
-        if (stmt) stmt->compile(e);
-
-    e.emit("return vyne_null();");
     e.emitBlockClose();
     e.emit("");
 
@@ -402,21 +448,8 @@ void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const
     e.emit("// fn (aliased): " + mangledName);
     e.emitBlockOpen("VyneValue fn_" + name + "(int arg_count, VyneValue* args) {");
 
-    for (size_t i = 0; i < parameters.size(); ++i) {
-        std::string paramSanitized = parameters[i].name;
-        std::replace(paramSanitized.begin(), paramSanitized.end(), '.', '_');
-        std::string paramName = "v_" + name + "_" + paramSanitized;
+    emitFunctionBody(e, parameters, body, name);
 
-        e.registerDeclaration(paramName);
-        e.emit("VyneValue " + paramName +
-               " = (arg_count > " + std::to_string(i) +
-               ") ? args[" + std::to_string(i) + "] : vyne_null();");
-    }
-
-    for (const auto& stmt : body)
-        if (stmt) stmt->compile(e);
-
-    e.emit("return vyne_null();");
     e.emitBlockClose();
     e.emit("");
 
@@ -436,7 +469,55 @@ std::string FunctionNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
-    int argSize = (int)arguments.size();
+    // --- Build ordered argument list (handles named args) ---
+    std::vector<ASTNode*> orderedArgs;
+    if (hasNamedArguments()) {
+        const auto* sig = e.getFunctionSignature(originalName);
+        if (!sig) {
+            throw std::runtime_error(
+                "Compile Error: named arguments used for function '" + originalName +
+                "', but its signature is unknown. Define the function before calling it "
+                "(line " + std::to_string(lineNumber) + ").");
+        }
+
+        std::unordered_map<std::string, ASTNode*> nameToArg;
+        for (const auto& [name, arg] : namedArguments) {
+            if (nameToArg.count(name)) {
+                throw std::runtime_error(
+                    "Compile Error: duplicate named argument '" + name +
+                    "' in call to '" + originalName + "' (line " +
+                    std::to_string(lineNumber) + ").");
+            }
+            nameToArg[name] = arg.get();
+        }
+
+        for (const auto& paramName : *sig) {
+            auto it = nameToArg.find(paramName);
+            if (it == nameToArg.end()) {
+                throw std::runtime_error(
+                    "Compile Error: missing argument '" + paramName +
+                    "' in call to '" + originalName + "' (line " +
+                    std::to_string(lineNumber) + ").");
+            }
+            orderedArgs.push_back(it->second);
+        }
+
+        // Extra-arg check
+        for (const auto& [name, _] : nameToArg) {
+            bool found = false;
+            for (const auto& pn : *sig) if (pn == name) { found = true; break; }
+            if (!found) {
+                throw std::runtime_error(
+                    "Compile Error: unknown argument '" + name +
+                    "' in call to '" + originalName + "' (line " +
+                    std::to_string(lineNumber) + ").");
+            }
+        }
+    } else {
+        for (const auto& a : arguments) orderedArgs.push_back(a.get());
+    }
+
+    int argSize = (int)orderedArgs.size();
     std::string argArr = e.newTemp("args");
     std::string retTemp = e.newTemp("ret");
 
@@ -447,7 +528,7 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
                std::to_string(argSize) + ");");
         for (int i = 0; i < argSize; ++i) {
-            std::string val = arguments[i]->getCExpr(e);
+            std::string val = orderedArgs[i]->getCExpr(e);
             std::string copyTmp = e.newTemp("argc");
             e.emit("VyneValue " + copyTmp + " = " + val + ";");
             e.emit("if (" + copyTmp + ".type == V_ARRAY) " + copyTmp + " = vyne_array_deepcopy(" + copyTmp + ");");
@@ -459,10 +540,15 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     }
 
     if (e.isInterface(originalName) || e.isInterface(mangledName)) {
+        if (hasNamedArguments()) {
+            throw std::runtime_error(
+                "Compile Error: named arguments are not supported for interface constructors "
+                "(line " + std::to_string(lineNumber) + ").");
+        }
         std::string directArgs;
-        for (size_t i = 0; i < arguments.size(); ++i) {
+        for (size_t i = 0; i < orderedArgs.size(); ++i) {
             if (i > 0) directArgs += ", ";
-            directArgs += arguments[i]->getCExpr(e);
+            directArgs += orderedArgs[i]->getCExpr(e);
         }
         e.emit("VyneValue " + retTemp + " = struct_" + mangledName + "(" + directArgs + ");");
         return retTemp;
@@ -608,6 +694,15 @@ void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 // ============================================================
 
 void ProgramNode::compile(C_Emitter& e) const {
+    for (const auto& stmt : statements) {
+        if (stmt && stmt->type() == NodeType::FUNCTION) {
+            auto* fn = static_cast<FunctionNode*>(stmt.get());
+            std::vector<std::string> paramNames;
+            for (const auto& p : fn->getParameters()) paramNames.push_back(p.name);
+            e.registerFunctionSignature(fn->getOriginalName(), std::move(paramNames));
+        }
+    }
+
     for (const auto& stmt : statements)
         if (stmt) stmt->compile(e);
 }
@@ -1247,8 +1342,15 @@ void EnumNode::compile(C_Emitter& e) const {
 }
 
 void DeferNode::compile(C_Emitter& e) const {
-    // Defer is handled at runtime
-    e.emit("// defer statement");
+    if (isCollected()) {
+        return;
+    }
+
+    throw std::runtime_error(
+        "Compile Error: 'defer' is only supported at the top level of a function body "
+        "in the C backend (line " + std::to_string(lineNumber) + "). "
+        "Move the 'defer' to the function's top level, or use the interpreter "
+        "with --interp.");
 }
 
 // ============================================================
