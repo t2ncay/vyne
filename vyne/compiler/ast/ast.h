@@ -478,21 +478,39 @@ public:
     std::string getCExpr(C_Emitter& e) const override;
 
     VType getStaticType() const override {
-        switch(op) {
+        const VType lt = leftNode->getStaticType();
+        const VType rt = rightNode->getStaticType();
+
+        switch (op) {
             case VTokenType::Add:
+                if (lt == VType::String || rt == VType::String) return VType::String;
+                if (lt == VType::Array  && rt == VType::Array)  return VType::Array;
+                if (lt == VType::Float64 || rt == VType::Float64) return VType::Float64;
+                if (lt == VType::Int64   && rt == VType::Int64)   return VType::Int64;
+                return VType::Unknown;
             case VTokenType::Substract:
             case VTokenType::Multiply:
             case VTokenType::Division:
-                return VType::Float64;
+                // Vyne int/int → int (C-style truncation), see vyne_binop.
+                if (lt == VType::Float64 || rt == VType::Float64) return VType::Float64;
+                if (lt == VType::Int64   && rt == VType::Int64)   return VType::Int64;
+                return VType::Unknown;
             case VTokenType::Floor_Divide:
             case VTokenType::Modulo:
-                return VType::Int64;
+                if (lt == VType::Float64 || rt == VType::Float64) return VType::Float64;
+                if (lt == VType::Int64   && rt == VType::Int64)   return VType::Int64;
+                return VType::Unknown;
+            case VTokenType::Power:
+                return VType::Float64;
             case VTokenType::And:
             case VTokenType::Or:
             case VTokenType::Double_Equals:
+            case VTokenType::Not_Equal:
             case VTokenType::Greater:
             case VTokenType::Smaller:
-                return VType::Int64;
+            case VTokenType::Greater_Or_Equal:
+            case VTokenType::Smaller_Or_Equal:
+                return VType::Bool;
             default:
                 return VType::Unknown;
         }

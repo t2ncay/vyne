@@ -140,31 +140,143 @@ void AssignmentNode::compile(C_Emitter& e) const {
 // ============================================================
 
 std::string BinOpNode::getCExpr(C_Emitter& e) const {
+    // Materialize both operands first — their getCExpr() may emit statements.
     std::string l = leftNode->getCExpr(e);
     std::string r = rightNode->getCExpr(e);
     std::string temp = e.newTemp("bin");
+
+    // Static operand types drive fast-path selection.  When both sides are the
+    // same primitive, we can skip vyne_binop()'s runtime dispatch entirely and
+    // emit a single typed operation on the union member.
+    const VType lt = leftNode->getStaticType();
+    const VType rt = rightNode->getStaticType();
+
+    // =========================================================
+    // FAST PATH: Int64 op Int64
+    // =========================================================
+    if (lt == VType::Int64 && rt == VType::Int64) {
+        switch (op) {
+            case VTokenType::Add:
+                e.emit("VyneValue " + temp + " = vyne_int(" + l + ".as.i64 + " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Substract:
+                e.emit("VyneValue " + temp + " = vyne_int(" + l + ".as.i64 - " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Multiply:
+                e.emit("VyneValue " + temp + " = vyne_int(" + l + ".as.i64 * " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Division:
+            case VTokenType::Floor_Divide:
+                e.emit("if (" + r + ".as.i64 == 0) { fprintf(stderr, \"Runtime error: Division by zero!\\n\"); exit(1); }");
+                e.emit("VyneValue " + temp + " = vyne_int(" + l + ".as.i64 / " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Modulo:
+                e.emit("if (" + r + ".as.i64 == 0) { fprintf(stderr, \"Runtime error: Modulo by zero!\\n\"); exit(1); }");
+                e.emit("VyneValue " + temp + " = vyne_int(" + l + ".as.i64 % " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Power:
+                e.emit("VyneValue " + temp + " = vyne_float(pow((double)" + l + ".as.i64, (double)" + r + ".as.i64));");
+                return temp;
+            case VTokenType::Double_Equals:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 == " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Not_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 != " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Greater:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 > " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Smaller:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 < " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Greater_Or_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 >= " + r + ".as.i64);");
+                return temp;
+            case VTokenType::Smaller_Or_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.i64 <= " + r + ".as.i64);");
+                return temp;
+            case VTokenType::And:
+                e.emit("VyneValue " + temp + " = vyne_bool((" + l + ".as.i64 != 0) && (" + r + ".as.i64 != 0));");
+                return temp;
+            case VTokenType::Or:
+                e.emit("VyneValue " + temp + " = vyne_bool((" + l + ".as.i64 != 0) || (" + r + ".as.i64 != 0));");
+                return temp;
+            default:
+                break; // fall through to slow path
+        }
+    }
+
+    // =========================================================
+    // FAST PATH: Float64 op Float64
+    // =========================================================
+    if (lt == VType::Float64 && rt == VType::Float64) {
+        switch (op) {
+            case VTokenType::Add:
+                e.emit("VyneValue " + temp + " = vyne_float(" + l + ".as.f64 + " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Substract:
+                e.emit("VyneValue " + temp + " = vyne_float(" + l + ".as.f64 - " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Multiply:
+                e.emit("VyneValue " + temp + " = vyne_float(" + l + ".as.f64 * " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Division:
+                e.emit("if (" + r + ".as.f64 == 0.0) { fprintf(stderr, \"Runtime error: Division by zero!\\n\"); exit(1); }");
+                e.emit("VyneValue " + temp + " = vyne_float(" + l + ".as.f64 / " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Modulo:
+                e.emit("if (" + r + ".as.f64 == 0.0) { fprintf(stderr, \"Runtime error: Modulo by zero!\\n\"); exit(1); }");
+                e.emit("VyneValue " + temp + " = vyne_float(fmod(" + l + ".as.f64, " + r + ".as.f64));");
+                return temp;
+            case VTokenType::Power:
+                e.emit("VyneValue " + temp + " = vyne_float(pow(" + l + ".as.f64, " + r + ".as.f64));");
+                return temp;
+            case VTokenType::Double_Equals:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 == " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Not_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 != " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Greater:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 > " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Smaller:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 < " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Greater_Or_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 >= " + r + ".as.f64);");
+                return temp;
+            case VTokenType::Smaller_Or_Equal:
+                e.emit("VyneValue " + temp + " = vyne_bool(" + l + ".as.f64 <= " + r + ".as.f64);");
+                return temp;
+            default:
+                break; // fall through to slow path
+        }
+    }
+
+    // =========================================================
+    // SLOW PATH: dynamic dispatch through vyne_binop()
+    // =========================================================
     int opCode = static_cast<int>(op);
-    
-    // Map VTokenType to runtime op codes
     switch (op) {
-        case VTokenType::Add:       opCode = 29; break;
-        case VTokenType::Substract: opCode = 30; break;
-        case VTokenType::Multiply:  opCode = 31; break;
-        case VTokenType::Division:  opCode = 32; break;
-        case VTokenType::Modulo:    opCode = 36; break;
-        case VTokenType::Power:     opCode = 37; break;
-        case VTokenType::Double_Equals: opCode = 43; break;
-        case VTokenType::Not_Equal: opCode = 44; break;
-        case VTokenType::Greater:   opCode = 45; break;
-        case VTokenType::Smaller:   opCode = 46; break;
+        case VTokenType::Add:              opCode = 29; break;
+        case VTokenType::Substract:        opCode = 30; break;
+        case VTokenType::Multiply:         opCode = 31; break;
+        case VTokenType::Division:         opCode = 32; break;
+        case VTokenType::Modulo:           opCode = 36; break;
+        case VTokenType::Power:            opCode = 37; break;
+        case VTokenType::Double_Equals:    opCode = 43; break;
+        case VTokenType::Not_Equal:        opCode = 44; break;
+        case VTokenType::Greater:          opCode = 45; break;
+        case VTokenType::Smaller:          opCode = 46; break;
         case VTokenType::Greater_Or_Equal: opCode = 47; break;
         case VTokenType::Smaller_Or_Equal: opCode = 48; break;
-        case VTokenType::And:       opCode = 49; break;
-        case VTokenType::Or:        opCode = 50; break;
-        case VTokenType::Floor_Divide: opCode = 51; break;
+        case VTokenType::And:              opCode = 49; break;
+        case VTokenType::Or:               opCode = 50; break;
+        case VTokenType::Floor_Divide:     opCode = 51; break;
         default: break;
     }
-    
+
     e.emit("VyneValue " + temp + " = vyne_binop(" + l + ", " + r +
            ", " + std::to_string(opCode) + ");");
     return temp;
