@@ -118,10 +118,10 @@ private:
 
 public:
 	// --- Navigation ---
-    Token peekToken();
-	Token getNextToken();
-    Token lookAhead(int distance);
-    Token consume(VTokenType expected);
+    const Token& peekToken();
+	const Token& getNextToken();
+    const Token& lookAhead(int distance);
+    const Token& consume(VTokenType expected);
     void  consumeSemicolon();
 	bool isAtEnd();
 	VType resolveType(std::string_view typeName);

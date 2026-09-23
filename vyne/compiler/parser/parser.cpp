@@ -13,42 +13,46 @@ class ASTNode;
 class ProgramNode;
 class StringPool;
 
-Token Parser::getNextToken() {
+const Token& Parser::getNextToken() {
+    static const Token eofToken;
     if (pos < tokens.size()) {
         return tokens[pos++];
     }
-    return Token();
+    return eofToken;
 }
 
-Token Parser::peekToken() {
+const Token& Parser::peekToken() {
+    static const Token eofToken;
     if (pos < tokens.size()) {
         return tokens[pos];
     }
-    return Token();
+    return eofToken;
 }
 
-Token Parser::lookAhead(int distance) {
+const Token& Parser::lookAhead(int distance) {
+    static const Token eofToken;
     if (pos + distance < tokens.size()) {
         return tokens[pos + distance];
     }
-    return Token();
+    return eofToken;
 }
 
-Token Parser::consume(VTokenType expected) {
-    Token t = peekToken();
-    if (t.type == expected) {
+const Token& Parser::consume(VTokenType expected) {
+    static const Token eofToken;
+    if (pos < tokens.size() && tokens[pos].type == expected) {
         return tokens[pos++];
     }
-    
+
     emitError(
-        "Unexpected token! Expected " + VTokenTypeToString(expected) + 
+        "Unexpected token! Expected " + VTokenTypeToString(expected) +
         ", but got " + VTokenTypeToString(peekToken().type),
-        t.line,
+        peekToken().line,
         "VNE-001",
         {"Check the syntax at this position"}
     );
-    
+
     throw std::runtime_error("Compilation failed");
+    return eofToken;   // unreachable, keeps compilers happy
 }
 
 bool Parser::isAtEnd() {
@@ -361,6 +365,7 @@ void Parser::consumeSemicolon() {
 
 std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
     std::vector<std::shared_ptr<ASTNode>> statements;
+    statements.reserve(tokens.size() / 8);
 
     while (peekToken().type != VTokenType::End) {
         statements.emplace_back(parseStatement());
@@ -862,14 +867,42 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     if (peekToken().type == VTokenType::Left_Parenthese) {
         consume(VTokenType::Left_Parenthese);
         std::vector<std::unique_ptr<ASTNode>> args;
+        std::vector<std::pair<std::string, std::unique_ptr<ASTNode>>> namedArgs;
+        bool sawNamed = false;
+        bool sawPositional = false;
+
         if (peekToken().type != VTokenType::Right_Parenthese) {
             do {
                 if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
-                args.emplace_back(parseExpression());
+
+                // Named argument: `ident : expr`
+                if (peekToken().type == VTokenType::Identifier &&
+                    lookAhead(1).type == VTokenType::Colon) {
+                    std::string argName = peekToken().name;
+                    consume(VTokenType::Identifier);
+                    consume(VTokenType::Colon);
+                    auto value = parseExpression();
+                    namedArgs.emplace_back(argName, std::move(value));
+                    sawNamed = true;
+                } else {
+                    args.emplace_back(parseExpression());
+                    sawPositional = true;
+                }
             } while (peekToken().type == VTokenType::Comma);
         }
         consume(VTokenType::Right_Parenthese);
-        node = std::make_unique<FunctionCallNode>(currentId, lastName, std::move(args));
+
+        if (sawNamed && sawPositional) {
+            throw std::runtime_error(
+                "Syntax Error: cannot mix positional and named arguments in call to '" +
+                lastName + "' [ line " + std::to_string(line) + " ]");
+        }
+
+        auto funcCall = std::make_unique<FunctionCallNode>(currentId, lastName, std::move(args));
+        if (!namedArgs.empty()) {
+            funcCall->setNamedArguments(std::move(namedArgs));
+        }
+        node = std::move(funcCall);
     } else {
         node = std::make_unique<VariableNode>(currentId, tok.name, explicitType, std::vector<std::string>{}, isRefVar);
     }
