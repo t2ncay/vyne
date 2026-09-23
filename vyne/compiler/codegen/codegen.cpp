@@ -545,11 +545,29 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                 "Compile Error: named arguments are not supported for interface constructors "
                 "(line " + std::to_string(lineNumber) + ").");
         }
-        std::string directArgs;
-        for (size_t i = 0; i < orderedArgs.size(); ++i) {
-            if (i > 0) directArgs += ", ";
-            directArgs += orderedArgs[i]->getCExpr(e);
+
+        const std::vector<std::string>* defaults =
+            e.getInterfaceDefaults(originalName);
+        if (!defaults) defaults = e.getInterfaceDefaults(mangledName);
+
+        std::vector<std::string> argStrs;
+        argStrs.reserve(orderedArgs.size());
+        for (auto* argNode : orderedArgs) {
+            argStrs.push_back(argNode->getCExpr(e));
         }
+
+        if (defaults) {
+            for (size_t i = argStrs.size(); i < defaults->size(); ++i) {
+                argStrs.push_back((*defaults)[i]);
+            }
+        }
+
+        std::string directArgs;
+        for (size_t i = 0; i < argStrs.size(); ++i) {
+            if (i > 0) directArgs += ", ";
+            directArgs += argStrs[i];
+        }
+
         e.emit("VyneValue " + retTemp + " = struct_" + mangledName + "(" + directArgs + ");");
         return retTemp;
     }
@@ -834,13 +852,18 @@ void GroupNode::compile(C_Emitter& e) const {
             std::string val = assign->getRHS()->getCExpr(e);
             e.emit(mangled + " = " + val + ";");
             e.pushGlobalContext();
-        } else if (stmt->type() == NodeType::FUNCTION) {
+                } else if (stmt->type() == NodeType::FUNCTION) {
             e.popGlobalContext();
             stmt->compile(e);
             e.pushGlobalContext();
+        } else if (stmt->type() == NodeType::INTERFACE) {
+            e.popGlobalContext();
+            e.setGroupPrefix(groupName);
+            stmt->compile(e);
+            e.clearGroupPrefix();
+            e.pushGlobalContext();
         }
     }
-
     e.popGlobalContext();
 }
 
@@ -872,28 +895,64 @@ std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 // ============================================================
 
 void InterfaceNode::compile(C_Emitter& e) const {
+    // Determine the effective module: explicit moduleName wins, else use
+    // the currently active group prefix (set by GroupNode::compile).
+    std::string effectiveModule = moduleName;
+    if (effectiveModule.empty()) effectiveModule = e.getGroupPrefix();
+
+    std::string fullName = effectiveModule.empty()
+        ? interfaceName
+        : (effectiveModule + "." + interfaceName);
+
+    std::string cStructName = effectiveModule.empty()
+        ? interfaceName
+        : (effectiveModule + "_" + interfaceName);
+    std::replace(cStructName.begin(), cStructName.end(), '.', '_');
+    std::replace(cStructName.begin(), cStructName.end(), '_', '_');
+
+    // Register the interface under its bare name, dotted name, and
+    // underscore-mangled name so that every calling convention resolves.
     e.registerInterface(interfaceName);
-    if (!moduleName.empty()) {
-        e.registerInterface(moduleName + "." + interfaceName);
-        e.registerInterface(moduleName + "_" + interfaceName);
+    if (!effectiveModule.empty()) {
+        e.registerInterface(effectiveModule + "." + interfaceName);
+        e.registerInterface(effectiveModule + "_" + interfaceName);
     }
+
+    // Per-field defaults (used to pad short constructor calls).
+    {
+        std::vector<std::string> defaults;
+        defaults.reserve(members.size());
+        for (const auto& m : members) {
+            switch (m.type) {
+                case VType::String:  defaults.push_back("vyne_string(\"\")"); break;
+                case VType::Int64:   defaults.push_back("vyne_int(0)");        break;
+                case VType::Float64: defaults.push_back("vyne_float(0.0)");    break;
+                case VType::Array:   defaults.push_back("vyne_array_create(0)"); break;
+                case VType::Map:     defaults.push_back("vyne_map_create()");   break;
+                default:             defaults.push_back("vyne_null()");         break;
+            }
+        }
+        e.registerInterfaceDefaults(interfaceName, defaults);
+        if (!effectiveModule.empty()) {
+            e.registerInterfaceDefaults(effectiveModule + "." + interfaceName, defaults);
+            e.registerInterfaceDefaults(effectiveModule + "_" + interfaceName, defaults);
+        }
+    }
+
     e.pushFunctionContext();
 
-    e.emit("// interface: " + interfaceName);
+    e.emit("// interface: " + fullName);
     std::string params;
     for (size_t i = 0; i < members.size(); ++i) {
         if (i > 0) params += ", ";
         params += "VyneValue v_" + members[i].name;
     }
 
-    std::string structName = interfaceName;
-    std::replace(structName.begin(), structName.end(), '.', '_');
-
-    e.emitBlockOpen("VyneValue struct_" + structName + "(" + params + ") {");
+    e.emitBlockOpen("VyneValue struct_" + cStructName + "(" + params + ") {");
 
     std::string temp = e.newTemp("s");
     e.emit("VyneStruct* " + temp + " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));");
-    e.emit(temp + "->type_name = \"" + interfaceName + "\";");
+    e.emit(temp + "->type_name = \"" + fullName + "\";");
     e.emit(temp + "->field_count = " + std::to_string(members.size()) + ";");
     e.emit(temp + "->fields = (VyneField*)arena_alloc(sizeof(VyneField) * " +
            std::to_string(members.size()) + ");");
@@ -915,7 +974,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
     for (const auto& method : methods) {
         if (!method) continue;
         auto* fn = static_cast<FunctionNode*>(method.get());
-        std::string methodName = interfaceName + "_" + fn->getOriginalName();
+        std::string methodName = cStructName + "_" + fn->getOriginalName();
         std::replace(methodName.begin(), methodName.end(), '.', '_');
 
         e.emitGlobalDecl("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);");
@@ -942,7 +1001,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.popFunctionContext();
 
         e.pushMainContext();
-        e.emit("vyne_register_method(\"" + interfaceName + "\", \"" +
+        e.emit("vyne_register_method(\"" + fullName + "\", \"" +
                fn->getOriginalName() + "\", fn_" + methodName + ");");
         e.popMainContext();
     }
@@ -962,6 +1021,40 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         std::string name = var->getOriginalName();
 
         if (e.isGroup(name)) {
+            std::string ifaceDotted = name + "." + this->methodName;
+            std::string ifaceMangled = name + "_" + this->methodName;
+
+            if (e.isInterface(ifaceDotted) || e.isInterface(ifaceMangled)) {
+                const std::vector<std::string>* defaults =
+                    e.getInterfaceDefaults(ifaceDotted);
+                if (!defaults) defaults = e.getInterfaceDefaults(ifaceMangled);
+                if (!defaults) defaults = e.getInterfaceDefaults(this->methodName);
+
+                std::vector<std::string> argStrs;
+                argStrs.reserve(arguments.size());
+                for (const auto& argNode : arguments) {
+                    argStrs.push_back(argNode->getCExpr(e));
+                }
+                if (defaults) {
+                    for (size_t i = argStrs.size(); i < defaults->size(); ++i) {
+                        argStrs.push_back((*defaults)[i]);
+                    }
+                }
+
+                std::string directArgs;
+                for (size_t i = 0; i < argStrs.size(); ++i) {
+                    if (i > 0) directArgs += ", ";
+                    directArgs += argStrs[i];
+                }
+
+                std::string cName = name + "_" + this->methodName;
+                std::replace(cName.begin(), cName.end(), '.', '_');
+
+                std::string resTemp = e.newTemp("g_iface");
+                e.emit("VyneValue " + resTemp + " = struct_" + cName + "(" + directArgs + ");");
+                return resTemp;
+            }
+
             int argSize = (int)arguments.size();
             std::string argArr = e.newTemp("g_args");
 
@@ -977,9 +1070,9 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
             }
 
             std::string resTemp = e.newTemp("g_ret");
-            std::string methodName = name + "_" + methodName;
-            std::replace(methodName.begin(), methodName.end(), '.', '_');
-            e.emit("VyneValue " + resTemp + " = fn_" + methodName +
+            std::string gMethodName = name + "_" + this->methodName;
+            std::replace(gMethodName.begin(), gMethodName.end(), '.', '_');
+            e.emit("VyneValue " + resTemp + " = fn_" + gMethodName +
                    "(" + std::to_string(argSize) + ", " + argArr + ");");
             return resTemp;
         }

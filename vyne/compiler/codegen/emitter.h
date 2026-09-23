@@ -30,6 +30,8 @@ class C_Emitter {
     std::string activeFunctionPrefix;
 
     std::unordered_map<std::string, std::vector<std::string>> functionSignatures;
+    std::unordered_map<std::string, std::vector<std::string>> interfaceDefaults;
+    std::string groupPrefix;
 
     struct DeferContext {
         std::string cleanupLabel;
@@ -240,12 +242,26 @@ public:
     bool isInterface(const std::string& name) const { return interfaceSet.count(name) > 0; }
     bool isGroup(const std::string& name) const     { return groupSet.count(name) > 0; }
 
+    // defaults and signatures
     void registerFunctionSignature(const std::string& name, std::vector<std::string> params) {
         functionSignatures[name] = std::move(params);
     }
     const std::vector<std::string>* getFunctionSignature(const std::string& name) const {
         auto it = functionSignatures.find(name);
         if (it != functionSignatures.end()) return &it->second;
+        return nullptr;
+    }
+
+    void setGroupPrefix(const std::string& p) { groupPrefix = p; }
+    void clearGroupPrefix() { groupPrefix.clear(); }
+    const std::string& getGroupPrefix() const { return groupPrefix; }
+
+    void registerInterfaceDefaults(const std::string& name, std::vector<std::string> defaults) {
+        interfaceDefaults[name] = std::move(defaults);
+    }
+    const std::vector<std::string>* getInterfaceDefaults(const std::string& name) const {
+        auto it = interfaceDefaults.find(name);
+        if (it != interfaceDefaults.end()) return &it->second;
         return nullptr;
     }
 
@@ -261,11 +277,11 @@ public:
     const std::string& getDeferRetVar() const { return deferCtx.retVar; }
 
     void reset() {
-        globalsStream.str("");   globalsStream.clear();
+        globalsStream.str("");  globalsStream.clear();
         functionStream.str(""); functionStream.clear();
         mainStream.str("");     mainStream.clear();
-        includeSet.clear();
-        contextStack.clear();
+        includeSet.clear();     interfaceDefaults.clear();
+        contextStack.clear();   groupPrefix.clear();
         interfaceSet.clear();
         groupSet.clear();
         declaredVars.clear();
