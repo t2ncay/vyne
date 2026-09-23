@@ -62,6 +62,17 @@ bool Parser::isAtEnd() {
 VType Parser::resolveType(std::string_view typeName) {
     std::string name(typeName);
 
+    {
+        size_t lt = name.find('<');
+        if (lt != std::string::npos) {
+            if (name.back() != '>') {
+                throw std::runtime_error(
+                    "Type Error: Malformed generic type '" + name + "'");
+            }
+            name = name.substr(0, lt);
+        }
+    }
+
     if (name.find('.') == std::string::npos && 
         name != "Int64" && name != "Float64" && name != "String" && 
         name != "Array" && name != "Bool" && name != "null") {
@@ -126,6 +137,54 @@ VType Parser::resolveType(std::string_view typeName) {
     throw std::runtime_error("Type resolution failed");
 }
 
+bool Parser::tryParseTypeArgs(std::vector<std::string>& out) {
+    if (peekToken().type != VTokenType::Smaller) return false;
+
+    size_t saved = pos;
+    consume(VTokenType::Smaller);
+
+    std::vector<std::string> args;
+    while (true) {
+        if (peekToken().type != VTokenType::Identifier) {
+            pos = saved;
+            return false;
+        }
+        std::string arg = peekToken().name;
+        consume(VTokenType::Identifier);
+
+        if (peekToken().type == VTokenType::Smaller) {
+            std::vector<std::string> inner;
+            if (!tryParseTypeArgs(inner)) {
+                pos = saved;
+                return false;
+            }
+            arg += "<";
+            for (size_t i = 0; i < inner.size(); ++i) {
+                if (i) arg += ", ";
+                arg += inner[i];
+            }
+            arg += ">";
+        }
+
+        args.push_back(std::move(arg));
+
+        if (peekToken().type == VTokenType::Comma) {
+            consume(VTokenType::Comma);
+            continue;
+        }
+        break;
+    }
+
+    if (peekToken().type != VTokenType::Greater) {
+        pos = saved;
+        return false;
+    }
+    consume(VTokenType::Greater);
+
+    out = std::move(args);
+    return true;
+}
+
 std::string Parser::parseTypePath() {
     std::string path;
     path.reserve(32);
@@ -136,6 +195,21 @@ std::string Parser::parseTypePath() {
         path.reserve(path.size() + 1 + 16);
         path += '.';
         path += consume(VTokenType::Identifier).name;
+    }
+
+    if (peekToken().type == VTokenType::Smaller) {
+        std::vector<std::string> args;
+        size_t saved = pos;
+        if (tryParseTypeArgs(args)) {
+            path += "<";
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (i) path += ", ";
+                path += args[i];
+            }
+            path += ">";
+        } else {
+            pos = saved;
+        }
     }
     return path;
 }
@@ -218,7 +292,26 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     Token interfaceIdentifier = consume(VTokenType::Identifier);
     std::string interfaceName = interfaceIdentifier.name;
 
+    std::vector<std::string> typeParams;
+    if (peekToken().type == VTokenType::Smaller) {
+        if (!tryParseTypeArgs(typeParams)) {
+            emitError(
+                "Malformed type parameter list after interface '" + interfaceName + "'",
+                line, "VNE-040",
+                {"Expected: interface Name<T, U> { ... }"});
+        }
+        for (const auto& tp : typeParams) {
+            if (tp.find('<') != std::string::npos) {
+                emitError(
+                    "Type parameters must be simple identifiers, not generic types",
+                    line, "VNE-041",
+                    {"Use 'interface Foo<T>' instead of 'interface Foo<Array<T>>'"});
+            }
+        }
+    }
+
     std::string namespacePart = "";
+
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
         namespacePart = consume(VTokenType::Identifier).name;
@@ -254,6 +347,10 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     }
     
     declaredTypes.insert(interfaceName);
+
+    for (const auto& tp : typeParams) {
+        declaredTypes.insert(tp);
+    }
 
     consume(VTokenType::Left_CB);
     std::vector<InterfaceMember> members;
@@ -341,10 +438,15 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     }
 
     consume(VTokenType::Right_CB);
-    
+
+    for (const auto& tp : typeParams) {
+        declaredTypes.erase(tp);
+    }
+
     auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
     node->lineNumber = line;
     node->setModuleName(namespacePart);
+    node->setTypeParams(std::move(typeParams));
     return node;
 }
 
@@ -743,6 +845,27 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 
     funcId = StringPool::instance().intern(funcName);
 
+    std::vector<std::string> typeParams;
+    if (peekToken().type == VTokenType::Smaller) {
+        if (!tryParseTypeArgs(typeParams)) {
+            emitError(
+                "Malformed type parameter list after function '" + funcName + "'",
+                line, "VNE-042",
+                {"Expected: fn name<T, U>(...) -> RetType { ... }"});
+        }
+        for (const auto& tp : typeParams) {
+            if (tp.find('<') != std::string::npos) {
+                emitError(
+                    "Type parameters must be simple identifiers, not generic types",
+                    line, "VNE-043", {});
+            }
+        }
+    }
+
+    for (const auto& tp : typeParams) {
+        declaredTypes.insert(tp);
+    }
+
     pushScope();
 
     consume(VTokenType::Left_Parenthese);
@@ -801,8 +924,13 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 
     popScope();
 
+    for (const auto& tp : typeParams) {
+        declaredTypes.erase(tp);
+    }
+
     auto node = std::make_unique<FunctionNode>(targetModule, funcId, funcName, std::move(params), std::move(body), retType);
     node->lineNumber = line;
+    node->setTypeParams(std::move(typeParams));   // NEW
     return node;
 }
 
@@ -861,8 +989,23 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
             throw std::runtime_error("Type Error : Unexpected type " + std::string(startTypeTok.name) + " [ line " + std::to_string(line) + " ]");
         }
     }
+
     std::vector<std::string> scope;
     std::unique_ptr<ASTNode> node;
+
+    // Generic call site: Box<Int64>(...), Pair<A,B>(...), identity<String>(...).
+    // We only commit to parsing this as type args if the `>` is immediately
+    // followed by `(` — otherwise it's a comparison and we backtrack.
+    std::vector<std::string> callTypeArgs;
+    if (peekToken().type == VTokenType::Smaller) {
+        size_t saved = pos;
+        std::vector<std::string> temp;
+        if (tryParseTypeArgs(temp) && peekToken().type == VTokenType::Left_Parenthese) {
+            callTypeArgs = std::move(temp);
+        } else {
+            pos = saved;
+        }
+    }
 
     if (peekToken().type == VTokenType::Left_Parenthese) {
         consume(VTokenType::Left_Parenthese);
@@ -901,6 +1044,9 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         auto funcCall = std::make_unique<FunctionCallNode>(currentId, lastName, std::move(args));
         if (!namedArgs.empty()) {
             funcCall->setNamedArguments(std::move(namedArgs));
+        }
+        if (!callTypeArgs.empty()) {
+            funcCall->setTypeArgs(std::move(callTypeArgs));   // NEW
         }
         node = std::move(funcCall);
     } else {

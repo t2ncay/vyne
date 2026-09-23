@@ -78,6 +78,8 @@ private:
         return declaredTypes.find(name) != declaredTypes.end();
     }
 
+	bool tryParseTypeArgs(std::vector<std::string>& out);
+
 	// --- Literal Workers ---
 	std::unique_ptr<ASTNode> parseStringLiteral();
     std::unique_ptr<ASTNode> parseNumberLiteral();
