@@ -58,10 +58,15 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
     const std::string content = buffer.str();
 
     Vyne::DiagnosticEngine::setSourceText(content);
+    Vyne::DiagnosticEngine::setCurrentFile(
+        std::filesystem::path(filename).filename().string());
 
     try {
         auto tokens = tokenize(content);
         Parser parser(std::move(tokens));
+        parser.setSourceDir(
+            std::filesystem::weakly_canonical(std::filesystem::absolute(filename))
+                .parent_path().string());
         auto programRoot = parser.parseProgram(env);
         std::shared_ptr<ASTNode> rootShared = std::move(programRoot);
 
@@ -114,10 +119,27 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
 
             auto start_transpile = std::chrono::high_resolution_clock::now();
 
+            // Resolve the import graph before codegen. The linker parses every
+            // transitively-imported file exactly once and returns compile units
+            // in topological order (leaves first, entry last).
+            VyneLinker linker;
+            auto units = linker.link(filename);
+
             C_Emitter emitter;
             emitter.reset();
             emitter.setSourceDir(std::filesystem::absolute(filename).parent_path().string());
-            rootShared->compile(emitter);
+
+            for (const auto& unit : units) {
+                emitter.markImported(unit.canonicalPath);
+            }
+
+            for (auto& unit : units) {
+                if (unit.alias.empty()) {
+                    unit.ast->compile(emitter);
+                } else {
+                    unit.ast->compileAliased(emitter, unit.alias);
+                }
+            }
 
             std::string exeDir  = FileUtils::getExeDir();
             std::string runtime = exeDir + "/vyne/runtime/vyne_runtime.h";
@@ -204,7 +226,12 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
             return 0;
         }
     } catch (const std::exception& e) {
-        std::cerr << RED << "Error: " << e.what() << RESET << "\n";
+        if (Vyne::DiagnosticEngine::getDiagnostics().empty()) {
+            const std::string& file = Vyne::DiagnosticEngine::getCurrentFile();
+            std::cerr << RED << "Error";
+            if (!file.empty()) std::cerr << " in " << file;
+            std::cerr << ": " << e.what() << RESET << "\n";
+        }
 
         Vyne::DiagnosticEngine::printSummary();
 
