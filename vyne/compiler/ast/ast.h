@@ -231,6 +231,7 @@ enum class NodeType {
     ARRAY,
     RANGE,
     INDEX_ACCESS,
+    SLICE,
 
     FUNCTION,
     FUNCTION_CALL,
@@ -733,6 +734,25 @@ public:
 
     ASTNode* getLeft()  const { return left.get();  }
     ASTNode* getRight() const { return right.get(); }
+};
+
+class SliceNode : public ASTNode {
+    std::unique_ptr<ASTNode> base;
+    std::unique_ptr<ASTNode> low;
+    std::unique_ptr<ASTNode> high;
+public:
+    SliceNode(std::unique_ptr<ASTNode> b,
+              std::unique_ptr<ASTNode> lo,
+              std::unique_ptr<ASTNode> hi)
+        : ASTNode(NodeType::SLICE),
+          base(std::move(b)),
+          low(std::move(lo)),
+          high(std::move(hi)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Array; }
 };
 
 class IndexAccessNode : public ASTNode {

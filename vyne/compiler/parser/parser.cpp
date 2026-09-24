@@ -1078,11 +1078,57 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         }
         else if (peekToken().type == VTokenType::Left_Bracket) {
             consume(VTokenType::Left_Bracket);
-            auto indexExpr = parseExpression();
-            consume(VTokenType::Right_Bracket);
-            
-            node = std::make_unique<IndexAccessNode>(std::move(node), std::move(indexExpr));
-            node->lineNumber = line;
+
+            if (peekToken().type == VTokenType::Colon) {
+                consume(VTokenType::Colon);
+
+                std::unique_ptr<ASTNode> hi = nullptr;
+                if (peekToken().type != VTokenType::Right_Bracket) {
+                    hi = parseExpression();
+                }
+                consume(VTokenType::Right_Bracket);
+
+                auto sliceNode = std::make_unique<SliceNode>(
+                    std::move(node), nullptr, std::move(hi));
+                sliceNode->lineNumber = line;
+                node = std::move(sliceNode);
+            }
+            else {
+                auto first = parseExpression();
+
+                if (peekToken().type == VTokenType::Colon) {
+                    consume(VTokenType::Colon);
+
+                    std::unique_ptr<ASTNode> hi = nullptr;
+                    if (peekToken().type != VTokenType::Right_Bracket) {
+                        hi = parseExpression();
+                    }
+                    consume(VTokenType::Right_Bracket);
+
+                    auto sliceNode = std::make_unique<SliceNode>(
+                        std::move(node), std::move(first), std::move(hi));
+                    sliceNode->lineNumber = line;
+                    node = std::move(sliceNode);
+                }
+                else if (peekToken().type == VTokenType::Right_Bracket) {
+                    consume(VTokenType::Right_Bracket);
+
+                    if (first->type() == NodeType::RANGE) {
+                        throw std::runtime_error(
+                            "Syntax Error: use ':' for slicing, not '..' "
+                            "[ line " + std::to_string(line) + " ]");
+                    }
+
+                    node = std::make_unique<IndexAccessNode>(
+                        std::move(node), std::move(first));
+                    node->lineNumber = line;
+                }
+                else {
+                    throw std::runtime_error(
+                        "Syntax Error: expected ':' or ']' after index expression "
+                        "[ line " + std::to_string(line) + " ]");
+                }
+            }
         }
     }
 

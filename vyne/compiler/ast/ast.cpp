@@ -440,6 +440,37 @@ Value RangeNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     return Value(rangeArray);
 }
 
+Value SliceNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    Value baseVal = base->evaluate(env, currentGroupId);
+
+    if (baseVal.getType() == Value::ARRAY) {
+        auto& vec = baseVal.asList();
+        int64_t n = (int64_t)vec.size();
+        int64_t lo = low  ? low->evaluate(env, currentGroupId).asInt()  : 0;
+        int64_t hi = high ? high->evaluate(env, currentGroupId).asInt() : n - 1;
+        if (lo < 0) lo = 0;
+        if (hi >= n) hi = n - 1;
+        if (lo > hi) return Value(std::vector<Value>{});
+        std::vector<Value> out(vec.begin() + lo, vec.begin() + hi + 1);
+        return Value(std::move(out));
+    }
+
+    if (baseVal.getType() == Value::STRING) {
+        const std::string& s = baseVal.asString();
+        int64_t n = (int64_t)s.length();
+        int64_t lo = low  ? low->evaluate(env, currentGroupId).asInt()  : 0;
+        int64_t hi = high ? high->evaluate(env, currentGroupId).asInt() : n - 1;
+        if (lo < 0) lo = 0;
+        if (hi >= n) hi = n - 1;
+        if (lo > hi) return Value("");
+        return Value(s.substr((size_t)lo, (size_t)(hi - lo + 1)));
+    }
+
+    throw std::runtime_error(
+        "Type Error: Cannot slice non-array, non-string type [ line " +
+        std::to_string(lineNumber) + " ]");
+}
+
 Value BuiltInCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
     std::vector<Value> argValues;
 

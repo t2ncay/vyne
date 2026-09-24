@@ -934,6 +934,18 @@ std::string RangeNode::getCExpr(C_Emitter& e) const {
 
 void RangeNode::compile(C_Emitter& e) const { getCExpr(e); }
 
+std::string SliceNode::getCExpr(C_Emitter& e) const {
+    std::string b  = base->getCExpr(e);
+    std::string lo = low  ? low->getCExpr(e)  : "vyne_null()";
+    std::string hi = high ? high->getCExpr(e) : "vyne_null()";
+    std::string temp = e.newTemp("slc");
+    e.emit("VyneValue " + temp + " = vyne_slice_get(" +
+           b + ", " + lo + ", " + hi + ");");
+    return temp;
+}
+
+void SliceNode::compile(C_Emitter& e) const { getCExpr(e); }
+
 // ============================================================
 // BUILT-INS
 // ============================================================

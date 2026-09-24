@@ -654,6 +654,45 @@ static inline void vyne_array_place_all(VyneValue arr_val, VyneValue val, int64_
     arr->size = (int)count;
 }
 
+// ============================================================================
+// SLICE — base[lo..hi], inclusive on both ends
+// ============================================================================
+
+static inline VyneValue vyne_slice_get(VyneValue base, VyneValue lo_v, VyneValue hi_v) {
+    bool lo_open = (lo_v.type == V_NULL);
+    bool hi_open = (hi_v.type == V_NULL);
+
+    int64_t lo = lo_open ? 0
+                         : ((lo_v.type == V_INT64) ? lo_v.as.i64 : (int64_t)lo_v.as.f64);
+    // hi defaults to a value that will always clamp to len-1 below.
+    int64_t hi = hi_open ? INT64_MAX
+                         : ((hi_v.type == V_INT64) ? hi_v.as.i64 : (int64_t)hi_v.as.f64);
+
+    if (base.type == V_ARRAY) {
+        VyneArray* a = base.as.arr;
+        if (lo < 0) lo = 0;
+        if (hi >= a->size) hi = a->size - 1;
+        if (lo > hi) return vyne_array_create(0);
+        int n = (int)(hi - lo + 1);
+        VyneValue r = vyne_array_create(n);
+        memcpy(r.as.arr->elements, a->elements + lo, sizeof(VyneValue) * n);
+        return r;
+    }
+    if (base.type == V_STRING) {
+        const char* s = base.as.str;
+        int64_t len = (int64_t)strlen(s);
+        if (lo < 0) lo = 0;
+        if (hi >= len) hi = len - 1;
+        if (lo > hi) return vyne_string("");
+        int64_t n = hi - lo + 1;
+        char* buf = (char*)arena_alloc((size_t)n + 1);
+        memcpy(buf, s + lo, (size_t)n);
+        buf[n] = '\0';
+        return vyne_string(buf);
+    }
+    return vyne_null();
+}
+
 // Polymorphic dispatch for methods that exist on both arrays and maps
 static inline VyneValue vyne_delete_any(VyneValue recv, VyneValue val) {
     if (recv.type == V_ARRAY) {
