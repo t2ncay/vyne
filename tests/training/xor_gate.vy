@@ -3,7 +3,6 @@ ruleset { dynamic_casting };
 use lib "vcolors.vy";
 use lib "vlinalg.vy";
 module vmath;
-module vmem;
 
 #===============================================================================
 # DATA AND PARAMETERS
@@ -93,7 +92,7 @@ through epoch :: 1..epochs -> loop {
     if epoch % 200 == 0 {
         log_msg = "Epoch " + string(epoch);
         log_msg = log_msg + " | Loss: " + string(avg_loss);
-        log_msg = log_msg + " | Memory: " + string(vmem.usage()) + " bytes";
+        log_msg = log_msg + " | Memory: XXX bytes";
         
         out(vcolors.green(log_msg));
     }
