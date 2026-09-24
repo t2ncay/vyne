@@ -61,3 +61,7 @@ jobs:
               xvfb-run --auto-servernum ./vyne_run --ast "$testfile" || { echo "$testfile failed!"; exit 1; }
               echo "::endgroup::"
           done
+
+      - name: Run Codegen Golden Tests (issue #79)
+        run: |
+          VYNEC=./vyne_run bash scripts/test_codegen.sh
