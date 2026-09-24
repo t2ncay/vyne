@@ -135,4 +135,15 @@ static inline VyneValue vmath_random(VyneValue mn, VyneValue mx) {
     return vyne_int(range > 0 ? lo + (int64_t)(_seed % (unsigned int)range) : lo);
 }
 
+static inline VyneValue vmath_random_float(VyneValue mn, VyneValue mx) {
+    static unsigned int _seed = 0;
+    if (_seed == 0) _seed = (unsigned int)(size_t)time(NULL);
+    _seed = _seed * 1664525u + 1013904223u;
+
+    double lo = (mn.type == V_FLOAT64) ? mn.as.f64 : (double)mn.as.i64;
+    double hi = (mx.type == V_FLOAT64) ? mx.as.f64 : (double)mx.as.i64;
+    double r  = (double)_seed / 4294967296.0;   // [0, 1)
+    return vyne_float(lo + r * (hi - lo));
+}
+
 #endif /* VYNE_VMATH_RT_H */
