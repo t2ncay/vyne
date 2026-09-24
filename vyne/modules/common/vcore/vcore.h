@@ -5,7 +5,7 @@
 #include <chrono>
 #include <thread>
 
-// Platformaya uyğun başlıqlar
+// Platform-specific headers
 #if defined(_WIN32) || defined(_WIN64)
     #define WIN32_LEAN_AND_MEAN
     #define NOMINMAX
@@ -20,7 +20,7 @@
     #include <sys/resource.h>
 #endif
 
-class SymbolContainer; 
+class SymbolContainer;
 class StringPool;
 
 static inline const char* vcore_runtime_now() {
@@ -65,20 +65,6 @@ static inline int vcore_get_pid() {
     return getpid();
 #endif
 }
-
-struct NativeMapping {
-    std::string vyneName;
-    std::string cName;
-    bool isProperty;
-};
-
-// VCore modulunun bütün mapping-lərini saxlayan siyahı
-const std::vector<NativeMapping> VCORE_MAP = {
-    {"now",          "vcore_runtime_now",   false},
-    {"sleep",        "vcore_runtime_sleep", false},
-    {"memory_usage", "vcore_get_mem",       true},
-    {"pid",          "vcore_get_pid",       true}
-};
 
 void setupVCore(SymbolContainer& env, StringPool& pool);
 
