@@ -42,7 +42,12 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
     }
 
     size_t dotPos = filename.find_last_of(".");
-    if (dotPos == std::string::npos || filename.substr(dotPos + 1) != "vy") {
+    if (dotPos == std::string::npos) {
+        std::cerr << RED << "Error: File must end in .vy ( .vyne )" << RESET << "\n";
+        return 1;
+    }
+    std::string ext = filename.substr(dotPos + 1);
+    if (ext != "vy" && ext != "vyne") {
         std::cerr << RED << "Error: File must end in .vy ( .vyne )" << RESET << "\n";
         return 1;
     }

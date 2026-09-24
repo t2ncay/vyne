@@ -97,7 +97,7 @@ SKIP_TESTS = $(TEST_DIR)/graphics/game_test.vy \
 
 TEST_RUNNER = .\$(TARGET)
 
-.PHONY: test test-compiler test-dsp test-graphics test-network test-training test-vserv test-all quick-test benchmark clean check-copies check-leaks help
+.PHONY: test test-compiler test-codegen test-dsp test-graphics test-network test-training test-vserv test-all quick-test benchmark clean check-copies check-leaks help
 
 test: test-compiler test-dsp test-network test-training
 	@echo ""
@@ -109,6 +109,12 @@ test-compiler: $(TARGET)
 	@echo "$(CYAN)Running compiler tests...$(RESET)"
 	@echo "=== Compiler Tests ===" > $(TEST_RESULTS)
 	@$(call run_tests,$(TEST_COMPILER),Compiler)
+
+# Golden-output tests for the C codegen (issue #79 §8): transpile each
+# tests/codegen/*.vyne and diff the generated C against *.expected.c.
+test-codegen: $(TARGET)
+	@echo "$(CYAN)Running codegen golden tests...$(RESET)"
+	@VYNEC=./$(TARGET) bash scripts/test_codegen.sh
 
 test-dsp: $(TARGET)
 	@echo "$(CYAN)Running DSP tests...$(RESET)"

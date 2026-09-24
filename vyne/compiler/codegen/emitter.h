@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include "ctype.h"
 #include "native_maps.h"
 
 class C_Emitter {
@@ -25,6 +26,19 @@ class C_Emitter {
     std::unordered_set<std::string> localVars;
     std::unordered_set<std::string> globalVars;
     std::vector<std::unordered_set<std::string>> localVarsStack;
+
+    // M0 (issue #79): static-type tables. localTypes is keyed by the *mangled
+    // C variable name* (e.g. "v_sum_squares_total") and is scoped in the same
+    // way as localVars so block-local natives don't leak past their block.
+    // A missing entry means "no static type known" → boxed VyneValue (or an
+    // untyped local); a primitive entry means the C location holds the native
+    // type directly (int64_t / double / bool).
+    std::unordered_map<std::string, CType> localTypes;
+    std::unordered_map<std::string, CType> globalTypes;
+    std::vector<std::unordered_map<std::string, CType>> localTypesStack;
+    // Native temps produced by BinOp fast paths (bin_N) — unique names, no
+    // scoping needed, cleared per program in reset().
+    std::unordered_map<std::string, CType> nativeTemps;
 
     std::unordered_set<std::string> importedFiles;
     std::string sourceDir;
@@ -120,6 +134,58 @@ public:
         }
     }
 
+    // --- M0/M1: static type tables (issue #79) ---------------------------
+    // Register a declaration with its static type. `name` is the mangled C
+    // variable name (e.g. "v_sum_squares_total").
+    void declareLocal(const std::string& name, const CType& ct) {
+        localVars.insert(name);
+        localTypes[name] = ct;
+    }
+    void declareGlobal(const std::string& name, const CType& ct) {
+        globalVars.insert(name);
+        globalTypes[name] = ct;
+    }
+    const CType* lookupLocalType(const std::string& name) const {
+        auto it = localTypes.find(name);
+        return it == localTypes.end() ? nullptr : &it->second;
+    }
+    const CType* lookupGlobalType(const std::string& name) const {
+        auto it = globalTypes.find(name);
+        return it == globalTypes.end() ? nullptr : &it->second;
+    }
+    // Register a native temp expression (e.g. a binop result stored as
+    // `int64_t bin_5 = ...;`) so consumers know it is unboxed.
+    void declareNativeTemp(const std::string& name, const CType& ct) {
+        nativeTemps[name] = ct;
+    }
+    // Effective static type of a C expression string: native temp first,
+    // then local, then global. Returns nullptr when the expression is not a
+    // known native C value (i.e. it is a boxed VyneValue or unknown).
+    const CType* exprNativeType(const std::string& expr) const {
+        auto it = nativeTemps.find(expr);
+        if (it != nativeTemps.end()) return &it->second;
+        auto lt = lookupLocalType(expr);
+        if (lt && lt->isPrimitive()) return lt;
+        auto gt = lookupGlobalType(expr);
+        if (gt && gt->isPrimitive()) return gt;
+        return nullptr;
+    }
+    // Box a native expression into a VyneValue expression; non-native
+    // expressions pass through unchanged (they are already VyneValue).
+    std::string boxIfNative(const std::string& expr) const {
+        const CType* ct = exprNativeType(expr);
+        if (ct) return ct->box(expr);
+        return expr;
+    }
+    // Read a value as its native C type: if the expression is a known native
+    // of the same kind, use it directly; otherwise read the union member.
+    std::string nativeRead(const std::string& expr, VType kind) const {
+        const CType* ct = exprNativeType(expr);
+        CType want = CType::fromVType(kind);
+        if (ct && ct->kind == want.kind) return expr;
+        return want.unbox(boxIfNative(expr));
+    }
+
     void registerReference(const std::string name) {
         references.insert(std::move(name));
     }
@@ -137,6 +203,8 @@ public:
         if (!contextStack.empty()) contextStack.pop_back();
         localVars.clear();
         localVarsStack.clear();   // NEW: drop any leftovers
+        localTypes.clear();
+        localTypesStack.clear();
         indentLevel = 1;
     }
 
@@ -172,6 +240,7 @@ public:
 
     void emitBlockOpen(const std::string& line) {
         localVarsStack.push_back(localVars);
+        localTypesStack.push_back(localTypes);
         emit(line);
         indent();
     }
@@ -182,6 +251,10 @@ public:
         if (!localVarsStack.empty()) {
             localVars = std::move(localVarsStack.back());
             localVarsStack.pop_back();
+        }
+        if (!localTypesStack.empty()) {
+            localTypes = std::move(localTypesStack.back());
+            localTypesStack.pop_back();
         }
     }
 
@@ -331,6 +404,10 @@ public:
         currentReturnVar.clear();
         currentReturningVar.clear();
         localVarsStack.clear();
+        localTypes.clear();
+        localTypesStack.clear();
+        globalTypes.clear();
+        nativeTemps.clear();
         tempVarCount = 0;
         indentLevel  = 1;
     }

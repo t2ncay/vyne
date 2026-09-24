@@ -347,6 +347,11 @@ public:
     VType getStaticType() const override { 
         return (value.getType() == Value::INT64) ? VType::Int64 : VType::Float64; 
     }
+
+    // Raw literal text for unboxed (native) C contexts: "42", "3.140000".
+    // Used by M1 unboxing so `x :: Int64 = 0;` emits `int64_t v_x = 0;`
+    // instead of `int64_t v_x = (vyne_int(0)).as.i64;`.
+    std::string nativeLiteral() const;
 };
 
 class VariableNode : public ASTNode {
@@ -679,6 +684,9 @@ public :
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Bool; }
+
+    // Raw literal text for unboxed (native) C contexts: "true" / "false".
+    std::string nativeLiteral() const { return condition ? "true" : "false"; }
 };
 
 class ArrayNode : public ASTNode {
