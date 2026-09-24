@@ -31,7 +31,6 @@ TARGET = $(TARGET_BASE).exe
 TEST_TARGET = vyne_test.exe
 URAGE_LIB = urage.dll
 URAGE_CFLAGS = -shared -DURAGE_BUILD_SHARED
-RAYLIB_LIB_PATH = -L./vendor/raylib/lib
 
 LDFLAGS = -mconsole -pthread $(RAYLIB_LIB_PATH)
 LDFLAGS += -L"$(OPENSSL_LIB)" -lssl -lcrypto
