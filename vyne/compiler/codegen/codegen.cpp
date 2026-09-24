@@ -362,8 +362,25 @@ void IfNode::compile(C_Emitter& e) const {
 }
 
 std::string IfNode::getCExpr(C_Emitter& e) const {
-    compile(e);
-    return "vyne_null()";
+    std::string temp = e.newTemp("ifres");
+    e.emit("VyneValue " + temp + " = vyne_null();");
+
+    std::string cond = condition->getCExpr(e);
+    e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+    if (body) {
+        std::string bv = body->getCExpr(e);
+        e.emit(temp + " = " + bv + ";");
+    }
+    e.emitBlockClose();
+
+    if (elseBody) {
+        e.emitBlockOpen("else {");
+        std::string ev = elseBody->getCExpr(e);
+        e.emit(temp + " = " + ev + ";");
+        e.emitBlockClose();
+    }
+
+    return temp;
 }
 
 void WhileNode::compile(C_Emitter& e) const {
