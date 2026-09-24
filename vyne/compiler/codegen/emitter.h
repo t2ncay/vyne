@@ -7,7 +7,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#include "../../modules/common/vcore/vcore.h"
+#include "native_maps.h"
 
 class C_Emitter {
     std::stringstream globalsStream;
@@ -228,16 +228,29 @@ public:
         return res;
     }
 
-   std::string getNativeMapping(const std::string& module, const std::string& member, bool asFunctionCall) {
+    // Return the raw entry so callers can inspect flags (usesArgv, etc.).
+    const NativeMapEntry* findNative(const std::string& module,
+                                     const std::string& member) const {
         if (module == "vcore") {
-            for (auto& m : VCORE_MAP) {
-                if (m.vyneName == member) {
-                    if (m.isProperty) return m.cName;
-                    return asFunctionCall ? m.cName : m.cName + "()";
-                }
-            }
+            for (const auto& m : VCORE_MAP)
+                if (member == m.vyneName) return &m;
         }
-        return "v_" + module + "_" + member;
+        if (module == "vmath") {
+            for (const auto& m : VMATH_MAP)
+                if (member == m.vyneName) return &m;
+        }
+        return nullptr;
+    }
+
+    // Legacy: still used by MemberAccessNode. Returns cName, or the fallback
+    // sentinel if the module/member isn't a native.
+    std::string getNativeMapping(const std::string& module,
+                                 const std::string& member,
+                                 bool asFunctionCall) {
+        const NativeMapEntry* e = findNative(module, member);
+        if (!e) return "v_" + module + "_" + member;
+        if (e->isProperty) return e->cName;
+        return asFunctionCall ? e->cName : std::string(e->cName) + "()";
     }
 
     void registerInterface(const std::string& name) { interfaceSet.insert(name); }

@@ -306,8 +306,32 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
 void UnaryNode::compile(C_Emitter& e) const { getCExpr(e); }
 
 std::string PostFixNode::getCExpr(C_Emitter& e) const {
-    std::string var = left->getCExpr(e);
     std::string temp = e.newTemp("post");
+
+    // x.field++ / x.field-- : struct fields are reached via vyne_struct_get,
+    // which returns by value, so we cannot do `....as.i64++` directly.
+    // Read, bump, write back.
+    if (left->type() == NodeType::MEMBER_ACCESS) {
+        auto* memNode = static_cast<MemberAccessNode*>(left.get());
+        std::string recv  = memNode->getReceiver()->getCExpr(e);
+        uint32_t    fid   = StringPool::intern(memNode->getMemberName());
+        std::string fname = memNode->getMemberName();
+
+        e.emit("VyneValue " + temp + " = vyne_struct_get(" + recv +
+               ", " + std::to_string(fid) + ");");
+
+        std::string newV = e.newTemp("postn");
+        int opc = (op == VTokenType::Double_Increment) ? 29 : 30; // ADD / SUB
+        e.emit("VyneValue " + newV + " = vyne_binop(" + temp +
+               ", vyne_int(1), " + std::to_string(opc) + ");");
+
+        e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) +
+               ", \"" + fname + "\", " + newV + ");");
+        return temp;
+    }
+
+    // Plain variable lvalue: the existing in-place update is fine.
+    std::string var = left->getCExpr(e);
     e.emit("VyneValue " + temp + " = " + var + ";");
     if (op == VTokenType::Double_Increment) {
         e.emit("if (" + var + ".type == V_INT64)   " + var + ".as.i64++;");
@@ -1262,80 +1286,140 @@ std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; 
 // ============================================================
 
 std::string MethodCallNode::getCExpr(C_Emitter& e) const {
+    // Resolve a dotted path for the receiver, e.g. "vmath", "vlinalg.Types",
+    // or a plain variable name. Used to look up interfaces / groups.
+    std::string recvPath;
     if (receiver->type() == NodeType::VARIABLE) {
-        auto* var = static_cast<VariableNode*>(receiver.get());
-        std::string name = var->getOriginalName();
+        recvPath = static_cast<VariableNode*>(receiver.get())->getOriginalName();
+    } else if (receiver->type() == NodeType::MEMBER_ACCESS) {
+        recvPath = static_cast<MemberAccessNode*>(receiver.get())->getFullPath();
+    }
 
-        if (e.isGroup(name)) {
-            std::string ifaceDotted = name + "." + this->methodName;
-            std::string ifaceMangled = name + "_" + this->methodName;
+    // ----------------------------------------------------------------
+    // Native module dispatch (bare module name only, e.g. vmath.sqrt).
+    // ----------------------------------------------------------------
+    if (receiver->type() == NodeType::VARIABLE) {
+        const NativeMapEntry* entry = e.findNative(recvPath, methodName);
+        if (entry && !entry->isProperty) {
+            std::string resTemp = e.newTemp("n_ret");
 
-            if (e.isInterface(ifaceDotted) || e.isInterface(ifaceMangled)) {
-                const std::vector<std::string>* defaults =
-                    e.getInterfaceDefaults(ifaceDotted);
-                if (!defaults) defaults = e.getInterfaceDefaults(ifaceMangled);
-                if (!defaults) defaults = e.getInterfaceDefaults(this->methodName);
-
-                std::vector<std::string> argStrs;
-                argStrs.reserve(arguments.size());
-                for (const auto& argNode : arguments) {
-                    argStrs.push_back(argNode->getCExpr(e));
-                }
-                if (defaults) {
-                    for (size_t i = argStrs.size(); i < defaults->size(); ++i) {
-                        argStrs.push_back((*defaults)[i]);
-                    }
-                }
-
-                std::string directArgs;
-                for (size_t i = 0; i < argStrs.size(); ++i) {
-                    if (i > 0) directArgs += ", ";
-                    directArgs += argStrs[i];
-                }
-
-                std::string cName = name + "_" + this->methodName;
-                std::replace(cName.begin(), cName.end(), '.', '_');
-
-                std::string resTemp = e.newTemp("g_iface");
-                e.emit("VyneValue " + resTemp + " = struct_" + cName + "(" + directArgs + ");");
-                return resTemp;
-            }
-
-            int argSize = (int)arguments.size();
-            std::string argArr = e.newTemp("g_args");
-
-            if (argSize > 0) {
-                e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
-                       std::to_string(argSize) + ");");
-                for (int i = 0; i < argSize; ++i) {
+            if (entry->usesArgv) {
+                // ---- variadic: emit (argc, argv) --------------------
+                int n = (int)arguments.size();
+                std::string argArr = e.newTemp("n_args");
+                e.emit("VyneValue* " + argArr +
+                       " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+                       std::to_string(n > 0 ? n : 1) + ");");
+                for (int i = 0; i < n; ++i) {
                     e.emit(argArr + "[" + std::to_string(i) + "] = " +
                            arguments[i]->getCExpr(e) + ";");
                 }
-            } else {
-                e.emit("VyneValue* " + argArr + " = NULL;");
+                e.emit("VyneValue " + resTemp + " = " + entry->cName +
+                       "(" + std::to_string(n) + ", " + argArr + ");");
+                return resTemp;
             }
 
-            std::string resTemp = e.newTemp("g_ret");
-            std::string gMethodName = name + "_" + this->methodName;
-            std::replace(gMethodName.begin(), gMethodName.end(), '.', '_');
-            e.emit("VyneValue " + resTemp + " = fn_" + gMethodName +
-                   "(" + std::to_string(argSize) + ", " + argArr + ");");
-            return resTemp;
-        }
-
-        std::string nativeFunc = e.getNativeMapping(name, methodName, true);
-        if (nativeFunc.find("v_" + name) == std::string::npos) {
+            // ---- fixed arity: emit (arg1, arg2, ...) ----------------
             std::string argStr;
             for (size_t i = 0; i < arguments.size(); ++i) {
                 if (i > 0) argStr += ", ";
                 argStr += arguments[i]->getCExpr(e);
             }
-            std::string resTemp = e.newTemp("n_ret");
-            e.emit("VyneValue " + resTemp + " = " + nativeFunc + "(" + argStr + ");");
+            e.emit("VyneValue " + resTemp + " = " + entry->cName +
+                   "(" + argStr + ");");
             return resTemp;
         }
     }
 
+    // ----------------------------------------------------------------
+    // Interface constructor via a dotted path: a.b.Ctor(...)
+    //
+    // Try the full path first, then progressively shorter suffixes,
+    // then the bare method name. `InterfaceNode::compile` registers
+    // each interface under its bare name and its immediate module
+    // prefix, so "vlinalg.Types.Matrix" resolves via the "Types.Matrix"
+    // candidate.
+    // ----------------------------------------------------------------
+    if (!recvPath.empty()) {
+        std::vector<std::string> candidates;
+        candidates.push_back(recvPath);
+        {
+            std::string tmp = recvPath;
+            size_t dot;
+            while ((dot = tmp.find('.')) != std::string::npos) {
+                tmp = tmp.substr(dot + 1);
+                candidates.push_back(tmp);
+            }
+        }
+        candidates.push_back("");  // bare method name
+
+        for (const auto& base : candidates) {
+            std::string dotted  = base.empty() ? methodName
+                                              : (base + "." + methodName);
+            std::string mangled = base.empty() ? methodName
+                                               : (base + "_" + methodName);
+            std::replace(mangled.begin(), mangled.end(), '.', '_');
+
+            if (!e.isInterface(dotted) && !e.isInterface(mangled)) continue;
+
+            const std::vector<std::string>* defaults =
+                e.getInterfaceDefaults(dotted);
+            if (!defaults) defaults = e.getInterfaceDefaults(mangled);
+            if (!defaults) defaults = e.getInterfaceDefaults(methodName);
+
+            std::vector<std::string> argStrs;
+            argStrs.reserve(arguments.size());
+            for (const auto& a : arguments) argStrs.push_back(a->getCExpr(e));
+            if (defaults) {
+                for (size_t i = argStrs.size(); i < defaults->size(); ++i) {
+                    argStrs.push_back((*defaults)[i]);
+                }
+            }
+
+            std::string directArgs;
+            for (size_t i = 0; i < argStrs.size(); ++i) {
+                if (i > 0) directArgs += ", ";
+                directArgs += argStrs[i];
+            }
+
+            std::string resTemp = e.newTemp("g_iface");
+            e.emit("VyneValue " + resTemp + " = struct_" + mangled +
+                   "(" + directArgs + ");");
+            return resTemp;
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Group call: module.add(...) / module.sub.method(...)
+    // ----------------------------------------------------------------
+    if (!recvPath.empty() && e.isGroup(recvPath)) {
+        int argSize = (int)arguments.size();
+        std::string argArr = e.newTemp("g_args");
+
+        if (argSize > 0) {
+            e.emit("VyneValue* " + argArr +
+                   " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+                   std::to_string(argSize) + ");");
+            for (int i = 0; i < argSize; ++i) {
+                e.emit(argArr + "[" + std::to_string(i) + "] = " +
+                       arguments[i]->getCExpr(e) + ";");
+            }
+        } else {
+            e.emit("VyneValue* " + argArr + " = NULL;");
+        }
+
+        std::string resTemp = e.newTemp("g_ret");
+        std::string gMethodName = recvPath + "_" + methodName;
+        std::replace(gMethodName.begin(), gMethodName.end(), '.', '_');
+        e.emit("VyneValue " + resTemp + " = fn_" + gMethodName +
+               "(" + std::to_string(argSize) + ", " + argArr + ");");
+        return resTemp;
+    }
+
+    // ----------------------------------------------------------------
+    // Everything else: struct method call / built-in array / string /
+    // map methods on a runtime value.
+    // ----------------------------------------------------------------
     std::string recvRaw = receiver->getCExpr(e);
     std::string recv = e.newTemp("m_recv");
     e.emit("VyneValue " + recv + " = " + recvRaw + ";");
@@ -1361,7 +1445,6 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue " + temp + " = vyne_int(vyne_get_sizeof(" + recv + "));");
         return temp;
     }
-
     if (methodName == "pop_front") {
         std::string temp = e.newTemp("pf");
         e.emit("VyneValue " + temp + " = vyne_array_pop_front(" + recv + ");");
@@ -1391,7 +1474,7 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         return recv;
     }
 
-        // --- String methods ---
+    // --- String methods ---
     if (methodName == "substr") {
         if (arguments.empty()) {
             throw std::runtime_error(
@@ -1490,7 +1573,8 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         return recv;
     }
 
-    // Struct method call
+    // Struct method call (last resort — user-defined methods on struct
+    // values that were not caught by the interface / group branches).
     {
         std::string temp = e.newTemp("mret");
         int argSize = (int)arguments.size();
