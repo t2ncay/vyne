@@ -519,12 +519,11 @@ fn :: vlinalg from_flat(rows :: Int64, cols :: Int64, data :: Array) -> vlinalg.
 # ============================================================================
 
 fn :: vlinalg random_uniform(rows :: Int64, cols :: Int64, lo :: Float64, hi :: Float64) -> vlinalg.Types.Matrix {
-    span = hi - lo;
     out_data :: Array = [];
     through r :: 0..rows-1 -> loop {
         new_row :: Array = [];
         through c :: 0..cols-1 -> loop {
-            new_row.push(lo + vmath.random(0.0, 1.0) * span);
+            new_row.push(vmath.random_float(lo, hi));
         };
         out_data.push(new_row);
     };
@@ -532,13 +531,11 @@ fn :: vlinalg random_uniform(rows :: Int64, cols :: Int64, lo :: Float64, hi :: 
 }
 
 fn :: vlinalg xavier_init(rows :: Int64, cols :: Int64) -> vlinalg.Types.Matrix {
-    # Glorot uniform: ±sqrt(6 / (fan_in + fan_out))
     limit = vmath.sqrt(6.0 / float64(rows + cols));
     return vlinalg.random_uniform(rows, cols, -limit, limit);
 }
 
 fn :: vlinalg he_init(rows :: Int64, cols :: Int64) -> vlinalg.Types.Matrix {
-    # He uniform: ±sqrt(6 / fan_in)
     limit = vmath.sqrt(6.0 / float64(cols));
     return vlinalg.random_uniform(rows, cols, -limit, limit);
 }
@@ -864,24 +861,23 @@ fn :: vlinalg mse_prime(pred :: vlinalg.Types.Matrix, target :: vlinalg.Types.Ma
     return vlinalg.Types.Matrix(pred.row, pred.col, res_data);
 }
 
-fn :: vlinalg cross_entropy(pred :: vlinalg.Types.Matrix, target :: vlinalg.Types.Matrix) -> Float64 {
+fn :: vlinalg cross_entropy(pred, target) -> Float64 {
     eps = 0.000000001;
     total :: Float64 = 0.0;
     through r :: 0..pred.row-1 -> loop {
         through c :: 0..pred.col-1 -> loop {
             p = vmath.clamp(pred.data[r][c], eps, 1.0 - eps);
-            total = total - target.data[r][c] * vmath.log(p);
+            y = target.data[r][c];
+            total = total - (y * vmath.log(p) + (1.0 - y) * vmath.log(1.0 - p));
         };
     };
     return total / float64(pred.row);
 }
 
-fn :: vlinalg cross_entropy_prime(pred :: vlinalg.Types.Matrix, target :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
-    eps = 0.000000001;
+fn :: vlinalg cross_entropy_prime(pred, target) -> vlinalg.Types.Matrix {
     res_data = through r :: 0..pred.row-1 -> collect {
         through c :: 0..pred.col-1 -> collect {
-            p = vmath.clamp(pred.data[r][c], eps, 1.0 - eps);
-            -target.data[r][c] / p
+            pred.data[r][c] - target.data[r][c]
         }
     };
     return vlinalg.Types.Matrix(pred.row, pred.col, res_data);
