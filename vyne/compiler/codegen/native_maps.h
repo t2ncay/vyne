@@ -82,6 +82,7 @@ static const NativeMapEntry VMATH_MAP[] = {
 
     // --- variadic / special ---
     {"random",  "vmath_random",  false},
+    {"random_float", "vmath_random_float", false},
 
     // --- constants (zero-arg getters; isProperty = true) ---
     {"pi",      "vmath_pi()",    true},

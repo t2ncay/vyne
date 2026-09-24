@@ -34,7 +34,7 @@ std::string StringNode::getCExpr(C_Emitter& e) const {
                 }
         }
     }
-    return "vyne_string(\"" + escaped + "\")";
+    return "vyne_string_static(\"" + escaped + "\")";
 }
 
 void StringNode::compile(C_Emitter& e) const {}
@@ -1006,10 +1006,14 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
         std::string end   = arguments[1]->getCExpr(e);
         std::string temp  = e.newTemp("seq");
         std::string iv    = e.newTemp("i");
-        e.emit("VyneValue " + temp + " = vyne_array_create(0);");
-        e.emitBlockOpen("for (int64_t " + iv + " = (" + start + ").as.i64; "
-                        + iv + " < (" + end + ").as.i64; " + iv + "++) {");
-        e.emit("vyne_array_push(" + temp + ", vyne_int(" + iv + "));");
+        std::string nTmp  = e.newTemp("seq_n");
+
+        e.emit("int64_t " + nTmp + " = (" + end + ").as.i64 - (" + start + ").as.i64;");
+        e.emit("if (" + nTmp + " < 0) " + nTmp + " = 0;");
+        e.emit("VyneValue " + temp + " = vyne_array_create((int)" + nTmp + ");");
+        e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv + " < " + nTmp + "; " + iv + "++) {");
+        e.emit("vyne_array_set(" + temp + ", vyne_int(" + iv + "), "
+               "vyne_int((" + start + ").as.i64 + " + iv + "));");
         e.emitBlockClose();
         return temp;
     }
