@@ -730,6 +730,9 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Array; }
+
+    ASTNode* getLeft()  const { return left.get();  }
+    ASTNode* getRight() const { return right.get(); }
 };
 
 class IndexAccessNode : public ASTNode {

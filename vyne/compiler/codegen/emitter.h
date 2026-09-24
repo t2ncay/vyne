@@ -24,6 +24,7 @@ class C_Emitter {
     
     std::unordered_set<std::string> localVars;
     std::unordered_set<std::string> globalVars;
+    std::vector<std::unordered_set<std::string>> localVarsStack;
 
     std::unordered_set<std::string> importedFiles;
     std::string sourceDir;
@@ -135,6 +136,7 @@ public:
     void popFunctionContext() {
         if (!contextStack.empty()) contextStack.pop_back();
         localVars.clear();
+        localVarsStack.clear();   // NEW: drop any leftovers
         indentLevel = 1;
     }
 
@@ -169,6 +171,7 @@ public:
     }
 
     void emitBlockOpen(const std::string& line) {
+        localVarsStack.push_back(localVars);
         emit(line);
         indent();
     }
@@ -176,6 +179,10 @@ public:
     void emitBlockClose(const std::string& suffix = "") {
         dedent();
         emit("}" + suffix);
+        if (!localVarsStack.empty()) {
+            localVars = std::move(localVarsStack.back());
+            localVarsStack.pop_back();
+        }
     }
 
     // --- Temp Variables ---
@@ -323,6 +330,7 @@ public:
         tryCleanupStack.clear();
         currentReturnVar.clear();
         currentReturningVar.clear();
+        localVarsStack.clear();
         tempVarCount = 0;
         indentLevel  = 1;
     }

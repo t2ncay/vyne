@@ -425,6 +425,45 @@ std::string ContinueNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 // ============================================================
 
 void ForNode::compile(C_Emitter& e) const {
+    // -----------------------------------------------------------------
+    // Fast path: `through x :: lo..hi -> loop`
+    //
+    // Emits a native C for-loop instead of materializing the range as a
+    // VyneArray. This is the single biggest allocation win in tight
+    // numeric code: a 300-iteration loop saves one array allocation per
+    // entry per enclosing invocation, and there are ~3,300 such loops
+    // per matrix multiply.
+    //
+    // Bounds are coerced to int64_t at runtime. Float ranges lose their
+    // fractional step (they iterate 0, 1, 2, ... up to floor(hi)). This
+    // is a deliberate tradeoff; the interpreter retains the old float
+    // semantics. Document it if you ever accept float ranges in source.
+    // -----------------------------------------------------------------
+    if (iterable->type() == NodeType::RANGE) {
+        auto* rng = static_cast<RangeNode*>(iterable.get());
+        std::string lo  = rng->getLeft()->getCExpr(e);
+        std::string hi  = rng->getRight()->getCExpr(e);
+        std::string loV = e.newTemp("lo");
+        std::string hiV = e.newTemp("hi");
+        std::string loT = e.newTemp("lo_i");
+        std::string hiT = e.newTemp("hi_i");
+        std::string iv  = e.newTemp("i");
+        std::string elemVar = "v_" + iteratorName;
+
+        e.emit("VyneValue " + loV + " = " + lo + ";");
+        e.emit("VyneValue " + hiV + " = " + hi + ";");
+        e.emit("int64_t " + loT + " = (" + loV + ".type == V_INT64) ? " +
+               loV + ".as.i64 : (int64_t)" + loV + ".as.f64;");
+        e.emit("int64_t " + hiT + " = (" + hiV + ".type == V_INT64) ? " +
+               hiV + ".as.i64 : (int64_t)" + hiV + ".as.f64;");
+        e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
+                        " <= " + hiT + "; ++" + iv + ") {");
+        e.emit("VyneValue " + elemVar + " = vyne_int(" + iv + ");");
+        if (body) body->compile(e);
+        e.emitBlockClose();
+        return;
+    }
+
     std::string collection = iterable->getCExpr(e);
     std::string iTemp = e.newTemp("i");
     std::string sizeTemp = e.newTemp("sz");
@@ -445,6 +484,86 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
     if (mode == ForMode::LOOP) {
         compile(e);
         return "vyne_null()";
+    }
+
+    // -----------------------------------------------------------------
+    // Fast path for `through x :: lo..hi -> collect|filter|every|unique`
+    //
+    // Same idea as ForNode::compile's fast path, but with the accumulator
+    // plumbing that the non-LOOP modes need. The per-mode body emission is
+    // duplicated below because the loop header differs (native for-loop vs
+    // array indexing); the accumulator semantics are identical.
+    // -----------------------------------------------------------------
+    if (iterable->type() == NodeType::RANGE) {
+        auto* rng = static_cast<RangeNode*>(iterable.get());
+        std::string lo  = rng->getLeft()->getCExpr(e);
+        std::string hi  = rng->getRight()->getCExpr(e);
+        std::string loV = e.newTemp("lo");
+        std::string hiV = e.newTemp("hi");
+        std::string loT = e.newTemp("lo_i");
+        std::string hiT = e.newTemp("hi_i");
+        std::string iv  = e.newTemp("i");
+        std::string elemVar = "v_" + iteratorName;
+
+        e.emit("VyneValue " + loV + " = " + lo + ";");
+        e.emit("VyneValue " + hiV + " = " + hi + ";");
+        e.emit("int64_t " + loT + " = (" + loV + ".type == V_INT64) ? " +
+               loV + ".as.i64 : (int64_t)" + loV + ".as.f64;");
+        e.emit("int64_t " + hiT + " = (" + hiV + ".type == V_INT64) ? " +
+               hiV + ".as.i64 : (int64_t)" + hiV + ".as.f64;");
+
+        // --- EVERY mode ---
+        if (mode == ForMode::EVERY) {
+            std::string everyTemp = e.newTemp("every");
+            std::string resTemp   = e.newTemp("every_res");
+            e.emit("bool " + everyTemp + " = true;");
+            e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
+                            " <= " + hiT + "; ++" + iv + ") {");
+            e.emit("VyneValue " + elemVar + " = vyne_int(" + iv + ");");
+            std::string cond = body->getCExpr(e);
+            e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+            e.emit(everyTemp + " = false;");
+            e.emit("break;");
+            e.emitBlockClose();
+            e.emitBlockClose();
+            e.emit("VyneValue " + resTemp + " = vyne_bool(" + everyTemp + ");");
+            return resTemp;
+        }
+
+        // --- COLLECT / FILTER / UNIQUE ---
+        std::string listTemp = e.newTemp("res");
+        e.emit("VyneValue " + listTemp + " = vyne_array_create(0);");
+        e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
+                        " <= " + hiT + "; ++" + iv + ") {");
+        e.emit("VyneValue " + elemVar + " = vyne_int(" + iv + ");");
+
+        switch (mode) {
+            case ForMode::COLLECT: {
+                std::string result = body->getCExpr(e);
+                e.emit("vyne_array_push(" + listTemp + ", " + result + ");");
+                break;
+            }
+            case ForMode::FILTER: {
+                std::string cond = body->getCExpr(e);
+                e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+                e.emit("vyne_array_push(" + listTemp + ", " + elemVar + ");");
+                e.emitBlockClose();
+                break;
+            }
+            case ForMode::UNIQUE: {
+                std::string dupCheck = e.newTemp("seen");
+                e.emit("bool " + dupCheck + " = vyne_array_contains(" +
+                       listTemp + ", " + elemVar + ");");
+                e.emitBlockOpen("if (!" + dupCheck + ") {");
+                e.emit("vyne_array_push(" + listTemp + ", " + elemVar + ");");
+                e.emitBlockClose();
+                break;
+            }
+            default: break;
+        }
+
+        e.emitBlockClose();
+        return listTemp;
     }
 
     std::string collection = iterable->getCExpr(e);
@@ -697,7 +816,6 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     // ----------------------------------------------------------------
     // Interface constructors take their arguments directly — no
     // `args[]` array, no arena allocation, no deep-copy dance.
-    // Handle that case first so we don't emit dead argument code.
     // ----------------------------------------------------------------
     if (e.isInterface(originalName) || e.isInterface(mangledName)) {
         if (hasNamedArguments()) {
@@ -743,12 +861,11 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue* " + argArr + " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
                std::to_string(argSize) + ");");
         for (int i = 0; i < argSize; ++i) {
+            // NOTE: no deep copy. Array / map arguments are shared by
+            // reference, matching assignment semantics and Python / JS /
+            // Lua. If a callee mutates its parameter, the caller sees it.
             std::string val = orderedArgs[i]->getCExpr(e);
-            std::string copyTmp = e.newTemp("argc");
-            e.emit("VyneValue " + copyTmp + " = " + val + ";");
-            e.emit("if (" + copyTmp + ".type == V_ARRAY) " + copyTmp + " = vyne_array_deepcopy(" + copyTmp + ");");
-            e.emit("else if (" + copyTmp + ".type == V_MAP) " + copyTmp + " = vyne_map_deepcopy(" + copyTmp + ");");
-            e.emit(argArr + "[" + std::to_string(i) + "] = " + copyTmp + ";");
+            e.emit(argArr + "[" + std::to_string(i) + "] = " + val + ";");
         }
     } else {
         e.emit("VyneValue* " + argArr + " = NULL;");
