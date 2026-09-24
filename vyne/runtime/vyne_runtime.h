@@ -664,32 +664,46 @@ static inline VyneValue vyne_slice_get(VyneValue base, VyneValue lo_v, VyneValue
 
     int64_t lo = lo_open ? 0
                          : ((lo_v.type == V_INT64) ? lo_v.as.i64 : (int64_t)lo_v.as.f64);
-    // hi defaults to a value that will always clamp to len-1 below.
+    // hi defaults to INT64_MAX; the per-branch clamp below brings it
+    // down to len for open-ended slices.
     int64_t hi = hi_open ? INT64_MAX
                          : ((hi_v.type == V_INT64) ? hi_v.as.i64 : (int64_t)hi_v.as.f64);
 
     if (base.type == V_ARRAY) {
         VyneArray* a = base.as.arr;
+        int64_t len = a->size;
+
         if (lo < 0) lo = 0;
-        if (hi >= a->size) hi = a->size - 1;
-        if (lo > hi) return vyne_array_create(0);
-        int n = (int)(hi - lo + 1);
+        if (lo > len) lo = len;
+        if (hi < 0) hi = 0;
+        if (hi > len) hi = len;
+
+        if (lo >= hi) return vyne_array_create(0);
+
+        int n = (int)(hi - lo);
         VyneValue r = vyne_array_create(n);
         memcpy(r.as.arr->elements, a->elements + lo, sizeof(VyneValue) * n);
         return r;
     }
+
     if (base.type == V_STRING) {
         const char* s = base.as.str;
         int64_t len = (int64_t)strlen(s);
+
         if (lo < 0) lo = 0;
-        if (hi >= len) hi = len - 1;
-        if (lo > hi) return vyne_string("");
-        int64_t n = hi - lo + 1;
+        if (lo > len) lo = len;
+        if (hi < 0) hi = 0;
+        if (hi > len) hi = len;
+
+        if (lo >= hi) return vyne_string("");
+
+        int64_t n = hi - lo;
         char* buf = (char*)arena_alloc((size_t)n + 1);
         memcpy(buf, s + lo, (size_t)n);
         buf[n] = '\0';
         return vyne_string(buf);
     }
+
     return vyne_null();
 }
 
