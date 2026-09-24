@@ -4,16 +4,24 @@
 // LITERALS
 // ============================================================
 
+static std::string floatLit(double v) {
+    char buf[32];
+    auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), v,
+                                 std::chars_format::general);
+    if (ec != std::errc{}) return "0.0";
+    return std::string(buf, p);
+}
+
 std::string NumberNode::getCExpr(C_Emitter& e) const {
     if (value.getType() == Value::INT64)
         return "vyne_int(" + std::to_string(value.asInt()) + ")";
-    return "vyne_float(" + std::to_string(value.asFloat()) + ")";
+    return "vyne_float(" + floatLit(value.asFloat()) + ")";
 }
 
 std::string NumberNode::nativeLiteral() const {
     if (value.getType() == Value::INT64)
         return std::to_string(value.asInt());
-    return std::to_string(value.asFloat());
+    return floatLit(value.asFloat());
 }
 
 void NumberNode::compile(C_Emitter& e) const { /* literals are expressions only */ }
@@ -31,9 +39,8 @@ std::string StringNode::getCExpr(C_Emitter& e) const {
             case '\t': escaped += "\\t";  break;
             default:
                 if (c < 0x20 || c == 0x7F) {
-                    // Non-printable byte → \xHH
                     char buf[8];
-                    std::snprintf(buf, sizeof(buf), "\\x%02x", c);
+                    std::snprintf(buf, sizeof(buf), "\\%03o", c);
                     escaped += buf;
                 } else {
                     escaped += static_cast<char>(c);
