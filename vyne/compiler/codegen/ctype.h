@@ -128,4 +128,6 @@ struct CType {
             default:             return CType{Kind::Unknown};
         }
     }
+
+    static CType fromKind(Kind k) { CType c; c.kind = k; return c; }
 };

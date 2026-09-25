@@ -146,4 +146,27 @@ static inline VyneValue vmath_random_float(VyneValue mn, VyneValue mx) {
     return vyne_float(lo + r * (hi - lo));
 }
 
+/* ===================================================================
+ * M5: native (unboxed) variants for hot math functions.
+ * Callers that already hold `double` skip the VyneValue round-trip.
+ * =================================================================== */
+static inline double vmath_sqrt_f64(double v)    { return sqrt(v); }
+static inline double vmath_abs_f64(double v)     { return v < 0.0 ? -v : v; }
+static inline double vmath_floor_f64(double v)   { return floor(v); }
+static inline double vmath_ceil_f64(double v)    { return ceil(v); }
+static inline double vmath_round_f64(double v)   { return round(v); }
+static inline double vmath_exp_f64(double v)     { return exp(v); }
+static inline double vmath_log_f64(double v)     { return log(v); }
+static inline double vmath_sigmoid_f64(double v) { return 1.0 / (1.0 + exp(-v)); }
+static inline double vmath_relu_f64(double v)    { return v > 0.0 ? v : 0.0; }
+static inline double vmath_pow_f64(double b, double e)   { return pow(b, e); }
+static inline double vmath_min_f64(double a, double b)   { return a < b ? a : b; }
+static inline double vmath_max_f64(double a, double b)   { return a > b ? a : b; }
+static inline double vmath_hypot_f64(double a, double b) { return hypot(a, b); }
+static inline double vmath_fmod_f64(double a, double b)  { return b == 0.0 ? 0.0 : fmod(a, b); }
+static inline double vmath_clamp_f64(double v, double lo, double hi) {
+    if (lo > hi) { double t = lo; lo = hi; hi = t; }
+    return v < lo ? lo : v > hi ? hi : v;
+}
+
 #endif /* VYNE_VMATH_RT_H */

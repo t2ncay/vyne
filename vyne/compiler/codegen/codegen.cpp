@@ -20,7 +20,7 @@
 //   13. Member access            MemberAccessNode, MemberAssignmentNode
 //   14. Group                    GroupNode
 //   15. Module                   ModuleNode
-//   16. Interface / struct       InterfaceNode
+//   16. Interface / struct       InterfaceNode // TODO let those mfs initialize with typed unboxed data types
 //   17. Method call              MethodCallNode
 //   18. Import                   ImportNode
 //   19. Enum / defer / dismiss   EnumNode, DeferNode, DismissNode, DeployNode
@@ -395,6 +395,14 @@ void AssignmentNode::compile(C_Emitter& e) const {
         std::string val = rhs->getCExpr(e);
         e.emit(bareName + " = " + boxTypedArray(e, val) + ";");
         return;
+    }
+
+    // M4-C1B: record the declared struct type so downstream member reads
+    // can look up field element types. Only when the declaration carried
+    // an explicit type path (user wrote `m :: Types.Matrix = ...`).
+    if (!declaredTypeName.empty()) {
+        if (useGlobal) e.setGlobalStructType(bareName, declaredTypeName);
+        else           e.setLocalStructType(varName, declaredTypeName);
     }
 
     // --- fresh local declaration ---
@@ -1011,11 +1019,71 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         return listTemp;
     }
 
-    // M4: collect/filter/every/unique over typed arrays stays boxed —
-    // the accumulator's element type would need to be inferred from the
-    // body, which is a C1 job. Box the collection to keep the loop body
-    // identical to the interpreter path.
+    // --- M4-C1B: flat collect/every over a typed array ----------------
+    {
+        std::string rawCollection = iterable->getCExpr(e);
+        const CType* ct = lookupCType(e, rawCollection);
+        if (ct && ct->kind == CType::Kind::Array && !ct->args.empty()) {
+            VType elem = ct->args[0].toVType();
+            CType elemType = CType::fromVType(elem);
+            VType bodyType = body ? body->getStaticType() : VType::Unknown;
 
+            if (mode == ForMode::COLLECT && bodyType == elem) {
+                std::string outName = e.newTemp("cfld");
+                std::string ctor    = (elem == VType::Float64)
+                    ? "vyne_array_f64_create" : "vyne_array_i64_create";
+                std::string pushFn  = (elem == VType::Float64)
+                    ? "vyne_array_f64_push"   : "vyne_array_i64_push";
+
+                e.emit(typedArrayCName(elem) + " " + outName + " = " +
+                       ctor + "(" + rawCollection + ".size);");
+                e.emit(outName + ".size = 0;");
+
+                std::string iv = e.newTemp("i");
+                e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv +
+                                " < " + rawCollection + ".size; ++" + iv + ") {");
+                std::string elemVar = "v_" + iteratorName;
+                e.declareLocal(elemVar, elemType);
+                e.emit(elemType.cTypeName() + " " + elemVar + " = " +
+                       rawCollection + ".data[" + iv + "];");
+                std::string rawExpr = body->getCExpr(e);
+                std::string native  = coerceToNative(e, body.get(), rawExpr, elem);
+                e.emit(pushFn + "(&" + outName + ", " + native + ");");
+                e.emitBlockClose();
+
+                CType outCT;
+                outCT.kind = CType::Kind::Array;
+                outCT.args.push_back(elemType);
+                e.declareNativeTemp(outName, outCT);
+                return outName;
+            }
+
+            if (mode == ForMode::EVERY) {
+                std::string every = e.newTemp("every");
+                std::string res   = e.newTemp("every_res");
+                e.emit("bool " + every + " = true;");
+
+                std::string iv = e.newTemp("i");
+                e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv +
+                                " < " + rawCollection + ".size; ++" + iv + ") {");
+                std::string elemVar = "v_" + iteratorName;
+                e.declareLocal(elemVar, elemType);
+                e.emit(elemType.cTypeName() + " " + elemVar + " = " +
+                       rawCollection + ".data[" + iv + "];");
+                std::string rawExpr = body->getCExpr(e);
+                std::string cond    = boxTypedArray(e, rawExpr);
+                e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+                e.emit(every + " = false;");
+                e.emit("break;");
+                e.emitBlockClose();
+                e.emitBlockClose();
+                e.emit("VyneValue " + res + " = vyne_bool(" + every + ");");
+                return res;
+            }
+        }
+    }
+
+    // --- Boxed fallback -----------------------------------------------
     std::string collection = boxTypedArray(e, iterable->getCExpr(e));
     std::string iTemp = e.newTemp("i");
     std::string sizeTemp = e.newTemp("sz");
@@ -1240,17 +1308,16 @@ std::string FunctionNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
-    // --- Build ordered argument list (handles named args) ---
+    // --- Resolve named args (unchanged) -----------------------------
     std::vector<ASTNode*> orderedArgs;
     if (hasNamedArguments()) {
         const auto* sig = e.getFunctionSignature(originalName);
         if (!sig) {
             throw std::runtime_error(
-                "Compile Error: named arguments used for function '" + originalName +
-                "', but its signature is unknown. Define the function before calling it "
-                "(line " + std::to_string(lineNumber) + ").");
+                "Compile Error: named arguments used for function '" +
+                originalName + "' but its signature is unknown (line " +
+                std::to_string(lineNumber) + ").");
         }
-
         std::unordered_map<std::string, ASTNode*> nameToArg;
         for (const auto& [name, arg] : namedArguments) {
             if (nameToArg.count(name)) {
@@ -1261,7 +1328,6 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             }
             nameToArg[name] = arg.get();
         }
-
         for (const auto& paramName : *sig) {
             auto it = nameToArg.find(paramName);
             if (it == nameToArg.end()) {
@@ -1272,8 +1338,6 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             }
             orderedArgs.push_back(it->second);
         }
-
-        // Extra-arg check
         for (const auto& [name, _] : nameToArg) {
             bool found = false;
             for (const auto& pn : *sig) if (pn == name) { found = true; break; }
@@ -1286,6 +1350,48 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         }
     } else {
         for (const auto& a : arguments) orderedArgs.push_back(a.get());
+    }
+
+    // --- M2: monomorphization --------------------------------------
+    // Only fire when the parser recorded type args. Inference is a
+    // follow-up; explicit `foo<Int64>(...)` is the load-bearing case.
+    if (!typeArgs.empty()) {
+        std::string key = originalName;
+        std::replace(key.begin(), key.end(), '.', '_');
+        for (const auto& t : typeArgs) key += "__" + t;
+
+        if (const std::string* emitted = e.lookupInstantiation(key)) {
+            // Already emitted: call the specialised C function directly.
+            int n = (int)orderedArgs.size();
+            std::string retTemp = e.newTemp("ret");
+            std::string argArr  = e.newTemp("args");
+            if (n > 0) {
+                e.emit("VyneValue* " + argArr +
+                       " = (VyneValue*)arena_alloc(sizeof(VyneValue) * " +
+                       std::to_string(n) + ");");
+                for (int i = 0; i < n; ++i) {
+                    e.emit(argArr + "[" + std::to_string(i) + "] = " +
+                           boxTypedArray(e, orderedArgs[i]->getCExpr(e)) + ";");
+                }
+            } else {
+                e.emit("VyneValue* " + argArr + " = NULL;");
+            }
+            e.emit("VyneValue " + retTemp + " = fn_" + *emitted +
+                   "(" + std::to_string(n) + ", " + argArr + ");");
+            return retTemp;
+        }
+
+        // First sighting: instantiate on demand. The concrete C name
+        // is the same key we just built, prefixed with "fn_".
+        if (e.beginInstantiation(key)) {
+            std::string cName = key;
+            e.finishInstantiation(key, cName);
+            // NOTE: actual body emission is scheduled by ProgramNode
+            // via the emitter's instantiation queue — see
+            // `ProgramNode::compile` for the drain loop. For now, fall
+            // through to the boxed call so unresolvable cases still
+            // produce compilable C.
+        }
     }
 
     int argSize = (int)orderedArgs.size();
@@ -1746,6 +1852,7 @@ void TernaryNode::compile(C_Emitter& e) const { getCExpr(e); }
 // ============================================================
 
 std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
+    // --- Existing native-module / group resolution -------------------
     if (receiver->type() == NodeType::VARIABLE) {
         auto* var = static_cast<VariableNode*>(receiver.get());
         std::string modName = var->getOriginalName();
@@ -1762,6 +1869,55 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
         }
     }
 
+    // --- M4-C1B: Array<T> struct field → native VyneArray_* temp -----
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(receiver.get());
+        std::string recvName = var->getOriginalName();
+
+        std::string typeName;
+        if (recvName == "self") {
+            typeName = e.getCurrentInterfaceType();
+        } else {
+            std::string prefix = e.getActiveFunctionPrefix();
+            std::string lookupKey = prefix.empty()
+                ? ("v_" + recvName)
+                : ("v_" + prefix + "_" + recvName);
+            if (const std::string* t = e.lookupLocalStructType(lookupKey))
+                typeName = *t;
+            else if (const std::string* t = e.lookupGlobalStructType("v_" + recvName))
+                typeName = *t;
+        }
+
+        if (!typeName.empty()) {
+            VType elem = e.getInterfaceArrayElem(typeName, memberName);
+            if (elem == VType::Int64 || elem == VType::Float64) {
+                std::string cacheKey = recvName + "." + memberName;
+                if (const auto* cached = e.getFieldCache(cacheKey))
+                    return cached->temp;
+
+                std::string recv = boxTypedArray(e, receiver->getCExpr(e));
+                uint32_t fid = StringPool::intern(memberName);
+                std::string temp = e.newTemp("fld");
+                const char* cName = (elem == VType::Float64)
+                    ? "VyneArray_f64" : "VyneArray_i64";
+                const char* fn = (elem == VType::Float64)
+                    ? "vyne_value_to_array_f64" : "vyne_value_to_array_i64";
+
+                e.emit(std::string(cName) + " " + temp + " = " + fn +
+                       "(vyne_struct_get(" + recv + ", " +
+                       std::to_string(fid) + "));");
+
+                CType ct;
+                ct.kind = CType::Kind::Array;
+                ct.args.push_back(CType::fromVType(elem));
+                e.declareNativeTemp(temp, ct);
+                e.setFieldCache(cacheKey, temp, ct);
+                return temp;
+            }
+        }
+    }
+
+    // --- Boxed fallback ----------------------------------------------
     std::string recv = boxTypedArray(e, receiver->getCExpr(e));
     uint32_t fid = StringPool::intern(memberName);
     return "vyne_struct_get(" + recv + ", " + std::to_string(fid) + ")";
@@ -1772,6 +1928,9 @@ void MemberAccessNode::compile(C_Emitter& e) const {
 }
 
 void MemberAssignmentNode::compile(C_Emitter& e) const {
+    // Any write invalidates all cached unboxes for this function.
+    e.clearFieldCache();
+
     std::string val = boxTypedArray(e, rhs->getCExpr(e));
 
     if (receiver->type() == NodeType::VARIABLE) {
@@ -1787,14 +1946,16 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
 
         if (modName == "self") {
             uint32_t fid = StringPool::intern(memberName);
-            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
+            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) +
+                   ", \"" + memberName + "\", " + val + ");");
             return;
         }
     }
 
     std::string recv = boxTypedArray(e, receiver->getCExpr(e));
     uint32_t fid = StringPool::intern(memberName);
-    e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" + memberName + "\", " + val + ");");
+    e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) +
+           ", \"" + memberName + "\", " + val + ");");
 }
 
 std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
@@ -1894,6 +2055,12 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.registerInterface(effectiveModule + "_" + interfaceName);
     }
 
+    // M4-C1B: register typed-array fields so member reads can unbox.
+    for (const auto& m : members) {
+        e.registerInterfaceArrayField(fullName, m.name, m.arrayElemType);
+        e.registerInterfaceArrayField(interfaceName, m.name, m.arrayElemType);
+    }
+
     // Per-field defaults (used to pad short constructor calls).
     {
         std::vector<std::string> defaults;
@@ -1956,6 +2123,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.emitGlobalDecl("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);");
         e.pushFunctionContext();
         e.enterFunction(methodName); 
+        e.setCurrentInterfaceType(fullName);
         e.emitBlockOpen("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args) {");
 
         e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
@@ -2025,6 +2193,29 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
                 e.emit("VyneValue " + resTemp + " = " + entry->cName +
                        "(" + std::to_string(n) + ", " + argArr + ");");
                 return resTemp;
+            }
+
+            // M5: native _f64 dispatch when every arg is a provable double.
+            if (entry->nativeF64 && !arguments.empty()) {
+                bool allF64 = true;
+                for (const auto& a : arguments) {
+                    std::string raw = a->getCExpr(e);   // may emit
+                    const CType* ct = e.exprNativeType(raw);
+                    if (!ct || ct->kind != CType::Kind::Float64) { allF64 = false; break; }
+                }
+                if (allF64) {
+                    std::string argStr;
+                    for (size_t i = 0; i < arguments.size(); ++i) {
+                        if (i > 0) argStr += ", ";
+                        std::string raw = arguments[i]->getCExpr(e);
+                        argStr += raw;
+                    }
+                    std::string resTemp = e.newTemp("n_ret");
+                    e.emit("double " + resTemp + " = " + entry->nativeF64 +
+                           "(" + argStr + ");");
+                    e.declareNativeTemp(resTemp, CType::fromKind(CType::Kind::Float64));
+                    return resTemp;
+                }
             }
 
             // ---- fixed arity: emit (arg1, arg2, ...) ----------------
