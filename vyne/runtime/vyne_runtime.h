@@ -58,7 +58,9 @@ static inline void* arena_alloc(size_t size) {
     if (VYNE_UNLIKELY(p == NULL || (size_t)(g_arena_end - p) < size)) {
         size_t cap = size > VYNE_ARENA_BLOCK_SIZE ? size : VYNE_ARENA_BLOCK_SIZE;
         ArenaBlock* b = (ArenaBlock*)malloc(sizeof(ArenaBlock));
-        b->data     = (uint8_t*)malloc(cap);
+        if (!b) { fprintf(stderr, "vyne: out of memory\n"); exit(1); }
+        b->data = (uint8_t*)malloc(cap);
+        if (!b->data) { fprintf(stderr, "vyne: out of memory\n"); exit(1); }
         b->used     = size;
         b->capacity = cap;
         b->next     = g_arena.head;
@@ -519,7 +521,7 @@ static inline VyneValue vyne_string_substr(VyneValue str, int64_t start, int64_t
     char* buf = (char*)arena_alloc(count + 1);
     memcpy(buf, s + start, count);
     buf[count] = '\0';
-    return vyne_string(buf);
+    return vyne_string_own(buf);
 }
 
 static inline VyneValue vyne_string_find(VyneValue str, VyneValue target) {
@@ -1279,35 +1281,26 @@ VYNE_NOINLINE
 static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
     // String concatenation
     if (op == VBOP_ADD && (left.type == V_STRING || right.type == V_STRING)) {
-        // If one side is already a string, we can use it directly and
-        // only materialize the non-string side. Avoids one allocation
-        // in the (common) `string + number` case.
-        char tmp[64];
-        const char* ls = NULL;
-        const char* rs = NULL;
-        size_t llen = 0, rlen = 0;
-
+        const char* ls;
+        const char* rs;
+        size_t llen, rlen;
+        
         if (left.type == V_STRING) {
             ls = left.as.str;
             llen = strlen(ls);
         } else {
             VyneValue s = vyne_to_string(left);
-            size_t n = strlen(s.as.str);
-            if (n >= sizeof(tmp)) n = sizeof(tmp) - 1;
-            memcpy(tmp, s.as.str, n); tmp[n] = '\0';
-            ls = tmp; llen = n;
+            ls = s.as.str;
+            llen = strlen(ls);
         }
 
-        char tmp2[64];
         if (right.type == V_STRING) {
             rs = right.as.str;
             rlen = strlen(rs);
         } else {
             VyneValue s = vyne_to_string(right);
-            size_t n = strlen(s.as.str);
-            if (n >= sizeof(tmp2)) n = sizeof(tmp2) - 1;
-            memcpy(tmp2, s.as.str, n); tmp2[n] = '\0';
-            rs = tmp2; rlen = n;
+            rs = s.as.str;
+            rlen = strlen(rs);
         }
 
         char* res = (char*)arena_alloc(llen + rlen + 1);
@@ -1366,7 +1359,7 @@ static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
 }
 
 static inline VyneValue vyne_binop(VyneValue left, VyneValue right, int op) {
-    if (__builtin_expect(left.type == V_INT64 && right.type == V_INT64, 1)) {
+    if (VYNE_LIKELY(left.type == V_INT64 && right.type == V_INT64)) {
         int64_t l = left.as.i64;
         int64_t r = right.as.i64;
         switch (op) {
