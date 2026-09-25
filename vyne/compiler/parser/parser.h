@@ -79,6 +79,7 @@ private:
     }
 
 	bool tryParseTypeArgs(std::vector<std::string>& out);
+	VType resolveArrayElementType(const std::string& typePath);
 
 	// --- Literal Workers ---
 	std::unique_ptr<ASTNode> parseStringLiteral();

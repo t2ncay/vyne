@@ -410,6 +410,8 @@ class AssignmentNode : public ASTNode {
     bool isConstant;
     bool isReference;
     VType expectedType;
+    VType arrayElemType = VType::Unknown;   // M4-C1
+    std::string declaredTypeName;   // M4-C1B: user-written type path, if any
 
 public:
     AssignmentNode(uint32_t id, 
@@ -449,6 +451,12 @@ public:
     // helpers
     const std::string& getOriginalName() const { return originalName; }
     ASTNode* getRHS() const { return rhs.get(); }
+    
+    VType getArrayElemType() const { return arrayElemType; }
+    void  setArrayElemType(VType t) { arrayElemType = t; }
+
+    const std::string& getDeclaredTypeName() const { return declaredTypeName; }
+    void setDeclaredTypeName(std::string n) { declaredTypeName = std::move(n); }
 };
 
 class MemberAssignmentNode : public ASTNode {
@@ -823,6 +831,7 @@ class FunctionNode : public ASTNode {
     std::vector<std::shared_ptr<ASTNode>> body;
     VType returnType;
     std::vector<std::string> typeParams;
+    VType returnArrayElemType = VType::Unknown;   // M4-C1
 
 public:
     FunctionNode(std::string tm, uint32_t n, std::string on, std::vector<Parameter> pid, 
@@ -851,6 +860,9 @@ public:
 
     void setTypeParams(std::vector<std::string> tp) { typeParams = std::move(tp); }
     const std::vector<std::string>& getTypeParams() const { return typeParams; }
+
+    VType getReturnArrayElemType() const { return returnArrayElemType; }
+    void  setReturnArrayElemType(VType t) { returnArrayElemType = t; }
 };
 
 class FunctionCallNode : public ASTNode {
@@ -1078,6 +1090,11 @@ struct InterfaceMember {
     std::string name;
     VType type;
     size_t offset;
+    VType arrayElemType = VType::Unknown;   // M4-C1
+
+    InterfaceMember(std::string n, VType t, size_t off,
+                    VType aet = VType::Unknown)
+        : name(std::move(n)), type(t), offset(off), arrayElemType(aet) {}
 };
 
 class InterfaceNode : public ASTNode {

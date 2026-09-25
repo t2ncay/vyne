@@ -24,10 +24,13 @@ struct Parameter {
     uint32_t id;
     std::string name;
     VType type;
+    VType arrayElemType = VType::Unknown;   // M4-C1: for Array<T>, the T
     bool isReference;
 
-    Parameter(uint32_t i, std::string n, VType t, bool ir) 
-        : id(i), name(std::move(n)), type(t), isReference(ir) {}
+    Parameter(uint32_t i, std::string n, VType t, bool ir,
+              VType aet = VType::Unknown) 
+        : id(i), name(std::move(n)), type(t),
+          arrayElemType(aet), isReference(ir) {}
 };
 
 struct VyneObject {
