@@ -57,10 +57,10 @@ fn main() {
     out("");
     out("=== Plain types still work ===");
 
-    x :: Int64      = 5;
-    y :: Float64    = 2.5;
-    s :: String     = "ok";
-    a :: Array      = [10, 20, 30];
+    x :: Int64   = 5;
+    y :: Float64 = 2.5;
+    s :: String  = "ok";
+    a :: Array   = [10, 20, 30];
 
     out(x);       # 5
     out(y);       # 2.5

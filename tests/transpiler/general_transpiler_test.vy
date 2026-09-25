@@ -1,4 +1,7 @@
-ruleset { warnings, verbose, dynamic_casting };
+ruleset { 
+    verbose,
+    dynamic_casting 
+};
 
 # ============================================================
 # 1. LITERALS
@@ -121,6 +124,7 @@ out(m["a"]);          # 1
 out(m.has("a"));      # true
 out(m.has("z"));      # false
 out(m.size());        # 2
+out(m.keys());
 
 m.set("c", 3);
 out(m);               # {"a": 1, "b": 2, "c": 3}
