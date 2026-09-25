@@ -100,14 +100,16 @@ fn :: bio codon_for(aa :: String) -> String {
 fn :: bio translate(mrna :: String) -> bio.Types.Protein {
     n :: Int64 = mrna.size();
     acc :: String = "";
-    through i :: 0..n-3 -> loop {
+    i :: Int64 = 0;
+    while i <= n - 3 {
         codon :: String = mrna[i] + mrna[i + 1] + mrna[i + 2];
         aa    :: String = bio.codon_to_aa(codon);
         if aa == "*" {
             break;
         }
         acc = acc + aa;
-    };
+        i = i + 3;
+    }
     return bio.Types.Protein(acc, "translated");
 }
 
@@ -134,13 +136,15 @@ fn :: bio reverse_translate(protein :: String) -> String {
 fn :: bio codon_usage(mrna :: String) -> Map {
     counts :: Map = {};
     n :: Int64 = mrna.size();
-    through i :: 0..n-3 -> loop {
+    i :: Int64 = 0;
+    while i <= n - 3 {
         codon :: String = mrna[i] + mrna[i + 1] + mrna[i + 2];
         if counts.has(codon) {
             counts.set(codon, counts[codon] + 1);
         } else {
             counts.set(codon, 1);
         }
-    };
+        i = i + 3;
+    }
     return counts;
 }

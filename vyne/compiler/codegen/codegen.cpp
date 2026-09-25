@@ -2341,7 +2341,26 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
         e.emit("vyne_array_reverse(" + recv + ");");
         return recv;
     }
-    if (methodName == "length" || methodName == "size") {
+
+    // If the receiver is a statically-known struct/interface type, its own
+    // registered methods win over built-ins that share the name (length,
+    // size, has, keys, values, push, pop, ...). Let the struct-method
+    // dispatch at the bottom of this function handle it.
+    bool receiverIsStruct = false;
+    if (receiver->type() == NodeType::VARIABLE) {
+        auto* var = static_cast<VariableNode*>(receiver.get());
+        std::string recvName = var->getOriginalName();
+        std::string prefix   = e.getActiveFunctionPrefix();
+        std::string lookupKey = prefix.empty()
+            ? ("v_" + recvName)
+            : ("v_" + prefix + "_" + recvName);
+        if (e.lookupLocalStructType(lookupKey) ||
+            e.lookupGlobalStructType("v_" + recvName)) {
+            receiverIsStruct = true;
+        }
+    }
+
+    if (!receiverIsStruct && (methodName == "length" || methodName == "size")) {
         std::string temp = e.newTemp("len");
         e.emit("VyneValue " + temp + " = vyne_int(vyne_get_sizeof(" + recv + "));");
         return temp;
