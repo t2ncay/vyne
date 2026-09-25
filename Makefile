@@ -18,7 +18,7 @@ URAGE_SRCS = ./vendor/urage/core/src/database_api.c \
 OPENSSL_INC = C:/msys64/ucrt64/include
 OPENSSL_LIB = C:/msys64/ucrt64/lib
 
-COMMON_FLAGS = -std=c++23 -I. $(RAYLIB_INCLUDE) \
+COMMON_FLAGS = -std=c++26 -I. $(RAYLIB_INCLUDE) \
                -I./lsp/backend/src -I./lsp/backend/include \
                -I"$(OPENSSL_INC)" \
                -DCPPHTTPLIB_OPENSSL_SUPPORT -D_WIN32 -DWIN32_LEAN_AND_MEAN -DNOGDI -DNOUSER \
