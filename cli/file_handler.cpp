@@ -132,13 +132,15 @@ int runFile(const std::string& filename, SymbolContainer& env, const std::string
 
             C_Emitter emitter;
             emitter.reset();
-            emitter.setSourceDir(std::filesystem::absolute(filename).parent_path().string());
 
             for (const auto& unit : units) {
                 emitter.markImported(unit.canonicalPath);
             }
 
             for (auto& unit : units) {
+                emitter.setSourceDir(
+                    std::filesystem::path(unit.canonicalPath).parent_path().string());
+
                 if (unit.alias.empty()) {
                     unit.ast->compile(emitter);
                 } else {
