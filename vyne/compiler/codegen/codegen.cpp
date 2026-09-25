@@ -1598,6 +1598,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
 
         e.emitGlobalDecl("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);");
         e.pushFunctionContext();
+        e.enterFunction(methodName); 
         e.emitBlockOpen("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args) {");
 
         e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
@@ -1617,6 +1618,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.emit("return vyne_null();");
         e.emitBlockClose();
         e.emit("");
+        e.exitFunction();
         e.popFunctionContext();
 
         e.pushMainContext();
