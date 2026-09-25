@@ -58,7 +58,7 @@ jobs:
             ! -path "tests/transpiler/*" \
             ! -path "tests/network/*" | while read -r testfile; do
               echo "::group::Testing $testfile"
-              xvfb-run --auto-servernum ./vyne_run --ast "$testfile" || { echo "$testfile failed!"; exit 1; }
+              xvfb-run --auto-servernum ./vyne_run --compile "$testfile" || { echo "$testfile failed!"; exit 1; }
               echo "::endgroup::"
           done
 
