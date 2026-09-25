@@ -1,5 +1,49 @@
 #include "codegen.h"
 
+// ============================================================================
+// codegen.cpp — AST → C transpiler
+//
+// Layout (top to bottom):
+//
+//    1. File-scope helpers       cross-cutting utilities used by many nodes
+//    2. Literals                 NumberNode, StringNode, BooleanNode, NullNode
+//    3. Variables / assignments  VariableNode, AssignmentNode, nativeInit
+//    4. Operators                BinOpNode, UnaryNode, PostFixNode
+//    5. Control flow             IfNode, WhileNode, Return/Break/Continue
+//    6. For loops                ForNode, int64Bound
+//    7. Functions                emitFunctionBody, FunctionNode
+//    8. Function calls           FunctionCallNode
+//    9. Arrays / index / slice   ArrayNode, Index*, RangeNode, SliceNode
+//   10. Built-ins                BuiltInCallNode
+//   11. Program / block          ProgramNode, BlockNode
+//   12. Ternary                  TernaryNode
+//   13. Member access            MemberAccessNode, MemberAssignmentNode
+//   14. Group                    GroupNode
+//   15. Module                   ModuleNode
+//   16. Interface / struct       InterfaceNode
+//   17. Method call              MethodCallNode
+//   18. Import                   ImportNode
+//   19. Enum / defer / dismiss   EnumNode, DeferNode, DismissNode, DeployNode
+//   20. Null coalesce            NullCoalesceAssignmentNode, ...Member..., ...Node
+//   21. In operator              InNode
+//   22. Pipeline                 PipelineNode
+//   23. Exceptions               ThrowNode, FinallyNode, TryCatchNode
+//   24. Map literal              MapNode
+//   25. Interpolated string      InterpolatedStringNode
+//
+// Two invariants to keep in mind while editing:
+//
+//   - Every VyneValue crossing a dynamic boundary is boxed. When a static
+//     type is provable, M1/M4 unbox it to int64_t / double / VyneArray_*.
+//     Box on uncertainty; never guess.
+//
+//   - Every boxing site in this file goes through boxTypedArray, never raw
+//     e.boxIfNative. boxTypedArray is a strict superset that also handles
+//     typed arrays. If you add a new site and use boxIfNative, you will
+//     emit `VyneArray_i64` into a `VyneValue` slot and the generated C will
+//     not compile.
+// ============================================================================
+
 // ============================================================
 // LITERALS
 // ============================================================
@@ -2454,6 +2498,21 @@ void DeferNode::compile(C_Emitter& e) const {
         "with --interp.");
 }
 
+std::string DeferNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void DismissNode::compile(C_Emitter& e) const {
+    e.emit("vyne_dismiss_module(\"" + originalName + "\");");
+}
+std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+
+void DeployNode::compile(C_Emitter& e) const {
+    e.emit("vyne_deploy_module(\"" + moduleName + "\");");
+}
+std::string DeployNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()";
+}
+
 // ============================================================
 // NULL COALESCE ASSIGNMENT
 // ============================================================
@@ -2514,30 +2573,6 @@ void NullCoalesceMemberAssignmentNode::compile(C_Emitter& e) const {
 }
 
 std::string NullCoalesceMemberAssignmentNode::getCExpr(C_Emitter& e) const {
-    compile(e);
-    return "vyne_null()";
-}
-
-// ============================================================
-// DEFER - getCExpr (missing)
-// ============================================================
-
-std::string DeferNode::getCExpr(C_Emitter& e) const {
-    // Defer is handled at runtime, no expression value
-    return "vyne_null()";
-}
-
-void DismissNode::compile(C_Emitter& e) const {
-    e.emit("vyne_dismiss_module(\"" + originalName + "\");");
-}
-
-std::string DismissNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
-
-void DeployNode::compile(C_Emitter& e) const {
-    e.emit("vyne_deploy_module(\"" + moduleName + "\");");
-}
-
-std::string DeployNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
