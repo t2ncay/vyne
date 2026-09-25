@@ -928,6 +928,62 @@ static inline VyneValue vyne_array_i64_to_value(const VyneArray_i64* a) {
     return v;
 }
 
+// --- Slice: half-open [lo, hi), matches vyne_slice_get's memcpy count ---
+static inline VyneArray_f64 vyne_array_f64_slice(const VyneArray_f64* a,
+                                                 int64_t lo, int64_t hi) {
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (lo >= hi) return vyne_array_f64_create(0);
+
+    int64_t n = hi - lo;
+    VyneArray_f64 r = vyne_array_f64_create(n);
+    memcpy(r.data, a->data + lo, sizeof(double) * (size_t)n);
+    return r;
+}
+
+static inline VyneArray_i64 vyne_array_i64_slice(const VyneArray_i64* a,
+                                                 int64_t lo, int64_t hi) {
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (lo >= hi) return vyne_array_i64_create(0);
+
+    int64_t n = hi - lo;
+    VyneArray_i64 r = vyne_array_i64_create(n);
+    memcpy(r.data, a->data + lo, sizeof(int64_t) * (size_t)n);
+    return r;
+}
+
+// --- Unbox: VyneValue -> typed array. Used when a value crosses INTO a
+//     typed context (currently only for reassignment guards; kept here so
+//     M5 can lift the function-parameter boundary without touching the
+//     runtime again). Silent on mismatch, matching the "trust the type
+//     annotation" rule.
+static inline VyneArray_f64 vyne_value_to_array_f64(VyneValue v) {
+    if (v.type != V_ARRAY) return vyne_array_f64_create(0);
+    int64_t n = v.as.arr->size;
+    VyneArray_f64 r = vyne_array_f64_create(n);
+    for (int64_t i = 0; i < n; ++i) {
+        VyneValue e = v.as.arr->elements[i];
+        r.data[i] = (e.type == V_FLOAT64) ? e.as.f64 : (double)e.as.i64;
+    }
+    return r;
+}
+
+static inline VyneArray_i64 vyne_value_to_array_i64(VyneValue v) {
+    if (v.type != V_ARRAY) return vyne_array_i64_create(0);
+    int64_t n = v.as.arr->size;
+    VyneArray_i64 r = vyne_array_i64_create(n);
+    for (int64_t i = 0; i < n; ++i) {
+        VyneValue e = v.as.arr->elements[i];
+        r.data[i] = (e.type == V_INT64) ? e.as.i64 : (int64_t)e.as.f64;
+    }
+    return r;
+}
+
 // ============================================================================
 // SLICE — base[lo..hi], inclusive on both ends
 // ============================================================================

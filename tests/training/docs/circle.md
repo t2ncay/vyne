@@ -247,12 +247,12 @@ Render output for Run B:
 
 ## Performance
 
-| Stage                   | Time   |
-| ----------------------- | ------ |
-| Transpile               | ~7 ms  |
-| `gcc -O3`               | ~3.4 s |
-| Execution (3000 epochs) | ~5.5 s |
-| Total                   | ~9 s   |
+| Stage                   | Time                                     |
+| ----------------------- | ---------------------------------------- |
+| Transpile               | ~7 ms                                    |
+| `gcc -O3`               | ~3.4 s                                   |
+| Execution (3000 epochs) | ~5.0 s ( dropped from ~5.5s, changelog ) |
+| Total                   | ~9 s                                     |
 
 Execution time is dominated by the interpreter loop over `VyneValue` arrays in `vlinalg.multiply`, `hadamard`, and `transpose`. Approximately 100,000 multiply-adds per epoch.
 

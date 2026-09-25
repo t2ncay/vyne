@@ -153,6 +153,13 @@ public:
         auto it = globalTypes.find(name);
         return it == globalTypes.end() ? nullptr : &it->second;
     }
+    const CType* lookupAnyType(const std::string& name) const {
+        auto lt = localTypes.find(name);
+        if (lt != localTypes.end()) return &lt->second;
+        auto gt = globalTypes.find(name);
+        if (gt != globalTypes.end()) return &gt->second;
+        return nullptr;
+    }
     // Register a native temp expression (e.g. a binop result stored as
     // `int64_t bin_5 = ...;`) so consumers know it is unboxed.
     void declareNativeTemp(const std::string& name, const CType& ct) {
