@@ -11,7 +11,7 @@ vcr_font = vglib.load_font(configs.Fonts.vcr_mono);
 is_ready = vaudio.init_audio();
 vaudio.volume(1.0);
 
-track = vaudio.load_sound(configs.Audios.ikit1bb);
+track = vaudio.load_sound(configs.Audios.wall_of_sound);
 
 # ATTACH DSP PROCESSORS SO AUDIO CALLBACKS RUN
 vaudio.attach_analyzer(track);
