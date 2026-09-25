@@ -11,7 +11,7 @@ group Types :: vlinalg {
     interface Matrix {
         row  :: Int64,
         col  :: Int64,
-        data :: Array,
+        data :: Array<Float64>,
 
         # =============================================================
         # ORIGINAL (kept verbatim so existing code still compiles)
