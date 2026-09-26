@@ -1,5 +1,4 @@
 ruleset { 
-    verbose,
     dynamic_casting 
 };
 
