@@ -104,6 +104,54 @@ static inline void arena_free_all(void) {
 }
 
 // ============================================================================
+// ARENA CHECKPOINT / REWIND
+// ----------------------------------------------------------------------------
+// Save a position in the arena, then rewind to it later. Rewind frees every
+// block allocated since the checkpoint and resets the bump pointer inside
+// the checkpoint's block. The checkpoint itself lives on the C stack.
+//
+// Constraints:
+//   - Any pointer whose target was allocated after the checkpoint is
+//     invalidated by rewind. Do not rewind while such pointers are live.
+//   - Later checkpoints are invalidated when an earlier one is used.
+// ============================================================================
+
+typedef struct {
+    ArenaBlock* block;          // the block we were bumping in at checkpoint time
+    size_t      offset;         // bytes used within that block
+    size_t      total_allocated;// for accounting
+} ArenaCheckpoint;
+
+static inline ArenaCheckpoint arena_checkpoint(void) {
+    ArenaCheckpoint cp;
+    cp.block = g_arena.head;
+    cp.offset = (g_arena_cur != NULL && g_arena.head != NULL)
+              ? (size_t)(g_arena_cur - g_arena.head->data)
+              : 0;
+    cp.total_allocated = g_arena.total_allocated;
+    return cp;
+}
+
+static inline void arena_rewind(ArenaCheckpoint cp) {
+    // Drop every block that was created after the checkpoint.
+    while (g_arena.head != cp.block && g_arena.head != NULL) {
+        ArenaBlock* next = g_arena.head->next;
+        free(g_arena.head->data);
+        free(g_arena.head);
+        g_arena.head = next;
+    }
+    // Reset the bump pointer inside the surviving block.
+    if (cp.block != NULL) {
+        g_arena_cur = cp.block->data + cp.offset;
+        g_arena_end = cp.block->data + cp.block->capacity;
+    } else {
+        g_arena_cur = NULL;
+        g_arena_end = NULL;
+    }
+    g_arena.total_allocated = cp.total_allocated;
+}
+
+// ============================================================================
 // VALUE TYPES
 // ============================================================================
 
