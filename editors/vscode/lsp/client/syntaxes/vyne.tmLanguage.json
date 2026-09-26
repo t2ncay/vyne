@@ -13,6 +13,8 @@
     { "include": "#enum-declaration" },
     { "include": "#module-declaration" },
     { "include": "#exception-handlers" },
+    { "include": "#annotation" },
+    { "include": "#region-declaration" },
     { "include": "#control-keywords" },
     { "include": "#storage-modifiers" },
     { "include": "#builtin-functions" },
@@ -195,6 +197,31 @@
         {
           "name": "keyword.control.exception.vyne",
           "match": "\\b(try|catch|finally|throw)\\b"
+        }
+      ]
+    },
+    "annotation": {
+      "patterns": [
+        {
+          "name": "meta.annotation.vyne",
+          "match": "(@)([a-zA-Z_][a-zA-Z0-9_]*)",
+          "captures": {
+            "1": { "name": "punctuation.definition.annotation.vyne" },
+            "2": { "name": "entity.name.function.annotation.vyne" }
+          }
+        }
+      ]
+    },
+    "region-declaration": {
+      "patterns": [
+        {
+          "name": "meta.region.vyne",
+          "begin": "\\b(region)\\s+([a-z_][a-zA-Z0-9_]*)\\s*(?=\\{)",
+          "end": "(?=\\{)",
+          "beginCaptures": {
+            "1": { "name": "storage.type.region.vyne" },
+            "2": { "name": "entity.name.type.region.vyne" }
+          }
         }
       ]
     },
