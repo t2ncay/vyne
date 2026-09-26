@@ -264,8 +264,6 @@ execution 24.43 s
 total 28.17 s
 ```
 
-```
-
 Sample predictions:
 
 | sequence                       | p(struct) | label  |
@@ -301,7 +299,7 @@ neither biased toward class 0 nor class 1.
 
 **Accuracy dropped from 100% to 99.5%.** That drop is the outcome the
 LCG fix was supposed to produce. It means the classifier now has to
-distinguish a *statistical* property of codon usage (dense vs sparse
+distinguish a _statistical_ property of codon usage (dense vs sparse
 histograms against real entropy) rather than an artifact of the
 collapsed generator. The 1–2 samples it misses are the ones nearest the
 decision boundary — the ones where a genuinely random sequence happens
@@ -312,7 +310,6 @@ That the accuracy stayed this high is a genuine result. It means the
 that even a properly-random class 0 is mostly distinguishable. If the
 accuracy had collapsed to 80%, that would have been the more
 interesting outcome; as it stands, the demo passes the honest test.
-```
 
 ---
 
@@ -405,10 +402,12 @@ collapsed class-0 distribution.
 4-cycles.
 
 ```
+
 random UACGUACGUACGUACGUACGUACGUACGUA
 random CGUACGUACGUACGUACGUACGUACGUACG
 random UACGUACGUACGUACGUACGUACGUACGUA
 random CGUACGUACGUACGUACGUACGUACGUACG
+
 ```
 
 **Cause:** `vmath_random` used the Numerical Recipes LCG:
