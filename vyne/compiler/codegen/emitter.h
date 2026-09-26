@@ -84,6 +84,8 @@ class C_Emitter {
     std::string currentReturnVar;
     std::string currentReturningVar;
 
+    std::vector<std::string> regionStack;
+
     int tempVarCount = 0;
 
 public:
@@ -120,6 +122,12 @@ public:
 
     bool isGlobalContext() {
         return contextStack.empty() || contextStack.back() == EmitContext::GLOBAL;
+    }
+
+    bool isTopLevelOfMain() const {
+        bool inMain = contextStack.empty()
+                || contextStack.back() == EmitContext::MAIN;
+        return inMain && localVarsStack.empty();
     }
 
     bool isGlobalDeclared(const std::string& name) const {
@@ -200,6 +208,7 @@ public:
         localStructTypes.clear();
         fieldCache.clear();
         currentInterfaceType.clear();
+        regionStack.clear(); 
     }
     void popFunctionContext() {
         if (!contextStack.empty()) contextStack.pop_back();
@@ -378,6 +387,19 @@ public:
     bool hasTryCleanup() const { return !tryCleanupStack.empty(); }
     const std::string& currentTryCleanup() const { return tryCleanupStack.back(); }
 
+    // --- Region emitters --------------------------------------------
+    void pushRegion(const std::string& cpHandle) { regionStack.push_back(cpHandle); }
+    void popRegion() { if (!regionStack.empty()) regionStack.pop_back(); }
+    bool hasRegion() const { return !regionStack.empty(); }
+    const std::vector<std::string>& getRegionStack() const { return regionStack; }
+
+    // Emit rewind calls for every live region, innermost first.
+    // Used by BreakNode / ContinueNode / ReturnNode before the transfer.
+    void emitRegionUnwind() {
+        for (auto it = regionStack.rbegin(); it != regionStack.rend(); ++it)
+            emit("vmem_runtime_rewind(" + *it + ");");
+    }
+
     void setReturnVars(const std::string& rv, const std::string& rf) {
         currentReturnVar = rv; currentReturningVar = rf;
     }
@@ -443,6 +465,7 @@ public:
         sourceDir.clear();
         activeFunctionPrefix.clear();
         tryCleanupStack.clear();
+        regionStack.clear(); 
         currentReturnVar.clear();
         currentReturningVar.clear();
         localVars.clear();

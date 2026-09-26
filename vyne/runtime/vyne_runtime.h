@@ -51,6 +51,24 @@ static VyneArena g_arena = { NULL, 0 };
 static uint8_t* g_arena_cur = NULL;
 static uint8_t* g_arena_end = NULL;
 
+// ============================================================================
+// COMMIT ARENA — survives region rewinds
+// ----------------------------------------------------------------------------
+// A second bump arena, parallel to g_arena. `region.commit(x)` deep-clones x
+// into this arena; region rewinds do not touch it, so the committed value
+// stays valid after the region closes.
+//
+// Lifetime: committed values live until program exit. This is a deliberate
+// trade-off for the v0 implementation — A2 (escape analysis) will eventually
+// let us prove when a committed value can be freed earlier. Until then, a
+// commit inside a hot loop grows this arena linearly with iterations.
+//
+// Freed by arena_free_all() alongside the main arena.
+// ============================================================================
+static VyneArena g_commit_arena = { NULL, 0 };
+static uint8_t* g_commit_cur    = NULL;
+static uint8_t* g_commit_end    = NULL;
+
 static inline void* arena_alloc(size_t size) {
     size = (size + 7) & ~(size_t)7;
 
@@ -101,6 +119,23 @@ static inline void arena_free_all(void) {
     g_arena_cur             = NULL;
     g_arena_end             = NULL;
     g_arena.total_allocated = 0;
+    g_arena.head            = NULL;
+    g_arena_cur             = NULL;
+    g_arena_end             = NULL;
+    g_arena.total_allocated = 0;
+
+    // also free the commit arena if exists ( see the region part )
+    ArenaBlock* cblock = g_commit_arena.head;
+    while (cblock) {
+        ArenaBlock* next = cblock->next;
+        free(cblock->data);
+        free(cblock);
+        cblock = next;
+    }
+    g_commit_arena.head            = NULL;
+    g_commit_cur                   = NULL;
+    g_commit_end                   = NULL;
+    g_commit_arena.total_allocated = 0;
 }
 
 // ============================================================================

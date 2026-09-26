@@ -89,4 +89,48 @@ static inline VyneValue vmem_runtime_reset(void) {
     return vyne_null();
 }
 
+static inline VyneValue vmem_deep_clone(VyneValue v) {
+    switch (v.type) {
+        case V_ARRAY: return vyne_array_deepcopy(v);
+        case V_MAP:   return vyne_map_deepcopy(v);
+        case V_STRING: {
+            if (v.as.str == NULL) return v;
+            size_t len = strlen(v.as.str) + 1;
+            char* buf = arena_alloc(len);
+            memcpy(buf, v.as.str, len);
+            return vyne_string_own(buf);
+        }
+        default: return v;
+    }
+}
+
+static inline VyneValue vmem_runtime_commit(VyneValue v) {
+    VyneArena   saved_arena = g_arena;
+    uint8_t*    saved_cur   = g_arena_cur;
+    uint8_t*    saved_end   = g_arena_end;
+
+    g_arena     = g_commit_arena;
+    g_arena_cur = g_commit_cur;
+    g_arena_end = g_commit_end;
+
+    VyneValue copy = vmem_deep_clone(v);
+
+    g_commit_arena = g_arena;
+    g_commit_cur   = g_arena_cur;
+    g_commit_end   = g_arena_end;
+
+    g_arena     = saved_arena;
+    g_arena_cur = saved_cur;
+    g_arena_end = saved_end;
+
+    return copy;
+}
+
+static inline void vmem_runtime_pop_checkpoints(int count) {
+    while (count-- > 0 && g_vmem_top > 0) {
+        g_vmem_top--;
+        g_vmem_slots[g_vmem_top].active = 0;
+    }
+}
+
 #endif /* VYNE_VMEM_RT_H */

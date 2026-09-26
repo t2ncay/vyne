@@ -56,38 +56,11 @@ static std::string floatLit(double v) {
     return std::string(buf, p);
 }
 
-// ============================================================
-// M4: typed-array local inference.
-//
-// resolveType("Array<Int64>") returns VType::Array only — the parser
-// discards the element type. So we recover it at emit time from either
-// the RHS (ArrayNode) or the base expression (a CType registered when
-// the typed local was declared).
-//
-// Fast path applies when:
-//   x: Array<Int64> = [1, 2, 3];     -> VyneArray_i64 local
-//   through v :: x -> loop { }        -> flat for over x.data
-//   x[i]  /  x[i] = e                  -> x.data[i]
-//   x[a:b]                            -> vyne_array_i64_slice
-//
-// Still boxed (C0 limits):
-//   parameters / returns / struct fields declared Array<T>
-//   collect / filter / every / unique over a typed array
-//   push / pop / sort / delete / place_all on a typed array
-// ============================================================
-
-// Find a CType for a C expression string: native temps first (BinOp /
-// ArrayNode / SliceNode results), then scoped locals. lookupLocalType
-// returns ANY registered kind, unlike C_Emitter::exprNativeType which
-// filters to primitives — that's the whole reason this wrapper exists.
 static const CType* lookupCType(C_Emitter& e, const std::string& expr) {
     if (const CType* t = e.exprNativeType(expr)) return t;
     return e.lookupAnyType(expr);
 }
 
-// Homogeneous element type of an array literal. Returns Unknown for
-// empty arrays, non-Array nodes, or any element that isn't Int64/Float64.
-// Mixed Int64/Float64 promotes to Float64.
 static VType inferArrayElemType(const ASTNode* node) {
     if (!node || node->type() != NodeType::ARRAY) return VType::Unknown;
     auto* arr = static_cast<const ArrayNode*>(node);
@@ -328,23 +301,23 @@ void AssignmentNode::compile(C_Emitter& e) const {
 
     bool useGlobal;
     if (prefix.empty()) {
-        useGlobal = true;
+        useGlobal = hasGlobal || e.isTopLevelOfMain();
     } else if (!isDeclaration && hasGlobal) {
         useGlobal = true;
     } else {
         useGlobal = false;
     }
 
-    std::string varName = useGlobal ? bareName
-                                    : ("v_" + prefix + "_" + sanitized);
+    std::string varName;
+    if (prefix.empty() || useGlobal) {
+        varName = bareName;
+    } else {
+        varName = "v_" + prefix + "_" + sanitized;
+    }
 
     if (useGlobal) {
         CType declared = CType::fromVType(expectedType);
 
-        // M4: top-level `xs: Array<Int64> = [...]` → typed C global.
-        // The declaration goes to file scope as `VyneArray_i64 v_xs;`;
-        // the assignment happens inside main() because the array ctor
-        // touches the arena, which only exists at runtime.
         if (isDeclaration && declared.kind == CType::Kind::Array) {
             VType elem = inferArrayElemType(rhs.get());
             if (elem != VType::Unknown) {
@@ -362,12 +335,9 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     e.emit(bareName + " = " + val + ";");
                     return;
                 }
-                // RHS didn't materialize as a typed array — fall through
-                // to the boxed-global path below.
             }
         }
 
-        // Reassignment to an existing typed-array global.
         const CType* existing = e.lookupGlobalType(bareName);
         if (existing && existing->kind == CType::Kind::Array &&
             !existing->args.empty()) {
@@ -387,7 +357,6 @@ void AssignmentNode::compile(C_Emitter& e) const {
             return;
         }
 
-        // Boxed global (unchanged fallback).
         if (!hasGlobal) {
             e.registerDeclaration(bareName);
             e.emitGlobalDecl("VyneValue " + bareName + ";");
@@ -397,9 +366,6 @@ void AssignmentNode::compile(C_Emitter& e) const {
         return;
     }
 
-    // M4-C1B: record the declared struct type so downstream member reads
-    // can look up field element types. Only when the declaration carried
-    // an explicit type path (user wrote `m :: Types.Matrix = ...`).
     if (!declaredTypeName.empty()) {
         if (useGlobal) e.setGlobalStructType(bareName, declaredTypeName);
         else           e.setLocalStructType(varName, declaredTypeName);
@@ -409,7 +375,6 @@ void AssignmentNode::compile(C_Emitter& e) const {
     if (!e.isLocalDeclared(varName)) {
         CType declared = CType::fromVType(expectedType);
 
-        // M4: Array<T> local whose RHS is a homogeneous numeric literal.
         if (isDeclaration && declared.kind == CType::Kind::Array) {
             VType elem = inferArrayElemType(rhs.get());
             if (elem != VType::Unknown) {
@@ -798,20 +763,56 @@ std::string WhileNode::getCExpr(C_Emitter& e) const {
 }
 
 void ReturnNode::compile(C_Emitter& e) const {
-    // The function ABI is still `(int, VyneValue*) -> VyneValue`, so native
-    // values are boxed here at the boundary.
     std::string expr = expression ? boxTypedArray(e, expression->getCExpr(e))
                                   : "vyne_null()";
+
+    // Every region we're lexically inside at the point of this return.
+    // A `return` exits all of them; the question is whether we can safely
+    // rewind the arena on the way out.
+    size_t nRegions = e.getRegionStack().size();
+
+    // Only primitives survive a rewind: Int64 / Float64 / Bool / Null are
+    // copied by value. Array / Map / String / Struct are references into
+    // the arena and would dangle.
+    //
+    // VType::Unknown means the static type isn't provable — treat it as
+    // unsafe, matching the "box on uncertainty" rule elsewhere in this file.
+    VType retType = expression ? expression->getStaticType() : VType::Null;
+    bool primitiveSafe =
+        (retType == VType::Int64  || retType == VType::Float64 ||
+         retType == VType::Bool   || retType == VType::Null);
+
+    auto emitRegionCleanup = [&]() {
+        if (nRegions == 0) return;
+        if (primitiveSafe) {
+            e.emitRegionUnwind();
+        } else {
+            e.emit("vmem_runtime_pop_checkpoints(" +
+                   std::to_string(nRegions) + ");");
+        }
+    };
 
     if (e.hasTryCleanup() && e.hasReturnVars()) {
         e.emit(e.getReturnVar() + " = " + expr + ";");
         e.emit(e.getReturningVar() + " = 1;");
+        emitRegionCleanup();
         e.emit("goto " + e.currentTryCleanup() + ";");
     } else if (e.hasDeferContext() && e.hasReturnVars()) {
         e.emit(e.getReturnVar() + " = " + expr + ";");
+        emitRegionCleanup();
         e.emit("goto " + e.getDeferCleanupLabel() + ";");
     } else {
-        e.emit("return " + expr + ";");
+        if (nRegions > 0 && primitiveSafe) {
+            // Capture the boxed RHS in a local before unwinding, so the
+            // rewind cannot free anything the RHS still references.
+            std::string slot = e.newTemp("ret_val");
+            e.emit("VyneValue " + slot + " = " + expr + ";");
+            e.emitRegionUnwind();
+            e.emit("return " + slot + ";");
+        } else {
+            emitRegionCleanup();
+            e.emit("return " + expr + ";");
+        }
     }
 }
 
@@ -827,6 +828,7 @@ void BreakNode::compile(C_Emitter& e) const {
             "the C backend (line " + std::to_string(lineNumber) + "). "
             "Use a flag variable and break outside the try.");
     }
+    e.emitRegionUnwind(); 
     e.emit("break;");
 }
 std::string BreakNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
@@ -837,6 +839,7 @@ void ContinueNode::compile(C_Emitter& e) const {
             "Compile Error: 'continue' inside try/catch/finally is not supported by "
             "the C backend (line " + std::to_string(lineNumber) + ").");
     }
+    e.emitRegionUnwind();
     e.emit("continue;");
 }
 std::string ContinueNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
@@ -893,9 +896,6 @@ void ForNode::compile(C_Emitter& e) const {
 
     std::string collection = iterable->getCExpr(e);
 
-    // -----------------------------------------------------------------
-    // M4: flat iteration over a typed array.
-    // -----------------------------------------------------------------
     {
         const CType* ct = lookupCType(e, collection);
         if (ct && ct->kind == CType::Kind::Array && !ct->args.empty()) {
@@ -1019,7 +1019,6 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         return listTemp;
     }
 
-    // --- M4-C1B: flat collect/every over a typed array ----------------
     {
         std::string rawCollection = iterable->getCExpr(e);
         const CType* ct = lookupCType(e, rawCollection);
@@ -1470,7 +1469,6 @@ void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
 // ============================================================
 
 std::string ArrayNode::getCExpr(C_Emitter& e) const {
-    // M4: homogeneous numeric literal → flat typed array.
     VType elem = inferArrayElemType(this);
     if (elem != VType::Unknown && !elements.empty()) {
         std::string name = e.newTemp("arr");
@@ -1514,7 +1512,6 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
     const CType* bt = lookupCType(e, bRaw);
 
-    // M4: typed-array base -> direct .data[i], native result.
     if (bt && bt->kind == CType::Kind::Array && !bt->args.empty()) {
         VType elem = bt->args[0].toVType();
         std::string rawIdx = index->getCExpr(e);
@@ -1541,7 +1538,6 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
     const CType* bt = lookupCType(e, bRaw);
 
-    // M4: typed-array element store — direct .data[i] = v.
     if (bt && bt->kind == CType::Kind::Array && !bt->args.empty()) {
         VType elem = bt->args[0].toVType();
         std::string rawIdx = index->getCExpr(e);
@@ -1584,9 +1580,6 @@ std::string SliceNode::getCExpr(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
     const CType* bt = lookupCType(e, bRaw);
 
-    // M4: typed-array slice -> new typed array. `hi` is exclusive,
-    // matching vyne_slice_get's memcpy count (a pre-existing divergence
-    // from the interpreter's inclusive hi; fix that separately).
     if (bt && bt->kind == CType::Kind::Array && !bt->args.empty()) {
         VType elem = bt->args[0].toVType();
         std::string rawLo = low  ? low->getCExpr(e)  : "";
@@ -1869,7 +1862,6 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
         }
     }
 
-    // --- M4-C1B: Array<T> struct field → native VyneArray_* temp -----
     if (receiver->type() == NodeType::VARIABLE) {
         auto* var = static_cast<VariableNode*>(receiver.get());
         std::string recvName = var->getOriginalName();
@@ -2056,7 +2048,6 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.registerInterface(effectiveModule + "_" + interfaceName);
     }
 
-    // M4-C1B: register typed-array fields so member reads can unbox.
     for (const auto& m : members) {
         e.registerInterfaceArrayField(fullName, m.name, m.arrayElemType);
         e.registerInterfaceArrayField(interfaceName, m.name, m.arrayElemType);
@@ -3035,11 +3026,11 @@ void RegionNode::compile(C_Emitter& e) const {
     e.emit("// --- region: " + regionName + " ---");
     e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
 
+    e.pushRegion(cpHandle);
     e.emitBlockOpen("{");
-    for (const auto& stmt : body) {
-        if (stmt) stmt->compile(e);
-    }
+    for (const auto& stmt : body) if (stmt) stmt->compile(e);
     e.emitBlockClose();
+    e.popRegion();
 
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");
 }
@@ -3064,12 +3055,29 @@ std::string RegionNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 void RegionCommitNode::compile(C_Emitter& e) const {
-    throw std::runtime_error(
-        "Compile Error: 'region.commit' is not yet implemented by the C backend "
-        "(line " + std::to_string(lineNumber) + "). "
-        "Declare the value outside the region and assign to it from inside, "
-        "or keep it a primitive (Int64/Float64/Bool), which the region rewind "
-        "does not invalidate.");
+    auto* var = dynamic_cast<VariableNode*>(expression.get());
+    if (!var) {
+        throw std::runtime_error(
+            "Compile Error: region.commit() requires an lvalue variable "
+            "(line " + std::to_string(lineNumber) + ")");
+    }
+
+    // Same mangling rule as VariableNode::getCExpr. Keep them in sync.
+    std::string sanitized = var->getOriginalName();
+    std::replace(sanitized.begin(), sanitized.end(), '.', '_');
+
+    std::string prefix = e.getActiveFunctionPrefix();
+    std::string cVar;
+    if (!prefix.empty()) {
+        std::string localName = "v_" + prefix + "_" + sanitized;
+        cVar = e.isLocalDeclared(localName) ? localName : ("v_" + sanitized);
+    } else {
+        cVar = "v_" + sanitized;
+    }
+
+    std::string tmp = e.newTemp("commit");
+    e.emit("VyneValue " + tmp + " = vmem_runtime_commit(" + cVar + ");");
+    e.emit(cVar + " = " + tmp + ";");
 }
 
 std::string RegionCommitNode::getCExpr(C_Emitter& e) const {
