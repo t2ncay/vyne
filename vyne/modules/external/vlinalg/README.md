@@ -750,7 +750,3 @@ rule applies.
 Reductions, Losses. Method and function forms for the reductions and
 activations. `sgd_update_inplace` added to support the `vmem`
 checkpointing pattern in training loops.
-
-```
-
-```

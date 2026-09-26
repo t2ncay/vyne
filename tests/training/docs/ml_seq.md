@@ -63,15 +63,15 @@ in-place SGD update" below.
 
 ## Files
 
-| File                           | Role                                      |
-| ------------------------------ | ----------------------------------------- |
-| `tests/external/ml_seq.vy`     | Training script                           |
-| `modules/external/vbio/bio.vy` | Codon table, translation, `codon_usage`   |
-| `modules/external/vlinalg.vy`  | Matrix library (see README — forthcoming) |
-| `modules/external/vcolors.vy`  | ANSI color helpers                        |
-| `runtime/modules/vmath.h`      | Scalar math primitives                    |
-| `runtime/modules/vmem.h`       | Arena checkpoint primitive                |
-| `runtime/vyne_runtime.h`       | Value type, arena, collections            |
+| File                           | Role                                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| `tests/external/ml_seq.vy`     | Training script                                                                                           |
+| `modules/external/vbio/bio.vy` | Codon table, translation, `codon_usage`                                                                   |
+| `modules/external/vlinalg.vy`  | Matrix library ( see [README](https://github.com/t2ncay/vyne/tree/master/vyne/modules/external/vlinalg) ) |
+| `modules/external/vcolors.vy`  | ANSI color helpers                                                                                        |
+| `runtime/modules/vmath.h`      | Scalar math primitives                                                                                    |
+| `runtime/modules/vmem.h`       | Arena checkpoint primitive                                                                                |
+| `runtime/vyne_runtime.h`       | Value type, arena, collections                                                                            |
 
 `vlinalg`'s public API — the `Matrix` interface, the standalone Ops,
 Constructors, Losses, and Reductions modules — is documented in a
