@@ -3007,6 +3007,77 @@ std::string TryCatchNode::getCExpr(C_Emitter& e) const {
 }
 
 // ============================================================
+// A1 — LEXICAL REGIONS
+// ------------------------------------------------------------
+// `region name { body }` becomes:
+//
+//     VyneValue __cp_N = vmem_runtime_checkpoint();
+//     { body }                                  // C block: locals scoped
+//     vmem_runtime_rewind(__cp_N);
+//
+// The C block is what keeps locals declared inside the region from
+// leaking into the surrounding scope — matching the lifetime
+// guarantee at the source level. Nested regions work because
+// vmem.h's checkpoint stack is itself a stack; every rewind pops
+// its own handle and everything above it.
+// ============================================================
+
+void RegionNode::compile(C_Emitter& e) const {
+    // The user may not have written `module vmem;`. Region codegen
+    // depends on vmem.h's runtime helpers, so pull it in here.
+    std::string base = FileUtils::getExeDir();
+    std::filesystem::path moduleBase =
+        std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+    e.addInclude((moduleBase / "vmem.h").string());
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+
+    e.emit("// --- region: " + regionName + " ---");
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : body) {
+        if (stmt) stmt->compile(e);
+    }
+    e.emitBlockClose();
+
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
+std::string RegionNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()";
+}
+
+// ============================================================
+// A3 — REGION COMMIT
+// ------------------------------------------------------------
+// Not yet implemented. A correct lowering requires hoisting the
+// committed value above the checkpoint in the emitted C — which in
+// turn requires the escape-analysis pass (A2) to prove the value
+// has no aliases inside the region. Without that proof, any lowering
+// we pick either doubles the peak (copy) or silently produces a
+// dangling reference (transfer).
+//
+// We fail at compile time so the user sees the constraint instead of
+// getting a use-after-free at runtime.
+// ============================================================
+
+void RegionCommitNode::compile(C_Emitter& e) const {
+    throw std::runtime_error(
+        "Compile Error: 'region.commit' is not yet implemented by the C backend "
+        "(line " + std::to_string(lineNumber) + "). "
+        "Declare the value outside the region and assign to it from inside, "
+        "or keep it a primitive (Int64/Float64/Bool), which the region rewind "
+        "does not invalidate.");
+}
+
+std::string RegionCommitNode::getCExpr(C_Emitter& e) const {
+    compile(e);
+    return "vyne_null()";
+}
+
+// ============================================================
 // MAP LITERAL
 // ============================================================
 

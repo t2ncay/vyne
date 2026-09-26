@@ -114,6 +114,7 @@ private:
 	std::unique_ptr<ASTNode> parseTryCatch();
 	std::unique_ptr<ASTNode> parseThrowStatement();
 	std::unique_ptr<ASTNode> parseRulesetBlock(int line);
+	std::unique_ptr<ASTNode> parseRegionStatement();
 
     void applyRulesetValue(const Token& ruleName, int64_t value, int line);
     void applyRulesetValue(const Token& ruleName, const std::string& value, int line);

@@ -29,6 +29,7 @@ enum class VTokenType {
     As,                 // Alias declaration
     Extern,             // External lib modifier
     Interface,          // Struct definers
+    Region,             // 'region' keyword (A1/A3)
     Enum,               // Enumeration
 
     // --- KEYWORDS: CONTROL FLOW ---
@@ -138,6 +139,7 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"as",              VTokenType::As},
     {"lib",             VTokenType::Extern},
     {"interface",       VTokenType::Interface},
+    {"region",          VTokenType::Region},
     {"ruleset",         VTokenType::Ruleset},
     {"warnings",        VTokenType::Warnings},
     {"dynamic_casting", VTokenType::Dynamic_Casting},
@@ -206,6 +208,7 @@ inline std::string VTokenTypeToString(VTokenType type) {
         case VTokenType::As:                return "'as'";
         case VTokenType::Extern:           return "'extern'";
         case VTokenType::Interface:        return "'interface'";
+        case VTokenType::Region:           return "'region'";
         case VTokenType::Ruleset:          return "'ruleset'";
 
         // --- KEYWORDS: CONTROL FLOW ---

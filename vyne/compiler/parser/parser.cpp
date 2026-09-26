@@ -530,6 +530,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Defer:      return parseDeferStatement();
         case VTokenType::Try:          return parseTryCatch();
         case VTokenType::Throw:        return parseThrowStatement();
+        case VTokenType::Region:       return parseRegionStatement();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -2275,6 +2276,54 @@ std::unique_ptr<ASTNode> Parser::parseTryCatch() {
         catchVarName,
         std::move(finallyBody)
     );
+    node->lineNumber = line;
+    return node;
+}
+
+// A1 / A3 — `region name { ... }` and `region.commit(expr);`.
+//
+// Disambiguation: the token after `region` decides the form.
+//   `region.commit(...)`  → dot         → A3 commit
+//   `region name { ... }` → identifier  → A1 block
+std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
+    int line = peekToken().line;
+    consume(VTokenType::Region);
+
+    // ---- A3: region.commit(expr); -----------------------------------
+    if (peekToken().type == VTokenType::Dot) {
+        consume(VTokenType::Dot);
+        Token methodTok = consume(VTokenType::Identifier);
+        if (methodTok.name != "commit") {
+            emitError(
+                "Expected 'commit' after 'region.', but got '" + methodTok.name + "'",
+                line, "VNE-050",
+                {"Use 'region.commit(value)' to preserve a value past rewind"});
+        }
+
+        consume(VTokenType::Left_Parenthese);
+        auto expr = parseExpression();
+        consume(VTokenType::Right_Parenthese);
+        consumeSemicolon();
+
+        auto node = std::make_unique<RegionCommitNode>(std::move(expr));
+        node->lineNumber = line;
+        return node;
+    }
+
+    // ---- A1: region name { ... }; -----------------------------------
+    Token nameTok = consume(VTokenType::Identifier);
+    std::string regionName = nameTok.name;
+
+    consume(VTokenType::Left_CB);
+    std::vector<std::shared_ptr<ASTNode>> body;
+    while (peekToken().type != VTokenType::Right_CB &&
+           peekToken().type != VTokenType::End) {
+        body.emplace_back(parseStatement());
+    }
+    consume(VTokenType::Right_CB);
+    consumeSemicolon();
+
+    auto node = std::make_unique<RegionNode>(regionName, std::move(body));
     node->lineNumber = line;
     return node;
 }

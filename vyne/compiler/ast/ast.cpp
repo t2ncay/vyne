@@ -891,13 +891,23 @@ Value MethodCallNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) co
 
         if (methodId == uppercaseId) {
             std::string result = str;
-            std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+            std::transform(result.begin(), result.end(), result.begin(),
+                           [](unsigned char c) -> char {
+                               if (c >= 'a' && c <= 'z')
+                                   return static_cast<char>(c - 'a' + 'A');
+                               return static_cast<char>(c);
+                           });
             return Value(result);
         }
 
         if (methodId == lowercaseId) {
             std::string result = str;
-            std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+            std::transform(result.begin(), result.end(), result.begin(),
+                           [](unsigned char c) -> char {
+                               if (c >= 'A' && c <= 'Z')
+                                   return static_cast<char>(c - 'A' + 'a');
+                               return static_cast<char>(c);
+                           });
             return Value(result);
         }
 
@@ -2441,6 +2451,28 @@ Value FinallyNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const
         return body->evaluate(env, currentGroupId);
     }
     return Value();
+}
+
+// ============================================================
+// REGION — interpreter stubs
+//
+// The interpreter has no bump arena to rewind, so regions are a
+// codegen-only construct. Failing loudly keeps the two backends
+// honest — silently running the body would produce different
+// semantics from the compiled path.
+// ============================================================
+
+Value RegionNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    throw std::runtime_error(
+        "Runtime Error: 'region' blocks are not supported by the interpreter. "
+        "Compile to C with the default backend instead of --interp "
+        "[ line " + std::to_string(lineNumber) + " ]");
+}
+
+Value RegionCommitNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) const {
+    throw std::runtime_error(
+        "Runtime Error: 'region.commit' is not supported by the interpreter "
+        "[ line " + std::to_string(lineNumber) + " ]");
 }
 
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId) {

@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cmath>
 #include <filesystem>
+#include <cctype>
 
 #include "../lexer/lexer.h"
 #include "../types.h"
@@ -270,6 +271,9 @@ enum class NodeType {
     TRY_CATCH,
     THROW,
     FINALLY,
+
+    REGION,          // A1: lexical region  { ... }
+    REGION_COMMIT,   // A3: region.commit(expr)
 
     BREAK,
     CONTINUE
@@ -1333,6 +1337,63 @@ public:
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override { return VType::Unknown; }
+};
+
+// ============================================================
+// A1 — LEXICAL REGION
+// ------------------------------------------------------------
+// `region name { ... }` — the compiler emits a vmem checkpoint on
+// entry and a rewind on exit. The handle is a compiler temporary the
+// user cannot see, forget, or mismatch.
+//
+// The interpreter has no arena, so evaluate() throws. This is
+// deliberate: silently running the body without checkpointing would
+// produce different semantics from the compiled path.
+// ============================================================
+
+class RegionNode : public ASTNode {
+    std::string regionName;
+    uint32_t    regionId;
+    std::vector<std::shared_ptr<ASTNode>> body;
+
+public:
+    RegionNode(std::string name,
+               std::vector<std::shared_ptr<ASTNode>> b)
+        : ASTNode(NodeType::REGION),
+          regionName(std::move(name)),
+          body(std::move(b)) {
+        regionId = StringPool::instance().intern(regionName);
+    }
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void  compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+
+    const std::string& getRegionName() const { return regionName; }
+    const std::vector<std::shared_ptr<ASTNode>>& getBody() const { return body; }
+};
+
+// ============================================================
+// A3 — REGION COMMIT
+// ------------------------------------------------------------
+// `region.commit(expr)` — annotated "this value outlives the rewind".
+// Codegen is deferred; see the note in codegen.cpp.
+// ============================================================
+
+class RegionCommitNode : public ASTNode {
+    std::unique_ptr<ASTNode> expression;
+
+public:
+    RegionCommitNode(std::unique_ptr<ASTNode> expr)
+        : ASTNode(NodeType::REGION_COMMIT), expression(std::move(expr)) {}
+
+    Value evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void  compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override { return VType::Unknown; }
+
+    ASTNode* getExpression() const { return expression.get(); }
 };
 
 class InterpolatedStringNode : public ASTNode {
