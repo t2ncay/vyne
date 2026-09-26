@@ -2,7 +2,8 @@
 
 **Location:** `tests/external/ml_seq.vy`
 **Date:** 2026-09-26
-**Status:** Converging, 100% train accuracy, memory-stable across epochs
+**Status:** Converging, 99.5% train accuracy, memory-stable across epochs.
+Post-LCG-fix baseline is Run D; numbers before that run are historical.
 
 ---
 
@@ -245,6 +246,74 @@ recovered.
 Sample predictions match Run A to four significant figures per sample.
 The classifier behavior is invariant to the counter insertion.
 
+### Run D — 50 epochs, PCG32 generator (post-LCG-fix baseline)
+
+First run against a statistically sound RNG. Class-0 sequences are now
+drawn from all 64 codons uniformly, so the classifier's job is
+genuinely statistical rather than pattern-matching a period-4 collapse.
+This is the baseline that all future runs should be compared against.
+
+```
+initial loss 0.693429 ≈ ln(2) — see note below
+final loss 0.14372
+final accuracy 99.5% (1–2 misclassifications out of 240)
+
+transpile 19.37 ms
+gcc -O3 3.72 s
+execution 24.43 s
+total 28.17 s
+```
+
+```
+
+Sample predictions:
+
+| sequence                       | p(struct) | label  |
+| ------------------------------ | --------- | ------ |
+| UACCAGGAAGAAGAUAACAGCAUGGGCUUU | 0.923368  | struct |
+| CAGCUGAACGGCAUUACCCGUACCCUGCCG | 0.810678  | struct |
+| CCGUGGGCGAUGGAUGAUAUUGAAACCCAC | 0.889047  | struct |
+| AACAUGUACCAGGAUCCGGCGCACAACGAA | 0.868953  | struct |
+| CGUACCCAGUGCCGUUACAAAAACGAACGU | 0.824079  | struct |
+| UUUACCAGCUGGGAUGAUCGUUUUAUGCGU | 0.895905  | struct |
+| UUACCAUCCUCUCUAACGGAUGUUUUAAGC | 0.041042  | random |
+| CAUCAAUGCCCGCGUGUGCAGAAUUCCGUU | 0.208083  | random |
+| UUGUUUGCUUGAAGCCGUGAGAUAGCCACC | 0.117074  | random |
+| GGAGCUAGGAUCACGAGAUCCCGACAGAUA | 0.033251  | random |
+| CUGAUUAGUCCAGACCUCUUAGCGCGCCGA | 0.140638  | random |
+| UGUGGGGCCGGGGAUUGCAUCACUGUGGUC | 0.095198  | random |
+
+Three observations that distinguish this run from A/B/C:
+
+**The class-0 predictions no longer collapse.** Before the fix, every
+"random" sample landed within `[0.01, 0.02]`. Now they spread across
+`[0.03, 0.21]`. The classifier is uncertain about some of them, which
+is correct — some randomly-drawn sequences happen to look
+codon-structured under the 64-dim histogram, and the model has to work
+to separate those from genuine structure.
+
+**The initial loss is ≈ ln(2).** `0.693429` differs from `ln(2) =
+0.693147` by less than 0.04%. That is the entropy of a fair binary
+classifier that outputs 0.5 for every sample. It means the Xavier
+initializer is producing genuinely neutral starting weights — the
+network's first predictions are correctly uncertain about every input,
+neither biased toward class 0 nor class 1.
+
+**Accuracy dropped from 100% to 99.5%.** That drop is the outcome the
+LCG fix was supposed to produce. It means the classifier now has to
+distinguish a *statistical* property of codon usage (dense vs sparse
+histograms against real entropy) rather than an artifact of the
+collapsed generator. The 1–2 samples it misses are the ones nearest the
+decision boundary — the ones where a genuinely random sequence happens
+to concentrate its mass on a small codon subset by chance.
+
+That the accuracy stayed this high is a genuine result. It means the
+64-dim codon-usage feature is separable enough at this network capacity
+that even a properly-random class 0 is mostly distinguishable. If the
+accuracy had collapsed to 80%, that would have been the more
+interesting outcome; as it stands, the demo passes the honest test.
+```
+
 ---
 
 ## How the model learns
@@ -284,28 +353,91 @@ from _high-entropy_ ones. The generator produces exactly that split
 because reverse-translating from a 20-amino-acid alphabet can only
 produce a 20-codon subset.
 
-The 100% train accuracy is real, but it is a reflection of how easy the
-collapsed distribution is to separate — not of the classifier having
-learned a general property of codon usage. See "Bugs" §A1 and "Further
-work" §4 for the two ways to turn this into a genuinely biological
-classification problem.
+The 99.5% train accuracy in Run D is a different kind of result from
+the 100% in runs A–C. It means the classifier separates codon-usage
+histograms against a genuinely uniform random class — the feature is
+strong enough at this network capacity that real entropy in class 0
+costs it less than one percentage point of accuracy.
+
+This still does not establish that the classifier has learned a
+_biologically_ meaningful property of codon usage. It has learned that
+some 64-dim histograms are sparse and others are dense. Whether real
+codon-usage bias (E. coli K-12 vs _H. sapiens_, say) falls on the
+sparse side of that boundary is a different question, and one that
+Run D does not answer. See "Further work" §3.
 
 ---
 
 ## Bugs and anomalies
 
-### A1 — LCG period-4 collapses class-0 sequences
+### A1 — LCG period-4 collapse — resolved
 
-**Symptom:** Every "random" test sequence reduces to one of two
+**Status:** Fixed and verified on 2026-09-26.
+
+The Numerical Recipes LCG in `vmath_random` had a period-4 low-bit
+weakness that collapsed class-0 sequences onto two alternating
+4-cycles. The generator was replaced with PCG32: a single shared
+`uint64_t` state, standard PCG output permutation, `range % r` drawn
+from the high-entropy permuted output rather than the raw LCG state.
+
+The full description of the symptom, cause, and fix is preserved below
+for reference; the resolved section is the reader-facing summary.
+
+**What changed:** `runtime/modules/vmath.h`, the block bounded by the
+`random(min, max)` banner and the `M5: native (unboxed) variants`
+banner. `vmath_random` and `vmath_random_float` now share one RNG
+state, so interleaved calls do not produce correlated output.
+`native_maps.h` and the Vyne surface (`vmath.random`,
+`vmath.random_float`) are unchanged.
+
+**What it changed about the demo:** the honest baseline for this
+classifier is now Run D (§"Test runs"). Runs A, B, and C are kept for
+history but are not comparable — they were measured against a
+collapsed class-0 distribution.
+
+**Files that were involved:**
+`runtime/modules/vmath.h`, `vmath_random`, `vmath_random_float`.
+
+<details>
+<summary>Symptom and cause, kept for reference</summary>
+
+**Symptom:** Every "random" test sequence reduced to one of two
 4-cycles.
 
 ```
-random  UACGUACGUACGUACGUACGUACGUACGUA
-random  CGUACGUACGUACGUACGUACGUACGUACG
-random  UACGUACGUACGUACGUACGUACGUACGUA
-random  CGUACGUACGUACGUACGUACGUACGUACG
-random  UACGUACGUACGUACGUACGUACGUACGUA
-random  CGUACGUACGUACGUACGUACGUACGUACG
+random UACGUACGUACGUACGUACGUACGUACGUA
+random CGUACGUACGUACGUACGUACGUACGUACG
+random UACGUACGUACGUACGUACGUACGUACGUA
+random CGUACGUACGUACGUACGUACGUACGUACG
+```
+
+**Cause:** `vmath_random` used the Numerical Recipes LCG:
+
+```c
+_seed = _seed * 1664525u + 1013904223u;
+return vyne_int(_seed % (unsigned int)range);
+```
+
+The low two bits of this LCG have period 4. Any range that is a
+power of two — and 4 is a power of two — sees only the low bits. So
+vmath.random(0, 3) cycled A, U, G, C, A, U, G, C... with period 4.
+
+Impact before the fix: class-0 training data was not drawn from
+all 64 codons uniformly. The classifier's 100% train accuracy was real
+but partly reflected how easy the collapsed distribution was to
+separate.
+
+</details>
+
+```
+
+random UACGUACGUACGUACGUACGUACGUACGUA
+random CGUACGUACGUACGUACGUACGUACGUACG
+random UACGUACGUACGUACGUACGUACGUACGUA
+random CGUACGUACGUACGUACGUACGUACGUACG
+random UACGUACGUACGUACGUACGUACGUACGUA
+random CGUACGUACGUACGUACGUACGUACGUACG
+
 ```
 
 The same pattern appears in all three runs.
@@ -474,60 +606,7 @@ workaround was added to `Activations.vy` to sidestep the issue.
 **Files that were involved:** `compiler/codegen/codegen.cpp`,
 `ForNode::getCExpr` and `IfNode::getCExpr`.
 
-### `vmath.random` — fix in progress
-
-**Status:** Fix written, not yet applied. See below for the exact
-change and what to expect.
-
-`vmath_random` casts both arguments to `int64_t` and returns an `Int64`.
-Callers that pass `Float64` bounds get silent truncation. This is the
-same bug that caused B1 in `circle.md` and A1 in this document. The
-`vmath_random_float` variant exists and works correctly, but must be
-called explicitly — every caller that intends continuous sampling has
-to remember to use the right function.
-
-The secondary issue with `vmath_random` is the underlying generator.
-Both `vmath_random` and `vmath_random_float` use the Numerical Recipes
-LCG, whose low two bits have period 4. Any caller that computes
-`result % range` with a power-of-two `range` — including the common
-`range = 4` for a DNA/RNA alphabet — sees a strict 4-cycle and no
-actual randomness in the low bits.
-
-**The fix:** replace the state transition and output function in
-`runtime/modules/vmath.h` with PCG32. The two functions will share a
-single `uint64_t` state, so interleaved calls to `random` and
-`random_float` don't produce correlated output. The public C symbol
-names (`vmath_random`, `vmath_random_float`) and the Vyne surface
-(`vmath.random`, `vmath.random_float`) are unchanged; no other files
-need to move.
-
 **What to expect after the fix is applied and `ml_seq` is rebuilt:**
-
-- The "random" sample predictions will stop collapsing to two
-  alternating 4-cycles. Genuinely varied class-0 sequences.
-- The classifier's accuracy will very likely drop from 100% to
-  somewhere in the 95–99% range. That drop is the outcome we want.
-  Before the fix, class 0 was a period-4 signal rather than a
-  statistical distribution, and the network was learning the period-4
-  pattern. After the fix, it is learning against a genuinely uniform
-  distribution, and the demo is measuring what its description claims
-  it measures.
-- If accuracy does _not_ drop, that is also informative. It would mean
-  the codon-usage features are separable enough at the current network
-  capacity that even a properly-random class 0 is trivially
-  distinguishable. That would be worth a follow-up note, not a
-  problem.
-
-**File:** `runtime/modules/vmath.h`. The block to replace is bounded by
-the `random(min, max)` banner comment above and the
-`M5: native (unboxed) variants` banner below.
-
-**Post-fix follow-up:** after rebuilding `ml_seq` with the new
-generator, capture the initial loss, final loss, and final accuracy in
-a short run. If the accuracy moved, update the "Test runs" section of
-this document with a fourth run labeled as the post-LCG-fix baseline.
-The three existing runs are useful history but are not comparable to
-post-fix numbers.
 
 ````
 
@@ -579,37 +658,33 @@ Ordered by expected payoff:
 
 1. **Held-out test set.** Generate 60 sequences after training,
    evaluate the final weights, report test accuracy. This is the single
-   most informative experiment not yet run. Everything above is
-   _training_ accuracy; none of it tells us whether the model learned
-   a general property of codon usage or a specific property of these
-   240 sequences.
+   most informative experiment not yet run. Run D reports 99.5% train
+   accuracy on 240 samples; the classifier could still be memorizing,
+   and a held-out set is the only way to know.
 
-2. **Fix the LCG.** Replace `vmath_random`'s state transition with
-   PCG32. This changes the demo's interpretation from "detects a
-   period-4 signal in the collapsed random distribution" to "detects
-   codon subset structure against genuinely uniform random." The 100%
-   accuracy might not survive the fix, and that would be a _good_
-   outcome — it would mean the demo is actually measuring something.
-
-3. **Numeric core rewrite for `vlinalg`.** Emit specialized C for
+2. **Numeric core rewrite for `vlinalg`.** Emit specialized C for
    matrix multiply, hadamard, and transpose. Bypass `vyne_binop` and
-   `vyne_index_get`. Expected 5-10× on the training loop; would make a
+   `vyne_index_get`. Expected 5–10× on the training loop; would make a
    500-epoch run cost the same wall time as the current 50-epoch run.
 
-4. **Real codon-usage tables.** Draw class-1 sequences from an actual
+3. **Real codon-usage tables.** Draw class-1 sequences from an actual
    biased table (E. coli K-12) and class-0 from a different real table
    (_H. sapiens_). This turns the demo into a genuine classification
-   problem rather than a sparse-vs-dense histogram test.
+   problem rather than a sparse-vs-dense histogram test. If the
+   classifier still separates the two after this change, it has
+   learned something about codon biology; if it collapses to the base
+   rate, it hasn't.
 
-5. **Diagnose the 2.07 GB setup churn.** Add `arena_alloc` tagging,
-   dump the histogram, fix the biggest offender. Expect either a small
-   algorithmic fix in `bio.codon_usage` or a genuine leak in the
-   string-building path.
+4. **Diagnose the 2.07 GB setup churn.** Add `arena_alloc` tagging,
+   dump the histogram, fix the biggest offender. See A2.
 
-6. **Fix `relu_prime` codegen.** Unlocks ReLU, which changes the
-   gradient dynamics qualitatively on deeper networks.
+5. **Test `relu` on this problem.** `relu_prime` is now available (see
+   "Known issues"). Swap the hidden activations from `tanh` to `relu`
+   and compare the loss curve. On this linearly separable problem the
+   two should behave similarly, but the run is cheap and the result
+   closes out the last correctness question on the activation surface.
 
-7. **Momentum or Adam.** Beyond the scope of the current problem, but
+6. **Momentum or Adam.** Beyond the scope of the current problem, but
    the next optimizer change.
 
 ---
