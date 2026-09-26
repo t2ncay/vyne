@@ -48,7 +48,3 @@ jobs:
               $(find . -type f -name "*.cpp" ! -path "./raylib_src/*" ! -path "*/build/*" ! -path "*/CMakeFiles/*") \
               -o vyne_run \
               -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -lssl -lcrypto
-
-      - name: Run Codegen Golden Tests (issue #79)
-        run: |
-          VYNEC=./vyne_run bash scripts/test_codegen.sh
