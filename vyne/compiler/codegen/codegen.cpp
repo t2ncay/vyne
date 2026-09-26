@@ -358,7 +358,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
         }
 
         if (!hasGlobal) {
-            e.registerDeclaration(bareName);
+            e.declareGlobal(bareName, CType::fromKind(CType::Kind::Unknown));
             e.emitGlobalDecl("VyneValue " + bareName + ";");
         }
         std::string val = rhs->getCExpr(e);

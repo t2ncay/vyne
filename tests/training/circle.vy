@@ -3,7 +3,7 @@ ruleset {
 };
 
 use lib "vcolors.vy";
-use lib "vlinalg.vy";
+use lib "vlinalg/vlinalg.vy";
 module vmath;
 
 # ======================================================================

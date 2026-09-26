@@ -36,15 +36,16 @@ class C_Emitter {
     // --- Name declaration tables ----------------------------------------
     std::unordered_set<std::string> declaredVars;
     std::unordered_set<std::string> references;
-    std::unordered_set<std::string> localVars;
     std::unordered_set<std::string> globalVars;
-    std::vector<std::unordered_set<std::string>> localVarsStack;
 
     // --- Static type tables (M0/M1) -------------------------------------
-    std::unordered_map<std::string, CType> localTypes;
     std::unordered_map<std::string, CType> globalTypes;
-    std::vector<std::unordered_map<std::string, CType>> localTypesStack;
     std::unordered_map<std::string, CType> nativeTemps;
+    struct LocalScope {
+        std::unordered_set<std::string>        names;
+        std::unordered_map<std::string, CType> types;
+    };
+    std::vector<LocalScope> localScopes = { LocalScope{} };
 
     // --- Interface / group registry -------------------------------------
     std::unordered_set<std::string> interfaceSet;
@@ -125,51 +126,59 @@ public:
     }
 
     bool isTopLevelOfMain() const {
-        bool inMain = contextStack.empty()
-                || contextStack.back() == EmitContext::MAIN;
-        return inMain && localVarsStack.empty();
+        bool inMain = contextStack.empty() || contextStack.back() == EmitContext::MAIN;
+        return inMain && localScopes.size() <= 1;
     }
 
     bool isGlobalDeclared(const std::string& name) const {
         return globalVars.count(name) > 0;
     }
-    bool isLocalVarsEmpty() { return localVars.empty(); }
     bool isLocalDeclared(const std::string& name) const {
-        return localVars.count(name) > 0;
+        for (auto it = localScopes.rbegin(); it != localScopes.rend(); ++it)
+            if (it->names.count(name)) return true;
+        return false;
     }
-    bool isAlreadyDeclared(const std::string name) const {
-        return localVars.count(std::move(name)) > 0
-            || globalVars.count(std::move(name)) > 0;
+    bool isLocalVarsEmpty() const {
+        return localScopes.empty() || localScopes.back().names.empty();
+    }
+    bool isAlreadyDeclared(const std::string& name) const {
+        return isLocalDeclared(name) || isGlobalDeclared(name);
     }
 
-    void registerDeclaration(std::string name) {
-        if (isGlobalContext()) globalVars.insert(std::move(name));
-        else                   localVars.insert(std::move(name));
+    void registerDeclaration(const std::string& name) {
+        bool atBaseScope = localScopes.size() <= 1;
+        if (isGlobalContext() && atBaseScope) {
+            globalVars.insert(name);
+        } else {
+            if (localScopes.empty()) localScopes.emplace_back();
+            localScopes.back().names.insert(name);
+        }
     }
 
-    // --- M0/M1: static type tables --------------------------------------
     void declareLocal(const std::string& name, const CType& ct) {
-        localVars.insert(name);
-        localTypes[name] = ct;
+        if (localScopes.empty()) localScopes.emplace_back();
+        localScopes.back().names.insert(name);
+        localScopes.back().types[name] = ct;
     }
     void declareGlobal(const std::string& name, const CType& ct) {
         globalVars.insert(name);
         globalTypes[name] = ct;
     }
+
     const CType* lookupLocalType(const std::string& name) const {
-        auto it = localTypes.find(name);
-        return it == localTypes.end() ? nullptr : &it->second;
+        for (auto it = localScopes.rbegin(); it != localScopes.rend(); ++it) {
+            auto t = it->types.find(name);
+            if (t != it->types.end()) return &t->second;
+        }
+        return nullptr;
     }
     const CType* lookupGlobalType(const std::string& name) const {
         auto it = globalTypes.find(name);
         return it == globalTypes.end() ? nullptr : &it->second;
     }
     const CType* lookupAnyType(const std::string& name) const {
-        auto lt = localTypes.find(name);
-        if (lt != localTypes.end()) return &lt->second;
-        auto gt = globalTypes.find(name);
-        if (gt != globalTypes.end()) return &gt->second;
-        return nullptr;
+        if (auto lt = lookupLocalType(name)) return lt;
+        return lookupGlobalType(name);
     }
 
     void declareNativeTemp(const std::string& name, const CType& ct) {
@@ -208,14 +217,16 @@ public:
         localStructTypes.clear();
         fieldCache.clear();
         currentInterfaceType.clear();
-        regionStack.clear(); 
+        regionStack.clear();
+        // Fresh function scope. The function's own emitBlockOpen will push a
+        // child scope for the C body.
+        localScopes.clear();
+        localScopes.emplace_back();
     }
     void popFunctionContext() {
         if (!contextStack.empty()) contextStack.pop_back();
-        localVars.clear();
-        localVarsStack.clear();
-        localTypes.clear();
-        localTypesStack.clear();
+        localScopes.clear();
+        localScopes.emplace_back();
         localStructTypes.clear();
         fieldCache.clear();
         currentInterfaceType.clear();
@@ -235,22 +246,14 @@ public:
     void emitGlobalDecl(const std::string& code) { globalsStream << code << "\n"; }
 
     void emitBlockOpen(const std::string& line) {
-        localVarsStack.push_back(localVars);
-        localTypesStack.push_back(localTypes);
+        localScopes.emplace_back();
         emit(line);
         indent();
     }
     void emitBlockClose(const std::string& suffix = "") {
         dedent();
         emit("}" + suffix);
-        if (!localVarsStack.empty()) {
-            localVars = std::move(localVarsStack.back());
-            localVarsStack.pop_back();
-        }
-        if (!localTypesStack.empty()) {
-            localTypes = std::move(localTypesStack.back());
-            localTypesStack.pop_back();
-        }
+        if (localScopes.size() > 1) localScopes.pop_back();
     }
 
     std::string newTemp(const std::string& prefix = "t") {
@@ -468,11 +471,8 @@ public:
         regionStack.clear(); 
         currentReturnVar.clear();
         currentReturningVar.clear();
-        localVars.clear();
-        globalVars.clear();
-        localVarsStack.clear();
-        localTypes.clear();
-        localTypesStack.clear();
+        localScopes.clear();
+        localScopes.emplace_back();
         globalTypes.clear();
         nativeTemps.clear();
 
