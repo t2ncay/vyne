@@ -425,7 +425,6 @@ front-end parsing, not optimization.
 
 ---
 
-````markdown
 ## Known issues
 
 ### `relu_prime` — resolved
@@ -447,7 +446,6 @@ return through x :: v -> collect {
     if x > 0.0 { 1.0 } else { 0.0 }
 };
 ```
-````
 
 A dedicated regression test lives at
 `tests/transpiler/relu_prime_test.vy`. It exercises both forms on the
