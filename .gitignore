@@ -31,3 +31,4 @@ array_test
 builtincall_test
 *_release
 nul
+*.bak
