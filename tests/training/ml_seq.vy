@@ -251,6 +251,9 @@ A3    = h0[2];
 
 through epoch :: 1..EPOCHS -> loop {
     region training {
+        scratch db2_buf :: Float64[12];
+        scratch db1_buf :: Float64[16];
+
         h  = forward(X, W1, b1, W2, b2, W3, b3);
         A1 = h[0];
         A2 = h[1];
@@ -278,40 +281,34 @@ through epoch :: 1..EPOCHS -> loop {
         );
         dW2 = vlinalg.multiply(vlinalg.transpose(A1), delta2);
 
-        db2 :: Array = [];
-        through c :: 0..HIDDEN2-1 -> loop {
-            s = 0.0;
-            through r :: 0..N_SAMPLES-1 -> loop {
-                s = s + delta2.data[r * HIDDEN2 + c];
-            };
-            db2.push(s);
-        };
-
         delta1 = vlinalg.hadamard(
             vlinalg.multiply(delta2, vlinalg.transpose(W2)),
             vlinalg.tanh_prime(A1)
         );
         dW1 = vlinalg.multiply(vlinalg.transpose(X), delta1);
 
-        db1 :: Array = [];
-        through c :: 0..HIDDEN1-1 -> loop {
-            s = 0.0;
+        # --- db2 accumulation ---
+        through c :: 0..HIDDEN2-1 -> loop {
+            db2_buf[c] = 0.0;
             through r :: 0..N_SAMPLES-1 -> loop {
-                s = s + delta1.data[r * HIDDEN1 + c];
+                db2_buf[c] = db2_buf[c] + delta2.data[r * HIDDEN2 + c];
             };
-            db1.push(s);
         };
 
-        # ---- SGD update ----
-        vlinalg.sgd_update_inplace(W1, dW1, scale);
-        vlinalg.sgd_update_inplace(W2, dW2, scale);
-        vlinalg.sgd_update_inplace(W3, dW3, scale);
-
+        # --- db1 accumulation ---
         through c :: 0..HIDDEN1-1 -> loop {
-            b1[c] = b1[c] - scale * db1[c];
+            db1_buf[c] = 0.0;
+            through r :: 0..N_SAMPLES-1 -> loop {
+                db1_buf[c] = db1_buf[c] + delta1.data[r * HIDDEN1 + c];
+            };
+        };
+
+        # --- SGD bias update, reading from scratch ---
+        through c :: 0..HIDDEN1-1 -> loop {
+            b1[c] = b1[c] - scale * db1_buf[c];
         };
         through c :: 0..HIDDEN2-1 -> loop {
-            b2[c] = b2[c] - scale * db2[c];
+            b2[c] = b2[c] - scale * db2_buf[c];
         };
         b3[0] = b3[0] - scale * db3;
 
