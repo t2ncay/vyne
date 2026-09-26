@@ -122,28 +122,62 @@ static inline VyneValue vmath_clamp(VyneValue val, VyneValue lo, VyneValue hi) {
 }
 
 /* ===================================================================
- * random(min, max) — LCG seeded once from time(), int64 output
+ * PCG32 — small, fast, statistically sound.
+ *
+ * Replaces the Numerical Recipes LCG that had a period-4 problem in
+ * its low two bits. The old generator returned the same 4-cycle for
+ * any `range` that was a power of two, which silently collapsed
+ * vmath.random(0, 3) onto A, U, G, C, A, U, G, C, ...
+ *
+ * The state is a single uint64_t. The output function applies the
+ * standard PCG permutation so that low bits are as well-distributed
+ * as high bits. Seeding mixes time() with the address of the state
+ * variable, which is enough to decorrelate two processes started in
+ * the same second.
+ *
+ * vmath_random and vmath_random_float deliberately share one state.
+ * The old code had two separate static seeds, so interleaved calls
+ * to the two functions produced correlated output.
  * =================================================================== */
-static inline VyneValue vmath_random(VyneValue mn, VyneValue mx) {
-    static unsigned int _seed = 0;
-    if (_seed == 0) _seed = (unsigned int)(size_t)time(NULL);
-    _seed = _seed * 1664525u + 1013904223u;
 
+static uint64_t _vmath_rng_state = 0;
+static uint64_t _vmath_rng_inc   = 0;
+
+static inline uint32_t _vmath_rng_next_u32(void) {
+    if (_vmath_rng_state == 0) {
+        _vmath_rng_state = (uint64_t)time(NULL)
+                         ^ (uint64_t)(size_t)&_vmath_rng_state;
+        _vmath_rng_inc   = 1442695040888963407ULL;   /* must be odd */
+        /* Advance once so the first output isn't a pure function
+         * of the wall clock. */
+        _vmath_rng_state = _vmath_rng_state * 6364136223846793005ULL
+                         + _vmath_rng_inc;
+    }
+    uint64_t old = _vmath_rng_state;
+    _vmath_rng_state = old * 6364136223846793005ULL + _vmath_rng_inc;
+
+    uint32_t xorshifted = (uint32_t)(((old >> 18u) ^ old) >> 27u);
+    uint32_t rot        = (uint32_t)(old >> 59u);
+    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+
+static inline VyneValue vmath_random(VyneValue mn, VyneValue mx) {
     int64_t lo = (mn.type == V_INT64) ? mn.as.i64 : (int64_t)mn.as.f64;
     int64_t hi = (mx.type == V_INT64) ? mx.as.i64 : (int64_t)mx.as.f64;
     int64_t range = hi - lo + 1;
-    return vyne_int(range > 0 ? lo + (int64_t)(_seed % (unsigned int)range) : lo);
+    if (range <= 0) return vyne_int(lo);
+
+    uint32_t r = _vmath_rng_next_u32();
+    return vyne_int(lo + (int64_t)(r % (uint32_t)range));
 }
 
 static inline VyneValue vmath_random_float(VyneValue mn, VyneValue mx) {
-    static unsigned int _seed = 0;
-    if (_seed == 0) _seed = (unsigned int)(size_t)time(NULL);
-    _seed = _seed * 1664525u + 1013904223u;
-
     double lo = (mn.type == V_FLOAT64) ? mn.as.f64 : (double)mn.as.i64;
     double hi = (mx.type == V_FLOAT64) ? mx.as.f64 : (double)mx.as.i64;
-    double r  = (double)_seed / 4294967296.0;   // [0, 1)
-    return vyne_float(lo + r * (hi - lo));
+
+    uint32_t r = _vmath_rng_next_u32();
+    double unit = (double)r / 4294967296.0;    /* [0, 1) */
+    return vyne_float(lo + unit * (hi - lo));
 }
 
 /* ===================================================================

@@ -260,9 +260,21 @@ Execution time is dominated by the interpreter loop over `VyneValue` arrays in `
 
 ## Known issues
 
-### `relu_prime` compiles to `vyne_null()`
+### ~~`relu_prime` compiles to `vyne_null()`~~ — resolved
 
-`vlinalg.relu_prime` uses an `if/else` as the body of a `collect` block:
+**Status:** Fixed. Verified 2026-09-26 with
+`tests/transpiler/relu_prime_test.vy`. Both the `loop + push` form and
+the `collect { if ... }` form produce correct output:
+
+    [0.0, 0.0, 1.0, 1.0]
+    [0.0, 0.0, 1.0, 1.0]
+
+The `collect` block now correctly captures the value of an `if`
+expression. The workaround in `vlinalg/Activations.vy` (using `loop`
+with explicit `push`) can be reverted to the shorter `collect` form if
+you prefer the brevity, or left as-is — both compile to the same code.
+
+The historical note about the bug is preserved below for reference.
 
 ```vyne
 through v :: row_data -> collect {

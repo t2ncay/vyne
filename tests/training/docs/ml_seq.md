@@ -425,30 +425,121 @@ front-end parsing, not optimization.
 
 ---
 
+````markdown
 ## Known issues
 
-### `relu_prime` cannot be used
+### `relu_prime` — resolved
 
-Same issue as documented in `circle.md`. `vlinalg.relu_prime` uses an
-`if/else` as the body of a `collect` block, and the current codegen
-emits both branches as statements then unconditionally pushes
-`vyne_null()`. `relu` is therefore unusable as a hidden activation
-until the codegen is fixed.
+**Status:** Verified fixed on 2026-09-26.
 
-**Impact:** Only `tanh` and `sigmoid` hidden activations are available
-for training at present.
+The codegen gap that made `relu_prime` unusable has been closed. Both
+forms of the value-capturing expression now compile correctly:
 
-**File:** `compiler/codegen/codegen.cpp`, `ForNode::getCExpr` and
-`IfNode::getCExpr`.
+```vyne
+# form A: loop with explicit push
+through i :: 0..v.size()-1 -> loop {
+    x :: Float64 = v[i];
+    if x > 0.0 { out.push(1.0); } else { out.push(0.0); }
+};
 
-### `vmath.random` is still integer-only
+# form B: collect block whose body is an if expression
+return through x :: v -> collect {
+    if x > 0.0 { 1.0 } else { 0.0 }
+};
+```
+````
 
-`vmath_random` casts both arguments to `int64_t`. Callers passing
-floats get silent truncation. `vmath_random_float` exists and works
-correctly but must be called explicitly. This is the same bug that
-caused B1 in `circle.md` and A1 here.
+A dedicated regression test lives at
+`tests/transpiler/relu_prime_test.vy`. It exercises both forms on the
+input `[-1.0, 0.0, 1.0, 2.0]` and prints:
 
-**File:** `runtime/modules/vmath.h`.
+```
+[0.0, 0.0, 1.0, 1.0]
+[0.0, 0.0, 1.0, 1.0]
+```
+
+That output is correct for both `relu_prime` semantics (1 where input
+is strictly positive, 0 elsewhere).
+
+**What this unlocks:** `relu` is now available as a hidden-layer
+activation. The workaround in `vlinalg/Activations.vy` — using `loop`
+with explicit `push` instead of `collect` — is still valid and produces
+identical output. Reverting it to the `collect` form is a readability
+improvement, not a correctness fix. Both are acceptable.
+
+**Historical note (kept for reference):** Before the fix, the `collect`
+form emitted both branches of the `if` as statements, then
+unconditionally pushed `vyne_null()`. This produced a matrix of nulls
+whenever the activation's argument crossed zero. The `loop + push`
+workaround was added to `Activations.vy` to sidestep the issue.
+
+**Files that were involved:** `compiler/codegen/codegen.cpp`,
+`ForNode::getCExpr` and `IfNode::getCExpr`.
+
+### `vmath.random` — fix in progress
+
+**Status:** Fix written, not yet applied. See below for the exact
+change and what to expect.
+
+`vmath_random` casts both arguments to `int64_t` and returns an `Int64`.
+Callers that pass `Float64` bounds get silent truncation. This is the
+same bug that caused B1 in `circle.md` and A1 in this document. The
+`vmath_random_float` variant exists and works correctly, but must be
+called explicitly — every caller that intends continuous sampling has
+to remember to use the right function.
+
+The secondary issue with `vmath_random` is the underlying generator.
+Both `vmath_random` and `vmath_random_float` use the Numerical Recipes
+LCG, whose low two bits have period 4. Any caller that computes
+`result % range` with a power-of-two `range` — including the common
+`range = 4` for a DNA/RNA alphabet — sees a strict 4-cycle and no
+actual randomness in the low bits.
+
+**The fix:** replace the state transition and output function in
+`runtime/modules/vmath.h` with PCG32. The two functions will share a
+single `uint64_t` state, so interleaved calls to `random` and
+`random_float` don't produce correlated output. The public C symbol
+names (`vmath_random`, `vmath_random_float`) and the Vyne surface
+(`vmath.random`, `vmath.random_float`) are unchanged; no other files
+need to move.
+
+**What to expect after the fix is applied and `ml_seq` is rebuilt:**
+
+- The "random" sample predictions will stop collapsing to two
+  alternating 4-cycles. Genuinely varied class-0 sequences.
+- The classifier's accuracy will very likely drop from 100% to
+  somewhere in the 95–99% range. That drop is the outcome we want.
+  Before the fix, class 0 was a period-4 signal rather than a
+  statistical distribution, and the network was learning the period-4
+  pattern. After the fix, it is learning against a genuinely uniform
+  distribution, and the demo is measuring what its description claims
+  it measures.
+- If accuracy does _not_ drop, that is also informative. It would mean
+  the codon-usage features are separable enough at the current network
+  capacity that even a properly-random class 0 is trivially
+  distinguishable. That would be worth a follow-up note, not a
+  problem.
+
+**File:** `runtime/modules/vmath.h`. The block to replace is bounded by
+the `random(min, max)` banner comment above and the
+`M5: native (unboxed) variants` banner below.
+
+**Post-fix follow-up:** after rebuilding `ml_seq` with the new
+generator, capture the initial loss, final loss, and final accuracy in
+a short run. If the accuracy moved, update the "Test runs" section of
+this document with a fourth run labeled as the post-LCG-fix baseline.
+The three existing runs are useful history but are not comparable to
+post-fix numbers.
+
+````
+
+Two notes on the refactor:
+
+**I split the two issues by status rather than by topic.** The `circle.md` version listed them as separate bugs at the same level; here `relu_prime` is marked resolved with the verification kept, and `vmath.random` is marked in-progress with the fix described. This way, a reader skimming the section immediately knows what's actionable versus what's done.
+
+**I kept the historical note on `relu_prime`.** Someone reading the file six months from now might wonder why `Activations.vy` uses the `loop + push` form instead of the shorter `collect` form. The historical paragraph answers that question without requiring a git archaeology pass. If you'd rather drop it entirely, that's also fine — but if you ever hit the same class of bug elsewhere, having the note here is cheaper than rediscovering it.
+
+**I described the LCG fix as in-progress rather than hypothetical.** Right now the fix is written but not applied. If you apply it before committing this doc, change "Fix written, not yet applied" to "Applied and verified" and swap the "What to expect" list for the actual numbers.
 
 ### Generalization unverified
 
@@ -468,7 +559,7 @@ training. Report test accuracy. Ten-minute change to `ml_seq.vy`.
 
 ```bash
 vynec.exe --compile tests/external/ml_seq.vy
-```
+````
 
 The output binary is written alongside the source.
 
