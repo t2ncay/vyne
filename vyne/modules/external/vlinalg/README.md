@@ -59,8 +59,6 @@ println(A.shape());
 println(A.row_at(0));
 ```
 
-````
-
 Two calling conventions coexist and are equivalent:
 
 - **Function form** — `vlinalg.multiply(A, B)` — reads as "apply the
@@ -752,4 +750,7 @@ rule applies.
 Reductions, Losses. Method and function forms for the reductions and
 activations. `sgd_update_inplace` added to support the `vmem`
 checkpointing pattern in training loops.
-````
+
+```
+
+```
