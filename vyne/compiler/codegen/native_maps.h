@@ -92,3 +92,11 @@ static const NativeMapEntry VMATH_MAP[] = {
     {"inf",     "vmath_inf()",   true},
     {"nan",     "vmath_nan()",   true},
 };
+
+// --- vmem ------------------------------------------------------------------
+static const NativeMapEntry VMEM_MAP[] = {
+    {"checkpoint",       "vmem_runtime_checkpoint",       false},
+    {"rewind",           "vmem_runtime_rewind",           false},
+    {"total_allocated",  "vmem_runtime_total_allocated",  false},
+    {"reset",            "vmem_runtime_reset",            false},
+};

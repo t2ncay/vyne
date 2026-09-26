@@ -2019,6 +2019,7 @@ void ModuleNode::compile(C_Emitter& e) const {
 
     if (originalName == "vmath")  e.addInclude((moduleBase / "vmath.h").string());
     if (originalName == "vcore")  e.addInclude((moduleBase / "vcore.h").string());
+    if (originalName == "vmem")   e.addInclude((moduleBase / "vmem.h").string());
     if (originalName == "vaudio") e.addInclude((moduleBase / "vaudio.h").string());
     if (originalName == "vglib")  e.addInclude((moduleBase / "vglib.h").string());
 
