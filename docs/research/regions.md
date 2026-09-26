@@ -2,8 +2,8 @@
 
 ## Scoped Arena Memory and Static Shape Checking in the Vyne Language
 
-**Technical Report — Vyne Compiler Group**
-_Draft, [DATE]_
+**Technical Report — Vyne Transpiler**
+_Draft, 09.26.2026_
 
 ---
 
@@ -77,8 +77,6 @@ through epoch :: 1..EPOCHS -> loop {
     };
 };
 ```
-
-````
 
 The construct is drawn from region-based memory management as
 introduced by Tofte and Talpin \cite{tofte-talpin-1997}. Where our
@@ -461,4 +459,4 @@ The RNA classifier case study is at `tests/training/ml_seq.vy`.
 ```
 
 ---
-````
+```
