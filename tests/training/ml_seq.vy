@@ -250,74 +250,81 @@ lossN = loss0;
 A3    = h0[2];
 
 through epoch :: 1..EPOCHS -> loop {
-    cp = vmem.checkpoint();
+    region training {
+        h  = forward(X, W1, b1, W2, b2, W3, b3);
+        A1 = h[0];
+        A2 = h[1];
+        A3 = h[2];
 
-    h  = forward(X, W1, b1, W2, b2, W3, b3);
-    A1 = h[0];
-    A2 = h[1];
-    A3 = h[2];
+        # A3 is read *after* the loop (final_acc = accuracy(A3, Y, ...)).
+        # A plain `region` rewinds the arena at its closing brace, which
+        # would leave v_A3 pointing at freed scratch. commit() deep-clones
+        # A3 into the commit arena so it survives the rewind.
+        # Only the last iteration's A3 actually matters, so gate it.
+        if epoch == EPOCHS {
+            region.commit(A3);
+        }
 
-    # ---- backprop ----
-    delta3 = vlinalg.subtract(A3, Y);
-    dW3    = vlinalg.multiply(vlinalg.transpose(A2), delta3);
+        # ---- backprop ----
+        delta3 = vlinalg.subtract(A3, Y);
+        dW3    = vlinalg.multiply(vlinalg.transpose(A2), delta3);
 
-    db3 = 0.0;
-    through r :: 0..N_SAMPLES-1 -> loop { db3 = db3 + delta3.data[r]; };
+        db3 = 0.0;
+        through r :: 0..N_SAMPLES-1 -> loop { db3 = db3 + delta3.data[r]; };
 
-    delta2 = vlinalg.hadamard(
-        vlinalg.multiply(delta3, vlinalg.transpose(W3)),
-        vlinalg.tanh_prime(A2)
-    );
-    dW2 = vlinalg.multiply(vlinalg.transpose(A1), delta2);
+        delta2 = vlinalg.hadamard(
+            vlinalg.multiply(delta3, vlinalg.transpose(W3)),
+            vlinalg.tanh_prime(A2)
+        );
+        dW2 = vlinalg.multiply(vlinalg.transpose(A1), delta2);
 
-    db2 :: Array = [];
-    through c :: 0..HIDDEN2-1 -> loop {
-        s = 0.0;
-        through r :: 0..N_SAMPLES-1 -> loop {
-            s = s + delta2.data[r * HIDDEN2 + c];
+        db2 :: Array = [];
+        through c :: 0..HIDDEN2-1 -> loop {
+            s = 0.0;
+            through r :: 0..N_SAMPLES-1 -> loop {
+                s = s + delta2.data[r * HIDDEN2 + c];
+            };
+            db2.push(s);
         };
-        db2.push(s);
-    };
 
-    delta1 = vlinalg.hadamard(
-        vlinalg.multiply(delta2, vlinalg.transpose(W2)),
-        vlinalg.tanh_prime(A1)
-    );
-    dW1 = vlinalg.multiply(vlinalg.transpose(X), delta1);
+        delta1 = vlinalg.hadamard(
+            vlinalg.multiply(delta2, vlinalg.transpose(W2)),
+            vlinalg.tanh_prime(A1)
+        );
+        dW1 = vlinalg.multiply(vlinalg.transpose(X), delta1);
 
-    db1 :: Array = [];
-    through c :: 0..HIDDEN1-1 -> loop {
-        s = 0.0;
-        through r :: 0..N_SAMPLES-1 -> loop {
-            s = s + delta1.data[r * HIDDEN1 + c];
+        db1 :: Array = [];
+        through c :: 0..HIDDEN1-1 -> loop {
+            s = 0.0;
+            through r :: 0..N_SAMPLES-1 -> loop {
+                s = s + delta1.data[r * HIDDEN1 + c];
+            };
+            db1.push(s);
         };
-        db1.push(s);
+
+        # ---- SGD update ----
+        vlinalg.sgd_update_inplace(W1, dW1, scale);
+        vlinalg.sgd_update_inplace(W2, dW2, scale);
+        vlinalg.sgd_update_inplace(W3, dW3, scale);
+
+        through c :: 0..HIDDEN1-1 -> loop {
+            b1[c] = b1[c] - scale * db1[c];
+        };
+        through c :: 0..HIDDEN2-1 -> loop {
+            b2[c] = b2[c] - scale * db2[c];
+        };
+        b3[0] = b3[0] - scale * db3;
+
+        # ---- progress ----
+        if epoch % PRINT_EVERY == 0 {
+            lossN = vlinalg.cross_entropy(A3, Y);
+            acc   = accuracy(A3, Y, N_SAMPLES);
+            out("  " + pad_left(string(epoch), 5) + "/" + string(EPOCHS)
+                + "  loss " + string(lossN)
+                + "  acc  " + pct(acc)
+                + "  " + bar(acc, 18));
+        }
     };
-
-    # ---- SGD update ----
-    vlinalg.sgd_update_inplace(W1, dW1, scale);
-    vlinalg.sgd_update_inplace(W2, dW2, scale);
-    vlinalg.sgd_update_inplace(W3, dW3, scale);
-
-    through c :: 0..HIDDEN1-1 -> loop {
-        b1[c] = b1[c] - scale * db1[c];
-    };
-    through c :: 0..HIDDEN2-1 -> loop {
-        b2[c] = b2[c] - scale * db2[c];
-    };
-    b3[0] = b3[0] - scale * db3;
-
-    # ---- progress ----
-    if epoch % PRINT_EVERY == 0 {
-        lossN = vlinalg.cross_entropy(A3, Y);
-        acc   = accuracy(A3, Y, N_SAMPLES);
-        out("  " + pad_left(string(epoch), 5) + "/" + string(EPOCHS)
-            + "  loss " + string(lossN)
-            + "  acc  " + pct(acc)
-            + "  " + bar(acc, 18));
-    }
-
-    vmem.rewind(cp);
 };
 
 # ======================================================================
