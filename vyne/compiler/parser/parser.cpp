@@ -528,9 +528,10 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         case VTokenType::Ruleset:    return parseRuleset();
         case VTokenType::Enum:       return parseEnum();
         case VTokenType::Defer:      return parseDeferStatement();
-        case VTokenType::Try:          return parseTryCatch();
-        case VTokenType::Throw:        return parseThrowStatement();
-        case VTokenType::Region:       return parseRegionStatement();
+        case VTokenType::Try:        return parseTryCatch();
+        case VTokenType::Throw:      return parseThrowStatement();
+        case VTokenType::Region:     return parseRegionStatement();
+        case VTokenType::Scratch:    return parseScratchDeclaration();
         case VTokenType::Identifier:
         case VTokenType::Const: {
             int checkPos = 0;
@@ -1133,7 +1134,23 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
             else {
                 auto first = parseExpression();
 
-                if (peekToken().type == VTokenType::Colon) {
+                if (peekToken().type == VTokenType::Comma) {
+                    std::vector<std::unique_ptr<ASTNode>> idxs;
+                    idxs.push_back(std::move(first));
+
+                    while (peekToken().type == VTokenType::Comma) {
+                        consume(VTokenType::Comma);
+                        idxs.push_back(parseExpression());
+                    }
+
+                    consume(VTokenType::Right_Bracket);
+
+                    auto scratchIdx = std::make_unique<ScratchIndexNode>(
+                        std::move(node), std::move(idxs));
+                    scratchIdx->lineNumber = line;
+                    node = std::move(scratchIdx);
+                }
+                else if (peekToken().type == VTokenType::Colon) {
                     consume(VTokenType::Colon);
 
                     std::unique_ptr<ASTNode> hi = nullptr;
@@ -1162,7 +1179,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
                 }
                 else {
                     throw std::runtime_error(
-                        "Syntax Error: expected ':' or ']' after index expression "
+                        "Syntax Error: expected ',', ':' or ']' after index expression "
                         "[ line " + std::to_string(line) + " ]");
                 }
             }
@@ -1323,6 +1340,17 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
                 mem->getMemberName(),
                 std::move(rhs)
             );
+            node->lineNumber = line;
+            return node;
+        }
+
+        if (lhs->type() == NodeType::SCRATCH_INDEX) {
+            auto* si = static_cast<ScratchIndexNode*>(lhs.get());
+            consume(VTokenType::Equals);
+            auto rhs = parseExpression();
+            consumeSemicolon();
+            auto node = std::make_unique<ScratchStoreNode>(
+                si->takeBase(), si->takeIndices(), std::move(rhs));
             node->lineNumber = line;
             return node;
         }
@@ -2324,6 +2352,60 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     consumeSemicolon();
 
     auto node = std::make_unique<RegionNode>(regionName, std::move(body));
+    node->lineNumber = line;
+    return node;
+}
+
+std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
+    int line = peekToken().line;
+    consume(VTokenType::Scratch);
+
+    Token nameTok = consume(VTokenType::Identifier);
+    std::string varName = nameTok.name;
+    uint32_t varId = StringPool::instance().intern(varName);
+
+    // '::' lexes as Extends, same as elsewhere in this parser.
+    consume(VTokenType::Extends);
+
+    std::string elemTypeName = parseTypePath();
+    VType elemType = resolveType(elemTypeName);
+    if (elemType != VType::Float64 && elemType != VType::Int64) {
+        emitError(
+            "scratch element type must be Float64 or Int64, got '" +
+            elemTypeName + "'",
+            line, "VNE-060",
+            {"Supported: scratch x :: Float64[d1, d2];"});
+    }
+
+    consume(VTokenType::Left_Bracket);
+    std::vector<int64_t> shape;
+    while (true) {
+        Token dimTok = consume(VTokenType::Int64);
+        int64_t dim = std::get<int64_t>(dimTok.literal);
+        if (dim <= 0) {
+            emitError("scratch dimensions must be positive",
+                      line, "VNE-061", {});
+        }
+        shape.push_back(dim);
+        if (peekToken().type == VTokenType::Comma) {
+            consume(VTokenType::Comma);
+            continue;
+        }
+        break;
+    }
+    consume(VTokenType::Right_Bracket);
+
+    std::unique_ptr<ASTNode> init = nullptr;
+    if (peekToken().type == VTokenType::Equals) {
+        consume(VTokenType::Equals);
+        init = parseExpression();
+    }
+    consumeSemicolon();
+
+    defineSymbol(varId, VType::Array, /*explicit*/ true, line, varName);
+
+    auto node = std::make_unique<ScratchNode>(
+        varId, varName, elemType, std::move(shape), std::move(init));
     node->lineNumber = line;
     return node;
 }

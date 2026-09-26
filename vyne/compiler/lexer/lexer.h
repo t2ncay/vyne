@@ -7,6 +7,7 @@
 #include <charconv>
 #include <cctype>
 #include <unordered_map>
+#include <cctype>
 
 enum class VTokenType {
     // --- LITERALS & IDENTIFIERS ---
@@ -30,6 +31,7 @@ enum class VTokenType {
     Extern,             // External lib modifier
     Interface,          // Struct definers
     Region,             // 'region' keyword (A1/A3)
+    Scratch,            // 'scratch' — shaped stack array declaration
     Enum,               // Enumeration
 
     // --- KEYWORDS: CONTROL FLOW ---
@@ -140,6 +142,7 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"lib",             VTokenType::Extern},
     {"interface",       VTokenType::Interface},
     {"region",          VTokenType::Region},
+    {"scratch",         VTokenType::Scratch},
     {"ruleset",         VTokenType::Ruleset},
     {"warnings",        VTokenType::Warnings},
     {"dynamic_casting", VTokenType::Dynamic_Casting},
@@ -209,6 +212,7 @@ inline std::string VTokenTypeToString(VTokenType type) {
         case VTokenType::Extern:           return "'extern'";
         case VTokenType::Interface:        return "'interface'";
         case VTokenType::Region:           return "'region'";
+        case VTokenType::Scratch:          return "'scratch'";
         case VTokenType::Ruleset:          return "'ruleset'";
 
         // --- KEYWORDS: CONTROL FLOW ---

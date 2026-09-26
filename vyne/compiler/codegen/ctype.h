@@ -32,9 +32,32 @@ struct CType {
     };
 
     Kind kind = Kind::Unknown;
-    std::vector<CType> args;   // element type for Array<T>; field types for Struct
-    std::string mangledName;   // mangled C name for monomorphized structs/interfaces
-    std::string nativeName;    // "int64_t", "double", "bool", "VyneValue", ...
+    std::vector<CType> args;    // element type for Array<T>; field types for Struct
+    std::vector<int64_t> shape; // row-major dims for scratch arrays
+    std::string mangledName;    // mangled C name for monomorphized structs/interfaces
+    std::string nativeName;     // "int64_t", "double", "bool", "VyneValue", ...
+
+    // scratch shaped methods
+    bool hasShape() const { return !shape.empty(); }
+
+    int64_t numElements() const {
+        if (shape.empty()) return -1;
+        int64_t n = 1;
+        for (int64_t d : shape) n *= d;
+        return n;
+    }
+
+    bool sameShape(const CType& o) const { return shape == o.shape; }
+
+    std::vector<int64_t> strides() const {
+        std::vector<int64_t> s(shape.size());
+        int64_t acc = 1;
+        for (int i = (int)shape.size() - 1; i >= 0; --i) {
+            s[i] = acc;
+            acc *= shape[i];
+        }
+        return s;
+    }
 
     bool isBoxed() const {
         return kind != Kind::Int64 && kind != Kind::Float64 && kind != Kind::Bool;
