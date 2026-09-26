@@ -275,6 +275,10 @@ enum class NodeType {
     REGION,          // A1: lexical region  { ... }
     REGION_COMMIT,   // A3: region.commit(expr)
 
+    SCRATCH,
+    SCRATCH_INDEX,
+    SCRATCH_STORE,
+
     BREAK,
     CONTINUE
 };
@@ -1394,6 +1398,77 @@ public:
     VType getStaticType() const override { return VType::Unknown; }
 
     ASTNode* getExpression() const { return expression.get(); }
+};
+
+// ============================================================
+// 5 — SHAPE-TYPED SCRATCH
+// ------------------------------------------------------------
+// `scratch grad_w1 :: Float64[64, 16];` inside a region body.
+// Lowered to `double v_grad_w1[64*16];` on the C stack — no
+// arena, no VyneValue boxing. Lifetime is the enclosing region.
+// ============================================================
+
+class ScratchNode : public ASTNode {
+    uint32_t               nameId;
+    std::string            varName;
+    VType                  elemType;
+    std::vector<int64_t>   shape;
+    std::unique_ptr<ASTNode> initializer;   // reserved; nullptr today
+
+public:
+    ScratchNode(uint32_t id, std::string name, VType et,
+                std::vector<int64_t> shp, std::unique_ptr<ASTNode> init)
+        : ASTNode(NodeType::SCRATCH),
+          nameId(id), varName(std::move(name)), elemType(et),
+          shape(std::move(shp)), initializer(std::move(init)) {}
+
+    Value       evaluate(SymbolContainer&, uint32_t) const override;
+    void        compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType       getStaticType() const override { return elemType; }
+
+    uint32_t                   getNameId()   const { return nameId;  }
+    const std::string&         getName()     const { return varName; }
+    VType                      getElemType() const { return elemType;}
+    const std::vector<int64_t>&getShape()    const { return shape;   }
+};
+
+class ScratchIndexNode : public ASTNode {
+    std::unique_ptr<ASTNode> base;
+    std::vector<std::unique_ptr<ASTNode>> indices;
+
+public:
+    ScratchIndexNode(std::unique_ptr<ASTNode> b,
+                     std::vector<std::unique_ptr<ASTNode>> idx)
+        : ASTNode(NodeType::SCRATCH_INDEX),
+          base(std::move(b)), indices(std::move(idx)) {}
+
+    Value       evaluate(SymbolContainer&, uint32_t) const override;
+    void        compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+
+    ASTNode* getBase() const { return base.get(); }
+    const std::vector<std::unique_ptr<ASTNode>>& getIndices() const { return indices; }
+    std::unique_ptr<ASTNode> takeBase()  { return std::move(base); }
+    auto takeIndices() { return std::move(indices); }
+};
+
+// Write: grad_w1[i, j] = v;
+class ScratchStoreNode : public ASTNode {
+    std::unique_ptr<ASTNode> base;
+    std::vector<std::unique_ptr<ASTNode>> indices;
+    std::unique_ptr<ASTNode> rhs;
+
+public:
+    ScratchStoreNode(std::unique_ptr<ASTNode> b,
+                     std::vector<std::unique_ptr<ASTNode>> idx,
+                     std::unique_ptr<ASTNode> r)
+        : ASTNode(NodeType::SCRATCH_STORE),
+          base(std::move(b)), indices(std::move(idx)), rhs(std::move(r)) {}
+
+    Value       evaluate(SymbolContainer&, uint32_t) const override;
+    void        compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
 };
 
 class InterpolatedStringNode : public ASTNode {

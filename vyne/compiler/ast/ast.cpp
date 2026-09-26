@@ -2475,6 +2475,24 @@ Value RegionCommitNode::evaluate(SymbolContainer& env, uint32_t currentGroupId) 
         "[ line " + std::to_string(lineNumber) + " ]");
 }
 
+Value ScratchNode::evaluate(SymbolContainer&, uint32_t) const {
+    throw std::runtime_error(
+        "Runtime Error: 'scratch' is a codegen-only construct and is not "
+        "supported by the interpreter. Compile with the default backend "
+        "[ line " + std::to_string(lineNumber) + " ]");
+}
+
+Value ScratchIndexNode::evaluate(SymbolContainer&, uint32_t) const {
+    throw std::runtime_error(
+        "Runtime Error: shaped-array indexing is codegen-only [ line " +
+        std::to_string(lineNumber) + " ]");
+}
+Value ScratchStoreNode::evaluate(SymbolContainer&, uint32_t) const {
+    throw std::runtime_error(
+        "Runtime Error: shaped-array store is codegen-only [ line " +
+        std::to_string(lineNumber) + " ]");
+}
+
 uint32_t resolvePathId(const std::vector<std::string>& scope, uint32_t currentGroupId) {
     if (scope.empty()) return currentGroupId;
     
