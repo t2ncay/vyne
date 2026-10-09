@@ -18,8 +18,9 @@
 #include "detail/codegen_helpers.h"
 #include <stdexcept>
 
-// Binary, unary and postfix operations; operands may emit prerequisite statements.
-// Keep expressions that emit statements in evaluation order; see README.md.
+// Binary, unary and postfix operations; operands may emit prerequisite
+// statements. Keep expressions that emit statements in evaluation order; see
+// README.md.
 // ============================================================
 // BINARY / UNARY / POSTFIX
 // ============================================================
@@ -35,11 +36,13 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     // native type table so unboxed locals still take the fast path.
     VType lt = leftNode->getStaticType();
     if (lt == VType::Unknown) {
-        if (const CType* ct = e.exprNativeType(l)) lt = ct->toVType();
+        if (const CType* ct = e.exprNativeType(l))
+            lt = ct->toVType();
     }
     VType rt = rightNode->getStaticType();
     if (rt == VType::Unknown) {
-        if (const CType* ct = e.exprNativeType(r)) rt = ct->toVType();
+        if (const CType* ct = e.exprNativeType(r))
+            rt = ct->toVType();
     }
 
     // Shape consistency check for `+` between two shaped arrays.
@@ -55,13 +58,19 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
             int64_t n = lct->numElements();
 
             std::string dst = e.newTemp("arrsum");
-            std::string k   = e.newTemp("k");
+            std::string k = e.newTemp("k");
 
-            e.emit(std::string(ct) + " " + dst + "[" + std::to_string(n) + "];");
-            e.emit("for (int64_t " + k + " = 0; " + k + " < " +
-                std::to_string(n) + "; ++" + k + ") {");
-            e.emit("    " + dst + "[" + k + "] = " + l + "[" + k + "] + " +
-                r + "[" + k + "];");
+            e.emit(
+                std::string(ct) + " " + dst + "[" + std::to_string(n) + "];"
+            );
+            e.emit(
+                "for (int64_t " + k + " = 0; " + k + " < " + std::to_string(n) +
+                "; ++" + k + ") {"
+            );
+            e.emit(
+                "    " + dst + "[" + k + "] = " + l + "[" + k + "] + " + r +
+                "[" + k + "];"
+            );
             e.emit("}");
 
             CType outCT = *lct;
@@ -75,7 +84,8 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     //  - registered native expression of the same type → used directly
     //  - native of the other numeric kind → cast
     //  - boxed VyneValue → union member read
-    auto operand = [&](const ASTNode* node, const std::string& expr,
+    auto operand = [&](const ASTNode* node,
+                       const std::string& expr,
                        VType st) -> std::string {
         if (node->type() == NodeType::NUMBER && st != VType::Unknown) {
             auto* num = static_cast<const NumberNode*>(node);
@@ -86,7 +96,8 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
         }
         if (st == VType::Int64 || st == VType::Float64) {
             if (const CType* ct = e.exprNativeType(expr)) {
-                if (ct->toVType() == st) return expr;
+                if (ct->toVType() == st)
+                    return expr;
                 if (ct->kind == CType::Kind::Int64 && st == VType::Float64)
                     return "(double)(" + expr + ")";
             }
@@ -103,89 +114,132 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
         std::string lv = operand(leftNode.get(), l, VType::Int64);
         std::string rv = operand(rightNode.get(), r, VType::Int64);
         switch (op) {
-            case VTokenType::Add:
-                e.emit("int64_t " + temp + " = " + lv + " + " + rv + ";");
-                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
-                return temp;
-            case VTokenType::Substract:
-                e.emit("int64_t " + temp + " = " + lv + " - " + rv + ";");
-                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
-                return temp;
-            case VTokenType::Multiply:
-                e.emit("int64_t " + temp + " = " + lv + " * " + rv + ";");
-                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
-                return temp;
-            case VTokenType::Division:
-            case VTokenType::Floor_Divide:
-                e.emit("if (" + rv + " == 0) { fprintf(stderr, \"Runtime error: Division by zero!\\n\"); exit(1); }");
-                e.emit("int64_t " + temp + " = " + lv + " / " + rv + ";");
-                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
-                return temp;
-            case VTokenType::Modulo:
-                e.emit("if (" + rv + " == 0) { fprintf(stderr, \"Runtime error: Modulo by zero!\\n\"); exit(1); }");
-                e.emit("int64_t " + temp + " = " + lv + " % " + rv + ";");
-                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
-                return temp;
-            case VTokenType::Power:
-                e.emit("VyneValue " + temp + " = vyne_float(pow((double)" + lv + ", (double)" + rv + "));");
-                return temp;
-            case VTokenType::Double_Equals:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");");
-                return temp;
-            case VTokenType::Not_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");");
-                return temp;
-            case VTokenType::Greater:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");");
-                return temp;
-            case VTokenType::Smaller:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");");
-                return temp;
-            case VTokenType::Greater_Or_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");");
-                return temp;
-            case VTokenType::Smaller_Or_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");");
-                return temp;
-            case VTokenType::And:
-                e.emit("VyneValue " + temp + " = vyne_bool((" + lv + " != 0) && (" + rv + " != 0));");
-                return temp;
-            case VTokenType::Or:
-                e.emit("VyneValue " + temp + " = vyne_bool((" + lv + " != 0) || (" + rv + " != 0));");
-                return temp;
-            case VTokenType::Bitwise_And:
-                e.emit("VyneValue " + temp + " = vyne_int(" + lv + " & " + rv + ");");
-                return temp;
-            case VTokenType::Bitwise_Or:
-                e.emit("VyneValue " + temp + " = vyne_int(" + lv + " | " + rv + ");");
-                return temp;
-            case VTokenType::Bitwise_Xor:
-                e.emit("VyneValue " + temp + " = vyne_int(" + lv + " ^ " + rv + ");");
-                return temp;
-            case VTokenType::Bitwise_Sll:
-                e.emit("VyneValue " + temp + " = vyne_int(" + lv + " << " + rv + ");");
-                return temp;
-            case VTokenType::Bitwise_Srl:
-                e.emit("VyneValue " + temp + " = vyne_int(" + lv + " >> " + rv + ");");
-                return temp;
-            default:
-                break; // fall through to slow path
+        case VTokenType::Add:
+            e.emit("int64_t " + temp + " = " + lv + " + " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        case VTokenType::Substract:
+            e.emit("int64_t " + temp + " = " + lv + " - " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        case VTokenType::Multiply:
+            e.emit("int64_t " + temp + " = " + lv + " * " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        case VTokenType::Division:
+        case VTokenType::Floor_Divide:
+            e.emit(
+                "if (" + rv +
+                " == 0) { fprintf(stderr, \"Runtime error: Division by "
+                "zero!\\n\"); exit(1); }"
+            );
+            e.emit("int64_t " + temp + " = " + lv + " / " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        case VTokenType::Modulo:
+            e.emit(
+                "if (" + rv +
+                " == 0) { fprintf(stderr, \"Runtime error: Modulo by "
+                "zero!\\n\"); exit(1); }"
+            );
+            e.emit("int64_t " + temp + " = " + lv + " % " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        case VTokenType::Power:
+            e.emit(
+                "VyneValue " + temp + " = vyne_float(pow((double)" + lv +
+                ", (double)" + rv + "));"
+            );
+            return temp;
+        case VTokenType::Double_Equals:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Not_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Greater:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Smaller:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Greater_Or_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Smaller_Or_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");"
+            );
+            return temp;
+        case VTokenType::And:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool((" + lv + " != 0) && (" +
+                rv + " != 0));"
+            );
+            return temp;
+        case VTokenType::Or:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool((" + lv + " != 0) || (" +
+                rv + " != 0));"
+            );
+            return temp;
+        case VTokenType::Bitwise_And:
+            e.emit(
+                "VyneValue " + temp + " = vyne_int(" + lv + " & " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Bitwise_Or:
+            e.emit(
+                "VyneValue " + temp + " = vyne_int(" + lv + " | " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Bitwise_Xor:
+            e.emit(
+                "VyneValue " + temp + " = vyne_int(" + lv + " ^ " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Bitwise_Sll:
+            e.emit(
+                "VyneValue " + temp + " = vyne_int(" + lv + " << " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Bitwise_Srl:
+            e.emit(
+                "VyneValue " + temp + " = vyne_int(" + lv + " >> " + rv + ");"
+            );
+            return temp;
+        default:
+            break; // fall through to slow path
         }
     }
 
-    // f3rhd : you may change this later based on the semantic rules, for now i assume no bitwise operations if they include any floating numbers
+    // f3rhd : you may change this later based on the semantic rules, for now i
+    // assume no bitwise operations if they include any floating numbers
     if (lt == VType::Float64 || rt == VType::Float64) {
         switch (op) {
-            case VTokenType::Bitwise_And:
-            case VTokenType::Bitwise_Not:
-            case VTokenType::Bitwise_Xor:
-            case VTokenType::Bitwise_Or:
-            case VTokenType::Bitwise_Sll:
-            case VTokenType::Bitwise_Srl:
-                throw std::runtime_error(
-                    "Compile Error: Bitwise operators should only be used with integer values  "
-                    "(line " + std::to_string(lineNumber) + ").");
-            default:;
+        case VTokenType::Bitwise_And:
+        case VTokenType::Bitwise_Not:
+        case VTokenType::Bitwise_Xor:
+        case VTokenType::Bitwise_Or:
+        case VTokenType::Bitwise_Sll:
+        case VTokenType::Bitwise_Srl:
+            throw std::runtime_error(
+                "Compile Error: Bitwise operators should only be used with "
+                "integer values  "
+                "(line " +
+                std::to_string(lineNumber) + ")."
+            );
+        default:;
         }
     }
     // =========================================================
@@ -195,6 +249,82 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
         std::string lv = operand(leftNode.get(), l, VType::Float64);
         std::string rv = operand(rightNode.get(), r, VType::Float64);
         switch (op) {
+        case VTokenType::Add:
+            e.emit("double " + temp + " = " + lv + " + " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Substract:
+            e.emit("double " + temp + " = " + lv + " - " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Multiply:
+            e.emit("double " + temp + " = " + lv + " * " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Division:
+            e.emit(
+                "if (" + rv +
+                " == 0.0) { fprintf(stderr, \"Runtime error: Division by "
+                "zero!\\n\"); exit(1); }"
+            );
+            e.emit("double " + temp + " = " + lv + " / " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Modulo:
+            e.emit(
+                "if (" + rv +
+                " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
+                "zero!\\n\"); exit(1); }"
+            );
+            e.emit("double " + temp + " = fmod(" + lv + ", " + rv + ");");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Power:
+            e.emit("double " + temp + " = pow(" + lv + ", " + rv + ");");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        case VTokenType::Double_Equals:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Not_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Greater:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Smaller:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Greater_Or_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");"
+            );
+            return temp;
+        case VTokenType::Smaller_Or_Equal:
+            e.emit(
+                "VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");"
+            );
+            return temp;
+        default:
+            break; // fall through to slow path
+        }
+    }
+
+    {
+        bool ltNum = (lt == VType::Int64 || lt == VType::Float64);
+        bool rtNum = (rt == VType::Int64 || rt == VType::Float64);
+        if (ltNum && rtNum) {
+            std::string lv = operand(leftNode.get(), l, VType::Float64);
+            std::string rv = operand(rightNode.get(), r, VType::Float64);
+            switch (op) {
             case VTokenType::Add:
                 e.emit("double " + temp + " = " + lv + " + " + rv + ";");
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
@@ -208,12 +338,20 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             case VTokenType::Division:
-                e.emit("if (" + rv + " == 0.0) { fprintf(stderr, \"Runtime error: Division by zero!\\n\"); exit(1); }");
+                e.emit(
+                    "if (" + rv +
+                    " == 0.0) { fprintf(stderr, \"Runtime error: Division by "
+                    "zero!\\n\"); exit(1); }"
+                );
                 e.emit("double " + temp + " = " + lv + " / " + rv + ";");
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             case VTokenType::Modulo:
-                e.emit("if (" + rv + " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by zero!\\n\"); exit(1); }");
+                e.emit(
+                    "if (" + rv +
+                    " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
+                    "zero!\\n\"); exit(1); }"
+                );
                 e.emit("double " + temp + " = fmod(" + lv + ", " + rv + ");");
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
@@ -222,81 +360,43 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             case VTokenType::Double_Equals:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv +
+                    ");"
+                );
                 return temp;
             case VTokenType::Not_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv +
+                    ");"
+                );
                 return temp;
             case VTokenType::Greater:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv +
+                    ");"
+                );
                 return temp;
             case VTokenType::Smaller:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv +
+                    ");"
+                );
                 return temp;
             case VTokenType::Greater_Or_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv +
+                    ");"
+                );
                 return temp;
             case VTokenType::Smaller_Or_Equal:
-                e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");");
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv +
+                    ");"
+                );
                 return temp;
             default:
-                break; // fall through to slow path
-        }
-    }
-
-    {
-        bool ltNum = (lt == VType::Int64 || lt == VType::Float64);
-        bool rtNum = (rt == VType::Int64 || rt == VType::Float64);
-        if (ltNum && rtNum) {
-            std::string lv = operand(leftNode.get(), l, VType::Float64);
-            std::string rv = operand(rightNode.get(), r, VType::Float64);
-            switch (op) {
-                case VTokenType::Add:
-                    e.emit("double " + temp + " = " + lv + " + " + rv + ";");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Substract:
-                    e.emit("double " + temp + " = " + lv + " - " + rv + ";");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Multiply:
-                    e.emit("double " + temp + " = " + lv + " * " + rv + ";");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Division:
-                    e.emit("if (" + rv + " == 0.0) { fprintf(stderr, \"Runtime error: Division by zero!\\n\"); exit(1); }");
-                    e.emit("double " + temp + " = " + lv + " / " + rv + ";");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Modulo:
-                    e.emit("if (" + rv + " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by zero!\\n\"); exit(1); }");
-                    e.emit("double " + temp + " = fmod(" + lv + ", " + rv + ");");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Power:
-                    e.emit("double " + temp + " = pow(" + lv + ", " + rv + ");");
-                    e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
-                    return temp;
-                case VTokenType::Double_Equals:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");");
-                    return temp;
-                case VTokenType::Not_Equal:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");");
-                    return temp;
-                case VTokenType::Greater:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");");
-                    return temp;
-                case VTokenType::Smaller:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");");
-                    return temp;
-                case VTokenType::Greater_Or_Equal:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");");
-                    return temp;
-                case VTokenType::Smaller_Or_Equal:
-                    e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");");
-                    return temp;
-                default:
-                    break; // AND / OR / Floor_Divide → slow path
+                break; // AND / OR / Floor_Divide → slow path
             }
         }
     }
@@ -306,51 +406,100 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     // =========================================================
     int opCode = static_cast<int>(op);
     switch (op) {
-        case VTokenType::Add:              opCode = 29; break;
-        case VTokenType::Substract:        opCode = 30; break;
-        case VTokenType::Multiply:         opCode = 31; break;
-        case VTokenType::Division:         opCode = 32; break;
-        case VTokenType::Modulo:           opCode = 36; break;
-        case VTokenType::Power:            opCode = 37; break;
-        case VTokenType::Double_Equals:    opCode = 43; break;
-        case VTokenType::Not_Equal:        opCode = 44; break;
-        case VTokenType::Greater:          opCode = 45; break;
-        case VTokenType::Smaller:          opCode = 46; break;
-        case VTokenType::Greater_Or_Equal: opCode = 47; break;
-        case VTokenType::Smaller_Or_Equal: opCode = 48; break;
-        case VTokenType::And:              opCode = 49; break;
-        case VTokenType::Or:               opCode = 50; break;
-        case VTokenType::Floor_Divide:     opCode = 51; break;
-        case VTokenType::Bitwise_Not:      opCode = 52; break;
-        case VTokenType::Bitwise_And:      opCode = 53; break;
-        case VTokenType::Bitwise_Or:       opCode = 54; break;
-        case VTokenType::Bitwise_Xor:      opCode = 55; break;
-        case VTokenType::Bitwise_Sll:      opCode = 56; break;
-        case VTokenType::Bitwise_Srl:      opCode = 57; break;
-        default: break;
+    case VTokenType::Add:
+        opCode = 29;
+        break;
+    case VTokenType::Substract:
+        opCode = 30;
+        break;
+    case VTokenType::Multiply:
+        opCode = 31;
+        break;
+    case VTokenType::Division:
+        opCode = 32;
+        break;
+    case VTokenType::Modulo:
+        opCode = 36;
+        break;
+    case VTokenType::Power:
+        opCode = 37;
+        break;
+    case VTokenType::Double_Equals:
+        opCode = 43;
+        break;
+    case VTokenType::Not_Equal:
+        opCode = 44;
+        break;
+    case VTokenType::Greater:
+        opCode = 45;
+        break;
+    case VTokenType::Smaller:
+        opCode = 46;
+        break;
+    case VTokenType::Greater_Or_Equal:
+        opCode = 47;
+        break;
+    case VTokenType::Smaller_Or_Equal:
+        opCode = 48;
+        break;
+    case VTokenType::And:
+        opCode = 49;
+        break;
+    case VTokenType::Or:
+        opCode = 50;
+        break;
+    case VTokenType::Floor_Divide:
+        opCode = 51;
+        break;
+    case VTokenType::Bitwise_Not:
+        opCode = 52;
+        break;
+    case VTokenType::Bitwise_And:
+        opCode = 53;
+        break;
+    case VTokenType::Bitwise_Or:
+        opCode = 54;
+        break;
+    case VTokenType::Bitwise_Xor:
+        opCode = 55;
+        break;
+    case VTokenType::Bitwise_Sll:
+        opCode = 56;
+        break;
+    case VTokenType::Bitwise_Srl:
+        opCode = 57;
+        break;
+    default:
+        break;
     }
 
-    e.emit("VyneValue " + temp + " = vyne_binop(" + e.boxAny(l) + ", " +
-           e.boxAny(r) + ", " + std::to_string(opCode) + ");");
+    e.emit(
+        "VyneValue " + temp + " = vyne_binop(" + e.boxAny(l) + ", " +
+        e.boxAny(r) + ", " + std::to_string(opCode) + ");"
+    );
     return temp;
 }
 
-void BinOpNode::compile(C_Emitter& e) const { getCExpr(e); }
+void BinOpNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 std::string UnaryNode::getCExpr(C_Emitter& e) const {
     if (op == VTokenType::Addresser) {
         throw std::runtime_error(
             "Compile Error: '&' (address-of) is not supported by the C backend "
-            "(line " + std::to_string(lineNumber) + "). Use the interpreter instead.");
+            "(line " +
+            std::to_string(lineNumber) + "). Use the interpreter instead."
+        );
     }
     /*
         f3rhd:
-        normally this conditional should be checked but due to type info loss it will alert false positives and terminate the compiler
-        fn main() {
-            x :: Int64 = 32;
-            
+        normally this conditional should be checked but due to type info loss it
+       will alert false positives and terminate the compiler fn main() { x ::
+       Int64 = 32;
+
             y :: Int64 = ~((~((x >> 3) << 3) + 1)) | 64; # y = 95
-            
+
             z :: Int64 = (y ^ 15) & 112;                # z = 80
             if z == 80 {
                 out ("Test passed");
@@ -360,30 +509,40 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
             }
         }
         main();
-        X variable's type in the second line evaluates to unknown for some reason. 
-        and because of that in the condition below becomes true and throws a compiler error.
-        Uncomment those once type problem is fixed
+        X variable's type in the second line evaluates to unknown for some
+       reason. and because of that in the condition below becomes true and
+       throws a compiler error. Uncomment those once type problem is fixed
     */
-    //if (op == VTokenType::Bitwise_Not &&
-    //    right->getStaticType() != VType::Int64) {
-    //    throw std::runtime_error(
-    //        "Compile Error: Bitwise operators should only be used with integer values  "
-    //        "(line " + std::to_string(lineNumber) + ").");
-    //}
+    if (op == VTokenType::Bitwise_Not &&
+        right->getStaticType() != VType::Int64) {
+        throw std::runtime_error(
+            "Compile Error: Bitwise operators should only be used with integer "
+            "values  "
+            "(line " +
+            std::to_string(lineNumber) + ")."
+        );
+    }
     std::string val = e.boxAny(right->getCExpr(e));
     std::string temp = e.newTemp("un");
     int opCode = static_cast<int>(op);
 
-    if (op == VTokenType::Exclamatory) opCode = 44;
-    else if (op == VTokenType::Substract) opCode = 30;
-    else if (op == VTokenType::Bitwise_Not) opCode = 52; // enum value of bitwise not in codegen/operators.h
+    if (op == VTokenType::Exclamatory)
+        opCode = 44;
+    else if (op == VTokenType::Substract)
+        opCode = 30;
+    else if (op == VTokenType::Bitwise_Not)
+        opCode = 52; // enum value of bitwise not in codegen/operators.h
 
-    e.emit("VyneValue " + temp + " = vyne_unary(" + val +
-           ", " + std::to_string(opCode) + ");");
+    e.emit(
+        "VyneValue " + temp + " = vyne_unary(" + val + ", " +
+        std::to_string(opCode) + ");"
+    );
     return temp;
 }
 
-void UnaryNode::compile(C_Emitter& e) const { getCExpr(e); }
+void UnaryNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 std::string PostFixNode::getCExpr(C_Emitter& e) const {
     std::string temp = e.newTemp("post");
@@ -393,20 +552,26 @@ std::string PostFixNode::getCExpr(C_Emitter& e) const {
     // Read, bump, write back.
     if (left->type() == NodeType::MEMBER_ACCESS) {
         auto* memNode = static_cast<MemberAccessNode*>(left.get());
-        std::string recv  = memNode->getReceiver()->getCExpr(e);
-        uint32_t    fid   = StringPool::intern(memNode->getMemberName());
+        std::string recv = memNode->getReceiver()->getCExpr(e);
+        uint32_t fid = StringPool::intern(memNode->getMemberName());
         std::string fname = memNode->getMemberName();
 
-        e.emit("VyneValue " + temp + " = vyne_struct_get(" + recv +
-               ", " + std::to_string(fid) + ");");
+        e.emit(
+            "VyneValue " + temp + " = vyne_struct_get(" + recv + ", " +
+            std::to_string(fid) + ");"
+        );
 
         std::string newV = e.newTemp("postn");
         int opc = (op == VTokenType::Double_Increment) ? 29 : 30; // ADD / SUB
-        e.emit("VyneValue " + newV + " = vyne_binop(" + temp +
-               ", vyne_int(1), " + std::to_string(opc) + ");");
+        e.emit(
+            "VyneValue " + newV + " = vyne_binop(" + temp + ", vyne_int(1), " +
+            std::to_string(opc) + ");"
+        );
 
-        e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) +
-               ", \"" + fname + "\", " + newV + ");");
+        e.emit(
+            "vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" +
+            fname + "\", " + newV + ");"
+        );
         return temp;
     }
 
@@ -434,5 +599,6 @@ std::string PostFixNode::getCExpr(C_Emitter& e) const {
     return temp;
 }
 
-void PostFixNode::compile(C_Emitter& e) const { getCExpr(e); }
-
+void PostFixNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}

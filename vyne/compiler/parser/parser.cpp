@@ -16,15 +16,15 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "parser.h"
-#include "../ast/value.h"
 #include "../../runtime/diagnostics.h"
+#include "../ast/value.h"
 
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define CYAN    "\033[36m"
-#define BOLD    "\033[1m"
+#define RESET "\033[0m"
+#define RED "\033[31m"
+#define GREEN "\033[32m"
+#define YELLOW "\033[33m"
+#define CYAN "\033[36m"
+#define BOLD "\033[1m"
 
 class ASTNode;
 class ProgramNode;
@@ -62,14 +62,14 @@ const Token& Parser::consume(VTokenType expected) {
 
     emitError(
         "Unexpected token! Expected " + VTokenTypeToString(expected) +
-        ", but got " + VTokenTypeToString(peekToken().type),
+            ", but got " + VTokenTypeToString(peekToken().type),
         peekToken().line,
         "VNE-001",
         {"Check the syntax at this position"}
     );
 
     throw std::runtime_error("Compilation failed");
-    return eofToken;   // unreachable, keeps compilers happy
+    return eofToken; // unreachable, keeps compilers happy
 }
 
 bool Parser::isAtEnd() {
@@ -84,16 +84,17 @@ VType Parser::resolveType(std::string_view typeName) {
         if (lt != std::string::npos) {
             if (name.back() != '>') {
                 throw std::runtime_error(
-                    "Type Error: Malformed generic type '" + name + "'");
+                    "Type Error: Malformed generic type '" + name + "'"
+                );
             }
             name = name.substr(0, lt);
         }
     }
 
-    if (name.find('.') == std::string::npos && 
-        name != "Int64" && name != "Float64" && name != "String" && 
-        name != "Array" && name != "Bool" && name != "null") {
-        
+    if (name.find('.') == std::string::npos && name != "Int64" &&
+        name != "Float64" && name != "String" && name != "Array" &&
+        name != "Bool" && name != "null") {
+
         bool isGroupName = false;
         for (const auto& t : declaredTypes) {
             if (t.find(name + ".") == 0) {
@@ -101,13 +102,16 @@ VType Parser::resolveType(std::string_view typeName) {
                 break;
             }
         }
-        
+
         if (isGroupName) {
-            throw std::runtime_error("Type Error: '" + name + "' is a group/module name, not a type. Did you mean '" + name + ".Something'?");
+            throw std::runtime_error(
+                "Type Error: '" + name +
+                "' is a group/module name, not a type. Did you mean '" + name +
+                ".Something'?"
+            );
         }
     }
-        
-    
+
     VType primitive = stringToVType(name);
     if (primitive != VType::Unknown) {
         return primitive;
@@ -125,7 +129,7 @@ VType Parser::resolveType(std::string_view typeName) {
                 return VType::Struct;
             }
         }
-        
+
         std::string lastPart = name.substr(name.find_last_of('.') + 1);
         if (declaredTypes.count(lastPart)) {
             return VType::Struct;
@@ -150,7 +154,7 @@ VType Parser::resolveType(std::string_view typeName) {
         {"Check the type name spelling",
          "Use: Int64, Float64, String, Array, Bool, or a defined struct/enum"}
     );
-    
+
     throw std::runtime_error("Type resolution failed");
 }
 
@@ -160,26 +164,32 @@ VType Parser::resolveType(std::string_view typeName) {
 // names. Never throws; the emitter treats Unknown as "stay boxed".
 VType Parser::resolveArrayElementType(const std::string& typePath) {
     size_t lt = typePath.find('<');
-    if (lt == std::string::npos) return VType::Unknown;
-    if (typePath.empty() || typePath.back() != '>') return VType::Unknown;
+    if (lt == std::string::npos)
+        return VType::Unknown;
+    if (typePath.empty() || typePath.back() != '>')
+        return VType::Unknown;
 
     std::string base = typePath.substr(0, lt);
-    if (base != "Array") return VType::Unknown;
+    if (base != "Array")
+        return VType::Unknown;
 
     std::string inner = typePath.substr(lt + 1, typePath.size() - lt - 2);
 
     size_t start = inner.find_first_not_of(" \t");
-    size_t end   = inner.find_last_not_of(" \t");
-    if (start == std::string::npos) return VType::Unknown;
+    size_t end = inner.find_last_not_of(" \t");
+    if (start == std::string::npos)
+        return VType::Unknown;
     inner = inner.substr(start, end - start + 1);
 
-    if (inner.find('<') != std::string::npos) return VType::Unknown;
+    if (inner.find('<') != std::string::npos)
+        return VType::Unknown;
 
     return stringToVType(inner);
 }
 
 bool Parser::tryParseTypeArgs(std::vector<std::string>& out) {
-    if (peekToken().type != VTokenType::Smaller) return false;
+    if (peekToken().type != VTokenType::Smaller)
+        return false;
 
     size_t saved = pos;
     consume(VTokenType::Smaller);
@@ -201,7 +211,8 @@ bool Parser::tryParseTypeArgs(std::vector<std::string>& out) {
             }
             arg += "<";
             for (size_t i = 0; i < inner.size(); ++i) {
-                if (i) arg += ", ";
+                if (i)
+                    arg += ", ";
                 arg += inner[i];
             }
             arg += ">";
@@ -229,7 +240,7 @@ bool Parser::tryParseTypeArgs(std::vector<std::string>& out) {
 std::string Parser::parseTypePath() {
     std::string path;
     path.reserve(32);
-    
+
     path += consume(VTokenType::Identifier).name;
     while (peekToken().type == VTokenType::Dot) {
         consume(VTokenType::Dot);
@@ -244,7 +255,8 @@ std::string Parser::parseTypePath() {
         if (tryParseTypeArgs(args)) {
             path += "<";
             for (size_t i = 0; i < args.size(); ++i) {
-                if (i) path += ", ";
+                if (i)
+                    path += ", ";
                 path += args[i];
             }
             path += ">";
@@ -290,7 +302,8 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
         auto node = std::make_unique<NativeModuleNode>(
             StringPool::instance().intern(nameTok.name),
             nameTok.name,
-            alias);
+            alias
+        );
         node->lineNumber = line;
         return node;
     }
@@ -311,7 +324,8 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
 
     std::filesystem::path finalPath;
     if (isExtern) {
-        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" / "modules" / "external" / cleanPath;
+        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" /
+                    "modules" / "external" / cleanPath;
     } else {
         finalPath = std::filesystem::path(sourceDir) / cleanPath;
     }
@@ -319,11 +333,13 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     if (!std::filesystem::exists(finalPath)) {
         emitError(
             "unresolved import: '" + cleanPath + "' not found at " +
-            finalPath.string(),
-            line, "VNE-005",
+                finalPath.string(),
+            line,
+            "VNE-005",
             {"Check the import path spelling",
              "Paths are resolved relative to the importing file",
-             "Searched from: " + sourceDir});
+             "Searched from: " + sourceDir}
+        );
     }
 
     collectTypesFromImport(finalPath);
@@ -352,13 +368,11 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     }
 
     if (!importedTypeCache) {
-        importedTypeCache =
-            std::make_shared<std::unordered_map<
-                std::string, std::unordered_set<std::string>>>();
+        importedTypeCache = std::make_shared<
+            std::unordered_map<std::string, std::unordered_set<std::string>>>();
     }
     if (!parsingInProgress) {
-        parsingInProgress =
-            std::make_shared<std::unordered_set<std::string>>();
+        parsingInProgress = std::make_shared<std::unordered_set<std::string>>();
     }
 
     // Cache hit: hand the sibling the same types we gave earlier ones.
@@ -366,7 +380,8 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     // returned without merging anything on a repeat visit.
     if (auto it = importedTypeCache->find(canonical);
         it != importedTypeCache->end()) {
-        for (const auto& t : it->second) declaredTypes.insert(t);
+        for (const auto& t : it->second)
+            declaredTypes.insert(t);
         return;
     }
 
@@ -389,7 +404,7 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
         std::string savedFile;
         std::string savedSource;
         DiagContextGuard() {
-            savedFile   = Vyne::DiagnosticEngine::getCurrentFile();
+            savedFile = Vyne::DiagnosticEngine::getCurrentFile();
             savedSource = Vyne::DiagnosticEngine::getSourceText();
         }
         ~DiagContextGuard() {
@@ -405,8 +420,8 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
 
     Parser nested(std::move(tokens));
     nested.setSourceDir(finalPath.parent_path().string());
-    nested.importedTypeCache  = importedTypeCache;
-    nested.parsingInProgress  = parsingInProgress;
+    nested.importedTypeCache = importedTypeCache;
+    nested.parsingInProgress = parsingInProgress;
 
     SymbolContainer dummyEnv;
     nested.parseProgram(dummyEnv);
@@ -437,16 +452,23 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     if (peekToken().type == VTokenType::Smaller) {
         if (!tryParseTypeArgs(typeParams)) {
             emitError(
-                "Malformed type parameter list after interface '" + interfaceName + "'",
-                line, "VNE-040",
-                {"Expected: interface Name<T, U> { ... }"});
+                "Malformed type parameter list after interface '" +
+                    interfaceName + "'",
+                line,
+                "VNE-040",
+                {"Expected: interface Name<T, U> { ... }"}
+            );
         }
         for (const auto& tp : typeParams) {
             if (tp.find('<') != std::string::npos) {
                 emitError(
-                    "Type parameters must be simple identifiers, not generic types",
-                    line, "VNE-041",
-                    {"Use 'interface Foo<T>' instead of 'interface Foo<Array<T>>'"});
+                    "Type parameters must be simple identifiers, not generic "
+                    "types",
+                    line,
+                    "VNE-041",
+                    {"Use 'interface Foo<T>' instead of 'interface "
+                     "Foo<Array<T>>'"}
+                );
             }
         }
     }
@@ -456,37 +478,39 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
         namespacePart = consume(VTokenType::Identifier).name;
-    } 
-    else if (!groupPath.empty()) {
+    } else if (!groupPath.empty()) {
         for (size_t i = 0; i < groupPath.size(); ++i) {
-            if (i > 0) namespacePart += ".";
+            if (i > 0)
+                namespacePart += ".";
             namespacePart += groupPath[i];
         }
-    }
-    else if (!currentModuleName.empty()) {
+    } else if (!currentModuleName.empty()) {
         namespacePart = currentModuleName;
     }
 
     if (!namespacePart.empty()) {
         std::string fullPath = namespacePart + "." + interfaceName;
         declaredTypes.insert(fullPath);
-        
+
         if (!currentModuleName.empty()) {
             std::string modulePath = currentModuleName + "." + interfaceName;
             declaredTypes.insert(modulePath);
         }
-        
+
         if (!groupPath.empty()) {
-            std::string groupRelativePath = groupPath.back() + "." + interfaceName;
+            std::string groupRelativePath =
+                groupPath.back() + "." + interfaceName;
             declaredTypes.insert(groupRelativePath);
         }
-        
+
         if (!currentModuleName.empty() && !groupPath.empty()) {
-            std::string moduleGroupPath = currentModuleName + "." + groupPath.back() + "." + interfaceName;
+            std::string moduleGroupPath = currentModuleName + "." +
+                                          groupPath.back() + "." +
+                                          interfaceName;
             declaredTypes.insert(moduleGroupPath);
         }
     }
-    
+
     declaredTypes.insert(interfaceName);
 
     for (const auto& tp : typeParams) {
@@ -501,19 +525,20 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
         if (lookAhead(1).type == VTokenType::Left_Parenthese) {
             Token methodName = consume(VTokenType::Identifier);
             consume(VTokenType::Left_Parenthese);
-            
+
             std::vector<Parameter> params;
             if (peekToken().type != VTokenType::Right_Parenthese) {
                 do {
-                    if (!params.empty() && peekToken().type == VTokenType::Comma) {
+                    if (!params.empty() &&
+                        peekToken().type == VTokenType::Comma) {
                         consume(VTokenType::Comma);
                     }
-                    
+
                     Token paramTok = consume(VTokenType::Identifier);
                     uint32_t pId = StringPool::instance().intern(paramTok.name);
                     VType pType = VType::Unknown;
                     VType pArrayElem = VType::Unknown;
-                    std::string pTypePath;               // NEW
+                    std::string pTypePath; // NEW
 
                     bool isReference = false;
 
@@ -524,7 +549,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 
                     if (peekToken().type == VTokenType::Extends) {
                         consume(VTokenType::Extends);
-                        pTypePath = parseTypePath();      // CHANGED
+                        pTypePath = parseTypePath(); // CHANGED
                         pType = resolveType(pTypePath);
                         pArrayElem = resolveArrayElementType(pTypePath);
 
@@ -534,28 +559,36 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                         }
                     }
 
-                    params.emplace_back(pId, paramTok.name, pType, isReference, pArrayElem, pTypePath);
+                    params.emplace_back(
+                        pId,
+                        paramTok.name,
+                        pType,
+                        isReference,
+                        pArrayElem,
+                        pTypePath
+                    );
                 } while (peekToken().type == VTokenType::Comma);
             }
             consume(VTokenType::Right_Parenthese);
-            
+
             VType retType = VType::Unknown;
             VType retArrayElem = VType::Unknown;
-            std::string retTypePath;   // NEW
+            std::string retTypePath; // NEW
             if (peekToken().type == VTokenType::Arrow) {
                 consume(VTokenType::Arrow);
-                retTypePath  = parseTypePath();
-                retType      = resolveType(retTypePath);
+                retTypePath = parseTypePath();
+                retType = resolveType(retTypePath);
                 retArrayElem = resolveArrayElementType(retTypePath);
             }
-            
+
             consume(VTokenType::Left_CB);
             std::vector<std::shared_ptr<ASTNode>> body;
-            while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
+            while (peekToken().type != VTokenType::Right_CB &&
+                   peekToken().type != VTokenType::End) {
                 body.emplace_back(parseStatement());
             }
             consume(VTokenType::Right_CB);
-            
+
             auto methodNode = std::make_shared<FunctionNode>(
                 currentModuleName,
                 StringPool::instance().intern(methodName.name),
@@ -574,21 +607,27 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
         } else {
             Token memberName = consume(VTokenType::Identifier);
             consume(VTokenType::Extends);
-            
+
             std::string typePath = parseTypePath();
-            VType memberType      = resolveType(typePath);
+            VType memberType = resolveType(typePath);
             VType memberArrayElem = resolveArrayElementType(typePath);
 
             if (peekToken().type == VTokenType::Referencer) {
                 consume(VTokenType::Referencer);
                 memberType = VType::Reference;
             }
-            
-            members.emplace_back(memberName.name, memberType, 0,
-                                 memberArrayElem, std::move(typePath));
+
+            members.emplace_back(
+                memberName.name,
+                memberType,
+                0,
+                memberArrayElem,
+                std::move(typePath)
+            );
         }
-        
-        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+
+        if (peekToken().type == VTokenType::Comma ||
+            peekToken().type == VTokenType::Semicolon) {
             consume(peekToken().type);
         }
     }
@@ -599,7 +638,11 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
         declaredTypes.erase(tp);
     }
 
-    auto node = std::make_unique<InterfaceNode>(interfaceName, std::move(members), std::move(methods));
+    auto node = std::make_unique<InterfaceNode>(
+        interfaceName,
+        std::move(members),
+        std::move(methods)
+    );
     node->lineNumber = line;
     std::string fullModule = namespacePart;
     if (!currentModuleName.empty() && !groupPath.empty() &&
@@ -622,7 +665,9 @@ void Parser::consumeSemicolon() {
             "VNE-002",
             {"Add a semicolon ';' at the end of this statement"}
         );
-        throw std::runtime_error("Compilation failed at line " + std::to_string(t.line));
+        throw std::runtime_error(
+            "Compilation failed at line " + std::to_string(t.line)
+        );
     }
 }
 
@@ -640,73 +685,103 @@ std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
 
 std::unique_ptr<ASTNode> Parser::parseStatement() {
     Token current = peekToken();
-    
+
     switch (current.type) {
-        case VTokenType::Function:   return parseFunctionDefinition();
-        case VTokenType::Left_CB:    return parseBlock();
-        case VTokenType::Return:     return parseReturnStatement();
-        case VTokenType::If:         return parseIfStatement();
-        case VTokenType::While:      return parseWhileLoop();
-        case VTokenType::Group:      return parseGroupDefinition();
-        case VTokenType::Break:      
-        case VTokenType::Continue:   return parseLoopControl(); 
-        case VTokenType::Module:     return parseModuleStatement();
-        case VTokenType::Dismiss:    return parseDismissStatement();
-        case VTokenType::Use:        return parseImportModule();
-        case VTokenType::Deploy:     return parseDeployModule();
-        case VTokenType::Interface:  return parseInterfaceDefinition();
-        case VTokenType::Ruleset:    return parseRuleset();
-        case VTokenType::Enum:       return parseEnum();
-        case VTokenType::Defer:      return parseDeferStatement();
-        case VTokenType::Try:        return parseTryCatch();
-        case VTokenType::Throw:      return parseThrowStatement();
-        case VTokenType::Region:     return parseRegionStatement();
-        case VTokenType::At:         return parseRegionStatement();
-        case VTokenType::Scratch:    return parseScratchDeclaration();
-        case VTokenType::Identifier:
-        case VTokenType::Const: {
-            int checkPos = 0;
-            bool hasConst = (peekToken().type == VTokenType::Const);
-            if (hasConst) checkPos++;
+    case VTokenType::Function:
+        return parseFunctionDefinition();
+    case VTokenType::Left_CB:
+        return parseBlock();
+    case VTokenType::Return:
+        return parseReturnStatement();
+    case VTokenType::If:
+        return parseIfStatement();
+    case VTokenType::While:
+        return parseWhileLoop();
+    case VTokenType::Group:
+        return parseGroupDefinition();
+    case VTokenType::Break:
+    case VTokenType::Continue:
+        return parseLoopControl();
+    case VTokenType::Module:
+        return parseModuleStatement();
+    case VTokenType::Dismiss:
+        return parseDismissStatement();
+    case VTokenType::Use:
+        return parseImportModule();
+    case VTokenType::Deploy:
+        return parseDeployModule();
+    case VTokenType::Interface:
+        return parseInterfaceDefinition();
+    case VTokenType::Ruleset:
+        return parseRuleset();
+    case VTokenType::Enum:
+        return parseEnum();
+    case VTokenType::Defer:
+        return parseDeferStatement();
+    case VTokenType::Try:
+        return parseTryCatch();
+    case VTokenType::Throw:
+        return parseThrowStatement();
+    case VTokenType::Region:
+        return parseRegionStatement();
+    case VTokenType::At:
+        return parseRegionStatement();
+    case VTokenType::Scratch:
+        return parseScratchDeclaration();
+    case VTokenType::Identifier:
+    case VTokenType::Const: {
+        int checkPos = 0;
+        bool hasConst = (peekToken().type == VTokenType::Const);
+        if (hasConst)
+            checkPos++;
 
-            if (lookAhead(checkPos).type == VTokenType::Identifier) {
-                checkPos++;
+        if (lookAhead(checkPos).type == VTokenType::Identifier) {
+            checkPos++;
 
-                while (lookAhead(checkPos).type == VTokenType::Dot || 
-                    lookAhead(checkPos).type == VTokenType::Left_Bracket) {
-                    if (lookAhead(checkPos).type == VTokenType::Left_Bracket) {
-                        int depth = 1; checkPos++;
-                        while (depth > 0 && lookAhead(checkPos).type != VTokenType::End) {
-                            if (lookAhead(checkPos).type == VTokenType::Left_Bracket) depth++;
-                            if (lookAhead(checkPos).type == VTokenType::Right_Bracket) depth--;
-                            checkPos++;
-                        }
-                    } else {
-                        checkPos += 2;
+            while (lookAhead(checkPos).type == VTokenType::Dot ||
+                   lookAhead(checkPos).type == VTokenType::Left_Bracket) {
+                if (lookAhead(checkPos).type == VTokenType::Left_Bracket) {
+                    int depth = 1;
+                    checkPos++;
+                    while (depth > 0 &&
+                           lookAhead(checkPos).type != VTokenType::End) {
+                        if (lookAhead(checkPos).type ==
+                            VTokenType::Left_Bracket)
+                            depth++;
+                        if (lookAhead(checkPos).type ==
+                            VTokenType::Right_Bracket)
+                            depth--;
+                        checkPos++;
                     }
-                }
-
-                VTokenType next = lookAhead(checkPos).type;
-                if (next == VTokenType::Extends || 
-                    next == VTokenType::Equals || 
-                    next == VTokenType::NullCoalesceAssign) {
-                    return parseAssignment();
+                } else {
+                    checkPos += 2;
                 }
             }
 
-            if (hasConst) {
-                throw std::runtime_error("Syntax Error: 'const' can only be used in assignments at line " + std::to_string(peekToken().line));
+            VTokenType next = lookAhead(checkPos).type;
+            if (next == VTokenType::Extends || next == VTokenType::Equals ||
+                next == VTokenType::NullCoalesceAssign) {
+                return parseAssignment();
             }
+        }
 
-            auto expr = parseExpression();
-            consumeSemicolon();
-            return expr;
+        if (hasConst) {
+            throw std::runtime_error(
+                "Syntax Error: 'const' can only be used in assignments at "
+                "line " +
+                std::to_string(peekToken().line)
+            );
         }
-        default: {
-            auto expr = parseExpression();
-            consumeSemicolon(); 
-            return expr;
-        }
+
+        auto expr = parseExpression();
+        consumeSemicolon();
+        return expr;
+    }
+    default: {
+        auto expr = parseExpression();
+        consumeSemicolon();
+        return expr;
+    }
     }
 }
 
@@ -722,8 +797,12 @@ std::unique_ptr<ASTNode> Parser::parseTernary() {
         auto truePart = parseExpression();
         consume(VTokenType::Colon);
         auto falsePart = parseTernary();
-        
-        return std::make_unique<TernaryNode>(std::move(expr), std::move(truePart), std::move(falsePart));
+
+        return std::make_unique<TernaryNode>(
+            std::move(expr),
+            std::move(truePart),
+            std::move(falsePart)
+        );
     }
 
     return expr;
@@ -731,7 +810,7 @@ std::unique_ptr<ASTNode> Parser::parseTernary() {
 
 std::unique_ptr<ASTNode> Parser::parseRange() {
     auto left = parseLogicalOr();
-    
+
     while (peekToken().type == VTokenType::Double_Dot) {
         Token opToken = getNextToken();
         auto right = parseLogicalOr();
@@ -745,7 +824,11 @@ std::unique_ptr<ASTNode> Parser::parseLogicalOr() {
     while (peekToken().type == VTokenType::Or) {
         Token opToken = getNextToken();
         auto right = parseLogicalAnd();
-        left = std::make_unique<BinOpNode>(VTokenType::Or, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            VTokenType::Or,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
@@ -755,7 +838,11 @@ std::unique_ptr<ASTNode> Parser::parseLogicalAnd() {
     while (peekToken().type == VTokenType::And) {
         Token opToken = getNextToken();
         auto right = parseBitwiseOr();
-        left = std::make_unique<BinOpNode>(VTokenType::And, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            VTokenType::And,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
@@ -765,7 +852,11 @@ std::unique_ptr<ASTNode> Parser::parseBitwiseOr() {
     while (peekToken().type == VTokenType::Bitwise_Or) {
         Token opToken = getNextToken();
         auto right = parseBitwiseXor();
-        left = std::make_unique<BinOpNode>(VTokenType::Bitwise_Or, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            VTokenType::Bitwise_Or,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
@@ -774,7 +865,11 @@ std::unique_ptr<ASTNode> Parser::parseBitwiseXor() {
     while (peekToken().type == VTokenType::Bitwise_Xor) {
         Token opToken = getNextToken();
         auto right = parseBitwiseAnd();
-        left = std::make_unique<BinOpNode>(VTokenType::Bitwise_Xor, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            VTokenType::Bitwise_Xor,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
@@ -783,28 +878,42 @@ std::unique_ptr<ASTNode> Parser::parseBitwiseAnd() {
     while (peekToken().type == VTokenType::Bitwise_And) {
         Token opToken = getNextToken();
         auto right = parseEquality();
-        left = std::make_unique<BinOpNode>(VTokenType::Bitwise_And, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            VTokenType::Bitwise_And,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
 std::unique_ptr<ASTNode> Parser::parseEquality() {
     auto left = parseInExpression();
-    while (peekToken().type == VTokenType::Double_Equals || peekToken().type == VTokenType::Not_Equal) {
+    while (peekToken().type == VTokenType::Double_Equals ||
+           peekToken().type == VTokenType::Not_Equal) {
         Token op = getNextToken();
         auto right = parseInExpression();
-        left = std::make_unique<BinOpNode>(op.type, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            op.type,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
 
-
 std::unique_ptr<ASTNode> Parser::parseRelational() {
     auto left = parseShift();
-    while (peekToken().type == VTokenType::Greater || peekToken().type == VTokenType::Smaller || 
-           peekToken().type == VTokenType::Greater_Or_Equal || peekToken().type == VTokenType::Smaller_Or_Equal) {
+    while (peekToken().type == VTokenType::Greater ||
+           peekToken().type == VTokenType::Smaller ||
+           peekToken().type == VTokenType::Greater_Or_Equal ||
+           peekToken().type == VTokenType::Smaller_Or_Equal) {
         Token opToken = getNextToken();
         auto right = parseShift();
-        left = std::make_unique<BinOpNode>(opToken.type, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            opToken.type,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
@@ -815,26 +924,43 @@ std::unique_ptr<ASTNode> Parser::parseShift() {
            peekToken().type == VTokenType::Bitwise_Srl) {
         Token opToken = getNextToken();
         auto right = parseAdditive();
-        left = std::make_unique<BinOpNode>(opToken.type,std::move(left),std::move(right));
+        left = std::make_unique<BinOpNode>(
+            opToken.type,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
 std::unique_ptr<ASTNode> Parser::parseAdditive() {
     auto left = parseTerm();
-    while (peekToken().type == VTokenType::Add || peekToken().type == VTokenType::Substract || peekToken().type == VTokenType::Floor_Divide || peekToken().type == VTokenType::Modulo) {
+    while (peekToken().type == VTokenType::Add ||
+           peekToken().type == VTokenType::Substract ||
+           peekToken().type == VTokenType::Floor_Divide ||
+           peekToken().type == VTokenType::Modulo) {
         Token opToken = getNextToken();
         auto right = parseTerm();
-        left = std::make_unique<BinOpNode>(opToken.type, std::move(left), std::move(right));
+        left = std::make_unique<BinOpNode>(
+            opToken.type,
+            std::move(left),
+            std::move(right)
+        );
     }
     return left;
 }
 
 std::unique_ptr<ASTNode> Parser::parseTerm() {
     auto left = parseUnary();
-    while (peekToken().type == VTokenType::Multiply || peekToken().type == VTokenType::Division || peekToken().type == VTokenType::Power) {
+    while (peekToken().type == VTokenType::Multiply ||
+           peekToken().type == VTokenType::Division ||
+           peekToken().type == VTokenType::Power) {
         Token opToken = getNextToken();
         auto right = parseUnary();
-        auto node = std::make_unique<BinOpNode>(opToken.type, std::move(left), std::move(right));
+        auto node = std::make_unique<BinOpNode>(
+            opToken.type,
+            std::move(left),
+            std::move(right)
+        );
         node->lineNumber = opToken.line;
         left = std::move(node);
     }
@@ -842,14 +968,13 @@ std::unique_ptr<ASTNode> Parser::parseTerm() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseUnary() {
-    if (
-        peekToken().type == VTokenType::Exclamatory ||
+    if (peekToken().type == VTokenType::Exclamatory ||
         peekToken().type == VTokenType::Substract ||
         peekToken().type == VTokenType::Addresser ||
         peekToken().type == VTokenType::Bitwise_Not) {
         Token opToken = getNextToken();
-        
-        auto right = parseUnary(); 
+
+        auto right = parseUnary();
 
         auto node = std::make_unique<UnaryNode>(opToken.type, std::move(right));
         node->lineNumber = opToken.line;
@@ -860,9 +985,11 @@ std::unique_ptr<ASTNode> Parser::parseUnary() {
 
 std::unique_ptr<ASTNode> Parser::parsePostfix() {
     auto left = parseFactor();
-    while (peekToken().type == VTokenType::Double_Increment || peekToken().type == VTokenType::Double_Decrement) {
+    while (peekToken().type == VTokenType::Double_Increment ||
+           peekToken().type == VTokenType::Double_Decrement) {
         Token opToken = getNextToken();
-        auto node = std::make_unique<PostFixNode>(opToken.type, std::move(left));
+        auto node =
+            std::make_unique<PostFixNode>(opToken.type, std::move(left));
         node->lineNumber = opToken.line;
         left = std::move(node);
     }
@@ -870,42 +997,57 @@ std::unique_ptr<ASTNode> Parser::parsePostfix() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseFactor() {
-    Token current = peekToken(); 
+    Token current = peekToken();
     switch (current.type) {
-        case VTokenType::String:                  return parseStringLiteral();
-        case VTokenType::Int64:                   return parseNumberLiteral();
-        case VTokenType::Float64:                 return parseNumberLiteral();
-        case VTokenType::True:
-        case VTokenType::False:                   return parseBooleanLiteral();
-        case VTokenType::Null:                    return parseNullLiteral();
-        case VTokenType::Identifier:              return parseIdentifierExpr();
-        case VTokenType::Left_Bracket:            return parseArrayLiteral();
-        case VTokenType::Left_Parenthese:         return parseGroupingExpr();
-        case VTokenType::BuiltIn:                 return parseBuiltInCall();
-        case VTokenType::Through:                 return parseForLoop();
-        case VTokenType::InterpolatedString:
-            return parseInterpolatedString();
-        case VTokenType::Left_CB: {               // ADDED DISAMBIGUATION
-            if (lookAhead(1).type == VTokenType::Right_CB || 
-                (lookAhead(1).type == VTokenType::String && lookAhead(2).type == VTokenType::Colon) ||
-                (lookAhead(1).type == VTokenType::Identifier && lookAhead(2).type == VTokenType::Colon)) {
-                return parseMapLiteral();
-            }
-            return parseBlock();
+    case VTokenType::String:
+        return parseStringLiteral();
+    case VTokenType::Int64:
+        return parseNumberLiteral();
+    case VTokenType::Float64:
+        return parseNumberLiteral();
+    case VTokenType::True:
+    case VTokenType::False:
+        return parseBooleanLiteral();
+    case VTokenType::Null:
+        return parseNullLiteral();
+    case VTokenType::Identifier:
+        return parseIdentifierExpr();
+    case VTokenType::Left_Bracket:
+        return parseArrayLiteral();
+    case VTokenType::Left_Parenthese:
+        return parseGroupingExpr();
+    case VTokenType::BuiltIn:
+        return parseBuiltInCall();
+    case VTokenType::Through:
+        return parseForLoop();
+    case VTokenType::InterpolatedString:
+        return parseInterpolatedString();
+    case VTokenType::Left_CB: { // ADDED DISAMBIGUATION
+        if (lookAhead(1).type == VTokenType::Right_CB ||
+            (lookAhead(1).type == VTokenType::String &&
+             lookAhead(2).type == VTokenType::Colon) ||
+            (lookAhead(1).type == VTokenType::Identifier &&
+             lookAhead(2).type == VTokenType::Colon)) {
+            return parseMapLiteral();
         }
-        default:
-            throw std::runtime_error("Unexpected token in factor: " + current.name + "[ line " + std::to_string(current.line) + " ]");
+        return parseBlock();
+    }
+    default:
+        throw std::runtime_error(
+            "Unexpected token in factor: " + current.name + "[ line " +
+            std::to_string(current.line) + " ]"
+        );
     }
 }
 
 std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
-    Token current = peekToken(); 
+    Token current = peekToken();
     int line = current.line;
 
     consume(VTokenType::String);
 
     std::string strVal = std::get<std::string>(current.literal);
-    
+
     auto node = std::make_unique<StringNode>(strVal);
     node->lineNumber = line;
 
@@ -913,17 +1055,16 @@ std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
-    Token current = peekToken(); 
+    Token current = peekToken();
     int line = current.line;
 
     if (current.type == VTokenType::Int64) {
         consume(VTokenType::Int64);
         int64_t intVal = std::get<int64_t>(current.literal);
-        auto node = std::make_unique<NumberNode>(Value(intVal)); 
+        auto node = std::make_unique<NumberNode>(Value(intVal));
         node->lineNumber = line;
         return node;
-    } 
-    else if (current.type == VTokenType::Float64) {
+    } else if (current.type == VTokenType::Float64) {
         consume(VTokenType::Float64);
         double val = std::get<double>(current.literal);
         auto node = std::make_unique<NumberNode>(Value(val));
@@ -931,36 +1072,38 @@ std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
         return node;
     }
 
-    throw std::runtime_error("Expected numeric literal at line " + std::to_string(line));
+    throw std::runtime_error(
+        "Expected numeric literal at line " + std::to_string(line)
+    );
 }
 
 std::unique_ptr<ASTNode> Parser::parseBooleanLiteral() {
     Token tok = peekToken();
     bool value = (tok.type == VTokenType::True);
     consume(tok.type);
-    
+
     auto node = std::make_unique<BooleanNode>(value);
     node->lineNumber = tok.line;
     return node;
 }
 
 std::unique_ptr<ASTNode> Parser::parseArrayLiteral() {
-    Token tok = peekToken(); 
+    Token tok = peekToken();
     int line = tok.line;
 
     consume(VTokenType::Left_Bracket);
-    
+
     std::vector<std::unique_ptr<ASTNode>> elements;
-    
+
     if (peekToken().type != VTokenType::Right_Bracket) {
         elements.emplace_back(parseExpression());
-        
+
         while (peekToken().type == VTokenType::Comma) {
             consume(VTokenType::Comma);
             elements.emplace_back(parseExpression());
         }
     }
-    
+
     consume(VTokenType::Right_Bracket);
 
     auto node = std::make_unique<ArrayNode>(std::move(elements));
@@ -971,24 +1114,26 @@ std::unique_ptr<ASTNode> Parser::parseArrayLiteral() {
 std::unique_ptr<ASTNode> Parser::parseMapLiteral() {
     int line = peekToken().line;
     consume(VTokenType::Left_CB);
-    
-    std::vector<std::pair<std::unique_ptr<ASTNode>, std::unique_ptr<ASTNode>>> pairs;
-    
+
+    std::vector<std::pair<std::unique_ptr<ASTNode>, std::unique_ptr<ASTNode>>>
+        pairs;
+
     if (peekToken().type != VTokenType::Right_CB) {
         do {
             if (peekToken().type == VTokenType::Comma) {
                 consume(VTokenType::Comma);
             }
-            if (peekToken().type == VTokenType::Right_CB) break;
-            
+            if (peekToken().type == VTokenType::Right_CB)
+                break;
+
             auto keyExpr = parseExpression();
             consume(VTokenType::Colon);
             auto valExpr = parseExpression();
-            
+
             pairs.emplace_back(std::move(keyExpr), std::move(valExpr));
         } while (peekToken().type == VTokenType::Comma);
     }
-    
+
     consume(VTokenType::Right_CB);
 
     auto node = std::make_unique<MapNode>(std::move(pairs));
@@ -1014,21 +1159,20 @@ std::unique_ptr<ASTNode> Parser::parseGroupingExpr() {
 std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
     Token funcTok = consume(VTokenType::Function);
     int line = funcTok.line;
-    
+
     std::string targetModule = "";
     uint32_t funcId;
     std::string funcName;
 
     if (peekToken().type == VTokenType::Extends) {
-        consume(VTokenType::Extends); 
+        consume(VTokenType::Extends);
         targetModule = consume(VTokenType::Identifier).name;
-        
+
         Token actualFuncTok = consume(VTokenType::Identifier);
         funcName = actualFuncTok.name;
-    } 
-    else {
+    } else {
         Token firstTok = consume(VTokenType::Identifier);
-        
+
         if (peekToken().type == VTokenType::Extends) {
             consume(VTokenType::Extends);
 
@@ -1041,9 +1185,13 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
             funcName = firstTok.name;
         }
     }
-       
-    if(targetModule == "vcore" || targetModule == "vglib"){
-        throw std::runtime_error("Permission Error : Cannot inject function '" + funcName + "' to built-in module " + targetModule + " at line " + std::to_string(line));
+
+    if (targetModule == "vcore" || targetModule == "vglib") {
+        throw std::runtime_error(
+            "Permission Error : Cannot inject function '" + funcName +
+            "' to built-in module " + targetModule + " at line " +
+            std::to_string(line)
+        );
     }
 
     funcId = StringPool::instance().intern(funcName);
@@ -1052,15 +1200,22 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
     if (peekToken().type == VTokenType::Smaller) {
         if (!tryParseTypeArgs(typeParams)) {
             emitError(
-                "Malformed type parameter list after function '" + funcName + "'",
-                line, "VNE-042",
-                {"Expected: fn name<T, U>(...) -> RetType { ... }"});
+                "Malformed type parameter list after function '" + funcName +
+                    "'",
+                line,
+                "VNE-042",
+                {"Expected: fn name<T, U>(...) -> RetType { ... }"}
+            );
         }
         for (const auto& tp : typeParams) {
             if (tp.find('<') != std::string::npos) {
                 emitError(
-                    "Type parameters must be simple identifiers, not generic types",
-                    line, "VNE-043", {});
+                    "Type parameters must be simple identifiers, not generic "
+                    "types",
+                    line,
+                    "VNE-043",
+                    {}
+                );
             }
         }
     }
@@ -1083,7 +1238,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
             Token paramTok = consume(VTokenType::Identifier);
             uint32_t pId = StringPool::instance().intern(paramTok.name);
             VType pType = VType::Unknown;
-            VType pArrayElem = VType::Unknown;   // M4-C1
+            VType pArrayElem = VType::Unknown; // M4-C1
             std::string pTypePath;
 
             bool isReference = false;
@@ -1098,34 +1253,42 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 
                 pTypePath = parseTypePath();
                 pType = resolveType(pTypePath);
-                pArrayElem = resolveArrayElementType(pTypePath);   // M4-C1
-                                
+                pArrayElem = resolveArrayElementType(pTypePath); // M4-C1
+
                 if (peekToken().type == VTokenType::Referencer) {
                     consume(VTokenType::Referencer);
                     isReference = true;
                 }
             }
 
-            params.emplace_back(pId, paramTok.name, pType, isReference, pArrayElem, pTypePath);
+            params.emplace_back(
+                pId,
+                paramTok.name,
+                pType,
+                isReference,
+                pArrayElem,
+                pTypePath
+            );
 
-        } while (peekToken().type == VTokenType::Comma); 
+        } while (peekToken().type == VTokenType::Comma);
     }
     consume(VTokenType::Right_Parenthese);
-    
+
     VType retType = VType::Unknown;
     VType retArrayElem = VType::Unknown;
-    std::string retTypePath;   // CHANGED: hoisted out so we can stash it
+    std::string retTypePath; // CHANGED: hoisted out so we can stash it
 
     if (peekToken().type == VTokenType::Arrow) {
         consume(VTokenType::Arrow);
-        retTypePath  = parseTypePath();
-        retType      = resolveType(retTypePath);
+        retTypePath = parseTypePath();
+        retType = resolveType(retTypePath);
         retArrayElem = resolveArrayElementType(retTypePath);
     }
 
     consume(VTokenType::Left_CB);
     std::vector<std::shared_ptr<ASTNode>> body;
-    while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
+    while (peekToken().type != VTokenType::Right_CB &&
+           peekToken().type != VTokenType::End) {
         body.emplace_back(parseStatement());
     }
     consume(VTokenType::Right_CB);
@@ -1136,7 +1299,14 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         declaredTypes.erase(tp);
     }
 
-    auto node = std::make_unique<FunctionNode>(targetModule, funcId, funcName, std::move(params), std::move(body), retType);
+    auto node = std::make_unique<FunctionNode>(
+        targetModule,
+        funcId,
+        funcName,
+        std::move(params),
+        std::move(body),
+        retType
+    );
     node->lineNumber = line;
     node->setTypeParams(std::move(typeParams));
     node->setReturnArrayElemType(retArrayElem);
@@ -1151,19 +1321,20 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 std::unique_ptr<ASTNode> Parser::parseBuiltInCall() {
     Token tok = consume(VTokenType::BuiltIn);
     int line = tok.line;
-    
+
     consume(VTokenType::Left_Parenthese);
-    
+
     std::vector<std::unique_ptr<ASTNode>> args;
     if (peekToken().type != VTokenType::Right_Parenthese) {
         do {
-            if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
+            if (peekToken().type == VTokenType::Comma)
+                consume(VTokenType::Comma);
             args.emplace_back(parseExpression());
         } while (peekToken().type == VTokenType::Comma);
     }
-    
+
     consume(VTokenType::Right_Parenthese);
-    
+
     auto node = std::make_unique<BuiltInCallNode>(tok.name, std::move(args));
     node->lineNumber = line;
     return node;
@@ -1174,21 +1345,27 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
     int line = tok.line;
     bool isRefVar = false;
 
-    if (tok.type == VTokenType::Return   || 
-        tok.type == VTokenType::Function || 
+    if (tok.type == VTokenType::Return || tok.type == VTokenType::Function ||
         tok.type == VTokenType::BuiltIn) {
-        throw std::runtime_error("Syntax Error: Unexpected keyword '" + tok.name + "'");
+        throw std::runtime_error(
+            "Syntax Error: Unexpected keyword '" + tok.name + "'"
+        );
     }
 
     std::string lastName = tok.name;
     uint32_t currentId = StringPool::instance().intern(lastName);
 
-    if (SymbolInfo* info = lookupSymbol(currentId)) {
+    // Hoisted out of the `if` so the type-propagation block below can
+    // reuse the pointer. `info` is either null (variable not yet
+    // declared, e.g. the LHS of a fresh `x :: T = ...`) or points into
+    // the innermost scope's symbol map.
+    SymbolInfo* info = lookupSymbol(currentId);
+    if (info) {
         info->used = true;
     }
 
-    VType explicitType   = VType::Unknown;
-    VType arrayElemType  = VType::Unknown;
+    VType explicitType = VType::Unknown;
+    VType arrayElemType = VType::Unknown;
     std::string declaredTypeName;
 
     if (peekToken().type == VTokenType::Extends) {
@@ -1200,32 +1377,52 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         // swallows the string and codegen has no way to recover the
         // inner element type of `Array<Float64>`.
         declaredTypeName = parseTypePath();
-        explicitType     = resolveType(declaredTypeName);
-        arrayElemType    = resolveArrayElementType(declaredTypeName);
+        explicitType = resolveType(declaredTypeName);
+        arrayElemType = resolveArrayElementType(declaredTypeName);
 
         if (peekToken().type == VTokenType::Referencer) {
             consume(VTokenType::Referencer);
-            isRefVar      = true;
-            explicitType  = VType::Reference;
-            arrayElemType = VType::Unknown;   // references are not typed arrays
+            isRefVar = true;
+            explicitType = VType::Reference;
+            arrayElemType = VType::Unknown; // references are not typed arrays
         }
 
         if (explicitType == VType::Unknown) {
-            throw std::runtime_error("Type Error : Unexpected type " + std::string(startTypeTok.name) + " [ line " + std::to_string(line) + " ]");
+            throw std::runtime_error(
+                "Type Error : Unexpected type " +
+                std::string(startTypeTok.name) + " [ line " +
+                std::to_string(line) + " ]"
+            );
         }
+    }
+
+    // Propagate the inferred type from the symbol table for plain reads
+    // (no inline `:: Type`). Without this, VariableNode::getStaticType()
+    // returns Unknown for every variable reference that lacks a fresh
+    // annotation — which breaks the UnaryNode bitwise guard, resolveRHSKind,
+    // and any other static-type consumer that expects a concrete type.
+    //
+    // A fresh declaration like `x :: Int64 = ...` never reaches this
+    // branch: the `::` path above already set explicitType, and the
+    // symbol table may not even contain `x` yet.
+    if (explicitType == VType::Unknown && info &&
+        info->type != VType::Unknown) {
+        explicitType = info->type;
     }
 
     std::vector<std::string> scope;
     std::unique_ptr<ASTNode> node;
 
-    // Generic call site: Box<Int64>(...), Pair<A,B>(...), identity<String>(...).
-    // We only commit to parsing this as type args if the `>` is immediately
-    // followed by `(` — otherwise it's a comparison and we backtrack.
+    // Generic call site: Box<Int64>(...), Pair<A,B>(...),
+    // identity<String>(...). We only commit to parsing this as type args if the
+    // `>` is immediately followed by `(` — otherwise it's a comparison and we
+    // backtrack.
     std::vector<std::string> callTypeArgs;
     if (peekToken().type == VTokenType::Smaller) {
         size_t saved = pos;
         std::vector<std::string> temp;
-        if (tryParseTypeArgs(temp) && peekToken().type == VTokenType::Left_Parenthese) {
+        if (tryParseTypeArgs(temp) &&
+            peekToken().type == VTokenType::Left_Parenthese) {
             callTypeArgs = std::move(temp);
         } else {
             pos = saved;
@@ -1241,7 +1438,8 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 
         if (peekToken().type != VTokenType::Right_Parenthese) {
             do {
-                if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
+                if (peekToken().type == VTokenType::Comma)
+                    consume(VTokenType::Comma);
 
                 // Named argument: `ident : expr`
                 if (peekToken().type == VTokenType::Identifier &&
@@ -1262,28 +1460,39 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 
         if (sawNamed && sawPositional) {
             throw std::runtime_error(
-                "Syntax Error: cannot mix positional and named arguments in call to '" +
-                lastName + "' [ line " + std::to_string(line) + " ]");
+                "Syntax Error: cannot mix positional and named arguments in "
+                "call to '" +
+                lastName + "' [ line " + std::to_string(line) + " ]"
+            );
         }
 
-        auto funcCall = std::make_unique<FunctionCallNode>(currentId, lastName, std::move(args));
+        auto funcCall = std::make_unique<FunctionCallNode>(
+            currentId,
+            lastName,
+            std::move(args)
+        );
         if (!namedArgs.empty()) {
             funcCall->setNamedArguments(std::move(namedArgs));
         }
         if (!callTypeArgs.empty()) {
-            funcCall->setTypeArgs(std::move(callTypeArgs));   // NEW
+            funcCall->setTypeArgs(std::move(callTypeArgs)); // NEW
         }
         node = std::move(funcCall);
     } else {
         auto varNode = std::make_unique<VariableNode>(
-            currentId, tok.name, explicitType,
-            std::vector<std::string>{}, isRefVar);
+            currentId,
+            tok.name,
+            explicitType,
+            std::vector<std::string>{},
+            isRefVar
+        );
         varNode->setArrayElemType(arrayElemType);
         varNode->setDeclaredTypeName(std::move(declaredTypeName));
         node = std::move(varNode);
     }
 
-    while (peekToken().type == VTokenType::Dot || peekToken().type == VTokenType::Left_Bracket) {
+    while (peekToken().type == VTokenType::Dot ||
+           peekToken().type == VTokenType::Left_Bracket) {
         if (peekToken().type == VTokenType::Dot) {
             consume(VTokenType::Dot);
             Token member = consume(VTokenType::Identifier);
@@ -1293,20 +1502,26 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
                 std::vector<std::unique_ptr<ASTNode>> args;
                 if (peekToken().type != VTokenType::Right_Parenthese) {
                     do {
-                        if (peekToken().type == VTokenType::Comma) consume(VTokenType::Comma);
+                        if (peekToken().type == VTokenType::Comma)
+                            consume(VTokenType::Comma);
                         args.emplace_back(parseExpression());
                     } while (peekToken().type == VTokenType::Comma);
                 }
                 consume(VTokenType::Right_Parenthese);
-                node = std::make_unique<MethodCallNode>(std::move(node), member.name, std::move(args));
-            } 
-            else {
-                auto memberNode = std::make_unique<MemberAccessNode>(std::move(node), member.name);
+                node = std::make_unique<MethodCallNode>(
+                    std::move(node),
+                    member.name,
+                    std::move(args)
+                );
+            } else {
+                auto memberNode = std::make_unique<MemberAccessNode>(
+                    std::move(node),
+                    member.name
+                );
                 memberNode->lineNumber = member.line;
                 node = std::move(memberNode);
             }
-        }
-        else if (peekToken().type == VTokenType::Left_Bracket) {
+        } else if (peekToken().type == VTokenType::Left_Bracket) {
             consume(VTokenType::Left_Bracket);
 
             if (peekToken().type == VTokenType::Colon) {
@@ -1319,11 +1534,13 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
                 consume(VTokenType::Right_Bracket);
 
                 auto sliceNode = std::make_unique<SliceNode>(
-                    std::move(node), nullptr, std::move(hi));
+                    std::move(node),
+                    nullptr,
+                    std::move(hi)
+                );
                 sliceNode->lineNumber = line;
                 node = std::move(sliceNode);
-            }
-            else {
+            } else {
                 auto first = parseExpression();
 
                 if (peekToken().type == VTokenType::Comma) {
@@ -1338,11 +1555,12 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
                     consume(VTokenType::Right_Bracket);
 
                     auto scratchIdx = std::make_unique<ScratchIndexNode>(
-                        std::move(node), std::move(idxs));
+                        std::move(node),
+                        std::move(idxs)
+                    );
                     scratchIdx->lineNumber = line;
                     node = std::move(scratchIdx);
-                }
-                else if (peekToken().type == VTokenType::Colon) {
+                } else if (peekToken().type == VTokenType::Colon) {
                     consume(VTokenType::Colon);
 
                     std::unique_ptr<ASTNode> hi = nullptr;
@@ -1352,27 +1570,35 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
                     consume(VTokenType::Right_Bracket);
 
                     auto sliceNode = std::make_unique<SliceNode>(
-                        std::move(node), std::move(first), std::move(hi));
+                        std::move(node),
+                        std::move(first),
+                        std::move(hi)
+                    );
                     sliceNode->lineNumber = line;
                     node = std::move(sliceNode);
-                }
-                else if (peekToken().type == VTokenType::Right_Bracket) {
+                } else if (peekToken().type == VTokenType::Right_Bracket) {
                     consume(VTokenType::Right_Bracket);
 
                     if (first->type() == NodeType::RANGE) {
                         throw std::runtime_error(
                             "Syntax Error: use ':' for slicing, not '..' "
-                            "[ line " + std::to_string(line) + " ]");
+                            "[ line " +
+                            std::to_string(line) + " ]"
+                        );
                     }
 
                     node = std::make_unique<IndexAccessNode>(
-                        std::move(node), std::move(first));
+                        std::move(node),
+                        std::move(first)
+                    );
                     node->lineNumber = line;
-                }
-                else {
+                } else {
                     throw std::runtime_error(
-                        "Syntax Error: expected ',', ':' or ']' after index expression "
-                        "[ line " + std::to_string(line) + " ]");
+                        "Syntax Error: expected ',', ':' or ']' after index "
+                        "expression "
+                        "[ line " +
+                        std::to_string(line) + " ]"
+                    );
                 }
             }
         }
@@ -1385,12 +1611,13 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 std::unique_ptr<ASTNode> Parser::parseBlock() {
     int line = peekToken().line;
     consume(VTokenType::Left_CB);
-    
+
     std::vector<std::shared_ptr<ASTNode>> statements;
-    while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
+    while (peekToken().type != VTokenType::Right_CB &&
+           peekToken().type != VTokenType::End) {
         statements.emplace_back(parseStatement());
     }
-    
+
     consume(VTokenType::Right_CB);
     auto node = std::make_unique<BlockNode>(std::move(statements));
     node->lineNumber = line;
@@ -1400,24 +1627,28 @@ std::unique_ptr<ASTNode> Parser::parseBlock() {
 std::unique_ptr<ASTNode> Parser::parseIfStatement() {
     int line = peekToken().line;
     consume(VTokenType::If);
-    
+
     auto condition = parseExpression();
-    
+
     auto body = parseStatement();
 
     std::unique_ptr<ASTNode> elseBody = nullptr;
-    
+
     if (peekToken().type == VTokenType::Else) {
         consume(VTokenType::Else);
-        
+
         if (peekToken().type == VTokenType::If) {
-            elseBody = parseIfStatement(); 
+            elseBody = parseIfStatement();
         } else {
             elseBody = parseStatement();
         }
     }
 
-    auto node = std::make_unique<IfNode>(std::move(condition), std::move(body), std::move(elseBody));
+    auto node = std::make_unique<IfNode>(
+        std::move(condition),
+        std::move(body),
+        std::move(elseBody)
+    );
     node->lineNumber = line;
     return node;
 }
@@ -1425,12 +1656,13 @@ std::unique_ptr<ASTNode> Parser::parseIfStatement() {
 std::unique_ptr<ASTNode> Parser::parseWhileLoop() {
     int line = peekToken().line;
     consume(VTokenType::While);
-    
+
     auto condition = parseExpression();
-    
+
     auto body = parseStatement();
 
-    auto node = std::make_unique<WhileNode>(std::move(condition), std::move(body));
+    auto node =
+        std::make_unique<WhileNode>(std::move(condition), std::move(body));
     node->lineNumber = line;
     return node;
 }
@@ -1438,15 +1670,16 @@ std::unique_ptr<ASTNode> Parser::parseWhileLoop() {
 std::unique_ptr<ASTNode> Parser::parseForLoop() {
     int line = peekToken().line;
     consume(VTokenType::Through);
-    
+
     std::string iteratorName = "_";
 
-    if (peekToken().type == VTokenType::Identifier && lookAhead(1).type == VTokenType::Extends) {
+    if (peekToken().type == VTokenType::Identifier &&
+        lookAhead(1).type == VTokenType::Extends) {
         iteratorName = consume(VTokenType::Identifier).name;
         consume(VTokenType::Extends);
     }
 
-    auto iterable = parseRange(); 
+    auto iterable = parseRange();
 
     if (peekToken().type == VTokenType::Arrow) {
         consume(VTokenType::Arrow);
@@ -1454,15 +1687,22 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
 
     std::string modeStr = consume(VTokenType::LoopMode).name;
     std::unique_ptr<ASTNode> body;
-    
+
     if (peekToken().type == VTokenType::Left_CB) {
         body = parseBlock();
     } else {
-        body = std::make_unique<VariableNode>(StringPool::instance().intern(iteratorName), iteratorName);
+        body = std::make_unique<VariableNode>(
+            StringPool::instance().intern(iteratorName),
+            iteratorName
+        );
     }
-    
 
-    auto node = std::make_unique<ForNode>(std::move(iterable), std::move(body), iteratorName, ForNode::getForMode(modeStr));
+    auto node = std::make_unique<ForNode>(
+        std::move(iterable),
+        std::move(body),
+        iteratorName,
+        ForNode::getForMode(modeStr)
+    );
     node->lineNumber = line;
     return node;
 }
@@ -1484,7 +1724,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             consume(VTokenType::NullCoalesceAssign);
             auto rhs = parseExpression();
             consumeSemicolon();
-            
+
             auto node = std::make_unique<NullCoalesceAssignmentNode>(
                 var->getNameId(),
                 var->getOriginalName(),
@@ -1494,13 +1734,12 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             );
             node->lineNumber = line;
             return node;
-        }
-        else if (lhs->type() == NodeType::MEMBER_ACCESS) {
+        } else if (lhs->type() == NodeType::MEMBER_ACCESS) {
             auto* mem = static_cast<MemberAccessNode*>(lhs.get());
             consume(VTokenType::NullCoalesceAssign);
             auto rhs = parseExpression();
             consumeSemicolon();
-            
+
             auto node = std::make_unique<NullCoalesceMemberAssignmentNode>(
                 mem->takeReceiver(),
                 mem->getMemberName(),
@@ -1508,9 +1747,12 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             );
             node->lineNumber = line;
             return node;
-        }
-        else {
-            throw std::runtime_error("Syntax Error: Left side of '??=' must be a variable or member access [ line " + std::to_string(line) + " ]");
+        } else {
+            throw std::runtime_error(
+                "Syntax Error: Left side of '??=' must be a variable or member "
+                "access [ line " +
+                std::to_string(line) + " ]"
+            );
         }
     }
 
@@ -1518,7 +1760,6 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         auto rhs = parseExpression();
         consumeSemicolon();
     }
-
 
     if (peekToken().type == VTokenType::Equals) {
         if (lhs->type() == NodeType::MEMBER_ACCESS) {
@@ -1528,7 +1769,7 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             consumeSemicolon();
 
             auto node = std::make_unique<MemberAssignmentNode>(
-                mem->takeReceiver(), 
+                mem->takeReceiver(),
                 mem->getMemberName(),
                 std::move(rhs)
             );
@@ -1542,20 +1783,23 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
             auto rhs = parseExpression();
             consumeSemicolon();
             auto node = std::make_unique<ScratchStoreNode>(
-                si->takeBase(), si->takeIndices(), std::move(rhs));
+                si->takeBase(),
+                si->takeIndices(),
+                std::move(rhs)
+            );
             node->lineNumber = line;
             return node;
         }
-        
+
         if (lhs->type() == NodeType::INDEX_ACCESS) {
             auto* idx = static_cast<IndexAccessNode*>(lhs.get());
             consume(VTokenType::Equals);
             auto rhs = parseExpression();
             consumeSemicolon();
-            
+
             auto base = idx->takeBase();
             auto index = idx->takeIndex();
-            
+
             auto node = std::make_unique<IndexAssignmentNode>(
                 std::move(base),
                 std::move(index),
@@ -1570,13 +1814,15 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     if (lhs->type() == NodeType::VARIABLE) [[likely]] {
         return parseVariableAssignment(std::move(lhs), line, isConst);
     }
-    
+
     return lhs;
 }
 
 std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
-        std::unique_ptr<ASTNode> lhs, int line, bool isConst)
-{
+    std::unique_ptr<ASTNode> lhs,
+    int line,
+    bool isConst
+) {
     auto* var = static_cast<VariableNode*>(lhs.get());
     uint32_t varId = var->getNameId();
     std::string originalName = var->getOriginalName();
@@ -1590,7 +1836,7 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
             varType = info->type;
         }
     }
-    
+
     bool isReference = var->isRefVar();
     std::string customTypeName = "";
     VType varArrayElem = VType::Unknown;
@@ -1602,31 +1848,38 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     bool isFreshDecl = var->hasExplicitTypeInfo();
 
     if (var->hasExplicitTypeInfo()) {
-        varArrayElem   = var->getArrayElemType();
+        varArrayElem = var->getArrayElemType();
         customTypeName = var->getDeclaredTypeName();
-    } else if ((peekToken().type == VTokenType::Extends) && (varType == VType::Unknown)) {
+    } else if (
+        (peekToken().type == VTokenType::Extends) && (varType == VType::Unknown)
+    ) {
         consume(VTokenType::Extends);
         customTypeName = parseTypePath();
-        varType        = resolveType(customTypeName);
-        varArrayElem   = resolveArrayElementType(customTypeName);
-        isFreshDecl    = true;              // `::` was still in the stream
+        varType = resolveType(customTypeName);
+        varArrayElem = resolveArrayElementType(customTypeName);
+        isFreshDecl = true; // `::` was still in the stream
 
         if (peekToken().type == VTokenType::Referencer) {
             consume(VTokenType::Referencer);
-            isReference   = true;
-            varArrayElem  = VType::Unknown;
+            isReference = true;
+            varArrayElem = VType::Unknown;
         }
     } else if (varType == VType::Unknown) {
         if (Vyne::isTypeStrict()) {
             throw std::runtime_error(
                 "Type Error: Variable '" + originalName +
                 "' requires explicit type declaration in strict mode. "
-                "Use ':: <type>' or enable dynamic typing with `ruleset` declarations "
-                "[ line " + std::to_string(line) + " ]"
+                "Use ':: <type>' or enable dynamic typing with `ruleset` "
+                "declarations "
+                "[ line " +
+                std::to_string(line) + " ]"
             );
         } else {
             if (!isQuietMode()) {
-                warn("Implicitly typing '" + originalName + "' (dynamic mode)", line);
+                warn(
+                    "Implicitly typing '" + originalName + "' (dynamic mode)",
+                    line
+                );
             }
         }
     }
@@ -1635,7 +1888,8 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     if (peekToken().type == VTokenType::Equals) {
         consume(VTokenType::Equals);
 
-        if (peekToken().type == VTokenType::Int64 && lookAhead(1).type == VTokenType::Double_Dot) {
+        if (peekToken().type == VTokenType::Int64 &&
+            lookAhead(1).type == VTokenType::Double_Dot) {
             rhs = parseRange();
         } else {
             rhs = parseExpression();
@@ -1645,23 +1899,38 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
             rhs = std::make_unique<NullNode>();
         } else {
             switch (varType) {
-                case VType::String:  rhs = std::make_unique<StringNode>(""); break;
-                case VType::Int64:   rhs = std::make_unique<NumberNode>(Value((int64_t)0)); break;
-                case VType::Float64: rhs = std::make_unique<NumberNode>(Value(0.0)); break;
-                case VType::Bool:    rhs = std::make_unique<BooleanNode>(false); break;
-                case VType::Array:   rhs = std::make_unique<ArrayNode>(std::vector<std::unique_ptr<ASTNode>>()); break;
-                case VType::Struct:  rhs = std::make_unique<NullNode>(customTypeName); break;
-                default:
-                    if (!Vyne::isTypeStrict()) {
-                        rhs = std::make_unique<NullNode>();
-                    } else {
-                        throw std::runtime_error(
-                            "Type Error: Cannot default initialize '" + originalName +
-                            "' without type declaration in strict mode [ line " +
-                            std::to_string(line) + " ]"
-                        );
-                    }
-                    break;
+            case VType::String:
+                rhs = std::make_unique<StringNode>("");
+                break;
+            case VType::Int64:
+                rhs = std::make_unique<NumberNode>(Value((int64_t)0));
+                break;
+            case VType::Float64:
+                rhs = std::make_unique<NumberNode>(Value(0.0));
+                break;
+            case VType::Bool:
+                rhs = std::make_unique<BooleanNode>(false);
+                break;
+            case VType::Array:
+                rhs = std::make_unique<ArrayNode>(
+                    std::vector<std::unique_ptr<ASTNode>>()
+                );
+                break;
+            case VType::Struct:
+                rhs = std::make_unique<NullNode>(customTypeName);
+                break;
+            default:
+                if (!Vyne::isTypeStrict()) {
+                    rhs = std::make_unique<NullNode>();
+                } else {
+                    throw std::runtime_error(
+                        "Type Error: Cannot default initialize '" +
+                        originalName +
+                        "' without type declaration in strict mode [ line " +
+                        std::to_string(line) + " ]"
+                    );
+                }
+                break;
             }
         }
     }
@@ -1669,17 +1938,29 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     consumeSemicolon();
 
     if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
-        defineSymbol(varId, varType, varType != VType::Unknown, line, originalName);
+        defineSymbol(
+            varId,
+            varType,
+            varType != VType::Unknown,
+            line,
+            originalName
+        );
     }
 
     auto node = std::make_unique<AssignmentNode>(
-        varId, originalName, std::move(rhs),
-        isConst, isReference, varType, std::vector<std::string>{}
+        varId,
+        originalName,
+        std::move(rhs),
+        isConst,
+        isReference,
+        varType,
+        std::vector<std::string>{}
     );
     node->lineNumber = line;
-    node->setArrayElemType(varArrayElem);        // M4-C1
-    node->setDeclaredTypeName(customTypeName);   // M4-C1B
-    if (isFreshDecl) node->markFreshDeclaration();
+    node->setArrayElemType(varArrayElem);      // M4-C1
+    node->setDeclaredTypeName(customTypeName); // M4-C1B
+    if (isFreshDecl)
+        node->markFreshDeclaration();
     return node;
 }
 
@@ -1708,7 +1989,8 @@ std::unique_ptr<ASTNode> Parser::parseEnum() {
         members[memberName] = counter;
         counter++;
 
-        if (peekToken().type == VTokenType::Comma || peekToken().type == VTokenType::Semicolon) {
+        if (peekToken().type == VTokenType::Comma ||
+            peekToken().type == VTokenType::Semicolon) {
             consume(peekToken().type);
         }
     }
@@ -1716,7 +1998,8 @@ std::unique_ptr<ASTNode> Parser::parseEnum() {
     consume(VTokenType::Right_CB); // '}' uduruq
     consumeSemicolon();            // Optional ';' sığortası
 
-    // Elan olunmuş tip kimi qeydiyyata alırıq ki, gələcəkdə static_type check-dən keçsin
+    // Elan olunmuş tip kimi qeydiyyata alırıq ki, gələcəkdə static_type
+    // check-dən keçsin
     declaredTypes.insert(enumName);
 
     auto node = std::make_unique<EnumNode>(enumName, std::move(members));
@@ -1727,30 +2010,31 @@ std::unique_ptr<ASTNode> Parser::parseEnum() {
 std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Group);
-    
+
     std::string targetModule = "";
     std::string groupName;
 
-    if (peekToken().type == VTokenType::Extends) { 
+    if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
         targetModule = consume(VTokenType::Identifier).name;
         groupName = consume(VTokenType::Identifier).name;
-    } 
-    else {
+    } else {
         Token first = consume(VTokenType::Identifier);
-        
-        if (peekToken().type == VTokenType::Extends) { 
+
+        if (peekToken().type == VTokenType::Extends) {
             consume(VTokenType::Extends);
             targetModule = consume(VTokenType::Identifier).name;
             groupName = first.name;
-        } 
-        else {
+        } else {
             groupName = first.name;
         }
     }
-    
-    if(targetModule == "vcore" || targetModule == "vglib"){
-        throw std::runtime_error("Permission Error: Cannot inject group to " + targetModule + " [ line " + std::to_string(line) + " ]");
+
+    if (targetModule == "vcore" || targetModule == "vglib") {
+        throw std::runtime_error(
+            "Permission Error: Cannot inject group to " + targetModule +
+            " [ line " + std::to_string(line) + " ]"
+        );
     }
 
     std::string oldGroupName = currentGroupName;
@@ -1768,10 +2052,13 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
 
     std::vector<std::unique_ptr<ASTNode>> statements;
 
-    while (peekToken().type != VTokenType::Right_CB && peekToken().type != VTokenType::End) {
+    while (peekToken().type != VTokenType::Right_CB &&
+           peekToken().type != VTokenType::End) {
         if (peekToken().type == VTokenType::Function) {
-            throw std::runtime_error("Syntax Error: Cannot define a function inside group '" + 
-                groupName + "' at line " + std::to_string(peekToken().line));
+            throw std::runtime_error(
+                "Syntax Error: Cannot define a function inside group '" +
+                groupName + "' at line " + std::to_string(peekToken().line)
+            );
         }
         statements.emplace_back(parseStatement());
     }
@@ -1783,7 +2070,11 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
     groupPath = oldGroupPath;
     currentModuleName = oldModuleName;
 
-    auto node = std::make_unique<GroupNode>(groupName, std::move(statements), targetModule);
+    auto node = std::make_unique<GroupNode>(
+        groupName,
+        std::move(statements),
+        targetModule
+    );
     node->lineNumber = line;
     return node;
 }
@@ -1791,7 +2082,7 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
 std::unique_ptr<ASTNode> Parser::parseReturnStatement() {
     int line = peekToken().line;
     consume(VTokenType::Return);
-    
+
     std::unique_ptr<ASTNode> expr = nullptr;
 
     if (peekToken().type == VTokenType::Semicolon) {
@@ -1799,9 +2090,9 @@ std::unique_ptr<ASTNode> Parser::parseReturnStatement() {
     } else {
         expr = parseExpression();
     }
-    
+
     consumeSemicolon();
-    
+
     auto node = std::make_unique<ReturnNode>(std::move(expr));
     node->lineNumber = line;
     return node;
@@ -1810,14 +2101,14 @@ std::unique_ptr<ASTNode> Parser::parseReturnStatement() {
 std::unique_ptr<ASTNode> Parser::parseLoopControl() {
     Token tok = getNextToken();
     consumeSemicolon();
-    
+
     std::unique_ptr<ASTNode> node;
     if (tok.type == VTokenType::Break) {
         node = std::make_unique<BreakNode>();
     } else {
         node = std::make_unique<ContinueNode>();
     }
-    
+
     node->lineNumber = tok.line;
     return node;
 }
@@ -1825,12 +2116,12 @@ std::unique_ptr<ASTNode> Parser::parseLoopControl() {
 std::unique_ptr<ASTNode> Parser::parseModuleStatement() {
     int line = peekToken().line;
     consume(VTokenType::Module);
-    
+
     Token nameToken = consume(VTokenType::Identifier);
     currentModuleName = nameToken.name;
     uint32_t mId = StringPool::instance().intern(nameToken.name);
     consumeSemicolon();
-    
+
     auto node = std::make_unique<ModuleNode>(mId, nameToken.name);
     node->lineNumber = line;
     return node;
@@ -1839,11 +2130,11 @@ std::unique_ptr<ASTNode> Parser::parseModuleStatement() {
 std::unique_ptr<ASTNode> Parser::parseDismissStatement() {
     int line = peekToken().line;
     consume(VTokenType::Dismiss);
-    
+
     Token nameToken = consume(VTokenType::Identifier);
     uint32_t mId = StringPool::instance().intern(nameToken.name);
     consumeSemicolon();
-    
+
     auto node = std::make_unique<DismissNode>(mId, nameToken.name);
     node->lineNumber = line;
     return node;
@@ -1852,54 +2143,60 @@ std::unique_ptr<ASTNode> Parser::parseDismissStatement() {
 std::unique_ptr<ASTNode> Parser::parseRuleset() {
     int line = peekToken().line;
     consume(VTokenType::Ruleset);
-    
+
     if (peekToken().type == VTokenType::Left_CB) {
         return parseRulesetBlock(line);
     }
-    
+
     Token rulesetType = consume(VTokenType::Identifier);
-    
+
     if (peekToken().type == VTokenType::Semicolon) {
         consume(VTokenType::Semicolon);
     }
-    
+
     // Use the new Vyne
     if (rulesetType.type == VTokenType::Warnings) {
         Vyne::setQuietMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Warnings enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-010"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Warnings enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-010"
+            }
+        );
     } else if (rulesetType.type == VTokenType::Dynamic_Casting) {
         setStrictMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Type,
-            "Dynamic casting enabled (type checking relaxed)",
-            "",
-            line,
-            0,
-            {"Use 'strict' mode for better type safety"},
-            "VNE-011"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Dynamic casting enabled (type checking relaxed)",
+                "",
+                line,
+                0,
+                {"Use 'strict' mode for better type safety"},
+                "VNE-011"
+            }
+        );
     } else if (rulesetType.type == VTokenType::Memory_Limit) {
         setMemoryLimit(1024 * 1024);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Memory,
-            "Memory limit tracking enabled",
-            "",
-            line,
-            0,
-            {"Set limit with `memory_limit = <bytes>`"},
-            "VNE-012"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Memory,
+                "Memory limit tracking enabled",
+                "",
+                line,
+                0,
+                {"Set limit with `memory_limit = <bytes>`"},
+                "VNE-012"
+            }
+        );
     } else {
         emitError(
             "Unknown ruleset flag: " + rulesetType.name,
@@ -1908,7 +2205,7 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
             {"Available flags: warnings, dynamic_casting, memory_limit"}
         );
     }
-    
+
     auto node = std::make_unique<NullNode>();
     node->lineNumber = line;
     return node;
@@ -1916,33 +2213,29 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
 
 std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
-    
+
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
         Token ruleName = getNextToken();
-        
+
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
-            
+
             if (peekToken().type == VTokenType::Int64) {
                 Token valueToken = consume(VTokenType::Int64);
                 int64_t value = std::get<int64_t>(valueToken.literal);
                 applyRulesetValue(ruleName, value, line);
-            } 
-            else if (peekToken().type == VTokenType::String) {
+            } else if (peekToken().type == VTokenType::String) {
                 Token valueToken = consume(VTokenType::String);
                 std::string value = std::get<std::string>(valueToken.literal);
                 applyRulesetValue(ruleName, value, line);
-            }
-            else if (peekToken().type == VTokenType::Identifier) {
+            } else if (peekToken().type == VTokenType::Identifier) {
                 // Handle non-quoted strings like 'all', 'strict', 'on', 'off'
                 Token valueToken = consume(VTokenType::Identifier);
                 applyRulesetValue(ruleName, valueToken.name, line);
-            }
-            else if (peekToken().type == VTokenType::Left_Bracket) {
+            } else if (peekToken().type == VTokenType::Left_Bracket) {
                 auto values = parseArrayLiteral();
                 applyRulesetArrayValue(ruleName, std::move(values), line);
-            }
-            else {
+            } else {
                 emitError(
                     "Expected value for ruleset '" + ruleName.name + "'",
                     line,
@@ -1950,20 +2243,19 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
                     {"Use: " + ruleName.name + " = <value>"}
                 );
             }
-        } 
-        else {
+        } else {
             applyRulesetFlag(ruleName, line);
         }
-        
-        if (peekToken().type == VTokenType::Comma || 
+
+        if (peekToken().type == VTokenType::Comma ||
             peekToken().type == VTokenType::Semicolon) {
             getNextToken();
         }
     }
-    
+
     consume(VTokenType::Right_CB);
     consumeSemicolon();
-    
+
     auto node = std::make_unique<NullNode>();
     node->lineNumber = line;
     return node;
@@ -1971,39 +2263,40 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
 
 std::unique_ptr<ASTNode> Parser::parseInterpolatedString() {
     Token tok = getNextToken();
-    auto parts = std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
-    
+    auto parts =
+        std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
+
     auto node = std::make_unique<InterpolatedStringNode>();
     node->lineNumber = tok.line;
-    
+
     for (const auto& [part, isExpr] : parts) {
         if (isExpr) {
             auto exprTokens = tokenize(part);
             Parser exprParser(std::move(exprTokens));
             auto expr = exprParser.parseExpression();
-            
+
             if (!expr) {
                 throw std::runtime_error(
-                    "Failed to parse expression: " + part +
-                    " at line " + std::to_string(tok.line)
+                    "Failed to parse expression: " + part + " at line " +
+                    std::to_string(tok.line)
                 );
             }
-            
+
             node->addExpressionPart(std::move(expr));
         } else {
             node->addStringPart(part);
         }
     }
-    
+
     return node;
 }
 
 std::unique_ptr<ASTNode> Parser::parseDeferStatement() {
     int line = peekToken().line;
     consume(VTokenType::Defer);
-    
+
     auto body = parseStatement();
-    
+
     auto node = std::make_unique<DeferNode>(std::move(body));
     node->lineNumber = line;
     return node;
@@ -2011,7 +2304,7 @@ std::unique_ptr<ASTNode> Parser::parseDeferStatement() {
 
 std::unique_ptr<ASTNode> Parser::parseInExpression() {
     auto left = parseRelational();
-    
+
     if (peekToken().type == VTokenType::In) {
         consume(VTokenType::In);
         auto right = parseRelational();
@@ -2019,49 +2312,56 @@ std::unique_ptr<ASTNode> Parser::parseInExpression() {
         node->lineNumber = peekToken().line;
         return node;
     }
-    
+
     return left;
 }
 
 std::unique_ptr<ASTNode> Parser::parseNullCoalesce() {
     auto left = parsePipeline();
-    
+
     while (peekToken().type == VTokenType::NullCoalesce) {
         consume(VTokenType::NullCoalesce);
-        auto right = parsePipeline();  // Changed from parseLogicalOr()
-        auto node = std::make_unique<NullCoalesceNode>(std::move(left), std::move(right));
+        auto right = parsePipeline(); // Changed from parseLogicalOr()
+        auto node = std::make_unique<NullCoalesceNode>(
+            std::move(left),
+            std::move(right)
+        );
         node->lineNumber = peekToken().line;
         left = std::move(node);
     }
-    
+
     return left;
 }
 
 std::unique_ptr<ASTNode> Parser::parsePipeline() {
     auto left = parseRange();
-    
+
     while (peekToken().type == VTokenType::Pipeline) {
         consume(VTokenType::Pipeline);
-        
+
         auto right = parseLogicalOr();
-        
+
         if (right->type() == NodeType::FUNCTION_CALL) {
             auto* funcCall = static_cast<FunctionCallNode*>(right.get());
-            
-            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+
+            auto node = std::make_unique<PipelineNode>(
+                std::move(left),
+                std::move(right)
+            );
             node->lineNumber = peekToken().line;
             left = std::move(node);
-        } 
-        else if (right->type() == NodeType::METHOD_CALL) {
-            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+        } else if (right->type() == NodeType::METHOD_CALL) {
+            auto node = std::make_unique<PipelineNode>(
+                std::move(left),
+                std::move(right)
+            );
             node->lineNumber = peekToken().line;
             left = std::move(node);
-        }
-        else if (right->type() == NodeType::VARIABLE) {
+        } else if (right->type() == NodeType::VARIABLE) {
             auto* var = static_cast<VariableNode*>(right.get());
             std::vector<std::unique_ptr<ASTNode>> args;
             args.push_back(std::move(left));
-            
+
             auto funcCall = std::make_unique<FunctionCallNode>(
                 var->getNameId(),
                 var->getOriginalName(),
@@ -2069,35 +2369,44 @@ std::unique_ptr<ASTNode> Parser::parsePipeline() {
             );
             funcCall->lineNumber = right->lineNumber;
             left = std::move(funcCall);
-        }
-        else {
-            auto node = std::make_unique<PipelineNode>(std::move(left), std::move(right));
+        } else {
+            auto node = std::make_unique<PipelineNode>(
+                std::move(left),
+                std::move(right)
+            );
             node->lineNumber = peekToken().line;
             left = std::move(node);
         }
     }
-    
+
     return left;
 }
 
-void Parser::applyRulesetValue(const Token& ruleName, const std::string& value, int line) {
+void Parser::applyRulesetValue(
+    const Token& ruleName,
+    const std::string& value,
+    int line
+) {
     // Handle warning level settings
-    if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings" || ruleName.name == "warning") {
+    if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings" ||
+        ruleName.name == "warning") {
         Vyne::setWarningLevel(value);
 
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Warning level set to: " + value,
-            "",
-            line,
-            0,
-            {"Levels: all, none, error_only"},
-            "VNE-017"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Warning level set to: " + value,
+                "",
+                line,
+                0,
+                {"Levels: all, none, error_only"},
+                "VNE-017"
+            }
+        );
         return;
     }
-    
+
     // Handle type check mode
     if (ruleName.name == "type_check" || ruleName.name == "type") {
         if (value == "hybrid" || value == "strict" || value == "dynamic") {
@@ -2106,16 +2415,18 @@ void Parser::applyRulesetValue(const Token& ruleName, const std::string& value, 
             } else {
                 setStrictMode(false);
             }
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Type,
-                "Type checking mode set to: " + value,
-                "",
-                line,
-                0,
-                {"Modes: strict, hybrid, dynamic"},
-                "VNE-021"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Type,
+                    "Type checking mode set to: " + value,
+                    "",
+                    line,
+                    0,
+                    {"Modes: strict, hybrid, dynamic"},
+                    "VNE-021"
+                }
+            );
         } else {
             emitWarning(
                 "Unknown type_check mode: " + value,
@@ -2127,128 +2438,145 @@ void Parser::applyRulesetValue(const Token& ruleName, const std::string& value, 
         }
         return;
     }
-    
+
     // Handle implicit casting
     if (ruleName.name == "implicit_casting" || ruleName.name == "casting") {
         if (value == "warn" || value == "allow" || value == "deny") {
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Type,
-                "Implicit casting set to: " + value,
-                "",
-                line,
-                0,
-                {"Modes: warn, allow, deny"},
-                "VNE-023"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Type,
+                    "Implicit casting set to: " + value,
+                    "",
+                    line,
+                    0,
+                    {"Modes: warn, allow, deny"},
+                    "VNE-023"
+                }
+            );
         }
         return;
     }
-    
+
     // Handle profiling
     if (ruleName.name == "profiling") {
         if (value == "on" || value == "true") {
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Performance,
-                "Profiling enabled",
-                "",
-                line,
-                0,
-                {},
-                "VNE-024"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Performance,
+                    "Profiling enabled",
+                    "",
+                    line,
+                    0,
+                    {},
+                    "VNE-024"
+                }
+            );
         } else {
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Performance,
-                "Profiling disabled",
-                "",
-                line,
-                0,
-                {},
-                "VNE-025"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Performance,
+                    "Profiling disabled",
+                    "",
+                    line,
+                    0,
+                    {},
+                    "VNE-025"
+                }
+            );
         }
         return;
     }
-    
+
     // Handle debug
     if (ruleName.name == "debug") {
         if (value == "on" || value == "true") {
             // Enable debug mode
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Runtime,
-                "Debug mode enabled",
-                "",
-                line,
-                0,
-                {},
-                "VNE-026"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Runtime,
+                    "Debug mode enabled",
+                    "",
+                    line,
+                    0,
+                    {},
+                    "VNE-026"
+                }
+            );
         }
         return;
     }
-    
+
     if (ruleName.name == "trace") {
         if (value == "on" || value == "true") {
-            emit(Vyne::Diagnostic{
-                Vyne::Severity::Note,
-                Vyne::Category::Runtime,
-                "Trace mode enabled",
-                "",
-                line,
-                0,
-                {},
-                "VNE-027"
-            });
+            emit(
+                Vyne::Diagnostic{
+                    Vyne::Severity::Note,
+                    Vyne::Category::Runtime,
+                    "Trace mode enabled",
+                    "",
+                    line,
+                    0,
+                    {},
+                    "VNE-027"
+                }
+            );
         }
         return;
     }
-    
+
     // Default: unknown rule
     emitWarning(
         "Unknown ruleset value: " + ruleName.name + " = " + value,
         line,
         Vyne::Category::Runtime,
         "VNE-016",
-        {"Available: warnings, memory_limit, type_check, implicit_casting, profiling, debug, trace"}
+        {"Available: warnings, memory_limit, type_check, implicit_casting, "
+         "profiling, debug, trace"}
     );
 }
 
 void Parser::applyRulesetValue(const Token& ruleName, int64_t value, int line) {
-    if (ruleName.type == VTokenType::Memory_Limit || ruleName.name == "memory_limit") {
+    if (ruleName.type == VTokenType::Memory_Limit ||
+        ruleName.name == "memory_limit") {
         setMemoryLimit(static_cast<size_t>(value));
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Memory,
-            "Memory limit set to: " + std::to_string(value) + " bytes",
-            "",
-            line,
-            0,
-            {},
-            "VNE-015"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Memory,
+                "Memory limit set to: " + std::to_string(value) + " bytes",
+                "",
+                line,
+                0,
+                {},
+                "VNE-015"
+            }
+        );
         return;
     }
-    
+
     if (ruleName.name == "max_iterations" || ruleName.name == "max_iter") {
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Performance,
-            "Max iterations set to: " + std::to_string(value),
-            "",
-            line,
-            0,
-            {},
-            "VNE-028"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Performance,
+                "Max iterations set to: " + std::to_string(value),
+                "",
+                line,
+                0,
+                {},
+                "VNE-028"
+            }
+        );
         return;
     }
-    
+
     emitWarning(
-        "Unknown ruleset value: " + ruleName.name + " = " + std::to_string(value),
+        "Unknown ruleset value: " + ruleName.name + " = " +
+            std::to_string(value),
         line,
         Vyne::Category::Runtime,
         "VNE-016",
@@ -2260,48 +2588,56 @@ void Parser::applyRulesetFlag(const Token& ruleName, int line) {
     // Warnings
     if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings") {
         Vyne::setQuietMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Warnings enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-010"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Warnings enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-010"
+            }
+        );
         return;
     }
-    
+
     // Dynamic casting
-    if (ruleName.type == VTokenType::Dynamic_Casting || ruleName.name == "dynamic_casting") {
+    if (ruleName.type == VTokenType::Dynamic_Casting ||
+        ruleName.name == "dynamic_casting") {
         setStrictMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Type,
-            "Dynamic casting enabled",
-            "",
-            line,
-            0,
-            {"Use 'strict' mode for better type safety"},
-            "VNE-011"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Dynamic casting enabled",
+                "",
+                line,
+                0,
+                {"Use 'strict' mode for better type safety"},
+                "VNE-011"
+            }
+        );
         return;
     }
-    
+
     // Memory limit (flag only)
-    if (ruleName.type == VTokenType::Memory_Limit || ruleName.name == "memory_limit") {
+    if (ruleName.type == VTokenType::Memory_Limit ||
+        ruleName.name == "memory_limit") {
         setMemoryLimit(1024 * 1024 * 1024); // 1GB default
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Memory,
-            "Memory limit tracking enabled (default: 1GB)",
-            "",
-            line,
-            0,
-            {"Set specific limit with: memory_limit = <bytes>"},
-            "VNE-012"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Memory,
+                "Memory limit tracking enabled (default: 1GB)",
+                "",
+                line,
+                0,
+                {"Set specific limit with: memory_limit = <bytes>"},
+                "VNE-012"
+            }
+        );
         return;
     }
 
@@ -2309,16 +2645,18 @@ void Parser::applyRulesetFlag(const Token& ruleName, int line) {
     if (ruleName.name == "strict") {
         Vyne::DiagnosticEngine::setWarningsAsErrors(true);
         Vyne::DiagnosticEngine::setQuietMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Strict mode: warnings escalate to errors",
-            "",
-            line,
-            0,
-            {"Disable with: ruleset { warnings }"},
-            "VNE-030"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Strict mode: warnings escalate to errors",
+                "",
+                line,
+                0,
+                {"Disable with: ruleset { warnings }"},
+                "VNE-030"
+            }
+        );
         return;
     }
 
@@ -2326,16 +2664,18 @@ void Parser::applyRulesetFlag(const Token& ruleName, int line) {
     if (ruleName.name == "pedantic") {
         Vyne::DiagnosticEngine::setPedanticMode(true);
         Vyne::DiagnosticEngine::setQuietMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Style,
-            "Pedantic mode: style and performance hints enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-031"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Style,
+                "Pedantic mode: style and performance hints enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-031"
+            }
+        );
         return;
     }
 
@@ -2343,96 +2683,114 @@ void Parser::applyRulesetFlag(const Token& ruleName, int line) {
     if (ruleName.name == "verbose") {
         Vyne::DiagnosticEngine::setVerboseMode(true);
         Vyne::DiagnosticEngine::setQuietMode(false);
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Verbose mode: all diagnostics shown",
-            "",
-            line,
-            0,
-            {},
-            "VNE-032"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Verbose mode: all diagnostics shown",
+                "",
+                line,
+                0,
+                {},
+                "VNE-032"
+            }
+        );
         return;
     }
-    
+
     // Type check flag
     if (ruleName.name == "type_check" || ruleName.name == "type") {
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Type,
-            "Type checking enabled (default: hybrid)",
-            "",
-            line,
-            0,
-            {"Set mode with: type_check = <strict|hybrid|dynamic>"},
-            "VNE-029"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Type checking enabled (default: hybrid)",
+                "",
+                line,
+                0,
+                {"Set mode with: type_check = <strict|hybrid|dynamic>"},
+                "VNE-029"
+            }
+        );
         return;
     }
-    
+
     // Profiling flag
     if (ruleName.name == "profiling") {
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Performance,
-            "Profiling enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-024"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Performance,
+                "Profiling enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-024"
+            }
+        );
         return;
     }
-    
+
     // Debug flag
     if (ruleName.name == "debug") {
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Debug mode enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-026"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Debug mode enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-026"
+            }
+        );
         return;
     }
-    
+
     if (ruleName.name == "trace") {
-        emit(Vyne::Diagnostic{
-            Vyne::Severity::Note,
-            Vyne::Category::Runtime,
-            "Trace mode enabled",
-            "",
-            line,
-            0,
-            {},
-            "VNE-027"
-        });
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Runtime,
+                "Trace mode enabled",
+                "",
+                line,
+                0,
+                {},
+                "VNE-027"
+            }
+        );
         return;
     }
-    
+
     // Unknown flag
     emitWarning(
         "Unknown ruleset flag: " + ruleName.name,
         line,
         Vyne::Category::Runtime,
         "VNE-020",
-        {"Available: warnings, dynamic_casting, memory_limit, type_check, profiling, debug, trace"}
+        {"Available: warnings, dynamic_casting, memory_limit, type_check, "
+         "profiling, debug, trace"}
     );
 }
 
-void Parser::applyRulesetArrayValue(const Token& ruleName, std::unique_ptr<ASTNode> values, int line) {
+void Parser::applyRulesetArrayValue(
+    const Token& ruleName,
+    std::unique_ptr<ASTNode> values,
+    int line
+) {
     if (ruleName.name == "warnings_ignore") {
         if (values->type() == NodeType::ARRAY) {
             auto* arrayNode = static_cast<ArrayNode*>(values.get());
             std::vector<std::string> ignored;
             for (const auto& elem : arrayNode->getElements()) {
                 if (elem->type() == NodeType::VARIABLE) {
-                    ignored.push_back(static_cast<VariableNode*>(elem.get())->getOriginalName());
+                    ignored.push_back(
+                        static_cast<VariableNode*>(elem.get())
+                            ->getOriginalName()
+                    );
                 }
             }
             Vyne::ignoreWarnings(ignored);
@@ -2443,16 +2801,16 @@ void Parser::applyRulesetArrayValue(const Token& ruleName, std::unique_ptr<ASTNo
 std::unique_ptr<ASTNode> Parser::parseThrowStatement() {
     int line = peekToken().line;
     consume(VTokenType::Throw);
-    
+
     std::unique_ptr<ASTNode> expr = nullptr;
-    
+
     // Throw can have an optional expression
     if (peekToken().type != VTokenType::Semicolon) {
         expr = parseExpression();
     }
-    
+
     consumeSemicolon();
-    
+
     auto node = std::make_unique<ThrowNode>(std::move(expr));
     node->lineNumber = line;
     return node;
@@ -2462,57 +2820,67 @@ std::unique_ptr<ASTNode> Parser::parseThrowStatement() {
 std::unique_ptr<ASTNode> Parser::parseTryCatch() {
     int line = peekToken().line;
     consume(VTokenType::Try);
-    
+
     if (peekToken().type != VTokenType::Left_CB) {
-        throw std::runtime_error("Syntax Error: 'try' must be followed by a block [ line " + 
-                                std::to_string(line) + " ]");
+        throw std::runtime_error(
+            "Syntax Error: 'try' must be followed by a block [ line " +
+            std::to_string(line) + " ]"
+        );
     }
     auto tryBody = parseBlock();
-    
+
     std::unique_ptr<ASTNode> catchBody = nullptr;
     std::string catchVarName = "_err";
     std::unique_ptr<ASTNode> finallyBody = nullptr;
-    
+
     if (peekToken().type == VTokenType::Catch) {
         consume(VTokenType::Catch);
-        
+
         if (peekToken().type == VTokenType::Left_Parenthese) {
             consume(VTokenType::Left_Parenthese);
             Token varTok = consume(VTokenType::Identifier);
             catchVarName = varTok.name;
             consume(VTokenType::Right_Parenthese);
         }
-        
+
         if (peekToken().type != VTokenType::Left_CB) {
-            throw std::runtime_error("Syntax Error: 'catch' must be followed by a block [ line " + 
-                                    std::to_string(line) + " ]");
+            throw std::runtime_error(
+                "Syntax Error: 'catch' must be followed by a block [ line " +
+                std::to_string(line) + " ]"
+            );
         }
 
-        // --- FIX HERE: Define the catch variable symbol before parsing catch block ---
+        // --- FIX HERE: Define the catch variable symbol before parsing catch
+        // block ---
         pushScope();
         uint32_t cId = StringPool::instance().intern(catchVarName);
         defineSymbol(cId, VType::Unknown, false, line, catchVarName);
-        
+
         catchBody = parseBlock();
-        
+
         popScope();
     }
-    
+
     if (peekToken().type == VTokenType::Finally) {
         consume(VTokenType::Finally);
-        
+
         if (peekToken().type != VTokenType::Left_CB) {
-            throw std::runtime_error("Syntax Error: 'catch' must be followed by a block [ line " + 
-                                    std::to_string(line) + " ]");
+            throw std::runtime_error(
+                "Syntax Error: 'catch' must be followed by a block [ line " +
+                std::to_string(line) + " ]"
+            );
         }
         finallyBody = parseBlock();
     }
-    
+
     if (!catchBody && !finallyBody) {
-        throw std::runtime_error("Syntax Error: 'try' must be followed by 'catch' or 'finally' [ line " + 
-                                std::to_string(line) + " ]");
+        throw std::runtime_error(
+            "Syntax Error: 'try' must be followed by 'catch' or 'finally' [ "
+            "line " +
+            std::to_string(line) + " ]"
+        );
     }
-    
+
     auto node = std::make_unique<TryCatchNode>(
         std::move(tryBody),
         std::move(catchBody),
@@ -2575,10 +2943,14 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
 
         emitError(
             "Expected 'commit' or 'commit_if' after 'region.', but got '" +
-            methodTok.name + "'",
-            line, "VNE-050",
-            {"Use 'region.commit(value)' to preserve a single value past rewind",
-             "Use 'region.commit_if(pred)' inside @speculative to conditionally commit the whole region"});
+                methodTok.name + "'",
+            line,
+            "VNE-050",
+            {"Use 'region.commit(value)' to preserve a single value past "
+             "rewind",
+             "Use 'region.commit_if(pred)' inside @speculative to "
+             "conditionally commit the whole region"}
+        );
     }
 
     // ---- A1: region name { ... }; -----------------------------------
@@ -2615,9 +2987,11 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
     if (elemType != VType::Float64 && elemType != VType::Int64) {
         emitError(
             "scratch element type must be Float64 or Int64, got '" +
-            elemTypeName + "'",
-            line, "VNE-060",
-            {"Supported: scratch x :: Float64[d1, d2];"});
+                elemTypeName + "'",
+            line,
+            "VNE-060",
+            {"Supported: scratch x :: Float64[d1, d2];"}
+        );
     }
 
     consume(VTokenType::Left_Bracket);
@@ -2626,8 +3000,12 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
         Token dimTok = consume(VTokenType::Int64);
         int64_t dim = std::get<int64_t>(dimTok.literal);
         if (dim <= 0) {
-            emitError("scratch dimensions must be positive",
-                      line, "VNE-061", {});
+            emitError(
+                "scratch dimensions must be positive",
+                line,
+                "VNE-061",
+                {}
+            );
         }
         shape.push_back(dim);
         if (peekToken().type == VTokenType::Comma) {
@@ -2648,7 +3026,12 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
     defineSymbol(varId, VType::Array, /*explicit*/ true, line, varName);
 
     auto node = std::make_unique<ScratchNode>(
-        varId, varName, elemType, std::move(shape), std::move(init));
+        varId,
+        varName,
+        elemType,
+        std::move(shape),
+        std::move(init)
+    );
     node->lineNumber = line;
     return node;
 }
@@ -2667,9 +3050,11 @@ std::vector<std::string> Parser::parsePolicyArgs() {
         } else {
             emitError(
                 "Expected policy argument (identifier or integer), but got " +
-                VTokenTypeToString(tok.type),
-                tok.line, "VNE-081",
-                {"Syntax: @pool<Float64, 64> region name { ... }"});
+                    VTokenTypeToString(tok.type),
+                tok.line,
+                "VNE-081",
+                {"Syntax: @pool<Float64, 64> region name { ... }"}
+            );
         }
 
         if (peekToken().type == VTokenType::Comma) {
