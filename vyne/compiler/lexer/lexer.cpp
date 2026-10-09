@@ -449,7 +449,7 @@ std::vector<Token> tokenize(std::string_view input) {
                 tokens.emplace_back(VTokenType::Referencer,currentLine,0,"^^");
                 i++;
             } else {
-                tokens.emplace_back(VTokenType::Bitwise_Xor,currentLine,0,"|");
+                tokens.emplace_back(VTokenType::Bitwise_Xor,currentLine,0,"^");
             }
             break;
         }
