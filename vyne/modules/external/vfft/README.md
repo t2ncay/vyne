@@ -2,7 +2,7 @@
 
 Iterative radix-2 FFT for Vyne.
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Status:** unstable — public surface may change between releases
 **Module name:** `vfft`
 **Import path:** `use external "vfft/vfft.vy";`
@@ -357,8 +357,9 @@ equal to `n`. Returns `1` for `n <= 1`.
 **`log2_exact`** returns `log2(n)` if `n` is a power of two, and `-1`
 otherwise. Use this to validate an input length before transforming.
 
-**`pow2`** returns `2^e` for `e >= 0`. Returns `1` for `e = 0`; for
-negative `e` the loop body never executes and the result is also `1`.
+**`pow2`** returns `2^e`. Returns `1` for any `e <= 0`, matching the
+historical arithmetic-loop behaviour for out-of-range inputs. For
+`e >= 1` it is a single left shift.
 
 ### Plan management
 
@@ -405,6 +406,10 @@ vfft.bit_reverse(i :: Int64, k :: Int64) -> Int64
 
 Returns `i` with its low `k` bits reversed. Used by `make_plan` to
 build the `bitrev` table. Not normally called directly.
+
+Since 0.2.0 the implementation is a shift/mask loop — one `>>`, one
+`&`, one `<<`, one `|` per bit — instead of the arithmetic form that
+predated bitwise operator support.
 
 ---
 
@@ -540,10 +545,8 @@ For a flat spectrum, build the frequency-domain data directly and call
 A naïve FFT computes its twiddle factors and bit-reversal permutation
 on every call. Both are `O(N)` — the same order as a single butterfly
 stage — so their cost is not asymptotically dominant, but the constant
-factor is large: `N/2` calls to `cos` and `sin`, `N` iterations of an
-`O(k²)` bit-reversal routine. For 1024-point transforms that is
-roughly 1500 transcendental function calls per call, dwarfing the
-~5000 butterfly operations.
+factor is large: `N/2` calls to `cos` and `sin`, plus `N` iterations
+of a bit-reversal routine that extracts and places one bit per step.
 
 Moving that setup into a plan that is built once and reused reduces
 per-call cost by a factor of roughly 3 for a single transform and by
@@ -585,28 +588,29 @@ The cost is four extra scalar operations per element per call — the
 two conjugations and the division. For an `N log N` algorithm, that
 is noise.
 
-### Why arithmetic bit-reversal
+### Why bit-reversal uses shifts
 
-Vyne v1 has no bitwise operators. There is no `>>`, no `&`, no `|`,
-no `~`. The canonical C bit-reversal — a loop of shifts and masks — is
-not expressible.
+Until 0.2.0, `bit_reverse` was written arithmetically because Vyne's
+parser did not propagate declared types onto plain variable reads, and
+the bitwise guard in `UnaryNode::getCExpr` therefore rejected any
+expression like `~x` where `x` had only been declared, never
+re-annotated. The workaround extracted each bit with `(i / 2^b) % 2`
+and placed it with a multiplication.
 
-The current implementation extracts each bit arithmetically:
+That parser gap is closed. The canonical C form is now expressible:
 
 ```vyne
-bit :: Int64 = (i / vfft.pow2(b)) % 2;
-result = result + bit * vfft.pow2(k - 1 - b);
+bit :: Int64 = (i >> b) & 1;
+result = result | (bit << (k - 1 - b));
 ```
 
-This is `O(k²)` per call because `pow2` is a loop. Amortized over a
-plan build it is negligible; if `bit_reverse` were called per element
-at transform time it would dominate. Storing the result in the
-`bitrev` table, computed once per plan, is what makes the arithmetic
-version acceptable.
+This is `O(k)` per call and makes no function calls. The `O(k²)`
+arithmetic version was never the bottleneck — plan construction
+happens once per length — but the shift form is shorter, faster, and
+matches what a reader familiar with FFT code will expect.
 
-When Vyne gains bitwise operators, `bit_reverse` should be rewritten
-to use them and `bitrev` should be regenerated in the plan. The public
-surface will not change.
+`pow2` and `log2_exact` use `<<` as well. Their asymptotics are
+unchanged; the code is just cleaner.
 
 ### Why the plan cache is a module global
 
@@ -685,6 +689,13 @@ auto-vectorize, which it does inconsistently.
 ---
 
 ## Version history
+
+**0.2.0** — internal rewrite of `Kernels` to use bitwise operators
+now that the parser propagates types onto plain variable reads.
+`bit_reverse` drops from `O(k²)` to `O(k)`; `pow2` and `log2_exact`
+use shifts in place of multiplication. Public API, `Plan` layout,
+`fft_kernel` butterfly, and the plan cache are all unchanged — this
+release is behaviour-preserving.
 
 **0.1.0** — initial release. `Kernels` (`pow2`, `log2_exact`,
 `bit_reverse`, `fft_kernel`) and `Ops` (`Plan`, `make_plan`,

@@ -8,6 +8,10 @@
 # Native-to-native calls with array params are NOT supported by the
 # current codegen (tryEmitNativeCall rejects RawArrayPtr args). So
 # fft_kernel is a leaf — it calls nothing that takes an array.
+#
+# Version 0.2.0: bitwise operators (>> << & | ^ ~) are available now
+# that the parser propagates declared types onto plain variable reads.
+# pow2, log2_exact, and bit_reverse no longer fall back to arithmetic.
 
 ruleset { dynamic_casting };
 
@@ -15,41 +19,50 @@ use native vmath;
 
 module vfft;
 
-# 2^e for e >= 0.
+# 2^e for e >= 0. Returns 1 for e <= 0, matching the historical
+# arithmetic-loop behaviour for out-of-range inputs.
 fn :: vfft pow2(e :: Int64) -> Int64 {
-    r :: Int64 = 1;
-    through _ :: 0..e-1 -> loop { r = r * 2; };
-    return r;
+    if e <= 0 { return 1; }
+    return 1 << e;
 }
 
-# log2(n) for n a power of two. Returns -1 otherwise, so callers can
-# detect the error rather than silently producing garbage.
+# log2(n) for n a power of two, or -1 otherwise. Doubling becomes
+# a left shift; the walk is unchanged.
 fn :: vfft log2_exact(n :: Int64) -> Int64 {
     if n <= 0 { return -1; }
     b :: Int64 = 0;
     r :: Int64 = 1;
     while r < n {
-        r = r * 2;
+        r = r << 1;
         b = b + 1;
     }
     if r != n { return -1; }
     return b;
 }
 
-# Reverse the low k bits of i. Arithmetic, not bitwise — Vyne v1 has
-# no >> or & operators, so bit b is extracted as (i / 2^b) % 2 and
-# placed at position k-1-b by multiplying by 2^(k-1-b).
+# Reverse the low k bits of i.
+#
+# Previous version walked pow2 twice per bit and did an integer
+# division and modulo — O(k²) per call, and the pow2 calls were
+# function invocations in the unoptimised build. The shift/mask
+# form is O(k), calls nothing, and is what the arithmetic version
+# was approximating.
+#
+# Guard against k = 0: the loop body never runs, result stays 0.
+# That matches the old behaviour (0..(-1) is an empty range).
 fn :: vfft bit_reverse(i :: Int64, k :: Int64) -> Int64 {
     result :: Int64 = 0;
     through b :: 0..k-1 -> loop {
-        bit :: Int64 = (i / vfft.pow2(b)) % 2;
-        result = result + bit * vfft.pow2(k - 1 - b);
+        bit :: Int64 = (i >> b) & 1;
+        result = result | (bit << (k - 1 - b));
     };
     return result;
 }
 
 # In-place radix-2 Cooley-Tukey DIT FFT. n must be a power of two;
 # bits = log2(n). Modifies re and im.
+#
+# Unchanged from 0.1.0. The butterfly does not touch bitwise ops.
 fn :: vfft fft_kernel(re :: Array<Float64>, im :: Array<Float64>,
                       n :: Int64, bits :: Int64,
                       tw_re :: Array<Float64>,
