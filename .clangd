@@ -1,4 +1,5 @@
 CompileFlags:
+  CompilationDatabase : .
   Compiler: C:/Users/Admin/scoop/apps/mingw/current/bin/g++.exe
   Add:
     - -std=c++23
