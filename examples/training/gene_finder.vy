@@ -325,11 +325,14 @@ through epoch :: 1..EPOCHS -> loop {
                     db1_buf[c] = db1_buf[c] + delta1.data[r * HIDDEN1 + c];
                 };
             };
-
+            
+            # using scratch values inside hidden batches are not recommended
             bscale :: Float64 = opt_adam.lr / float64(BATCH);
             through c :: 0..HIDDEN1-1 -> loop { b1[c] = b1[c] - bscale * db1_buf[c]; };
             through c :: 0..HIDDEN2-1 -> loop { b2[c] = b2[c] - bscale * db2_buf[c]; };
             b3[0] = b3[0] - bscale * db3;
+
+            
         };
     };
 

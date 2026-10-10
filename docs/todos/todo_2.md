@@ -609,12 +609,11 @@ fn process_block(x :: Float64[512]) -> Float64[512] !alloc {
 
 Make it a type property whether an assignment copies or shares. **Effort.** 2 weeks. **Paper.** Section. Overlaps F7.
 
-#### F15. Add bitwise operators
+#### ~~F15. Add bitwise operators~~ [ DONE ]
 
 From lowest to highest binding (top binds loosest, bottom binds tightest):
 
 ```text
-
 ||                    logical or
 &&                    logical and
 |                     bitwise or
@@ -628,6 +627,8 @@ From lowest to highest binding (top binds loosest, bottom binds tightest):
 ```
 
 ---
+
+#### F16. Add scientific notation for numbers in lexer
 
 ## How they compose
 
