@@ -10,7 +10,7 @@ module vchem;
 #
 # O(V + E). No priority queue; BFS's FIFO order is what makes the
 # unit-weight case exact.
-fn :: vchem bfs_distances(g :: vchem.Graph, src :: Int64) -> Array<Int64> {
+fn :: vchem bfs_distances(g :: vchem.Types.Graph, src :: Int64) -> Array<Int64> {
     dist :: Array<Int64> = [];
     through _i :: 0..g.n-1 -> loop { dist.push(-1); };
 
@@ -35,7 +35,7 @@ fn :: vchem bfs_distances(g :: vchem.Graph, src :: Int64) -> Array<Int64> {
                 queue.push(v);
             }
         };
-    };
+    }
 
     return dist;
 }
@@ -67,7 +67,7 @@ fn :: vchem bfs_order(g :: vchem.Graph, src :: Int64) -> Array<Int64> {
                 queue.push(v);
             }
         };
-    };
+    }
 
     return order;
 }

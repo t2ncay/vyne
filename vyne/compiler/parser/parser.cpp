@@ -423,6 +423,22 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     nested.importedTypeCache = importedTypeCache;
     nested.parsingInProgress = parsingInProgress;
 
+    // Seed the nested parser's declared-type table with everything
+    // the outer parser has already collected from its earlier `use`
+    // statements. Files that share a `module X;` declaration form a
+    // single namespace: `BFS.vy` uses `vchem.Types.Graph` as a type
+    // name, but only `Types.vy` declares it. When `vgraph.vy` pulls
+    // in `Types.vy` first and `BFS.vy` second, `BFS.vy` must see the
+    // types `Types.vy` contributed, or `resolveType()` fails on a
+    // name the user has every right to write.
+    //
+    // Set-insert is idempotent, so re-seeding with types the nested
+    // parser already knows (through its own transitive `use`) is a
+    // no-op. The merge-back below then reflects the nested parser's
+    // full view — inherited plus newly declared — and everything the
+    // parent already had stays in the parent's set unchanged.
+    nested.declaredTypes = declaredTypes;
+
     SymbolContainer dummyEnv;
     nested.parseProgram(dummyEnv);
 

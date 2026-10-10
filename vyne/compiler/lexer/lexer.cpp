@@ -154,6 +154,10 @@ std::vector<Token> tokenize(std::string_view input) {
             std::string buffer;
             bool isFloatingPoint = false;
 
+            // Phase 1 — mantissa. Integer digits, optional single
+            // decimal point, optional fractional digits. The `..`
+            // range operator is rejected here so `0..10` does not get
+            // misread as the float 0. followed by .10.
             while (i < input.length()) {
                 if (std::isdigit(input[i])) {
                     buffer += input[i++];
@@ -171,6 +175,36 @@ std::vector<Token> tokenize(std::string_view input) {
                 }
             }
 
+            // Phase 2 — optional exponent. Commit only when the 'e' or
+            // 'E' is followed by a well-formed exponent: an optional
+            // sign, then at least one digit. Otherwise, roll back and
+            // leave the 'e' for the identifier lexer. This is what
+            // makes `2e` lex as Int64(2) then Identifier("e"), and
+            // `2ex5` as Int64(2) then Identifier("ex5"), without
+            // breaking a variable that happens to be named `e`.
+            if (i < input.length() && (input[i] == 'e' || input[i] == 'E')) {
+                size_t probe = i + 1;
+                if (probe < input.length() &&
+                    (input[probe] == '+' || input[probe] == '-')) {
+                    probe++;
+                }
+                if (probe < input.length() && std::isdigit(input[probe])) {
+                    buffer += input[i++]; // 'e' or 'E'
+                    if (input[i] == '+' || input[i] == '-') {
+                        buffer += input[i++]; // exponent sign
+                    }
+                    while (i < input.length() && std::isdigit(input[i])) {
+                        buffer += input[i++]; // exponent digits
+                    }
+                    // Any literal written with e-notation is a float,
+                    // even when the mantissa is integral. Matches C,
+                    // C++, Python, and JS: `1e5` is 100000.0, not the
+                    // integer 100000. It also stops literals like
+                    // `1e20` from silently overflowing the Int64 path.
+                    isFloatingPoint = true;
+                }
+            }
+
             if (isFloatingPoint) {
                 double val;
                 auto [ptr, ec] = std::from_chars(
@@ -185,6 +219,13 @@ std::vector<Token> tokenize(std::string_view input) {
                         val,
                         ""
                     );
+                } else {
+                    // Previously this path silently dropped the token
+                    // and left the parser to trip on a phantom EOF.
+                    // A diagnostic here is much easier to chase.
+                    std::cerr << "Lexer error at line " << currentLine
+                              << ": malformed float literal '" << buffer
+                              << "'\n";
                 }
             } else {
                 long long val;
@@ -200,6 +241,10 @@ std::vector<Token> tokenize(std::string_view input) {
                         static_cast<int64_t>(val),
                         ""
                     );
+                } else {
+                    std::cerr << "Lexer error at line " << currentLine
+                              << ": malformed integer literal '" << buffer
+                              << "'\n";
                 }
             }
             continue;
@@ -350,7 +395,12 @@ std::vector<Token> tokenize(std::string_view input) {
                 );
                 i++;
             } else if (i + 1 < input.length() && input[i + 1] == '<') {
-                tokens.emplace_back(VTokenType::Bitwise_Sll,currentLine,0,"<<");
+                tokens.emplace_back(
+                    VTokenType::Bitwise_Sll,
+                    currentLine,
+                    0,
+                    "<<"
+                );
                 i++;
             } else {
                 tokens.emplace_back(VTokenType::Smaller, currentLine, 0, "<");
@@ -366,18 +416,21 @@ std::vector<Token> tokenize(std::string_view input) {
                     ">="
                 );
                 i++;
-            }
-            else if (i + 1 < input.length() && input[i + 1] == '>') {
-                tokens.emplace_back(VTokenType::Bitwise_Srl,currentLine,0,">>");
+            } else if (i + 1 < input.length() && input[i + 1] == '>') {
+                tokens.emplace_back(
+                    VTokenType::Bitwise_Srl,
+                    currentLine,
+                    0,
+                    ">>"
+                );
                 i++;
-            }
-            else {
+            } else {
                 tokens.emplace_back(VTokenType::Greater, currentLine, 0, ">");
             }
             break;
         }
         case '~': {
-            tokens.emplace_back(VTokenType::Bitwise_Not,currentLine,0,"~");
+            tokens.emplace_back(VTokenType::Bitwise_Not, currentLine, 0, "~");
             break;
         }
         case '=': {
@@ -427,7 +480,8 @@ std::vector<Token> tokenize(std::string_view input) {
                 tokens.emplace_back(VTokenType::And, currentLine, 0, "&&");
                 i += 2;
             } else {
-                tokens.emplace_back(VTokenType::Bitwise_And, currentLine, 0, "&");
+                tokens
+                    .emplace_back(VTokenType::Bitwise_And, currentLine, 0, "&");
                 i++;
             }
             continue;
@@ -440,16 +494,19 @@ std::vector<Token> tokenize(std::string_view input) {
                 tokens.emplace_back(VTokenType::Pipeline, currentLine, 0, "|>");
                 i++;
             } else {
-                tokens.emplace_back(VTokenType::Bitwise_Or,currentLine,0,"|");
+                tokens
+                    .emplace_back(VTokenType::Bitwise_Or, currentLine, 0, "|");
             }
             break;
         }
         case '^': {
             if (i + 1 < input.length() && input[i + 1] == '^') {
-                tokens.emplace_back(VTokenType::Referencer,currentLine,0,"^^");
+                tokens
+                    .emplace_back(VTokenType::Referencer, currentLine, 0, "^^");
                 i++;
             } else {
-                tokens.emplace_back(VTokenType::Bitwise_Xor,currentLine,0,"^");
+                tokens
+                    .emplace_back(VTokenType::Bitwise_Xor, currentLine, 0, "^");
             }
             break;
         }

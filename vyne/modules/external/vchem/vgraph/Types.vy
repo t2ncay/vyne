@@ -19,14 +19,15 @@ ruleset { dynamic_casting };
 
 module vchem;
 
-interface Graph {
-    n      :: Int64,          # node count
-    m      :: Int64,          # directed-edge count
-    adj    :: Array<Int64>,   # neighbour list, length m
-    weight :: Array<Float64>, # edge weights, length m
-    offset :: Array<Int64>    # length n+1
+group :: vchem Types {
+    interface Graph {
+        n      :: Int64,          # node count
+        m      :: Int64,          # directed-edge count
+        adj    :: Array<Int64>,   # neighbour list, length m
+        weight :: Array<Float64>, # edge weights, length m
+        offset :: Array<Int64>    # length n+1
+    }
 };
-
 # Build a graph from an edge list. `from[k] -> to[k]` with the given
 # `w[k]` for k in 0..m-1.
 #
@@ -121,6 +122,6 @@ fn :: vchem build_unweighted(
 }
 
 # Out-degree of node i.
-fn :: vchem degree(g :: vchem.Graph, i :: Int64) -> Int64 {
+fn :: vchem degree(g :: vchem.Types.Graph, i :: Int64) -> Int64 {
     return g.offset[i + 1] - g.offset[i];
 }

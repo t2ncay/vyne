@@ -59,7 +59,7 @@ fn :: vchem dijkstra(g :: vchem.Graph, src :: Int64) -> Array<Float64> {
         };
 
         iteration = iteration + 1;
-    };
+    }
 
     return dist;
 }
@@ -107,7 +107,7 @@ fn :: vchem dijkstra_with_pred(
         };
 
         iteration = iteration + 1;
-    };
+    }
 
     return pred;
 }
@@ -128,7 +128,7 @@ fn :: vchem reconstruct_path(
         path.push(cur);
         if cur == src { break; }
         cur = pred[cur];
-    };
+    }
 
     if path[path.size() - 1] != src {
         return [];
@@ -143,7 +143,7 @@ fn :: vchem reconstruct_path(
         path[hi] = tmp;
         lo = lo + 1;
         hi = hi - 1;
-    };
+    }
 
     return path;
 }

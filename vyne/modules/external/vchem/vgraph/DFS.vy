@@ -48,7 +48,7 @@ fn :: vchem dfs_order(g :: vchem.Graph, src :: Int64) -> Array<Int64> {
             stack_node.pop();
             stack_edge.pop();
         }
-    };
+    }
 
     return order;
 }
@@ -87,7 +87,7 @@ fn :: vchem connected_components(g :: vchem.Graph) -> Array<Int64> {
                 stack_node.pop();
                 stack_edge.pop();
             }
-        };
+        }
 
         next_id = next_id + 1;
     };
@@ -141,7 +141,7 @@ fn :: vchem topological_sort(g :: vchem.Graph) -> Array<Int64> {
             indeg[v] = indeg[v] - 1;
             if indeg[v] == 0 { queue.push(v); }
         };
-    };
+    }
 
     # Any node not emitted is part of a cycle.
     if order.size() != g.n {
