@@ -340,10 +340,18 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
              "Paths are resolved relative to the importing file",
              "Searched from: " + sourceDir}
         );
+        // A missing import is fatal. Continuing would leave
+        // `declaredTypes` short of every interface this file was
+        // supposed to contribute, and the failure would surface later
+        // as a confusing VNE-003 in an unrelated file that depends
+        // on one of those types.
+        throw std::runtime_error(
+            "VNE-005: unresolved import '" + cleanPath + "' at line " +
+            std::to_string(line)
+        );
     }
 
     collectTypesFromImport(finalPath);
-
     std::string alias = "";
     if (peekToken().type == VTokenType::As) {
         consume(VTokenType::As);
@@ -359,7 +367,10 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
 }
 
 void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
-    // Canonicalize so `./foo.vy` and `foo.vy` collapse to the same key.
+    // Canonicalize so `./foo.vy` and `foo.vy` collapse to the same cache
+    // key. A failure here is unrecoverable for type collection; bail out
+    // and let the caller's own VNE-005 (if the path is genuinely bad)
+    // surface.
     std::string canonical;
     try {
         canonical = std::filesystem::weakly_canonical(finalPath).string();
@@ -367,6 +378,9 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
         return;
     }
 
+    // Lazy-init the two shared registries. Every nested Parser instance
+    // receives the same shared_ptr, so the caches are process-global
+    // across the import graph but scoped to a top-level parse.
     if (!importedTypeCache) {
         importedTypeCache = std::make_shared<
             std::unordered_map<std::string, std::unordered_set<std::string>>>();
@@ -375,28 +389,51 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
         parsingInProgress = std::make_shared<std::unordered_set<std::string>>();
     }
 
-    // Cache hit: hand the sibling the same types we gave earlier ones.
-    // This is the key difference from the old visited-set logic, which
-    // returned without merging anything on a repeat visit.
+    // Cache hit: this file has been fully parsed already and its types
+    // are already in the shared `declaredTypes` set. Nothing to merge —
+    // re-entering would just re-parse and re-insert duplicates.
     if (importedTypeCache->count(canonical)) {
         return;
     }
 
-    // Cycle guard: a → b → a. Bail out; the outer invocation will
-    // populate the cache once it finishes. Cycles are pathological
-    // in this language but shouldn't hang the compiler.
+    // Cycle guard: a → b → a. The outer invocation is still on the
+    // stack and will populate the cache when it finishes. Distinct from
+    // a leaked key — the RAII guard below guarantees we never leave a
+    // key behind, even on exception, so this branch only fires for a
+    // genuine cycle.
     if (!parsingInProgress->insert(canonical).second) {
         return;
     }
+
+    // RAII: always remove the key, even if the parse throws. Without
+    // this, a single failed parse poisons the path for the rest of the
+    // program and every later `use` silently no-ops on it — which is
+    // exactly the failure mode that produces VNE-003 in an unrelated
+    // file that depends on this one.
+    struct ProgressGuard {
+        std::shared_ptr<std::unordered_set<std::string>> set;
+        std::string key;
+        ~ProgressGuard() {
+            set->erase(key);
+        }
+    } progressGuard{parsingInProgress, canonical};
 
     std::string source;
     try {
         source = FileUtils::readFile(canonical);
     } catch (const std::exception&) {
-        parsingInProgress->erase(canonical);
+        // readFile failed. The caller emitted VNE-005 if the path did
+        // not exist; either way, we cannot contribute types from this
+        // file. Return without touching importedTypeCache — a later
+        // caller that repairs the path (or a sibling whose canonical
+        // form differs) may re-try.
         return;
     }
 
+    // Save and restore the diagnostic context so a nested parse cannot
+    // clobber the outer file's identity. Every setCurrentFile /
+    // setSourceText inside this scope is rolled back on exit, whether
+    // by return, throw, or fall-through.
     struct DiagContextGuard {
         std::string savedFile;
         std::string savedSource;
@@ -423,21 +460,22 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     // No seeding, no merge-back. `declaredTypes` is a single set
     // shared across every Parser instance in the process, so the
     // nested parse writes its interfaces directly into the table
-    // the outer parse will read from. The wrapper functions
-    // (`parseInterfaceDefinition`, `parseEnum`) already insert into
-    // the right place.
+    // the outer parse will read from. `parseInterfaceDefinition`
+    // and `parseEnum` insert into the right place.
+    //
+    // If this throws (a genuine parse error in the imported file),
+    // the ProgressGuard rolls back `parsingInProgress` and we
+    // propagate. That is correct: a broken import is a hard error,
+    // not something the outer file can paper over.
     SymbolContainer dummyEnv;
     nested.parseProgram(dummyEnv);
 
-    parsingInProgress->erase(canonical);
-
-    // Record that we have parsed this file so a later `use` of the
-    // same path short-circuits. The cached value is deliberately
-    // empty: with the shared table, "did we see this file" is the
-    // only bit of information that needs to survive.
+    // Record that the file was fully parsed. The cached value is
+    // deliberately empty — with the shared `declaredTypes` table,
+    // "did we see this file" is the only bit of information that
+    // needs to survive. Contents live in `declaredTypes`, not here.
     (*importedTypeCache)[canonical] = {};
 }
-
 // -----------------------------------------------------------
 
 std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
