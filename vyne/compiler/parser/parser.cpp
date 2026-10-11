@@ -378,10 +378,7 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     // Cache hit: hand the sibling the same types we gave earlier ones.
     // This is the key difference from the old visited-set logic, which
     // returned without merging anything on a repeat visit.
-    if (auto it = importedTypeCache->find(canonical);
-        it != importedTypeCache->end()) {
-        for (const auto& t : it->second)
-            declaredTypes.insert(t);
+    if (importedTypeCache->count(canonical)) {
         return;
     }
 
@@ -423,36 +420,22 @@ void Parser::collectTypesFromImport(const std::filesystem::path& finalPath) {
     nested.importedTypeCache = importedTypeCache;
     nested.parsingInProgress = parsingInProgress;
 
-    // Seed the nested parser's declared-type table with everything
-    // the outer parser has already collected from its earlier `use`
-    // statements. Files that share a `module X;` declaration form a
-    // single namespace: `BFS.vy` uses `vchem.Types.Graph` as a type
-    // name, but only `Types.vy` declares it. When `vgraph.vy` pulls
-    // in `Types.vy` first and `BFS.vy` second, `BFS.vy` must see the
-    // types `Types.vy` contributed, or `resolveType()` fails on a
-    // name the user has every right to write.
-    //
-    // Set-insert is idempotent, so re-seeding with types the nested
-    // parser already knows (through its own transitive `use`) is a
-    // no-op. The merge-back below then reflects the nested parser's
-    // full view — inherited plus newly declared — and everything the
-    // parent already had stays in the parent's set unchanged.
-    nested.declaredTypes = declaredTypes;
-
+    // No seeding, no merge-back. `declaredTypes` is a single set
+    // shared across every Parser instance in the process, so the
+    // nested parse writes its interfaces directly into the table
+    // the outer parse will read from. The wrapper functions
+    // (`parseInterfaceDefinition`, `parseEnum`) already insert into
+    // the right place.
     SymbolContainer dummyEnv;
     nested.parseProgram(dummyEnv);
 
     parsingInProgress->erase(canonical);
 
-    // Cache the nested parser's transitive closure. Note this is
-    // *not* just what the file itself declared — the nested parse has
-    // already merged its own deps into its set, so the cache entry
-    // correctly represents "everything you get by importing this".
-    (*importedTypeCache)[canonical] = nested.declaredTypes;
-
-    for (const auto& t : nested.declaredTypes) {
-        declaredTypes.insert(t);
-    }
+    // Record that we have parsed this file so a later `use` of the
+    // same path short-circuits. The cached value is deliberately
+    // empty: with the shared table, "did we see this file" is the
+    // only bit of information that needs to survive.
+    (*importedTypeCache)[canonical] = {};
 }
 
 // -----------------------------------------------------------

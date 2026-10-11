@@ -30,28 +30,32 @@
 static std::string arrayElemTypeName(const InterfaceMember& m) {
     const std::string& tp = m.typePath;
     size_t lt = tp.find('<');
-    if (lt == std::string::npos) return "";
-    if (tp.empty() || tp.back() != '>') return "";
-    if (tp.substr(0, lt) != "Array") return "";
+    if (lt == std::string::npos)
+        return "";
+    if (tp.empty() || tp.back() != '>')
+        return "";
+    if (tp.substr(0, lt) != "Array")
+        return "";
 
     std::string inner = tp.substr(lt + 1, tp.size() - lt - 2);
     size_t s = inner.find_first_not_of(" \t");
     size_t e = inner.find_last_not_of(" \t");
-    if (s == std::string::npos) return "";
+    if (s == std::string::npos)
+        return "";
     return inner.substr(s, e - s + 1);
 }
 
 static bool memberIsCEligible(C_Emitter& e, const InterfaceMember& m) {
     // Primitives fit the flat representation directly.
-    if (m.type == VType::Int64
-     || m.type == VType::Float64
-     || m.type == VType::Bool) return true;
+    if (m.type == VType::Int64 || m.type == VType::Float64 ||
+        m.type == VType::Bool)
+        return true;
 
     // String and Map store as a single VyneValue inside the C typedef.
     // Not unboxed, but a valid struct field — enough to let a struct
     // containing them stay native at the outer level.
-    if (m.type == VType::String
-     || m.type == VType::Map) return true;
+    if (m.type == VType::String || m.type == VType::Map)
+        return true;
 
     // Array<X> is eligible iff X is a C-eligible struct. Array<Int64>
     // and Array<Float64> are deliberately not accepted here — that
@@ -59,7 +63,8 @@ static bool memberIsCEligible(C_Emitter& e, const InterfaceMember& m) {
     // for this slice.
     if (m.type == VType::Array) {
         std::string elemName = arrayElemTypeName(m);
-        if (elemName.empty()) return false;
+        if (elemName.empty())
+            return false;
         return e.isCEligible(elemName);
     }
 
@@ -68,42 +73,50 @@ static bool memberIsCEligible(C_Emitter& e, const InterfaceMember& m) {
 
 bool interfaceIsCEligible(C_Emitter& e, const InterfaceNode& iface) {
     const auto& members = iface.getMembers();
-    if (members.empty()) return false;
+    if (members.empty())
+        return false;
     for (const auto& m : members) {
-        if (!memberIsCEligible(e, m)) return false;
+        if (!memberIsCEligible(e, m))
+            return false;
     }
     return true;
 }
 
 static CType cFieldTypeFor(C_Emitter& e, const InterfaceMember& m) {
     switch (m.type) {
-        case VType::Int64:   return CType::fromKind(CType::Kind::Int64);
-        case VType::Float64: return CType::fromKind(CType::Kind::Float64);
-        case VType::Bool:    return CType::fromKind(CType::Kind::Bool);
-        case VType::String:  return CType::fromKind(CType::Kind::Str);
-        case VType::Map:     return CType::fromKind(CType::Kind::Map);
-        case VType::Array: {
-            std::string elemName = arrayElemTypeName(m);
-            if (elemName.empty()) return CType::fromKind(CType::Kind::Unknown);
-
-            CType el;
-            el.kind          = CType::Kind::Struct;
-            el.mangledName   = elemName;
-            el.nativeCStruct = true;
-            // Tag is optional at construction time. If the element
-            // interface hasn't been compiled yet, `nativeName` stays
-            // empty and the caller emits a source-order diagnostic.
-            if (const auto* ns = e.getNativeCStruct(elemName)) {
-                el.nativeName = ns->tag;
-            }
-
-            CType ct;
-            ct.kind = CType::Kind::Array;
-            ct.args.push_back(el);
-            return ct;
-        }
-        default:
+    case VType::Int64:
+        return CType::fromKind(CType::Kind::Int64);
+    case VType::Float64:
+        return CType::fromKind(CType::Kind::Float64);
+    case VType::Bool:
+        return CType::fromKind(CType::Kind::Bool);
+    case VType::String:
+        return CType::fromKind(CType::Kind::Str);
+    case VType::Map:
+        return CType::fromKind(CType::Kind::Map);
+    case VType::Array: {
+        std::string elemName = arrayElemTypeName(m);
+        if (elemName.empty())
             return CType::fromKind(CType::Kind::Unknown);
+
+        CType el;
+        el.kind = CType::Kind::Struct;
+        el.mangledName = elemName;
+        el.nativeCStruct = true;
+        // Tag is optional at construction time. If the element
+        // interface hasn't been compiled yet, `nativeName` stays
+        // empty and the caller emits a source-order diagnostic.
+        if (const auto* ns = e.getNativeCStruct(elemName)) {
+            el.nativeName = ns->tag;
+        }
+
+        CType ct;
+        ct.kind = CType::Kind::Array;
+        ct.args.push_back(el);
+        return ct;
+    }
+    default:
+        return CType::fromKind(CType::Kind::Unknown);
     }
 }
 
@@ -117,27 +130,66 @@ void InterfaceNode::compile(C_Emitter& e) const {
     // Determine the effective module: explicit moduleName wins, else use
     // the currently active group prefix (set by GroupNode::compile).
     std::string effectiveModule = moduleName;
-    if (effectiveModule.empty()) effectiveModule = e.getGroupPrefix();
+    if (effectiveModule.empty())
+        effectiveModule = e.getGroupPrefix();
 
     std::string fullName = effectiveModule.empty()
-        ? interfaceName
-        : (effectiveModule + "." + interfaceName);
+                               ? interfaceName
+                               : (effectiveModule + "." + interfaceName);
 
     std::string cStructName = effectiveModule.empty()
-        ? interfaceName
-        : (effectiveModule + "_" + interfaceName);
+                                  ? interfaceName
+                                  : (effectiveModule + "_" + interfaceName);
     std::replace(cStructName.begin(), cStructName.end(), '.', '_');
     std::replace(cStructName.begin(), cStructName.end(), '_', '_');
 
     // Register the interface under its bare name, dotted name, and
     // underscore-mangled name so that every calling convention resolves.
+    // Register under every spelling the parser accepted.
+    // parseInterfaceDefinition inserts into `declaredTypes`:
+    //   <interfaceName>                      ("Graph")
+    //   <namespacePart>.<interfaceName>      ("Types.Graph")
+    //   <currentModuleName>.<interfaceName>  ("vchem.Graph")
+    //   <module>.<group>.<interfaceName>     ("vchem.Types.Graph")
+    // Any one of those is a legal reference site, so codegen has to
+    // recognise all of them too. The actual emitted C symbol is
+    // `struct_<cStructName>` regardless of which spelling the caller
+    // used — record that once and look it up at each call site.
     e.registerInterface(interfaceName);
-    if (!effectiveModule.empty()) {
-        e.registerInterface(effectiveModule + "." + interfaceName);
-        e.registerInterface(effectiveModule + "_" + interfaceName);
-        e.registerModuleInterface(effectiveModule, interfaceName);
-    }
+    e.registerInterfaceCtor(interfaceName, cStructName);
 
+    if (!effectiveModule.empty()) {
+        // Full path and underscore-mangled form of the same.
+        e.registerInterface(effectiveModule + "." + interfaceName);
+        e.registerInterfaceCtor(
+            effectiveModule + "." + interfaceName,
+            cStructName
+        );
+        e.registerInterface(effectiveModule + "_" + interfaceName);
+        e.registerInterfaceCtor(
+            effectiveModule + "_" + interfaceName,
+            cStructName
+        );
+        e.registerModuleInterface(effectiveModule, interfaceName);
+
+        // Group-relative form: "vchem.Types" -> "Types.Graph".
+        std::string suffix = effectiveModule;
+        size_t dot;
+        while ((dot = suffix.find('.')) != std::string::npos) {
+            suffix = suffix.substr(dot + 1);
+            std::string grpRel = suffix + "." + interfaceName;
+            e.registerInterface(grpRel);
+            e.registerInterfaceCtor(grpRel, cStructName);
+        }
+
+        // Module-relative form: "vchem.Types" -> "vchem.Graph".
+        if ((dot = effectiveModule.find('.')) != std::string::npos) {
+            std::string firstSeg = effectiveModule.substr(0, dot);
+            std::string modRel = firstSeg + "." + interfaceName;
+            e.registerInterface(modRel);
+            e.registerInterfaceCtor(modRel, cStructName);
+        }
+    }
     // --- C2: native C struct emission ---------------------------------
     // Eligibility is a property of the field list only. Methods do NOT
     // affect it: an interface with methods can still have a C struct
@@ -147,7 +199,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
         std::string tag = "vyne_" + cStructName;
 
         std::vector<std::string> fieldNames;
-        std::vector<CType>       fieldTypes;
+        std::vector<CType> fieldTypes;
         fieldNames.reserve(members.size());
         fieldTypes.reserve(members.size());
         for (const auto& m : members) {
@@ -156,24 +208,31 @@ void InterfaceNode::compile(C_Emitter& e) const {
 
             if (ft.kind == CType::Kind::Unknown) {
                 throw std::runtime_error(
-                    "internal: interface '" + fullName + "' passed "
-                    "C-eligibility but field '" + m.name + "' has no "
-                    "C representation.");
+                    "internal: interface '" + fullName +
+                    "' passed "
+                    "C-eligibility but field '" +
+                    m.name +
+                    "' has no "
+                    "C representation."
+                );
             }
 
             // Array<Struct> fields reference the element interface's
             // container typedef, which must already exist. Enforce
             // source order with a readable diagnostic rather than
             // letting the C compiler complain about an unknown type.
-            if (ft.kind == CType::Kind::Array && !ft.args.empty()
-                && ft.args[0].kind == CType::Kind::Struct
-                && ft.args[0].nativeName.empty()) {
+            if (ft.kind == CType::Kind::Array && !ft.args.empty() &&
+                ft.args[0].kind == CType::Kind::Struct &&
+                ft.args[0].nativeName.empty()) {
                 const std::string& elemName = ft.args[0].mangledName;
                 throw std::runtime_error(
                     "Compile Error: interface '" + fullName + "' has field '" +
                     m.name + "' of type '" + m.typePath + "', but interface '" +
-                    elemName + "' is defined after '" + fullName + "'.\n"
-                    "  Define '" + elemName + "' above '" + fullName + "'.");
+                    elemName + "' is defined after '" + fullName +
+                    "'.\n"
+                    "  Define '" +
+                    elemName + "' above '" + fullName + "'."
+                );
             }
 
             fieldTypes.push_back(ft);
@@ -203,7 +262,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.emitGlobalDecl(typedefSrc);
 
         e.emitGlobalDecl(
-            "VYNE_DEFINE_STRUCT_ARRAY(vyne_Array_" + tag + ", " + tag + ");");
+            "VYNE_DEFINE_STRUCT_ARRAY(vyne_Array_" + tag + ", " + tag + ");"
+        );
 
         // Slice 3e-box: emit a whole-array box helper. `boxAny` on an
         // Array<X> where X is a C-eligible struct calls this. It cannot
@@ -217,25 +277,26 @@ void InterfaceNode::compile(C_Emitter& e) const {
         // itself is `static inline` and lives in the globals stream,
         // where the typedef and container are already visible.
         {
-            std::string helperName  = "vyne_struct_array_box_" + tag;
-            std::string ctorName    = "struct_" + cStructName;
-            std::string container   = "vyne_Array_" + tag;
+            std::string helperName = "vyne_struct_array_box_" + tag;
+            std::string ctorName = "struct_" + cStructName;
+            std::string container = "vyne_Array_" + tag;
 
             // Prototype for the boxed constructor. Cheap, idempotent,
             // and lets the helper be emitted before the definition.
             std::string ctorParams;
             for (size_t i = 0; i < fieldNames.size(); ++i) {
-                if (i) ctorParams += ", ";
+                if (i)
+                    ctorParams += ", ";
                 ctorParams += "VyneValue v_" + fieldNames[i];
             }
-            e.emitGlobalDecl("VyneValue " + ctorName +
-                             "(" + ctorParams + ");");
+            e.emitGlobalDecl("VyneValue " + ctorName + "(" + ctorParams + ");");
 
             // Build the per-element box call argument list from the
             // same field descriptor list the typedef used above.
             std::string ctorArgs;
             for (size_t i = 0; i < fieldNames.size(); ++i) {
-                if (i) ctorArgs += ", ";
+                if (i)
+                    ctorArgs += ", ";
                 const CType& ft = fieldTypes[i];
                 std::string fld = "arr.data[i]." + fieldNames[i];
                 if (ft.kind == CType::Kind::Float64) {
@@ -244,13 +305,14 @@ void InterfaceNode::compile(C_Emitter& e) const {
                     ctorArgs += "vyne_int(" + fld + ")";
                 } else if (ft.kind == CType::Kind::Bool) {
                     ctorArgs += "vyne_bool(" + fld + ")";
-                } else if (ft.kind == CType::Kind::Str ||
-                           ft.kind == CType::Kind::Map) {
+                } else if (
+                    ft.kind == CType::Kind::Str || ft.kind == CType::Kind::Map
+                ) {
                     ctorArgs += fld;
                 } else if (ft.kind == CType::Kind::Array && !ft.args.empty()) {
                     const CType& el = ft.args[0];
-                    if (el.kind == CType::Kind::Struct && el.nativeCStruct
-                        && !el.nativeName.empty()) {
+                    if (el.kind == CType::Kind::Struct && el.nativeCStruct &&
+                        !el.nativeName.empty()) {
                         ctorArgs += "vyne_struct_array_box_" + el.nativeName +
                                     "(" + fld + ")";
                     } else if (el.kind == CType::Kind::Float64) {
@@ -262,12 +324,13 @@ void InterfaceNode::compile(C_Emitter& e) const {
             }
 
             std::string body =
-                "static inline VyneValue " + helperName +
-                "(" + container + " arr) {\n"
+                "static inline VyneValue " + helperName + "(" + container +
+                " arr) {\n"
                 "    VyneValue out = vyne_array_create((int)arr.size);\n"
                 "    for (int64_t i = 0; i < arr.size; ++i) {\n"
                 "        vyne_array_set(out, vyne_int(i), " +
-                            ctorName + "(" + ctorArgs + "));\n"
+                ctorName + "(" + ctorArgs +
+                "));\n"
                 "    }\n"
                 "    return out;\n"
                 "}";
@@ -307,18 +370,36 @@ void InterfaceNode::compile(C_Emitter& e) const {
         defaults.reserve(members.size());
         for (const auto& m : members) {
             switch (m.type) {
-                case VType::String:  defaults.push_back("vyne_string(\"\")"); break;
-                case VType::Int64:   defaults.push_back("vyne_int(0)");        break;
-                case VType::Float64: defaults.push_back("vyne_float(0.0)");    break;
-                case VType::Array:   defaults.push_back("vyne_array_create(0)"); break;
-                case VType::Map:     defaults.push_back("vyne_map_create()");   break;
-                default:             defaults.push_back("vyne_null()");         break;
+            case VType::String:
+                defaults.push_back("vyne_string(\"\")");
+                break;
+            case VType::Int64:
+                defaults.push_back("vyne_int(0)");
+                break;
+            case VType::Float64:
+                defaults.push_back("vyne_float(0.0)");
+                break;
+            case VType::Array:
+                defaults.push_back("vyne_array_create(0)");
+                break;
+            case VType::Map:
+                defaults.push_back("vyne_map_create()");
+                break;
+            default:
+                defaults.push_back("vyne_null()");
+                break;
             }
         }
         e.registerInterfaceDefaults(interfaceName, defaults);
         if (!effectiveModule.empty()) {
-            e.registerInterfaceDefaults(effectiveModule + "." + interfaceName, defaults);
-            e.registerInterfaceDefaults(effectiveModule + "_" + interfaceName, defaults);
+            e.registerInterfaceDefaults(
+                effectiveModule + "." + interfaceName,
+                defaults
+            );
+            e.registerInterfaceDefaults(
+                effectiveModule + "_" + interfaceName,
+                defaults
+            );
         }
     }
 
@@ -327,18 +408,24 @@ void InterfaceNode::compile(C_Emitter& e) const {
     e.emit("// interface: " + fullName);
     std::string params;
     for (size_t i = 0; i < members.size(); ++i) {
-        if (i > 0) params += ", ";
+        if (i > 0)
+            params += ", ";
         params += "VyneValue v_" + members[i].name;
     }
 
     e.emitBlockOpen("VyneValue struct_" + cStructName + "(" + params + ") {");
 
     std::string temp = e.newTemp("s");
-    e.emit("VyneStruct* " + temp + " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));");
+    e.emit(
+        "VyneStruct* " + temp +
+        " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));"
+    );
     e.emit(temp + "->type_name = \"" + fullName + "\";");
     e.emit(temp + "->field_count = " + std::to_string(members.size()) + ";");
-    e.emit(temp + "->fields = (VyneField*)arena_alloc(sizeof(VyneField) * " +
-           std::to_string(members.size()) + ");");
+    e.emit(
+        temp + "->fields = (VyneField*)arena_alloc(sizeof(VyneField) * " +
+        std::to_string(members.size()) + ");"
+    );
     e.emit(temp + "->methods = NULL;");
     e.emit(temp + "->method_count = 0;");
     e.emit(temp + "->field_cache[0] = -1;");
@@ -348,9 +435,18 @@ void InterfaceNode::compile(C_Emitter& e) const {
 
     for (size_t i = 0; i < members.size(); ++i) {
         uint32_t fid = StringPool::intern(members[i].name);
-        e.emit(temp + "->fields[" + std::to_string(i) + "].id = " + std::to_string(fid) + ";");
-        e.emit(temp + "->fields[" + std::to_string(i) + "].name = \"" + members[i].name + "\";");
-        e.emit(temp + "->fields[" + std::to_string(i) + "].value = v_" + members[i].name + ";");
+        e.emit(
+            temp + "->fields[" + std::to_string(i) +
+            "].id = " + std::to_string(fid) + ";"
+        );
+        e.emit(
+            temp + "->fields[" + std::to_string(i) + "].name = \"" +
+            members[i].name + "\";"
+        );
+        e.emit(
+            temp + "->fields[" + std::to_string(i) + "].value = v_" +
+            members[i].name + ";"
+        );
     }
 
     e.emit("VyneValue res; res.type = V_STRUCT; res.as.strct = " + temp + ";");
@@ -359,7 +455,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
     e.emit("");
 
     for (const auto& method : methods) {
-        if (!method) continue;
+        if (!method)
+            continue;
         auto* fn = static_cast<FunctionNode*>(method.get());
         std::string methodName = cStructName + "_" + fn->getOriginalName();
         std::replace(methodName.begin(), methodName.end(), '.', '_');
@@ -380,7 +477,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
             if (fn->getReturnType() == VType::Array &&
                 fn->getReturnArrayElemType() != VType::Unknown) {
                 retCt.args.push_back(
-                    CType::fromVType(fn->getReturnArrayElemType()));
+                    CType::fromVType(fn->getReturnArrayElemType())
+                );
             }
 
             std::string orig = fn->getOriginalName();
@@ -388,8 +486,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
             std::replace(mangled.begin(), mangled.end(), '.', '_');
 
             // Bare name and dotted/mangled forms.
-            e.registerFunctionReturnType(orig,       retCt);
-            e.registerFunctionReturnType(mangled,    retCt);
+            e.registerFunctionReturnType(orig, retCt);
+            e.registerFunctionReturnType(mangled, retCt);
             e.registerFunctionReturnType(methodName, retCt);
 
             // Receiver-qualified forms. `vlin.cross_entropy(...)` has
@@ -397,25 +495,34 @@ void InterfaceNode::compile(C_Emitter& e) const {
             // "vlin_cross_entropy" and "vlin.cross_entropy".
             if (!effectiveModule.empty()) {
                 e.registerFunctionReturnType(
-                    effectiveModule + "_" + mangled, retCt);
+                    effectiveModule + "_" + mangled,
+                    retCt
+                );
                 e.registerFunctionReturnType(
-                    effectiveModule + "." + orig,    retCt);
+                    effectiveModule + "." + orig,
+                    retCt
+                );
             }
             // Also under the interface's own name, so
             // `Matrix.multiply(...)` style calls resolve too.
             if (interfaceName != effectiveModule) {
                 e.registerFunctionReturnType(
-                    interfaceName + "_" + mangled, retCt);
-                e.registerFunctionReturnType(
-                    interfaceName + "." + orig,    retCt);
+                    interfaceName + "_" + mangled,
+                    retCt
+                );
+                e.registerFunctionReturnType(interfaceName + "." + orig, retCt);
             }
         }
 
-        e.emitGlobalDecl("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);");
+        e.emitGlobalDecl(
+            "VyneValue fn_" + methodName + "(int arg_count, VyneValue* args);"
+        );
         e.pushFunctionContext();
-        e.enterFunction(methodName); 
+        e.enterFunction(methodName);
         e.setCurrentInterfaceType(fullName);
-        e.emitBlockOpen("VyneValue fn_" + methodName + "(int arg_count, VyneValue* args) {");
+        e.emitBlockOpen(
+            "VyneValue fn_" + methodName + "(int arg_count, VyneValue* args) {"
+        );
 
         e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
 
@@ -423,13 +530,16 @@ void InterfaceNode::compile(C_Emitter& e) const {
         for (size_t i = 0; i < params2.size(); ++i) {
             std::string paramName = "v_" + params2[i].name;
             std::replace(paramName.begin(), paramName.end(), '.', '_');
-            e.emit("VyneValue " + paramName +
-                   " = (arg_count > " + std::to_string(i + 1) +
-                   ") ? args[" + std::to_string(i + 1) + "] : vyne_null();");
+            e.emit(
+                "VyneValue " + paramName + " = (arg_count > " +
+                std::to_string(i + 1) + ") ? args[" + std::to_string(i + 1) +
+                "] : vyne_null();"
+            );
         }
 
         for (const auto& stmt : fn->getBody())
-            if (stmt) stmt->compile(e);
+            if (stmt)
+                stmt->compile(e);
 
         e.emit("return vyne_null();");
         e.emitBlockClose();
@@ -438,8 +548,10 @@ void InterfaceNode::compile(C_Emitter& e) const {
         e.popFunctionContext();
 
         e.pushMainContext();
-        e.emit("vyne_register_method(\"" + fullName + "\", \"" +
-               fn->getOriginalName() + "\", fn_" + methodName + ");");
+        e.emit(
+            "vyne_register_method(\"" + fullName + "\", \"" +
+            fn->getOriginalName() + "\", fn_" + methodName + ");"
+        );
         e.popMainContext();
     }
 
@@ -450,29 +562,31 @@ void registerInterfaceLayoutsFromMembers(
     C_Emitter& e,
     const std::string& interfaceName,
     const std::string& moduleName,
-    const std::vector<InterfaceMember>& members)
-{
+    const std::vector<InterfaceMember>& members
+) {
     std::string effectiveModule = moduleName;
-    if (effectiveModule.empty()) effectiveModule = e.getGroupPrefix();
+    if (effectiveModule.empty())
+        effectiveModule = e.getGroupPrefix();
 
     std::string fullName = effectiveModule.empty()
-        ? interfaceName
-        : (effectiveModule + "." + interfaceName);
+                               ? interfaceName
+                               : (effectiveModule + "." + interfaceName);
 
     std::vector<StructFieldDesc> layout;
     layout.reserve(members.size());
     for (const auto& m : members) {
         StructFieldDesc fd;
-        fd.id   = StringPool::intern(m.name);
+        fd.id = StringPool::intern(m.name);
         fd.name = m.name;
 
         if (m.type == VType::Int64) {
             fd.type = CType::fromKind(CType::Kind::Int64);
         } else if (m.type == VType::Float64) {
             fd.type = CType::fromKind(CType::Kind::Float64);
-        } else if (m.type == VType::Array &&
-                   (m.arrayElemType == VType::Int64 ||
-                    m.arrayElemType == VType::Float64)) {
+        } else if (
+            m.type == VType::Array && (m.arrayElemType == VType::Int64 ||
+                                       m.arrayElemType == VType::Float64)
+        ) {
             fd.type.kind = CType::Kind::Array;
             fd.type.args.push_back(CType::fromVType(m.arrayElemType));
         } else {
@@ -489,9 +603,13 @@ void registerInterfaceLayoutsFromMembers(
     e.registerInterfaceStructLayout(interfaceName, layout);
     if (!effectiveModule.empty()) {
         e.registerInterfaceStructLayout(
-            effectiveModule + "." + interfaceName, layout);
+            effectiveModule + "." + interfaceName,
+            layout
+        );
         e.registerInterfaceStructLayout(
-            effectiveModule + "_" + interfaceName, layout);
+            effectiveModule + "_" + interfaceName,
+            layout
+        );
     }
     if (fullName != interfaceName &&
         fullName != effectiveModule + "." + interfaceName) {
@@ -499,4 +617,6 @@ void registerInterfaceLayoutsFromMembers(
     }
 }
 
-std::string InterfaceNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+std::string InterfaceNode::getCExpr(C_Emitter& e) const {
+    return "vyne_null()";
+}

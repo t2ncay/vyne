@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "lexer.h"
+#include "../../runtime/diagnostics.h"
 
 std::vector<Token> tokenize(std::string_view input) {
     std::vector<Token> tokens;
@@ -220,12 +221,22 @@ std::vector<Token> tokenize(std::string_view input) {
                         ""
                     );
                 } else {
-                    // Previously this path silently dropped the token
-                    // and left the parser to trip on a phantom EOF.
-                    // A diagnostic here is much easier to chase.
-                    std::cerr << "Lexer error at line " << currentLine
-                              << ": malformed float literal '" << buffer
-                              << "'\n";
+                    // Route through the diagnostic engine instead of
+                    // writing straight to stderr. The engine already
+                    // knows the current filename (the parser sets it
+                    // before calling tokenize), so the report is
+                    // "file.vy:12: malformed float literal '…'"
+                    // rather than a bare "line 12".
+                    emitError(
+                        "Malformed float literal '" + buffer + "'",
+                        currentLine,
+                        "VNE-006",
+                        {"Use digits before and after the decimal point",
+                         "Scientific notation is supported: 1.5e-3"}
+                    );
+                    throw std::runtime_error(
+                        "Lexing failed at line " + std::to_string(currentLine)
+                    );
                 }
             } else {
                 long long val;
@@ -242,9 +253,15 @@ std::vector<Token> tokenize(std::string_view input) {
                         ""
                     );
                 } else {
-                    std::cerr << "Lexer error at line " << currentLine
-                              << ": malformed integer literal '" << buffer
-                              << "'\n";
+                    emitError(
+                        "Malformed integer literal '" + buffer + "'",
+                        currentLine,
+                        "VNE-007",
+                        {"Integer literals must fit in a signed 64-bit value"}
+                    );
+                    throw std::runtime_error(
+                        "Lexing failed at line " + std::to_string(currentLine)
+                    );
                 }
             }
             continue;
@@ -528,8 +545,17 @@ std::vector<Token> tokenize(std::string_view input) {
             break;
         }
         default:
-            std::cerr << "Unexpected character: " << character << std::endl;
-            break;
+            emitError(
+                std::string("Unexpected character '") + character +
+                    "' (ASCII " +
+                    std::to_string((int)(unsigned char)character) + ")",
+                currentLine,
+                "VNE-008",
+                {"Check the character; it is not part of the Vyne grammar"}
+            );
+            throw std::runtime_error(
+                "Lexing failed at line " + std::to_string(currentLine)
+            );
         }
         i++;
     }

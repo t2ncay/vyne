@@ -20,9 +20,9 @@
 
 #include <sstream>
 #include <string>
-#include <vector>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "ctype.h"
 #include "native_maps.h"
@@ -40,11 +40,15 @@ class C_Emitter {
     std::vector<EmitContext> contextStack;
 
     std::stringstream& currentStream() {
-        if (contextStack.empty()) return mainStream;
+        if (contextStack.empty())
+            return mainStream;
         switch (contextStack.back()) {
-            case EmitContext::FUNCTION: return functionStream;
-            case EmitContext::GLOBAL:   return globalsStream;
-            default:                    return mainStream;
+        case EmitContext::FUNCTION:
+            return functionStream;
+        case EmitContext::GLOBAL:
+            return globalsStream;
+        default:
+            return mainStream;
         }
     }
 
@@ -61,16 +65,18 @@ class C_Emitter {
     std::unordered_map<std::string, CType> globalTypes;
     std::unordered_map<std::string, CType> nativeTemps;
     struct LocalScope {
-        std::unordered_set<std::string>        names;
+        std::unordered_set<std::string> names;
         std::unordered_map<std::string, CType> types;
-        std::unordered_map<std::string, int>   regionDepthAtDeclaration;
+        std::unordered_map<std::string, int> regionDepthAtDeclaration;
     };
-    std::vector<LocalScope> localScopes = { LocalScope{} };
+    std::vector<LocalScope> localScopes = {LocalScope{}};
 
     // --- Interface / group registry -------------------------------------
     std::unordered_set<std::string> interfaceSet;
     std::unordered_set<std::string> groupSet;
-    std::unordered_map<std::string, std::vector<std::string>> functionSignatures;
+    std::unordered_map<std::string, std::string> interfaceCtorNames;
+    std::unordered_map<std::string, std::vector<std::string>>
+        functionSignatures;
     std::unordered_map<std::string, std::vector<CType>> functionParamTypes;
     std::unordered_map<std::string, CType> functionReturnTypes;
     std::unordered_map<std::string, std::string> nativeVariants;
@@ -94,16 +100,16 @@ class C_Emitter {
     std::string groupPrefix;
 
     // --- M4-C1B: struct field typing ------------------------------------
-    std::unordered_map<std::string,
-                       std::unordered_map<std::string, VType>> interfaceArrayFields;
+    std::unordered_map<std::string, std::unordered_map<std::string, VType>>
+        interfaceArrayFields;
     std::unordered_map<std::string, std::string> localStructTypes;
     std::unordered_map<std::string, std::string> globalStructTypes;
     std::string currentInterfaceType;
 
     // M4-C1B (extended): scalar interface fields (Int64/Float64) that can be
     // unboxed at member access. Same key shape as interfaceArrayFields.
-    std::unordered_map<std::string,
-                       std::unordered_map<std::string, VType>> interfacePrimitiveFields;
+    std::unordered_map<std::string, std::unordered_map<std::string, VType>>
+        interfacePrimitiveFields;
 
     // C2: native C struct representation.
     //
@@ -118,9 +124,9 @@ class C_Emitter {
     // they hold. Never cleared by push/popFunctionContext — like
     // interfaceStructLayout, it is process-global.
     struct NativeCStruct {
-        std::string tag;                       // C typedef name, e.g. "vyne_Atom"
-        std::vector<std::string> fieldNames;   // declaration order
-        std::vector<CType>       fieldTypes;   // parallel to fieldNames
+        std::string tag;                     // C typedef name, e.g. "vyne_Atom"
+        std::vector<std::string> fieldNames; // declaration order
+        std::vector<CType> fieldTypes;       // parallel to fieldNames
     };
     std::unordered_map<std::string, NativeCStruct> nativeCStructs;
 
@@ -148,7 +154,10 @@ class C_Emitter {
     std::unordered_map<std::string, std::vector<StructFieldDesc>>
         interfaceStructLayout;
 
-    struct FieldCacheEntry { std::string temp; CType ct; };
+    struct FieldCacheEntry {
+        std::string temp;
+        CType ct;
+    };
     std::unordered_map<std::string, FieldCacheEntry> fieldCache;
 
     // --- M2: monomorphization cache -------------------------------------
@@ -196,9 +205,9 @@ class C_Emitter {
     // recomputing the mangling. Only the innermost pool is visible to
     // the body; nested @pool regions shadow cleanly via LIFO.
     struct PoolContext {
-        std::string handle;          // C variable name of the VynePool struct
-        VType       elemType;        // Float64 or Int64
-        int64_t     elemsPerSlot;    // buffer length per allocation
+        std::string handle;   // C variable name of the VynePool struct
+        VType elemType;       // Float64 or Int64
+        int64_t elemsPerSlot; // buffer length per allocation
     };
     std::vector<PoolContext> poolStack;
 
@@ -208,46 +217,70 @@ class C_Emitter {
     // the innermost is visible; nested speculative regions shadow via
     // LIFO, matching every other region-scoped construct.
     struct SpeculativeContext {
-        std::string commitFlag;      // C variable name of the int flag
+        std::string commitFlag; // C variable name of the int flag
     };
     std::vector<SpeculativeContext> speculativeStack;
 
     bool scratchBoundsEnabled = true;
-    bool blasEnabled          = false;
-    bool poolRuntimeEmitted   = false;
+    bool blasEnabled = false;
+    bool poolRuntimeEmitted = false;
     int tempVarCount = 0;
 
-public:
+  public:
     // --- Context management ---------------------------------------------
     bool isAlreadyImported(const std::string& path) const {
         return importedFiles.count(path) > 0;
     }
-    void markImported(const std::string& path) { importedFiles.insert(path); }
-    std::string getSourceDir() const { return sourceDir; }
-    void setSourceDir(const std::string& dir) { sourceDir = dir; }
+    void markImported(const std::string& path) {
+        importedFiles.insert(path);
+    }
+    std::string getSourceDir() const {
+        return sourceDir;
+    }
+    void setSourceDir(const std::string& dir) {
+        sourceDir = dir;
+    }
 
-    const std::unordered_set<std::string>& getGlobalVars() const { return globalVars; }
-    void enterFunction(const std::string& prefix) { activeFunctionPrefix = prefix; }
-    void exitFunction() { activeFunctionPrefix.clear(); }
-    const std::string& getActiveFunctionPrefix() const { return activeFunctionPrefix; }
+    const std::unordered_set<std::string>& getGlobalVars() const {
+        return globalVars;
+    }
+    void enterFunction(const std::string& prefix) {
+        activeFunctionPrefix = prefix;
+    }
+    void exitFunction() {
+        activeFunctionPrefix.clear();
+    }
+    const std::string& getActiveFunctionPrefix() const {
+        return activeFunctionPrefix;
+    }
 
     // --- Module context ------------------------------------------------
-    void setActiveModule(const std::string& m) { activeModule = m; }
-    void clearActiveModule() { activeModule.clear(); }
-    const std::string& getActiveModule() const { return activeModule; }
+    void setActiveModule(const std::string& m) {
+        activeModule = m;
+    }
+    void clearActiveModule() {
+        activeModule.clear();
+    }
+    const std::string& getActiveModule() const {
+        return activeModule;
+    }
 
-    void registerModuleFunction(const std::string& mod, const std::string& name) {
+    void
+    registerModuleFunction(const std::string& mod, const std::string& name) {
         moduleFunctions[mod].insert(name);
     }
-    bool isModuleFunction(const std::string& mod, const std::string& name) const {
+    bool
+    isModuleFunction(const std::string& mod, const std::string& name) const {
         auto it = moduleFunctions.find(mod);
         return it != moduleFunctions.end() && it->second.count(name) > 0;
     }
 
-    void registerModuleInterface(const std::string& mod, const std::string& name) {
+    void
+    registerModuleInterface(const std::string& mod, const std::string& name) {
         moduleInterfaces[mod].insert(name);
     }
-    bool isModuleInterface(const std::string& mod, const std::string& name) const {
+    bool
+    isModuleInterface(const std::string& mod, const std::string& name) const {
         auto it = moduleInterfaces.find(mod);
         return it != moduleInterfaces.end() && it->second.count(name) > 0;
     }
@@ -257,7 +290,8 @@ public:
         indentLevel = 1;
     }
     void popMainContext() {
-        if (!contextStack.empty()) contextStack.pop_back();
+        if (!contextStack.empty())
+            contextStack.pop_back();
         indentLevel = 0;
     }
 
@@ -266,16 +300,19 @@ public:
         indentLevel = 0;
     }
     void popGlobalContext() {
-        if (!contextStack.empty()) contextStack.pop_back();
+        if (!contextStack.empty())
+            contextStack.pop_back();
         indentLevel = 1;
     }
 
     bool isGlobalContext() {
-        return contextStack.empty() || contextStack.back() == EmitContext::GLOBAL;
+        return contextStack.empty() ||
+               contextStack.back() == EmitContext::GLOBAL;
     }
 
     bool isTopLevelOfMain() const {
-        bool inMain = contextStack.empty() || contextStack.back() == EmitContext::MAIN;
+        bool inMain =
+            contextStack.empty() || contextStack.back() == EmitContext::MAIN;
         return inMain && localScopes.size() <= 1;
     }
 
@@ -284,7 +321,8 @@ public:
     }
     bool isLocalDeclared(const std::string& name) const {
         for (auto it = localScopes.rbegin(); it != localScopes.rend(); ++it)
-            if (it->names.count(name)) return true;
+            if (it->names.count(name))
+                return true;
         return false;
     }
     bool isLocalVarsEmpty() const {
@@ -299,7 +337,8 @@ public:
         if (isGlobalContext() && atBaseScope) {
             globalVars.insert(name);
         } else {
-            if (localScopes.empty()) localScopes.emplace_back();
+            if (localScopes.empty())
+                localScopes.emplace_back();
             localScopes.back().names.insert(name);
             // Record the region depth so the escape check can distinguish
             // a local declared inside a region from one declared outside
@@ -314,12 +353,17 @@ public:
     // moment of declaration. Callers that want to override (e.g. for
     // parameters, which are conceptually at depth 0) can pass an
     // explicit value.
-    void declareLocal(const std::string& name, const CType& ct,
-                      int regionDepth = -1) {
-        if (localScopes.empty()) localScopes.emplace_back();
+    void declareLocal(
+        const std::string& name,
+        const CType& ct,
+        int regionDepth = -1
+    ) {
+        if (localScopes.empty())
+            localScopes.emplace_back();
         localScopes.back().names.insert(name);
         localScopes.back().types[name] = ct;
-        if (regionDepth < 0) regionDepth = (int)regionStack.size();
+        if (regionDepth < 0)
+            regionDepth = (int)regionStack.size();
         localScopes.back().regionDepthAtDeclaration[name] = regionDepth;
     }
     void declareGlobal(const std::string& name, const CType& ct) {
@@ -330,7 +374,8 @@ public:
     const CType* lookupLocalType(const std::string& name) const {
         for (auto it = localScopes.rbegin(); it != localScopes.rend(); ++it) {
             auto t = it->types.find(name);
-            if (t != it->types.end()) return &t->second;
+            if (t != it->types.end())
+                return &t->second;
         }
         return nullptr;
     }
@@ -338,17 +383,23 @@ public:
     // rewind), otherwise the depth at declaration. Returns -1 if the
     // name is not a tracked local.
     int lookupLocalRegionDepth(const std::string& name) const {
-        if (committedVars.count(name)) return 0;
+        if (committedVars.count(name))
+            return 0;
         for (auto it = localScopes.rbegin(); it != localScopes.rend(); ++it) {
             auto r = it->regionDepthAtDeclaration.find(name);
-            if (r != it->regionDepthAtDeclaration.end()) return r->second;
+            if (r != it->regionDepthAtDeclaration.end())
+                return r->second;
         }
         return -1;
     }
 
-    int currentRegionDepth() const { return (int)regionStack.size(); }
+    int currentRegionDepth() const {
+        return (int)regionStack.size();
+    }
 
-    void markCommitted(const std::string& name) { committedVars.insert(name); }
+    void markCommitted(const std::string& name) {
+        committedVars.insert(name);
+    }
     bool isCommitted(const std::string& name) const {
         return committedVars.count(name) > 0;
     }
@@ -359,8 +410,10 @@ public:
 
     const CType* lookupType(const std::string& name) const {
         auto it = nativeTemps.find(name);
-        if (it != nativeTemps.end()) return &it->second;
-        if (auto lt = lookupLocalType(name)) return lt;
+        if (it != nativeTemps.end())
+            return &it->second;
+        if (auto lt = lookupLocalType(name))
+            return lt;
         return lookupGlobalType(name);
     }
 
@@ -401,8 +454,8 @@ public:
             if (el.kind == CType::Kind::Struct && el.nativeCStruct) {
                 const NativeCStruct* ns = getNativeCStruct(el.mangledName);
                 if (ns) {
-                    return "vyne_struct_array_box_" + ns->tag +
-                           "(" + expr + ")";
+                    return "vyne_struct_array_box_" + ns->tag + "(" + expr +
+                           ")";
                 }
                 // Registry entry missing despite nativeCStruct=true.
                 // Fall through — boxIfNative will pass the struct
@@ -422,16 +475,16 @@ public:
         // field is wrapped with vyne_float / vyne_int / vyne_bool.
         // mangledName may carry dots (module path); the C ctor symbol
         // is underscore-mangled to match InterfaceNode::compile.
-        if (ct && ct->kind == CType::Kind::Struct
-              && ct->nativeCStruct
-              && !ct->mangledName.empty()) {
+        if (ct && ct->kind == CType::Kind::Struct && ct->nativeCStruct &&
+            !ct->mangledName.empty()) {
             const NativeCStruct* ns = getNativeCStruct(ct->mangledName);
             if (ns) {
                 std::string ctor = "struct_" + ct->mangledName;
                 std::replace(ctor.begin(), ctor.end(), '.', '_');
                 std::string args;
                 for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
-                    if (i) args += ", ";
+                    if (i)
+                        args += ", ";
                     const std::string fld = expr + "." + ns->fieldNames[i];
                     CType ft = ns->fieldTypes[i];
                     if (ft.kind == CType::Kind::Float64) {
@@ -440,15 +493,19 @@ public:
                         args += "vyne_int(" + fld + ")";
                     } else if (ft.kind == CType::Kind::Bool) {
                         args += "vyne_bool(" + fld + ")";
-                    } else if (ft.kind == CType::Kind::Str ||
-                               ft.kind == CType::Kind::Map) {
+                    } else if (
+                        ft.kind == CType::Kind::Str ||
+                        ft.kind == CType::Kind::Map
+                    ) {
                         // Already a VyneValue in the native struct; pass
                         // it through unchanged.
                         args += fld;
-                    } else if (ft.kind == CType::Kind::Array && !ft.args.empty()) {
+                    } else if (
+                        ft.kind == CType::Kind::Array && !ft.args.empty()
+                    ) {
                         const CType& el = ft.args[0];
-                        if (el.kind == CType::Kind::Struct && el.nativeCStruct
-                            && !el.nativeName.empty()) {
+                        if (el.kind == CType::Kind::Struct &&
+                            el.nativeCStruct && !el.nativeName.empty()) {
                             args += "vyne_struct_array_box_" + el.nativeName +
                                     "(" + fld + ")";
                         } else if (el.kind == CType::Kind::Float64) {
@@ -467,12 +524,15 @@ public:
     std::string nativeRead(const std::string& expr, VType kind) const {
         const CType* ct = exprNativeType(expr);
         CType want = CType::fromVType(kind);
-        if (ct && ct->kind == want.kind) return expr;
+        if (ct && ct->kind == want.kind)
+            return expr;
         return want.unbox(boxIfNative(expr));
     }
 
     // --- References ------------------------------------------------------
-    void registerReference(const std::string name) { references.insert(std::move(name)); }
+    void registerReference(const std::string name) {
+        references.insert(std::move(name));
+    }
     bool isReference(const std::string name) const {
         return references.count(std::move(name)) > 0;
     }
@@ -485,7 +545,7 @@ public:
         fieldCache.clear();
         currentInterfaceType.clear();
         regionStack.clear();
-        poolStack.clear();            // paired with regionStack: both are per-function
+        poolStack.clear(); // paired with regionStack: both are per-function
         speculativeStack.clear();
         committedVars.clear();
         nativeReturnType = CType{};
@@ -495,7 +555,8 @@ public:
         localScopes.emplace_back();
     }
     void popFunctionContext() {
-        if (!contextStack.empty()) contextStack.pop_back();
+        if (!contextStack.empty())
+            contextStack.pop_back();
         localScopes.clear();
         localScopes.emplace_back();
         localStructTypes.clear();
@@ -505,17 +566,27 @@ public:
         indentLevel = 1;
     }
     void setFunctionContext(bool inside) {
-        if (inside) pushFunctionContext(); else popFunctionContext();
+        if (inside)
+            pushFunctionContext();
+        else
+            popFunctionContext();
     }
 
     // --- Indentation / emission -----------------------------------------
-    void indent() { indentLevel++; }
-    void dedent() { if (indentLevel > 0) indentLevel--; }
+    void indent() {
+        indentLevel++;
+    }
+    void dedent() {
+        if (indentLevel > 0)
+            indentLevel--;
+    }
 
     void emit(const std::string& code) {
         currentStream() << getIndent() << code << "\n";
     }
-    void emitGlobalDecl(const std::string& code) { globalsStream << code << "\n"; }
+    void emitGlobalDecl(const std::string& code) {
+        globalsStream << code << "\n";
+    }
 
     void emitBlockOpen(const std::string& line) {
         localScopes.emplace_back();
@@ -525,69 +596,91 @@ public:
     void emitBlockClose(const std::string& suffix = "") {
         dedent();
         emit("}" + suffix);
-        if (localScopes.size() > 1) localScopes.pop_back();
+        if (localScopes.size() > 1)
+            localScopes.pop_back();
         fieldCache.clear();
     }
 
     std::string newTemp(const std::string& prefix = "t") {
         return prefix + "_" + std::to_string(tempVarCount++);
     }
-    void addInclude(const std::string& header) { includeSet.insert(header); }
-    void addSystemInclude(const std::string& header) { systemIncludes.insert(header); }
+    void addInclude(const std::string& header) {
+        includeSet.insert(header);
+    }
+    void addSystemInclude(const std::string& header) {
+        systemIncludes.insert(header);
+    }
 
-    void setBlasEnabled(bool v) { blasEnabled = v; }
-    bool isBlasEnabled() const { return blasEnabled; }
-    
+    void setBlasEnabled(bool v) {
+        blasEnabled = v;
+    }
+    bool isBlasEnabled() const {
+        return blasEnabled;
+    }
 
     // --- M4-C1B: interface field typing ---------------------------------
-    void registerInterfaceArrayField(const std::string& iface,
-                                     const std::string& field,
-                                     VType elem) {
+    void registerInterfaceArrayField(
+        const std::string& iface,
+        const std::string& field,
+        VType elem
+    ) {
         if (elem == VType::Int64 || elem == VType::Float64)
             interfaceArrayFields[iface][field] = elem;
     }
-    VType getInterfaceArrayElem(const std::string& iface,
-                                const std::string& field) const {
+    VType getInterfaceArrayElem(
+        const std::string& iface,
+        const std::string& field
+    ) const {
         auto probe = [&](const std::string& k) -> VType {
             auto it = interfaceArrayFields.find(k);
-            if (it == interfaceArrayFields.end()) return VType::Unknown;
+            if (it == interfaceArrayFields.end())
+                return VType::Unknown;
             auto f = it->second.find(field);
             return f == it->second.end() ? VType::Unknown : f->second;
         };
         VType v = probe(iface);
-        if (v != VType::Unknown) return v;
+        if (v != VType::Unknown)
+            return v;
         std::string tmp = iface;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
             tmp = tmp.substr(dot + 1);
             v = probe(tmp);
-            if (v != VType::Unknown) return v;
+            if (v != VType::Unknown)
+                return v;
         }
         return VType::Unknown;
     }
 
-    void registerInterfacePrimitiveField(const std::string& iface,
-                                         const std::string& field,
-                                         VType t) {
+    void registerInterfacePrimitiveField(
+        const std::string& iface,
+        const std::string& field,
+        VType t
+    ) {
         if (t == VType::Int64 || t == VType::Float64)
             interfacePrimitiveFields[iface][field] = t;
     }
-    VType getInterfacePrimitiveField(const std::string& iface,
-                                     const std::string& field) const {
+    VType getInterfacePrimitiveField(
+        const std::string& iface,
+        const std::string& field
+    ) const {
         auto probe = [&](const std::string& k) -> VType {
             auto it = interfacePrimitiveFields.find(k);
-            if (it == interfacePrimitiveFields.end()) return VType::Unknown;
+            if (it == interfacePrimitiveFields.end())
+                return VType::Unknown;
             auto f = it->second.find(field);
             return f == it->second.end() ? VType::Unknown : f->second;
         };
         VType v = probe(iface);
-        if (v != VType::Unknown) return v;
+        if (v != VType::Unknown)
+            return v;
         std::string tmp = iface;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
             tmp = tmp.substr(dot + 1);
             v = probe(tmp);
-            if (v != VType::Unknown) return v;
+            if (v != VType::Unknown)
+                return v;
         }
         return VType::Unknown;
     }
@@ -596,12 +689,14 @@ public:
     // Register under the interface's fullName; the probe-with-suffix
     // accessors mirror getInterfaceArrayElem so a caller holding
     // "Types.Atom" still finds an interface registered as "Atom".
-    void registerNativeCStruct(const std::string& ifaceName,
-                               std::string tag,
-                               std::vector<std::string> fieldNames,
-                               std::vector<CType>       fieldTypes) {
+    void registerNativeCStruct(
+        const std::string& ifaceName,
+        std::string tag,
+        std::vector<std::string> fieldNames,
+        std::vector<CType> fieldTypes
+    ) {
         NativeCStruct s;
-        s.tag        = std::move(tag);
+        s.tag = std::move(tag);
         s.fieldNames = std::move(fieldNames);
         s.fieldTypes = std::move(fieldTypes);
         nativeCStructs[ifaceName] = std::move(s);
@@ -612,12 +707,14 @@ public:
             auto it = nativeCStructs.find(k);
             return it == nativeCStructs.end() ? nullptr : &it->second;
         };
-        if (const auto* r = probe(ifaceName)) return r;
+        if (const auto* r = probe(ifaceName))
+            return r;
         std::string tmp = ifaceName;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
             tmp = tmp.substr(dot + 1);
-            if (const auto* r = probe(tmp)) return r;
+            if (const auto* r = probe(tmp))
+                return r;
         }
         return nullptr;
     }
@@ -638,12 +735,14 @@ public:
         auto probe = [&](const std::string& k) {
             return cEligibleInterfaces.count(k) > 0;
         };
-        if (probe(ifaceName)) return true;
+        if (probe(ifaceName))
+            return true;
         std::string tmp = ifaceName;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
             tmp = tmp.substr(dot + 1);
-            if (probe(tmp)) return true;
+            if (probe(tmp))
+                return true;
         }
         return false;
     }
@@ -653,8 +752,9 @@ public:
     // spelling the caller might query with. Mirrors registerInterfaceArrayField
     // and registerInterfacePrimitiveField's multi-spelling registration.
     void registerInterfaceStructLayout(
-            const std::string& iface,
-            std::vector<StructFieldDesc> fields) {
+        const std::string& iface,
+        std::vector<StructFieldDesc> fields
+    ) {
         interfaceStructLayout[iface] = std::move(fields);
     }
 
@@ -663,17 +763,19 @@ public:
     // boxed path rather than throw.
     const std::vector<StructFieldDesc>*
     getInterfaceStructLayout(const std::string& iface) const {
-        auto probe = [&](const std::string& k)
-                -> const std::vector<StructFieldDesc>* {
+        auto probe =
+            [&](const std::string& k) -> const std::vector<StructFieldDesc>* {
             auto it = interfaceStructLayout.find(k);
             return it == interfaceStructLayout.end() ? nullptr : &it->second;
         };
-        if (const auto* r = probe(iface)) return r;
+        if (const auto* r = probe(iface))
+            return r;
         std::string tmp = iface;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
             tmp = tmp.substr(dot + 1);
-            if (const auto* r = probe(tmp)) return r;
+            if (const auto* r = probe(tmp))
+                return r;
         }
         return nullptr;
     }
@@ -695,14 +797,18 @@ public:
     // AST class. Callers that hold an AST node must first extract the
     // variable's original name and pass it in. See
     // `native_dispatch.cpp::nodeInterfaceName` for that unwrapping step.
-    std::string lookupStructInterfaceName(const std::string& originalName) const {
-        if (originalName.empty()) return "";
+    std::string
+    lookupStructInterfaceName(const std::string& originalName) const {
+        if (originalName.empty())
+            return "";
         std::string prefix = getActiveFunctionPrefix();
         std::string lookupKey = prefix.empty()
-            ? ("v_" + originalName)
-            : ("v_" + prefix + "_" + originalName);
-        if (const std::string* t = lookupLocalStructType(lookupKey)) return *t;
-        if (const std::string* t = lookupGlobalStructType("v_" + originalName)) return *t;
+                                    ? ("v_" + originalName)
+                                    : ("v_" + prefix + "_" + originalName);
+        if (const std::string* t = lookupLocalStructType(lookupKey))
+            return *t;
+        if (const std::string* t = lookupGlobalStructType("v_" + originalName))
+            return *t;
         return "";
     }
 
@@ -718,18 +824,27 @@ public:
         return it == globalStructTypes.end() ? nullptr : &it->second;
     }
 
-    void setCurrentInterfaceType(const std::string& t) { currentInterfaceType = t; }
-    const std::string& getCurrentInterfaceType() const { return currentInterfaceType; }
+    void setCurrentInterfaceType(const std::string& t) {
+        currentInterfaceType = t;
+    }
+    const std::string& getCurrentInterfaceType() const {
+        return currentInterfaceType;
+    }
 
     const FieldCacheEntry* getFieldCache(const std::string& key) const {
         auto it = fieldCache.find(key);
         return it == fieldCache.end() ? nullptr : &it->second;
     }
-    void setFieldCache(const std::string& key, const std::string& temp,
-                       const CType& ct) {
-        fieldCache[key] = { temp, ct };
+    void setFieldCache(
+        const std::string& key,
+        const std::string& temp,
+        const CType& ct
+    ) {
+        fieldCache[key] = {temp, ct};
     }
-    void clearFieldCache() { fieldCache.clear(); }
+    void clearFieldCache() {
+        fieldCache.clear();
+    }
 
     // --- M2: monomorphization cache -------------------------------------
     // Cache-hit lookup. Callers compute the fully-qualified instantiation
@@ -741,8 +856,10 @@ public:
     }
     // Mark a name as in-progress so recursive instantiations terminate.
     bool beginInstantiation(const std::string& key) {
-        if (instantiations.count(key)) return false;
-        if (instantiationsInProgress.count(key)) return false;
+        if (instantiations.count(key))
+            return false;
+        if (instantiationsInProgress.count(key))
+            return false;
         instantiationsInProgress.insert(key);
         return true;
     }
@@ -752,39 +869,70 @@ public:
     }
 
     // --- Native module lookup -------------------------------------------
-    const NativeMapEntry* findNative(const std::string& module,
-                                     const std::string& member) const {
+    const NativeMapEntry*
+    findNative(const std::string& module, const std::string& member) const {
         if (module == "vcore")
-            for (const auto& m : VCORE_MAP) if (member == m.vyneName) return &m;
+            for (const auto& m : VCORE_MAP)
+                if (member == m.vyneName)
+                    return &m;
         if (module == "vmath")
-            for (const auto& m : VMATH_MAP) if (member == m.vyneName) return &m;
-        if (module == "vmem")                                       
-            for (const auto& m : VMEM_MAP)  if (member == m.vyneName) return &m;
+            for (const auto& m : VMATH_MAP)
+                if (member == m.vyneName)
+                    return &m;
+        if (module == "vmem")
+            for (const auto& m : VMEM_MAP)
+                if (member == m.vyneName)
+                    return &m;
         if (module == "vfs")
-            for (const auto& m : VFS_MAP)   if (member == m.vyneName) return &m;
+            for (const auto& m : VFS_MAP)
+                if (member == m.vyneName)
+                    return &m;
         return nullptr;
     }
-    std::string getNativeMapping(const std::string& module,
-                                 const std::string& member,
-                                 bool asFunctionCall) {
+    std::string getNativeMapping(
+        const std::string& module,
+        const std::string& member,
+        bool asFunctionCall
+    ) {
         const NativeMapEntry* e = findNative(module, member);
-        if (!e) return "v_" + module + "_" + member;
-        if (e->isProperty) return e->cName;
+        if (!e)
+            return "v_" + module + "_" + member;
+        if (e->isProperty)
+            return e->cName;
         return asFunctionCall ? e->cName : std::string(e->cName) + "()";
     }
 
     // --- Interface / group registry -------------------------------------
-    void registerInterface(const std::string& name) { interfaceSet.insert(name); }
-    void registerGroup(const std::string& name)     { groupSet.insert(name); }
-    bool isInterface(const std::string& name) const { return interfaceSet.count(name) > 0; }
-    bool isGroup(const std::string& name) const     { return groupSet.count(name) > 0; }
-
-    void registerFunctionSignature(const std::string& name,
-                                   std::vector<std::string> params) {
+    void registerInterface(const std::string& name) {
+        interfaceSet.insert(name);
+    }
+    void
+    registerInterfaceCtor(const std::string& name, const std::string& suffix) {
+        interfaceCtorNames[name] = suffix;
+    }
+    const std::string* getInterfaceCtor(const std::string& name) const {
+        auto it = interfaceCtorNames.find(name);
+        return it == interfaceCtorNames.end() ? nullptr : &it->second;
+    }
+    void registerGroup(const std::string& name) {
+        groupSet.insert(name);
+    }
+    bool isInterface(const std::string& name) const {
+        return interfaceSet.count(name) > 0;
+    }
+    bool isGroup(const std::string& name) const {
+        return groupSet.count(name) > 0;
+    }
+    void registerFunctionSignature(
+        const std::string& name,
+        std::vector<std::string> params
+    ) {
         functionSignatures[name] = std::move(params);
     }
-    void registerFunctionParamTypes(const std::string& name,
-                                std::vector<CType> types) {
+    void registerFunctionParamTypes(
+        const std::string& name,
+        std::vector<CType> types
+    ) {
         functionParamTypes[name] = std::move(types);
     }
     void registerFunctionReturnType(const std::string& name, const CType& ct) {
@@ -802,23 +950,33 @@ public:
     getAllFunctionReturnTypes() const {
         return functionReturnTypes;
     }
-    const std::vector<CType>* getFunctionParamTypes(const std::string& name) const {
+    const std::vector<CType>*
+    getFunctionParamTypes(const std::string& name) const {
         auto it = functionParamTypes.find(name);
         return it == functionParamTypes.end() ? nullptr : &it->second;
     }
 
-    void registerNativeVariant(const std::string& boxedMangled,
-                            const std::string& nativeMangled) {
+    void registerNativeVariant(
+        const std::string& boxedMangled,
+        const std::string& nativeMangled
+    ) {
         nativeVariants[boxedMangled] = nativeMangled;
     }
-    const std::string* lookupNativeVariant(const std::string& boxedMangled) const {
+    const std::string*
+    lookupNativeVariant(const std::string& boxedMangled) const {
         auto it = nativeVariants.find(boxedMangled);
         return it == nativeVariants.end() ? nullptr : &it->second;
     }
 
-    void setNativeReturnType(const CType& ct) { nativeReturnType = ct; }
-    void clearNativeReturnType() { nativeReturnType = CType{}; }
-    const CType& getNativeReturnType() const { return nativeReturnType; }
+    void setNativeReturnType(const CType& ct) {
+        nativeReturnType = ct;
+    }
+    void clearNativeReturnType() {
+        nativeReturnType = CType{};
+    }
+    const CType& getNativeReturnType() const {
+        return nativeReturnType;
+    }
 
     void setCurrentFunctionReturnType(const CType& ct) {
         currentFunctionReturnType_ = ct;
@@ -836,38 +994,70 @@ public:
     const std::vector<std::string>& getStructReturnOutParams() const {
         return structReturnOutParams;
     }
-    const std::vector<std::string>* getFunctionSignature(const std::string& name) const {
+    const std::vector<std::string>*
+    getFunctionSignature(const std::string& name) const {
         auto it = functionSignatures.find(name);
         return it == functionSignatures.end() ? nullptr : &it->second;
     }
 
-    void setGroupPrefix(const std::string& p) { groupPrefix = p; }
-    void clearGroupPrefix() { groupPrefix.clear(); }
-    const std::string& getGroupPrefix() const { return groupPrefix; }
+    void setGroupPrefix(const std::string& p) {
+        groupPrefix = p;
+    }
+    void clearGroupPrefix() {
+        groupPrefix.clear();
+    }
+    const std::string& getGroupPrefix() const {
+        return groupPrefix;
+    }
 
-    void setScratchBoundsEnabled(bool v) { scratchBoundsEnabled = v; }
-    bool isScratchBoundsEnabled() const { return scratchBoundsEnabled; }
+    void setScratchBoundsEnabled(bool v) {
+        scratchBoundsEnabled = v;
+    }
+    bool isScratchBoundsEnabled() const {
+        return scratchBoundsEnabled;
+    }
 
-    void registerInterfaceDefaults(const std::string& name,
-                                   std::vector<std::string> defaults) {
+    void registerInterfaceDefaults(
+        const std::string& name,
+        std::vector<std::string> defaults
+    ) {
         interfaceDefaults[name] = std::move(defaults);
     }
-    const std::vector<std::string>* getInterfaceDefaults(const std::string& name) const {
+    const std::vector<std::string>*
+    getInterfaceDefaults(const std::string& name) const {
         auto it = interfaceDefaults.find(name);
         return it == interfaceDefaults.end() ? nullptr : &it->second;
     }
 
     // --- Try / defer context --------------------------------------------
-    void pushTryCleanup(const std::string& label) { tryCleanupStack.push_back(label); }
-    void popTryCleanup() { if (!tryCleanupStack.empty()) tryCleanupStack.pop_back(); }
-    bool hasTryCleanup() const { return !tryCleanupStack.empty(); }
-    const std::string& currentTryCleanup() const { return tryCleanupStack.back(); }
+    void pushTryCleanup(const std::string& label) {
+        tryCleanupStack.push_back(label);
+    }
+    void popTryCleanup() {
+        if (!tryCleanupStack.empty())
+            tryCleanupStack.pop_back();
+    }
+    bool hasTryCleanup() const {
+        return !tryCleanupStack.empty();
+    }
+    const std::string& currentTryCleanup() const {
+        return tryCleanupStack.back();
+    }
 
     // --- Region emitters --------------------------------------------
-    void pushRegion(const std::string& cpHandle) { regionStack.push_back(cpHandle); }
-    void popRegion() { if (!regionStack.empty()) regionStack.pop_back(); }
-    bool hasRegion() const { return !regionStack.empty(); }
-    const std::vector<std::string>& getRegionStack() const { return regionStack; }
+    void pushRegion(const std::string& cpHandle) {
+        regionStack.push_back(cpHandle);
+    }
+    void popRegion() {
+        if (!regionStack.empty())
+            regionStack.pop_back();
+    }
+    bool hasRegion() const {
+        return !regionStack.empty();
+    }
+    const std::vector<std::string>& getRegionStack() const {
+        return regionStack;
+    }
 
     // Emit rewind calls for every live region, innermost first.
     // Used by BreakNode / ContinueNode / ReturnNode before the transfer.
@@ -882,40 +1072,80 @@ public:
     // region; the pool struct's arena chunk sits above the checkpoint
     // so the rewind reclaims it. Early returns/breaks/continues rewind
     // through the same emitRegionUnwind() path as bump regions.
-    void pushPool(const PoolContext& p) { poolStack.push_back(p); }
-    void popPool()  { if (!poolStack.empty()) poolStack.pop_back(); }
-    bool hasPool() const { return !poolStack.empty(); }
-    const PoolContext& currentPool() const { return poolStack.back(); }
+    void pushPool(const PoolContext& p) {
+        poolStack.push_back(p);
+    }
+    void popPool() {
+        if (!poolStack.empty())
+            poolStack.pop_back();
+    }
+    bool hasPool() const {
+        return !poolStack.empty();
+    }
+    const PoolContext& currentPool() const {
+        return poolStack.back();
+    }
 
     // Idempotent include emit for vyne_pool_runtime.h — set on the
     // first @pool region, no-op thereafter.
-    bool isPoolRuntimeEmitted() const { return poolRuntimeEmitted; }
-    void markPoolRuntimeEmitted()      { poolRuntimeEmitted = true; }
+    bool isPoolRuntimeEmitted() const {
+        return poolRuntimeEmitted;
+    }
+    void markPoolRuntimeEmitted() {
+        poolRuntimeEmitted = true;
+    }
 
     // --- Speculative context -----------------------------------------
     // Pushed by compileSpeculativeRegion, read by RegionCommitIfNode.
     // A speculative region still goes on regionStack; the speculative
     // stack only carries the commit flag's C name.
-    void pushSpeculative(const SpeculativeContext& s) { speculativeStack.push_back(s); }
-    void popSpeculative() { if (!speculativeStack.empty()) speculativeStack.pop_back(); }
-    bool hasSpeculative() const { return !speculativeStack.empty(); }
-    const SpeculativeContext& currentSpeculative() const { return speculativeStack.back(); }
+    void pushSpeculative(const SpeculativeContext& s) {
+        speculativeStack.push_back(s);
+    }
+    void popSpeculative() {
+        if (!speculativeStack.empty())
+            speculativeStack.pop_back();
+    }
+    bool hasSpeculative() const {
+        return !speculativeStack.empty();
+    }
+    const SpeculativeContext& currentSpeculative() const {
+        return speculativeStack.back();
+    }
 
     void setReturnVars(const std::string& rv, const std::string& rf) {
-        currentReturnVar = rv; currentReturningVar = rf;
+        currentReturnVar = rv;
+        currentReturningVar = rf;
     }
-    void clearReturnVars() { currentReturnVar.clear(); currentReturningVar.clear(); }
-    bool hasReturnVars() const { return !currentReturnVar.empty(); }
-    const std::string& getReturnVar() const { return currentReturnVar; }
-    const std::string& getReturningVar() const { return currentReturningVar; }
+    void clearReturnVars() {
+        currentReturnVar.clear();
+        currentReturningVar.clear();
+    }
+    bool hasReturnVars() const {
+        return !currentReturnVar.empty();
+    }
+    const std::string& getReturnVar() const {
+        return currentReturnVar;
+    }
+    const std::string& getReturningVar() const {
+        return currentReturningVar;
+    }
 
     void pushDeferContext(const std::string& label, const std::string& retVar) {
         deferCtx = {label, retVar, true};
     }
-    void popDeferContext() { deferCtx = {"", "", false}; }
-    bool hasDeferContext() const { return deferCtx.active; }
-    const std::string& getDeferCleanupLabel() const { return deferCtx.cleanupLabel; }
-    const std::string& getDeferRetVar() const { return deferCtx.retVar; }
+    void popDeferContext() {
+        deferCtx = {"", "", false};
+    }
+    bool hasDeferContext() const {
+        return deferCtx.active;
+    }
+    const std::string& getDeferCleanupLabel() const {
+        return deferCtx.cleanupLabel;
+    }
+    const std::string& getDeferRetVar() const {
+        return deferCtx.retVar;
+    }
 
     // --- Output assembly -------------------------------------------------
     std::string finalize(const std::string& runtimeHeader = "vyne_runtime.h") {
@@ -928,10 +1158,12 @@ public:
         out << "\n";
 
         std::string globals = globalsStream.str();
-        if (!globals.empty()) out << "// --- Globals ---\n" << globals << "\n";
+        if (!globals.empty())
+            out << "// --- Globals ---\n" << globals << "\n";
 
         std::string funcs = functionStream.str();
-        if (!funcs.empty()) out << "// --- Functions ---\n" << funcs << "\n";
+        if (!funcs.empty())
+            out << "// --- Functions ---\n" << funcs << "\n";
 
         out << "int main(void) {\n";
         out << mainStream.str();
@@ -941,8 +1173,12 @@ public:
         return out.str();
     }
 
-    std::string getFunctionCode() { return functionStream.str(); }
-    std::string getBodyCode()     { return mainStream.str(); }
+    std::string getFunctionCode() {
+        return functionStream.str();
+    }
+    std::string getBodyCode() {
+        return mainStream.str();
+    }
     std::string getIncludes() {
         std::string res;
         for (const auto& inc : includeSet)
@@ -952,9 +1188,12 @@ public:
 
     // --- Full reset (between programs) ----------------------------------
     void reset() {
-        globalsStream.str("");  globalsStream.clear();
-        functionStream.str(""); functionStream.clear();
-        mainStream.str("");     mainStream.clear();
+        globalsStream.str("");
+        globalsStream.clear();
+        functionStream.str("");
+        functionStream.clear();
+        mainStream.str("");
+        mainStream.clear();
         includeSet.clear();
         systemIncludes.clear();
         interfaceDefaults.clear();
@@ -973,13 +1212,13 @@ public:
         moduleInterfaces.clear();
         tryCleanupStack.clear();
         deferCtx = {};
-        regionStack.clear(); 
+        regionStack.clear();
         committedVars.clear();
         poolStack.clear();
         speculativeStack.clear();
-        poolRuntimeEmitted   = false;
+        poolRuntimeEmitted = false;
         scratchBoundsEnabled = true;
-        blasEnabled          = false;
+        blasEnabled = false;
         currentReturnVar.clear();
         currentReturningVar.clear();
         localScopes.clear();
@@ -1008,7 +1247,7 @@ public:
         instantiationsInProgress.clear();
 
         tempVarCount = 0;
-        indentLevel  = 1;
+        indentLevel = 1;
     }
 };
 
