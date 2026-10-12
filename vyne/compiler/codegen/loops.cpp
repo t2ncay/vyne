@@ -28,19 +28,21 @@
 //   - native Int64 local → used directly
 //   - native Float64     → truncated
 //   - boxed VyneValue    → runtime-coerced exactly like the old path
-static std::string int64Bound(C_Emitter& e, const ASTNode* node,
-                              const std::string& expr) {
+static std::string
+int64Bound(C_Emitter& e, const ASTNode* node, const std::string& expr) {
     if (node && node->type() == NodeType::NUMBER) {
         auto* num = static_cast<const NumberNode*>(node);
         if (num->getStaticType() == VType::Int64)
             return num->nativeLiteral();
     }
     if (const CType* ct = e.exprNativeType(expr)) {
-        if (ct->kind == CType::Kind::Int64) return expr;
-        if (ct->kind == CType::Kind::Float64) return "(int64_t)(" + expr + ")";
+        if (ct->kind == CType::Kind::Int64)
+            return expr;
+        if (ct->kind == CType::Kind::Float64)
+            return "(int64_t)(" + expr + ")";
     }
-    return "((" + expr + ".type == V_INT64) ? " + expr +
-           ".as.i64 : (int64_t)" + expr + ".as.f64)";
+    return "((" + expr + ".type == V_INT64) ? " + expr + ".as.i64 : (int64_t)" +
+           expr + ".as.f64)";
 }
 
 void ForNode::compile(C_Emitter& e) const {
@@ -49,22 +51,27 @@ void ForNode::compile(C_Emitter& e) const {
     // -----------------------------------------------------------------
     if (iterable->type() == NodeType::RANGE) {
         auto* rng = static_cast<RangeNode*>(iterable.get());
-        std::string lo  = rng->getLeft()->getCExpr(e);
-        std::string hi  = rng->getRight()->getCExpr(e);
+        std::string lo = rng->getLeft()->getCExpr(e);
+        std::string hi = rng->getRight()->getCExpr(e);
         std::string loT = e.newTemp("lo_i");
         std::string hiT = e.newTemp("hi_i");
-        std::string iv  = e.newTemp("i");
+        std::string iv = e.newTemp("i");
         std::string elemVar = "v_" + iteratorName;
 
-        e.emit("int64_t " + loT + " = " +
-               int64Bound(e, rng->getLeft(), lo) + ";");
-        e.emit("int64_t " + hiT + " = " +
-               int64Bound(e, rng->getRight(), hi) + ";");
-        e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
-                        " <= " + hiT + "; ++" + iv + ") {");
+        e.emit(
+            "int64_t " + loT + " = " + int64Bound(e, rng->getLeft(), lo) + ";"
+        );
+        e.emit(
+            "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
+        );
+        e.emitBlockOpen(
+            "for (int64_t " + iv + " = " + loT + "; " + iv + " <= " + hiT +
+            "; ++" + iv + ") {"
+        );
         e.declareLocal(elemVar, CType::fromVType(VType::Int64));
         e.emit("int64_t " + elemVar + " = " + iv + ";");
-        if (body) body->compile(e);
+        if (body)
+            body->compile(e);
         e.emitBlockClose();
         return;
     }
@@ -79,12 +86,17 @@ void ForNode::compile(C_Emitter& e) const {
             std::string iv = e.newTemp("i");
             std::string elemVar = "v_" + iteratorName;
 
-            e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv + " < " +
-                            collection + ".size; ++" + iv + ") {");
+            e.emitBlockOpen(
+                "for (int64_t " + iv + " = 0; " + iv + " < " + collection +
+                ".size; ++" + iv + ") {"
+            );
             e.declareLocal(elemVar, elemType);
-            e.emit(elemType.cTypeName() + " " + elemVar + " = " +
-                   collection + ".data[" + iv + "];");
-            if (body) body->compile(e);
+            e.emit(
+                elemType.cTypeName() + " " + elemVar + " = " + collection +
+                ".data[" + iv + "];"
+            );
+            if (body)
+                body->compile(e);
             e.emitBlockClose();
             return;
         }
@@ -99,11 +111,16 @@ void ForNode::compile(C_Emitter& e) const {
 
     e.emitBlockOpen("if (" + collection + ".type == V_ARRAY) {");
     e.emit("int64_t " + sizeTemp + " = " + collection + ".as.arr->size;");
-    e.emitBlockOpen("for (int64_t " + iTemp + " = 0; " +
-                    iTemp + " < " + sizeTemp + "; " + iTemp + "++) {");
-    e.emit("VyneValue " + elemVar + " = vyne_array_get(" +
-           collection + ", vyne_int(" + iTemp + "));");
-    if (body) body->compile(e);
+    e.emitBlockOpen(
+        "for (int64_t " + iTemp + " = 0; " + iTemp + " < " + sizeTemp + "; " +
+        iTemp + "++) {"
+    );
+    e.emit(
+        "VyneValue " + elemVar + " = vyne_array_get(" + collection +
+        ", vyne_int(" + iTemp + "));"
+    );
+    if (body)
+        body->compile(e);
     e.emitBlockClose();
     e.emitBlockClose();
 }
@@ -124,29 +141,33 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
     // -----------------------------------------------------------------
     if (iterable->type() == NodeType::RANGE) {
         auto* rng = static_cast<RangeNode*>(iterable.get());
-        std::string lo  = rng->getLeft()->getCExpr(e);
-        std::string hi  = rng->getRight()->getCExpr(e);
+        std::string lo = rng->getLeft()->getCExpr(e);
+        std::string hi = rng->getRight()->getCExpr(e);
         std::string loT = e.newTemp("lo_i");
         std::string hiT = e.newTemp("hi_i");
-        std::string iv  = e.newTemp("i");
+        std::string iv = e.newTemp("i");
         std::string elemVar = "v_" + iteratorName;
 
-        e.emit("int64_t " + loT + " = " +
-               int64Bound(e, rng->getLeft(), lo) + ";");
-        e.emit("int64_t " + hiT + " = " +
-               int64Bound(e, rng->getRight(), hi) + ";");
+        e.emit(
+            "int64_t " + loT + " = " + int64Bound(e, rng->getLeft(), lo) + ";"
+        );
+        e.emit(
+            "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
+        );
 
         // --- EVERY mode ---
         if (mode == ForMode::EVERY) {
             std::string everyTemp = e.newTemp("every");
-            std::string resTemp   = e.newTemp("every_res");
+            std::string resTemp = e.newTemp("every_res");
             e.emit("bool " + everyTemp + " = true;");
-            e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
-                            " <= " + hiT + "; ++" + iv + ") {");
+            e.emitBlockOpen(
+                "for (int64_t " + iv + " = " + loT + "; " + iv + " <= " + hiT +
+                "; ++" + iv + ") {"
+            );
             e.declareLocal(elemVar, CType::fromVType(VType::Int64));
             e.emit("int64_t " + elemVar + " = " + iv + ";");
-            std::string cond = e.boxAny(body->getCExpr(e));
-            e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+            std::string cond = emitNativeCondition(e, body.get());
+            e.emitBlockOpen("if (!(" + cond + ")) {");
             e.emit(everyTemp + " = false;");
             e.emit("break;");
             e.emitBlockClose();
@@ -158,41 +179,48 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         // --- COLLECT / FILTER / UNIQUE ---
         std::string listTemp = e.newTemp("res");
         e.emit("VyneValue " + listTemp + " = vyne_array_create(0);");
-        e.emitBlockOpen("for (int64_t " + iv + " = " + loT + "; " + iv +
-                        " <= " + hiT + "; ++" + iv + ") {");
+        e.emitBlockOpen(
+            "for (int64_t " + iv + " = " + loT + "; " + iv + " <= " + hiT +
+            "; ++" + iv + ") {"
+        );
         e.declareLocal(elemVar, CType::fromVType(VType::Int64));
         e.emit("int64_t " + elemVar + " = " + iv + ";");
 
         switch (mode) {
-            case ForMode::COLLECT: {
-                std::string tmp = e.newTemp("coll");
-                e.emit("VyneValue " + tmp + " = vyne_null();");
-                if (body) {
-                    std::string result = e.boxAny(body->getCExpr(e));
-                    e.emit(tmp + " = " + result + ";");
-                }
-                e.emit("vyne_array_push(" + listTemp + ", " + tmp + ");");
-                break;
+        case ForMode::COLLECT: {
+            std::string tmp = e.newTemp("coll");
+            e.emit("VyneValue " + tmp + " = vyne_null();");
+            if (body) {
+                std::string result = e.boxAny(body->getCExpr(e));
+                e.emit(tmp + " = " + result + ";");
             }
-            case ForMode::FILTER: {
-                std::string cond = e.boxAny(body->getCExpr(e));
-                e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
-                e.emit("vyne_array_push(" + listTemp + ", " +
-                       e.boxAny(elemVar) + ");");
-                e.emitBlockClose();
-                break;
-            }
-            case ForMode::UNIQUE: {
-                std::string dupCheck = e.newTemp("seen");
-                e.emit("bool " + dupCheck + " = vyne_array_contains(" +
-                       listTemp + ", " + e.boxAny(elemVar) + ");");
-                e.emitBlockOpen("if (!" + dupCheck + ") {");
-                e.emit("vyne_array_push(" + listTemp + ", " +
-                       e.boxAny(elemVar) + ");");
-                e.emitBlockClose();
-                break;
-            }
-            default: break;
+            e.emit("vyne_array_push(" + listTemp + ", " + tmp + ");");
+            break;
+        }
+        case ForMode::FILTER: {
+            std::string cond = e.boxAny(body->getCExpr(e));
+            e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+            e.emit(
+                "vyne_array_push(" + listTemp + ", " + e.boxAny(elemVar) + ");"
+            );
+            e.emitBlockClose();
+            break;
+        }
+        case ForMode::UNIQUE: {
+            std::string dupCheck = e.newTemp("seen");
+            e.emit(
+                "bool " + dupCheck + " = vyne_array_contains(" + listTemp +
+                ", " + e.boxAny(elemVar) + ");"
+            );
+            e.emitBlockOpen("if (!" + dupCheck + ") {");
+            e.emit(
+                "vyne_array_push(" + listTemp + ", " + e.boxAny(elemVar) + ");"
+            );
+            e.emitBlockClose();
+            break;
+        }
+        default:
+            break;
         }
 
         e.emitBlockClose();
@@ -209,24 +237,33 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
 
             if (mode == ForMode::COLLECT && bodyType == elem) {
                 std::string outName = e.newTemp("cfld");
-                std::string ctor    = (elem == VType::Float64)
-                    ? "vyne_array_f64_create" : "vyne_array_i64_create";
-                std::string pushFn  = (elem == VType::Float64)
-                    ? "vyne_array_f64_push"   : "vyne_array_i64_push";
+                std::string ctor = (elem == VType::Float64)
+                                       ? "vyne_array_f64_create"
+                                       : "vyne_array_i64_create";
+                std::string pushFn = (elem == VType::Float64)
+                                         ? "vyne_array_f64_push"
+                                         : "vyne_array_i64_push";
 
-                e.emit(CType::arrayContainerName(elem) + " " + outName + " = " +
-                       ctor + "(" + rawCollection + ".size);");
+                e.emit(
+                    CType::arrayContainerName(elem) + " " + outName + " = " +
+                    ctor + "(" + rawCollection + ".size);"
+                );
                 e.emit(outName + ".size = 0;");
 
                 std::string iv = e.newTemp("i");
-                e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv +
-                                " < " + rawCollection + ".size; ++" + iv + ") {");
+                e.emitBlockOpen(
+                    "for (int64_t " + iv + " = 0; " + iv + " < " +
+                    rawCollection + ".size; ++" + iv + ") {"
+                );
                 std::string elemVar = "v_" + iteratorName;
                 e.declareLocal(elemVar, elemType);
-                e.emit(elemType.cTypeName() + " " + elemVar + " = " +
-                       rawCollection + ".data[" + iv + "];");
+                e.emit(
+                    elemType.cTypeName() + " " + elemVar + " = " +
+                    rawCollection + ".data[" + iv + "];"
+                );
                 std::string rawExpr = body->getCExpr(e);
-                std::string native  = coerceToNative(e, body.get(), rawExpr, elem);
+                std::string native =
+                    coerceToNative(e, body.get(), rawExpr, elem);
                 e.emit(pushFn + "(&" + outName + ", " + native + ");");
                 e.emitBlockClose();
 
@@ -239,19 +276,22 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
 
             if (mode == ForMode::EVERY) {
                 std::string every = e.newTemp("every");
-                std::string res   = e.newTemp("every_res");
+                std::string res = e.newTemp("every_res");
                 e.emit("bool " + every + " = true;");
 
                 std::string iv = e.newTemp("i");
-                e.emitBlockOpen("for (int64_t " + iv + " = 0; " + iv +
-                                " < " + rawCollection + ".size; ++" + iv + ") {");
+                e.emitBlockOpen(
+                    "for (int64_t " + iv + " = 0; " + iv + " < " +
+                    rawCollection + ".size; ++" + iv + ") {"
+                );
                 std::string elemVar = "v_" + iteratorName;
                 e.declareLocal(elemVar, elemType);
-                e.emit(elemType.cTypeName() + " " + elemVar + " = " +
-                       rawCollection + ".data[" + iv + "];");
-                std::string rawExpr = body->getCExpr(e);
-                std::string cond    = e.boxAny(rawExpr);
-                e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+                e.emit(
+                    elemType.cTypeName() + " " + elemVar + " = " +
+                    rawCollection + ".data[" + iv + "];"
+                );
+                std::string cond = emitNativeCondition(e, body.get());
+                e.emitBlockOpen("if (!(" + cond + ")) {");
                 e.emit(every + " = false;");
                 e.emit("break;");
                 e.emitBlockClose();
@@ -262,7 +302,7 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         }
     }
 
-        // --- Boxed fallback -----------------------------------------------
+    // --- Boxed fallback -----------------------------------------------
     // The previous version emitted `if (collection.type == V_ARRAY) {`
     // as a guard. For an `Array<Float64>` or `Array<Int64>` the boxed
     // wrapper is V_F64_ARRAY / V_I64_ARRAY, so the guard was false, the
@@ -271,8 +311,7 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
     // and use _vyne_array_size, which handles all three representations.
     std::string rawCollection = iterable->getCExpr(e);
     std::string collection = e.newTemp("coll");
-    e.emit("VyneValue " + collection + " = " +
-           e.boxAny(rawCollection) + ";");
+    e.emit("VyneValue " + collection + " = " + e.boxAny(rawCollection) + ";");
     std::string iTemp = e.newTemp("i");
     std::string sizeTemp = e.newTemp("sz");
     std::string elemVar = "v_" + iteratorName;
@@ -282,13 +321,19 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         std::string everyTemp = e.newTemp("every");
         std::string resTemp = e.newTemp("every_res");
         e.emit("bool " + everyTemp + " = true;");
-        e.emit("int64_t " + sizeTemp + " = _vyne_array_size(" + collection + ");");
-        e.emitBlockOpen("for (int64_t " + iTemp + " = 0; " +
-                        iTemp + " < " + sizeTemp + "; " + iTemp + "++) {");
-        e.emit("VyneValue " + elemVar + " = vyne_array_get(" +
-               collection + ", vyne_int(" + iTemp + "));");
-        std::string cond = e.boxAny(body->getCExpr(e));
-        e.emitBlockOpen("if (!vyne_is_truthy(" + cond + ")) {");
+        e.emit(
+            "int64_t " + sizeTemp + " = _vyne_array_size(" + collection + ");"
+        );
+        e.emitBlockOpen(
+            "for (int64_t " + iTemp + " = 0; " + iTemp + " < " + sizeTemp +
+            "; " + iTemp + "++) {"
+        );
+        e.emit(
+            "VyneValue " + elemVar + " = vyne_array_get(" + collection +
+            ", vyne_int(" + iTemp + "));"
+        );
+        std::string cond = emitNativeCondition(e, body.get());
+        e.emitBlockOpen("if (!(" + cond + ")) {");
         e.emit(everyTemp + " = false;");
         e.emit("break;");
         e.emitBlockClose();
@@ -301,47 +346,51 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
     std::string listTemp = e.newTemp("res");
     e.emit("VyneValue " + listTemp + " = vyne_array_create(0);");
     e.emit("int64_t " + sizeTemp + " = _vyne_array_size(" + collection + ");");
-    e.emitBlockOpen("for (int64_t " + iTemp + " = 0; " +
-                    iTemp + " < " + sizeTemp + "; " + iTemp + "++) {");
-    e.emit("VyneValue " + elemVar + " = vyne_array_get(" +
-           collection + ", vyne_int(" + iTemp + "));");
+    e.emitBlockOpen(
+        "for (int64_t " + iTemp + " = 0; " + iTemp + " < " + sizeTemp + "; " +
+        iTemp + "++) {"
+    );
+    e.emit(
+        "VyneValue " + elemVar + " = vyne_array_get(" + collection +
+        ", vyne_int(" + iTemp + "));"
+    );
 
     switch (mode) {
-        case ForMode::COLLECT: {
-            // Explicit temp pattern: `tmp = null; tmp = <body>; push(tmp);`.
-            // Guarantees a value on every path even when the body is an
-            // if/else whose branches produce different expressions.
-            std::string tmp = e.newTemp("coll");
-            e.emit("VyneValue " + tmp + " = vyne_null();");
-            if (body) {
-                std::string result = e.boxAny(body->getCExpr(e));
-                e.emit(tmp + " = " + result + ";");
-            }
-            e.emit("vyne_array_push(" + listTemp + ", " + tmp + ");");
-            break;
+    case ForMode::COLLECT: {
+        // Explicit temp pattern: `tmp = null; tmp = <body>; push(tmp);`.
+        // Guarantees a value on every path even when the body is an
+        // if/else whose branches produce different expressions.
+        std::string tmp = e.newTemp("coll");
+        e.emit("VyneValue " + tmp + " = vyne_null();");
+        if (body) {
+            std::string result = e.boxAny(body->getCExpr(e));
+            e.emit(tmp + " = " + result + ";");
         }
-        case ForMode::FILTER: {
-            std::string cond = e.boxAny(body->getCExpr(e));
-            e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
-            e.emit("vyne_array_push(" + listTemp + ", " +
-                   e.boxAny(elemVar) + ");");
-            e.emitBlockClose();
-            break;
-        }
-        case ForMode::UNIQUE: {
-            std::string dupCheck = e.newTemp("seen");
-            e.emit("bool " + dupCheck + " = vyne_array_contains(" +
-                   listTemp + ", " + e.boxAny(elemVar) + ");");
-            e.emitBlockOpen("if (!" + dupCheck + ") {");
-            e.emit("vyne_array_push(" + listTemp + ", " +
-                   e.boxAny(elemVar) + ");");
-            e.emitBlockClose();
-            break;
-        }
-        default: break;
+        e.emit("vyne_array_push(" + listTemp + ", " + tmp + ");");
+        break;
+    }
+    case ForMode::FILTER: {
+        std::string cond = e.boxAny(body->getCExpr(e));
+        e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+        e.emit("vyne_array_push(" + listTemp + ", " + e.boxAny(elemVar) + ");");
+        e.emitBlockClose();
+        break;
+    }
+    case ForMode::UNIQUE: {
+        std::string dupCheck = e.newTemp("seen");
+        e.emit(
+            "bool " + dupCheck + " = vyne_array_contains(" + listTemp + ", " +
+            e.boxAny(elemVar) + ");"
+        );
+        e.emitBlockOpen("if (!" + dupCheck + ") {");
+        e.emit("vyne_array_push(" + listTemp + ", " + e.boxAny(elemVar) + ");");
+        e.emitBlockClose();
+        break;
+    }
+    default:
+        break;
     }
 
     e.emitBlockClose();
     return listTemp;
 }
-

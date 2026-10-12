@@ -428,7 +428,8 @@ std::optional<std::string> tryEmitTypedArrayMethod(
     if ((methodName == "size" || methodName == "length") && rt &&
         rt->kind == CType::Kind::Array && !rt->args.empty()) {
         std::string temp = e.newTemp("len");
-        e.emit("VyneValue " + temp + " = vyne_int(" + recvRaw + ".size);");
+        e.emit("int64_t " + temp + " = " + recvRaw + ".size;");
+        e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
         return temp;
     }
 
