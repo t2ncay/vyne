@@ -18,34 +18,39 @@
 #pragma once
 #include "../codegen.h"
 
-// Shared, translation-unit-local emission helpers from the original codegen.cpp.
-// These helpers do not retain mutable state; per-compilation state lives in C_Emitter.
+// Shared, translation-unit-local emission helpers from the original
+// codegen.cpp. These helpers do not retain mutable state; per-compilation state
+// lives in C_Emitter.
 // ============================================================
 // LITERALS
 // ============================================================
 
 static std::string floatLit(double v) {
     char buf[32];
-    auto [p, ec] = std::to_chars(buf, buf + sizeof(buf), v,
-                                 std::chars_format::general);
-    if (ec != std::errc{}) return "0.0";
+    auto [p, ec] =
+        std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general);
+    if (ec != std::errc{})
+        return "0.0";
     return std::string(buf, p);
 }
 
 static VType inferArrayElemType(const ASTNode* node) {
-    if (!node || node->type() != NodeType::ARRAY) return VType::Unknown;
+    if (!node || node->type() != NodeType::ARRAY)
+        return VType::Unknown;
     auto* arr = static_cast<const ArrayNode*>(node);
     const auto& elems = arr->getElements();
-    if (elems.empty()) return VType::Unknown;
+    if (elems.empty())
+        return VType::Unknown;
 
     VType common = VType::Unknown;
     for (const auto& el : elems) {
         VType et = el->getStaticType();
-        if (et != VType::Int64 && et != VType::Float64) return VType::Unknown;
+        if (et != VType::Int64 && et != VType::Float64)
+            return VType::Unknown;
         if (common == VType::Unknown) {
             common = et;
         } else if (common != et) {
-            if ((common == VType::Int64   && et == VType::Float64) ||
+            if ((common == VType::Int64 && et == VType::Float64) ||
                 (common == VType::Float64 && et == VType::Int64)) {
                 common = VType::Float64;
             } else {
@@ -57,8 +62,12 @@ static VType inferArrayElemType(const ASTNode* node) {
 }
 // Coerce a C expression string to a native C value of static type `want`.
 // Same shape as the `operand` lambda in BinOpNode::getCExpr.
-static std::string coerceToNative(C_Emitter& e, const ASTNode* node,
-                                  const std::string& expr, VType want) {
+static std::string coerceToNative(
+    C_Emitter& e,
+    const ASTNode* node,
+    const std::string& expr,
+    VType want
+) {
     if (node && node->type() == NodeType::NUMBER) {
         auto* num = static_cast<const NumberNode*>(node);
         if ((want == VType::Int64 && num->getStaticType() == VType::Int64) ||
@@ -71,7 +80,8 @@ static std::string coerceToNative(C_Emitter& e, const ASTNode* node,
     }
     const CType* ct = e.exprNativeType(expr);
     if (ct && ct->isPrimitive()) {
-        if (ct->toVType() == want) return expr;
+        if (ct->toVType() == want)
+            return expr;
         if (want == VType::Float64 && ct->kind == CType::Kind::Int64)
             return "(double)(" + expr + ")";
         if (want == VType::Int64 && ct->kind == CType::Kind::Float64)
@@ -99,16 +109,18 @@ static std::string coerceToNative(C_Emitter& e, const ASTNode* node,
 // Returns VType::Unknown when nothing can prove the kind; callers
 // must treat Unknown as unsafe (fail closed).
 static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
-    if (!rhs) return VType::Null;
+    if (!rhs)
+        return VType::Null;
 
     // --- Literals ------------------------------------------------
     switch (rhs->type()) {
-        case NodeType::NUMBER:
-        case NodeType::BOOLEAN:
-            return rhs->getStaticType();
-        case NodeType::NULLTYPE:
-            return VType::Null;
-        default: break;
+    case NodeType::NUMBER:
+    case NodeType::BOOLEAN:
+        return rhs->getStaticType();
+    case NodeType::NULLTYPE:
+        return VType::Null;
+    default:
+        break;
     }
 
     // --- Variables: emitter's type table is authoritative --------
@@ -139,8 +151,10 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
         const CType* bct = nullptr;
         if (!prefix.empty())
             bct = e.lookupType("v_" + prefix + "_" + b);
-        if (!bct) bct = e.lookupType("v_" + b);
-        if (!bct) return VType::Unknown;
+        if (!bct)
+            bct = e.lookupType("v_" + b);
+        if (!bct)
+            return VType::Unknown;
         if (bct->kind == CType::Kind::Array && !bct->args.empty())
             return bct->args[0].toVType();
         if (bct->hasShape() && !bct->args.empty())
@@ -154,39 +168,40 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
     if (rhs->type() == NodeType::BINARY_OP) {
         auto* bop = static_cast<const BinOpNode*>(rhs);
         switch (bop->op) {
-            case VTokenType::Double_Equals:
-            case VTokenType::Not_Equal:
-            case VTokenType::Greater:
-            case VTokenType::Smaller:
-            case VTokenType::Greater_Or_Equal:
-            case VTokenType::Smaller_Or_Equal:
-            case VTokenType::And:
-            case VTokenType::Or:
-                return VType::Bool;
-            case VTokenType::Substract:
-            case VTokenType::Multiply:
-            case VTokenType::Division:
-            case VTokenType::Floor_Divide:
-            case VTokenType::Modulo:
-            case VTokenType::Power:
-                return VType::Float64;
-            case VTokenType::Add: {
-                VType lt = resolveRHSKind(e, bop->leftNode.get());
-                VType rt = resolveRHSKind(e, bop->rightNode.get());
-                bool lNum = (lt == VType::Int64 || lt == VType::Float64);
-                bool rNum = (rt == VType::Int64 || rt == VType::Float64);
-                if (lNum && rNum) {
-                    // Int64 + Int64 stays Int64; mixed promotes to Float64.
-                    // Either is primitive, which is all the escape check
-                    // needs. Return Int64 for both-Int64 to preserve the
-                    // more precise type.
-                    return (lt == VType::Int64 && rt == VType::Int64)
-                           ? VType::Int64 : VType::Float64;
-                }
-                return VType::Unknown;
+        case VTokenType::Double_Equals:
+        case VTokenType::Not_Equal:
+        case VTokenType::Greater:
+        case VTokenType::Smaller:
+        case VTokenType::Greater_Or_Equal:
+        case VTokenType::Smaller_Or_Equal:
+        case VTokenType::And:
+        case VTokenType::Or:
+            return VType::Bool;
+        case VTokenType::Substract:
+        case VTokenType::Multiply:
+        case VTokenType::Division:
+        case VTokenType::Floor_Divide:
+        case VTokenType::Modulo:
+        case VTokenType::Power:
+            return VType::Float64;
+        case VTokenType::Add: {
+            VType lt = resolveRHSKind(e, bop->leftNode.get());
+            VType rt = resolveRHSKind(e, bop->rightNode.get());
+            bool lNum = (lt == VType::Int64 || lt == VType::Float64);
+            bool rNum = (rt == VType::Int64 || rt == VType::Float64);
+            if (lNum && rNum) {
+                // Int64 + Int64 stays Int64; mixed promotes to Float64.
+                // Either is primitive, which is all the escape check
+                // needs. Return Int64 for both-Int64 to preserve the
+                // more precise type.
+                return (lt == VType::Int64 && rt == VType::Int64)
+                           ? VType::Int64
+                           : VType::Float64;
             }
-            default:
-                return VType::Unknown;
+            return VType::Unknown;
+        }
+        default:
+            return VType::Unknown;
         }
     }
 
@@ -235,11 +250,11 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
         if (recv) {
             std::string recvPath;
             if (recv->type() == NodeType::VARIABLE) {
-                recvPath = static_cast<const VariableNode*>(recv)
-                               ->getOriginalName();
+                recvPath =
+                    static_cast<const VariableNode*>(recv)->getOriginalName();
             } else if (recv->type() == NodeType::MEMBER_ACCESS) {
-                recvPath = static_cast<const MemberAccessNode*>(recv)
-                               ->getFullPath();
+                recvPath =
+                    static_cast<const MemberAccessNode*>(recv)->getFullPath();
             }
 
             if (!recvPath.empty()) {
@@ -260,12 +275,144 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
     return VType::Unknown;
 }
 
+// Emit a C expression usable directly in `if (...)` / `while (...)`.
+// Returns a native C boolean expression when the AST proves a
+// comparison or logical combination of native scalars; otherwise
+// falls back to box + truthiness (identical to the current code).
+//
+// Contract: on every path the operand getCExpr() calls happen exactly
+// once, in source order (left, then right). Mirrors the ordering in
+// BinOpNode::getCExpr and never reorders statements.
+static std::string emitNativeCondition(C_Emitter& e, const ASTNode* node) {
+    if (!node)
+        return "false";
+
+    // Boolean literal — already a C `bool`.
+    if (node->type() == NodeType::BOOLEAN) {
+        return static_cast<const BooleanNode*>(node)->nativeLiteral();
+    }
+
+    // Bare native scalar as a condition. `if (x)` with x :: Int64
+    // lowers to `(x != 0)`. Matches vyne_is_truthy's semantics for
+    // Int64/Float64 exactly (NaN != 0 is true, so NaN stays truthy).
+    if (node->type() == NodeType::VARIABLE) {
+        VType t = resolveRHSKind(e, node);
+        if (t == VType::Int64 || t == VType::Float64) {
+            std::string expr = node->getCExpr(e);
+            const CType* ct = e.exprNativeType(expr);
+            if (ct && ct->toVType() == t)
+                return "(" + expr + " != 0)";
+        } else if (t == VType::Bool) {
+            std::string expr = node->getCExpr(e);
+            const CType* ct = e.exprNativeType(expr);
+            if (ct && ct->toVType() == t)
+                return expr;
+        }
+    }
+
+    if (node->type() == NodeType::BINARY_OP) {
+        auto* bop = static_cast<const BinOpNode*>(node);
+
+        // Logical AND / OR — recurse. Both operands' statements are
+        // emitted before the returned C expression is used, so C's
+        // short-circuit does not skip any runtime effect (getCExpr
+        // hoists calls and side effects to statements). Matches the
+        // current vyne_binop behavior for VBOP_AND / VBOP_OR.
+        if (bop->op == VTokenType::And || bop->op == VTokenType::Or) {
+            std::string l = emitNativeCondition(e, bop->leftNode.get());
+            std::string r = emitNativeCondition(e, bop->rightNode.get());
+            const char* opStr = (bop->op == VTokenType::And) ? "&&" : "||";
+            return "((" + l + ") " + opStr + " (" + r + "))";
+        }
+
+        // Comparison of two native scalars.
+        switch (bop->op) {
+        case VTokenType::Double_Equals:
+        case VTokenType::Not_Equal:
+        case VTokenType::Greater:
+        case VTokenType::Smaller:
+        case VTokenType::Greater_Or_Equal:
+        case VTokenType::Smaller_Or_Equal: {
+            VType lt = resolveRHSKind(e, bop->leftNode.get());
+            VType rt = resolveRHSKind(e, bop->rightNode.get());
+            bool lNum = (lt == VType::Int64 || lt == VType::Float64);
+            bool rNum = (rt == VType::Int64 || rt == VType::Float64);
+            if (!lNum || !rNum)
+                break;
+
+            VType common = (lt == VType::Float64 || rt == VType::Float64)
+                               ? VType::Float64
+                               : VType::Int64;
+
+            // Materialize both operands once, left then right.
+            std::string l = bop->leftNode->getCExpr(e);
+            std::string r = bop->rightNode->getCExpr(e);
+
+            auto toNative = [&](const ASTNode* n,
+                                const std::string& s) -> std::string {
+                if (n->type() == NodeType::NUMBER) {
+                    auto* num = static_cast<const NumberNode*>(n);
+                    if (common == VType::Float64 ||
+                        num->getStaticType() == VType::Int64) {
+                        return num->nativeLiteral();
+                    }
+                }
+                if (const CType* ct = e.exprNativeType(s)) {
+                    if (ct->toVType() == common)
+                        return s;
+                    if (common == VType::Float64 &&
+                        ct->kind == CType::Kind::Int64) {
+                        return "(double)(" + s + ")";
+                    }
+                }
+                return std::string("(") + s + ").as." +
+                       (common == VType::Float64 ? "f64" : "i64");
+            };
+
+            std::string lv = toNative(bop->leftNode.get(), l);
+            std::string rv = toNative(bop->rightNode.get(), r);
+            const char* opStr = "==";
+            switch (bop->op) {
+            case VTokenType::Double_Equals:
+                opStr = "==";
+                break;
+            case VTokenType::Not_Equal:
+                opStr = "!=";
+                break;
+            case VTokenType::Greater:
+                opStr = ">";
+                break;
+            case VTokenType::Smaller:
+                opStr = "<";
+                break;
+            case VTokenType::Greater_Or_Equal:
+                opStr = ">=";
+                break;
+            case VTokenType::Smaller_Or_Equal:
+                opStr = "<=";
+                break;
+            default:
+                break;
+            }
+            return "(" + lv + " " + opStr + " " + rv + ")";
+        }
+        default:
+            break;
+        }
+    }
+
+    // Slow path — identical to the current code at every call site.
+    std::string cond = e.boxAny(node->getCExpr(e));
+    return "vyne_is_truthy(" + cond + ")";
+}
+
 std::optional<std::string> tryEmitBlasCall(
     C_Emitter& e,
     const std::string& recvPath,
     const std::string& methodName,
-    const std::vector<std::unique_ptr<ASTNode>>& arguments);
-    
+    const std::vector<std::unique_ptr<ASTNode>>& arguments
+);
+
 std::optional<std::string> tryEmitNativeCall(
     C_Emitter& e,
     const std::string& mangledCallee,
@@ -273,12 +420,14 @@ std::optional<std::string> tryEmitNativeCall(
     const std::vector<ASTNode*>& orderedArgs,
     const std::vector<std::string>& argCExprs,
     const std::vector<VType>& argVTypes,
-    const std::vector<const CType*>& argCTypes);
+    const std::vector<const CType*>& argCTypes
+);
 void registerInterfaceLayoutsFromMembers(
     C_Emitter& e,
     const std::string& interfaceName,
     const std::string& moduleName,
-    const std::vector<InterfaceMember>& members);
+    const std::vector<InterfaceMember>& members
+);
 
 // Slice 3g: predicate shared by the fixed-point pass in
 // ProgramNode::compile and the emitter inside InterfaceNode::compile.

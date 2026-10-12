@@ -24,8 +24,8 @@
 // ============================================================
 
 void IfNode::compile(C_Emitter& e) const {
-    std::string cond = e.boxAny(condition->getCExpr(e));
-    e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+    std::string cond = emitNativeCondition(e, condition.get());
+    e.emitBlockOpen("if (" + cond + ") {");
     if (body)
         body->compile(e);
     e.emitBlockClose();
@@ -40,8 +40,8 @@ std::string IfNode::getCExpr(C_Emitter& e) const {
     std::string temp = e.newTemp("ifres");
     e.emit("VyneValue " + temp + " = vyne_null();");
 
-    std::string cond = e.boxAny(condition->getCExpr(e));
-    e.emitBlockOpen("if (vyne_is_truthy(" + cond + ")) {");
+    std::string cond = emitNativeCondition(e, condition.get());
+    e.emitBlockOpen("if (" + cond + ") {");
     if (body) {
         std::string bv = e.boxAny(body->getCExpr(e));
         e.emit(temp + " = " + bv + ";");
@@ -60,8 +60,8 @@ std::string IfNode::getCExpr(C_Emitter& e) const {
 
 void WhileNode::compile(C_Emitter& e) const {
     e.emitBlockOpen("while (1) {");
-    std::string cond = e.boxAny(condition->getCExpr(e));
-    e.emit("if (!vyne_is_truthy(" + cond + ")) break;");
+    std::string cond = emitNativeCondition(e, condition.get());
+    e.emit("if (!(" + cond + ")) break;");
     if (body)
         body->compile(e);
     e.emitBlockClose();

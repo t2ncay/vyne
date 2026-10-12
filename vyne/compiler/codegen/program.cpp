@@ -44,22 +44,24 @@ void ProgramNode::compile(C_Emitter& e) const {
         while (changed) {
             changed = false;
             for (const auto& stmt : statements) {
-                if (!stmt || stmt->type() != NodeType::INTERFACE) continue;
+                if (!stmt || stmt->type() != NodeType::INTERFACE)
+                    continue;
                 auto* iface = static_cast<const InterfaceNode*>(stmt.get());
 
-                std::string name     = iface->getInterfaceName();
-                std::string modName  = iface->getModuleName();
-                std::string fullName = modName.empty()
-                    ? name
-                    : (modName + "." + name);
+                std::string name = iface->getInterfaceName();
+                std::string modName = iface->getModuleName();
+                std::string fullName =
+                    modName.empty() ? name : (modName + "." + name);
 
                 // isCEligible already does dot-suffix probing, so a hit
                 // on either spelling short-circuits the re-check.
-                if (e.isCEligible(fullName)) continue;
+                if (e.isCEligible(fullName))
+                    continue;
 
                 if (interfaceIsCEligible(e, *iface)) {
                     e.markCEligible(fullName);
-                    if (fullName != name) e.markCEligible(name);
+                    if (fullName != name)
+                        e.markCEligible(name);
                     changed = true;
                 }
             }
@@ -74,7 +76,8 @@ void ProgramNode::compile(C_Emitter& e) const {
                 e,
                 iface->getInterfaceName(),
                 iface->getModuleName(),
-                iface->getMembers());
+                iface->getMembers()
+            );
         }
     }
 
@@ -87,18 +90,23 @@ void ProgramNode::compile(C_Emitter& e) const {
     // above `parse` and resolves correctly, `_parse_value` is defined
     // below and does not.
     for (const auto& stmt : statements) {
-        if (!stmt) continue;
+        if (!stmt)
+            continue;
         if (stmt->type() == NodeType::FUNCTION) {
             auto* fn = static_cast<const FunctionNode*>(stmt.get());
             if (!fn->getTargetModule().empty()) {
-                e.registerModuleFunction(fn->getTargetModule(),
-                                         fn->getOriginalName());
+                e.registerModuleFunction(
+                    fn->getTargetModule(),
+                    fn->getOriginalName()
+                );
             }
         } else if (stmt->type() == NodeType::INTERFACE) {
             auto* iface = static_cast<const InterfaceNode*>(stmt.get());
             if (!iface->getModuleName().empty()) {
-                e.registerModuleInterface(iface->getModuleName(),
-                                          iface->getInterfaceName());
+                e.registerModuleInterface(
+                    iface->getModuleName(),
+                    iface->getInterfaceName()
+                );
             }
         }
     }
@@ -115,15 +123,18 @@ void ProgramNode::compile(C_Emitter& e) const {
                 paramNames.push_back(p.name);
                 CType ct = CType::fromVType(p.type);
 
-                // Carry the element type for Array<Float64> / Array<Int64> so the
-                // native dispatcher can match the argument's typed-array CType.
-                if (p.type == VType::Array && p.arrayElemType != VType::Unknown) {
+                // Carry the element type for Array<Float64> / Array<Int64> so
+                // the native dispatcher can match the argument's typed-array
+                // CType.
+                if (p.type == VType::Array &&
+                    p.arrayElemType != VType::Unknown) {
                     ct.args.push_back(CType::fromVType(p.arrayElemType));
                 }
                 paramTypes.push_back(ct);
 
-                bool paramOK = ct.isPrimitive() ||
-                            (ct.kind == CType::Kind::Array && !ct.args.empty());
+                bool paramOK =
+                    ct.isPrimitive() ||
+                    (ct.kind == CType::Kind::Array && !ct.args.empty());
 
                 // Struct-typed parameter: only native-callable if the
                 // interface has a registered field layout. Registration
@@ -143,13 +154,16 @@ void ProgramNode::compile(C_Emitter& e) const {
                     }
                 }
 
-                if (!paramOK || p.isReference) allNativeCallable = false;
+                if (!paramOK || p.isReference)
+                    allNativeCallable = false;
             }
 
             CType retCt = CType::fromVType(fn->getReturnType());
             if (fn->getReturnType() == VType::Array &&
                 fn->getReturnArrayElemType() != VType::Unknown) {
-                retCt.args.push_back(CType::fromVType(fn->getReturnArrayElemType()));
+                retCt.args.push_back(
+                    CType::fromVType(fn->getReturnArrayElemType())
+                );
             }
             bool retStructHasLayout = false;
             if (fn->getReturnType() == VType::Struct &&
@@ -159,29 +173,34 @@ void ProgramNode::compile(C_Emitter& e) const {
                     e.getInterfaceStructLayout(retCt.mangledName);
                 retStructHasLayout = (layout != nullptr && !layout->empty());
             }
-            bool retNative = retCt.isPrimitive() ||
-                            (retCt.kind == CType::Kind::Array && !retCt.args.empty()) ||
-                            retStructHasLayout;
+            bool retNative =
+                retCt.isPrimitive() ||
+                (retCt.kind == CType::Kind::Array && !retCt.args.empty()) ||
+                retStructHasLayout;
 
             // Conservative: reject functions with top-level defer or try/catch.
             bool hasDeferOrTry = false;
             for (const auto& s : fn->getBody()) {
                 if (s && (s->type() == NodeType::DEFER ||
-                        s->type() == NodeType::TRY_CATCH)) {
+                          s->type() == NodeType::TRY_CATCH)) {
                     hasDeferOrTry = true;
                     break;
                 }
             }
 
-            e.registerFunctionSignature(fn->getOriginalName(),
-                                         std::move(paramNames));
-            e.registerFunctionParamTypes(fn->getOriginalName(),
-                                        std::move(paramTypes));
+            e.registerFunctionSignature(
+                fn->getOriginalName(),
+                std::move(paramNames)
+            );
+            e.registerFunctionParamTypes(
+                fn->getOriginalName(),
+                std::move(paramTypes)
+            );
             {
                 std::string orig = fn->getOriginalName();
                 std::string mangled = orig;
                 std::replace(mangled.begin(), mangled.end(), '.', '_');
-                e.registerFunctionReturnType(orig,    retCt);
+                e.registerFunctionReturnType(orig, retCt);
                 e.registerFunctionReturnType(mangled, retCt);
             }
 
@@ -195,8 +214,10 @@ void ProgramNode::compile(C_Emitter& e) const {
 
                 // Primary: the module-qualified name. External callers
                 // (`vfft.fft_kernel(...)` from another module) look this up.
-                e.registerNativeVariant(moduleMangled,
-                                        moduleMangled + "_native");
+                e.registerNativeVariant(
+                    moduleMangled,
+                    moduleMangled + "_native"
+                );
 
                 // Secondary: the bare name. Calls from inside the same
                 // module (`fft_kernel(...)` inside forward/inverse) go
@@ -206,15 +227,15 @@ void ProgramNode::compile(C_Emitter& e) const {
                 // producing `fn_vfft_fft_kernel(7, args)` instead of the
                 // native call.
                 if (moduleMangled != mangled) {
-                    e.registerNativeVariant(mangled,
-                                            moduleMangled + "_native");
+                    e.registerNativeVariant(mangled, moduleMangled + "_native");
                 }
             }
         }
     }
 
     for (const auto& stmt : statements)
-        if (stmt) stmt->compile(e);
+        if (stmt)
+            stmt->compile(e);
 }
 
 void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
@@ -223,24 +244,27 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
     e.emit("// --- import as " + alias + " ---");
 
     for (const auto& stmt : statements) {
-        if (!stmt) continue;
+        if (!stmt)
+            continue;
 
         if (stmt->type() == NodeType::FUNCTION) {
             auto* fn = static_cast<FunctionNode*>(stmt.get());
             e.popGlobalContext();
             fn->compileAs(e, alias + "_" + fn->getOriginalName());
             e.pushGlobalContext();
-        }
-        else if (stmt->type() == NodeType::ASSIGNMENT) {
+        } else if (stmt->type() == NodeType::ASSIGNMENT) {
             auto* assign = static_cast<AssignmentNode*>(stmt.get());
-            std::string mangled = "v_" + alias + "_" + assign->getOriginalName();
+            std::string mangled =
+                "v_" + alias + "_" + assign->getOriginalName();
             std::replace(mangled.begin(), mangled.end(), '.', '_');
 
             CType declared = CType::fromVType(assign->getExpectedType());
 
             if (declared.isPrimitive()) {
                 e.declareGlobal(mangled, declared);
-                e.emitGlobalDecl(declared.cTypeName() + " " + mangled + " = 0;");
+                e.emitGlobalDecl(
+                    declared.cTypeName() + " " + mangled + " = 0;"
+                );
             } else {
                 e.registerDeclaration(mangled);
                 e.emitGlobalDecl("VyneValue " + mangled + ";");
@@ -250,17 +274,19 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
             std::string val = assign->getRHS()->getCExpr(e);
             if (declared.isPrimitive()) {
                 std::string init = coerceToNative(
-                    e, assign->getRHS(), val, declared.toVType());
+                    e,
+                    assign->getRHS(),
+                    val,
+                    declared.toVType()
+                );
                 e.emit(mangled + " = " + init + ";");
             } else {
                 e.emit(mangled + " = " + e.boxAny(val) + ";");
             }
             e.pushGlobalContext();
-        }
-        else if (stmt->type() == NodeType::IMPORT) {
+        } else if (stmt->type() == NodeType::IMPORT) {
             continue;
-        }
-        else {
+        } else {
             e.popGlobalContext();
             stmt->compile(e);
             e.pushGlobalContext();
@@ -280,7 +306,10 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
     e.emit("// Virtual Module registration for " + alias);
     e.emitBlockOpen("{");
     std::string tempS = e.newTemp("mod_s");
-    e.emit("VyneStruct* " + tempS + " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));");
+    e.emit(
+        "VyneStruct* " + tempS +
+        " = (VyneStruct*)arena_alloc(sizeof(VyneStruct));"
+    );
     e.emit(tempS + "->type_name = \"" + alias + "\";");
     e.emit(tempS + "->field_count = 0;");
     e.emit(tempS + "->fields = NULL;");
@@ -290,7 +319,10 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
     e.emit(tempS + "->field_cache[1] = -1;");
     e.emit(tempS + "->field_cache[2] = -1;");
     e.emit(tempS + "->field_cache[3] = -1;");
-    e.emit(modVirtualVar + ".type = V_STRUCT; " + modVirtualVar + ".as.strct = " + tempS + ";");
+    e.emit(
+        modVirtualVar + ".type = V_STRUCT; " + modVirtualVar +
+        ".as.strct = " + tempS + ";"
+    );
 
     for (const auto& stmt : statements) {
         if (stmt && stmt->type() == NodeType::FUNCTION) {
@@ -303,8 +335,13 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
             std::replace(wrapperName.begin(), wrapperName.end(), '.', '_');
 
             e.pushFunctionContext();
-            e.emitGlobalDecl("VyneValue " + wrapperName + "(int arg_count, VyneValue* args);");
-            e.emitBlockOpen("VyneValue " + wrapperName + "(int arg_count, VyneValue* args) {");
+            e.emitGlobalDecl(
+                "VyneValue " + wrapperName + "(int arg_count, VyneValue* args);"
+            );
+            e.emitBlockOpen(
+                "VyneValue " + wrapperName +
+                "(int arg_count, VyneValue* args) {"
+            );
             e.emit("if (arg_count > 0) {");
             e.emit("    return " + fnRealCName + "(arg_count - 1, args + 1);");
             e.emit("}");
@@ -312,8 +349,10 @@ void ProgramNode::compileAliased(C_Emitter& e, const std::string& alias) const {
             e.emitBlockClose();
             e.popFunctionContext();
 
-            e.emit("vyne_register_method(\"" + alias + "\", \"" +
-                   fnOrigName + "\", " + wrapperName + ");");
+            e.emit(
+                "vyne_register_method(\"" + alias + "\", \"" + fnOrigName +
+                "\", " + wrapperName + ");"
+            );
         }
     }
     e.emitBlockClose();
@@ -328,19 +367,22 @@ std::string ProgramNode::getCExpr(C_Emitter& e) const {
 void BlockNode::compile(C_Emitter& e) const {
     e.emitBlockOpen("{");
     for (const auto& stmt : statements)
-        if (stmt) stmt->compile(e);
+        if (stmt)
+            stmt->compile(e);
     e.emitBlockClose();
 }
 
 std::string BlockNode::getCExpr(C_Emitter& e) const {
-    if (statements.empty()) return "vyne_null()";
+    if (statements.empty())
+        return "vyne_null()";
 
     if (statements.size() == 1) {
         return statements[0]->getCExpr(e);
     }
 
     for (size_t i = 0; i + 1 < statements.size(); ++i) {
-        if (statements[i]) statements[i]->compile(e);
+        if (statements[i])
+            statements[i]->compile(e);
     }
     return statements.back()->getCExpr(e);
 }
@@ -349,14 +391,16 @@ std::string BlockNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 std::string TernaryNode::getCExpr(C_Emitter& e) const {
-    std::string cond = e.boxAny(condition->getCExpr(e));
+    std::string cond = emitNativeCondition(e, condition.get());
     std::string tVal = e.boxAny(trueExpr->getCExpr(e));
     std::string fVal = e.boxAny(falseExpr->getCExpr(e));
     std::string temp = e.newTemp("tern");
-    e.emit("VyneValue " + temp + " = vyne_is_truthy(" + cond + ") ? " +
-           tVal + " : " + fVal + ";");
+    e.emit(
+        "VyneValue " + temp + " = (" + cond + ") ? " + tVal + " : " + fVal + ";"
+    );
     return temp;
 }
 
-void TernaryNode::compile(C_Emitter& e) const { getCExpr(e); }
-
+void TernaryNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
