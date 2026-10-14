@@ -28,23 +28,23 @@ vmath.seed(42);
 # ======================================================================
 # CONFIG
 # ======================================================================
-N_PER_CLASS :: Int64 = 300;
-WINDOW      :: Int64 = 256;            # power of two, so no FFT padding is needed
-EPOCHS      :: Int64 = 500;
-HIDDEN1     :: Int64 = 32;
-HIDDEN2     :: Int64 = 16;
-BATCH       :: Int64 = 32;
-PRINT_EVERY :: Int64 = 50;
+N_PER_CLASS :: Int64 := 300;
+WINDOW      :: Int64 := 256;            # power of two, so no FFT padding is needed
+EPOCHS      :: Int64 := 500;
+HIDDEN1     :: Int64 := 32;
+HIDDEN2     :: Int64 := 16;
+BATCH       :: Int64 := 32;
+PRINT_EVERY :: Int64 := 50;
 
-USE_CODON  :: Bool = false;
+USE_CODON  :: Bool := false;
 
-N_FEATURES = 5;              # base is always 4 period-3 + 1 GC
+N_FEATURES := 5;              # base is always 4 period-3 + 1 GC
 if USE_CODON { N_FEATURES = 69; }
 
-N_SAMPLES  = N_PER_CLASS * 2;
-N_BATCHES  = N_SAMPLES / BATCH;
+N_SAMPLES  := N_PER_CLASS * 2;
+N_BATCHES  := N_SAMPLES / BATCH;
 
-CODONS :: Array = [
+CODONS :: Array := [
     "AAA","AAC","AAG","AAU","ACA","ACC","ACG","ACU",
     "AGA","AGC","AGG","AGU","AUA","AUC","AUG","AUU",
     "CAA","CAC","CAG","CAU","CCA","CCC","CCG","CCU",
@@ -55,14 +55,14 @@ CODONS :: Array = [
     "UGA","UGC","UGG","UGU","UUA","UUC","UUG","UUU"
 ];
 
-AA_ALPHABET :: Array = ["A","R","N","D","C","Q","E","G","H","I",
-                        "L","K","M","F","P","S","T","W","Y","V"];
+AA_ALPHABET :: Array := ["A","R","N","D","C","Q","E","G","H","I",
+                         "L","K","M","F","P","S","T","W","Y","V"];
 
 # ======================================================================
 # HELPERS
 # ======================================================================
 fn trim(s :: String, n :: Int64) -> String {
-    output = "";
+    output := "";
     through i :: 0..n-1 -> loop { output = output + s[i]; };
     return output;
 }
@@ -70,20 +70,20 @@ fn trim(s :: String, n :: Int64) -> String {
 fn make_coding_window() -> String {
     # 86 amino acids → 86 codons → 258 nt, plus the stop codon that
     # reverse_translate appends. Trim to WINDOW (256).
-    prot = "";
+    prot := "";
     through i :: 0..85 -> loop {
-        idx = vmath.random(0, 19);
+        idx := vmath.random(0, 19);
         prot = prot + AA_ALPHABET[idx];
     };
-    full = vbio.reverse_translate(prot);
+    full := vbio.reverse_translate(prot);
     return trim(full, WINDOW);
 }
 
 fn make_random_window() -> String {
-    bases :: Array = ["A","U","G","C"];
-    s = "";
+    bases :: Array := ["A","U","G","C"];
+    s := "";
     through i :: 0..WINDOW-1 -> loop {
-        idx = vmath.random(0, 3);
+        idx := vmath.random(0, 3);
         s = s + bases[idx];
     };
     return s;
@@ -96,30 +96,30 @@ fn make_random_window() -> String {
 # ratio is ≈ 2/64 ≈ 0.031. For a codon-structured sequence, it is
 # elevated because the indicator is periodic on average.
 fn period3_ratio(window :: String, base :: String) -> Float64 {
-    re :: Array<Float64> = [];
-    im :: Array<Float64> = [];
+    re :: Array<Float64> := [];
+    im :: Array<Float64> := [];
     through i :: 0..WINDOW-1 -> loop {
-        ch = window[i];
+        ch := window[i];
         if ch == base { re.push(1.0); } else { re.push(0.0); }
         im.push(0.0);
     };
 
     vfft.forward(re, im);
 
-    total :: Float64 = 0.0;
+    total :: Float64 := 0.0;
     through k :: 1..WINDOW-1 -> loop {
         total = total + re[k]*re[k] + im[k]*im[k];
     };
 
-    p3 :: Float64 = re[85]*re[85] + im[85]*im[85]
-                  + re[86]*re[86] + im[86]*im[86];
+    p3 :: Float64 := re[85]*re[85] + im[85]*im[85]
+                   + re[86]*re[86] + im[86]*im[86];
 
     if total < 0.000000000001 { return 0.0; }
     return p3 / total;
 }
 
 fn window_features(window :: String) -> Array<Float64> {
-    features :: Array<Float64> = [];
+    features :: Array<Float64> := [];
 
     # Spectral signature — one feature per base (4 dims).
     features.push(period3_ratio(window, "A"));
@@ -132,13 +132,13 @@ fn window_features(window :: String) -> Array<Float64> {
 
     # Codon usage (64 dims) — same as ml_seq.vy.
     if USE_CODON {
-        counts = vbio.codon_usage(window);
-        n_codons = window.size() / 3;
-        total = float64(n_codons);
+        counts := vbio.codon_usage(window);
+        n_codons := window.size() / 3;
+        total := float64(n_codons);
         if total < 1.0 { total = 1.0; }
         through i :: 0..63 -> loop {
-            c = CODONS[i];
-            v = 0.0;
+            c := CODONS[i];
+            v := 0.0;
             if counts.has(c) { v = float64(counts[c]) / total; }
             features.push(v);
         };
@@ -148,16 +148,16 @@ fn window_features(window :: String) -> Array<Float64> {
 }
 
 fn pad_left(s :: String, width :: Int64) -> String {
-    n = int64(s.size());
-    result = "";
+    n := int64(s.size());
+    result := "";
     through i :: 0..width-n-1 -> loop { result = result + " "; };
     return result + s;
 }
 
 fn pct(x :: Float64) -> String {
-    scaled = int64(x * 1000.0);
-    ip = scaled / 10;
-    fp = scaled % 10;
+    scaled := int64(x * 1000.0);
+    ip := scaled / 10;
+    fp := scaled % 10;
     return string(ip) + "." + string(fp) + "%";
 }
 
@@ -183,8 +183,8 @@ out("");
 # Build the plan below every region checkpoint so no rewind can free it.
 # See vfft/README.md — this is the one rule that must not be broken.
 out("Warming FFT plan (N=" + string(WINDOW) + ")...");
-dummy_re :: Array<Float64> = [];
-dummy_im :: Array<Float64> = [];
+dummy_re :: Array<Float64> := [];
+dummy_im :: Array<Float64> := [];
 through i :: 0..WINDOW-1 -> loop {
     dummy_re.push(0.0);
     dummy_im.push(0.0);
@@ -196,22 +196,22 @@ vfft.forward(dummy_re, dummy_im);
 # ======================================================================
 out("Generating windows...");
 
-X_flat :: Array<Float64> = [];
-Y_data :: Array<Float64> = [];
-seqs   :: Array = [];
+X_flat :: Array<Float64> := [];
+Y_data :: Array<Float64> := [];
+seqs   :: Array := [];
 
 through i :: 0..N_PER_CLASS-1 -> loop {
-    s = make_coding_window();
+    s := make_coding_window();
     seqs.push(s);
-    feats = window_features(s);
+    feats := window_features(s);
     through j :: 0..N_FEATURES-1 -> loop { X_flat.push(feats[j]); };
     Y_data.push(1.0);
 };
 
 through i :: 0..N_PER_CLASS-1 -> loop {
-    s = make_random_window();
+    s := make_random_window();
     seqs.push(s);
-    feats = window_features(s);
+    feats := window_features(s);
     through j :: 0..N_FEATURES-1 -> loop { X_flat.push(feats[j]); };
     Y_data.push(0.0);
 };
@@ -219,8 +219,8 @@ through i :: 0..N_PER_CLASS-1 -> loop {
 # Sanity diagnostic: is the period-3 [A] feature actually different?
 # If the two numbers are close, the feature has no signal and training
 # will not converge on anything other than the codon features.
-meanA_coding :: Float64 = 0.0;
-meanA_random :: Float64 = 0.0;
+meanA_coding :: Float64 := 0.0;
+meanA_random :: Float64 := 0.0;
 through i :: 0..N_PER_CLASS-1 -> loop {
     meanA_coding = meanA_coding + X_flat[i * N_FEATURES];
 };
@@ -233,47 +233,47 @@ out("  mean period-3[A] coding:     " + string(meanA_coding));
 out("  mean period-3[A] non-coding: " + string(meanA_random));
 out("");
 
-X :: vlin.Types.Matrix = vlin.Types.Matrix(N_SAMPLES, N_FEATURES, X_flat);
-Y :: vlin.Types.Matrix = vlin.Types.Matrix(N_SAMPLES, 1, Y_data);
+X :: vlin.Types.Matrix := vlin.Types.Matrix(N_SAMPLES, N_FEATURES, X_flat);
+Y :: vlin.Types.Matrix := vlin.Types.Matrix(N_SAMPLES, 1, Y_data);
 
 # ======================================================================
 # MODEL
 # ======================================================================
-L1 = vml.dense(N_FEATURES, HIDDEN1, "tanh");
-L2 = vml.dense(HIDDEN1, HIDDEN2, "tanh");
-L3 = vml.dense(HIDDEN2, 1, "sigmoid");
-model = vml.sequential([L1, L2, L3]);
+L1 := vml.dense(N_FEATURES, HIDDEN1, "tanh");
+L2 := vml.dense(HIDDEN1, HIDDEN2, "tanh");
+L3 := vml.dense(HIDDEN2, 1, "sigmoid");
+model := vml.sequential([L1, L2, L3]);
 
-W1 = model.layers[0].W;
-W2 = model.layers[1].W;
-W3 = model.layers[2].W;
-b1 = model.layers[0].b;
-b2 = model.layers[1].b;
-b3 = model.layers[2].b;
+W1 := model.layers[0].W;
+W2 := model.layers[1].W;
+W3 := model.layers[2].W;
+b1 := model.layers[0].b;
+b2 := model.layers[1].b;
+b3 := model.layers[2].b;
 
-opt_adam :: vml.Types.Adam = vml.adam(0.001);
+opt_adam :: vml.Types.Adam := vml.adam(0.001);
 
-state_W1 :: vml.Types.AdamState = vml.adam_state(N_FEATURES * HIDDEN1);
-state_W2 :: vml.Types.AdamState = vml.adam_state(HIDDEN1 * HIDDEN2);
-state_W3 :: vml.Types.AdamState = vml.adam_state(HIDDEN2 * 1);
+state_W1 :: vml.Types.AdamState := vml.adam_state(N_FEATURES * HIDDEN1);
+state_W2 :: vml.Types.AdamState := vml.adam_state(HIDDEN1 * HIDDEN2);
+state_W3 :: vml.Types.AdamState := vml.adam_state(HIDDEN2 * 1);
 
-indices :: Array = [];
+indices :: Array := [];
 through i :: 0..N_SAMPLES-1 -> loop { indices.push(i); };
 
-batch_idx :: Array = [];
+batch_idx :: Array := [];
 through i :: 0..BATCH-1 -> loop { batch_idx.push(0); };
 
 # ======================================================================
 # TRAINING
 # ======================================================================
-h0 = vml.forward_all_fused(model, X);
-loss0 = vml.cross_entropy(h0[2], Y);
+h0 := vml.forward_all_fused(model, X);
+loss0 := vml.cross_entropy(h0[2], Y);
 
 out(vcolors.bold("Training:"));
 out("  initial loss   " + string(loss0));
 out("");
 
-t :: Int64 = 0;
+t :: Int64 := 0;
 
 through epoch :: 1..EPOCHS -> loop {
     vml.shuffle_indices(indices, N_SAMPLES);
@@ -286,27 +286,27 @@ through epoch :: 1..EPOCHS -> loop {
             through j :: 0..BATCH-1 -> loop {
                 batch_idx[j] = indices[b * BATCH + j];
             };
-            X_b = vml.gather_rows(X, batch_idx, BATCH);
-            Y_b = vml.gather_rows(Y, batch_idx, BATCH);
+            X_b := vml.gather_rows(X, batch_idx, BATCH);
+            Y_b := vml.gather_rows(Y, batch_idx, BATCH);
 
-            h = vml.forward_all_fused(model, X_b);
-            A1 = h[0]; A2 = h[1]; A3 = h[2];
+            h := vml.forward_all_fused(model, X_b);
+            A1 := h[0]; A2 := h[1]; A3 := h[2];
 
-            delta3 = vlin.subtract(A3, Y_b);
-            dW3 = vlin.multiply(vlin.transpose(A2), delta3);
+            delta3 := vlin.subtract(A3, Y_b);
+            dW3 := vlin.multiply(vlin.transpose(A2), delta3);
 
-            db3 = 0.0;
+            db3 := 0.0;
             through r :: 0..BATCH-1 -> loop { db3 = db3 + delta3.data[r]; };
 
-            delta2 = vlin.hadamard(
+            delta2 := vlin.hadamard(
                 vlin.multiply(delta3, vlin.transpose(W3)),
                 vlin.tanh_prime(A2));
-            dW2 = vlin.multiply(vlin.transpose(A1), delta2);
+            dW2 := vlin.multiply(vlin.transpose(A1), delta2);
 
-            delta1 = vlin.hadamard(
+            delta1 := vlin.hadamard(
                 vlin.multiply(delta2, vlin.transpose(W2)),
                 vlin.tanh_prime(A1));
-            dW1 = vlin.multiply(vlin.transpose(X_b), delta1);
+            dW1 := vlin.multiply(vlin.transpose(X_b), delta1);
 
             t = t + 1;
             vml.adam_step(W1, dW1, state_W1, opt_adam, t);
@@ -325,22 +325,22 @@ through epoch :: 1..EPOCHS -> loop {
                     db1_buf[c] = db1_buf[c] + delta1.data[r * HIDDEN1 + c];
                 };
             };
-            
+
             # using scratch values inside hidden batches are not recommended
-            bscale :: Float64 = opt_adam.lr / float64(BATCH);
+            bscale :: Float64 := opt_adam.lr / float64(BATCH);
             through c :: 0..HIDDEN1-1 -> loop { b1[c] = b1[c] - bscale * db1_buf[c]; };
             through c :: 0..HIDDEN2-1 -> loop { b2[c] = b2[c] - bscale * db2_buf[c]; };
             b3[0] = b3[0] - bscale * db3;
 
-            
+
         };
     };
 
     if epoch % PRINT_EVERY == 0 {
-        h_eval = vml.forward_all_fused(model, X);
-        A3_eval = h_eval[2];
-        lossN = vml.cross_entropy(A3_eval, Y);
-        acc   = vml.accuracy(A3_eval, Y, N_SAMPLES);
+        h_eval := vml.forward_all_fused(model, X);
+        A3_eval := h_eval[2];
+        lossN := vml.cross_entropy(A3_eval, Y);
+        acc   := vml.accuracy(A3_eval, Y, N_SAMPLES);
         out("  " + pad_left(string(epoch), 5) + "/" + string(EPOCHS)
             + "  loss " + string(lossN)
             + "  acc  " + pct(acc));
@@ -350,9 +350,9 @@ through epoch :: 1..EPOCHS -> loop {
 # ======================================================================
 # FINAL
 # ======================================================================
-h_final = vml.forward_all_fused(model, X);
-A3_final = h_final[2];
-final_acc = vml.accuracy(A3_final, Y, N_SAMPLES);
+h_final := vml.forward_all_fused(model, X);
+A3_final := h_final[2];
+final_acc := vml.accuracy(A3_final, Y, N_SAMPLES);
 
 out("");
 out(vcolors.bold("Done."));

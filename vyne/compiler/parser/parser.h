@@ -164,7 +164,8 @@ class Parser {
     std::unique_ptr<ASTNode> parseVariableAssignment(
         std::unique_ptr<ASTNode> lhs,
         int line,
-        bool isConst
+        bool isConst,
+        bool isDeclaration
     );
     std::unique_ptr<ASTNode> parseGroupDefinition();
     std::unique_ptr<ASTNode> parseModuleStatement();

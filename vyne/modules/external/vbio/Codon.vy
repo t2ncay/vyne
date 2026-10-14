@@ -16,7 +16,7 @@ module vbio;
 # mRNA codon (3-char String) -> 1-letter amino acid code.
 # '*' marks a stop codon. Grouped by amino acid for readability.
 
-const vbio_rna_codons :: Map = {
+const vbio_rna_codons :: Map := {
     # Phe
     "UUU": "F", "UUC": "F",
     # Leu
@@ -64,7 +64,7 @@ const vbio_rna_codons :: Map = {
 # Canonical codon per amino acid, for reverse_translate.
 # Biased toward E. coli K-12 usage; change freely.
 
-const vbio_aa_to_codon :: Map = {
+const vbio_aa_to_codon :: Map := {
     "A": "GCG", "R": "CGU", "N": "AAC", "D": "GAU",
     "C": "UGC", "Q": "CAG", "E": "GAA", "G": "GGC",
     "H": "CAC", "I": "AUU", "L": "CUG", "K": "AAA",
@@ -98,12 +98,12 @@ fn :: vbio codon_for(aa :: String) -> String {
 # it is dropped (see the range bound n-3).
 
 fn :: vbio translate(mrna :: String) -> vbio.Types.Protein {
-    n :: Int64 = mrna.size();
-    acc :: String = "";
-    i :: Int64 = 0;
+    n :: Int64 := mrna.size();
+    acc :: String := "";
+    i :: Int64 := 0;
     while i <= n - 3 {
-        codon :: String = mrna[i] + mrna[i + 1] + mrna[i + 2];
-        aa    :: String = vbio.codon_to_aa(codon);
+        codon :: String := mrna[i] + mrna[i + 1] + mrna[i + 2];
+        aa    :: String := vbio.codon_to_aa(codon);
         if aa == "*" {
             break;
         }
@@ -114,7 +114,7 @@ fn :: vbio translate(mrna :: String) -> vbio.Types.Protein {
 }
 
 fn :: vbio translate_rna(r :: vbio.Types.RNA) -> vbio.Types.Protein {
-    p :: vbio.Types.Protein = vbio.translate(r.seq);
+    p :: vbio.Types.Protein := vbio.translate(r.seq);
     return vbio.Types.Protein(p.seq, r.name + "_protein");
 }
 
@@ -124,7 +124,7 @@ fn :: vbio translate_rna(r :: vbio.Types.RNA) -> vbio.Types.Protein {
 # protein.
 
 fn :: vbio reverse_translate(protein :: String) -> String {
-    acc :: String = "";
+    acc :: String := "";
     through i :: 0..protein.size()-1 -> loop {
         acc = acc + vbio.codon_for(protein[i]);
     };
@@ -134,11 +134,11 @@ fn :: vbio reverse_translate(protein :: String) -> String {
 # --- Composition helpers --------------------------------------------------
 
 fn :: vbio codon_usage(mrna :: String) -> Map {
-    counts :: Map = {};
-    n :: Int64 = mrna.size();
-    i :: Int64 = 0;
+    counts :: Map := {};
+    n :: Int64 := mrna.size();
+    i :: Int64 := 0;
     while i <= n - 3 {
-        codon :: String = mrna[i] + mrna[i + 1] + mrna[i + 2];
+        codon :: String := mrna[i] + mrna[i + 1] + mrna[i + 2];
         if counts.has(codon) {
             counts.set(codon, counts[codon] + 1);
         } else {

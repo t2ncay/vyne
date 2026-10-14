@@ -483,8 +483,20 @@ std::vector<Token> tokenize(std::string_view input) {
             break;
         }
         case ':': {
+            // `::`  — Extends (type annotation, group target)
+            // `:=`  — Declare_Assign (fresh variable declaration)
+            // `:`   — Colon (map literals, ternary, slice)
+            // Order matters: check the two-character forms first.
             if (i + 1 < input.length() && input[i + 1] == ':') {
                 tokens.emplace_back(VTokenType::Extends, currentLine, 0, "::");
+                i += 2;
+            } else if (i + 1 < input.length() && input[i + 1] == '=') {
+                tokens.emplace_back(
+                    VTokenType::Declare_Assign,
+                    currentLine,
+                    0,
+                    ":="
+                );
                 i += 2;
             } else {
                 tokens.emplace_back(VTokenType::Colon, currentLine, 0, ":");
