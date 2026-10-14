@@ -24,70 +24,74 @@
 # SOFTWARE.
 #===============================================================================
 
+# Every `:=` below without an explicit `:: Type` annotation needs
+# dynamic mode to register its symbol — same reasoning as vml/Ops.vy.
+ruleset { dynamic_casting };
+
 module vcolors;
 
 # ============================================================================
 # CORE ANSI CODES
 # ============================================================================
 
-const ESC     = "\e";
-const RESET   = "\e[0m";
-const BOLD    = "\e[1m";
-const DIM     = "\e[2m";
-const ITALIC  = "\e[3m";
-const UNDER   = "\e[4m";
-const BLINK   = "\e[5m";
-const REVERSE = "\e[7m";
-const HIDDEN  = "\e[8m";
-const STRIKE  = "\e[9m";
+const ESC     := "\e";
+const RESET   := "\e[0m";
+const BOLD    := "\e[1m";
+const DIM     := "\e[2m";
+const ITALIC  := "\e[3m";
+const UNDER   := "\e[4m";
+const BLINK   := "\e[5m";
+const REVERSE := "\e[7m";
+const HIDDEN  := "\e[8m";
+const STRIKE  := "\e[9m";
 
 # ============================================================================
 # PALETTES
 # ============================================================================
 
 group Palette {
-    black   = "\e[0;30m";
-    red     = "\e[0;31m";
-    green   = "\e[0;32m";
-    yellow  = "\e[0;33m";
-    blue    = "\e[0;34m";
-    magenta = "\e[0;35m";
-    cyan    = "\e[0;36m";
-    white   = "\e[0;37m";
-    gray    = "\e[0;90m";
+    black   := "\e[0;30m";
+    red     := "\e[0;31m";
+    green   := "\e[0;32m";
+    yellow  := "\e[0;33m";
+    blue    := "\e[0;34m";
+    magenta := "\e[0;35m";
+    cyan    := "\e[0;36m";
+    white   := "\e[0;37m";
+    gray    := "\e[0;90m";
 };
 
 group Bright {
-    black   = "\e[1;30m";
-    red     = "\e[1;31m";
-    green   = "\e[1;32m";
-    yellow  = "\e[1;33m";
-    blue    = "\e[1;34m";
-    magenta = "\e[1;35m";
-    cyan    = "\e[1;36m";
-    white   = "\e[1;37m";
+    black   := "\e[1;30m";
+    red     := "\e[1;31m";
+    green   := "\e[1;32m";
+    yellow  := "\e[1;33m";
+    blue    := "\e[1;34m";
+    magenta := "\e[1;35m";
+    cyan    := "\e[1;36m";
+    white   := "\e[1;37m";
 };
 
 group BG {
-    black   = "\e[40m";
-    red     = "\e[41m";
-    green   = "\e[42m";
-    yellow  = "\e[43m";
-    blue    = "\e[44m";
-    magenta = "\e[45m";
-    cyan    = "\e[46m";
-    white   = "\e[47m";
+    black   := "\e[40m";
+    red     := "\e[41m";
+    green   := "\e[42m";
+    yellow  := "\e[43m";
+    blue    := "\e[44m";
+    magenta := "\e[45m";
+    cyan    := "\e[46m";
+    white   := "\e[47m";
 };
 
 group BGBright {
-    black   = "\e[100m";
-    red     = "\e[101m";
-    green   = "\e[102m";
-    yellow  = "\e[103m";
-    blue    = "\e[104m";
-    magenta = "\e[105m";
-    cyan    = "\e[106m";
-    white   = "\e[107m";
+    black   := "\e[100m";
+    red     := "\e[101m";
+    green   := "\e[102m";
+    yellow  := "\e[103m";
+    blue    := "\e[104m";
+    magenta := "\e[105m";
+    cyan    := "\e[106m";
+    white   := "\e[107m";
 };
 
 # ============================================================================
@@ -179,16 +183,16 @@ fn :: vcolors bgRgb(r, g, b, t) {
 # ============================================================================
 
 fn :: vcolors rainbow(text) {
-    palette = [
+    palette := [
         Palette.red, Palette.yellow, Palette.green,
         Palette.cyan, Palette.blue, Palette.magenta
     ];
-    result = "";
-    i = 0;
-    len = text.length();
+    result := "";
+    i := 0;
+    len := text.length();
     while i < len {
-        ch = text[i];
-        colorIdx = i % 6;
+        ch := text[i];
+        colorIdx := i % 6;
         result = result + palette[colorIdx] + ch;
         i = i + 1;
     }
@@ -196,16 +200,16 @@ fn :: vcolors rainbow(text) {
 }
 
 fn :: vcolors box(text) {
-    len = text.length();
-    border = "";
-    i = 0;
+    len := text.length();
+    border := "";
+    i := 0;
     while i < len + 4 {
         border = border + "-";
         i = i + 1;
     }
-    top    = Palette.cyan + "+" + border + "+" + RESET + "\n";
-    middle = Palette.cyan + "|" + RESET + "  " + text + "  " + Palette.cyan + "|" + RESET + "\n";
-    bottom = Palette.cyan + "+" + border + "+" + RESET;
+    top    := Palette.cyan + "+" + border + "+" + RESET + "\n";
+    middle := Palette.cyan + "|" + RESET + "  " + text + "  " + Palette.cyan + "|" + RESET + "\n";
+    bottom := Palette.cyan + "+" + border + "+" + RESET;
     return top + middle + bottom;
 }
 

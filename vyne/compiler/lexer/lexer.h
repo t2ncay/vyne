@@ -91,7 +91,7 @@ enum class VTokenType {
     Equals,           // = (Assignment)
     Double_Equals,    // == (Comparison)
     Not_Equal,        // !=
-    next == VTokenType::NullCoalesceAssign) Greater,          // >
+    Greater,          // >
     Smaller,          // <
     Greater_Or_Equal, // >=
     Smaller_Or_Equal, // <=

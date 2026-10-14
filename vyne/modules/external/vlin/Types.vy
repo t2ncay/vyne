@@ -35,8 +35,8 @@ group Types :: vlin {
 
         # -- rows / cols as fresh typed arrays ------------------------
         row_at(r :: Int64) -> Array<Float64> {
-            c0 :: Int64 = self.col;
-            result :: Array<Float64> = [];
+            c0 :: Int64 := self.col;
+            result :: Array<Float64> := [];
             through c :: 0..c0-1 -> loop {
                 result.push(self.data[r * c0 + c]);
             };
@@ -44,9 +44,9 @@ group Types :: vlin {
         }
 
         col_at(c :: Int64) -> Array<Float64> {
-            r0 :: Int64 = self.row;
-            c0 :: Int64 = self.col;
-            result :: Array<Float64> = [];
+            r0 :: Int64 := self.row;
+            c0 :: Int64 := self.col;
+            result :: Array<Float64> := [];
             through r :: 0..r0-1 -> loop {
                 result.push(self.data[r * c0 + c]);
             };
@@ -55,10 +55,10 @@ group Types :: vlin {
 
         # -- copy ------------------------------------------------------
         copy() {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(self.data[i]); };
             return vlin.Types.Matrix(r, c, output_data);
         }
@@ -79,51 +79,51 @@ group Types :: vlin {
 
         # -- element-wise, returns fresh Matrix -----------------------
         negate() {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(0.0 - self.data[i]); };
             return vlin.Types.Matrix(r, c, output_data);
         }
 
         add_scalar(s :: Float64) {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(self.data[i] + s); };
             return vlin.Types.Matrix(r, c, output_data);
         }
 
         mul_scalar(s :: Float64) {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(self.data[i] * s); };
             return vlin.Types.Matrix(r, c, output_data);
         }
 
         # -- reshape / transpose --------------------------------------
         reshape(new_rows :: Int64, new_cols :: Int64) {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
             if new_rows * new_cols != r * c {
                 out(vcolors.red("Matrix Error: reshape size mismatch"));
                 return self.copy();
             }
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(self.data[i]); };
             return vlin.Types.Matrix(new_rows, new_cols, output_data);
         }
 
         transposed() {
-            r :: Int64 = self.row;
-            c :: Int64 = self.col;
-            n :: Int64 = r * c;
-            output_data :: Array<Float64> = [];
+            r :: Int64 := self.row;
+            c :: Int64 := self.col;
+            n :: Int64 := r * c;
+            output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(0.0); };
             vlin.k_transpose(output_data, self.data, r, c);
             return vlin.Types.Matrix(c, r, output_data);
