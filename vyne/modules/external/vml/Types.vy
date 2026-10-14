@@ -24,7 +24,7 @@ group Types :: vml {
         # z = x @ W + b; then activation(z). Dispatches on the
         # activation string via vml.apply_activation in Ops.vy.
         forward(x :: vlin.Types.Matrix) -> vlin.Types.Matrix {
-            z :: vlin.Types.Matrix =
+            z :: vlin.Types.Matrix :=
                 vlin.add_bias(vlin.multiply(x, self.W), self.b);
             return vml.apply_activation(z, self.activation);
         }
@@ -42,10 +42,10 @@ group Types :: vml {
         depth() -> Int64 { return self.layers.size(); }
 
         forward(x :: vlin.Types.Matrix) -> vlin.Types.Matrix {
-            result :: vlin.Types.Matrix = x;
-            n :: Int64 = self.layers.size();
+            result :: vlin.Types.Matrix := x;
+            n :: Int64 := self.layers.size();
             through i :: 0..n-1 -> loop {
-                layer = self.layers[i];
+                layer := self.layers[i];
                 result = layer.forward(result);
             };
             return result;

@@ -13,7 +13,7 @@ module vlin;
 fn :: vlin sgd_update_inplace(W :: vlin.Types.Matrix,
                               grad :: vlin.Types.Matrix,
                               lr :: Float64) -> Int64 {
-    n :: Int64 = W.row * W.col;
+    n :: Int64 := W.row * W.col;
     through i :: 0..n-1 -> loop {
         W.data[i] = W.data[i] - lr * grad.data[i];
     };

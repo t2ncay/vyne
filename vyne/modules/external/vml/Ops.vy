@@ -39,15 +39,15 @@ fn :: vml forward_all(model :: vml.Types.Sequential, x :: vlin.Types.Matrix) -> 
     # accumulator stays boxed and every push stores the struct
     # intact.
 
-    n :: Int64 = model.layers.size();
+    n :: Int64 := model.layers.size();
     if n == 0 { return []; }
 
-    first = model.layers[0].forward(x);
-    results = [first];
-    current = first;
+    first := model.layers[0].forward(x);
+    results := [first];
+    current := first;
 
     through i :: 1..n-1 -> loop {
-        layer = model.layers[i];
+        layer := model.layers[i];
         current = layer.forward(current);
         results.push(current);
     };
@@ -74,16 +74,16 @@ fn :: vml forward_all(model :: vml.Types.Sequential, x :: vlin.Types.Matrix) -> 
 # interface field (so getInterfaceArrayElem returns Float64).
 fn :: vml dense_forward_fused(m :: vml.Types.Dense,
                                x :: vlin.Types.Matrix) -> vlin.Types.Matrix {
-    W_mat  :: vlin.Types.Matrix = m.W;
-    x_data :: Array<Float64>    = x.data;
-    W_data :: Array<Float64>    = W_mat.data;
-    bias   :: Array<Float64>    = m.b;
+    W_mat  :: vlin.Types.Matrix := m.W;
+    x_data :: Array<Float64>    := x.data;
+    W_data :: Array<Float64>    := W_mat.data;
+    bias   :: Array<Float64>    := m.b;
 
-    M :: Int64 = x.row;
-    K :: Int64 = x.col;
-    N :: Int64 = W_mat.col;
+    M :: Int64 := x.row;
+    K :: Int64 := x.col;
+    N :: Int64 := W_mat.col;
 
-    output :: Array<Float64> = vlin.zeros_f64(M * N);
+    output :: Array<Float64> := vlin.zeros_f64(M * N);
 
     if      m.activation == "tanh"    { vml.k_matmul_bias_tanh(output, x_data, W_data, bias, M, K, N); }
     else if m.activation == "sigmoid" { vml.k_matmul_bias_sigmoid(output, x_data, W_data, bias, M, K, N); }
@@ -101,15 +101,15 @@ fn :: vml dense_forward_fused(m :: vml.Types.Dense,
 # type to Float64 and coerce each pushed Dense struct through .as.i64.
 fn :: vml forward_all_fused(model :: vml.Types.Sequential,
                              x :: vlin.Types.Matrix) -> Array {
-    n :: Int64 = model.layers.size();
+    n :: Int64 := model.layers.size();
     if n == 0 { return []; }
 
-    first = vml.dense_forward_fused(model.layers[0], x);
-    results = [first];
-    current = first;
+    first := vml.dense_forward_fused(model.layers[0], x);
+    results := [first];
+    current := first;
 
     through i :: 1..n-1 -> loop {
-        layer = model.layers[i];
+        layer := model.layers[i];
         current = vml.dense_forward_fused(layer, current);
         results.push(current);
     };
@@ -130,11 +130,11 @@ fn :: vml sgd_step(W :: vlin.Types.Matrix, grad :: vlin.Types.Matrix,
 fn :: vml adam_step(W :: vlin.Types.Matrix, grad :: vlin.Types.Matrix,
                     state :: vml.Types.AdamState, opt :: vml.Types.Adam,
                     t :: Int64) {
-    W_data :: Array<Float64> = W.data;
-    g_data :: Array<Float64> = grad.data;
-    m_data :: Array<Float64> = state.m;
-    v_data :: Array<Float64> = state.v;
-    n :: Int64 = W.row * W.col;
+    W_data :: Array<Float64> := W.data;
+    g_data :: Array<Float64> := grad.data;
+    m_data :: Array<Float64> := state.m;
+    v_data :: Array<Float64> := state.v;
+    n :: Int64 := W.row * W.col;
     vml.k_adam_step(W_data, g_data, m_data, v_data,
                     opt.lr, opt.beta1, opt.beta2, opt.eps, t, n);
 }
@@ -153,13 +153,13 @@ fn :: vml adam_step(W :: vlin.Types.Matrix, grad :: vlin.Types.Matrix,
 fn :: vml gather_rows(source :: vlin.Types.Matrix,
                       indices :: Array,
                       batch_size :: Int64) -> vlin.Types.Matrix {
-    src_data :: Array<Float64> = source.data;
-    cols     :: Int64 = source.col;
-    n        :: Int64 = batch_size * cols;
-    output      :: Array<Float64> = vlin.zeros_f64(n);
+    src_data :: Array<Float64> := source.data;
+    cols     :: Int64 := source.col;
+    n        :: Int64 := batch_size * cols;
+    output      :: Array<Float64> := vlin.zeros_f64(n);
 
     through b :: 0..batch_size-1 -> loop {
-        idx :: Int64 = int64(indices[b]);
+        idx :: Int64 := int64(indices[b]);
         through j :: 0..cols-1 -> loop {
             output[b * cols + j] = src_data[idx * cols + j];
         };
@@ -172,8 +172,8 @@ fn :: vml gather_rows(source :: vlin.Types.Matrix,
 # reproducible when the global RNG is seeded.
 fn :: vml shuffle_indices(indices :: Array, n :: Int64) {
     through i :: 0..n-2 -> loop {
-        j :: Int64 = int64(vmath.random(i, n - 1));
-        tmp :: Int64 = int64(indices[i]);
+        j :: Int64 := int64(vmath.random(i, n - 1));
+        tmp :: Int64 := int64(indices[i]);
         indices[i] = indices[j];
         indices[j] = tmp;
     };

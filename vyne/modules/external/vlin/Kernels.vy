@@ -77,28 +77,28 @@ fn :: vlin k_neg(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> I
 # ============================================================================
 
 fn :: vlin k_sum(a :: Array<Float64>, n :: Int64) -> Float64 {
-    total :: Float64 = 0.0;
+    total :: Float64 := 0.0;
     through i :: 0..n-1 -> loop { total = total + a[i]; };
     return total;
 }
 
 fn :: vlin k_dot(a :: Array<Float64>, b :: Array<Float64>, n :: Int64) -> Float64 {
-    total :: Float64 = 0.0;
+    total :: Float64 := 0.0;
     through i :: 0..n-1 -> loop { total = total + a[i] * b[i]; };
     return total;
 }
 
 fn :: vlin k_norm_sq(a :: Array<Float64>, n :: Int64) -> Float64 {
-    total :: Float64 = 0.0;
+    total :: Float64 := 0.0;
     through i :: 0..n-1 -> loop { total = total + a[i] * a[i]; };
     return total;
 }
 
 fn :: vlin k_max(a :: Array<Float64>, n :: Int64) -> Float64 {
     if n == 0 { return 0.0; }
-    best :: Float64 = a[0];
+    best :: Float64 := a[0];
     through i :: 1..n-1 -> loop {
-        v :: Float64 = a[i];
+        v :: Float64 := a[i];
         if v > best { best = v; }
     };
     return best;
@@ -106,9 +106,9 @@ fn :: vlin k_max(a :: Array<Float64>, n :: Int64) -> Float64 {
 
 fn :: vlin k_min(a :: Array<Float64>, n :: Int64) -> Float64 {
     if n == 0 { return 0.0; }
-    best :: Float64 = a[0];
+    best :: Float64 := a[0];
     through i :: 1..n-1 -> loop {
-        v :: Float64 = a[i];
+        v :: Float64 := a[i];
         if v < best { best = v; }
     };
     return best;
@@ -123,7 +123,7 @@ fn :: vlin k_matmul(output :: Array<Float64>,
                     M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = 0.0;
+            acc :: Float64 := 0.0;
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[kk * N + c];
             };
@@ -140,7 +140,7 @@ fn :: vlin k_matmul_trans_a(output :: Array<Float64>,
                             M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through m :: 0..M-1 -> loop {
         through n :: 0..N-1 -> loop {
-            acc :: Float64 = 0.0;
+            acc :: Float64 := 0.0;
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[kk * M + m] * b[kk * N + n];
             };
@@ -156,7 +156,7 @@ fn :: vlin k_matmul_trans_b(output :: Array<Float64>,
                             M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = 0.0;
+            acc :: Float64 := 0.0;
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[c * K + kk];
             };

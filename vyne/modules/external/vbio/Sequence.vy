@@ -24,8 +24,8 @@ fn :: vbio complement_base(b :: String) -> String {
 }
 
 fn :: vbio complement(seq :: String) -> String {
-    n :: Int64 = seq.size();
-    output :: String = "";
+    n :: Int64 := seq.size();
+    output :: String := "";
     through i :: 0..n-1 -> loop {
         output = output + vbio.complement_base(seq[i]);
     };
@@ -33,8 +33,8 @@ fn :: vbio complement(seq :: String) -> String {
 }
 
 fn :: vbio reverse_string(seq :: String) -> String {
-    n :: Int64 = seq.size();
-    output :: String = "";
+    n :: Int64 := seq.size();
+    output :: String := "";
     through i :: 0..n-1 -> loop {
         output = output + seq[n - 1 - i];
     };
@@ -52,10 +52,10 @@ fn :: vbio rc(d :: vbio.Types.DNA) -> vbio.Types.DNA {
 }
 
 fn :: vbio transcribe(d :: vbio.Types.DNA) -> vbio.Types.RNA {
-    n :: Int64 = d.seq.size();
-    output :: String = "";
+    n :: Int64 := d.seq.size();
+    output :: String := "";
     through i :: 0..n-1 -> loop {
-        b :: String = d.seq[i];
+        b :: String := d.seq[i];
         if b == "T" {
             output = output + "U";
         } else {
@@ -68,8 +68,8 @@ fn :: vbio transcribe(d :: vbio.Types.DNA) -> vbio.Types.RNA {
 # --- Composition ----------------------------------------------------------
 
 fn :: vbio count_base(seq :: String, b :: String) -> Int64 {
-    n :: Int64 = seq.size();
-    c :: Int64 = 0;
+    n :: Int64 := seq.size();
+    c :: Int64 := 0;
     through i :: 0..n-1 -> loop {
         if seq[i] == b {
             c = c + 1;
@@ -79,12 +79,12 @@ fn :: vbio count_base(seq :: String, b :: String) -> Int64 {
 }
 
 fn :: vbio gc_content(seq :: String) -> Float64 {
-    n :: Int64 = seq.size();
+    n :: Int64 := seq.size();
     if n == 0 {
         return 0.0;
     }
-    g :: Int64 = vbio.count_base(seq, "G");
-    c :: Int64 = vbio.count_base(seq, "C");
+    g :: Int64 := vbio.count_base(seq, "G");
+    c :: Int64 := vbio.count_base(seq, "C");
     return float64(g + c) / float64(n);
 }
 
@@ -94,21 +94,21 @@ fn :: vbio gc_content(seq :: String) -> Float64 {
 #     Tm = 64.9 + 41 * (GC_count - 16.4) / N
 
 fn :: vbio melting_temperature(seq :: String) -> Float64 {
-    n :: Int64 = seq.size();
+    n :: Int64 := seq.size();
     if n == 0 {
         return 0.0;
     }
 
     if n < 14 {
-        a :: Int64 = vbio.count_base(seq, "A");
-        t :: Int64 = vbio.count_base(seq, "T");
-        g :: Int64 = vbio.count_base(seq, "G");
-        c :: Int64 = vbio.count_base(seq, "C");
+        a :: Int64 := vbio.count_base(seq, "A");
+        t :: Int64 := vbio.count_base(seq, "T");
+        g :: Int64 := vbio.count_base(seq, "G");
+        c :: Int64 := vbio.count_base(seq, "C");
         return float64(2 * (a + t) + 4 * (g + c));
     }
 
-    g :: Int64 = vbio.count_base(seq, "G");
-    c :: Int64 = vbio.count_base(seq, "C");
+    g :: Int64 := vbio.count_base(seq, "G");
+    c :: Int64 := vbio.count_base(seq, "C");
     return 64.9 + 41.0 * (float64(g + c) - 16.4) / float64(n);
 }
 
@@ -116,12 +116,12 @@ fn :: vbio melting_temperature(seq :: String) -> Float64 {
 
 # First index of `substr` in `seq`, or -1.
 fn :: vbio find_first(seq :: String, substr :: String) -> Int64 {
-    n :: Int64 = seq.size();
-    m :: Int64 = substr.size();
+    n :: Int64 := seq.size();
+    m :: Int64 := substr.size();
     if m == 0 { return 0; }
     if m > n { return -1; }
     through i :: 0..n-m -> loop {
-        window :: String = "";
+        window :: String := "";
         through j :: 0..m-1 -> loop {
             window = window + seq[i + j];
         };
@@ -134,11 +134,11 @@ fn :: vbio find_first(seq :: String, substr :: String) -> Int64 {
 
 # Hamming distance — requires equal-length strings.
 fn :: vbio hamming_distance(a :: String, b :: String) -> Int64 {
-    n :: Int64 = a.size();
+    n :: Int64 := a.size();
     if b.size() != n {
         return -1;
     }
-    d :: Int64 = 0;
+    d :: Int64 := 0;
     through i :: 0..n-1 -> loop {
         if a[i] != b[i] {
             d = d + 1;

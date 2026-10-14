@@ -44,7 +44,7 @@ fn :: vml k_matmul_bias_tanh(output :: Array<Float64>,
                               M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = bias[c];
+            acc :: Float64 := bias[c];
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[kk * N + c];
             };
@@ -61,7 +61,7 @@ fn :: vml k_matmul_bias_sigmoid(output :: Array<Float64>,
                                  M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = bias[c];
+            acc :: Float64 := bias[c];
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[kk * N + c];
             };
@@ -78,7 +78,7 @@ fn :: vml k_matmul_bias_relu(output :: Array<Float64>,
                               M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = bias[c];
+            acc :: Float64 := bias[c];
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[kk * N + c];
             };
@@ -95,7 +95,7 @@ fn :: vml k_matmul_bias_linear(output :: Array<Float64>,
                                 M :: Int64, K :: Int64, N :: Int64) -> Int64 {
     through r :: 0..M-1 -> loop {
         through c :: 0..N-1 -> loop {
-            acc :: Float64 = bias[c];
+            acc :: Float64 := bias[c];
             through kk :: 0..K-1 -> loop {
                 acc = acc + a[r * K + kk] * b[kk * N + c];
             };

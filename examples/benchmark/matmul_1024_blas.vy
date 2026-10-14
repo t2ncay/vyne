@@ -18,9 +18,9 @@ use native vmem;
 
 vmath.seed(42);
 
-N     :: Int64 = 1024;
-ITERS :: Int64 = 100;
-CONFIG :: Int64 = 1;   # 0 = no region, 1 = region
+N     :: Int64 := 1024;
+ITERS :: Int64 := 100;
+CONFIG :: Int64 := 1;   # 0 = no region, 1 = region
 
 out("config=" + string(CONFIG) + " N=" + string(N) + " iters=" + string(ITERS));
 
@@ -36,8 +36,8 @@ out("config=" + string(CONFIG) + " N=" + string(N) + " iters=" + string(ITERS));
 # ... So the resulting matrices are bit-identical to the ones in
 # matmul_1024.vy.
 # ---------------------------------------------------------------------------
-A_flat :: Array<Float64> = vlin.zeros_f64(N * N);
-B_flat :: Array<Float64> = vlin.zeros_f64(N * N);
+A_flat :: Array<Float64> := vlin.zeros_f64(N * N);
+B_flat :: Array<Float64> := vlin.zeros_f64(N * N);
 
 through r :: 0..N-1 -> loop {
     through c :: 0..N-1 -> loop {
@@ -46,8 +46,8 @@ through r :: 0..N-1 -> loop {
     };
 };
 
-A :: vlin.Types.Matrix = vlin.Types.Matrix(N, N, A_flat);
-B :: vlin.Types.Matrix = vlin.Types.Matrix(N, N, B_flat);
+A :: vlin.Types.Matrix := vlin.Types.Matrix(N, N, A_flat);
+B :: vlin.Types.Matrix := vlin.Types.Matrix(N, N, B_flat);
 
 # ---------------------------------------------------------------------------
 # Config 0 — no region.
@@ -58,7 +58,7 @@ B :: vlin.Types.Matrix = vlin.Types.Matrix(N, N, B_flat);
 # ---------------------------------------------------------------------------
 if CONFIG == 0 {
     through iter :: 1..ITERS -> loop {
-        C :: vlin.Types.Matrix = vlin.multiply(A, B);
+        C :: vlin.Types.Matrix := vlin.multiply(A, B);
         if iter == ITERS {
             out("checksum: " + string(C.get(0, 0)));
         }
@@ -79,7 +79,7 @@ if CONFIG == 0 {
 if CONFIG == 1 {
     through iter :: 1..ITERS -> loop {
         region step {
-            C :: vlin.Types.Matrix = vlin.multiply(A, B);
+            C :: vlin.Types.Matrix := vlin.multiply(A, B);
             if iter == ITERS {
                 out("checksum: " + string(C.get(0, 0)));
             }

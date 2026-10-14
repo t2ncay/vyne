@@ -30,8 +30,8 @@ fn :: vfft pow2(e :: Int64) -> Int64 {
 # a left shift; the walk is unchanged.
 fn :: vfft log2_exact(n :: Int64) -> Int64 {
     if n <= 0 { return -1; }
-    b :: Int64 = 0;
-    r :: Int64 = 1;
+    b :: Int64 := 0;
+    r :: Int64 := 1;
     while r < n {
         r = r << 1;
         b = b + 1;
@@ -51,9 +51,9 @@ fn :: vfft log2_exact(n :: Int64) -> Int64 {
 # Guard against k = 0: the loop body never runs, result stays 0.
 # That matches the old behaviour (0..(-1) is an empty range).
 fn :: vfft bit_reverse(i :: Int64, k :: Int64) -> Int64 {
-    result :: Int64 = 0;
+    result :: Int64 := 0;
     through b :: 0..k-1 -> loop {
-        bit :: Int64 = (i >> b) & 1;
+        bit :: Int64 := (i >> b) & 1;
         result = result | (bit << (k - 1 - b));
     };
     return result;
@@ -71,37 +71,37 @@ fn :: vfft fft_kernel(re :: Array<Float64>, im :: Array<Float64>,
     # Bit-reversal permutation via the cached table. O(N) instead of
     # O(N·k²) — the pow2 and integer-division costs are gone.
     through i :: 0..n-1 -> loop {
-        j :: Int64 = bitrev[i];
+        j :: Int64 := bitrev[i];
         if i < j {
-            tr :: Float64 = re[i];
+            tr :: Float64 := re[i];
             re[i] = re[j];
             re[j] = tr;
-            ti :: Float64 = im[i];
+            ti :: Float64 := im[i];
             im[i] = im[j];
             im[j] = ti;
         }
     };
 
-    length :: Int64 = 2;
+    length :: Int64 := 2;
     through stage :: 0..bits-1 -> loop {
-        half :: Int64 = length / 2;
-        step :: Int64 = n / length;
-        n_blocks :: Int64 = n / length;
+        half :: Int64 := length / 2;
+        step :: Int64 := n / length;
+        n_blocks :: Int64 := n / length;
 
-        base :: Int64 = 0;
+        base :: Int64 := 0;
         through blk :: 0..n_blocks-1 -> loop {
             through k :: 0..half-1 -> loop {
-                ti_idx :: Int64 = k * step;
-                wr :: Float64 = tw_re[ti_idx];
-                wi :: Float64 = tw_im[ti_idx];
+                ti_idx :: Int64 := k * step;
+                wr :: Float64 := tw_re[ti_idx];
+                wi :: Float64 := tw_im[ti_idx];
 
-                i1 :: Int64 = base + k;
-                i2 :: Int64 = i1 + half;
+                i1 :: Int64 := base + k;
+                i2 :: Int64 := i1 + half;
 
-                ur :: Float64 = re[i1];
-                ui :: Float64 = im[i1];
-                vr :: Float64 = re[i2] * wr - im[i2] * wi;
-                vi :: Float64 = re[i2] * wi + im[i2] * wr;
+                ur :: Float64 := re[i1];
+                ui :: Float64 := im[i1];
+                vr :: Float64 := re[i2] * wr - im[i2] * wi;
+                vi :: Float64 := re[i2] * wi + im[i2] * wr;
 
                 re[i1] = ur + vr;
                 im[i1] = ui + vi;

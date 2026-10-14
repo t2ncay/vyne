@@ -797,6 +797,7 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
 
             VTokenType next = lookAhead(checkPos).type;
             if (next == VTokenType::Extends || next == VTokenType::Equals ||
+                next == VTokenType::Declare_Assign ||
                 next == VTokenType::NullCoalesceAssign) {
                 return parseAssignment();
             }
@@ -1798,6 +1799,39 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
         consumeSemicolon();
     }
 
+    // ----------------------------------------------------------------
+    // `x := value;` and `x :: T := value;` — fresh declaration.
+    //
+    // The `:: T` part, when present, was already consumed by
+    // parseIdentifierExpr inside parsePostfix(). So by the time we get
+    // here the LHS is a fully-populated VariableNode with
+    // hasExplicitTypeInfo() reflecting whether the user wrote a type
+    // annotation. The only thing left in the stream is `:=`.
+    //
+    // Declarations are only valid on a bare variable. `obj.field := x`
+    // and `arr[i] := x` are rejected — those are writes, and writes use
+    // `=`, matching every other imperative language with this split.
+    // ----------------------------------------------------------------
+    bool lhsIsTypedVar =
+        (lhs->type() == NodeType::VARIABLE) &&
+        static_cast<VariableNode*>(lhs.get())->hasExplicitTypeInfo();
+
+    if (peekToken().type == VTokenType::Declare_Assign || lhsIsTypedVar) {
+        if (lhs->type() != NodeType::VARIABLE) {
+            throw std::runtime_error(
+                "Syntax Error: ':=' can only declare a plain variable. "
+                "Use '=' to write to a member or index [ line " +
+                std::to_string(line) + " ]"
+            );
+        }
+        return parseVariableAssignment(
+            std::move(lhs),
+            line,
+            isConst,
+            /*isDeclaration=*/true
+        );
+    }
+
     if (peekToken().type == VTokenType::Equals) {
         if (lhs->type() == NodeType::MEMBER_ACCESS) {
             auto* mem = static_cast<MemberAccessNode*>(lhs.get());
@@ -1849,7 +1883,15 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
     }
 
     if (lhs->type() == NodeType::VARIABLE) [[likely]] {
-        return parseVariableAssignment(std::move(lhs), line, isConst);
+        // Reassignment. parseVariableAssignment validates that the
+        // variable is already in scope and rejects with a clear
+        // diagnostic if it is not.
+        return parseVariableAssignment(
+            std::move(lhs),
+            line,
+            isConst,
+            /*isDeclaration=*/false
+        );
     }
 
     return lhs;
@@ -1858,130 +1900,226 @@ std::unique_ptr<ASTNode> Parser::parseAssignment() {
 std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     std::unique_ptr<ASTNode> lhs,
     int line,
-    bool isConst
+    bool isConst,
+    bool isDeclaration
 ) {
     auto* var = static_cast<VariableNode*>(lhs.get());
     uint32_t varId = var->getNameId();
     std::string originalName = var->getOriginalName();
 
+    // Single up-front symbol lookup. Serves three purposes:
+    //   1. Validate that a reassignment targets an existing variable.
+    //   2. Seed varType for reassignments, whose VariableNode has an
+    //      Unknown static type when parseIdentifierExpr could not
+    //      determine one from scope.
+    //   3. Provide the type for the strict-mode default-init path in a
+    //      fresh declaration without an initializer (`x :: T;`).
+    SymbolInfo* existing = lookupSymbol(varId);
+
     VType varType = var->getStaticType();
-    // Re-assignment to an existing variable: the node itself carries
-    // Unknown because parseIdentifierExpr doesn't consult the symbol
-    // table. Look it up so the strict-mode check doesn't misfire.
-    if (varType == VType::Unknown) {
-        if (SymbolInfo* info = lookupSymbol(varId)) {
-            varType = info->type;
-        }
+    if (varType == VType::Unknown && existing) {
+        varType = existing->type;
     }
 
     bool isReference = var->isRefVar();
     std::string customTypeName = "";
     VType varArrayElem = VType::Unknown;
 
-    // A fresh declaration iff the user wrote `:: Type` on *this* statement.
-    // The symbol-table lookup above only serves the strict-mode check and
-    // must not be used to classify codegen behaviour — see the comment on
-    // AssignmentNode::isFreshDeclaration.
-    bool isFreshDecl = var->hasExplicitTypeInfo();
+    bool hasExplicitType = var->hasExplicitTypeInfo();
 
-    if (var->hasExplicitTypeInfo()) {
+    // ----------------------------------------------------------------
+    // Declaration vs reassignment validation.
+    //
+    // These two errors are the whole point of the `:=` / `=` split.
+    // Before this change, `x = 5` on an undeclared x was silently
+    // promoted to an implicit declaration in dynamic mode, and
+    // `x :: T = 5` was the normal declaration form. Now:
+    //
+    //   `:=` on an existing variable → allowed (shadowing warning from
+    //     defineSymbol still fires when quiet mode is off, matching the
+    //     old behaviour for re-declarations)
+    //   `:=` on a new variable      → the only legal declaration form
+    //   `=`  on a new variable      → hard error, at the mistake site
+    //   `=`  after `x :: T`         → hard error, because the `:: T`
+    //     makes the user's intent unambiguously declarative and they
+    //     wrote the wrong operator
+    // ----------------------------------------------------------------
+    if (hasExplicitType && !isDeclaration) {
+        throw std::runtime_error(
+            "Syntax Error: use ':=' to declare a variable with a type. "
+            "Write '" +
+            originalName +
+            " :: <Type> := <value>;' "
+            "[ line " +
+            std::to_string(line) + " ]"
+        );
+    }
+
+    if (!isDeclaration && !existing) {
+        throw std::runtime_error(
+            "Undefined variable '" + originalName +
+            "'. Declare it with ':=' before reassigning it [ line " +
+            std::to_string(line) + " ]"
+        );
+    }
+
+    // ----------------------------------------------------------------
+    // Type resolution. Three cases:
+    //   - explicit annotation was written (hasExplicitType)
+    //   - fresh declaration without an annotation (`x := v`)
+    //   - reassignment (type comes from the symbol table)
+    // ----------------------------------------------------------------
+    if (hasExplicitType) {
         varArrayElem = var->getArrayElemType();
         customTypeName = var->getDeclaredTypeName();
-    } else if (
-        (peekToken().type == VTokenType::Extends) && (varType == VType::Unknown)
-    ) {
-        consume(VTokenType::Extends);
-        customTypeName = parseTypePath();
-        varType = resolveType(customTypeName);
-        varArrayElem = resolveArrayElementType(customTypeName);
-        isFreshDecl = true; // `::` was still in the stream
-
-        if (peekToken().type == VTokenType::Referencer) {
-            consume(VTokenType::Referencer);
-            isReference = true;
-            varArrayElem = VType::Unknown;
-        }
-    } else if (varType == VType::Unknown) {
+    } else if (isDeclaration && varType == VType::Unknown) {
+        // `x := v` with no type and no existing symbol to infer from.
+        // Dynamic mode is fine with this; strict mode is not.
         if (Vyne::isTypeStrict()) {
             throw std::runtime_error(
                 "Type Error: Variable '" + originalName +
                 "' requires explicit type declaration in strict mode. "
-                "Use ':: <type>' or enable dynamic typing with `ruleset` "
-                "declarations "
+                "Write '" +
+                originalName +
+                " :: <Type> := <value>;' "
+                "[ line " +
+                std::to_string(line) + " ]"
+            );
+        } else if (!isQuietMode()) {
+            warn(
+                "Implicitly typing '" + originalName + "' (dynamic mode)",
+                line
+            );
+        }
+    }
+    // Reassignment to an existing dynamically-typed variable needs no
+    // resolution here — varType already came from `existing->type`.
+
+    // ----------------------------------------------------------------
+    // Initializer. The operator token (if any) is still in the stream,
+    // because parseAssignment deliberately left it for us to consume
+    // once we know which path we're on.
+    // ----------------------------------------------------------------
+    std::unique_ptr<ASTNode> rhs = nullptr;
+
+    if (isDeclaration) {
+        if (peekToken().type == VTokenType::Declare_Assign) {
+            consume(VTokenType::Declare_Assign);
+
+            // `through x :: lo..hi` disambiguation: an Int64 literal
+            // followed by `..` is a range, not a scalar. Mirrors the
+            // identical check in the old `=` path.
+            if (peekToken().type == VTokenType::Int64 &&
+                lookAhead(1).type == VTokenType::Double_Dot) {
+                rhs = parseRange();
+            } else {
+                rhs = parseExpression();
+            }
+        } else if (peekToken().type == VTokenType::Equals) {
+            // `x :: T = value` — the user wrote the old declaration
+            // operator. Before the `:=` split this was legal; it now
+            // falls through the declarative routing (lhs has explicit
+            // type info) but the `=` is not a valid initializer
+            // operator for a declaration. Fire the specific hint here
+            // rather than letting consumeSemicolon() blow up with a
+            // bare VNE-002 pointing at the `=`.
+            //
+            // The alternative — silently treating `=` as `:=` here —
+            // was rejected: it would make the two operators
+            // indistinguishable for typed declarations, which is
+            // exactly the ambiguity the split exists to remove.
+            throw std::runtime_error(
+                "Syntax Error: use ':=' to declare a variable with a type. "
+                "Write '" +
+                originalName +
+                " :: <Type> := <value>;' "
                 "[ line " +
                 std::to_string(line) + " ]"
             );
         } else {
-            if (!isQuietMode()) {
-                warn(
-                    "Implicitly typing '" + originalName + "' (dynamic mode)",
-                    line
-                );
+            // Fresh declaration with no initializer: `x :: T;`
+            // Default-initialize to the zero value of the declared type.
+            if (isReference) {
+                rhs = std::make_unique<NullNode>();
+            } else {
+                switch (varType) {
+                case VType::String:
+                    rhs = std::make_unique<StringNode>("");
+                    break;
+                case VType::Int64:
+                    rhs = std::make_unique<NumberNode>(Value((int64_t)0));
+                    break;
+                case VType::Float64:
+                    rhs = std::make_unique<NumberNode>(Value(0.0));
+                    break;
+                case VType::Bool:
+                    rhs = std::make_unique<BooleanNode>(false);
+                    break;
+                case VType::Array:
+                    rhs = std::make_unique<ArrayNode>(
+                        std::vector<std::unique_ptr<ASTNode>>()
+                    );
+                    break;
+                case VType::Struct:
+                    rhs = std::make_unique<NullNode>(customTypeName);
+                    break;
+                default:
+                    if (!Vyne::isTypeStrict()) {
+                        rhs = std::make_unique<NullNode>();
+                    } else {
+                        throw std::runtime_error(
+                            "Type Error: Cannot default initialize '" +
+                            originalName +
+                            "' without type declaration in strict mode "
+                            "[ line " +
+                            std::to_string(line) + " ]"
+                        );
+                    }
+                    break;
+                }
             }
-        }
-    }
-
-    std::unique_ptr<ASTNode> rhs = nullptr;
-    if (peekToken().type == VTokenType::Equals) {
-        consume(VTokenType::Equals);
-
-        if (peekToken().type == VTokenType::Int64 &&
-            lookAhead(1).type == VTokenType::Double_Dot) {
-            rhs = parseRange();
-        } else {
-            rhs = parseExpression();
         }
     } else {
-        if (isReference) {
-            rhs = std::make_unique<NullNode>();
-        } else {
-            switch (varType) {
-            case VType::String:
-                rhs = std::make_unique<StringNode>("");
-                break;
-            case VType::Int64:
-                rhs = std::make_unique<NumberNode>(Value((int64_t)0));
-                break;
-            case VType::Float64:
-                rhs = std::make_unique<NumberNode>(Value(0.0));
-                break;
-            case VType::Bool:
-                rhs = std::make_unique<BooleanNode>(false);
-                break;
-            case VType::Array:
-                rhs = std::make_unique<ArrayNode>(
-                    std::vector<std::unique_ptr<ASTNode>>()
-                );
-                break;
-            case VType::Struct:
-                rhs = std::make_unique<NullNode>(customTypeName);
-                break;
-            default:
-                if (!Vyne::isTypeStrict()) {
-                    rhs = std::make_unique<NullNode>();
-                } else {
-                    throw std::runtime_error(
-                        "Type Error: Cannot default initialize '" +
-                        originalName +
-                        "' without type declaration in strict mode [ line " +
-                        std::to_string(line) + " ]"
-                    );
-                }
-                break;
-            }
+        // Reassignment. parseAssignment guarantees the next token is `=`
+        // because the only way to reach this branch with isDeclaration
+        // == false is via the fall-through for a bare variable LHS that
+        // was preceded by `=`. Defensive check keeps the invariant
+        // explicit.
+        if (peekToken().type != VTokenType::Equals) {
+            throw std::runtime_error(
+                "internal: parseVariableAssignment entered with "
+                "isDeclaration == false but the next token is not '=' "
+                "[ line " +
+                std::to_string(line) + " ]"
+            );
         }
+        consume(VTokenType::Equals);
+        rhs = parseExpression();
     }
 
     consumeSemicolon();
 
-    if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
-        defineSymbol(
-            varId,
-            varType,
-            varType != VType::Unknown,
-            line,
-            originalName
-        );
+    // ----------------------------------------------------------------
+    // Symbol registration. Only a fresh declaration installs the
+    // symbol. Reassignments leave the existing entry untouched, so the
+    // type stays fixed for the lifetime of the variable — which is what
+    // makes the static type table trustworthy for codegen.
+    //
+    // The `varType != Unknown || !strict` guard mirrors the old
+    // behaviour: in strict mode, only fully-typed declarations are
+    // recorded. In dynamic mode, an Unknown-typed symbol is recorded so
+    // later reassignments can find it and pass the `existing` check.
+    // ----------------------------------------------------------------
+    if (isDeclaration) {
+        if (varType != VType::Unknown || !Vyne::isTypeStrict()) {
+            defineSymbol(
+                varId,
+                varType,
+                varType != VType::Unknown,
+                line,
+                originalName
+            );
+        }
     }
 
     auto node = std::make_unique<AssignmentNode>(
@@ -1994,13 +2132,16 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
         std::vector<std::string>{}
     );
     node->lineNumber = line;
-    node->setArrayElemType(varArrayElem);      // M4-C1
-    node->setDeclaredTypeName(customTypeName); // M4-C1B
-    if (isFreshDecl)
+    node->setArrayElemType(varArrayElem);
+    node->setDeclaredTypeName(customTypeName);
+    if (isDeclaration)
         node->markFreshDeclaration();
+    // Reassignments leave isFreshDeclaration_ at its default false.
+    // The codegen path in AssignmentNode::compile already keys off this
+    // flag to decide between fresh-decl emission and reassignment
+    // emission, so no codegen change is needed for the split.
     return node;
 }
-
 std::unique_ptr<ASTNode> Parser::parseEnum() {
     int line = peekToken().line;
     consume(VTokenType::Enum);

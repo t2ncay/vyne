@@ -77,13 +77,13 @@ enum class VTokenType {
     Exclamatory, // !
     Addresser,   // $
 
-    // --- OPERATORS : BITWISE --- 
+    // --- OPERATORS : BITWISE ---
     Bitwise_And, // &
-    Bitwise_Or, // | 
+    Bitwise_Or,  // |
     Bitwise_Xor, // ^
     Bitwise_Not, // ~
     Bitwise_Sll, // <<
-    Bitwise_Srl, // >> 
+    Bitwise_Srl, // >>
 
     // --- OPERATORS: LOGIC & RELATIONAL ---
     And,
@@ -106,7 +106,8 @@ enum class VTokenType {
     Left_Bracket,       // [
     Right_Bracket,      // ]
     Comma,              // ,
-    Colon,              //
+    Colon,              // :
+    Declare_Assign,     // :=
     Semicolon,          // ;
     Dot,                // .
     Double_Dot,         // ..
@@ -378,6 +379,8 @@ inline std::string VTokenTypeToString(VTokenType type) {
         return "','";
     case VTokenType::Colon:
         return "':'";
+    case VTokenType::Declare_Assign:
+        return "':='";
     case VTokenType::Semicolon:
         return "';'";
     case VTokenType::Dot:
