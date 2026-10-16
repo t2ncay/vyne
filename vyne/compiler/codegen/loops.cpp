@@ -45,6 +45,108 @@ int64Bound(C_Emitter& e, const ASTNode* node, const std::string& expr) {
            expr + ".as.f64)";
 }
 
+// ============================================================
+// SIMD-safety analysis for the #pragma omp simd hint
+// ------------------------------------------------------------
+// Emitting `#pragma omp simd` is a programmer assertion to the C
+// compiler that the loop has:
+//   - no loop-carried dependencies,
+//   - no side effects the compiler must preserve in order,
+//   - no control flow that can leave the loop mid-iteration.
+// A false assertion here is not a compile error — it is UB the C
+// compiler may exploit. GCC refuses to vectorize most violations
+// today because it cannot see inside the called functions, but the
+// pragma is still wrong and will bite on any future inlining or LTO
+// change.
+//
+// We assert the hint only when the AST proves all three properties.
+// Returns true iff the loop body is:
+//   1. A single IndexAssignmentNode  (or a one-statement block
+//      wrapping one).
+//   2. The destination index is exactly the loop iterator — a
+//      plain VariableNode with the iterator's name. This rules out
+//      strided writes like `out[c * R + r] = ...` in vlin_k_transpose.
+//   3. The RHS is pure — no function calls (vmath_random_float,
+//      vmath_sigmoid_f64, ...), no division / modulo / floor-div
+//      (all three emit an `exit(1)` on zero, which is not legal
+//      inside a vectorized loop).
+// ============================================================
+
+static bool rhsIsPure(const ASTNode* rhs) {
+    if (!rhs)
+        return true;
+    switch (rhs->type()) {
+    case NodeType::NUMBER:
+    case NodeType::BOOLEAN:
+    case NodeType::VARIABLE:
+    case NodeType::NULLTYPE:
+        return true;
+
+    case NodeType::INDEX_ACCESS: {
+        auto* ia = static_cast<const IndexAccessNode*>(rhs);
+        return rhsIsPure(ia->getBase()) && rhsIsPure(ia->getIndex());
+    }
+
+    case NodeType::BINARY_OP: {
+        auto* bop = static_cast<const BinOpNode*>(rhs);
+        // Division, floor-divide, modulo all lower to a runtime
+        // `if (rhs == 0) { fprintf(stderr, ...); exit(1); }` guard
+        // in the integer and float fast paths. `exit` from a
+        // vectorized lane is UB.
+        if (bop->op == VTokenType::Division ||
+            bop->op == VTokenType::Floor_Divide ||
+            bop->op == VTokenType::Modulo) {
+            return false;
+        }
+        return rhsIsPure(bop->leftNode.get()) &&
+               rhsIsPure(bop->rightNode.get());
+    }
+
+    case NodeType::UNARY: {
+        auto* un = static_cast<const UnaryNode*>(rhs);
+        return rhsIsPure(un->getRight());
+    }
+
+    // FunctionCallNode, MethodCallNode, everything else: not pure.
+    // This is the branch that excludes vmath.random_float (RNG
+    // state mutation) and the vmath.sigmoid / tanh / relu / clamp
+    // family (cross-TU calls GCC cannot vectorize anyway without
+    // LTO).
+    default:
+        return false;
+    }
+}
+
+static bool
+loopBodyIsSimdSafe(const ASTNode* body, const std::string& iteratorName) {
+    // 1. Locate the single IndexAssignmentNode.
+    const IndexAssignmentNode* ia = nullptr;
+    if (body && body->type() == NodeType::BLOCK) {
+        auto* blk = static_cast<const BlockNode*>(body);
+        if (blk->statements.size() == 1 && blk->statements[0] &&
+            blk->statements[0]->type() == NodeType::INDEX_ASSIGNMENT) {
+            ia = static_cast<const IndexAssignmentNode*>(
+                blk->statements[0].get()
+            );
+        }
+    } else if (body && body->type() == NodeType::INDEX_ASSIGNMENT) {
+        ia = static_cast<const IndexAssignmentNode*>(body);
+    }
+    if (!ia)
+        return false;
+
+    // 2. Destination index must be the loop iterator verbatim.
+    const ASTNode* idx = ia->getIndex();
+    if (!idx || idx->type() != NodeType::VARIABLE)
+        return false;
+    auto* idxVar = static_cast<const VariableNode*>(idx);
+    if (idxVar->getOriginalName() != iteratorName)
+        return false;
+
+    // 3. RHS must be pure.
+    return rhsIsPure(ia->getRHS());
+}
+
 void ForNode::compile(C_Emitter& e) const {
     // -----------------------------------------------------------------
     // Range fast path (unchanged, M1).
@@ -78,18 +180,8 @@ void ForNode::compile(C_Emitter& e) const {
         //      `through i :: 0..n-1 -> loop { out[i] = <expr>; }`.
         //      Everything else (if/else bodies, multi-statement
         //      bodies, accumulator loops) is left alone.
-        bool shapeOK = false;
-        if (body && body->type() == NodeType::BLOCK) {
-            auto* blk = static_cast<const BlockNode*>(body.get());
-            if (blk->statements.size() == 1 && blk->statements[0]) {
-                shapeOK =
-                    (blk->statements[0]->type() == NodeType::INDEX_ASSIGNMENT);
-            }
-        } else if (body && body->type() == NodeType::INDEX_ASSIGNMENT) {
-            shapeOK = true;
-        }
-
-        if (shapeOK && e.isInNativeVariant()) {
+        if (e.isInNativeVariant() &&
+            loopBodyIsSimdSafe(body.get(), iteratorName)) {
             e.emit("#pragma omp simd");
         }
 
