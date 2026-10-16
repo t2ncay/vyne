@@ -64,6 +64,35 @@ void ForNode::compile(C_Emitter& e) const {
         e.emit(
             "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
         );
+
+        // Vectorization hint. Fires only when:
+        //   1. We are inside a native-variant body (see
+        //      C_Emitter::inNativeVariant). The same AST body on the
+        //      boxed path lowers to vyne_index_get / vyne_binop /
+        //      vyne_index_set — calls with side effects the pragma
+        //      implicitly promises the compiler can ignore. Emitting
+        //      the hint there is a correctness bug waiting for a
+        //      compiler upgrade to expose it.
+        //   2. The body is a single IndexAssignmentNode — the shape
+        //      every kernel in vlin/Kernels.vy has:
+        //      `through i :: 0..n-1 -> loop { out[i] = <expr>; }`.
+        //      Everything else (if/else bodies, multi-statement
+        //      bodies, accumulator loops) is left alone.
+        bool shapeOK = false;
+        if (body && body->type() == NodeType::BLOCK) {
+            auto* blk = static_cast<const BlockNode*>(body.get());
+            if (blk->statements.size() == 1 && blk->statements[0]) {
+                shapeOK =
+                    (blk->statements[0]->type() == NodeType::INDEX_ASSIGNMENT);
+            }
+        } else if (body && body->type() == NodeType::INDEX_ASSIGNMENT) {
+            shapeOK = true;
+        }
+
+        if (shapeOK && e.isInNativeVariant()) {
+            e.emit("#pragma omp simd");
+        }
+
         e.emitBlockOpen(
             "for (int64_t " + iv + " = " + loT + "; " + iv + " <= " + hiT +
             "; ++" + iv + ") {"

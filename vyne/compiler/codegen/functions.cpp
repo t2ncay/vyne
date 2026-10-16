@@ -17,16 +17,19 @@
 
 #include "detail/codegen_helpers.h"
 
-// Function declarations and body emission, including parameter and return handling.
-// Keep expressions that emit statements in evaluation order; see README.md.
+// Function declarations and body emission, including parameter and return
+// handling. Keep expressions that emit statements in evaluation order; see
+// README.md.
 // ============================================================
 // FUNCTIONS
 // ============================================================
 
-static void emitFunctionBody(C_Emitter& e,
-                             const std::vector<Parameter>& parameters,
-                             const std::vector<std::shared_ptr<ASTNode>>& body,
-                             const std::string& mangledName) {
+static void emitFunctionBody(
+    C_Emitter& e,
+    const std::vector<Parameter>& parameters,
+    const std::vector<std::shared_ptr<ASTNode>>& body,
+    const std::string& mangledName
+) {
     // Parameters
     for (size_t i = 0; i < parameters.size(); ++i) {
         std::string paramSanitized = parameters[i].name;
@@ -46,31 +49,34 @@ static void emitFunctionBody(C_Emitter& e,
         if (pt.isPrimitive() && !parameters[i].isReference) {
             std::string init = "0";
             switch (pt.kind) {
-                case CType::Kind::Int64:
-                    init = "(" + guard + ") ? ((" + arg + ".type == V_INT64) ? " +
-                           arg + ".as.i64 : (int64_t)" + arg + ".as.f64) : 0";
-                    break;
-                case CType::Kind::Float64:
-                    init = "(" + guard + ") ? ((" + arg + ".type == V_FLOAT64) ? " +
-                           arg + ".as.f64 : (double)" + arg + ".as.i64) : 0.0";
-                    break;
-                case CType::Kind::Bool:
-                    init = "(" + guard + ") ? (" + arg + ".as.i64 != 0) : false";
-                    break;
-                default: break;
+            case CType::Kind::Int64:
+                init = "(" + guard + ") ? ((" + arg + ".type == V_INT64) ? " +
+                       arg + ".as.i64 : (int64_t)" + arg + ".as.f64) : 0";
+                break;
+            case CType::Kind::Float64:
+                init = "(" + guard + ") ? ((" + arg + ".type == V_FLOAT64) ? " +
+                       arg + ".as.f64 : (double)" + arg + ".as.i64) : 0.0";
+                break;
+            case CType::Kind::Bool:
+                init = "(" + guard + ") ? (" + arg + ".as.i64 != 0) : false";
+                break;
+            default:
+                break;
             }
             e.declareLocal(paramName, pt);
             e.emit(pt.cTypeName() + " " + paramName + " = " + init + ";");
-            } else {
-                e.registerDeclaration(paramName);
-                e.emit("VyneValue " + paramName +
-                    " = " + guard + " ? " + arg + " : vyne_null();");
+        } else {
+            e.registerDeclaration(paramName);
+            e.emit(
+                "VyneValue " + paramName + " = " + guard + " ? " + arg +
+                " : vyne_null();"
+            );
 
-                if (parameters[i].type == VType::Struct &&
-                    !parameters[i].typePath.empty()) {
-                    e.setLocalStructType(paramName, parameters[i].typePath);
-                }
+            if (parameters[i].type == VType::Struct &&
+                !parameters[i].typePath.empty()) {
+                e.setLocalStructType(paramName, parameters[i].typePath);
             }
+        }
     }
 
     // Return-value slot (shared by defer and try/catch paths).
@@ -98,9 +104,10 @@ static void emitFunctionBody(C_Emitter& e,
     }
 
     for (const auto& stmt : body)
-        if (stmt) stmt->compile(e);
+        if (stmt)
+            stmt->compile(e);
 
-        if (!defers.empty()) {
+    if (!defers.empty()) {
         e.emit("goto " + cleanupLabel + ";");
 
         e.dedent();
@@ -121,15 +128,16 @@ static void emitFunctionBody(C_Emitter& e,
 }
 
 static void emitNativeFunctionBody(
-        C_Emitter& e,
-        const std::vector<Parameter>& parameters,
-        const std::vector<std::shared_ptr<ASTNode>>& body,
-        const std::string& nativeName,
-        const CType& returnType)
-{
+    C_Emitter& e,
+    const std::vector<Parameter>& parameters,
+    const std::vector<std::shared_ptr<ASTNode>>& body,
+    const std::string& nativeName,
+    const CType& returnType
+) {
     e.pushFunctionContext();
-    e.enterFunction(nativeName);         // prefix used for local resolution
+    e.enterFunction(nativeName); // prefix used for local resolution
     e.setNativeReturnType(returnType);
+    e.setInNativeVariant(true);
 
     // Struct return: build out-param list. The native function becomes
     // `void fn_...(...)` with one out-param per struct field prepended
@@ -142,7 +150,8 @@ static void emitNativeFunctionBody(
         if (!structReturnLayout || structReturnLayout->empty()) {
             throw std::runtime_error(
                 "Native variant returns Struct '" + returnType.mangledName +
-                "' but no field layout is registered for it.");
+                "' but no field layout is registered for it."
+            );
         }
         for (const auto& fd : *structReturnLayout) {
             structOutParams.push_back("__ret_" + fd.name);
@@ -153,7 +162,9 @@ static void emitNativeFunctionBody(
     std::string retCName;
     if (returnType.kind == CType::Kind::Struct) {
         retCName = "void";
-    } else if (returnType.kind == CType::Kind::Array && !returnType.args.empty()) {
+    } else if (
+        returnType.kind == CType::Kind::Array && !returnType.args.empty()
+    ) {
         VType elem = returnType.args[0].toVType();
         retCName = (elem == VType::Float64) ? "VyneArray_f64" : "VyneArray_i64";
     } else {
@@ -165,35 +176,40 @@ static void emitNativeFunctionBody(
     // iterates. `structFieldParamNames` captures the per-parameter field
     // names so the entry-time reconstruction below can refer to them.
     std::vector<std::vector<std::string>> structFieldParamNames(
-        parameters.size());
+        parameters.size()
+    );
 
     std::string paramList;
     if (structReturnLayout) {
         for (size_t i = 0; i < structOutParams.size(); ++i) {
-            if (!paramList.empty()) paramList += ", ";
+            if (!paramList.empty())
+                paramList += ", ";
             const auto& fd = (*structReturnLayout)[i];
             const std::string& op = structOutParams[i];
             if (fd.type.kind == CType::Kind::Int64) {
                 paramList += "int64_t* " + op;
             } else if (fd.type.kind == CType::Kind::Float64) {
                 paramList += "double* " + op;
-            } else if (fd.type.kind == CType::Kind::Array &&
-                       !fd.type.args.empty()) {
+            } else if (
+                fd.type.kind == CType::Kind::Array && !fd.type.args.empty()
+            ) {
                 bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
-                paramList += std::string(isF64 ? "VyneArray_f64* "
-                                               : "VyneArray_i64* ") + op;
+                paramList +=
+                    std::string(isF64 ? "VyneArray_f64* " : "VyneArray_i64* ") +
+                    op;
             }
         }
     }
     for (size_t i = 0; i < parameters.size(); ++i) {
-        if (!paramList.empty()) paramList += ", ";
+        if (!paramList.empty())
+            paramList += ", ";
         std::string pName = "v_" + nativeName + "_" + parameters[i].name;
 
         if (parameters[i].type == VType::Array &&
             parameters[i].arrayElemType != VType::Unknown) {
             VType elem = parameters[i].arrayElemType;
             std::string elemC = (elem == VType::Float64) ? "double" : "int64_t";
-            paramList += elemC + "* " + pName;
+            paramList += elemC + "* __restrict__ " + pName;
         } else if (parameters[i].type == VType::Struct) {
             const std::string& ifaceName = parameters[i].typePath;
             const auto* layout = e.getInterfaceStructLayout(ifaceName);
@@ -204,14 +220,18 @@ static void emitNativeFunctionBody(
                 // boxed signature here would break the ABI contract
                 // with the caller, which emitted a flat call.
                 throw std::runtime_error(
-                    "Native variant of '" + nativeName + "' has a Struct "
-                    "parameter '" + parameters[i].name + "' whose interface '"
-                    + ifaceName + "' has no registered field layout. "
-                    "This is a compiler bug — report it with the Vyne source.");
+                    "Native variant of '" + nativeName +
+                    "' has a Struct "
+                    "parameter '" +
+                    parameters[i].name + "' whose interface '" + ifaceName +
+                    "' has no registered field layout. "
+                    "This is a compiler bug — report it with the Vyne source."
+                );
             }
             bool first = true;
             for (const auto& fd : *layout) {
-                if (!first) paramList += ", ";
+                if (!first)
+                    paramList += ", ";
                 first = false;
                 std::string fpName = pName + "_" + fd.name;
                 structFieldParamNames[i].push_back(fpName);
@@ -220,15 +240,20 @@ static void emitNativeFunctionBody(
                     paramList += "int64_t " + fpName;
                 } else if (fd.type.kind == CType::Kind::Float64) {
                     paramList += "double " + fpName;
-                } else if (fd.type.kind == CType::Kind::Array &&
-                           !fd.type.args.empty()) {
+                } else if (
+                    fd.type.kind == CType::Kind::Array && !fd.type.args.empty()
+                ) {
                     bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
-                    paramList += std::string(isF64 ? "VyneArray_f64* "
-                                                   : "VyneArray_i64* ") + fpName;
+                    paramList +=
+                        std::string(
+                            isF64 ? "VyneArray_f64* " : "VyneArray_i64* "
+                        ) +
+                        fpName;
                 } else {
                     throw std::runtime_error(
-                        "Unsupported struct field type in native variant of '"
-                        + nativeName + "': field '" + fd.name + "'");
+                        "Unsupported struct field type in native variant of '" +
+                        nativeName + "': field '" + fd.name + "'"
+                    );
                 }
             }
         } else {
@@ -237,12 +262,10 @@ static void emitNativeFunctionBody(
         }
     }
 
-    e.emitGlobalDecl(retCName + " fn_" + nativeName +
-                    "(" + paramList + ");");
+    e.emitGlobalDecl(retCName + " fn_" + nativeName + "(" + paramList + ");");
 
     e.emit("// native variant of " + nativeName);
-    e.emitBlockOpen(retCName + " fn_" + nativeName +
-                    "(" + paramList + ") {");
+    e.emitBlockOpen(retCName + " fn_" + nativeName + "(" + paramList + ") {");
 
     for (size_t i = 0; i < parameters.size(); ++i) {
         std::string pName = "v_" + nativeName + "_" + parameters[i].name;
@@ -268,21 +291,28 @@ static void emitNativeFunctionBody(
             const std::string& ifaceName = parameters[i].typePath;
             const auto* layout = e.getInterfaceStructLayout(ifaceName);
             std::string sVar = pName + "_boxed";
-            e.emit("VyneValue " + sVar + " = vyne_struct_create(\"" +
-                   ifaceName + "\");");
+            e.emit(
+                "VyneValue " + sVar + " = vyne_struct_create(\"" + ifaceName +
+                "\");"
+            );
             for (size_t f = 0; f < layout->size(); ++f) {
                 const auto& fd = (*layout)[f];
                 const std::string& fpName = structFieldParamNames[i][f];
                 if (fd.type.kind == CType::Kind::Int64) {
-                    e.emit("vyne_struct_set(" + sVar + ", " +
-                           std::to_string(fd.id) + ", \"" + fd.name +
-                           "\", vyne_int(" + fpName + "));");
+                    e.emit(
+                        "vyne_struct_set(" + sVar + ", " +
+                        std::to_string(fd.id) + ", \"" + fd.name +
+                        "\", vyne_int(" + fpName + "));"
+                    );
                 } else if (fd.type.kind == CType::Kind::Float64) {
-                    e.emit("vyne_struct_set(" + sVar + ", " +
-                           std::to_string(fd.id) + ", \"" + fd.name +
-                           "\", vyne_float(" + fpName + "));");
-                } else if (fd.type.kind == CType::Kind::Array &&
-                           !fd.type.args.empty()) {
+                    e.emit(
+                        "vyne_struct_set(" + sVar + ", " +
+                        std::to_string(fd.id) + ", \"" + fd.name +
+                        "\", vyne_float(" + fpName + "));"
+                    );
+                } else if (
+                    fd.type.kind == CType::Kind::Array && !fd.type.args.empty()
+                ) {
                     // fpName is a pointer to a VyneArray_f64 / _i64 on
                     // the caller's stack. Wrap it into a boxed VyneValue
                     // that aliases the same backing buffer.
@@ -290,11 +320,14 @@ static void emitNativeFunctionBody(
                     std::string wrap = isF64 ? "vyne_array_f64_to_value"
                                              : "vyne_array_i64_to_value";
                     std::string bv = pName + "_f" + std::to_string(f);
-                    e.emit("VyneValue " + bv + " = " + wrap + "(" +
-                           fpName + ");");
-                    e.emit("vyne_struct_set(" + sVar + ", " +
-                           std::to_string(fd.id) + ", \"" + fd.name +
-                           "\", " + bv + ");");
+                    e.emit(
+                        "VyneValue " + bv + " = " + wrap + "(" + fpName + ");"
+                    );
+                    e.emit(
+                        "vyne_struct_set(" + sVar + ", " +
+                        std::to_string(fd.id) + ", \"" + fd.name + "\", " + bv +
+                        ");"
+                    );
                 }
             }
             // Declare the boxed struct at depth 0 — parameters are
@@ -311,30 +344,44 @@ static void emitNativeFunctionBody(
     }
 
     for (const auto& stmt : body)
-        if (stmt) stmt->compile(e);
+        if (stmt)
+            stmt->compile(e);
 
     switch (returnType.kind) {
-        case CType::Kind::Float64: e.emit("return 0.0;");   break;
-        case CType::Kind::Int64:   e.emit("return 0;");     break;
-        case CType::Kind::Bool:    e.emit("return false;"); break;
-        case CType::Kind::Struct:  e.emit("return;");       break;
-        case CType::Kind::Array:
-            if (!returnType.args.empty() &&
-                returnType.args[0].toVType() == VType::Float64) {
-                e.emit("return vyne_array_f64_create(0);");
-            } else if (!returnType.args.empty() &&
-                    returnType.args[0].toVType() == VType::Int64) {
-                e.emit("return vyne_array_i64_create(0);");
-            } else {
-                e.emit("VyneArray_f64 __empty = {NULL, 0, 0}; return __empty;");
-            }
-            break;
-        default: e.emit("return 0;"); break;
+    case CType::Kind::Float64:
+        e.emit("return 0.0;");
+        break;
+    case CType::Kind::Int64:
+        e.emit("return 0;");
+        break;
+    case CType::Kind::Bool:
+        e.emit("return false;");
+        break;
+    case CType::Kind::Struct:
+        e.emit("return;");
+        break;
+    case CType::Kind::Array:
+        if (!returnType.args.empty() &&
+            returnType.args[0].toVType() == VType::Float64) {
+            e.emit("return vyne_array_f64_create(0);");
+        } else if (
+            !returnType.args.empty() &&
+            returnType.args[0].toVType() == VType::Int64
+        ) {
+            e.emit("return vyne_array_i64_create(0);");
+        } else {
+            e.emit("VyneArray_f64 __empty = {NULL, 0, 0}; return __empty;");
+        }
+        break;
+    default:
+        e.emit("return 0;");
+        break;
     }
 
     e.emitBlockClose();
     e.emit("");
     e.exitFunction();
+    e.setInNativeVariant(false);
     e.popFunctionContext();
     e.clearNativeReturnType();
 }
@@ -373,29 +420,30 @@ void FunctionNode::compile(C_Emitter& e) const {
         if (returnType == VType::Struct && !getReturnTypePath().empty()) {
             retCt.mangledName = getReturnTypePath();
         }
-        std::string orig    = originalName;
+        std::string orig = originalName;
         std::string mangled = orig;
         std::replace(mangled.begin(), mangled.end(), '.', '_');
 
-        e.registerFunctionReturnType(orig,    retCt);
+        e.registerFunctionReturnType(orig, retCt);
         e.registerFunctionReturnType(mangled, retCt);
 
         // Also under the module / group prefix if there is one.
         if (!targetModule.empty()) {
-            e.registerFunctionReturnType(
-                targetModule + "_" + mangled, retCt);
-            e.registerFunctionReturnType(
-                targetModule + "." + orig,    retCt);
+            e.registerFunctionReturnType(targetModule + "_" + mangled, retCt);
+            e.registerFunctionReturnType(targetModule + "." + orig, retCt);
         }
     }
 
-    e.emitGlobalDecl("VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args);");
+    e.emitGlobalDecl(
+        "VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args);"
+    );
     e.pushFunctionContext();
     e.enterFunction(mangledName);
 
     e.emit("// fn: " + originalName);
-    e.emitBlockOpen("VyneValue fn_" + mangledName +
-                    "(int arg_count, VyneValue* args) {");
+    e.emitBlockOpen(
+        "VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args) {"
+    );
 
     // Publish the source-level return type so ReturnNode::compile can
     // resolve `return [];` when the declared type is `Array<T>`.
@@ -403,8 +451,7 @@ void FunctionNode::compile(C_Emitter& e) const {
         CType retCt = CType::fromVType(returnType);
         if (returnType == VType::Array &&
             getReturnArrayElemType() != VType::Unknown) {
-            retCt.args.push_back(
-                CType::fromVType(getReturnArrayElemType()));
+            retCt.args.push_back(CType::fromVType(getReturnArrayElemType()));
         }
         e.setCurrentFunctionReturnType(retCt);
     }
@@ -430,7 +477,9 @@ void FunctionNode::compile(C_Emitter& e) const {
             CType retCt = CType::fromVType(returnType);
             if (returnType == VType::Array &&
                 getReturnArrayElemType() != VType::Unknown) {
-                retCt.args.push_back(CType::fromVType(getReturnArrayElemType()));
+                retCt.args.push_back(
+                    CType::fromVType(getReturnArrayElemType())
+                );
             }
             if (returnType == VType::Struct && !getReturnTypePath().empty()) {
                 retCt.mangledName = getReturnTypePath();
@@ -440,7 +489,10 @@ void FunctionNode::compile(C_Emitter& e) const {
     }
 }
 
-void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const {
+void FunctionNode::compileAs(
+    C_Emitter& e,
+    const std::string& mangledName
+) const {
     std::string name = mangledName;
     std::replace(name.begin(), name.end(), '.', '_');
 
@@ -453,22 +505,25 @@ void FunctionNode::compileAs(C_Emitter& e, const std::string& mangledName) const
             getReturnArrayElemType() != VType::Unknown) {
             retCt.args.push_back(CType::fromVType(getReturnArrayElemType()));
         }
-        e.registerFunctionReturnType(name,         retCt);
+        e.registerFunctionReturnType(name, retCt);
         e.registerFunctionReturnType(originalName, retCt);
     }
 
-    e.emitGlobalDecl("VyneValue fn_" + name + "(int arg_count, VyneValue* args);");
+    e.emitGlobalDecl(
+        "VyneValue fn_" + name + "(int arg_count, VyneValue* args);"
+    );
     e.pushFunctionContext();
     e.enterFunction(name);
     e.emit("// fn (aliased): " + mangledName);
-    e.emitBlockOpen("VyneValue fn_" + name + "(int arg_count, VyneValue* args) {");
+    e.emitBlockOpen(
+        "VyneValue fn_" + name + "(int arg_count, VyneValue* args) {"
+    );
 
     {
         CType retCt = CType::fromVType(returnType);
         if (returnType == VType::Array &&
             getReturnArrayElemType() != VType::Unknown) {
-            retCt.args.push_back(
-                CType::fromVType(getReturnArrayElemType()));
+            retCt.args.push_back(CType::fromVType(getReturnArrayElemType()));
         }
         e.setCurrentFunctionReturnType(retCt);
     }
@@ -493,4 +548,3 @@ std::string FunctionNode::getCExpr(C_Emitter& e) const {
     }
     return "fn_" + name;
 }
-
