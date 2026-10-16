@@ -526,15 +526,73 @@ void InterfaceNode::compile(C_Emitter& e) const {
 
         e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
 
+        // Parameter binding. Mirrors emitFunctionBody's primitive
+        // unboxing so interface methods take the same native fast
+        // paths as free functions. `self` is always boxed; it is a
+        // VyneStruct at every call site and has no native
+        // representation. Parameters with a declared primitive type
+        // (Int64 / Float64 / Bool) unbox into native locals at entry;
+        // everything else stays boxed, with the struct interface path
+        // registered for member-access fast paths.
+        //
+        // Without this, every `Matrix.add_scalar(s)` and `Matrix.get(r, c)`
+        // lowered to three vyne_binop calls per access — the machine-
+        // generated fld_N / fp_N chains in the old emitted C. See the
+        // dispatch chain note in method_calls.cpp: the receiver bind
+        // is inside tryEmitInterfaceConstructor, but argument
+        // evaluation is inside the boxed-arg loop of the ordinary
+        // MethodCallNode path.
         const auto& params2 = fn->getParameters();
         for (size_t i = 0; i < params2.size(); ++i) {
-            std::string paramName = "v_" + params2[i].name;
-            std::replace(paramName.begin(), paramName.end(), '.', '_');
-            e.emit(
-                "VyneValue " + paramName + " = (arg_count > " +
-                std::to_string(i + 1) + ") ? args[" + std::to_string(i + 1) +
-                "] : vyne_null();"
+            std::string paramSanitized = params2[i].name;
+            std::replace(
+                paramSanitized.begin(),
+                paramSanitized.end(),
+                '.',
+                '_'
             );
+            std::string paramName = "v_" + paramSanitized;
+            std::string arg = "args[" + std::to_string(i + 1) + "]";
+            std::string guard = "(arg_count > " + std::to_string(i + 1) + ")";
+
+            CType pt = CType::fromVType(params2[i].type);
+            if (pt.isPrimitive() && !params2[i].isReference) {
+                std::string init = "0";
+                switch (pt.kind) {
+                case CType::Kind::Int64:
+                    init = "(" + guard + ") ? ((" + arg +
+                           ".type == V_INT64) ? " + arg +
+                           ".as.i64 : (int64_t)" + arg + ".as.f64) : 0";
+                    break;
+                case CType::Kind::Float64:
+                    init = "(" + guard + ") ? ((" + arg +
+                           ".type == V_FLOAT64) ? " + arg +
+                           ".as.f64 : (double)" + arg + ".as.i64) : 0.0";
+                    break;
+                case CType::Kind::Bool:
+                    init =
+                        "(" + guard + ") ? (" + arg + ".as.i64 != 0) : false";
+                    break;
+                default:
+                    break;
+                }
+                e.declareLocal(paramName, pt);
+                e.emit(pt.cTypeName() + " " + paramName + " = " + init + ";");
+            } else {
+                e.emit(
+                    "VyneValue " + paramName + " = " + guard + " ? " + arg +
+                    " : vyne_null();"
+                );
+
+                // Register the struct-typed parameter's interface so
+                // subsequent `p.field` member reads hit the
+                // registerInterfaceArrayField / PrimitiveField fast
+                // paths in members.cpp instead of the boxed fallback.
+                if (params2[i].type == VType::Struct &&
+                    !params2[i].typePath.empty()) {
+                    e.setLocalStructType(paramName, params2[i].typePath);
+                }
+            }
         }
 
         for (const auto& stmt : fn->getBody())

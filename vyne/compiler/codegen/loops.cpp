@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "detail/codegen_helpers.h"
+#include <unordered_set>
 
 // For-loop lowering, numeric bounds, and iteration forms.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -45,6 +46,334 @@ int64Bound(C_Emitter& e, const ASTNode* node, const std::string& expr) {
            expr + ".as.f64)";
 }
 
+// ============================================================
+// SIMD-safety analysis for the #pragma omp simd hint
+// ------------------------------------------------------------
+// Emitting `#pragma omp simd` is a programmer assertion to the C
+// compiler that the loop has:
+//   - no loop-carried dependencies,
+//   - no side effects the compiler must preserve in order,
+//   - no control flow that can leave the loop mid-iteration.
+// A false assertion here is not a compile error — it is UB the C
+// compiler may exploit. GCC refuses to vectorize most violations
+// today because it cannot see inside the called functions, but the
+// pragma is still wrong and will bite on any future inlining or LTO
+// change.
+//
+// We assert the hint only when the AST proves all three properties.
+// Returns true iff the loop body is:
+//   1. A single IndexAssignmentNode  (or a one-statement block
+//      wrapping one).
+//   2. The destination index is exactly the loop iterator — a
+//      plain VariableNode with the iterator's name. This rules out
+//      strided writes like `out[c * R + r] = ...` in vlin_k_transpose.
+//   3. The RHS is pure — no function calls (vmath_random_float,
+//      vmath_sigmoid_f64, ...), no division / modulo / floor-div
+//      (all three emit an `exit(1)` on zero, which is not legal
+//      inside a vectorized loop).
+// ============================================================
+
+static bool rhsIsPure(const ASTNode* rhs) {
+    if (!rhs)
+        return true;
+    switch (rhs->type()) {
+    case NodeType::NUMBER:
+    case NodeType::BOOLEAN:
+    case NodeType::VARIABLE:
+    case NodeType::NULLTYPE:
+        return true;
+
+    case NodeType::INDEX_ACCESS: {
+        auto* ia = static_cast<const IndexAccessNode*>(rhs);
+        return rhsIsPure(ia->getBase()) && rhsIsPure(ia->getIndex());
+    }
+
+    // Field read on a struct or a static group. Pure: it lowers to either
+    // a struct_get (interpreter semantics: a lookup, no state change) or
+    // to a hoisted native temp once the emitter's field cache has been
+    // primed by hoistLoopInvariantFieldLoads. Recurse into the receiver so
+    // `foo().field` and `arr[i].field` still fail the check.
+    case NodeType::MEMBER_ACCESS: {
+        auto* ma = static_cast<const MemberAccessNode*>(rhs);
+        return rhsIsPure(ma->getReceiver());
+    }
+
+    case NodeType::BINARY_OP: {
+        auto* bop = static_cast<const BinOpNode*>(rhs);
+        // Division, floor-divide, modulo all lower to a runtime
+        // `if (rhs == 0) { fprintf(stderr, ...); exit(1); }` guard
+        // in the integer and float fast paths. `exit` from a
+        // vectorized lane is UB.
+        if (bop->op == VTokenType::Division ||
+            bop->op == VTokenType::Floor_Divide ||
+            bop->op == VTokenType::Modulo) {
+            return false;
+        }
+        return rhsIsPure(bop->leftNode.get()) &&
+               rhsIsPure(bop->rightNode.get());
+    }
+
+    case NodeType::UNARY: {
+        auto* un = static_cast<const UnaryNode*>(rhs);
+        return rhsIsPure(un->getRight());
+    }
+
+    // FunctionCallNode, MethodCallNode, everything else: not pure.
+    // This is the branch that excludes vmath.random_float (RNG
+    // state mutation) and the vmath.sigmoid / tanh / relu / clamp
+    // family (cross-TU calls GCC cannot vectorize anyway without
+    // LTO).
+    default:
+        return false;
+    }
+}
+
+static bool
+loopBodyIsSimdSafe(const ASTNode* body, const std::string& iteratorName) {
+    // 1. Locate the single IndexAssignmentNode.
+    const IndexAssignmentNode* ia = nullptr;
+    if (body && body->type() == NodeType::BLOCK) {
+        auto* blk = static_cast<const BlockNode*>(body);
+
+        // Shape A: single-statement store.
+        //   through i :: 0..n-1 -> loop { out[i] = <pure>; };
+        if (blk->statements.size() == 1 && blk->statements[0] &&
+            blk->statements[0]->type() == NodeType::INDEX_ASSIGNMENT) {
+            ia = static_cast<const IndexAssignmentNode*>(
+                blk->statements[0].get()
+            );
+        }
+        // Shape B: one leading fresh decl + the store.
+        //   through i :: 0..n-1 -> loop {
+        //       a :: Float64 = m.data[i];
+        //       out.data[i]  = a * (1 - a);
+        //   };
+        // The decl is a fresh AssignmentNode (marks `:=` in source); its
+        // initializer is the only thing that can smuggle in a call, so we
+        // check it with the same rhsIsPure walk. The store's RHS may
+        // reference `a`, which is a VariableNode — already on the pure
+        // whitelist — so it passes transitively.
+        else if (
+            blk->statements.size() == 2 && blk->statements[0] &&
+            blk->statements[1] &&
+            blk->statements[0]->type() == NodeType::ASSIGNMENT &&
+            blk->statements[1]->type() == NodeType::INDEX_ASSIGNMENT
+        ) {
+            auto* decl =
+                static_cast<const AssignmentNode*>(blk->statements[0].get());
+            if (!decl->isFreshDeclaration() || !rhsIsPure(decl->getRHS()))
+                return false;
+            ia = static_cast<const IndexAssignmentNode*>(
+                blk->statements[1].get()
+            );
+        }
+    } else if (body && body->type() == NodeType::INDEX_ASSIGNMENT) {
+        ia = static_cast<const IndexAssignmentNode*>(body);
+    }
+    if (!ia)
+        return false;
+
+    // 2. Destination index must be the loop iterator verbatim.
+    const ASTNode* idx = ia->getIndex();
+    if (!idx || idx->type() != NodeType::VARIABLE)
+        return false;
+    auto* idxVar = static_cast<const VariableNode*>(idx);
+    if (idxVar->getOriginalName() != iteratorName)
+        return false;
+
+    // 3. RHS must be pure.
+    return rhsIsPure(ia->getRHS());
+}
+
+// Hoist loop-invariant field loads.
+//
+// `through i :: 0..n-1 -> loop { a := m.data[i]; out.data[i] = a * (1-a); }`
+// lowers to a per-iteration `vyne_value_to_array_f64(vyne_struct_get(m, id))`
+// unless the load is moved above the loop. Only the element index is
+// loop-dependent — the field pointer is not. GCC cannot hoist it across
+// a cross-TU call, so the emitted C must.
+//
+// We walk the body once, top-level statements only (no descent into
+// nested control flow — those blocks have their own scoping, and any
+// field read inside them is not guaranteed to dominate the whole body).
+// For each distinct (receiver, field) pair whose receiver is not the
+// loop iterator and whose field resolves to a typed array on the
+// receiver's interface, we emit a hoisted load and store it in the
+// emitter's field cache. `MemberAccessNode::getCExpr` then returns the
+// hoisted temp whenever the body reads that field, so the loop body
+// becomes a pure array read.
+//
+// Candidates come in three syntactic forms, all of which mean "load
+// the field, then index it":
+//   IndexAccess(MemberAccess(var, field), idx)
+//   IndexAssignment(MemberAccess(var, field), idx, rhs)
+//   Assignment(fresh, rhs = IndexAccess(MemberAccess(var, field), idx))
+static void hoistVisit(
+    C_Emitter& e,
+    const ASTNode* node,
+    const std::string& iteratorName,
+    std::unordered_set<std::string>& seen
+) {
+    if (!node)
+        return;
+
+    switch (node->type()) {
+    case NodeType::MEMBER_ACCESS: {
+        auto* ma = static_cast<const MemberAccessNode*>(node);
+        const ASTNode* recvNode = ma->getReceiver();
+        if (recvNode && recvNode->type() == NodeType::VARIABLE) {
+            auto* var = static_cast<const VariableNode*>(recvNode);
+            if (var->getOriginalName() != iteratorName) {
+                const std::string& recvName = var->getOriginalName();
+                const std::string& memberName = ma->getMemberName();
+                std::string cacheKey = recvName + "." + memberName;
+
+                if (seen.insert(cacheKey).second &&
+                    !e.getFieldCache(cacheKey)) {
+
+                    std::string ifaceName =
+                        e.lookupStructInterfaceName(recvName);
+                    if (!ifaceName.empty()) {
+                        VType elem =
+                            e.getInterfaceArrayElem(ifaceName, memberName);
+                        if (elem == VType::Int64 || elem == VType::Float64) {
+                            std::string sanitized = recvName;
+                            std::replace(
+                                sanitized.begin(),
+                                sanitized.end(),
+                                '.',
+                                '_'
+                            );
+                            std::string prefix = e.getActiveFunctionPrefix();
+                            std::string recvC;
+                            if (prefix.empty()) {
+                                recvC = "v_" + sanitized;
+                            } else {
+                                std::string localName =
+                                    "v_" + prefix + "_" + sanitized;
+                                recvC = e.isLocalDeclared(localName)
+                                            ? localName
+                                            : ("v_" + sanitized);
+                            }
+                            std::string recvBoxed = e.boxAny(recvC);
+                            uint32_t fid = StringPool::intern(memberName);
+                            std::string temp = e.newTemp("fld");
+                            const char* cName = (elem == VType::Float64)
+                                                    ? "VyneArray_f64"
+                                                    : "VyneArray_i64";
+                            const char* fn = (elem == VType::Float64)
+                                                 ? "vyne_value_to_array_f64"
+                                                 : "vyne_value_to_array_i64";
+
+                            e.emit(
+                                std::string(cName) + " " + temp + " = " + fn +
+                                "(vyne_struct_get(" + recvBoxed + ", " +
+                                std::to_string(fid) + "));"
+                            );
+
+                            CType ct;
+                            ct.kind = CType::Kind::Array;
+                            ct.args.push_back(CType::fromVType(elem));
+                            e.declareNativeTemp(temp, ct);
+                            e.setFieldCache(cacheKey, temp, ct);
+                        }
+                    }
+                }
+            }
+        }
+        // Recurse into the receiver anyway — nested field reads on
+        // another struct may also want hoisting.
+        hoistVisit(e, recvNode, iteratorName, seen);
+        break;
+    }
+
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(node);
+        hoistVisit(e, b->leftNode.get(), iteratorName, seen);
+        hoistVisit(e, b->rightNode.get(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::UNARY: {
+        auto* u = static_cast<const UnaryNode*>(node);
+        hoistVisit(e, u->getRight(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::INDEX_ACCESS: {
+        auto* ia = static_cast<const IndexAccessNode*>(node);
+        hoistVisit(e, ia->getBase(), iteratorName, seen);
+        hoistVisit(e, ia->getIndex(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::INDEX_ASSIGNMENT: {
+        auto* ias = static_cast<const IndexAssignmentNode*>(node);
+        hoistVisit(e, ias->getBase(), iteratorName, seen);
+        hoistVisit(e, ias->getIndex(), iteratorName, seen);
+        hoistVisit(e, ias->getRHS(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::ASSIGNMENT: {
+        auto* a = static_cast<const AssignmentNode*>(node);
+        hoistVisit(e, a->getRHS(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::METHOD_CALL: {
+        auto* mc = static_cast<const MethodCallNode*>(node);
+        hoistVisit(e, mc->getReceiver(), iteratorName, seen);
+        for (const auto& a : mc->getArguments())
+            hoistVisit(e, a.get(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::FUNCTION_CALL: {
+        auto* fc = static_cast<const FunctionCallNode*>(node);
+        for (const auto& a : fc->getArguments())
+            hoistVisit(e, a.get(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::BLOCK: {
+        auto* blk = static_cast<const BlockNode*>(node);
+        for (const auto& s : blk->statements)
+            hoistVisit(e, s.get(), iteratorName, seen);
+        break;
+    }
+
+    case NodeType::IF: {
+        auto* f = static_cast<const IfNode*>(node);
+        hoistVisit(e, f->condition.get(), iteratorName, seen);
+        hoistVisit(e, f->body.get(), iteratorName, seen);
+        hoistVisit(e, f->elseBody.get(), iteratorName, seen);
+        break;
+    }
+
+    // Nested loops introduce their own iterator binding; do NOT walk
+    // into them. Also stops the walk at WHILE bodies for the same
+    // reason.
+    case NodeType::FOR:
+    case NodeType::WHILE:
+        break;
+
+    default:
+        break;
+    }
+}
+
+static void hoistLoopInvariantFieldLoads(
+    C_Emitter& e,
+    const ASTNode* body,
+    const std::string& iteratorName
+) {
+    if (!body || body->type() != NodeType::BLOCK)
+        return;
+    std::unordered_set<std::string> seen;
+    hoistVisit(e, body, iteratorName, seen);
+}
+
 void ForNode::compile(C_Emitter& e) const {
     // -----------------------------------------------------------------
     // Range fast path (unchanged, M1).
@@ -64,6 +393,27 @@ void ForNode::compile(C_Emitter& e) const {
         e.emit(
             "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
         );
+
+        // Vectorization hint. Fires only when:
+        //   1. We are inside a native-variant body (see
+        //      C_Emitter::inNativeVariant). The same AST body on the
+        //      boxed path lowers to vyne_index_get / vyne_binop /
+        //      vyne_index_set — calls with side effects the pragma
+        //      implicitly promises the compiler can ignore. Emitting
+        //      the hint there is a correctness bug waiting for a
+        //      compiler upgrade to expose it.
+        //   2. The body is a single IndexAssignmentNode — the shape
+        //      every kernel in vlin/Kernels.vy has:
+        //      `through i :: 0..n-1 -> loop { out[i] = <expr>; }`.
+        //      Everything else (if/else bodies, multi-statement
+        //      bodies, accumulator loops) is left alone.
+        hoistLoopInvariantFieldLoads(e, body.get(), iteratorName);
+
+        if (e.isInNativeVariant() &&
+            loopBodyIsSimdSafe(body.get(), iteratorName)) {
+            e.emit("#pragma omp simd");
+        }
+
         e.emitBlockOpen(
             "for (int64_t " + iv + " = " + loT + "; " + iv + " <= " + hiT +
             "; ++" + iv + ") {"

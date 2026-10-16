@@ -226,7 +226,15 @@ class C_Emitter {
     bool poolRuntimeEmitted = false;
     int tempVarCount = 0;
 
+    bool inNativeVariant = false;
+
   public:
+    void setInNativeVariant(bool v) {
+        inNativeVariant = v;
+    }
+    bool isInNativeVariant() const {
+        return inNativeVariant;
+    }
     // --- Context management ---------------------------------------------
     bool isAlreadyImported(const std::string& path) const {
         return importedFiles.count(path) > 0;
