@@ -15,11 +15,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
-#include "detail/codegen_helpers.h"
 #include "ctype.h"
+#include "detail/codegen_helpers.h"
 
-// Variable reads and assignments, including typed native initialization and boxing boundaries.
-// Keep expressions that emit statements in evaluation order; see README.md.
+// Variable reads and assignments, including typed native initialization and
+// boxing boundaries. Keep expressions that emit statements in evaluation order;
+// see README.md.
 // ============================================================
 // VARIABLES AND ASSIGNMENTS
 // ============================================================
@@ -61,13 +62,18 @@ std::string AssignmentNode::getCExpr(C_Emitter& e) const {
 // M1 (issue #79): build the initializer expression for a native-typed local
 // declaration or assignment of static type `declared`.
 //
-//   - NumberNode literal → raw numeric literal (C implicitly widens int → double)
+//   - NumberNode literal → raw numeric literal (C implicitly widens int →
+//   double)
 //   - Existing native expression of the same kind → used directly
 //   - Anything else (boxed VyneValue) → runtime-checked coercion into the
 //     native type, mirroring the ForNode bound conversion and the
 //     interpreter's convertIfNeeded semantics.
-static std::string nativeInit(C_Emitter& e, const ASTNode* rhs,
-                              const std::string& val, const CType& declared) {
+static std::string nativeInit(
+    C_Emitter& e,
+    const ASTNode* rhs,
+    const std::string& val,
+    const CType& declared
+) {
     if (rhs->type() == NodeType::NUMBER) {
         auto* num = static_cast<const NumberNode*>(rhs);
         if ((declared.kind == CType::Kind::Int64 &&
@@ -85,25 +91,28 @@ static std::string nativeInit(C_Emitter& e, const ASTNode* rhs,
     if (vt && vt->isPrimitive()) {
         // Native value already in hand → same kind directly, other numeric
         // kind via a C cast (mirrors the interpreter's convertIfNeeded).
-        if (vt->kind == declared.kind) return val;
-        if (declared.kind == CType::Kind::Float64 && vt->kind == CType::Kind::Int64)
+        if (vt->kind == declared.kind)
+            return val;
+        if (declared.kind == CType::Kind::Float64 &&
+            vt->kind == CType::Kind::Int64)
             return "(double)(" + val + ")";
-        if (declared.kind == CType::Kind::Int64 && vt->kind == CType::Kind::Float64)
+        if (declared.kind == CType::Kind::Int64 &&
+            vt->kind == CType::Kind::Float64)
             return "(int64_t)(" + val + ")";
         return val;
     }
 
     switch (declared.kind) {
-        case CType::Kind::Int64:
-            return "((" + val + ").type == V_INT64) ? (" + val +
-                   ").as.i64 : (int64_t)(" + val + ").as.f64";
-        case CType::Kind::Float64:
-            return "((" + val + ").type == V_FLOAT64) ? (" + val +
-                   ").as.f64 : (double)(" + val + ").as.i64";
-        case CType::Kind::Bool:
-            return "((" + val + ").as.i64 != 0)";
-        default:
-            return val;
+    case CType::Kind::Int64:
+        return "((" + val + ").type == V_INT64) ? (" + val +
+               ").as.i64 : (int64_t)(" + val + ").as.f64";
+    case CType::Kind::Float64:
+        return "((" + val + ").type == V_FLOAT64) ? (" + val +
+               ").as.f64 : (double)(" + val + ").as.i64";
+    case CType::Kind::Bool:
+        return "((" + val + ").as.i64 != 0)";
+    default:
+        return val;
     }
 }
 
@@ -133,22 +142,27 @@ static std::string nativeInit(C_Emitter& e, const ASTNode* rhs,
 // function return, escape through a container, etc.).
 // ============================================================
 
-static void checkRegionEscape(C_Emitter& e,
-                              const std::string& lhsVarName,
-                              const std::string& lhsDisplayName,
-                              const ASTNode* rhs,
-                              int lineNumber)
-{
-    if (!rhs) return;
-    if (!e.hasRegion()) return;
+static void checkRegionEscape(
+    C_Emitter& e,
+    const std::string& lhsVarName,
+    const std::string& lhsDisplayName,
+    const ASTNode* rhs,
+    int lineNumber
+) {
+    if (!rhs)
+        return;
+    if (!e.hasRegion())
+        return;
 
     int lhsDepth = e.lookupLocalRegionDepth(lhsVarName);
     // Globals and variables we can't find are treated as depth 0.
     // A global declared at the top level is at depth 0 by definition.
-    if (lhsDepth < 0) lhsDepth = 0;
+    if (lhsDepth < 0)
+        lhsDepth = 0;
 
     int curDepth = e.currentRegionDepth();
-    if (lhsDepth >= curDepth) return;  // LHS is as deep or deeper — safe
+    if (lhsDepth >= curDepth)
+        return; // LHS is as deep or deeper — safe
 
     // Static string literals lower to `vyne_string_static("…")`, which
     // returns a pointer into .rodata — never the arena. Such a pointer
@@ -162,8 +176,8 @@ static void checkRegionEscape(C_Emitter& e,
 
     // Primitive RHS: copied by value, always safe to escape.
     VType st = resolveRHSKind(e, rhs);
-    if (st == VType::Int64 || st == VType::Float64 ||
-        st == VType::Bool  || st == VType::Null) {
+    if (st == VType::Int64 || st == VType::Float64 || st == VType::Bool ||
+        st == VType::Null) {
         return;
     }
 
@@ -173,7 +187,7 @@ static void checkRegionEscape(C_Emitter& e,
         std::string name;
         std::string recvPath;
 
-if (rhs->type() == NodeType::FUNCTION_CALL) {
+        if (rhs->type() == NodeType::FUNCTION_CALL) {
             name = static_cast<const FunctionCallNode*>(rhs)->getOriginalName();
         } else {
             auto* mc = static_cast<const MethodCallNode*>(rhs);
@@ -197,7 +211,8 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
         }
 
         auto primitiveReturn = [&](const std::string& n) -> bool {
-            if (n.empty()) return false;
+            if (n.empty())
+                return false;
             const CType* retCt = e.getFunctionReturnType(n);
             return retCt && retCt->isPrimitive();
         };
@@ -212,7 +227,8 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
 
         std::string mangled = name;
         std::replace(mangled.begin(), mangled.end(), '.', '_');
-        if (mangled != name) candidates.push_back(mangled);
+        if (mangled != name)
+            candidates.push_back(mangled);
 
         if (!recvPath.empty()) {
             std::string qualified = recvPath + "_" + name;
@@ -224,7 +240,8 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
         }
 
         for (const auto& c : candidates) {
-            if (primitiveReturn(c)) return;
+            if (primitiveReturn(c))
+                return;
         }
 
         // ---- Last-resort suffix match ------------------------------
@@ -242,11 +259,14 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
         for (const auto& kv : e.getAllFunctionReturnTypes()) {
             const std::string& reg = kv.first;
             const CType& rc = kv.second;
-            if (reg.size() <= name.size()) continue;
+            if (reg.size() <= name.size())
+                continue;
             size_t prefixLen = reg.size() - name.size();
-            if (reg.compare(prefixLen, name.size(), name) != 0) continue;
+            if (reg.compare(prefixLen, name.size(), name) != 0)
+                continue;
             char sep = reg[prefixLen - 1];
-            if (sep != '_' && sep != '.') continue;
+            if (sep != '_' && sep != '.')
+                continue;
             if (rc.isPrimitive()) {
                 // Found a qualified name ending in <method> whose
                 // return type is primitive. That's a proof the
@@ -257,19 +277,27 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
         // ---- end suffix match --------------------------------------
     }
 
+    if (rhsIsRootedOutsideRegion(e, rhs)) {
+        return;
+    }
+
     throw std::runtime_error(
         "Escape Error (VNE-070): variable '" + lhsDisplayName +
         "' is declared outside the current region (depth " +
-        std::to_string(lhsDepth) + ") but is being assigned a value "
+        std::to_string(lhsDepth) +
+        ") but is being assigned a value "
         "allocated inside a region (current depth " +
-        std::to_string(curDepth) + ") at line " +
-        std::to_string(lineNumber) + ".\n"
+        std::to_string(curDepth) + ") at line " + std::to_string(lineNumber) +
+        ".\n"
         "  The value would dangle after the region's rewind.\n"
         "  Fix one of these ways:\n"
-        "    - declare '" + lhsDisplayName + "' inside the region, or\n"
+        "    - declare '" +
+        lhsDisplayName +
+        "' inside the region, or\n"
         "    - copy the value out with region.commit(tmp) and assign "
         "from tmp, or\n"
-        "    - move the assignment to before the region.");
+        "    - move the assignment to before the region."
+    );
 }
 
 // ============================================================
@@ -296,20 +324,22 @@ if (rhs->type() == NodeType::FUNCTION_CALL) {
 static std::string _shapeStr(const CType& ct) {
     std::string s;
     for (size_t i = 0; i < ct.shape.size(); ++i) {
-        if (i) s += ", ";
+        if (i)
+            s += ", ";
         s += std::to_string(ct.shape[i]);
     }
     return s;
 }
 
-static void emitScratchStore(C_Emitter& e,
-                             const std::string& dstName,
-                             const CType& dstType,
-                             const ASTNode* rhsNode,
-                             int lineNumber) {
-    VType elem = dstType.args.empty()
-               ? VType::Float64
-               : dstType.args[0].toVType();
+static void emitScratchStore(
+    C_Emitter& e,
+    const std::string& dstName,
+    const CType& dstType,
+    const ASTNode* rhsNode,
+    int lineNumber
+) {
+    VType elem =
+        dstType.args.empty() ? VType::Float64 : dstType.args[0].toVType();
     int64_t n = dstType.numElements();
     const char* elemCName = (elem == VType::Float64) ? "double" : "int64_t";
 
@@ -323,11 +353,14 @@ static void emitScratchStore(C_Emitter& e,
             throw std::runtime_error(
                 "Shape Error: cannot assign scratch of shape [" +
                 _shapeStr(*rt) + "] to scratch of shape [" +
-                _shapeStr(dstType) + "] (line " +
-                std::to_string(lineNumber) + ").");
+                _shapeStr(dstType) + "] (line " + std::to_string(lineNumber) +
+                ")."
+            );
         }
-        e.emit("memcpy(" + dstName + ", " + src + ", " +
-               std::to_string(n) + " * sizeof(" + elemCName + "));");
+        e.emit(
+            "memcpy(" + dstName + ", " + src + ", " + std::to_string(n) +
+            " * sizeof(" + elemCName + "));"
+        );
         return;
     }
 
@@ -335,8 +368,10 @@ static void emitScratchStore(C_Emitter& e,
     if (rt && rt->kind == CType::Kind::Array && !rt->args.empty() &&
         rt->args[0].toVType() == elem) {
         std::string k = e.newTemp("k");
-        e.emitBlockOpen("for (int64_t " + k + " = 0; " + k +
-                        " < " + std::to_string(n) + "; ++" + k + ") {");
+        e.emitBlockOpen(
+            "for (int64_t " + k + " = 0; " + k + " < " + std::to_string(n) +
+            "; ++" + k + ") {"
+        );
         e.emit(dstName + "[" + k + "] = " + src + ".data[" + k + "];");
         e.emitBlockClose();
         return;
@@ -348,25 +383,33 @@ static void emitScratchStore(C_Emitter& e,
     // VyneValue, and we validate at runtime.
     std::string srcVar = e.newTemp("src");
     e.emit("VyneValue " + srcVar + " = " + e.boxAny(src) + ";");
-    e.emit("if (" + srcVar + ".type != V_ARRAY || " +
-           srcVar + ".as.arr->size != " + std::to_string(n) + ") {");
-    e.emit("    fprintf(stderr, \"Runtime error: shape mismatch "
-           "assigning to a scratch of " + std::to_string(n) +
-           " elements\\n\"); exit(1);");
+    e.emit(
+        "if (" + srcVar + ".type != V_ARRAY || " + srcVar +
+        ".as.arr->size != " + std::to_string(n) + ") {"
+    );
+    e.emit(
+        "    fprintf(stderr, \"Runtime error: shape mismatch "
+        "assigning to a scratch of " +
+        std::to_string(n) + " elements\\n\"); exit(1);"
+    );
     e.emit("}");
 
     std::string k = e.newTemp("k");
-    e.emitBlockOpen("for (int64_t " + k + " = 0; " + k +
-                    " < " + std::to_string(n) + "; ++" + k + ") {");
+    e.emitBlockOpen(
+        "for (int64_t " + k + " = 0; " + k + " < " + std::to_string(n) +
+        "; ++" + k + ") {"
+    );
     std::string cell = srcVar + ".as.arr->elements[" + k + "]";
     if (elem == VType::Float64) {
-        e.emit(dstName + "[" + k + "] = ((" + cell +
-               ").type == V_FLOAT64) ? (" + cell +
-               ").as.f64 : (double)(" + cell + ").as.i64;");
+        e.emit(
+            dstName + "[" + k + "] = ((" + cell + ").type == V_FLOAT64) ? (" +
+            cell + ").as.f64 : (double)(" + cell + ").as.i64;"
+        );
     } else {
-        e.emit(dstName + "[" + k + "] = ((" + cell +
-               ").type == V_INT64) ? (" + cell +
-               ").as.i64 : (int64_t)(" + cell + ").as.f64;");
+        e.emit(
+            dstName + "[" + k + "] = ((" + cell + ").type == V_INT64) ? (" +
+            cell + ").as.i64 : (int64_t)(" + cell + ").as.f64;"
+        );
     }
     e.emitBlockClose();
 }
@@ -374,8 +417,11 @@ static void emitScratchStore(C_Emitter& e,
 void AssignmentNode::compile(C_Emitter& e) const {
     if (isReference) {
         throw std::runtime_error(
-            "Compile Error: Reference variables are not supported by the C backend "
-            "(line " + std::to_string(lineNumber) + "). Use the interpreter instead.");
+            "Compile Error: Reference variables are not supported by the C "
+            "backend "
+            "(line " +
+            std::to_string(lineNumber) + "). Use the interpreter instead."
+        );
     }
 
     // Slice 3b: unboxing helper. Closes the reverse direction of
@@ -388,8 +434,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
                              const CType& target,
                              const auto* ns) -> std::string {
         const CType* vt = e.lookupType(valExpr);
-        if (vt && vt->kind == CType::Kind::Struct && vt->nativeCStruct
-            && vt->mangledName == target.mangledName) {
+        if (vt && vt->kind == CType::Kind::Struct && vt->nativeCStruct &&
+            vt->mangledName == target.mangledName) {
             return valExpr;
         }
         std::string boxed = e.newTemp("sv");
@@ -397,23 +443,27 @@ void AssignmentNode::compile(C_Emitter& e) const {
 
         std::string init = "((" + ns->tag + "){";
         for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
-            if (i) init += ", ";
+            if (i)
+                init += ", ";
             init += "." + ns->fieldNames[i] + " = ";
             uint32_t fid = StringPool::intern(ns->fieldNames[i]);
             std::string cell = e.newTemp("cf");
-            e.emit("VyneValue " + cell + " = vyne_struct_get(" + boxed
-                   + ", " + std::to_string(fid) + ");");
+            e.emit(
+                "VyneValue " + cell + " = vyne_struct_get(" + boxed + ", " +
+                std::to_string(fid) + ");"
+            );
             CType ft = ns->fieldTypes[i];
             if (ft.kind == CType::Kind::Float64) {
-                init += "(" + cell + ".type == V_FLOAT64) ? " + cell
-                      + ".as.f64 : (double)" + cell + ".as.i64";
+                init += "(" + cell + ".type == V_FLOAT64) ? " + cell +
+                        ".as.f64 : (double)" + cell + ".as.i64";
             } else if (ft.kind == CType::Kind::Int64) {
-                init += "(" + cell + ".type == V_INT64) ? " + cell
-                      + ".as.i64 : (int64_t)" + cell + ".as.f64";
+                init += "(" + cell + ".type == V_INT64) ? " + cell +
+                        ".as.i64 : (int64_t)" + cell + ".as.f64";
             } else if (ft.kind == CType::Kind::Bool) {
                 init += "(" + cell + ".as.i64 != 0)";
-            } else if (ft.kind == CType::Kind::Str ||
-                       ft.kind == CType::Kind::Map) {
+            } else if (
+                ft.kind == CType::Kind::Str || ft.kind == CType::Kind::Map
+            ) {
                 // The native struct stores String and Map fields as a
                 // bare VyneValue (see cFieldTypeFor in interfaces.cpp).
                 // The boxed cell is exactly that, so pass it through.
@@ -424,11 +474,13 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     throw std::runtime_error(
                         "Compile Error: unboxing a native struct with an "
                         "Array<Struct> field is not implemented yet "
-                        "(field '" + ns->fieldNames[i] + "' of '" +
-                        target.mangledName + "', line " +
-                        std::to_string(lineNumber) + ").\n"
+                        "(field '" +
+                        ns->fieldNames[i] + "' of '" + target.mangledName +
+                        "', line " + std::to_string(lineNumber) +
+                        ").\n"
                         "  Assign to the array field element-by-element, "
-                        "or construct the struct from a native source.");
+                        "or construct the struct from a native source."
+                    );
                 }
                 if (el.kind == CType::Kind::Float64) {
                     init += "vyne_value_to_array_f64(" + cell + ")";
@@ -442,7 +494,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     "internal: unboxToNative has no case for CType::Kind " +
                     std::to_string((int)ft.kind) + " on field '" +
                     ns->fieldNames[i] + "' of '" + target.mangledName +
-                    "' (line " + std::to_string(lineNumber) + ").");
+                    "' (line " + std::to_string(lineNumber) + ")."
+                );
             }
         }
         init += "})";
@@ -457,12 +510,11 @@ void AssignmentNode::compile(C_Emitter& e) const {
         std::replace(sanitized.begin(), sanitized.end(), '.', '_');
         std::string prefix = e.getActiveFunctionPrefix();
         std::string bareName = "v_" + sanitized;
-        std::string localName = prefix.empty()
-            ? bareName
-            : ("v_" + prefix + "_" + sanitized);
+        std::string localName =
+            prefix.empty() ? bareName : ("v_" + prefix + "_" + sanitized);
 
-        bool isExisting = e.isLocalDeclared(localName) ||
-                          e.isGlobalDeclared(bareName);
+        bool isExisting =
+            e.isLocalDeclared(localName) || e.isGlobalDeclared(bareName);
         bool useGlobalHere = e.getGlobalVars().count(bareName) > 0;
 
         if (isExisting) {
@@ -504,8 +556,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
     }
 
     if (!declaredTypeName.empty() && expectedType == VType::Struct) {
-        if (useGlobal) e.setGlobalStructType(bareName, declaredTypeName);
-        else           e.setLocalStructType(varName, declaredTypeName);
+        if (useGlobal)
+            e.setGlobalStructType(bareName, declaredTypeName);
+        else
+            e.setLocalStructType(varName, declaredTypeName);
     }
 
     if (useGlobal) {
@@ -531,14 +585,16 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
                     if (arrRhs->getElements().empty()) {
                         std::string ctor = (elem == VType::Float64)
-                            ? "vyne_array_f64_create"
-                            : "vyne_array_i64_create";
+                                               ? "vyne_array_f64_create"
+                                               : "vyne_array_i64_create";
                         CType arrType;
                         arrType.kind = CType::Kind::Array;
                         arrType.args.push_back(CType::fromVType(elem));
                         e.declareGlobal(varName, arrType);
-                        e.emitGlobalDecl(CType::arrayContainerName(elem) +
-                                         " " + varName + ";");
+                        e.emitGlobalDecl(
+                            CType::arrayContainerName(elem) + " " + varName +
+                            ";"
+                        );
                         e.emit(varName + " = " + ctor + "(0);");
                         return;
                     }
@@ -552,8 +608,9 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     arrType.kind = CType::Kind::Array;
                     arrType.args.push_back(CType::fromVType(elem));
                     e.declareGlobal(varName, arrType);
-                    e.emitGlobalDecl(CType::arrayContainerName(elem) +
-                                     " " + varName + ";");
+                    e.emitGlobalDecl(
+                        CType::arrayContainerName(elem) + " " + varName + ";"
+                    );
                     e.emit(varName + " = " + val + ";");
                     return;
                 }
@@ -576,14 +633,15 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 const CType* rt = e.lookupType(val);
                 if (rt && rt->kind == CType::Kind::Array && !rt->args.empty()) {
                     const CType& elemCt = rt->args[0];
-                    if (elemCt.kind == CType::Kind::Struct
-                        && elemCt.nativeCStruct) {
+                    if (elemCt.kind == CType::Kind::Struct &&
+                        elemCt.nativeCStruct) {
                         const auto* ns = e.getNativeCStruct(elemCt.mangledName);
                         if (ns) {
                             CType arrType = *rt;
                             e.declareGlobal(bareName, arrType);
-                            e.emitGlobalDecl("vyne_Array_" + ns->tag + " " +
-                                             bareName + ";");
+                            e.emitGlobalDecl(
+                                "vyne_Array_" + ns->tag + " " + bareName + ";"
+                            );
                             e.emit(bareName + " = " + val + ";");
                             return;
                         }
@@ -592,7 +650,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 // Non-struct RHS with an unresolvable annotation. The RHS
                 // is already evaluated; declare the global boxed and store,
                 // rather than falling through (which would re-evaluate it).
-                e.declareGlobal(bareName, CType::fromKind(CType::Kind::Unknown));
+                e.declareGlobal(
+                    bareName,
+                    CType::fromKind(CType::Kind::Unknown)
+                );
                 e.emitGlobalDecl("VyneValue " + bareName + ";");
                 e.emit(bareName + " = " + e.boxAny(val) + ";");
                 return;
@@ -613,8 +674,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
                 if (arrRhs->getElements().empty()) {
                     std::string ctor = (elem == VType::Float64)
-                        ? "vyne_array_f64_create"
-                        : "vyne_array_i64_create";
+                                           ? "vyne_array_f64_create"
+                                           : "vyne_array_i64_create";
                     e.emit(bareName + " = " + ctor + "(0);");
                     return;
                 }
@@ -630,7 +691,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
                     "Compile Error: cannot reassign typed-array global '" +
                     originalName +
                     "' from a value of a different element type (line " +
-                    std::to_string(lineNumber) + ").");
+                    std::to_string(lineNumber) + ")."
+                );
             }
             return;
         }
@@ -638,24 +700,29 @@ void AssignmentNode::compile(C_Emitter& e) const {
         if (!hasGlobal) {
             if (isDeclaration && declared.isPrimitive()) {
                 e.declareGlobal(bareName, declared);
-                e.emitGlobalDecl(declared.cTypeName() + " " + bareName + " = 0;");
+                e.emitGlobalDecl(
+                    declared.cTypeName() + " " + bareName + " = 0;"
+                );
             } else {
                 // Slice 3b: a fresh global whose declared type names a
                 // C-eligible interface stores the native C struct
                 // directly instead of a boxed VyneValue. Subsequent
                 // member reads lower to `.field` on this variable.
                 const auto* ns = (isDeclaration && !declaredTypeName.empty())
-                    ? e.getNativeCStruct(declaredTypeName)
-                    : nullptr;
+                                     ? e.getNativeCStruct(declaredTypeName)
+                                     : nullptr;
                 if (ns) {
                     CType ct;
-                    ct.kind          = CType::Kind::Struct;
-                    ct.mangledName   = declaredTypeName;
+                    ct.kind = CType::Kind::Struct;
+                    ct.mangledName = declaredTypeName;
                     ct.nativeCStruct = true;
                     e.declareGlobal(bareName, ct);
                     e.emitGlobalDecl(ns->tag + " " + bareName + ";");
                 } else {
-                    e.declareGlobal(bareName, CType::fromKind(CType::Kind::Unknown));
+                    e.declareGlobal(
+                        bareName,
+                        CType::fromKind(CType::Kind::Unknown)
+                    );
                     e.emitGlobalDecl("VyneValue " + bareName + ";");
                 }
             }
@@ -666,8 +733,9 @@ void AssignmentNode::compile(C_Emitter& e) const {
             std::string val = rhs->getCExpr(e);
             std::string init = nativeInit(e, rhs.get(), val, *reg);
             e.emit(bareName + " = " + init + ";");
-        } else if (reg && reg->kind == CType::Kind::Struct
-                   && reg->nativeCStruct) {
+        } else if (
+            reg && reg->kind == CType::Kind::Struct && reg->nativeCStruct
+        ) {
             // Slice 3b: global target is a native C struct. The RHS
             // may already be native (constructor / same-interface
             // variable) or a boxed VyneValue (native-ABI struct
@@ -678,8 +746,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
             if (!ns) {
                 throw std::runtime_error(
                     "internal: nativeCStruct CType without registry entry "
-                    "for '" + reg->mangledName + "' (line " +
-                    std::to_string(lineNumber) + ").");
+                    "for '" +
+                    reg->mangledName + "' (line " + std::to_string(lineNumber) +
+                    ")."
+                );
             }
             std::string val = rhs->getCExpr(e);
             std::string srcExpr = unboxToNative(val, *reg, ns);
@@ -707,8 +777,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 VType elem = getArrayElemType();
                 if (elem == VType::Unknown && !declaredTypeName.empty()) {
                     const std::string& dt = declaredTypeName;
-                    if (dt.find("Int64")   != std::string::npos) elem = VType::Int64;
-                    else if (dt.find("Float64") != std::string::npos) elem = VType::Float64;
+                    if (dt.find("Int64") != std::string::npos)
+                        elem = VType::Int64;
+                    else if (dt.find("Float64") != std::string::npos)
+                        elem = VType::Float64;
                 }
 
                 // Struct element: the primitive ctor below does not apply.
@@ -716,14 +788,16 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 // local from the RHS's own CType (or box it).
                 if (elem != VType::Unknown && elem != VType::Struct) {
                     std::string ctor = (elem == VType::Float64)
-                        ? "vyne_array_f64_create"
-                        : "vyne_array_i64_create";
+                                           ? "vyne_array_f64_create"
+                                           : "vyne_array_i64_create";
                     CType arrType;
                     arrType.kind = CType::Kind::Array;
                     arrType.args.push_back(CType::fromVType(elem));
                     e.declareLocal(varName, arrType);
-                    e.emit(CType::arrayContainerName(elem) + " " + varName +
-                           " = " + ctor + "(0);");
+                    e.emit(
+                        CType::arrayContainerName(elem) + " " + varName +
+                        " = " + ctor + "(0);"
+                    );
                     return;
                 }
                 // elem == Unknown: bare `Array` annotation. Fall through
@@ -752,8 +826,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 if (ns) {
                     CType arrType = *rt;
                     e.declareLocal(varName, arrType);
-                    e.emit("vyne_Array_" + ns->tag + " " + varName +
-                           " = " + val + ";");
+                    e.emit(
+                        "vyne_Array_" + ns->tag + " " + varName + " = " + val +
+                        ";"
+                    );
                     return;
                 }
             }
@@ -762,8 +838,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
             if (elem == VType::Float64 || elem == VType::Int64) {
                 CType arrType = *rt;
                 e.declareLocal(varName, arrType);
-                e.emit(CType::arrayContainerName(elem) + " " + varName +
-                       " = " + val + ";");
+                e.emit(
+                    CType::arrayContainerName(elem) + " " + varName + " = " +
+                    val + ";"
+                );
                 return;
             }
         }
@@ -781,8 +859,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
             const auto* ns = e.getNativeCStruct(declaredTypeName);
             if (ns) {
                 CType ct;
-                ct.kind          = CType::Kind::Struct;
-                ct.mangledName   = declaredTypeName;
+                ct.kind = CType::Kind::Struct;
+                ct.mangledName = declaredTypeName;
                 ct.nativeCStruct = true;
 
                 std::string srcExpr = unboxToNative(val, ct, ns);
@@ -816,8 +894,10 @@ void AssignmentNode::compile(C_Emitter& e) const {
             (rt->args[0].toVType() == VType::Float64 ||
              rt->args[0].toVType() == VType::Int64)) {
             e.declareLocal(varName, *rt);
-            e.emit(CType::arrayContainerName(rt->args[0].toVType()) +
-                   " " + varName + " = " + val + ";");
+            e.emit(
+                CType::arrayContainerName(rt->args[0].toVType()) + " " +
+                varName + " = " + val + ";"
+            );
             return;
         }
         e.emit(varName + " = " + e.boxAny(val) + ";");
@@ -854,8 +934,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
             auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
             if (arrRhs->getElements().empty()) {
                 std::string ctor = (elem == VType::Float64)
-                    ? "vyne_array_f64_create"
-                    : "vyne_array_i64_create";
+                                       ? "vyne_array_f64_create"
+                                       : "vyne_array_i64_create";
                 e.emit(varName + " = " + ctor + "(0);");
                 return;
             }
@@ -870,20 +950,23 @@ void AssignmentNode::compile(C_Emitter& e) const {
             throw std::runtime_error(
                 "Compile Error: cannot reassign typed array '" + originalName +
                 "' from a value of a different element type (line " +
-                std::to_string(lineNumber) + ").");
+                std::to_string(lineNumber) + ")."
+            );
         }
         return;
     }
 
     // --- Slice 3b: native C struct local reassignment ---
-    if (existing && existing->kind == CType::Kind::Struct
-        && existing->nativeCStruct) {
+    if (existing && existing->kind == CType::Kind::Struct &&
+        existing->nativeCStruct) {
         const auto* ns = e.getNativeCStruct(existing->mangledName);
         if (!ns) {
             throw std::runtime_error(
                 "internal: nativeCStruct CType without registry entry "
-                "for '" + existing->mangledName + "' (line " +
-                std::to_string(lineNumber) + ").");
+                "for '" +
+                existing->mangledName + "' (line " +
+                std::to_string(lineNumber) + ")."
+            );
         }
         std::string val = rhs->getCExpr(e);
         std::string srcExpr = unboxToNative(val, *existing, ns);
@@ -893,5 +976,5 @@ void AssignmentNode::compile(C_Emitter& e) const {
 
     // --- boxed local ---
     std::string val = rhs->getCExpr(e);
-    e.emit(varName + " = " + e.boxAny(val)+ ";");
+    e.emit(varName + " = " + e.boxAny(val) + ";");
 }

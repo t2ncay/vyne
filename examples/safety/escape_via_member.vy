@@ -7,9 +7,9 @@ interface Box {
 }
 
 fn test() {
-    outer_box :: Box = Box([]);
+    outer_box :: Box := Box([]);
     region r {
-        inner :: Array = [1.0, 2.0, 3.0];
+        inner :: Array := [1.0, 2.0, 3.0];
         outer_box.val = inner;
     }
 }

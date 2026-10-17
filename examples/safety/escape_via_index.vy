@@ -3,9 +3,9 @@
 # Expected: compile error, VNE-070.
 
 fn test() {
-    outer_arr :: Array = [0.0, 0.0, 0.0];
+    outer_arr :: Array := [0.0, 0.0, 0.0];
     region r {
-        inner :: Array = [1.0, 2.0, 3.0];
+        inner :: Array := [1.0, 2.0, 3.0];
         outer_arr[0] = inner;
     }
 }

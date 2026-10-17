@@ -21,24 +21,24 @@
 #define VYNE_VCORE_RT_H
 
 #include "../vyne_runtime.h"
-#include <time.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#include <time.h>
 
 /* ---------- platform detection -------------------------------------- */
 #ifdef _WIN32
-    #define WIN32_LEAN_AND_MEAN
-    #define NOMINMAX
-    #define NOGDI
-    #define NOUSER
-    #include <windows.h>
-    #include <psapi.h>
-    #include <process.h>
-    #define vyne_getpid _getpid
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define NOGDI
+#define NOUSER
+#include <process.h>
+#include <psapi.h>
+#include <windows.h>
+#define vyne_getpid _getpid
 #else
-    #include <unistd.h>
-    #include <sys/types.h>
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 /* ---------- now() — same format as interpreter ---------------------- */
@@ -59,10 +59,11 @@ static inline VyneValue vcore_runtime_now_ns(void) {
     LARGE_INTEGER freq, counter;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&counter);
-    /* freq is usually 10 MHz on Windows, so counter * 100 stays in
-     * int64 for ~29 years. Loss of a couple of ns in the integer
-     * divide is below the measurement noise floor. */
-    int64_t ns = (int64_t)((counter.QuadPart * 100LL) / (freq.QuadPart / 10LL));
+    /* 1 second = freq ticks = 1e9 ns.
+     * ns = counter * 1e9 / freq.  With freq = 10 MHz this is
+     * exactly counter * 100, but the general form keeps it correct
+     * on any QPC frequency Windows happens to pick. */
+    int64_t ns = (int64_t)((counter.QuadPart * 1000000000LL) / freq.QuadPart);
 #if defined(_MSC_VER)
     _ReadWriteBarrier();
 #else
@@ -79,24 +80,24 @@ static inline VyneValue vcore_runtime_now_ns(void) {
 
 /* ---------- sleep(ms) ---------------------------------------------- */
 static inline VyneValue vcore_runtime_sleep(VyneValue ms_val) {
-    int64_t ms = (ms_val.type == V_INT64) ? ms_val.as.i64
-                                          : (int64_t)ms_val.as.f64;
+    int64_t ms =
+        (ms_val.type == V_INT64) ? ms_val.as.i64 : (int64_t)ms_val.as.f64;
 #ifdef _WIN32
     Sleep((DWORD)ms);
 #else
     usleep((useconds_t)(ms * 1000));
 #endif
-    return vyne_int(1);   /* interpreter returns Value(true) -> Int64 1 */
+    return vyne_int(1); /* interpreter returns Value(true) -> Int64 1 */
 }
 
 /* ---------- platform() — compile-time string ------------------------ */
 static inline VyneValue vcore_runtime_platform(void) {
 #if defined(_WIN64)
-    #if defined(_M_ARM64)
-        return vyne_string("Windows ARM64");
-    #else
-        return vyne_string("Windows x64");
-    #endif
+#if defined(_M_ARM64)
+    return vyne_string("Windows ARM64");
+#else
+    return vyne_string("Windows x64");
+#endif
 #elif defined(_WIN32)
     return vyne_string("Windows x86");
 #elif defined(__APPLE__)
@@ -121,7 +122,8 @@ static inline VyneValue vcore_runtime_input(int argc, VyneValue* argv) {
     char buf[4096];
     if (fgets(buf, sizeof(buf), stdin)) {
         size_t len = strlen(buf);
-        if (len > 0 && buf[len - 1] == '\n') buf[len - 1] = '\0';
+        if (len > 0 && buf[len - 1] == '\n')
+            buf[len - 1] = '\0';
         return vyne_string(buf);
     }
     return vyne_null();
@@ -129,7 +131,8 @@ static inline VyneValue vcore_runtime_input(int argc, VyneValue* argv) {
 
 /* ---------- parse_array("[1, 2, [3, 4]]") --------------------------- */
 static inline const char* _vcore_pa_ws(const char* p) {
-    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
+    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')
+        p++;
     return p;
 }
 
@@ -144,22 +147,28 @@ static VyneValue _vcore_pa_elem(const char** p) {
             VyneValue elem = _vcore_pa_elem(p);
             vyne_array_push(arr, elem);
             *p = _vcore_pa_ws(*p);
-            if (**p == ',') { (*p)++; *p = _vcore_pa_ws(*p); }
+            if (**p == ',') {
+                (*p)++;
+                *p = _vcore_pa_ws(*p);
+            }
         }
-        if (**p == ']') (*p)++;
+        if (**p == ']')
+            (*p)++;
         return arr;
     }
 
     const char* start = *p;
-    while (**p && (isdigit((unsigned char)**p) || **p == '.' ||
-                   **p == '-' || **p == '+' || **p == 'e' || **p == 'E')) {
+    while (**p && (isdigit((unsigned char)**p) || **p == '.' || **p == '-' ||
+                   **p == '+' || **p == 'e' || **p == 'E')) {
         (*p)++;
     }
     size_t len = (size_t)(*p - start);
-    if (len == 0) return vyne_float(0.0);
+    if (len == 0)
+        return vyne_float(0.0);
 
     char tmp[64];
-    if (len >= sizeof(tmp)) len = sizeof(tmp) - 1;
+    if (len >= sizeof(tmp))
+        len = sizeof(tmp) - 1;
     memcpy(tmp, start, len);
     tmp[len] = '\0';
 
@@ -170,7 +179,10 @@ static VyneValue _vcore_pa_elem(const char** p) {
 
 static inline VyneValue vcore_parse_array(VyneValue s) {
     if (s.type != V_STRING || !s.as.str) {
-        fprintf(stderr, "Runtime error: vcore.parse_array() expects 1 String argument.\n");
+        fprintf(
+            stderr,
+            "Runtime error: vcore.parse_array() expects 1 String argument.\n"
+        );
         exit(1);
     }
     const char* p = s.as.str;
@@ -180,11 +192,15 @@ static inline VyneValue vcore_parse_array(VyneValue s) {
 /* ---------- hex_to_int64("0xFF2D809A") ------------------------------ */
 static inline VyneValue vcore_hex_to_int64(VyneValue s) {
     if (s.type != V_STRING || !s.as.str) {
-        fprintf(stderr, "Runtime error: vcore.hex_to_int64() expects 1 String argument.\n");
+        fprintf(
+            stderr,
+            "Runtime error: vcore.hex_to_int64() expects 1 String argument.\n"
+        );
         exit(1);
     }
     const char* p = s.as.str;
-    if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) p += 2;
+    if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X'))
+        p += 2;
     return vyne_int((int64_t)strtoull(p, NULL, 16));
 }
 
@@ -194,9 +210,11 @@ static inline VyneValue vcore_hex_to_int64(VyneValue s) {
  * that needs to construct a String from a byte it computed. */
 static inline VyneValue vcore_chr(VyneValue v) {
     int64_t code = (v.type == V_INT64) ? v.as.i64 : (int64_t)v.as.f64;
-    if (code < 0)   code = 0;
-    if (code > 255) code = 255;
-    char buf[2] = { (char)code, '\0' };
+    if (code < 0)
+        code = 0;
+    if (code > 255)
+        code = 255;
+    char buf[2] = {(char)code, '\0'};
     return vyne_string(buf);
 }
 
@@ -217,35 +235,48 @@ static inline VyneValue vcore_sb_create(void) {
 
 static inline VyneValue vcore_sb_append(VyneValue handle, VyneValue value) {
     if (handle.type != V_INT64) {
-        fprintf(stderr,
-                "Runtime error: vcore.sb_append() expects an Int64 handle "
-                "as its first argument.\n");
+        fprintf(
+            stderr,
+            "Runtime error: vcore.sb_append() expects an Int64 handle "
+            "as its first argument.\n"
+        );
         exit(1);
     }
     VyneStringBuilder* sb = _vyne_sb_from_handle(handle.as.i64);
-    if (!sb) return vyne_null();
+    if (!sb)
+        return vyne_null();
     vyne_sb_append_value(sb, value);
     return vyne_null();
 }
 
 static inline VyneValue vcore_sb_build(VyneValue handle) {
-    if (handle.type != V_INT64) return vyne_string("");
+    if (handle.type != V_INT64)
+        return vyne_string("");
     VyneStringBuilder* sb = _vyne_sb_from_handle(handle.as.i64);
-    if (!sb) return vyne_string("");
+    if (!sb)
+        return vyne_string("");
     return vyne_sb_build(sb);
 }
 
 static inline VyneValue vcore_sb_reset(VyneValue handle) {
-    if (handle.type != V_INT64) return vyne_null();
+    if (handle.type != V_INT64)
+        return vyne_null();
     VyneStringBuilder* sb = _vyne_sb_from_handle(handle.as.i64);
-    if (sb) vyne_sb_reset(sb);
+    if (sb)
+        vyne_sb_reset(sb);
     return vyne_null();
 }
 
 /* ---------- properties ---------------------------------------------- */
-static inline VyneValue vcore_get_version(void) { return vyne_string("v0.0.1-alpha"); }
-static inline VyneValue vcore_get_engine(void)  { return vyne_string("Vyne Native"); }
-static inline VyneValue vcore_get_build(void)   { return vyne_string(__DATE__ " " __TIME__); }
+static inline VyneValue vcore_get_version(void) {
+    return vyne_string("v0.0.1-alpha");
+}
+static inline VyneValue vcore_get_engine(void) {
+    return vyne_string("Vyne Native");
+}
+static inline VyneValue vcore_get_build(void) {
+    return vyne_string(__DATE__ " " __TIME__);
+}
 
 static inline VyneValue vcore_get_processor_count(void) {
 #ifdef _WIN32
