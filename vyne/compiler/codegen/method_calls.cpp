@@ -105,11 +105,32 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     if (!entry)
         return std::nullopt;
 
+    // Auto-include the module's runtime header for every native call
+    // resolved through this dispatcher. `addInclude` is idempotent —
+    // includeSet dedupes — so the cost is one set-lookup per call.
+    // This means a bare `vcore.now()` lowers correctly without an
+    // explicit `use native vcore;` at the source level, matching the
+    // interpreter's resolution rules.
+    {
+        std::filesystem::path moduleBase =
+            std::filesystem::path(FileUtils::getExeDir()) / "vyne" / "runtime" /
+            "modules";
+        e.addInclude((moduleBase / (recvPath + ".h")).string());
+    }
+
     // Zero-arg getter: `vmath.pi()` -> "vmath_pi()".
     if (entry->isProperty)
         return std::string(entry->cName);
 
     const auto& args = node.getArguments();
+
+    // 0-arg call with a dedicated 0-arg runtime variant. Fires before
+    // the boxed-arg path so `vmath.random_float()` selects the unit
+    // overload instead of emitting a zero-argument call to the 2-arg
+    // symbol.
+    if (args.empty() && entry->nativeZero)
+        return std::string(entry->nativeZero) + "()";
+
     std::string resTemp = e.newTemp("n_ret");
 
     // Variadic: (argc, argv).

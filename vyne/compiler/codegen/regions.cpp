@@ -43,7 +43,8 @@ static void ensureVmemInclude(C_Emitter& e) {
 }
 
 static void emitPoolRuntimeOnce(C_Emitter& e) {
-    if (e.isPoolRuntimeEmitted()) return;
+    if (e.isPoolRuntimeEmitted())
+        return;
     std::string base = FileUtils::getExeDir();
     std::filesystem::path moduleBase =
         std::filesystem::path(base) / "vyne" / "runtime" / "modules";
@@ -61,7 +62,9 @@ static void compileBumpRegion(C_Emitter& e, const RegionNode& r) {
 
     e.pushRegion(cpHandle);
     e.emitBlockOpen("{");
-    for (const auto& stmt : r.getBody()) if (stmt) stmt->compile(e);
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
     e.emitBlockClose();
     e.popRegion();
 
@@ -86,37 +89,47 @@ static void compileBumpRegion(C_Emitter& e, const RegionNode& r) {
 // ============================================================
 static void compilePoolRegion(C_Emitter& e, const RegionNode& r) {
     const auto& args = r.getPolicyArgs();
-    const int   line = r.lineNumber;
+    const int line = r.lineNumber;
 
     if (args.size() != 2) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @pool expects exactly 2 arguments "
-            "(element type, slot count), got " + std::to_string(args.size()) +
-            " (line " + std::to_string(line) + ").\n"
-            "  Syntax: @pool<Float64, 64> region name { ... };");
+            "(element type, slot count), got " +
+            std::to_string(args.size()) + " (line " + std::to_string(line) +
+            ").\n"
+            "  Syntax: @pool<Float64, 64> region name { ... };"
+        );
     }
 
     VType elem;
-    if      (args[0] == "Float64") elem = VType::Float64;
-    else if (args[0] == "Int64")   elem = VType::Int64;
+    if (args[0] == "Float64")
+        elem = VType::Float64;
+    else if (args[0] == "Int64")
+        elem = VType::Int64;
     else {
         throw std::runtime_error(
             "Compile Error (VNE-080): @pool element type must be "
-            "Float64 or Int64, got '" + args[0] + "' (line " +
-            std::to_string(line) + ").");
+            "Float64 or Int64, got '" +
+            args[0] + "' (line " + std::to_string(line) + ")."
+        );
     }
 
     int64_t elemsPerSlot = 0;
-    try { elemsPerSlot = std::stoll(args[1]); }
-    catch (...) {
+    try {
+        elemsPerSlot = std::stoll(args[1]);
+    } catch (...) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @pool slot count must be an integer, "
-            "got '" + args[1] + "' (line " + std::to_string(line) + ").");
+            "got '" +
+            args[1] + "' (line " + std::to_string(line) + ")."
+        );
     }
     if (elemsPerSlot <= 0) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @pool slot count must be positive "
-            "(line " + std::to_string(line) + ").");
+            "(line " +
+            std::to_string(line) + ")."
+        );
     }
 
     // Capacity is the number of concurrent live buffers the pool will
@@ -130,24 +143,29 @@ static void compilePoolRegion(C_Emitter& e, const RegionNode& r) {
     emitPoolRuntimeOnce(e);
 
     std::string cpHandle = e.newTemp("vmem_cp");
-    std::string poolVar  = e.newTemp("vmem_pool");
-    std::string ctor = (elem == VType::Float64)
-        ? "vyne_pool_f64_create" : "vyne_pool_i64_create";
-    const char* poolCName = (elem == VType::Float64)
-        ? "VynePool_f64" : "VynePool_i64";
+    std::string poolVar = e.newTemp("vmem_pool");
+    std::string ctor = (elem == VType::Float64) ? "vyne_pool_f64_create"
+                                                : "vyne_pool_i64_create";
+    const char* poolCName =
+        (elem == VType::Float64) ? "VynePool_f64" : "VynePool_i64";
 
-    e.emit("// --- region: " + r.getRegionName() + " (pool<" +
-           args[0] + ", " + args[1] + ">) ---");
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (pool<" + args[0] + ", " +
+        args[1] + ">) ---"
+    );
     e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
-    e.emit(std::string(poolCName) + " " + poolVar + " = " + ctor + "(" +
-           std::to_string(elemsPerSlot) + ", " +
-           std::to_string(capacity) + ");");
+    e.emit(
+        std::string(poolCName) + " " + poolVar + " = " + ctor + "(" +
+        std::to_string(elemsPerSlot) + ", " + std::to_string(capacity) + ");"
+    );
 
     e.pushRegion(cpHandle);
-    e.pushPool({ poolVar, elem, elemsPerSlot });
+    e.pushPool({poolVar, elem, elemsPerSlot});
 
     e.emitBlockOpen("{");
-    for (const auto& stmt : r.getBody()) if (stmt) stmt->compile(e);
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
     e.emitBlockClose();
 
     e.popPool();
@@ -160,13 +178,15 @@ static void compileSpeculativeRegion(C_Emitter& e, const RegionNode& r) {
     if (!r.getPolicyArgs().empty()) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @speculative takes no arguments, "
-            "got " + std::to_string(r.getPolicyArgs().size()) +
-            " (line " + std::to_string(r.lineNumber) + ").");
+            "got " +
+            std::to_string(r.getPolicyArgs().size()) + " (line " +
+            std::to_string(r.lineNumber) + ")."
+        );
     }
 
     ensureVmemInclude(e);
 
-    std::string cpHandle   = e.newTemp("vmem_cp");
+    std::string cpHandle = e.newTemp("vmem_cp");
     std::string commitFlag = e.newTemp("spec_committed");
 
     e.emit("// --- region: " + r.getRegionName() + " (speculative) ---");
@@ -174,10 +194,12 @@ static void compileSpeculativeRegion(C_Emitter& e, const RegionNode& r) {
     e.emit("int " + commitFlag + " = 0;");
 
     e.pushRegion(cpHandle);
-    e.pushSpeculative({ commitFlag });
+    e.pushSpeculative({commitFlag});
 
     e.emitBlockOpen("{");
-    for (const auto& stmt : r.getBody()) if (stmt) stmt->compile(e);
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
     e.emitBlockClose();
 
     e.popSpeculative();
@@ -195,9 +217,11 @@ void RegionCommitIfNode::compile(C_Emitter& e) const {
         throw std::runtime_error(
             "Compile Error (VNE-085): region.commit_if() is only valid "
             "inside a @speculative region (line " +
-            std::to_string(lineNumber) + ").\n"
+            std::to_string(lineNumber) +
+            ").\n"
             "  Wrap the containing region in '@speculative' to make its "
-            "commit decision conditional.");
+            "commit decision conditional."
+        );
     }
 
     const auto& ctx = e.currentSpeculative();
@@ -227,10 +251,13 @@ void RegionNode::compile(C_Emitter& e) const {
     }
 
     throw std::runtime_error(
-        "Compile Error (VNE-080): region policy '@" + policy + "' is "
+        "Compile Error (VNE-080): region policy '@" + policy +
+        "' is "
         "recognized but not yet implemented (line " +
-        std::to_string(lineNumber) + ").\n"
-        "  Implemented policies: bump (default), pool, speculative.");
+        std::to_string(lineNumber) +
+        ").\n"
+        "  Implemented policies: bump (default), pool, speculative."
+    );
 }
 
 std::string RegionNode::getCExpr(C_Emitter& e) const {
@@ -257,7 +284,9 @@ void RegionCommitNode::compile(C_Emitter& e) const {
     if (!var) {
         throw std::runtime_error(
             "Compile Error: region.commit() requires an lvalue variable "
-            "(line " + std::to_string(lineNumber) + ")");
+            "(line " +
+            std::to_string(lineNumber) + ")"
+        );
     }
 
     // Same mangling rule as VariableNode::getCExpr. Keep them in sync.
@@ -276,31 +305,70 @@ void RegionCommitNode::compile(C_Emitter& e) const {
     // vmem_runtime_commit() takes a VyneValue. A typed-array local
     // (VyneArray_f64 / VyneArray_i64) is a struct, not a VyneValue —
     // passing it straight through would fail at C-compile time with a
-    // struct/union mismatch. Reject up front so the diagnostic points
-    // at Vyne source instead of generated C.
+    // struct/union mismatch. Box it into a VyneValue, commit the boxed
+    // value, then unbox back into the typed-array local. The commit
+    // arena survives region rewind, so the unboxed container's backing
+    // buffer outlives the region — exactly what region.commit promises.
     if (const CType* ct = e.lookupType(cVar)) {
         if (ct->kind == CType::Kind::Array && !ct->args.empty()) {
-            throw std::runtime_error(
-                "Compile Error (VNE-084): region.commit() on a typed-array "
-                "local is not supported yet (line " +
-                std::to_string(lineNumber) + ").\n"
-                "  Commit individual elements, or keep the array in a bump "
-                "region. Pool buffers are region-local by construction and "
-                "must not escape.");
+            // A shape-typed scratch is a raw C stack array (`double
+            // v_x[N];`), not a VyneArray_f64 container. It cannot be
+            // boxed, and its storage dies with the C stack frame — a
+            // commit can only ever produce a dangling reference. Keep
+            // this rejection; it is a correctness boundary, not a
+            // missing feature.
+            if (ct->hasShape()) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-084): region.commit() on a "
+                    "stack-allocated scratch array is impossible (line " +
+                    std::to_string(lineNumber) +
+                    ").\n"
+                    "  Copy elements into a boxed Array<Float64> and "
+                    "commit that instead."
+                );
+            }
+
+            VType elem = ct->args[0].toVType();
+            if (elem == VType::Float64 || elem == VType::Int64) {
+                std::string boxFn = (elem == VType::Float64)
+                                        ? "vyne_array_f64_to_value"
+                                        : "vyne_array_i64_to_value";
+                std::string unboxFn = (elem == VType::Float64)
+                                          ? "vyne_value_to_array_f64"
+                                          : "vyne_value_to_array_i64";
+
+                std::string boxed = e.newTemp("commit_box");
+                e.emit(
+                    "VyneValue " + boxed + " = " + boxFn + "(&" + cVar + ");"
+                );
+
+                std::string committed = e.newTemp("commit");
+                e.emit(
+                    "VyneValue " + committed + " = vmem_runtime_commit(" +
+                    boxed + ");"
+                );
+
+                e.emit(cVar + " = " + unboxFn + "(" + committed + ");");
+
+                // The typed-array local now points into commit-arena
+                // memory, which survives the rewind. Treat it as depth 0
+                // for the escape checker.
+                e.markCommitted(cVar);
+                return;
+            }
         }
     }
 
-        std::string tmp = e.newTemp("commit");
-        e.emit("VyneValue " + tmp + " = vmem_runtime_commit(" + cVar + ");");
-        e.emit(cVar + " = " + tmp + ";");
+    std::string tmp = e.newTemp("commit");
+    e.emit("VyneValue " + tmp + " = vmem_runtime_commit(" + cVar + ");");
+    e.emit(cVar + " = " + tmp + ";");
 
-        // The variable now points into the commit arena, which survives
-        // region rewinds. Its effective depth is 0.
-        e.markCommitted(cVar);
+    // The variable now points into the commit arena, which survives
+    // region rewinds. Its effective depth is 0.
+    e.markCommitted(cVar);
 }
 
 std::string RegionCommitNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
-
