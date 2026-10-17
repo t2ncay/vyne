@@ -38,37 +38,91 @@ static inline double _vmath_f(VyneValue v) {
 /* ===================================================================
  * Constants  (zero-argument getters; used by member-access path)
  * =================================================================== */
-static inline VyneValue vmath_pi()      { return vyne_float(3.141592653589793);  }
-static inline VyneValue vmath_e()       { return vyne_float(2.718281828459045);  }
-static inline VyneValue vmath_tau()     { return vyne_float(6.283185307179586);  }
-static inline VyneValue vmath_phi()     { return vyne_float(1.618033988749895);  }
-static inline VyneValue vmath_sqrt2()   { return vyne_float(1.4142135623730951); }
-static inline VyneValue vmath_inf()     { return vyne_float((double)INFINITY);   }
-static inline VyneValue vmath_nan()     { return vyne_float((double)NAN);        }
+static inline VyneValue vmath_pi() {
+    return vyne_float(3.141592653589793);
+}
+static inline VyneValue vmath_e() {
+    return vyne_float(2.718281828459045);
+}
+static inline VyneValue vmath_tau() {
+    return vyne_float(6.283185307179586);
+}
+static inline VyneValue vmath_phi() {
+    return vyne_float(1.618033988749895);
+}
+static inline VyneValue vmath_sqrt2() {
+    return vyne_float(1.4142135623730951);
+}
+static inline VyneValue vmath_inf() {
+    return vyne_float((double)INFINITY);
+}
+static inline VyneValue vmath_nan() {
+    return vyne_float((double)NAN);
+}
 
 /* ===================================================================
  * 1-argument functions
  * =================================================================== */
-static inline VyneValue vmath_sqrt(VyneValue v)    { return vyne_float(sqrt(_vmath_f(v)));   }
-static inline VyneValue vmath_sin(VyneValue v)     { return vyne_float(sin(_vmath_f(v)));    }
-static inline VyneValue vmath_cos(VyneValue v)     { return vyne_float(cos(_vmath_f(v)));    }
-static inline VyneValue vmath_tan(VyneValue v)     { return vyne_float(tan(_vmath_f(v)));    }
-static inline VyneValue vmath_asin(VyneValue v)    { return vyne_float(asin(_vmath_f(v)));   }
-static inline VyneValue vmath_acos(VyneValue v)    { return vyne_float(acos(_vmath_f(v)));   }
-static inline VyneValue vmath_atan(VyneValue v)    { return vyne_float(atan(_vmath_f(v)));   }
-static inline VyneValue vmath_sinh(VyneValue v)    { return vyne_float(sinh(_vmath_f(v)));   }
-static inline VyneValue vmath_cosh(VyneValue v)    { return vyne_float(cosh(_vmath_f(v)));   }
-static inline VyneValue vmath_tanh(VyneValue v)    { return vyne_float(tanh(_vmath_f(v)));   }
-static inline VyneValue vmath_log(VyneValue v)     { return vyne_float(log(_vmath_f(v)));    }
-static inline VyneValue vmath_log10(VyneValue v)   { return vyne_float(log10(_vmath_f(v)));  }
-static inline VyneValue vmath_exp(VyneValue v)     { return vyne_float(exp(_vmath_f(v)));    }
-static inline VyneValue vmath_floor(VyneValue v)   { return vyne_float(floor(_vmath_f(v)));  }
-static inline VyneValue vmath_ceil(VyneValue v)    { return vyne_float(ceil(_vmath_f(v)));   }
-static inline VyneValue vmath_round(VyneValue v)   { return vyne_float(round(_vmath_f(v)));  }
-static inline VyneValue vmath_erf(VyneValue v)     { return vyne_float(erf(_vmath_f(v)));    }
-static inline VyneValue vmath_erfc(VyneValue v)    { return vyne_float(erfc(_vmath_f(v)));   }
-static inline VyneValue vmath_tgamma(VyneValue v)  { return vyne_float(tgamma(_vmath_f(v))); }
-static inline VyneValue vmath_lgamma(VyneValue v)  { return vyne_float(lgamma(_vmath_f(v))); }
+static inline VyneValue vmath_sqrt(VyneValue v) {
+    return vyne_float(sqrt(_vmath_f(v)));
+}
+static inline VyneValue vmath_sin(VyneValue v) {
+    return vyne_float(sin(_vmath_f(v)));
+}
+static inline VyneValue vmath_cos(VyneValue v) {
+    return vyne_float(cos(_vmath_f(v)));
+}
+static inline VyneValue vmath_tan(VyneValue v) {
+    return vyne_float(tan(_vmath_f(v)));
+}
+static inline VyneValue vmath_asin(VyneValue v) {
+    return vyne_float(asin(_vmath_f(v)));
+}
+static inline VyneValue vmath_acos(VyneValue v) {
+    return vyne_float(acos(_vmath_f(v)));
+}
+static inline VyneValue vmath_atan(VyneValue v) {
+    return vyne_float(atan(_vmath_f(v)));
+}
+static inline VyneValue vmath_sinh(VyneValue v) {
+    return vyne_float(sinh(_vmath_f(v)));
+}
+static inline VyneValue vmath_cosh(VyneValue v) {
+    return vyne_float(cosh(_vmath_f(v)));
+}
+static inline VyneValue vmath_tanh(VyneValue v) {
+    return vyne_float(tanh(_vmath_f(v)));
+}
+static inline VyneValue vmath_log(VyneValue v) {
+    return vyne_float(log(_vmath_f(v)));
+}
+static inline VyneValue vmath_log10(VyneValue v) {
+    return vyne_float(log10(_vmath_f(v)));
+}
+static inline VyneValue vmath_exp(VyneValue v) {
+    return vyne_float(exp(_vmath_f(v)));
+}
+static inline VyneValue vmath_floor(VyneValue v) {
+    return vyne_float(floor(_vmath_f(v)));
+}
+static inline VyneValue vmath_ceil(VyneValue v) {
+    return vyne_float(ceil(_vmath_f(v)));
+}
+static inline VyneValue vmath_round(VyneValue v) {
+    return vyne_float(round(_vmath_f(v)));
+}
+static inline VyneValue vmath_erf(VyneValue v) {
+    return vyne_float(erf(_vmath_f(v)));
+}
+static inline VyneValue vmath_erfc(VyneValue v) {
+    return vyne_float(erfc(_vmath_f(v)));
+}
+static inline VyneValue vmath_tgamma(VyneValue v) {
+    return vyne_float(tgamma(_vmath_f(v)));
+}
+static inline VyneValue vmath_lgamma(VyneValue v) {
+    return vyne_float(lgamma(_vmath_f(v)));
+}
 
 static inline VyneValue vmath_abs(VyneValue v) {
     double d = _vmath_f(v);
@@ -123,7 +177,11 @@ static inline VyneValue vmath_clamp(VyneValue val, VyneValue lo, VyneValue hi) {
     double l = _vmath_f(lo);
     double h = _vmath_f(hi);
     /* mirror interpreter: swap silently if lo > hi */
-    if (l > h) { double tmp = l; l = h; h = tmp; }
+    if (l > h) {
+        double tmp = l;
+        l = h;
+        h = tmp;
+    }
     return vyne_float(v < l ? l : v > h ? h : v);
 }
 
@@ -147,23 +205,23 @@ static inline VyneValue vmath_clamp(VyneValue val, VyneValue lo, VyneValue hi) {
  * =================================================================== */
 
 static uint64_t _vmath_rng_state = 0;
-static uint64_t _vmath_rng_inc   = 0;
+static uint64_t _vmath_rng_inc = 0;
 
 static inline uint32_t _vmath_rng_next_u32(void) {
     if (_vmath_rng_state == 0) {
-        _vmath_rng_state = (uint64_t)time(NULL)
-                         ^ (uint64_t)(size_t)&_vmath_rng_state;
-        _vmath_rng_inc   = 1442695040888963407ULL;   /* must be odd */
+        _vmath_rng_state =
+            (uint64_t)time(NULL) ^ (uint64_t)(size_t)&_vmath_rng_state;
+        _vmath_rng_inc = 1442695040888963407ULL; /* must be odd */
         /* Advance once so the first output isn't a pure function
          * of the wall clock. */
-        _vmath_rng_state = _vmath_rng_state * 6364136223846793005ULL
-                         + _vmath_rng_inc;
+        _vmath_rng_state =
+            _vmath_rng_state * 6364136223846793005ULL + _vmath_rng_inc;
     }
     uint64_t old = _vmath_rng_state;
     _vmath_rng_state = old * 6364136223846793005ULL + _vmath_rng_inc;
 
     uint32_t xorshifted = (uint32_t)(((old >> 18u) ^ old) >> 27u);
-    uint32_t rot        = (uint32_t)(old >> 59u);
+    uint32_t rot = (uint32_t)(old >> 59u);
     return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
 
@@ -171,7 +229,8 @@ static inline VyneValue vmath_random(VyneValue mn, VyneValue mx) {
     int64_t lo = (mn.type == V_INT64) ? mn.as.i64 : (int64_t)mn.as.f64;
     int64_t hi = (mx.type == V_INT64) ? mx.as.i64 : (int64_t)mx.as.f64;
     int64_t range = hi - lo + 1;
-    if (range <= 0) return vyne_int(lo);
+    if (range <= 0)
+        return vyne_int(lo);
 
     uint32_t r = _vmath_rng_next_u32();
     return vyne_int(lo + (int64_t)(r % (uint32_t)range));
@@ -182,14 +241,19 @@ static inline VyneValue vmath_random_float(VyneValue mn, VyneValue mx) {
     double hi = (mx.type == V_FLOAT64) ? mx.as.f64 : (double)mx.as.i64;
 
     uint32_t r = _vmath_rng_next_u32();
-    double unit = (double)r / 4294967296.0;    /* [0, 1) */
+    double unit = (double)r / 4294967296.0; /* [0, 1) */
     return vyne_float(lo + unit * (hi - lo));
+}
+
+static inline VyneValue vmath_random_float_unit(void) {
+    uint32_t r = _vmath_rng_next_u32();
+    return vyne_float((double)r / 4294967296.0); /* [0, 1) */
 }
 
 static inline VyneValue vmath_seed(VyneValue s) {
     int64_t v = (s.type == V_INT64) ? s.as.i64 : (int64_t)s.as.f64;
     _vmath_rng_state = (uint64_t)v;
-    _vmath_rng_inc   = 1442695040888963407ULL;
+    _vmath_rng_inc = 1442695040888963407ULL;
     return vyne_null();
 }
 
@@ -197,39 +261,97 @@ static inline VyneValue vmath_seed(VyneValue s) {
  * M5: native (unboxed) variants for hot math functions.
  * Callers that already hold `double` skip the VyneValue round-trip.
  * =================================================================== */
-static inline double vmath_sqrt_f64(double v)    { return sqrt(v); }
-static inline double vmath_abs_f64(double v)     { return v < 0.0 ? -v : v; }
-static inline double vmath_floor_f64(double v)   { return floor(v); }
-static inline double vmath_ceil_f64(double v)    { return ceil(v); }
-static inline double vmath_round_f64(double v)   { return round(v); }
-static inline double vmath_exp_f64(double v)     { return exp(v); }
-static inline double vmath_log_f64(double v)     { return log(v); }
-static inline double vmath_sigmoid_f64(double v) { return 1.0 / (1.0 + exp(-v)); }
-static inline double vmath_relu_f64(double v)    { return v > 0.0 ? v : 0.0; }
-static inline double vmath_pow_f64(double b, double e)   { return pow(b, e); }
-static inline double vmath_min_f64(double a, double b)   { return a < b ? a : b; }
-static inline double vmath_max_f64(double a, double b)   { return a > b ? a : b; }
-static inline double vmath_hypot_f64(double a, double b) { return hypot(a, b); }
-static inline double vmath_fmod_f64(double a, double b)  { return b == 0.0 ? 0.0 : fmod(a, b); }
+static inline double vmath_sqrt_f64(double v) {
+    return sqrt(v);
+}
+static inline double vmath_abs_f64(double v) {
+    return v < 0.0 ? -v : v;
+}
+static inline double vmath_floor_f64(double v) {
+    return floor(v);
+}
+static inline double vmath_ceil_f64(double v) {
+    return ceil(v);
+}
+static inline double vmath_round_f64(double v) {
+    return round(v);
+}
+static inline double vmath_exp_f64(double v) {
+    return exp(v);
+}
+static inline double vmath_log_f64(double v) {
+    return log(v);
+}
+static inline double vmath_sigmoid_f64(double v) {
+    return 1.0 / (1.0 + exp(-v));
+}
+static inline double vmath_relu_f64(double v) {
+    return v > 0.0 ? v : 0.0;
+}
+static inline double vmath_pow_f64(double b, double e) {
+    return pow(b, e);
+}
+static inline double vmath_min_f64(double a, double b) {
+    return a < b ? a : b;
+}
+static inline double vmath_max_f64(double a, double b) {
+    return a > b ? a : b;
+}
+static inline double vmath_hypot_f64(double a, double b) {
+    return hypot(a, b);
+}
+static inline double vmath_fmod_f64(double a, double b) {
+    return b == 0.0 ? 0.0 : fmod(a, b);
+}
 static inline double vmath_clamp_f64(double v, double lo, double hi) {
-    if (lo > hi) { double t = lo; lo = hi; hi = t; }
+    if (lo > hi) {
+        double t = lo;
+        lo = hi;
+        hi = t;
+    }
     return v < lo ? lo : v > hi ? hi : v;
 }
 
 /* Additional unboxed variants used by vrand and by anything doing
  * trig-heavy numeric loops. Added together so the map stays in sync. */
-static inline double vmath_sin_f64(double v)     { return sin(v); }
-static inline double vmath_cos_f64(double v)     { return cos(v); }
-static inline double vmath_tan_f64(double v)     { return tan(v); }
-static inline double vmath_asin_f64(double v)    { return asin(v); }
-static inline double vmath_acos_f64(double v)    { return acos(v); }
-static inline double vmath_atan_f64(double v)    { return atan(v); }
-static inline double vmath_atan2_f64(double y, double x) { return atan2(y, x); }
-static inline double vmath_sinh_f64(double v)    { return sinh(v); }
-static inline double vmath_cosh_f64(double v)    { return cosh(v); }
-static inline double vmath_tanh_f64(double v)    { return tanh(v); }
-static inline double vmath_log10_f64(double v)   { return log10(v); }
-static inline double vmath_erf_f64(double v)     { return erf(v); }
-static inline double vmath_erfc_f64(double v)    { return erfc(v); }
+static inline double vmath_sin_f64(double v) {
+    return sin(v);
+}
+static inline double vmath_cos_f64(double v) {
+    return cos(v);
+}
+static inline double vmath_tan_f64(double v) {
+    return tan(v);
+}
+static inline double vmath_asin_f64(double v) {
+    return asin(v);
+}
+static inline double vmath_acos_f64(double v) {
+    return acos(v);
+}
+static inline double vmath_atan_f64(double v) {
+    return atan(v);
+}
+static inline double vmath_atan2_f64(double y, double x) {
+    return atan2(y, x);
+}
+static inline double vmath_sinh_f64(double v) {
+    return sinh(v);
+}
+static inline double vmath_cosh_f64(double v) {
+    return cosh(v);
+}
+static inline double vmath_tanh_f64(double v) {
+    return tanh(v);
+}
+static inline double vmath_log10_f64(double v) {
+    return log10(v);
+}
+static inline double vmath_erf_f64(double v) {
+    return erf(v);
+}
+static inline double vmath_erfc_f64(double v) {
+    return erfc(v);
+}
 
 #endif /* VYNE_VMATH_RT_H */
