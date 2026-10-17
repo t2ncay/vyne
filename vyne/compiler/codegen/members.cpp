@@ -41,16 +41,18 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
     std::string recvC = receiver->getCExpr(e);
     const CType* recvCt = e.lookupType(recvC);
 
-    if (recvCt && recvCt->kind == CType::Kind::Struct
-               && recvCt->nativeCStruct) {
+    if (recvCt && recvCt->kind == CType::Kind::Struct &&
+        recvCt->nativeCStruct) {
         const auto* ns = e.getNativeCStruct(recvCt->mangledName);
         if (ns) {
             for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
                 if (ns->fieldNames[i] == memberName) {
                     CType fct = ns->fieldTypes[i];
                     std::string temp = e.newTemp("fld");
-                    e.emit(fct.cTypeName() + " " + temp + " = " +
-                           recvC + "." + memberName + ";");
+                    e.emit(
+                        fct.cTypeName() + " " + temp + " = " + recvC + "." +
+                        memberName + ";"
+                    );
                     e.declareNativeTemp(temp, fct);
                     return temp;
                 }
@@ -85,11 +87,13 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
         } else {
             std::string prefix = e.getActiveFunctionPrefix();
             std::string lookupKey = prefix.empty()
-                ? ("v_" + recvName)
-                : ("v_" + prefix + "_" + recvName);
+                                        ? ("v_" + recvName)
+                                        : ("v_" + prefix + "_" + recvName);
             if (const std::string* t = e.lookupLocalStructType(lookupKey))
                 typeName = *t;
-            else if (const std::string* t = e.lookupGlobalStructType("v_" + recvName))
+            else if (
+                const std::string* t = e.lookupGlobalStructType("v_" + recvName)
+            )
                 typeName = *t;
         }
 
@@ -103,14 +107,17 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
                 std::string recv = e.boxAny(recvC);
                 uint32_t fid = StringPool::intern(memberName);
                 std::string temp = e.newTemp("fld");
-                const char* cName = (elem == VType::Float64)
-                    ? "VyneArray_f64" : "VyneArray_i64";
+                const char* cName = (elem == VType::Float64) ? "VyneArray_f64"
+                                                             : "VyneArray_i64";
                 const char* fn = (elem == VType::Float64)
-                    ? "vyne_value_to_array_f64" : "vyne_value_to_array_i64";
+                                     ? "vyne_value_to_array_f64"
+                                     : "vyne_value_to_array_i64";
 
-                e.emit(std::string(cName) + " " + temp + " = " + fn +
-                       "(vyne_struct_get(" + recv + ", " +
-                       std::to_string(fid) + "));");
+                e.emit(
+                    std::string(cName) + " " + temp + " = " + fn +
+                    "(vyne_struct_get(" + recv + ", " + std::to_string(fid) +
+                    "));"
+                );
 
                 CType ct;
                 ct.kind = CType::Kind::Array;
@@ -133,19 +140,25 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
                 std::string recv = e.boxAny(recvC);
                 uint32_t fid = StringPool::intern(memberName);
                 std::string boxed = e.newTemp("fb");
-                e.emit("VyneValue " + boxed + " = vyne_struct_get(" +
-                       recv + ", " + std::to_string(fid) + ");");
+                e.emit(
+                    "VyneValue " + boxed + " = vyne_struct_get(" + recv + ", " +
+                    std::to_string(fid) + ");"
+                );
 
                 std::string temp = e.newTemp("fp");
                 if (ptype == VType::Float64) {
-                    e.emit("double " + temp + " = (" + boxed +
-                           ".type == V_FLOAT64) ? " + boxed +
-                           ".as.f64 : (double)" + boxed + ".as.i64;");
+                    e.emit(
+                        "double " + temp + " = (" + boxed +
+                        ".type == V_FLOAT64) ? " + boxed +
+                        ".as.f64 : (double)" + boxed + ".as.i64;"
+                    );
                     e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 } else {
-                    e.emit("int64_t " + temp + " = (" + boxed +
-                           ".type == V_INT64) ? " + boxed +
-                           ".as.i64 : (int64_t)" + boxed + ".as.f64;");
+                    e.emit(
+                        "int64_t " + temp + " = (" + boxed +
+                        ".type == V_INT64) ? " + boxed + ".as.i64 : (int64_t)" +
+                        boxed + ".as.f64;"
+                    );
                     e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
                 }
                 e.setFieldCache(cacheKey, temp, CType::fromVType(ptype));
@@ -184,29 +197,32 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
         auto* ia = static_cast<IndexAccessNode*>(receiver.get());
         std::string baseRaw = ia->getBase()->getCExpr(e);
         const CType* bt = e.lookupType(baseRaw);
-        if (bt && bt->kind == CType::Kind::Array
-            && !bt->args.empty()
-            && bt->args[0].kind == CType::Kind::Struct
-            && bt->args[0].nativeCStruct) {
+        if (bt && bt->kind == CType::Kind::Array && !bt->args.empty() &&
+            bt->args[0].kind == CType::Kind::Struct &&
+            bt->args[0].nativeCStruct) {
             const auto* elNs = e.getNativeCStruct(bt->args[0].mangledName);
             if (elNs) {
                 for (size_t i = 0; i < elNs->fieldNames.size(); ++i) {
-                    if (elNs->fieldNames[i] != memberName) continue;
+                    if (elNs->fieldNames[i] != memberName)
+                        continue;
                     CType fct = elNs->fieldTypes[i];
                     std::string rawIdx = ia->getIndex()->getCExpr(e);
-                    std::string idx = coerceToNative(
-                        e, ia->getIndex(), rawIdx, VType::Int64);
+                    std::string idx =
+                        coerceToNative(e, ia->getIndex(), rawIdx, VType::Int64);
                     std::string rawRhs = rhs->getCExpr(e);
-                    std::string native = coerceToNative(
-                        e, rhs.get(), rawRhs, fct.toVType());
-                    e.emit(baseRaw + ".data[" + idx + "]." + memberName +
-                           " = " + native + ";");
+                    std::string native =
+                        coerceToNative(e, rhs.get(), rawRhs, fct.toVType());
+                    e.emit(
+                        baseRaw + ".data[" + idx + "]." + memberName + " = " +
+                        native + ";"
+                    );
                     return;
                 }
                 throw std::runtime_error(
                     "Compile Error: interface '" + bt->args[0].mangledName +
                     "' has no field '" + memberName + "' (line " +
-                    std::to_string(lineNumber) + ").");
+                    std::to_string(lineNumber) + ")."
+                );
             }
         }
     }
@@ -230,36 +246,41 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
     //
     // Fires for any receiver whose CType carries Struct + nativeCStruct:
     //   - a bare variable (Slice 3d)
-    //   - an index read from a vyne_Array_vyne_* container (`mol.atoms[i].x = 1`)
+    //   - an index read from a vyne_Array_vyne_* container (`mol.atoms[i].x =
+    //   1`)
     //   - a field read on another native struct (chained access)
     //   - a struct constructor used directly as a receiver
-    if (recvCt && recvCt->kind == CType::Kind::Struct
-               && recvCt->nativeCStruct) {
-            const auto* ns = e.getNativeCStruct(recvCt->mangledName);
-            if (!ns) {
-                throw std::runtime_error(
-                    "internal: nativeCStruct CType without registry entry "
-                    "for '" + recvCt->mangledName + "' (line " +
-                    std::to_string(lineNumber) + ").");
-            }
-            bool found = false;
-            for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
-                if (ns->fieldNames[i] != memberName) continue;
-                found = true;
-                CType fct = ns->fieldTypes[i];
-                std::string rawRhs = rhs->getCExpr(e);
-                std::string native = coerceToNative(
-                    e, rhs.get(), rawRhs, fct.toVType());
-                e.emit(recvC + "." + memberName + " = " + native + ";");
-                break;
-            }
-            if (!found) {
-                throw std::runtime_error(
-                    "Compile Error: interface '" + recvCt->mangledName +
-                    "' has no field '" + memberName + "' (line " +
-                    std::to_string(lineNumber) + ").");
-            }
-            return;
+    if (recvCt && recvCt->kind == CType::Kind::Struct &&
+        recvCt->nativeCStruct) {
+        const auto* ns = e.getNativeCStruct(recvCt->mangledName);
+        if (!ns) {
+            throw std::runtime_error(
+                "internal: nativeCStruct CType without registry entry "
+                "for '" +
+                recvCt->mangledName + "' (line " + std::to_string(lineNumber) +
+                ")."
+            );
+        }
+        bool found = false;
+        for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
+            if (ns->fieldNames[i] != memberName)
+                continue;
+            found = true;
+            CType fct = ns->fieldTypes[i];
+            std::string rawRhs = rhs->getCExpr(e);
+            std::string native =
+                coerceToNative(e, rhs.get(), rawRhs, fct.toVType());
+            e.emit(recvC + "." + memberName + " = " + native + ";");
+            break;
+        }
+        if (!found) {
+            throw std::runtime_error(
+                "Compile Error: interface '" + recvCt->mangledName +
+                "' has no field '" + memberName + "' (line " +
+                std::to_string(lineNumber) + ")."
+            );
+        }
+        return;
     }
     // --- end Slice 3d -------------------------------------------------
 
@@ -272,26 +293,33 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
         std::string rs = var->getOriginalName();
         std::replace(rs.begin(), rs.end(), '.', '_');
         std::string prefix = e.getActiveFunctionPrefix();
-        std::string rname = prefix.empty()
-            ? ("v_" + rs)
-            : ("v_" + prefix + "_" + rs);
+        std::string rname =
+            prefix.empty() ? ("v_" + rs) : ("v_" + prefix + "_" + rs);
         int recvDepth = e.lookupLocalRegionDepth(rname);
-        if (recvDepth < 0) recvDepth = 0;
+        if (recvDepth < 0)
+            recvDepth = 0;
         if (recvDepth < e.currentRegionDepth()) {
-            // See the note in assignments.cpp:checkRegionEscape.
             bool safe = (rhs->type() == NodeType::STRING);
             if (!safe) {
                 VType st = rhs->getStaticType();
-                safe = (st == VType::Int64 || st == VType::Float64 ||
-                        st == VType::Bool  || st == VType::Null);
+                safe =
+                    (st == VType::Int64 || st == VType::Float64 ||
+                     st == VType::Bool || st == VType::Null);
+            }
+            // NEW: same reasoning as IndexAssignmentNode — a read whose
+            // root variable lives outside the region cannot produce a
+            // region-local pointer.
+            if (!safe && rhsIsRootedOutsideRegion(e, rhs.get())) {
+                safe = true;
             }
             if (!safe) {
                 throw std::runtime_error(
                     "Escape Error (VNE-070): member assignment writes a "
-                    "region-local value into '" + var->getOriginalName() +
+                    "region-local value into '" +
+                    rname + "." + memberName +
                     "' (declared outside the region) at line " +
-                    std::to_string(lineNumber) + ".\n"
-                    "  The value would dangle after the region's rewind.");
+                    std::to_string(lineNumber) + "."
+                );
             }
         }
     }
@@ -312,16 +340,20 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
 
         if (modName == "self") {
             uint32_t fid = StringPool::intern(memberName);
-            e.emit("vyne_struct_set(v_self, " + std::to_string(fid) +
-                   ", \"" + memberName + "\", " + val + ");");
+            e.emit(
+                "vyne_struct_set(v_self, " + std::to_string(fid) + ", \"" +
+                memberName + "\", " + val + ");"
+            );
             return;
         }
     }
 
     std::string recv = e.boxAny(recvC);
     uint32_t fid = StringPool::intern(memberName);
-    e.emit("vyne_struct_set(" + recv + ", " + std::to_string(fid) +
-           ", \"" + memberName + "\", " + val + ");");
+    e.emit(
+        "vyne_struct_set(" + recv + ", " + std::to_string(fid) + ", \"" +
+        memberName + "\", " + val + ");"
+    );
 }
 
 std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
@@ -334,4 +366,3 @@ std::string MemberAssignmentNode::getCExpr(C_Emitter& e) const {
     }
     return receiver->getCExpr(e) + "_" + memberName;
 }
-

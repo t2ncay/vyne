@@ -2018,6 +2018,10 @@ class ScratchNode : public ASTNode {
     std::string varName;
     VType elemType;
     std::vector<int64_t> shape;
+    // NEW: runtime dimension expressions. Empty iff `shape` carries every
+    // dim as a compile-time literal. Populated by parseScratchDeclaration
+    // when any dim is an identifier or expression.
+    std::vector<std::unique_ptr<ASTNode>> dimExprs;
     std::unique_ptr<ASTNode> initializer; // reserved; nullptr today
 
   public:
@@ -2034,7 +2038,6 @@ class ScratchNode : public ASTNode {
         , elemType(et)
         , shape(std::move(shp))
         , initializer(std::move(init)) {}
-
     Value evaluate(SymbolContainer&, uint32_t) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
@@ -2053,6 +2056,14 @@ class ScratchNode : public ASTNode {
     }
     const std::vector<int64_t>& getShape() const {
         return shape;
+    }
+
+    // NEW: runtime-dim accessors.
+    void setDimExprs(std::vector<std::unique_ptr<ASTNode>> d) {
+        dimExprs = std::move(d);
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getDimExprs() const {
+        return dimExprs;
     }
 };
 

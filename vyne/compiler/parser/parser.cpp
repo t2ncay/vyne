@@ -3174,18 +3174,48 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
 
     consume(VTokenType::Left_Bracket);
     std::vector<int64_t> shape;
+    std::vector<std::unique_ptr<ASTNode>> dimExprs;
+    bool allLiteral = true;
+
     while (true) {
-        Token dimTok = consume(VTokenType::Int64);
-        int64_t dim = std::get<int64_t>(dimTok.literal);
-        if (dim <= 0) {
+        Token dimTok = peekToken();
+
+        if (dimTok.type == VTokenType::Int64) {
+            consume(VTokenType::Int64);
+            int64_t dim = std::get<int64_t>(dimTok.literal);
+            if (dim <= 0) {
+                emitError(
+                    "scratch dimensions must be positive",
+                    line,
+                    "VNE-061",
+                    {}
+                );
+            }
+            shape.push_back(dim);
+            dimExprs.push_back(std::make_unique<NumberNode>(Value(dim)));
+        } else if (
+            dimTok.type == VTokenType::Identifier ||
+            dimTok.type == VTokenType::Left_Parenthese ||
+            dimTok.type == VTokenType::Float64
+        ) {
+            // Runtime dimension. `parseExpression` handles plain
+            // identifiers, arithmetic (`m * 2`), grouping, and the
+            // full precedence ladder. We defer resolution to the
+            // emitter, which knows the parameter names.
+            allLiteral = false;
+            dimExprs.push_back(parseExpression());
+        } else {
             emitError(
-                "scratch dimensions must be positive",
-                line,
+                "scratch dimensions must be Int64 literals or expressions, "
+                "got " +
+                    VTokenTypeToString(dimTok.type),
+                dimTok.line,
                 "VNE-061",
-                {}
+                {"Supported: scratch x :: Float64[n, m]; "
+                 "or Float64[16, 16];"}
             );
         }
-        shape.push_back(dim);
+
         if (peekToken().type == VTokenType::Comma) {
             consume(VTokenType::Comma);
             continue;
@@ -3207,13 +3237,13 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
         varId,
         varName,
         elemType,
-        std::move(shape),
+        allLiteral ? std::move(shape) : std::vector<int64_t>{},
         std::move(init)
     );
+    node->setDimExprs(std::move(dimExprs));
     node->lineNumber = line;
     return node;
 }
-
 std::vector<std::string> Parser::parsePolicyArgs() {
     std::vector<std::string> args;
     consume(VTokenType::Smaller);

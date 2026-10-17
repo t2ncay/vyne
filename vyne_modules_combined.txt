@@ -1,0 +1,1230 @@
+
+=========================================
+FILE: vcolors.vy
+=========================================
+#===============================================================================
+# VColors — Vyne Terminal Styling Engine
+#-------------------------------------------------------------------------------
+# MIT License
+#
+# Copyright (c) 2026 Tuncay Gafarli, Abdullah Novruzlu
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#===============================================================================
+
+# Every `:=` below without an explicit `:: Type` annotation needs
+# dynamic mode to register its symbol — same reasoning as vml/Ops.vy.
+ruleset { dynamic_casting };
+
+module vcolors;
+
+# ============================================================================
+# CORE ANSI CODES
+# ============================================================================
+
+const ESC     := "\e";
+const RESET   := "\e[0m";
+const BOLD    := "\e[1m";
+const DIM     := "\e[2m";
+const ITALIC  := "\e[3m";
+const UNDER   := "\e[4m";
+const BLINK   := "\e[5m";
+const REVERSE := "\e[7m";
+const HIDDEN  := "\e[8m";
+const STRIKE  := "\e[9m";
+
+# ============================================================================
+# PALETTES
+# ============================================================================
+
+group Palette {
+    black   := "\e[0;30m";
+    red     := "\e[0;31m";
+    green   := "\e[0;32m";
+    yellow  := "\e[0;33m";
+    blue    := "\e[0;34m";
+    magenta := "\e[0;35m";
+    cyan    := "\e[0;36m";
+    white   := "\e[0;37m";
+    gray    := "\e[0;90m";
+};
+
+group Bright {
+    black   := "\e[1;30m";
+    red     := "\e[1;31m";
+    green   := "\e[1;32m";
+    yellow  := "\e[1;33m";
+    blue    := "\e[1;34m";
+    magenta := "\e[1;35m";
+    cyan    := "\e[1;36m";
+    white   := "\e[1;37m";
+};
+
+group BG {
+    black   := "\e[40m";
+    red     := "\e[41m";
+    green   := "\e[42m";
+    yellow  := "\e[43m";
+    blue    := "\e[44m";
+    magenta := "\e[45m";
+    cyan    := "\e[46m";
+    white   := "\e[47m";
+};
+
+group BGBright {
+    black   := "\e[100m";
+    red     := "\e[101m";
+    green   := "\e[102m";
+    yellow  := "\e[103m";
+    blue    := "\e[104m";
+    magenta := "\e[105m";
+    cyan    := "\e[106m";
+    white   := "\e[107m";
+};
+
+# ============================================================================
+# CORE WRAPPER
+# ============================================================================
+
+fn :: vcolors paint(text, color) {
+    return color + text + RESET;
+}
+
+# ============================================================================
+# FOREGROUND COLORS
+# ============================================================================
+
+fn :: vcolors black(t)   { return vcolors.paint(t, Palette.black);   }
+fn :: vcolors red(t)     { return vcolors.paint(t, Palette.red);     }
+fn :: vcolors green(t)   { return vcolors.paint(t, Palette.green);   }
+fn :: vcolors yellow(t)  { return vcolors.paint(t, Palette.yellow);  }
+fn :: vcolors blue(t)    { return vcolors.paint(t, Palette.blue);    }
+fn :: vcolors magenta(t) { return vcolors.paint(t, Palette.magenta); }
+fn :: vcolors cyan(t)    { return vcolors.paint(t, Palette.cyan);    }
+fn :: vcolors white(t)   { return vcolors.paint(t, Palette.white);   }
+fn :: vcolors gray(t)    { return vcolors.paint(t, Palette.gray);    }
+
+# ============================================================================
+# BOLD FOREGROUND
+# ============================================================================
+
+fn :: vcolors boldBlack(t)   { return vcolors.paint(t, Bright.black);   }
+fn :: vcolors boldRed(t)     { return vcolors.paint(t, Bright.red);     }
+fn :: vcolors boldGreen(t)   { return vcolors.paint(t, Bright.green);   }
+fn :: vcolors boldYellow(t)  { return vcolors.paint(t, Bright.yellow);  }
+fn :: vcolors boldBlue(t)    { return vcolors.paint(t, Bright.blue);    }
+fn :: vcolors boldMagenta(t) { return vcolors.paint(t, Bright.magenta); }
+fn :: vcolors boldCyan(t)    { return vcolors.paint(t, Bright.cyan);    }
+fn :: vcolors boldWhite(t)   { return vcolors.paint(t, Bright.white);   }
+
+# ============================================================================
+# BACKGROUND
+# ============================================================================
+
+fn :: vcolors onBlack(t)   { return vcolors.paint(t, BG.black);   }
+fn :: vcolors onRed(t)     { return vcolors.paint(t, BG.red);     }
+fn :: vcolors onGreen(t)   { return vcolors.paint(t, BG.green);   }
+fn :: vcolors onYellow(t)  { return vcolors.paint(t, BG.yellow);  }
+fn :: vcolors onBlue(t)    { return vcolors.paint(t, BG.blue);    }
+fn :: vcolors onMagenta(t) { return vcolors.paint(t, BG.magenta); }
+fn :: vcolors onCyan(t)    { return vcolors.paint(t, BG.cyan);    }
+fn :: vcolors onWhite(t)   { return vcolors.paint(t, BG.white);   }
+
+# ============================================================================
+# STYLES
+# ============================================================================
+
+fn :: vcolors bold(t)          { return vcolors.paint(t, BOLD);    }
+fn :: vcolors dim(t)           { return vcolors.paint(t, DIM);     }
+fn :: vcolors italic(t)        { return vcolors.paint(t, ITALIC);  }
+fn :: vcolors underline(t)     { return vcolors.paint(t, UNDER);   }
+fn :: vcolors blink(t)         { return vcolors.paint(t, BLINK);   }
+fn :: vcolors reverse(t)       { return vcolors.paint(t, REVERSE); }
+fn :: vcolors hidden(t)        { return vcolors.paint(t, HIDDEN);  }
+fn :: vcolors strikethrough(t) { return vcolors.paint(t, STRIKE);  }
+
+# ============================================================================
+# SEMANTIC
+# ============================================================================
+
+fn :: vcolors success(t) { return Bright.green + "✔ " + t + RESET; }
+fn :: vcolors error(t)   { return Bright.red   + "✘ " + t + RESET; }
+fn :: vcolors warning(t) { return Bright.yellow + "⚠ " + t + RESET; }
+fn :: vcolors info(t)    { return Bright.blue  + "ℹ " + t + RESET; }
+
+fn :: vcolors hint(t)    { return Palette.gray + t + RESET; }
+
+# ============================================================================
+# 24-BIT TRUE COLOR
+# ============================================================================
+
+fn :: vcolors rgb(r, g, b, t) {
+    return "\e[38;2;" + string(r) + ";" + string(g) + ";" + string(b) + "m" + t + RESET;
+}
+
+fn :: vcolors bgRgb(r, g, b, t) {
+    return "\e[48;2;" + string(r) + ";" + string(g) + ";" + string(b) + "m" + t + RESET;
+}
+
+# ============================================================================
+# ADVANCED
+# ============================================================================
+
+fn :: vcolors rainbow(text) {
+    palette := [
+        Palette.red, Palette.yellow, Palette.green,
+        Palette.cyan, Palette.blue, Palette.magenta
+    ];
+    result := "";
+    i := 0;
+    len := text.length();
+    while i < len {
+        ch := text[i];
+        colorIdx := i % 6;
+        result = result + palette[colorIdx] + ch;
+        i = i + 1;
+    }
+    return result + RESET;
+}
+
+fn :: vcolors box(text) {
+    len := text.length();
+    border := "";
+    i := 0;
+    while i < len + 4 {
+        border = border + "-";
+        i = i + 1;
+    }
+    top    := Palette.cyan + "+" + border + "+" + RESET + "\n";
+    middle := Palette.cyan + "|" + RESET + "  " + text + "  " + Palette.cyan + "|" + RESET + "\n";
+    bottom := Palette.cyan + "+" + border + "+" + RESET;
+    return top + middle + bottom;
+}
+
+fn :: vcolors banner(text) {
+    return Bright.cyan + BOLD + ">>> " + text + " <<<" + RESET;
+}
+
+fn :: vcolors rule() {
+    return Palette.gray + "----------------------------------------" + RESET;
+}
+
+deploy vcolors;
+
+=========================================
+FILE: vconvert.vy
+=========================================
+module vconvert;
+
+# AN EXTERNAL VYNE MODULE TO CONVERT SCIENTIFIC UNITS WITH EASE
+
+
+# ~~~Tempretaure Conversions~~~
+fn :: vconvert celsiusToFahrenheit(c) {
+    return c * (9.0 / 5.0) + 32.0;
+}
+
+fn :: vconvert celsiusToKelvin(c) {
+    return c + 273.15;
+}
+
+fn :: vconvert fahrenheitToCelsius(f) {
+    return (f - 32.0) * 5.0 / 9.0;
+}
+
+fn :: vconvert fahrenheitToKelvin(f) { 
+    return (((f - 32) * 5) / 9) + 273.15;
+}
+
+fn :: vconvert kelvinToCelsius(k) {
+    return k - 273.15;
+}
+
+fn :: vconvert kelvinToFahrenheit(f) {
+    return ((k - 273.15) * 9)/5 + 32;
+}
+
+# ~~~Distance Conversions~~~
+
+fn :: vconvert kmToMiles(km) {
+    return km * 0.621371;
+}
+
+fn :: vconvert milesToKm(miles) {
+    return miles * 1.60934;
+}
+
+fn :: vconvert kmToMeter(km) { 
+    return km * 1000;
+}
+
+fn :: vconvert meterToKm(m) {
+    return m / 1000;
+}
+
+fn :: vconvert meterToCm(m) {
+    return m * 100;
+}
+
+fn  :: vconvert cmToMeter(cm) {
+    return cm / 100;
+}
+
+fn :: vconvert cmToMm(cm) {
+    return cm * 100;
+}
+
+fn :: vconvert mmToCm(mm) {
+    return mm / 100;
+}
+
+# ~~~Time Conversions~~~
+
+fn :: vconvert hoursToMin(h) {
+    return h * 60;
+}
+
+fn :: vconvert minToHours(m) {
+    return m / 60;
+}
+
+fn :: vconvert hoursToSec(h) {
+    return h * 3600;
+}
+
+fn :: vconvert secToHours(s) {
+    return s / 3600;
+}
+
+fn :: vconvert minToSec(m) {
+    return m * 60;
+}
+
+fn :: vconvert secToMin(s) {
+    return s / 60;
+}
+
+fn :: vconvert secToMs(s) {
+    return s * 1000;
+}
+
+fn :: vconvert msToSec(ms) {
+    return ms / 1000;
+}
+
+deploy vconvert;
+
+=========================================
+FILE: vjson.vy
+=========================================
+module vjson;
+
+# IMPORTANT NOTE : THIS LIBRARY INCLUDES
+# A SET OF FEATURES THAT VYNE CURRENTLY DOES NOT SUPPORT
+# ALL IMPLEMENTED FEATURES WILL BE RELEASED IN THE FUTURE
+
+# ----- Data Structures -----
+
+# Represents a JSON value (can be null, boolean, number, string, array, object)
+interface JsonValue {
+    type: String;           # "null", "boolean", "number", "string", "array", "object", "error"
+    bool_value: Bool;
+    num_value: Float64;
+    str_value: String;
+    array_value: Array;  # sequence of JsonValue
+    obj_value: Array;    # sequence of JsonPair
+}
+
+# Key-value pair for JSON objects
+interface JsonPair {
+    key: String;
+    value: JsonValue;
+}
+
+# Internal parser state
+interface JsonParser {
+    input: String;
+    pos: Int64;
+    len: Int64;
+}
+
+# ----- Factory Functions for JsonValue -----
+
+fn null() -> JsonValue {
+    val = JsonValue();
+    val.type = null;
+    return val;
+}
+
+fn boolean(b :: Bool) -> JsonValue {
+    val = JsonValue();
+    val.type = "boolean";
+    val.bool_value = b;
+    return val;
+}
+
+fn number(n: float64) -> JsonValue {
+    val = JsonValue();
+    val.type = "number";
+    val.num_value = n;
+    return val;
+}
+
+fn string(s: string) -> JsonValue {
+    val = JsonValue();
+    val.type = "string";
+    val.str_value = s;
+    return val;
+}
+
+fn array(arr: sequence) -> JsonValue {
+    # Verify all elements are JsonValue? Not enforced, but we trust caller.
+    val = JsonValue();
+    val.type = "array";
+    val.array_value = arr;
+    return val;
+}
+
+fn obj(pairs: sequence) -> JsonValue {
+    val = JsonValue();
+    val.type = "object";
+    val.obj_value = pairs;
+    return val;
+}
+
+fn errorJson(msg: string) -> JsonValue {
+    val = JsonValue();
+    val.type = "error";
+    val.str_value = msg;
+    return val;
+}
+
+# ----- Character Helpers -----
+
+fn isWhitespace(ch: string) -> bool {
+    return ch == " " or ch == "\t" or ch == "\n" or ch == "\r";
+}
+
+fn isDigit(ch: string) -> bool {
+    return ch >= "0" and ch <= "9";
+}
+
+fn isAlphaNum(ch: string) -> bool {
+    return (ch >= "a" and ch <= "z") or (ch >= "A" and ch <= "Z") or (ch >= "0" and ch <= "9") or ch == "_";
+}
+
+# ----- Parser Methods (callable as parser.method()) -----
+
+fn initParser(parser: JsonParser, input: string) {
+    parser.input = input;
+    parser.pos = 0;
+    parser.len = sizeof(input);
+}
+
+fn peek(parser: JsonParser) -> string {
+    if parser.pos < parser.len {
+        return parser.input[parser.pos];
+    }
+    return "\0";  # EOF
+}
+
+fn next(parser: JsonParser) {
+    if parser.pos < parser.len {
+        parser.pos++;
+    }
+}
+
+fn skipWhitespace(parser: JsonParser) {
+    while parser.pos < parser.len and isWhitespace(parser.peek()) {
+        parser.next();
+    }
+}
+
+fn matchKeyword(parser: JsonParser, keyword: string) -> bool {
+    i = 0;
+    while i < sizeof(keyword) {
+        if parser.pos + i >= parser.len or parser.input[parser.pos + i] != keyword[i] {
+            return false;
+        }
+        i++;
+    }
+    # Ensure next char is not part of identifier (to avoid "true" matching "truefalse")
+    if parser.pos + i < parser.len and isAlphaNum(parser.input[parser.pos + i]) {
+        return false;
+    }
+    parser.pos += i;
+    return true;
+}
+
+fn parseString(parser: JsonParser) -> JsonValue {
+    # Assumes current char is '"'
+    parser.next();  # skip opening quote
+    start = parser.pos;
+    result = "";
+    escape = false;
+    while parser.pos < parser.len {
+        ch = parser.peek();
+        if escape {
+            if ch == '"' or ch == '\\' or ch == '/' {
+                result += ch;
+            } else if ch == 'b' {
+                result += '\b';
+            } else if ch == 'f' {
+                result += '\f';
+            } else if ch == 'n' {
+                result += '\n';
+            } else if ch == 'r' {
+                result += '\r';
+            } else if ch == 't' {
+                result += '\t';
+            } else if ch == 'u' {
+                # Unicode escape - simplified: just consume 4 hex digits and ignore
+                # In real implementation, we'd convert to UTF-8
+                result += "?";
+                parser.next(); parser.next(); parser.next(); parser.next();
+            } else {
+                return errorJson("Invalid escape sequence at position " + string(parser.pos));
+            }
+            escape = false;
+            parser.next();
+        } else {
+            if ch == '"' {
+                parser.next();  # skip closing quote
+                return string(result);
+            } else if ch == '\\' {
+                escape = true;
+                parser.next();
+            } else {
+                result += ch;
+                parser.next();
+            }
+        }
+    }
+    return errorJson("Unterminated string");
+}
+
+fn parseNumber(parser: JsonParser) -> JsonValue {
+    start = parser.pos;
+    # allow leading minus
+    if parser.peek() == '-' {
+        parser.next();
+    }
+    # integer part
+    if parser.peek() == '0' {
+        parser.next();
+    } else if isDigit(parser.peek()) {
+        while parser.pos < parser.len and isDigit(parser.peek()) {
+            parser.next();
+        }
+    } else {
+        return errorJson("Invalid number at position " + string(parser.pos));
+    }
+    # fractional part
+    if parser.pos < parser.len and parser.peek() == '.' {
+        parser.next();
+        if not isDigit(parser.peek()) {
+            return errorJson("Expected digits after decimal point");
+        }
+        while parser.pos < parser.len and isDigit(parser.peek()) {
+            parser.next();
+        }
+    }
+    # exponent
+    if parser.pos < parser.len and (parser.peek() == 'e' or parser.peek() == 'E') {
+        parser.next();
+        if parser.peek() == '+' or parser.peek() == '-' {
+            parser.next();
+        }
+        if not isDigit(parser.peek()) {
+            return errorJson("Expected digits after exponent");
+        }
+        while parser.pos < parser.len and isDigit(parser.peek()) {
+            parser.next();
+        }
+    }
+    numStr = parser.input[start .. parser.pos];  # substring (assuming range operator works)
+    # Convert to float64
+    val = float64(numStr);  # built-in conversion
+    return number(val);
+}
+
+fn parseArray(parser: JsonParser) -> JsonValue {
+    parser.next();  # skip '['
+    arr = [];
+    while true {
+        parser.skipWhitespace();
+        if parser.peek() == ']' {
+            parser.next();
+            break;
+        }
+        elem = parser.parseValue();
+        if elem.type == "error" {
+            return elem;
+        }
+        arr.append(elem);  # sequence append (built-in?)
+        parser.skipWhitespace();
+        if parser.peek() == ',' {
+            parser.next();
+            # allow trailing comma? JSON doesn't, but we can be lenient
+        } else if parser.peek() != ']' {
+            return errorJson("Expected ',' or ']' in array");
+        }
+    }
+    return array(arr);
+}
+
+fn parseObject(parser: JsonParser) -> JsonValue {
+    parser.next();  # skip '{'
+    pairs = [];
+    while true {
+        parser.skipWhitespace();
+        if parser.peek() == '}' {
+            parser.next();
+            break;
+        }
+        # parse key (must be string)
+        if parser.peek() != '"' {
+            return errorJson("Expected string key in object");
+        }
+        keyVal = parser.parseString();
+        if keyVal.type == "error" {
+            return keyVal;
+        }
+        key = keyVal.str_value;
+        parser.skipWhitespace();
+        if parser.peek() != ':' {
+            return errorJson("Expected ':' after key in object");
+        }
+        parser.next();  # skip ':'
+        valueVal = parser.parseValue();
+        if valueVal.type == "error" {
+            return valueVal;
+        }
+        pair = JsonPair();
+        pair.key = key;
+        pair.value = valueVal;
+        pairs.append(pair);
+        parser.skipWhitespace();
+        if parser.peek() == ',' {
+            parser.next();
+        } else if parser.peek() != '}' {
+            return errorJson("Expected ',' or '}' in object");
+        }
+    }
+    return obj(pairs);
+}
+
+fn parseValue(parser: JsonParser) -> JsonValue {
+    parser.skipWhitespace();
+    ch = parser.peek();
+    if ch == '{' {
+        return parser.parseObject();
+    } else if ch == '[' {
+        return parser.parseArray();
+    } else if ch == '"' {
+        return parser.parseString();
+    } else if ch == '-' or isDigit(ch) {
+        return parser.parseNumber();
+    } else if parser.matchKeyword("true") {
+        return boolean(true);
+    } else if parser.matchKeyword("false") {
+        return boolean(false);
+    } else if parser.matchKeyword("null") {
+        return null();
+    } else {
+        return errorJson("Unexpected character '" + ch + "' at position " + string(parser.pos));
+    }
+}
+
+# ----- Public API -----
+
+fn parse(input: string) -> JsonValue {
+    parser = JsonParser();
+    parser.initParser(input);
+    result = parser.parseValue();
+    parser.skipWhitespace();
+    if parser.pos != parser.len {
+        return errorJson("Extra characters after JSON value");
+    }
+    return result;
+}
+
+# ----- Stringify Helpers -----
+
+fn stringifyInternal(value: JsonValue, indentLevel: int64, indentSpaces: int64) -> string {
+    if value.type == "null" {
+        return "null";
+    } else if value.type == "boolean" {
+        if value.bool_value {
+            return "true";
+        } else {
+            return "false";
+        }
+    } else if value.type == "number" {
+        # Convert float64 to string; built-in string() should handle
+        return string(value.num_value);
+    } else if value.type == "string" {
+        # Escape special characters
+        s = "\"";
+        i = 0;
+        while i < sizeof(value.str_value) {
+            ch = value.str_value[i];
+            if ch == '"' {
+                s += "\\\"";
+            } else if ch == '\\' {
+                s += "\\\\";
+            } else if ch == '\b' {
+                s += "\\b";
+            } else if ch == '\f' {
+                s += "\\f";
+            } else if ch == '\n' {
+                s += "\\n";
+            } else if ch == '\r' {
+                s += "\\r";
+            } else if ch == '\t' {
+                s += "\\t";
+            } else {
+                s += ch;
+            }
+            i++;
+        }
+        s += "\"";
+        return s;
+    } else if value.type == "array" {
+        if sizeof(value.array_value) == 0 {
+            return "[]";
+        }
+        indent = indentSpaces > 0;
+        newline = indent ? "\n" : "";
+        spaces = "";
+        if indent {
+            i = 0;
+            while i < indentLevel * indentSpaces {
+                spaces += " ";
+                i++;
+            }
+        }
+        result = "[" + newline;
+        i = 0;
+        while i < sizeof(value.array_value) {
+            elem = value.array_value[i];
+            result += spaces;
+            if indent {
+                j = 0;
+                while j < indentSpaces {
+                    result += " ";
+                    j++;
+                }
+            }
+            result += stringifyInternal(elem, indentLevel + 1, indentSpaces);
+            if i < sizeof(value.array_value) - 1 {
+                result += "," + newline;
+            }
+            i++;
+        }
+        result += newline + spaces + "]";
+        return result;
+    } else if value.type == "object" {
+        if sizeof(value.obj_value) == 0 {
+            return "{}";
+        }
+        indent = indentSpaces > 0;
+        newline = indent ? "\n" : "";
+        spaces = "";
+        if indent {
+            i = 0;
+            while i < indentLevel * indentSpaces {
+                spaces += " ";
+                i++;
+            }
+        }
+        result = "{" + newline;
+        i = 0;
+        while i < sizeof(value.obj_value) {
+            pair = value.obj_value[i];
+            result += spaces;
+            if indent {
+                j = 0;
+                while j < indentSpaces {
+                    result += " ";
+                    j++;
+                }
+            }
+            result += "\"" + pair.key + "\":";
+            if indent {
+                result += " ";
+            }
+            result += stringifyInternal(pair.value, indentLevel + 1, indentSpaces);
+            if i < sizeof(value.obj_value) - 1 {
+                result += "," + newline;
+            }
+            i++;
+        }
+        result += newline + spaces + "}";
+        return result;
+    } else if value.type == "error" {
+        return "<error: " + value.str_value + ">";
+    }
+    return "<unknown>";
+}
+
+fn stringify(value: JsonValue, indent: int64 = 0) -> string {
+    return stringifyInternal(value, 0, indent);
+}
+
+# Example usage (commented out)
+# input = '{"name": "John", "age": 30, "cars": ["Ford", "BMW"]}';
+# val = parse(input);
+# if val.type != "error" {
+#     out(val);
+#     out(stringify(val, 2));
+# }
+
+=========================================
+FILE: vml.vy
+=========================================
+#===============================================================================
+# VML - VYNE MACHINE LEARNING LIBRARY (FULL CUMULATIVE VERSION)
+#===============================================================================
+
+ruleset { dynamic_casting };
+
+module vml;
+
+use lib "vlinalg.vy";
+
+#===============================================================================
+# VML TYPES & INTERFACES
+#===============================================================================
+
+group Types :: vml {
+    interface Layer {
+        weights :: vlinalg.Types.Matrix,
+        biases  :: Array
+    }
+
+    # Standard architecture: Input -> Hidden -> Output
+    interface NeuralNet {
+        hidden  :: Layer,
+        output  :: Layer,
+        lr      :: Float64
+    }
+
+    # Deep architecture: Input -> Hidden1 -> Hidden2 -> Output
+    interface DeepNeuralNet {
+        hidden1 :: Layer,
+        hidden2 :: Layer,
+        output  :: Layer,
+        lr      :: Float64
+    }
+};
+
+#===============================================================================
+# VML CORE FUNCTIONS (STANDARD)
+#===============================================================================
+
+fn :: vml predict(net :: vml.Types.NeuralNet, X :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    h_z = vlinalg.add_bias(vlinalg.multiply(X, net.hidden.weights), net.hidden.biases);
+    h_a = vlinalg.apply_sigmoid(h_z);
+
+    o_z = vlinalg.add_bias(vlinalg.multiply(h_a, net.output.weights), net.output.biases);
+    return vlinalg.apply_sigmoid(o_z);
+}
+
+fn :: vml train_step(net :: vml.Types.NeuralNet, X :: vlinalg.Types.Matrix, Y :: vlinalg.Types.Matrix) -> vml.Types.NeuralNet {
+    # 1. Forward
+    h_z = vlinalg.add_bias(vlinalg.multiply(X, net.hidden.weights), net.hidden.biases);
+    h_a = vlinalg.apply_sigmoid(h_z);
+    o_z = vlinalg.add_bias(vlinalg.multiply(h_a, net.output.weights), net.output.biases);
+    o_a = vlinalg.apply_sigmoid(o_z);
+
+    # 2. Backpropagation
+    error_o = vlinalg.subtract(o_a, Y); 
+    delta_o = vlinalg.hadamard(error_o, vlinalg.sigmoid_prime(o_a));
+
+    w2_t = vlinalg.transpose(net.output.weights);
+    delta_h = vlinalg.hadamard(vlinalg.multiply(delta_o, w2_t), vlinalg.sigmoid_prime(h_a));
+
+    # 3. Update Biases
+    new_b_o = through c :: 0..net.output.weights.col-1 -> collect {
+        sum :: Float64 = 0.0;
+        through r :: 0..delta_o.row-1 -> loop { sum = sum + delta_o.data[r][c]; };
+        net.output.biases[c] - (net.lr * sum)
+    };
+
+    new_b_h = through c :: 0..net.hidden.weights.col-1 -> collect {
+        sum :: Float64 = 0.0;
+        through r :: 0..delta_h.row-1 -> loop { sum = sum + delta_h.data[r][c]; };
+        net.hidden.biases[c] - (net.lr * sum)
+    };
+
+    # 4. Update Weights
+    new_w2 = vlinalg.subtract(net.output.weights, vlinalg.multiply_scalar(vlinalg.multiply(vlinalg.transpose(h_a), delta_o), net.lr));
+    new_w1 = vlinalg.subtract(net.hidden.weights, vlinalg.multiply_scalar(vlinalg.multiply(vlinalg.transpose(X), delta_h), net.lr));
+
+    return vml.Types.NeuralNet(vml.Types.Layer(new_w1, new_b_h), vml.Types.Layer(new_w2, new_b_o), net.lr);
+}
+
+fn :: vml create_network(input_n :: Int64, hidden_n :: Int64, output_n :: Int64, lr :: Float64) -> vml.Types.NeuralNet {
+    h_layer = vml.Types.Layer(vlinalg.random_init(input_n, hidden_n), through 0..hidden_n-1 -> collect { 0.1 });
+    o_layer = vml.Types.Layer(vlinalg.random_init(hidden_n, output_n), through 0..output_n-1 -> collect { 0.1 });
+    return vml.Types.NeuralNet(h_layer, o_layer, lr);
+}
+
+#===============================================================================
+# VML DEEP FUNCTIONS (3 -> 8 -> 4 -> 1)
+#===============================================================================
+
+fn :: vml predict_deep(net :: vml.Types.DeepNeuralNet, X :: vlinalg.Types.Matrix) -> vlinalg.Types.Matrix {
+    h1_a = vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(X, net.hidden1.weights), net.hidden1.biases));
+    h2_a = vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(h1_a, net.hidden2.weights), net.hidden2.biases));
+    return vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(h2_a, net.output.weights), net.output.biases));
+}
+
+fn :: vml train_deep_step(net :: vml.Types.DeepNeuralNet, X :: vlinalg.Types.Matrix, Y :: vlinalg.Types.Matrix) -> vml.Types.DeepNeuralNet {
+    # 1. Forward Pass
+    h1_a = vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(X, net.hidden1.weights), net.hidden1.biases));
+    h2_a = vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(h1_a, net.hidden2.weights), net.hidden2.biases));
+    o_a  = vlinalg.apply_sigmoid(vlinalg.add_bias(vlinalg.multiply(h2_a, net.output.weights), net.output.biases));
+
+    # 2. Backpropagation
+    err_o = vlinalg.subtract(o_a, Y);
+    del_o = vlinalg.hadamard(err_o, vlinalg.sigmoid_prime(o_a));
+
+    del_h2 = vlinalg.hadamard(vlinalg.multiply(del_o, vlinalg.transpose(net.output.weights)), vlinalg.sigmoid_prime(h2_a));
+    del_h1 = vlinalg.hadamard(vlinalg.multiply(del_h2, vlinalg.transpose(net.hidden2.weights)), vlinalg.sigmoid_prime(h1_a));
+
+    # 3. Update Biases (pattern matched to your loop logic)
+    new_b_o = through c :: 0..net.output.biases.size()-1 -> collect {
+        sum = 0.0; through r :: 0..del_o.row-1 -> loop { sum = sum + del_o.data[r][c]; };
+        net.output.biases[c] - (net.lr * sum)
+    };
+    new_b_h2 = through c :: 0..net.hidden2.biases.size()-1 -> collect {
+        sum = 0.0; through r :: 0..del_h2.row-1 -> loop { sum = sum + del_h2.data[r][c]; };
+        net.hidden2.biases[c] - (net.lr * sum)
+    };
+    new_b_h1 = through c :: 0..net.hidden1.biases.size()-1 -> collect {
+        sum = 0.0; through r :: 0..del_h1.row-1 -> loop { sum = sum + del_h1.data[r][c]; };
+        net.hidden1.biases[c] - (net.lr * sum)
+    };
+
+    # 4. Update Weights
+    new_w_o  = vlinalg.subtract(net.output.weights, vlinalg.multiply_scalar(vlinalg.multiply(vlinalg.transpose(h2_a), del_o), net.lr));
+    new_w_h2 = vlinalg.subtract(net.hidden2.weights, vlinalg.multiply_scalar(vlinalg.multiply(vlinalg.transpose(h1_a), del_h2), net.lr));
+    new_w_h1 = vlinalg.subtract(net.hidden1.weights, vlinalg.multiply_scalar(vlinalg.multiply(vlinalg.transpose(X), del_h1), net.lr));
+
+    return vml.Types.DeepNeuralNet(vml.Types.Layer(new_w_h1, new_b_h1), vml.Types.Layer(new_w_h2, new_b_h2), vml.Types.Layer(new_w_o, new_b_o), net.lr);
+}
+
+fn :: vml create_deep_network(in_n :: Int64, h1_n :: Int64, h2_n :: Int64, out_n :: Int64, lr :: Float64) -> vml.Types.DeepNeuralNet {
+    h1 = vml.Types.Layer(vlinalg.random_init(in_n, h1_n), through 0..h1_n-1 -> collect { 0.1 });
+    h2 = vml.Types.Layer(vlinalg.random_init(h1_n, h2_n), through 0..h2_n-1 -> collect { 0.1 });
+    o  = vml.Types.Layer(vlinalg.random_init(h2_n, out_n), through 0..out_n-1 -> collect { 0.1 });
+    return vml.Types.DeepNeuralNet(h1, h2, o, lr);
+}
+
+#===============================================================================
+# I/O OPERATIONS
+#===============================================================================
+
+fn :: vml save_model(net :: vml.Types.NeuralNet, path :: String) {
+    vfs.mkdir(path, true);
+    vfs.write(vfs.join(path, "w1.dat"), string(net.hidden.weights.data));
+    vfs.write(vfs.join(path, "b1.dat"), string(net.hidden.biases));
+    vfs.write(vfs.join(path, "w2.dat"), string(net.output.weights.data));
+    vfs.write(vfs.join(path, "b2.dat"), string(net.output.biases));
+}
+
+fn :: vml save_deep_model(net :: vml.Types.DeepNeuralNet, path :: String) {
+    vfs.mkdir(path, true);
+    vfs.write(vfs.join(path, "w1.dat"), string(net.hidden1.weights.data));
+    vfs.write(vfs.join(path, "b1.dat"), string(net.hidden1.biases));
+    vfs.write(vfs.join(path, "w2.dat"), string(net.hidden2.weights.data));
+    vfs.write(vfs.join(path, "b2.dat"), string(net.hidden2.biases));
+    vfs.write(vfs.join(path, "w3.dat"), string(net.output.weights.data));
+    vfs.write(vfs.join(path, "b3.dat"), string(net.output.biases));
+}
+
+deploy vml;
+
+=========================================
+FILE: vplot.vy
+=========================================
+module vplot;
+
+fn :: vplot bar_chart(data, height) {
+    count = 0;
+    through data -> collect {
+        line = "";
+        through 1..height -> collect { 
+            line = line + "|"; 
+        };
+        
+        out(string(data[count]) + " " + line); 
+        
+        count++;
+    };
+}
+
+deploy vplot;
+
+=========================================
+FILE: vstring.vy
+=========================================
+module vstring;
+
+# mappings
+lowercase = "abcdefghijklmnopqrstuvwxyz";
+uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+fn :: vstring upper(s) {
+    result = "";
+    i = 0;
+    
+    while i < s.length() {
+        ch = s[i];
+        pos = 0;
+        found = 0;
+        
+        # Find position in lowercase
+        while pos < lowercase.length() {
+            if ch == lowercase[pos] {
+                result = result + uppercase[pos];
+                found = 1;
+                break;
+            }
+            pos = pos + 1;
+        }
+        
+        # If not found, keep original
+        if found == 0 {
+            result = result + ch;
+        }
+        
+        i = i + 1;
+    }
+    return result;
+}
+
+fn :: vstring lower(s) {
+    result = "";
+    i = 0;
+    
+    while i < s.length() {
+        ch = s[i];
+        j = 0;
+        found = 0;
+        
+        while j < uppercase.length() {
+            if ch == uppercase[j] {
+                result = result + lowercase[j];
+                found = 1;
+                break;
+            }
+            j = j + 1;
+        }
+        
+        if found == 0 {
+            result = result + ch;
+        }
+        
+        i = i + 1;
+    }
+    return result;
+}
+
+fn :: vstring title(s) {
+    result = "";
+    i = 0;
+    newWord = true;  # Start of string is like start of new word
+    
+    while i < s.length() {
+        ch = s[i];
+        
+        # Check if this character starts a new word
+        if ch == " " {
+            # It's whitespace - keep as is, next letter starts new word
+            result = result + ch;
+            newWord = true;
+        } else {
+            # It's a letter or other character
+            if newWord {
+                # First character of word - make uppercase
+                j = 0;
+                found = 0;
+                while j < lowercase.length() {
+                    if ch == lowercase[j] {
+                        result = result + uppercase[j];
+                        found = 1;
+                        break;
+                    }
+                    j = j + 1;
+                }
+                if found == 0 {
+                    # Not a lowercase letter, check if it's uppercase
+                    k = 0;
+                    while k < uppercase.length() {
+                        if ch == uppercase[k] {
+                            result = result + uppercase[k];  # Keep as uppercase
+                            found = 1;
+                            break;
+                        }
+                        k = k + 1;
+                    }
+                    if found == 0 {
+                        # Not a letter at all (number, symbol)
+                        result = result + ch;
+                    }
+                }
+                newWord = false;
+            } else {
+                # Not first character of word - make lowercase
+                j = 0;
+                found = 0;
+                while j < uppercase.length() {
+                    if ch == uppercase[j] {
+                        result = result + lowercase[j];
+                        found = 1;
+                        break;
+                    }
+                    j = j + 1;
+                }
+                if found == 0 {
+                    # Not uppercase, check if it's lowercase
+                    k = 0;
+                    while k < lowercase.length() {
+                        if ch == lowercase[k] {
+                            result = result + lowercase[k];  # Keep as lowercase
+                            found = 1;
+                            break;
+                        }
+                        k = k + 1;
+                    }
+                    if found == 0 {
+                        # Not a letter (number, symbol)
+                        result = result + ch;
+                    }
+                }
+            }
+        }
+        
+        i = i + 1;
+    }
+    
+    return result;
+}
+
+fn :: vstring swapCase(s) {
+    result = "";
+    i = 0;
+    
+    while i < s.length() {
+        ch = s[i];
+        j = 0;
+        found = 0;
+        
+        # Check if it's lowercase (convert to uppercase)
+        while j < lowercase.length() {
+            if ch == lowercase[j] {
+                result = result + uppercase[j];
+                found = 1;
+                break;
+            }
+            j = j + 1;
+        }
+        
+        if found == 0 {
+            # Check if it's uppercase (convert to lowercase)
+            j = 0;
+            while j < uppercase.length() {
+                if ch == uppercase[j] {
+                    result = result + lowercase[j];
+                    found = 1;
+                    break;
+                }
+                j = j + 1;
+            }
+            
+            if found == 0 {
+                # Not a letter
+                result = result + ch;
+            }
+        }
+        
+        i = i + 1;
+    }
+    return result;
+}
+
+# ===Main string methods===
+
+# Split string into array by delimiter
+fn :: vstring split(s, delimiter) {
+    result = [];
+    
+    if s.length() == 0 {
+        return result;
+    }
+    
+    current = "";
+    i = 0;
+    
+    while i < s.length() {
+        ch = s[i];
+        
+        # Check if current character matches delimiter
+        if ch == delimiter {
+            # End of word - add to result if not empty
+            if current != "" {
+                result = result + [current];
+                current = "";
+            }
+        } else {
+            # Add character to current word
+            current = current + ch;
+        }
+        
+        i = i + 1;
+    }
+    
+    # Add last word if not empty
+    if current != "" {
+        result = result + [current];
+    }
+    
+    return result;
+}
+
+# Join array of strings with separator
+fn :: vstring join(arr, separator) {
+    result = "";
+    i = 0;
+    
+    while i < arr.length() {
+        if i > 0 {
+            result = result + separator;
+        }
+        result = result + arr[i];
+        i = i + 1;
+    }
+    
+    return result;
+}
+
+deploy vstring;

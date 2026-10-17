@@ -28,16 +28,18 @@ std::string ArrayNode::getCExpr(C_Emitter& e) const {
     VType elem = inferArrayElemType(this);
     if (elem != VType::Unknown && !elements.empty()) {
         std::string name = e.newTemp("arr");
-        std::string ctor = (elem == VType::Float64)
-            ? "vyne_array_f64_create"
-            : "vyne_array_i64_create";
+        std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create"
+                                                    : "vyne_array_i64_create";
 
-        e.emit(CType::arrayContainerName(elem) + " " + name + " = " +
-               ctor + "(" + std::to_string(elements.size()) + ");");
+        e.emit(
+            CType::arrayContainerName(elem) + " " + name + " = " + ctor + "(" +
+            std::to_string(elements.size()) + ");"
+        );
 
         for (size_t i = 0; i < elements.size(); ++i) {
             std::string raw = elements[i]->getCExpr(e);
-            std::string native = coerceToNative(e, elements[i].get(), raw, elem);
+            std::string native =
+                coerceToNative(e, elements[i].get(), raw, elem);
             e.emit(name + ".data[" + std::to_string(i) + "] = " + native + ";");
         }
 
@@ -64,15 +66,14 @@ std::string ArrayNode::getCExpr(C_Emitter& e) const {
     // VYNE_DEFINE_STRUCT_ARRAY.
     if (!rawElems.empty()) {
         const CType* first = e.lookupType(rawElems[0]);
-        if (first && first->kind == CType::Kind::Struct
-            && first->nativeCStruct
-            && !first->mangledName.empty()) {
+        if (first && first->kind == CType::Kind::Struct &&
+            first->nativeCStruct && !first->mangledName.empty()) {
             bool allMatch = true;
             for (const auto& s : rawElems) {
                 const CType* ct = e.lookupType(s);
-                if (!ct || ct->kind != CType::Kind::Struct
-                    || !ct->nativeCStruct
-                    || ct->mangledName != first->mangledName) {
+                if (!ct || ct->kind != CType::Kind::Struct ||
+                    !ct->nativeCStruct ||
+                    ct->mangledName != first->mangledName) {
                     allMatch = false;
                     break;
                 }
@@ -82,12 +83,15 @@ std::string ArrayNode::getCExpr(C_Emitter& e) const {
                 if (ns) {
                     std::string container = "vyne_Array_" + ns->tag;
                     std::string name = e.newTemp("arr");
-                    e.emit(container + " " + name + " = " +
-                           container + "_create(" +
-                           std::to_string(rawElems.size()) + ");");
+                    e.emit(
+                        container + " " + name + " = " + container +
+                        "_create(" + std::to_string(rawElems.size()) + ");"
+                    );
                     for (size_t i = 0; i < rawElems.size(); ++i) {
-                        e.emit(name + ".data[" + std::to_string(i) + "] = " +
-                               rawElems[i] + ";");
+                        e.emit(
+                            name + ".data[" + std::to_string(i) +
+                            "] = " + rawElems[i] + ";"
+                        );
                     }
                     CType arrCt;
                     arrCt.kind = CType::Kind::Array;
@@ -102,16 +106,22 @@ std::string ArrayNode::getCExpr(C_Emitter& e) const {
     // Boxed fallback.
     std::string temp = e.newTemp("arr");
     int size = (int)elements.size();
-    e.emit("VyneValue " + temp + " = vyne_array_create(" +
-           std::to_string(size) + ");");
+    e.emit(
+        "VyneValue " + temp + " = vyne_array_create(" + std::to_string(size) +
+        ");"
+    );
     for (int i = 0; i < size; ++i) {
-        e.emit("vyne_array_set(" + temp + ", vyne_int(" +
-               std::to_string(i) + "), " + e.boxAny(rawElems[i]) + ");");
+        e.emit(
+            "vyne_array_set(" + temp + ", vyne_int(" + std::to_string(i) +
+            "), " + e.boxAny(rawElems[i]) + ");"
+        );
     }
     return temp;
 }
 
-void ArrayNode::compile(C_Emitter& e) const { getCExpr(e); }
+void ArrayNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
@@ -122,11 +132,11 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
             throw std::runtime_error(
                 "Shape Error (VNE-071): single index on rank-" +
                 std::to_string(bt->shape.size()) + " shaped array (line " +
-                std::to_string(lineNumber) + ").");
+                std::to_string(lineNumber) + ")."
+            );
         }
 
-        VType elem = bt->args.empty() ? VType::Float64
-                                      : bt->args[0].toVType();
+        VType elem = bt->args.empty() ? VType::Float64 : bt->args[0].toVType();
         std::string rawIdx = index->getCExpr(e);
         std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
 
@@ -138,12 +148,16 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         if (e.isScratchBoundsEnabled()) {
             iv = e.newTemp("si");
             e.emit("int64_t " + iv + " = " + idx + ";");
-            e.emit("if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv + " >= " +
-                   std::to_string(bt->shape[0]) + ")) {");
-            e.emit("    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
-                   "out of bounds: dim 0 of shape [" +
-                   std::to_string(bt->shape[0]) + "] got %lld at line " +
-                   std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");");
+            e.emit(
+                "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
+                " >= " + std::to_string(bt->shape[0]) + ")) {"
+            );
+            e.emit(
+                "    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
+                "out of bounds: dim 0 of shape [" +
+                std::to_string(bt->shape[0]) + "] got %lld at line " +
+                std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");"
+            );
             e.emit("    exit(1);");
             e.emit("}");
         } else {
@@ -151,8 +165,10 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         }
 
         std::string name = e.newTemp("idx");
-        e.emit((elem == VType::Float64 ? "double " : "int64_t ") + name +
-               " = " + bRaw + "[" + iv + "];");
+        e.emit(
+            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            bRaw + "[" + iv + "];"
+        );
         e.declareNativeTemp(name, CType::fromVType(elem));
         return name;
     }
@@ -163,8 +179,10 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
 
         std::string name = e.newTemp("idx");
-        e.emit((elem == VType::Float64 ? "double " : "int64_t ") + name +
-            " = " + bRaw + "[" + idx + "];");
+        e.emit(
+            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            bRaw + "[" + idx + "];"
+        );
         e.declareNativeTemp(name, CType::fromVType(elem));
         return name;
     }
@@ -179,14 +197,16 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
             if (!ns) {
                 throw std::runtime_error(
                     "internal: struct-element array CType without "
-                    "registry entry for '" + elemCt.mangledName +
-                    "' (line " + std::to_string(lineNumber) + ").");
+                    "registry entry for '" +
+                    elemCt.mangledName + "' (line " +
+                    std::to_string(lineNumber) + ")."
+                );
             }
             std::string rawIdx = index->getCExpr(e);
-            std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
+            std::string idx =
+                coerceToNative(e, index.get(), rawIdx, VType::Int64);
             std::string name = e.newTemp("idx");
-            e.emit(ns->tag + " " + name + " = " + bRaw +
-                   ".data[" + idx + "];");
+            e.emit(ns->tag + " " + name + " = " + bRaw + ".data[" + idx + "];");
             e.declareNativeTemp(name, elemCt);
             return name;
         }
@@ -198,8 +218,11 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         if (elemCt.kind == CType::Kind::Struct) {
             throw std::runtime_error(
                 "Compile Error: array has struct element '" +
-                elemCt.mangledName + "' without a native C representation "
-                "(line " + std::to_string(lineNumber) + ").");
+                elemCt.mangledName +
+                "' without a native C representation "
+                "(line " +
+                std::to_string(lineNumber) + ")."
+            );
         }
 
         VType elem = elemCt.toVType();
@@ -207,8 +230,10 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
 
         std::string name = e.newTemp("idx");
-        e.emit((elem == VType::Float64 ? "double " : "int64_t ") + name +
-               " = " + bRaw + ".data[" + idx + "];");
+        e.emit(
+            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            bRaw + ".data[" + idx + "];"
+        );
         e.declareNativeTemp(name, CType::fromVType(elem));
         return name;
     }
@@ -221,7 +246,9 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     return temp;
 }
 
-void IndexAccessNode::compile(C_Emitter& e) const { getCExpr(e); }
+void IndexAccessNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 void IndexAssignmentNode::compile(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
@@ -233,10 +260,13 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
         std::string bs = var->getOriginalName();
         std::replace(bs.begin(), bs.end(), '.', '_');
         std::string prefix = e.getActiveFunctionPrefix();
-        std::string bname = prefix.empty()
-            ? ("v_" + bs)
-            : ("v_" + prefix + "_" + bs);
+        std::string bname =
+            prefix.empty() ? ("v_" + bs) : ("v_" + prefix + "_" + bs);
         int baseDepth = e.lookupLocalRegionDepth(bname);
+        // A global is conceptually at depth 0 — it survives any rewind.
+        if (baseDepth < 0 && e.isGlobalDeclared("v_" + bs)) {
+            baseDepth = 0;
+        }
         if (baseDepth >= 0 && baseDepth < e.currentRegionDepth()) {
             // String literals live in .rodata — see the full note in
             // assignments.cpp:checkRegionEscape. Computed strings and
@@ -245,16 +275,28 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
             bool safe = (rhs->type() == NodeType::STRING);
             if (!safe) {
                 VType st = resolveRHSKind(e, rhs.get());
-                safe = (st == VType::Int64 || st == VType::Float64 ||
-                        st == VType::Bool  || st == VType::Null);
+                safe =
+                    (st == VType::Int64 || st == VType::Float64 ||
+                     st == VType::Bool || st == VType::Null);
+            }
+            // NEW: accept reads whose ultimate base is an outer-scope
+            // variable. `outer[i] = other[j]` where both `outer` and
+            // `other` live outside the region cannot produce a
+            // region-local pointer — the value being read was
+            // allocated at or before the destination's depth.
+            if (!safe && rhsIsRootedOutsideRegion(e, rhs.get())) {
+                safe = true;
             }
             if (!safe) {
                 throw std::runtime_error(
                     "Escape Error (VNE-070): index assignment writes a "
-                    "region-local value into '" + var->getOriginalName() +
+                    "region-local value into '" +
+                    var->getOriginalName() +
                     "' (declared outside the region) at line " +
-                    std::to_string(lineNumber) + ".\n"
-                    "  The value would dangle after the region's rewind.");
+                    std::to_string(lineNumber) +
+                    ".\n"
+                    "  The value would dangle after the region's rewind."
+                );
             }
         }
     }
@@ -265,11 +307,11 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
             throw std::runtime_error(
                 "Shape Error (VNE-071): single index on rank-" +
                 std::to_string(bt->shape.size()) + " shaped array (line " +
-                std::to_string(lineNumber) + ").");
+                std::to_string(lineNumber) + ")."
+            );
         }
-        
-        VType elem = bt->args.empty() ? VType::Float64
-                                      : bt->args[0].toVType();
+
+        VType elem = bt->args.empty() ? VType::Float64 : bt->args[0].toVType();
         std::string rawIdx = index->getCExpr(e);
         std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
         std::string rawVal = rhs->getCExpr(e);
@@ -279,12 +321,16 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
         if (e.isScratchBoundsEnabled()) {
             iv = e.newTemp("si");
             e.emit("int64_t " + iv + " = " + idx + ";");
-            e.emit("if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv + " >= " +
-                   std::to_string(bt->shape[0]) + ")) {");
-            e.emit("    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
-                   "out of bounds: dim 0 of shape [" +
-                   std::to_string(bt->shape[0]) + "] got %lld at line " +
-                   std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");");
+            e.emit(
+                "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
+                " >= " + std::to_string(bt->shape[0]) + ")) {"
+            );
+            e.emit(
+                "    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
+                "out of bounds: dim 0 of shape [" +
+                std::to_string(bt->shape[0]) + "] got %lld at line " +
+                std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");"
+            );
             e.emit("    exit(1);");
             e.emit("}");
         } else {
@@ -332,7 +378,8 @@ std::string IndexAssignmentNode::getCExpr(C_Emitter& e) const {
 // ============================================================
 
 std::string RangeNode::getCExpr(C_Emitter& e) const {
-    if (!left || !right) return "vyne_null()";
+    if (!left || !right)
+        return "vyne_null()";
     std::string l = e.boxAny(left->getCExpr(e));
     std::string r = e.boxAny(right->getCExpr(e));
     std::string temp = e.newTemp("rng");
@@ -340,7 +387,9 @@ std::string RangeNode::getCExpr(C_Emitter& e) const {
     return temp;
 }
 
-void RangeNode::compile(C_Emitter& e) const { getCExpr(e); }
+void RangeNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}
 
 std::string SliceNode::getCExpr(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
@@ -348,21 +397,21 @@ std::string SliceNode::getCExpr(C_Emitter& e) const {
 
     if (bt && bt->kind == CType::Kind::Array && !bt->args.empty()) {
         VType elem = bt->args[0].toVType();
-        std::string rawLo = low  ? low->getCExpr(e)  : "";
+        std::string rawLo = low ? low->getCExpr(e) : "";
         std::string rawHi = high ? high->getCExpr(e) : "";
-        std::string lo = low
-            ? coerceToNative(e, low.get(),  rawLo, VType::Int64)
-            : "0";
-        std::string hi = high
-            ? coerceToNative(e, high.get(), rawHi, VType::Int64)
-            : (bRaw + ".size");
+        std::string lo =
+            low ? coerceToNative(e, low.get(), rawLo, VType::Int64) : "0";
+        std::string hi =
+            high ? coerceToNative(e, high.get(), rawHi, VType::Int64)
+                 : (bRaw + ".size");
 
-        std::string fn = (elem == VType::Float64)
-            ? "vyne_array_f64_slice"
-            : "vyne_array_i64_slice";
+        std::string fn = (elem == VType::Float64) ? "vyne_array_f64_slice"
+                                                  : "vyne_array_i64_slice";
         std::string name = e.newTemp("slc");
-        e.emit(CType::arrayContainerName(elem)+ " " + name + " = " +
-               fn + "(&" + bRaw + ", " + lo + ", " + hi + ");");
+        e.emit(
+            CType::arrayContainerName(elem) + " " + name + " = " + fn + "(&" +
+            bRaw + ", " + lo + ", " + hi + ");"
+        );
 
         CType ct;
         ct.kind = CType::Kind::Array;
@@ -372,14 +421,17 @@ std::string SliceNode::getCExpr(C_Emitter& e) const {
     }
 
     // Boxed fallback — same as before, with boxTypedArray on the base.
-    std::string b  = e.boxAny(bRaw);
-    std::string lo = low  ? e.boxAny(low->getCExpr(e))  : "vyne_null()";
+    std::string b = e.boxAny(bRaw);
+    std::string lo = low ? e.boxAny(low->getCExpr(e)) : "vyne_null()";
     std::string hi = high ? e.boxAny(high->getCExpr(e)) : "vyne_null()";
     std::string temp = e.newTemp("slc");
-    e.emit("VyneValue " + temp + " = vyne_slice_get(" +
-           b + ", " + lo + ", " + hi + ");");
+    e.emit(
+        "VyneValue " + temp + " = vyne_slice_get(" + b + ", " + lo + ", " + hi +
+        ");"
+    );
     return temp;
 }
 
-void SliceNode::compile(C_Emitter& e) const { getCExpr(e); }
-
+void SliceNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}

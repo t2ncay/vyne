@@ -406,6 +406,50 @@ static std::string emitNativeCondition(C_Emitter& e, const ASTNode* node) {
     return "vyne_is_truthy(" + cond + ")";
 }
 
+// True iff the RHS expression's ultimate base variable is rooted
+// outside the currently-open region — either as a global (conceptually
+// at depth 0), or as a local declared at a shallower region depth than
+// the current one. A read from such a variable produces a value whose
+// lifetime is at least as long as the destination's, so storing it
+// into an outer container is safe.
+//
+// Used by the escape checks in collections.cpp (IndexAssignmentNode),
+// members.cpp (MemberAssignmentNode), and assignments.cpp
+// (checkRegionEscape) to accept patterns like `outer[i] = other[j]`
+// where both arrays are declared outside the region but their element
+// types are not statically provable.
+static bool rhsIsRootedOutsideRegion(C_Emitter& e, const ASTNode* rhs) {
+    if (!rhs)
+        return false;
+
+    const ASTNode* root = rhs;
+    while (root) {
+        if (root->type() == NodeType::INDEX_ACCESS) {
+            root = static_cast<const IndexAccessNode*>(root)->getBase();
+        } else if (root->type() == NodeType::MEMBER_ACCESS) {
+            root = static_cast<const MemberAccessNode*>(root)->getReceiver();
+        } else {
+            break;
+        }
+    }
+
+    if (!root || root->type() != NodeType::VARIABLE)
+        return false;
+
+    auto* rv = static_cast<const VariableNode*>(root);
+    std::string rn = rv->getOriginalName();
+    std::replace(rn.begin(), rn.end(), '.', '_');
+
+    // A global is conceptually at depth 0.
+    if (e.isGlobalDeclared("v_" + rn))
+        return true;
+
+    std::string rpfx = e.getActiveFunctionPrefix();
+    std::string rlname = rpfx.empty() ? ("v_" + rn) : ("v_" + rpfx + "_" + rn);
+    int rd = e.lookupLocalRegionDepth(rlname);
+    return rd >= 0 && rd < e.currentRegionDepth();
+}
+
 std::optional<std::string> tryEmitBlasCall(
     C_Emitter& e,
     const std::string& recvPath,

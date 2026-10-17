@@ -64,6 +64,14 @@ class C_Emitter {
     // --- Static type tables (M0/M1) -------------------------------------
     std::unordered_map<std::string, CType> globalTypes;
     std::unordered_map<std::string, CType> nativeTemps;
+
+    // Runtime dimensions for a scratch local, keyed by the mangled C
+    // name. Populated by ScratchNode::compile when any dim is non-literal;
+    // consulted by scratchFlatIndex to compute strides symbolically.
+    // Cleared alongside the other per-function tables.
+    std::unordered_map<std::string, std::vector<std::string>>
+        scratchRuntimeDims;
+
     struct LocalScope {
         std::unordered_set<std::string> names;
         std::unordered_map<std::string, CType> types;
@@ -433,6 +441,18 @@ class C_Emitter {
         nativeTemps[name] = ct;
     }
 
+    void registerScratchRuntimeDims(
+        const std::string& cName,
+        std::vector<std::string> dims
+    ) {
+        scratchRuntimeDims[cName] = std::move(dims);
+    }
+    const std::vector<std::string>*
+    lookupScratchRuntimeDims(const std::string& cName) const {
+        auto it = scratchRuntimeDims.find(cName);
+        return it == scratchRuntimeDims.end() ? nullptr : &it->second;
+    }
+
     // Filtered view: non-null only for provably-primitive types.
     // (Behaviorally identical to the old version — it also returned any
     // nativeTemp entry, primitive or not, thanks to the early return.
@@ -561,12 +581,14 @@ class C_Emitter {
         structReturnOutParams.clear();
         localScopes.clear();
         localScopes.emplace_back();
+        scratchRuntimeDims.clear();
     }
     void popFunctionContext() {
         if (!contextStack.empty())
             contextStack.pop_back();
         localScopes.clear();
         localScopes.emplace_back();
+        scratchRuntimeDims.clear();
         localStructTypes.clear();
         fieldCache.clear();
         currentInterfaceType.clear();
@@ -1233,6 +1255,7 @@ class C_Emitter {
         localScopes.emplace_back();
         globalTypes.clear();
         nativeTemps.clear();
+        scratchRuntimeDims.clear();
 
         functionParamTypes.clear();
         functionReturnTypes.clear();
