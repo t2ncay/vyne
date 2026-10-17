@@ -45,7 +45,7 @@ fn make_mock_protein(n :: Int64) -> Array<Float64> {
 
 # Compute the N x N pairwise distance map.
 # Uses a bump region to allocate the scratch matrix on the C stack.
-fn compute_distance_map(coords :: Array<Float64>, n :: Int64) -> vlin.Types.Matrix {
+fn compute_distance_map(coords :: Array<Float64>, n :: Int64) -> Array<Float64> {
     
     # Allocate the distance matrix inside a bump region
     region distance_calc {
@@ -110,7 +110,12 @@ coords :: Array<Float64> := make_mock_protein(N_RESIDUES);
 # COMPUTATION
 # ======================================================================
 out("Computing distance map...");
-start_time := vcore.now(); # Assuming vcore is available for timing
+
+# vcore.now() returns a formatted "YYYY-MM-DD HH:MM:SS" String, not a
+# numeric clock. Subtracting two such strings trips vyne_binop's
+# invalid-operation branch. vcore.now_ns() is the monotonic Int64
+# nanosecond clock that is actually meant for this.
+start_ns := vcore.now_ns();
 
 # Call the kernel. The scratch memory is freed instantly upon return.
 dist_flat :: Array<Float64> := compute_distance_map(coords, N_RESIDUES);
@@ -118,8 +123,8 @@ dist_flat :: Array<Float64> := compute_distance_map(coords, N_RESIDUES);
 # Assemble the final vlin Matrix
 dist_map :: vlin.Types.Matrix := vlin.Types.Matrix(N_RESIDUES, N_RESIDUES, dist_flat);
 
-end_time := vcore.now();
-elapsed_ms := (end_time - start_time) * 1000.0;
+end_ns := vcore.now_ns();
+elapsed_ms := float64(end_ns - start_ns) / 1000000.0;
 
 # ======================================================================
 # FINAL
