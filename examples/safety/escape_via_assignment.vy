@@ -2,9 +2,9 @@
 # into a shallower-declared variable.
 # Expected: compile error, VNE-070.
 
-outer :: Array = [];
+outer :: Array := [];
 
 region r {
-    inner :: Array = [1.0, 2.0, 3.0];
+    inner :: Array := [1.0, 2.0, 3.0];
     outer = inner;
 };
