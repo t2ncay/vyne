@@ -16,11 +16,11 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
-#include <string>
-#include <vector>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 class ProgramNode;
 
@@ -39,11 +39,11 @@ class ProgramNode;
 // unit, this is the equivalent of a "unity build" linker.
 
 class VyneLinker {
-public:
+  public:
     struct CompileUnit {
-        std::string canonicalPath;             // absolute, normalized
-        std::shared_ptr<ProgramNode> ast;
-        std::string alias;                     // "" for plain import
+        std::string canonicalPath;        // absolute, normalized
+        std::shared_ptr<ProgramNode> ast; // ast node of the program
+        std::string alias;                // "" for plain import
         bool isExtern = false;
     };
 
@@ -51,22 +51,26 @@ public:
     // Throws std::runtime_error on missing files or import cycles.
     std::vector<CompileUnit> link(const std::string& entryPath);
 
-private:
+  private:
     std::unordered_map<std::string, std::shared_ptr<ProgramNode>> parsedFiles;
     std::unordered_set<std::string> visiting;
-    std::unordered_set<std::string> scheduled;   // "path|alias"
+    std::unordered_set<std::string> scheduled; // "path|alias"
     std::vector<std::string> visitChain;
     std::vector<CompileUnit> order;
 
-    void visit(const std::string& canonicalPath,
-               const std::string& sourceDir,
-               const std::string& alias,
-               bool isExtern);
+    void visit(
+        const std::string& canonicalPath,
+        const std::string& sourceDir,
+        const std::string& alias,
+        bool isExtern
+    );
 
-    std::string canonicalize(const std::string& baseDir,
-                             const std::string& rawPath,
-                             bool isExtern);
+    std::string canonicalize(
+        const std::string& baseDir,
+        const std::string& rawPath,
+        bool isExtern
+    );
 
-    std::shared_ptr<ProgramNode> parseFile(const std::string& canonicalPath,
-                                           const std::string& sourceDir);
+    std::shared_ptr<ProgramNode>
+    parseFile(const std::string& canonicalPath, const std::string& sourceDir);
 };
