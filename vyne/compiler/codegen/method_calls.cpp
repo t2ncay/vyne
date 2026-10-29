@@ -33,13 +33,15 @@
 //   2. interface constructor    (a.b.Ctor(...))
 //   3. group call               (vlin.add(a, b), vml.dense(...))
 //   4. byte_at                  (str.byte_at(i))
-//   5. typed-array fast path    (push, size, length on Array<T>)
-//   6. boxed receiver bind      (single alloc for everything below)
-//   7. built-in array methods   (pop, sort, delete, clear, ...)
-//   8. string methods           (substr, find, uppercase, ...)
-//   9. struct field list        (.fields)
-//  10. map methods              (has, keys, values, set)
-//  11. user-defined struct      (last resort)
+//   5. scratch methods          (sum, mean, min, max, size, length,
+//                                fill, copy_to — shaped arrays only)
+//   6. typed-array fast path    (push, size, length on Array<T>)
+//   7. boxed receiver bind      (single alloc for everything below)
+//   8. built-in array methods   (pop, sort, delete, clear, ...)
+//   9. string methods           (substr, find, uppercase, ...)
+//  10. struct field list        (.fields)
+//  11. map methods              (has, keys, values, set)
+//  12. user-defined struct      (last resort)
 //
 // The receiver's C expression is evaluated exactly once, before step 4,
 // and passed to every subsequent handler. Argument evaluation inside a
@@ -400,7 +402,267 @@ std::optional<std::string> tryEmitByteAt(
 }
 
 // ----------------------------------------------------------------
-// 5. Typed-array fast path: push, size, length
+// 5. Scratch reductions and bulk operations
+//
+// Fires when the receiver's CType is a shaped Array — either a
+// static-shape scratch (`hasShape()` true) or a runtime-dim scratch
+// (`lookupScratchRuntimeDims` non-null; `hasShape()` is deliberately
+// false for these so `numElements()` doesn't lie about a runtime
+// size). Shaped arrays live as raw C arrays on the stack, not as
+// VyneArray_* containers, so every method here lowers to a plain
+// loop over the flat buffer.
+//
+// All reductions are pure: no boxing, no arena traffic, no cross-TU
+// calls. GCC unrolls and, for Int64, vectorizes the reduction
+// automatically. For Float64 the emitted code is scalar unless the
+// build enables `-ffast-math` — matching the paper's baseline.
+//
+// Methods:
+//   .sum()            → T        element-kind preserving
+//   .mean()           → Float64  sum / count
+//   .min() / .max()   → T        runtime-guarded against N == 0
+//   .fill(value)      → null     in-place write
+//   .copy_to(dest)    → null     memcpy into a pre-sized Array<T>
+//   .size() / .length() → Int64  the flat element count
+//
+// `fill` and `copy_to` return null rather than the receiver. Unlike
+// `push`, chaining them (`x.fill(0).sum()`) is not worth supporting:
+// the boxed fallback cannot box a `double v_x[N]` via
+// `vyne_array_f64_to_value(&v_x)`, so `y := x.fill(0)` would emit
+// invalid C. Making them statement-shaped prevents that class of
+// misuse at the source level.
+// ----------------------------------------------------------------
+
+std::optional<std::string> tryEmitScratchMethod(
+    C_Emitter& e,
+    const MethodCallNode& node,
+    const std::string& recvRaw
+) {
+    const CType* rt = e.lookupType(recvRaw);
+    if (!rt || rt->kind != CType::Kind::Array || rt->args.empty())
+        return std::nullopt;
+
+    const std::vector<std::string>* runtimeDims =
+        e.lookupScratchRuntimeDims(recvRaw);
+    const bool isScratch = rt->hasShape() || (runtimeDims != nullptr);
+    if (!isScratch)
+        return std::nullopt;
+
+    const VType elem = rt->args[0].toVType();
+    if (elem != VType::Float64 && elem != VType::Int64)
+        return std::nullopt;
+
+    const std::string& methodName = node.getMethodName();
+    const auto& args = node.getArguments();
+
+    // Element count as a C expression. Static shape → literal; runtime
+    // → a product of the dim temps, materialised exactly once so the
+    // loop header, the mean divisor, and the copy_to size check all
+    // read the same value. Both cases collapse into a single name.
+    std::string nExpr;
+    if (runtimeDims) {
+        if (runtimeDims->empty())
+            return std::nullopt;
+        nExpr = e.newTemp("n");
+        std::string product;
+        for (size_t i = 0; i < runtimeDims->size(); ++i) {
+            if (i)
+                product += " * ";
+            product += "(" + (*runtimeDims)[i] + ")";
+        }
+        e.emit("int64_t " + nExpr + " = " + product + ";");
+    } else {
+        nExpr = std::to_string(rt->numElements());
+    }
+
+    const char* cElem = (elem == VType::Float64) ? "double" : "int64_t";
+
+    // --- .sum() ----------------------------------------------------
+    if (methodName == "sum") {
+        if (!args.empty()) {
+            throw std::runtime_error(
+                "Compile Error: scratch.sum() takes no arguments "
+                "(line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string acc = e.newTemp("sum");
+        std::string k = e.newTemp("k");
+        e.emit(std::string(cElem) + " " + acc + " = 0;");
+        e.emitBlockOpen(
+            "for (int64_t " + k + " = 0; " + k + " < " + nExpr + "; ++" + k +
+            ") {"
+        );
+        e.emit(acc + " += " + recvRaw + "[" + k + "];");
+        e.emitBlockClose();
+        e.declareNativeTemp(acc, CType::fromVType(elem));
+        return acc;
+    }
+
+    // --- .mean() ---------------------------------------------------
+    if (methodName == "mean") {
+        if (!args.empty()) {
+            throw std::runtime_error(
+                "Compile Error: scratch.mean() takes no arguments "
+                "(line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string acc = e.newTemp("mean_acc");
+        std::string k = e.newTemp("k");
+        std::string result = e.newTemp("mean");
+        e.emit("double " + acc + " = 0.0;");
+        e.emitBlockOpen(
+            "for (int64_t " + k + " = 0; " + k + " < " + nExpr + "; ++" + k +
+            ") {"
+        );
+        e.emit(acc + " += (double)(" + recvRaw + "[" + k + "]);");
+        e.emitBlockClose();
+        e.emit(
+            "double " + result + " = " + acc + " / (double)(" + nExpr + ");"
+        );
+        e.declareNativeTemp(result, CType::fromVType(VType::Float64));
+        return result;
+    }
+
+    // --- .min() / .max() -------------------------------------------
+    if (methodName == "min" || methodName == "max") {
+        if (!args.empty()) {
+            throw std::runtime_error(
+                "Compile Error: scratch." + methodName +
+                "() takes no "
+                "arguments (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        const bool isMin = (methodName == "min");
+        std::string result = e.newTemp(methodName);
+        std::string k = e.newTemp("k");
+        // Runtime-dim scratch whose dims multiply to 0 would read
+        // out of bounds at [0]. Guard at runtime. For static-shape
+        // scratch, nExpr is a literal > 0 and the branch folds away.
+        e.emit("if (" + nExpr + " <= 0) {");
+        e.emit(
+            "    fprintf(stderr, \"Runtime error: scratch." + methodName +
+            "() on empty array at line " + std::to_string(node.lineNumber) +
+            "\\n\"); exit(1);"
+        );
+        e.emit("}");
+        e.emit(std::string(cElem) + " " + result + " = " + recvRaw + "[0];");
+        e.emitBlockOpen(
+            "for (int64_t " + k + " = 1; " + k + " < " + nExpr + "; ++" + k +
+            ") {"
+        );
+        const char* op = isMin ? "<" : ">";
+        e.emit(
+            "if (" + recvRaw + "[" + k + "] " + op + " " + result + ") " +
+            result + " = " + recvRaw + "[" + k + "];"
+        );
+        e.emitBlockClose();
+        e.declareNativeTemp(result, CType::fromVType(elem));
+        return result;
+    }
+
+    // --- .size() / .length() ---------------------------------------
+    if (methodName == "size" || methodName == "length") {
+        if (!args.empty()) {
+            throw std::runtime_error(
+                "Compile Error: scratch." + methodName +
+                "() takes no "
+                "arguments (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string result = e.newTemp("scratch_size");
+        e.emit("int64_t " + result + " = " + nExpr + ";");
+        e.declareNativeTemp(result, CType::fromVType(VType::Int64));
+        return result;
+    }
+
+    // --- .fill(value) ----------------------------------------------
+    if (methodName == "fill") {
+        if (args.size() != 1) {
+            throw std::runtime_error(
+                "Compile Error: scratch.fill(value) takes exactly 1 "
+                "argument (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string rawVal = args[0]->getCExpr(e);
+        std::string val = coerceToNative(e, args[0].get(), rawVal, elem);
+        std::string k = e.newTemp("k");
+        e.emitBlockOpen(
+            "for (int64_t " + k + " = 0; " + k + " < " + nExpr + "; ++" + k +
+            ") {"
+        );
+        e.emit(recvRaw + "[" + k + "] = " + val + ";");
+        e.emitBlockClose();
+        return "vyne_null()";
+    }
+
+    // --- .copy_to(dest) --------------------------------------------
+    if (methodName == "copy_to") {
+        if (args.size() != 1) {
+            throw std::runtime_error(
+                "Compile Error: scratch.copy_to(dest) takes exactly 1 "
+                "argument (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string dest = args[0]->getCExpr(e);
+        const CType* dt = e.lookupType(dest);
+        const bool destIsArray =
+            dt && dt->kind == CType::Kind::Array && !dt->args.empty();
+        const bool destElemMatches =
+            destIsArray && dt->args[0].toVType() == elem;
+        const bool destIsScratch =
+            dt &&
+            (dt->hasShape() || e.lookupScratchRuntimeDims(dest) != nullptr);
+        if (!destIsArray || !destElemMatches || destIsScratch) {
+            throw std::runtime_error(
+                "Compile Error: scratch.copy_to(dest) requires 'dest' to be "
+                "a sized Array<" +
+                VTypeToString(elem) +
+                "> "
+                "(line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        // Pre-sized contract: dest must already hold at least N
+        // populated slots. `place_all(0.0, n)` or a create-with-capacity
+        // call is the caller's responsibility — copy_to is the
+        // non-allocating path and must not resize.
+        e.emit("if (" + dest + ".size < (int64_t)(" + nExpr + ")) {");
+        e.emit(
+            "    fprintf(stderr, \"Runtime error: scratch.copy_to "
+            "destination too small (%lld < %lld) at line " +
+            std::to_string(node.lineNumber) + "\\n\", (long long)" + dest +
+            ".size, (long long)(" + nExpr + "));"
+        );
+        e.emit("    exit(1);");
+        e.emit("}");
+        e.emit(
+            "memcpy(" + dest + ".data, " + recvRaw + ", (size_t)(" + nExpr +
+            ") * sizeof(" + cElem + "));"
+        );
+        return "vyne_null()";
+    }
+
+    // Unrecognised method. Failing loudly here is better than letting
+    // the chain fall through to the boxed receiver bind: that path
+    // emits `vyne_array_f64_to_value(&v_x)` for `double v_x[N]`, which
+    // is a C-level type error the user cannot act on.
+    throw std::runtime_error(
+        "Compile Error: scratch." + methodName +
+        "() is not a supported method on a shaped array (line " +
+        std::to_string(node.lineNumber) +
+        ").\n"
+        "  Supported: sum, mean, min, max, size, length, fill, copy_to."
+    );
+}
+
+// ----------------------------------------------------------------
+// 6. Typed-array fast path: push, size, length
 //
 // Fires only when the receiver's CType is Array<Float64> or Array<Int64>.
 // A bare `Array`, String, Map, or user-defined struct falls through to
@@ -419,6 +681,16 @@ std::optional<std::string> tryEmitTypedArrayMethod(
     const auto& args = node.getArguments();
     const CType* rt = e.lookupType(recvRaw);
 
+    // Shaped (scratch) arrays are raw C arrays on the stack — `double
+    // v_x[N];` — not VyneArray_* containers. `tryEmitScratchMethod`
+    // owns every method on them. Guard defensively here even though
+    // the dispatch chain already fires the scratch handler first, so
+    // a future reorder cannot re-introduce the `vyne_array_f64_push(&v_x, …)`
+    // mis-lowering this handler used to emit.
+    if (rt && rt->kind == CType::Kind::Array && !rt->args.empty() &&
+        (rt->hasShape() || e.lookupScratchRuntimeDims(recvRaw) != nullptr)) {
+        return std::nullopt;
+    }
     if (methodName == "push") {
         if (rt && rt->kind == CType::Kind::Array && !rt->args.empty()) {
             VType elem = rt->args[0].toVType();
@@ -444,6 +716,67 @@ std::optional<std::string> tryEmitTypedArrayMethod(
             );
         }
         return recvBoxed;
+    }
+
+    // .place_all(value, count) — resize in place and fill. Without this
+    // handler, the method falls through to the boxed bind, which wraps
+    // the VyneArray_f64 in a throwaway VyneValue and grows the wrapper
+    // rather than the underlying typed array. The call site sees
+    // `arr.size == 0` afterward, so any subsequent reader (including
+    // `copy_to`'s pre-sized-destination guard) fails or reads garbage.
+    //
+    // Emission mirrors the array-literal path in collections.cpp:
+    // create(N) sets size = N, then a direct data-fill populates the
+    // slots. That preserves the invariant the array-literal lowering
+    // relies on and keeps `create(N)` + fill as the single canonical
+    // "pre-sized typed array" construction.
+    if (methodName == "place_all" && rt && rt->kind == CType::Kind::Array &&
+        !rt->args.empty()) {
+        VType elem = rt->args[0].toVType();
+        if (elem == VType::Float64 || elem == VType::Int64) {
+            if (args.size() != 2) {
+                throw std::runtime_error(
+                    "Compile Error: place_all(value, count) expects 2 "
+                    "arguments (line " +
+                    std::to_string(node.lineNumber) + ")."
+                );
+            }
+            std::string rawVal = args[0]->getCExpr(e);
+            std::string val = coerceToNative(e, args[0].get(), rawVal, elem);
+            std::string rawCount = args[1]->getCExpr(e);
+            std::string count =
+                coerceToNative(e, args[1].get(), rawCount, VType::Int64);
+
+            const char* cElem = (elem == VType::Float64) ? "double" : "int64_t";
+            std::string ctor = (elem == VType::Float64)
+                                   ? "vyne_array_f64_create"
+                                   : "vyne_array_i64_create";
+
+            // Bind the count once so the loop bound, the create, and
+            // the negative-count check all see the same value. Bind
+            // the value once so a side-effecting expression on the LHS
+            // is evaluated exactly once.
+            std::string n = e.newTemp("pa_n");
+            std::string v = e.newTemp("pa_v");
+            std::string k = e.newTemp("pa_k");
+
+            e.emit("int64_t " + n + " = " + count + ";");
+            e.emit(
+                "if (" + n +
+                " < 0) { fprintf(stderr, \"Runtime error: "
+                "place_all() cannot resize to a negative count\\n\"); "
+                "exit(1); }"
+            );
+            e.emit(std::string(cElem) + " " + v + " = " + val + ";");
+            e.emit(recvRaw + " = " + ctor + "(" + n + ");");
+            e.emitBlockOpen(
+                "for (int64_t " + k + " = 0; " + k + " < " + n + "; ++" + k +
+                ") {"
+            );
+            e.emit(recvRaw + ".data[" + k + "] = " + v + ";");
+            e.emitBlockClose();
+            return recvRaw;
+        }
     }
 
     if ((methodName == "size" || methodName == "length") && rt &&
@@ -841,6 +1174,13 @@ std::string MethodCallNode::getCExpr(C_Emitter& e) const {
     std::string recvRaw = receiver->getCExpr(e);
 
     if (auto r = tryEmitByteAt(e, *this, recvRaw))
+        return *r;
+    // Scratch methods fire *before* the typed-array handler so a
+    // shaped-array receiver never reaches the `VyneArray_f64`
+    // lowering. The handler also throws a Vyne-level diagnostic for
+    // unsupported names — better than falling through to the boxed
+    // bind, which would emit invalid C for a `double v_x[N]`.
+    if (auto r = tryEmitScratchMethod(e, *this, recvRaw))
         return *r;
     if (auto r = tryEmitTypedArrayMethod(e, *this, recvRaw))
         return *r;
