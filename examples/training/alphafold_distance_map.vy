@@ -71,14 +71,23 @@ fn compute_distance_map(coords :: Array<Float64>, n :: Int64) -> Array<Float64> 
         
         # Flatten the 2D scratch array into a 1D array for vlin.Matrix
         dist_flat :: Array<Float64> := [];
-        through i :: 0..n-1 -> loop {
-            through j :: 0..n-1 -> loop {
-                dist_flat.push(dist_matrix[i, j]);
-            };
-        };
+        dist_flat.place_all(0.0, n * n);   # pre-size (already works — place_all on Array)
+        dist_matrix.copy_to(dist_flat);    # memcpy, no per-element stride loop
+        
+        # Stats via Tier B scratch reductions. Must run before the
+        # region closes — dist_matrix is `double v_dist_matrix[n*n]`
+        # on the stack and does not survive the rewind.
+        out("  total        " + string(dist_matrix.sum()));
+        out("  mean         " + string(dist_matrix.mean()));
+        out("  max distance " + string(dist_matrix.max()));
         
         # Commit the result so it survives the region rewind
         region.commit(dist_flat);
+        
+        # Return the committed array. `region.commit` marks `dist_flat`
+        # as surviving the rewind (it points into the commit arena), so
+        # returning it here gives the caller a live Array<Float64>.
+        return dist_flat;
     };
 }
 
