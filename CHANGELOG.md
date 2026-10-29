@@ -268,4 +268,267 @@ The `native` vs. `external` distinction is now enforced. Any `.vy` file that rel
 
 See `git log v0.3.0..HEAD` for the raw list. The 69 commits this release covers span `4f1f53a` (2026-09-30) through `a10365f` (2026-10-04).
 
-**Full Changelog**: https://github.com/t2ncay/vyne/compare/v0.0.5...v0.4.0
+**Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.0.5...v0.4.0>
+
+---
+
+# Vyne v0.5.0 — declaration syntax, bitwise operators, SIMD `through` loops, and the xmake migration
+
+**Released 2026-10-26**
+
+This release splits declaration from reassignment with the `:=` operator, lands the full bitwise operator family, vectorizes `through` loops with SIMD, extends the native-C-struct ABI to arrays and field writes, migrates the build to xmake on C++23/C++26, removes the Vurage and VServ modules, and introduces the `vchem_common`, `vgraph`, and `vchem` libraries for the chemistry engine. It also ships typed-array region commits, 0-arg native variants, and a refactored monotonic nanosecond clock.
+
+---
+
+## Highlights
+
+- **Declaration vs. reassignment split.** `:=` now introduces a new binding; `=` performs reassignment. Parser, codegen, standard libraries, and benchmarks were migrated. Commit `fc2c6d2f` (#89).
+
+- **Bitwise operators, landed.** Lexer, parser, codegen, tests, and precedence documentation for `&`, `|`, `^`, `~`, `<<`, `>>`. `vfft`'s `Kernels.vy` was refactored to use them. Commits `32057998` (#84), `40fea384` (#85), `fd0debf2`, `d34ff780`, `11cb029b`.
+
+- **SIMD vectorization for `through` loops.** `__restrict__` pointer annotations, boxed-interface pathways fixed under SIMD flags, invariant field-load hoisting, and a relaxed SIMD-safety shape check. Commit `7824f0cf` (#90).
+
+- **Typed-array region commits, 0-arg native variants, and monotonic ns clock.** Commit `b92ceb35` (#92).
+
+- **Native C structs, completed across the ABI.** Struct arrays, field-write handling on native receivers, boxing helpers for arrays of native structs, assignment/member-access handling, and C-eligibility checks for interface representation. Commits `110869ee`, `8ced75d5`, `61dac080`, `b4dfe1e8`, `d2dc30fe`, `0b94a737`.
+
+- **Build system migration.** The project now builds with **xmake** on C++23/C++26, with platform-aware dependency handling, system raylib detection, and platform-specific math-library linking. Commits `687a6eff`, `8e090118`, `038683cb`, `01e834da`, `9e407529`, `3341ed38`.
+
+- **Module removals.** The legacy **Vurage** runtime module and the deprecated **VServ** server module were removed in full. Commits `57197dfc`, `5a6b4788`, `8ac8bfb3`.
+
+- **Chemistry engine libraries.** `vchem_common`, `vgraph`, and the compiler support needed by `vchem` (nested friend-library parsing, mangled-name constructor resolution) land. Commits `a5f104de`, `11e49099`, `953623b8`.
+
+---
+
+## New features
+
+### Language syntax: `:=` for declarations, `=` for reassignment
+
+The parser now distinguishes binding a new name (`:=`) from rebinding an existing one (`=`). `vfft`, `vml`, and the `matmul_1024_vlin.vy` benchmark were migrated. Commit `fc2c6d2f` (#89).
+
+### Bitwise operators
+
+Lexer, parser, and codegen support for `&`, `|`, `^`, `~`, `<<`, `>>`. `vfft`'s `Kernels.vy` was refactored to use them (`fd0debf2`), a precedence table was documented (`d34ff780`), and guidance on scratch values and bitwise operators was added (`11cb029b`). Tests ship with the implementation (`32057998`, `40fea384`).
+
+### SIMD vectorization for `through` loops
+
+`through` loops are now eligible for SIMD lowering. The change adds `__restrict__` pointer annotations, fixes boxed-interface pathways under SIMD flags, hoists invariant field loads out of the loop, and relaxes the SIMD-safety shape check. Commit `7824f0cf` (#90).
+
+### Typed-array region commits and 0-arg native variants
+
+Typed arrays participate in region commits; native functions may be declared with zero arguments. The monotonic nanosecond clock was extended in the same commit. Commit `b92ceb35` (#92).
+
+### Codegen: native booleans and `Int64` typed-array size
+
+Conditions are emitted as native booleans, and typed-array sizes are emitted as `Int64`. Commit `839ba7ff` (#87).
+
+### BLAS matmul with transposed first operand
+
+A new wrapper for `C = Aᵀ · B` was added, with a BLAS path that honours the transpose flag. Commits `a2bc3339`, `6b80064b`.
+
+### Native C struct expansion
+
+- Struct arrays: `110869ee`, `211ec2b9`, `61dac080`, `0b94a737`.
+- Field-write handling on native receivers: `8ced75d5`.
+- Assignment and member-access handling for native structs: `b4dfe1e8`.
+- C-eligibility checks for interfaces: `d2dc30fe`.
+- Boxing helpers for arrays of native structs: `61dac080`.
+
+### Chemistry engine: `vchem_common`, `vgraph`, `vchem`
+
+New external libraries for the chemistry engine, plus compiler support for **nested friend-library parsing** and **mangled-name interface constructor resolution**. Commits `a5f104de`, `11e49099`, `953623b8`.
+
+### Version and build hardening
+
+Robust versioning in the entry file (`3fd861ce`), the website version mismatch fixed (`45523f5c`, closes #88), xmake `sys_link()` OS modulations (`9e407529`), platform-specific math linking (`01e834da`), and an updated compilation database for core std libraries (`330f76fc`).
+
+### Examples and tooling
+
+- `cast_test` — array manipulation and memory management (`ada3b20c`).
+- `interface_test` — Point array handling, Point property mutation, and Molecule/Atom regression coverage (`02996419`, `633d1ec9`, `211ec2b9`, `0b94a737`, `73d81c14`).
+- `dumm_test` — module-scoped function definitions (`6533662f`).
+- `function_test` — consolidated `add` function (`2cd9c4f9`).
+
+---
+
+## Bug fixes
+
+### Parser and type resolution
+
+- Symbol-table type now propagates to plain variable reads. Commit `441b28db`.
+- Type resolution in `vml` fixed. Commit `394abfc9`.
+- Nested friend-library parsing in `vchem` fixed. Commit `11e49099`.
+- Mangled-name interface constructor resolution fixed. Commit `953623b8`.
+- File-include error resolution in the parser fixed. Commit `7b6b9030`.
+
+### Bitwise tokenizer
+
+Typo fix in the tokenizer's bitwise handling. Commit `40fea384` (#85).
+
+### Version output
+
+Website version mismatch corrected. Commit `45523f5c` (closes #88).
+
+### BLAS
+
+Transposed-first-operand support corrected in the BLAS matmul path. Commits `a2bc3339`, `6b80064b`.
+
+### Native C structs
+
+Field-write paths, member access, and array boxing for native structs corrected across the Oct 4 cluster (`b4dfe1e8`, `8ced75d5`, `61dac080`, `110869ee`).
+
+### Codegen build
+
+C++ build repaired after scratch/region include changes (`<cstdint>` added to `ctype.h`; invalid `throw` placeholder replaced). Commit `b92ceb35` (#92).
+
+---
+
+## Runtime and memory
+
+### Monotonic ns clock
+
+The clock's memory-barrier handling and 0-arg native variant are in place; `vcore_runtime_now_ns` remains the benchmark substrate. Commit `b92ceb35` (#92).
+
+### Typed-array region commits
+
+Typed arrays now participate in region commits, with the corresponding codegen path in place. Commit `b92ceb35` (#92).
+
+### Native C struct arrays
+
+Arrays of native C structs are supported in the runtime and codegen, with boxed fallbacks where needed. Commits `110869ee`, `61dac080`.
+
+### `vmath` native mapping
+
+Native mapping for `vmath` (and, in a follow-up, `vmath` + `vcore`) was adjusted as part of the `#92` cluster. Commit `b92ceb35` (#92).
+
+### Module removals
+
+The Vurage runtime module (`pager.h`, `storage.*`, `type.c`, `vurage.cpp`, `vurage.h`) and the VServ server module (`vserv_*.cpp`) were removed; `xmake.lua` was cleaned of raylib and OpenSSL references and moved to C++23. Commits `57197dfc`, `5a6b4788`, `7532bec7`, `8ac8bfb3`.
+
+---
+
+## Documentation
+
+- Bitwise operators and precedence table. Commit `d34ff780`.
+- Guidance on scratch values and bitwise operators. Commit `11cb029b`.
+- Residual-gap sections formatted for clearer type description. Commit `dc2d9396`.
+- Inline-comment pass. Commit `18e112d9`.
+- Dataset links for future reference. Commit `c55c540b`.
+- Installation build commands split (#86). Commit `0b12ca61`.
+- README updated to reflect C++26 and xmake. Commit `3341ed38`.
+- Drug-discovery TODO status updates for native C structs and Point arrays. Commits `f8bee632`, `a3892f8d`, `7b2017cd`, `cc1400c1`.
+
+---
+
+## Internal changes
+
+### Build system
+
+- xmake project script with configuration and testing (`687a6eff`).
+- Improved platform detection and dependency handling (`8e090118`).
+- C++23 switch and system raylib detection (`038683cb`).
+- OS-specific `sys_link()` dependencies (`9e407529`).
+- Platform-specific math linking (`01e834da`).
+- `.gitignore` updates for `.json`, `.xmake`, `build/`, and `.VSCodeCounter` (`e5c2e465`, `2ce50bdd`).
+
+### Clang tooling
+
+- `clangd` formatting flags (`ef048d6b`).
+- `.clang-format` (`9108020c`).
+- clang compiler parameters and formatting (`e4933714`, `6d828b51`).
+- Compilation database for core std libraries (`330f76fc`).
+
+### Codegen and parser
+
+- `__restrict__` annotations for SIMD (`7824f0cf`).
+- Native booleans and `Int64` typed-array size (`839ba7ff`).
+- Linker AST specifications commented for codegen (`3d772e4c`).
+- `:=` split in parser, codegen, and libraries (`fc2c6d2f`).
+
+### Cleanup
+
+- Vurage shared library and includes removed (`5a6b4788`).
+- VServ module removed (`8ac8bfb3`).
+- `dynamic_casting` ruleset removed from `function_test` (`7532bec7`).
+- Redundant combined modules file removed (`b92ceb35`).
+- `_expect` newline removed (`00da256b`).
+- `interface_test` redundant output statements removed (`73d81c14`).
+- `vfft` `Kernels.vy` refactored for bitwise operators (`fd0debf2`).
+- `matmul_1024_vlin.vy` migrated to `:=` (`fc2c6d2f`).
+
+### Tests
+
+- Bitwise tests (`32057998`, `40fea384`).
+- `interface_test` Molecule/Atom regression suite (`0b94a737`).
+- `cast_test` (`ada3b20c`).
+- SIMD-shape safety coverage (`7824f0cf`).
+- Typed-array region commit coverage (`b92ceb35`).
+- 0-arg native variant coverage (`b92ceb35`).
+- Safety-test variable initializers updated (`b92ceb35`).
+
+### Version badge
+
+README version badge bumped to `0.4.0` (`eca6b27e`); the robust entry-file versioning (`3fd861ce`) and the website-mismatch fix (`45523f5c`) follow.
+
+---
+
+## Breaking changes
+
+### Declaration operator
+
+`:=` now declares; `=` reassigns. Any `.vy` file that previously declared with `=` must be updated. The parser, codegen, `vfft`, `vml`, and the `matmul_1024_vlin.vy` benchmark were migrated in-tree. Commit `fc2c6d2f` (#89).
+
+### Module removals
+
+The Vurage runtime module and the VServ server module are gone. Downstream code that imported either must be ported or replaced. Commits `57197dfc`, `5a6b4788`, `8ac8bfb3`.
+
+### `dynamic_casting` ruleset
+
+Removed from `function_test` and any dependents. Commit `7532bec7`.
+
+### Bitwise precedence
+
+The precedence table is now documented and enforced; code that relied on the previous (unstated) behaviour should be re-checked against the table. Commit `d34ff780`.
+
+### Typed-array region commits
+
+Typed arrays now participate in region commits; allocation and commit behaviour changes for code that relied on the previous non-participating path. Commit `b92ceb35` (#92).
+
+---
+
+## Upgrade guide
+
+1. **Adopt `:=` for declarations.** Replace `x = expr` at first binding with `x := expr`. Keep `=` only for reassignment.
+2. **Drop Vurage and VServ.** Replace any imports with the new equivalents, or remove the dependency.
+3. **Re-check bitwise precedence.** Cross-reference the table in commit `d34ff780` and update any expression whose intent depended on implicit precedence.
+4. **Re-run SIMD-sensitive `through` loops.** The SIMD-safety shape check was relaxed, but `__restrict__` annotations changed pointer aliasing assumptions.
+5. **Re-benchmark typed-array code.** Typed-array region commits and `Int64` sizes change allocation and commit behaviour.
+6. **Add `vchem_common` / `vgraph` to the build graph** if you consume the chemistry engine; nested friend-library parsing and mangled-name constructor resolution are now expected by the parser.
+7. **Rebuild with xmake.** The pre-xmake build files are superseded; C++23/C++26 is now the supported standard.
+8. **Verify the version string** in CLI help after publishing (see `3fd861ce` and `45523f5c`).
+
+---
+
+## Known limitations
+
+- **`vchem` nested-friend parsing is new.** Only the patterns exercised by the chemistry engine are covered; deeply nested friend graphs may still surface parser errors.
+- **SIMD `through` loops are shape-checked, not proven.** The relaxed safety check widens eligibility; correctness for highly irregular strides should be re-tested.
+- **0-arg native variants** are supported at the call boundary; overload resolution among multiple 0-arg variants is not documented.
+- **Vurage/VServ removal is one-way.** Any downstream consumer needs an explicit migration path; no compatibility shim ships.
+- **`vfft` precision and supported lengths** remain unconfirmed from v0.4.0 and are still not stated in the commit log.
+- **Bitwise precedence table is documentation-only in this release.** Enforcement is via parser order; a formal grammar update is pending.
+- **`vmath` / `vcore` native mappings changed twice** in the `#92` cluster; code that relied on the earlier mapping should be re-validated.
+
+---
+
+## Contributors
+
+- **Tuncay Gafarli** — the majority of commits in this release.
+- **Agil Mammadov** — installation-doc split (#86, `0b12ca61`).
+- **f3rhd** — bitwise lexing/parsing/codegen and the tokenizer typo fix (#84, #85; `32057998`, `40fea384`).
+
+## Full commit list
+
+See `git log v0.4.0..HEAD` for the raw list. The 66 commits this release covers span `c65a1e45` (2026-10-04) through `3d772e4c` (2026-10-26).
+
+**Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.4.0...v0.5.0>
