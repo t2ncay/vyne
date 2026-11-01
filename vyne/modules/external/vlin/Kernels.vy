@@ -73,6 +73,48 @@ fn :: vlin k_neg(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> I
 }
 
 # ============================================================================
+# ELEMENT-WISE MATH
+# ============================================================================
+#
+# All take (output, a, n) or (output, a, b, n). Same shape as the
+# element-wise binary kernels above; same native-ABI eligibility.
+# NaN/inf propagation follows vmath: sqrt(-1) = NaN, log(0) = -inf,
+# pow(negative, non-integer) = NaN. Callers who care about domain
+# clamp before calling.
+
+fn :: vlin k_abs(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.abs(a[i]); };
+    return 0;
+}
+
+fn :: vlin k_sqrt(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.sqrt(a[i]); };
+    return 0;
+}
+
+fn :: vlin k_exp(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.exp(a[i]); };
+    return 0;
+}
+
+fn :: vlin k_log(output :: Array<Float64>, a :: Array<Float64>, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.log(a[i]); };
+    return 0;
+}
+
+fn :: vlin k_pow_scalar(output :: Array<Float64>, a :: Array<Float64>,
+                        p :: Float64, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.pow(a[i], p); };
+    return 0;
+}
+
+fn :: vlin k_pow_binary(output :: Array<Float64>, a :: Array<Float64>,
+                        b :: Array<Float64>, n :: Int64) -> Int64 {
+    through i :: 0..n-1 -> loop { output[i] = vmath.pow(a[i], b[i]); };
+    return 0;
+}
+
+# ============================================================================
 # REDUCTIONS
 # ============================================================================
 

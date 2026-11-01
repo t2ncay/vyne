@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
+// --- AFTER ---
 #include "detail/codegen_helpers.h"
 
 // Program and block emission, plus ternary expressions.
@@ -22,6 +23,108 @@
 // ============================================================
 // PROGRAM / BLOCK
 // ============================================================
+
+// Native-variant viability gate.
+//
+// An Array<Float64> / Array<Int64> parameter lowers to a bare
+// `double* __restrict__` / `int64_t* __restrict__` in the native ABI
+// (see emitNativeFunctionBody: RawArrayPtr). That representation keeps
+// the ABI unboxed but drops the length and the container — so *any*
+// method call on the parameter (`.size()`, `.length()`, `.push()`,
+// `.pop()`, `.sort()`, …) cannot be lowered from a raw pointer alone.
+//
+// Kernel functions work around this deliberately by taking an explicit
+// `n :: Int64` parameter; they never call a method on an array argument.
+// Wrapper functions that do call one — `vlin.add_bias` uses
+// `if b.size() != c` — cannot be emitted as native variants.
+//
+// The walk is intentionally conservative. It descends through the AST
+// nodes whose sub-nodes expose public accessors (BinOp, Unary,
+// Assignment, IndexAccess, If, Block, FunctionCall, MemberAccess). Nodes
+// whose sub-tree is not publicly reachable (WhileNode body, ForNode body,
+// ReturnNode expression) are skipped. A `.size()` hidden inside one of
+// those skipped sub-trees is caught by the defense-in-depth check in
+// tryEmitTypedArrayMethod, which throws a clear Compile Error rather
+// than emitting invalid C.
+static bool callsAnyMethodOnArrayParam(
+    const ASTNode* n,
+    const std::unordered_set<std::string>& arrayParams
+) {
+    if (!n)
+        return false;
+
+    if (n->type() == NodeType::METHOD_CALL) {
+        auto* mc = static_cast<const MethodCallNode*>(n);
+        const ASTNode* recv = mc->getReceiver();
+
+        // Only a *direct* variable receiver is the problematic case.
+        // `m.data.size()` where `m` is a boxed Matrix parameter routes
+        // through vyne_struct_get (returning a VyneValue array), so it
+        // still works. But `b.size()` where `b` is a raw-array parameter
+        // has no length to read.
+        if (recv && recv->type() == NodeType::VARIABLE) {
+            auto* vn = static_cast<const VariableNode*>(recv);
+            if (arrayParams.count(vn->getOriginalName())) {
+                return true;
+            }
+        }
+
+        // Recurse into receiver (nested calls) and arguments.
+        if (callsAnyMethodOnArrayParam(recv, arrayParams))
+            return true;
+        for (const auto& a : mc->getArguments())
+            if (callsAnyMethodOnArrayParam(a.get(), arrayParams))
+                return true;
+        return false;
+    }
+
+    switch (n->type()) {
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(n);
+        return callsAnyMethodOnArrayParam(b->leftNode.get(), arrayParams) ||
+               callsAnyMethodOnArrayParam(b->rightNode.get(), arrayParams);
+    }
+    case NodeType::UNARY: {
+        auto* u = static_cast<const UnaryNode*>(n);
+        return callsAnyMethodOnArrayParam(u->getRight(), arrayParams);
+    }
+    case NodeType::ASSIGNMENT: {
+        auto* a = static_cast<const AssignmentNode*>(n);
+        return callsAnyMethodOnArrayParam(a->getRHS(), arrayParams);
+    }
+    case NodeType::INDEX_ACCESS: {
+        auto* ia = static_cast<const IndexAccessNode*>(n);
+        return callsAnyMethodOnArrayParam(ia->getBase(), arrayParams) ||
+               callsAnyMethodOnArrayParam(ia->getIndex(), arrayParams);
+    }
+    case NodeType::MEMBER_ACCESS: {
+        auto* ma = static_cast<const MemberAccessNode*>(n);
+        return callsAnyMethodOnArrayParam(ma->getReceiver(), arrayParams);
+    }
+    case NodeType::IF: {
+        auto* i = static_cast<const IfNode*>(n);
+        return callsAnyMethodOnArrayParam(i->condition.get(), arrayParams) ||
+               callsAnyMethodOnArrayParam(i->body.get(), arrayParams) ||
+               callsAnyMethodOnArrayParam(i->elseBody.get(), arrayParams);
+    }
+    case NodeType::BLOCK: {
+        auto* b = static_cast<const BlockNode*>(n);
+        for (const auto& s : b->statements)
+            if (callsAnyMethodOnArrayParam(s.get(), arrayParams))
+                return true;
+        return false;
+    }
+    case NodeType::FUNCTION_CALL: {
+        auto* fc = static_cast<const FunctionCallNode*>(n);
+        for (const auto& a : fc->getArguments())
+            if (callsAnyMethodOnArrayParam(a.get(), arrayParams))
+                return true;
+        return false;
+    }
+    default:
+        return false;
+    }
+}
 
 void ProgramNode::compile(C_Emitter& e) const {
     // --- Slice 3g: fixed-point C-eligibility -------------------------
@@ -188,6 +291,39 @@ void ProgramNode::compile(C_Emitter& e) const {
                 }
             }
 
+            // Native-variant viability: reject functions whose bodies
+            // invoke any method on an Array<Float64>/Array<Int64>
+            // parameter. Such parameters lower to raw `double*` in the
+            // native ABI (no length, no container), so `.size()`,
+            // `.length()`, `.push()`, `.pop()`, etc. cannot be lowered
+            // from that representation. `vlin.add_bias` is the case that
+            // exposed this: `if b.size() != c` reached the boxed-bind
+            // path and emitted `VyneValue v = <double-pointer>`.
+            //
+            // Falling back to the boxed ABI is correct — just slower.
+            // Functions that pass an explicit `n :: Int64` (all of the
+            // k_* kernels do) have no method calls on their array
+            // parameters and remain unaffected.
+            bool callsArrayMethodOnParam = false;
+            {
+                std::unordered_set<std::string> arrayParams;
+                for (const auto& p : fn->getParameters()) {
+                    if (p.type == VType::Array &&
+                        p.arrayElemType != VType::Unknown) {
+                        arrayParams.insert(p.name);
+                    }
+                }
+                if (!arrayParams.empty()) {
+                    for (const auto& s : fn->getBody()) {
+                        if (s &&
+                            callsAnyMethodOnArrayParam(s.get(), arrayParams)) {
+                            callsArrayMethodOnParam = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
             e.registerFunctionSignature(
                 fn->getOriginalName(),
                 std::move(paramNames)
@@ -204,7 +340,8 @@ void ProgramNode::compile(C_Emitter& e) const {
                 e.registerFunctionReturnType(mangled, retCt);
             }
 
-            if (allNativeCallable && retNative && !hasDeferOrTry) {
+            if (allNativeCallable && retNative && !hasDeferOrTry &&
+                !callsArrayMethodOnParam) {
                 std::string orig = fn->getOriginalName();
                 std::string mangled = orig;
                 std::replace(mangled.begin(), mangled.end(), '.', '_');

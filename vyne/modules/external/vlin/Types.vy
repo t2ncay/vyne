@@ -110,8 +110,11 @@ group Types :: vlin {
             r :: Int64 := self.row;
             c :: Int64 := self.col;
             if new_rows * new_cols != r * c {
-                out(vcolors.red("Matrix Error: reshape size mismatch"));
-                return self.copy();
+                throw "Matrix Error: reshape size mismatch: "
+                    + string(r) + "x" + string(c) + " ("
+                    + string(r * c) + " elements) cannot reshape to "
+                    + string(new_rows) + "x" + string(new_cols) + " ("
+                    + string(new_rows * new_cols) + " elements)";
             }
             n :: Int64 := r * c;
             output_data :: Array<Float64> := [];
@@ -121,8 +124,7 @@ group Types :: vlin {
 
         transposed() {
             r :: Int64 := self.row;
-            c :: Int64 := self.col;
-            n :: Int64 := r * c;
+            c :: Int64 := self.col;            n :: Int64 := r * c;
             output_data :: Array<Float64> := [];
             through i :: 0..n-1 -> loop { output_data.push(0.0); };
             vlin.k_transpose(output_data, self.data, r, c);

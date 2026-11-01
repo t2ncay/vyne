@@ -16,8 +16,9 @@ use native vmath;
 
 fn :: vlin add(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.row != b.row || a.col != b.col {
-        out(vcolors.red("vlin.add: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.add: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
     }
     n :: Int64 := a.row * a.col;
     output_data :: Array<Float64> := vlin.zeros_f64(n);
@@ -27,8 +28,9 @@ fn :: vlin add(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Mat
 
 fn :: vlin subtract(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.row != b.row || a.col != b.col {
-        out(vcolors.red("vlin.subtract: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.subtract: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
     }
     n :: Int64 := a.row * a.col;
     output_data :: Array<Float64> := vlin.zeros_f64(n);
@@ -38,12 +40,25 @@ fn :: vlin subtract(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Type
 
 fn :: vlin hadamard(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.row != b.row || a.col != b.col {
-        out(vcolors.red("vlin.hadamard: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.hadamard: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
     }
     n :: Int64 := a.row * a.col;
     output_data :: Array<Float64> := vlin.zeros_f64(n);
-    vlin.k_mul(output_data, a.data, b.data, n);
+        vlin.k_mul(output_data, a.data, b.data, n);
+    return vlin.Types.Matrix(a.row, a.col, output_data);
+}
+
+fn :: vlin div(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
+    if a.row != b.row || a.col != b.col {
+        throw "vlin.div: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
+    }
+    n :: Int64 := a.row * a.col;
+    output_data :: Array<Float64> := vlin.zeros_f64(n);
+    vlin.k_div(output_data, a.data, b.data, n);
     return vlin.Types.Matrix(a.row, a.col, output_data);
 }
 
@@ -53,8 +68,10 @@ fn :: vlin hadamard(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Type
 
 fn :: vlin multiply(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.col != b.row {
-        out(vcolors.red("vlin.multiply: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.multiply: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (a.col must equal b.row)";
     }
     ar :: Int64 := a.row;
     ac :: Int64 := a.col;
@@ -71,8 +88,10 @@ fn :: vlin multiply(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Type
 fn :: vlin trans_a_multiply(a :: vlin.Types.Matrix,
                             b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.row != b.row {
-        out(vcolors.red("vlin.trans_a_multiply: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.trans_a_multiply: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (a.row must equal b.row)";
     }
     M :: Int64 := a.col;
     K :: Int64 := a.row;
@@ -86,8 +105,10 @@ fn :: vlin trans_a_multiply(a :: vlin.Types.Matrix,
 fn :: vlin multiply_trans_b(a :: vlin.Types.Matrix,
                             b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.col != b.col {
-        out(vcolors.red("vlin.multiply_trans_b: shape mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.multiply_trans_b: shape mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (a.col must equal b.col)";
     }
     M :: Int64 := a.row;
     K :: Int64 := a.col;
@@ -137,6 +158,12 @@ fn :: vlin clip(m :: vlin.Types.Matrix, lo :: Float64, hi :: Float64) -> vlin.Ty
 fn :: vlin add_bias(m :: vlin.Types.Matrix, b :: Array<Float64>) -> vlin.Types.Matrix {
     r :: Int64 := m.row;
     c :: Int64 := m.col;
+    if b.size() != c {
+        throw "vlin.add_bias: bias length mismatch: matrix is "
+            + string(r) + "x" + string(c)
+            + ", bias is " + string(b.size())
+            + " (bias length must equal m.col)";
+    }
     n :: Int64 := r * c;
     output_data :: Array<Float64> := vlin.zeros_f64(n);
     through i :: 0..r-1 -> loop {
@@ -152,39 +179,142 @@ fn :: vlin add_bias(m :: vlin.Types.Matrix, b :: Array<Float64>) -> vlin.Types.M
 # ============================================================================
 
 fn :: vlin add_into(output :: vlin.Types.Matrix,
-                    a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> Int64 {
+                    a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) {
     if output.row != a.row || output.col != a.col ||
        a.row != b.row || a.col != b.col {
-        out(vcolors.red("vlin.add_into: shape mismatch"));
-        return -1;
+        throw "vlin.add_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
     }
     n :: Int64 := output.row * output.col;
     vlin.k_add(output.data, a.data, b.data, n);
-    return 0;
+    return;
 }
 
 fn :: vlin multiply_into(output :: vlin.Types.Matrix,
-                         a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> Int64 {
+                         a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) {
     if output.row != a.row || output.col != b.col || a.col != b.row {
-        out(vcolors.red("vlin.multiply_into: shape mismatch"));
-        return -1;
+        throw "vlin.multiply_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (output must be a.row x b.col, a.col must equal b.row)";
     }
     M :: Int64 := output.row;
     K :: Int64 := a.col;
     N :: Int64 := output.col;
     vlin.k_matmul(output.data, a.data, b.data, M, K, N);
-    return 0;
+    return;
 }
 
-fn :: vlin add_bias_into(m :: vlin.Types.Matrix, b :: Array<Float64>) -> Int64 {
+fn :: vlin add_bias_into(m :: vlin.Types.Matrix, b :: Array<Float64>) {
     r :: Int64 := m.row;
     c :: Int64 := m.col;
+    if b.size() != c {
+        throw "vlin.add_bias_into: bias length mismatch: matrix is "
+            + string(r) + "x" + string(c)
+            + ", bias is " + string(b.size())
+            + " (bias length must equal m.col)";
+    }
     through i :: 0..r-1 -> loop {
         through j :: 0..c-1 -> loop {
             m.data[i * c + j] = m.data[i * c + j] + b[j];
         };
     };
-    return 0;
+    return;
+}
+
+# ============================================================================
+# IN-PLACE VARIANTS: element-wise math
+# ------------------------------------------------------------
+# Everything below is the *_into form of an element-wise op in
+# Ops.vy or Elementwise.vy. Same write-into-destination contract as
+# add_into: output is mutated in place, inputs untouched, no arena
+# traffic. Return 0 on success; throw on shape mismatch.
+#
+# These close the allocation gap in the backward pass: a training
+# step that uses subtract / hadamard / transpose / scale can be
+# rewritten to reuse pre-allocated buffers instead of allocating a
+# fresh Matrix per primitive.
+# ============================================================================
+
+fn :: vlin sub_into(output :: vlin.Types.Matrix,
+                    a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) {
+    if output.row != a.row || output.col != a.col ||
+       a.row != b.row || a.col != b.col {
+        throw "vlin.sub_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
+    }
+    n :: Int64 := output.row * output.col;
+    vlin.k_sub(output.data, a.data, b.data, n);
+    return;
+}
+
+fn :: vlin hadamard_into(output :: vlin.Types.Matrix,
+                         a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) {
+    if output.row != a.row || output.col != a.col ||
+       a.row != b.row || a.col != b.col {
+        throw "vlin.hadamard_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
+    }
+    n :: Int64 := output.row * output.col;
+    vlin.k_mul(output.data, a.data, b.data, n);
+    return;
+}
+
+fn :: vlin div_into(output :: vlin.Types.Matrix,
+                    a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) {
+    if output.row != a.row || output.col != a.col ||
+       a.row != b.row || a.col != b.col {
+        throw "vlin.div_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col);
+    }
+    n :: Int64 := output.row * output.col;
+    vlin.k_div(output.data, a.data, b.data, n);
+    return;
+}
+
+fn :: vlin scale_into(output :: vlin.Types.Matrix,
+                      a :: vlin.Types.Matrix, s :: Float64) {
+    if output.row != a.row || output.col != a.col {
+        throw "vlin.scale_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col);
+    }
+    n :: Int64 := a.row * a.col;
+    vlin.k_scale(output.data, a.data, s, n);
+    return;
+}
+
+fn :: vlin copy_into(output :: vlin.Types.Matrix,
+                     a :: vlin.Types.Matrix) {
+    if output.row != a.row || output.col != a.col {
+        throw "vlin.copy_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col);
+    }
+    n :: Int64 := a.row * a.col;
+    vlin.k_copy(output.data, a.data, n);
+    return;
+}
+
+fn :: vlin transpose_into(output :: vlin.Types.Matrix,
+                          a :: vlin.Types.Matrix) {
+    if output.row != a.col || output.col != a.row {
+        throw "vlin.transpose_into: shape mismatch: output is "
+            + string(output.row) + "x" + string(output.col)
+            + ", a is " + string(a.row) + "x" + string(a.col)
+            + " (output must be a.col x a.row)";
+    }
+    vlin.k_transpose(output.data, a.data, a.row, a.col);
+    return;
 }
 
 # ============================================================================
@@ -193,8 +323,10 @@ fn :: vlin add_bias_into(m :: vlin.Types.Matrix, b :: Array<Float64>) -> Int64 {
 
 fn :: vlin vstack(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.col != b.col {
-        out(vcolors.red("vlin.vstack: column mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.vstack: column count mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (column counts must match)";
     }
     c :: Int64 := a.col;
     n :: Int64 := a.row * c;
@@ -207,8 +339,10 @@ fn :: vlin vstack(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.
 
 fn :: vlin hstack(a :: vlin.Types.Matrix, b :: vlin.Types.Matrix) -> vlin.Types.Matrix {
     if a.row != b.row {
-        out(vcolors.red("vlin.hstack: row mismatch"));
-        return vlin.zeros(0, 0);
+        throw "vlin.hstack: row count mismatch: a is "
+            + string(a.row) + "x" + string(a.col)
+            + ", b is " + string(b.row) + "x" + string(b.col)
+            + " (row counts must match)";
     }
     r :: Int64 := a.row;
     ac :: Int64 := a.col;

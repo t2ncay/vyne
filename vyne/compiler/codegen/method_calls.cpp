@@ -691,6 +691,33 @@ std::optional<std::string> tryEmitTypedArrayMethod(
         (rt->hasShape() || e.lookupScratchRuntimeDims(recvRaw) != nullptr)) {
         return std::nullopt;
     }
+
+    // Defense-in-depth: a RawArrayPtr receiver is the unboxed parameter
+    // representation (`double* __restrict__`) inside a native variant.
+    // It carries no length and no container, so *no* method call on it
+    // can be lowered here. Falling through would emit
+    // `VyneValue v = <double-pointer>` at the boxed-receiver bind —
+    // invalid C, no useful diagnostic. The gate in ProgramNode::compile
+    // already refuses to emit native variants for such functions;
+    // reaching this branch means the gate missed the call site (e.g.
+    // inside a WhileNode body whose AST sub-nodes are not publicly
+    // reachable by the gate walker). Fail with a Vyne-level message.
+    if (rt && rt->kind == CType::Kind::RawArrayPtr) {
+        throw std::runtime_error(
+            "Compile Error: cannot call ." + methodName +
+            "() on an Array<Float64>/Array<Int64> parameter inside a "
+            "native-variant function (line " +
+            std::to_string(node.lineNumber) +
+            ").\n"
+            "  The unboxed ABI passes such parameters as a bare pointer, "
+            "which carries no length. This function should have been "
+            "emitted with the boxed ABI instead — if you reached this "
+            "message, the native-variant viability gate in "
+            "ProgramNode::compile missed this call site. Please report "
+            "the source that triggered it as a compiler bug."
+        );
+    }
+
     if (methodName == "push") {
         if (rt && rt->kind == CType::Kind::Array && !rt->args.empty()) {
             VType elem = rt->args[0].toVType();

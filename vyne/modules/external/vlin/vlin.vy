@@ -7,6 +7,7 @@ use "Ops.vy";
 use "Reductions.vy";
 use "Activations.vy";
 use "Optimizers.vy";
+use "Elementwise.vy";
 
 module vlin;
 
