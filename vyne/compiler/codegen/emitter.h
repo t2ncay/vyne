@@ -236,7 +236,18 @@ class C_Emitter {
 
     bool inNativeVariant = false;
 
+    // Target selection. Only the entry-point emission and the runtime
+    // header name depend on this; every AST lowering path stays identical.
+    bool arduinoTarget_ = false;
+
   public:
+    void setArduinoTarget(bool v) {
+        arduinoTarget_ = v;
+    }
+    bool isArduinoTarget() const {
+        return arduinoTarget_;
+    }
+
     void setInNativeVariant(bool v) {
         inNativeVariant = v;
     }
@@ -901,22 +912,30 @@ class C_Emitter {
     // --- Native module lookup -------------------------------------------
     const NativeMapEntry*
     findNative(const std::string& module, const std::string& member) const {
-        if (module == "vcore")
-            for (const auto& m : VCORE_MAP)
-                if (member == m.vyneName)
-                    return &m;
-        if (module == "vmath")
-            for (const auto& m : VMATH_MAP)
-                if (member == m.vyneName)
-                    return &m;
-        if (module == "vmem")
-            for (const auto& m : VMEM_MAP)
-                if (member == m.vyneName)
-                    return &m;
-        if (module == "vfs")
-            for (const auto& m : VFS_MAP)
-                if (member == m.vyneName)
-                    return &m;
+        const NativeMapEntry* table = nullptr;
+        size_t count = 0;
+
+        if (module == "vcore") {
+            table = VCORE_MAP;
+            count = sizeof(VCORE_MAP) / sizeof(VCORE_MAP[0]);
+        } else if (module == "vmath") {
+            table = VMATH_MAP;
+            count = sizeof(VMATH_MAP) / sizeof(VMATH_MAP[0]);
+        } else if (module == "vmem") {
+            table = VMEM_MAP;
+            count = sizeof(VMEM_MAP) / sizeof(VMEM_MAP[0]);
+        } else if (module == "vfs") {
+            table = VFS_MAP;
+            count = sizeof(VFS_MAP) / sizeof(VFS_MAP[0]);
+        } else if (module == "arduino") {
+            table = ARDUINO_MAP;
+            count = sizeof(ARDUINO_MAP) / sizeof(ARDUINO_MAP[0]);
+        } else
+            return nullptr;
+
+        for (size_t i = 0; i < count; ++i)
+            if (member == table[i].vyneName)
+                return &table[i];
         return nullptr;
     }
     std::string getNativeMapping(
@@ -1180,11 +1199,20 @@ class C_Emitter {
     // --- Output assembly -------------------------------------------------
     std::string finalize(const std::string& runtimeHeader = "vyne_runtime.h") {
         std::stringstream out;
-        out << "#include \"" << runtimeHeader << "\"\n";
-        for (const auto& inc : includeSet)
-            out << "#include \"" << inc << "\"\n";
-        for (const auto& inc : systemIncludes)
-            out << "#include <" << inc << ">\n";
+
+        if (arduinoTarget_) {
+            out << "#include <Arduino.h>\n";
+            // Arduino target uses the MCU runtime, not the desktop one.
+            // The caller (file_handler) is responsible for placing
+            // vyne_arduino.h somewhere avr-gcc's -I list can see it.
+            out << "#include \"vyne_arduino.h\"\n";
+        } else {
+            out << "#include \"" << runtimeHeader << "\"\n";
+            for (const auto& inc : includeSet)
+                out << "#include \"" << inc << "\"\n";
+            for (const auto& inc : systemIncludes)
+                out << "#include <" << inc << ">\n";
+        }
         out << "\n";
 
         std::string globals = globalsStream.str();
@@ -1195,11 +1223,38 @@ class C_Emitter {
         if (!funcs.empty())
             out << "// --- Functions ---\n" << funcs << "\n";
 
-        out << "int main(void) {\n";
-        out << mainStream.str();
-        out << "    arena_free_all();\n";
-        out << "    return 0;\n";
-        out << "}\n";
+        if (arduinoTarget_) {
+            // User code that runs on Arduino lives in `setup()` and
+            // `loop()`. The emitter keeps mainStream single-stream, so
+            // we split it at the first top-level `region` / `through`
+            // — user-visible convention: everything before the loop is
+            // setup, everything from the loop onward is loop body.
+            //
+            // Today the emitter cannot make that split without AST
+            // inspection, so this emits the whole main stream as
+            // `vyne_setup()` and an empty `vyne_loop()`. The names are
+            // deliberately NOT `setup()`/`loop()`: `arduino/vyne_arduino.h`
+            // already defines those and calls into `vyne_setup`/`vyne_loop`
+            // via the extern declarations at the top of that header.
+            // Emitting `setup()` here would be a hard redefinition at link
+            // time. The next commit adds a `splitArduinoMain()` pass that
+            // walks the AST once at finalize-time; this stub is honest
+            // about the limitation.
+            out << "void vyne_setup() {\n";
+            out << mainStream.str();
+            out << "    arena_free_all();\n";
+            out << "}\n\n";
+
+            out << "void vyne_loop() {\n";
+            out << "    // TODO: top-level `through ... -> loop` moves here\n";
+            out << "}\n";
+        } else {
+            out << "int main(void) {\n";
+            out << mainStream.str();
+            out << "    arena_free_all();\n";
+            out << "    return 0;\n";
+            out << "}\n";
+        }
         return out.str();
     }
 
@@ -1277,6 +1332,8 @@ class C_Emitter {
         instantiations.clear();
         instantiationsInProgress.clear();
 
+        inNativeVariant = false;
+        arduinoTarget_ = false;
         tempVarCount = 0;
         indentLevel = 1;
     }

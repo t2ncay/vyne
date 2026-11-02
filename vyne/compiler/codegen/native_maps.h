@@ -196,3 +196,16 @@ static const NativeMapEntry VFS_MAP[] = {
     {"extension", "vfs_extension", false},
     {"join", "vfs_join", false},
 };
+
+// --- arduino ---------------------------------------------------------------
+// No nativeF64 or nativeZero — none of these has a scalar return.
+// `millis` is a zero-arg getter, `delay` is a one-arg void.
+static const NativeMapEntry ARDUINO_MAP[] = {
+    {"pin_mode", "arduino_pin_mode", false},
+    {"digital_write", "arduino_digital_write", false},
+    {"digital_read", "arduino_digital_read", false},
+    {"analog_read", "arduino_analog_read", false},
+    {"analog_write", "arduino_analog_write", false},
+    {"delay", "arduino_delay", false},
+    {"millis", "arduino_millis()", true},
+};
