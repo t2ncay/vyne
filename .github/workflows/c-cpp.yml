@@ -42,9 +42,21 @@ jobs:
 
       - name: Compile Vyne
         run: |
+          # Host build. Excludes:
+          #   ./raylib_src/*     — cloned by the previous step, built separately
+          #   ./vendor/arduino/* — AVR-target sources (avr/pgmspace.h,
+          #                        avr/interrupt.h, its own main.cpp).
+          #                        Built by avr-gcc under `--arduino`,
+          #                        not by g++-13.
+          #   */build/*          — CMake artifacts
+          #   */CMakeFiles/*     — CMake artifacts
           g++-13 -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
               -I./vendor/stb \
-              $(find . -type f -name "*.cpp" ! -path "./raylib_src/*" ! -path "*/build/*" ! -path "*/CMakeFiles/*") \
+              $(find . -type f -name "*.cpp" \
+                  ! -path "./raylib_src/*" \
+                  ! -path "./vendor/arduino/*" \
+                  ! -path "*/build/*" \
+                  ! -path "*/CMakeFiles/*") \
               -o vyne_run \
               -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 -lssl -lcrypto
