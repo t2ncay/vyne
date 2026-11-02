@@ -156,6 +156,11 @@ static void printHelp() {
         YELLOW,
         "Route vlin.multiply through " + C(CYAN, "cblas_dgemm"),
         W);
+    row("--arduino <board>",
+        YELLOW,
+        "Compile for Arduino MCU  " + C(CYAN, "(uno, nano, mega2560)"),
+        W);
+    row("--arduino-flash", YELLOW, "Compile + emit .hex for avrdude", W);
     row("-o <name>",
         YELLOW,
         "Override output base name " + C(CYAN, "(default: source stem)"),
@@ -168,7 +173,6 @@ static void printHelp() {
         MAGENTA,
         "Bundle a self-contained release directory",
         W);
-    row("--lsp", MAGENTA, "Start the language server", W);
 
     divider();
     std::cout << "\n  " << C(CYAN, "Run ") << C(GREEN, "vynec")
@@ -257,6 +261,14 @@ int main(int argc, char* argv[]) {
             setMode(RunMode::CompileOnly);
         } else if (arg == "--run") {
             setMode(RunMode::CompileRun);
+        } else if (arg == "--arduino" && i + 1 < argc) {
+            opts.arduinoBoard = argv[++i];
+            setMode(RunMode::ArduinoCompile);
+        } else if (arg.rfind("--arduino=", 0) == 0) {
+            opts.arduinoBoard = arg.substr(std::strlen("--arduino="));
+            setMode(RunMode::ArduinoCompile);
+        } else if (arg == "--arduino-flash") {
+            setMode(RunMode::ArduinoRun);
         } else if (arg == "-o" && i + 1 < argc)
             opts.outputName = argv[++i];
         else if (arg.size() > 2 && arg[0] == '-' && arg[1] == 'o')

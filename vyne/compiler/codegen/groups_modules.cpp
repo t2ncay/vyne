@@ -29,17 +29,21 @@ void GroupNode::compile(C_Emitter& e) const {
     e.emit("// --- Group: " + groupName + " ---");
 
     for (const auto& stmt : statements) {
-        if (!stmt) continue;
+        if (!stmt)
+            continue;
         if (stmt->type() == NodeType::ASSIGNMENT) {
             auto* assign = static_cast<AssignmentNode*>(stmt.get());
-            std::string mangled = "v_" + groupName + "_" + assign->getOriginalName();
+            std::string mangled =
+                "v_" + groupName + "_" + assign->getOriginalName();
             std::replace(mangled.begin(), mangled.end(), '.', '_');
 
             CType declared = CType::fromVType(assign->getExpectedType());
 
             if (declared.isPrimitive()) {
                 e.declareGlobal(mangled, declared);
-                e.emitGlobalDecl(declared.cTypeName() + " " + mangled + " = 0;");
+                e.emitGlobalDecl(
+                    declared.cTypeName() + " " + mangled + " = 0;"
+                );
             } else {
                 e.registerDeclaration(mangled);
                 e.emitGlobalDecl("VyneValue " + mangled + ";");
@@ -49,7 +53,11 @@ void GroupNode::compile(C_Emitter& e) const {
             std::string val = assign->getRHS()->getCExpr(e);
             if (declared.isPrimitive()) {
                 std::string init = coerceToNative(
-                    e, assign->getRHS(), val, declared.toVType());
+                    e,
+                    assign->getRHS(),
+                    val,
+                    declared.toVType()
+                );
                 e.emit(mangled + " = " + init + ";");
             } else {
                 e.emit(mangled + " = " + e.boxAny(val) + ";");
@@ -69,7 +77,8 @@ void GroupNode::compile(C_Emitter& e) const {
             if (fn->getReturnType() == VType::Array &&
                 fn->getReturnArrayElemType() != VType::Unknown) {
                 retCt.args.push_back(
-                    CType::fromVType(fn->getReturnArrayElemType()));
+                    CType::fromVType(fn->getReturnArrayElemType())
+                );
             }
 
             std::string orig = fn->getOriginalName();
@@ -81,10 +90,10 @@ void GroupNode::compile(C_Emitter& e) const {
 
             std::string groupDotted = groupName + "." + orig;
 
-            e.registerFunctionReturnType(orig,         retCt);
-            e.registerFunctionReturnType(mangled,      retCt);
+            e.registerFunctionReturnType(orig, retCt);
+            e.registerFunctionReturnType(mangled, retCt);
             e.registerFunctionReturnType(groupMangled, retCt);
-            e.registerFunctionReturnType(groupDotted,  retCt);
+            e.registerFunctionReturnType(groupDotted, retCt);
 
             e.popGlobalContext();
             stmt->compile(e);
@@ -119,7 +128,9 @@ void ModuleNode::compile(C_Emitter& e) const {
     e.registerGroup(originalName);
 }
 
-std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
+std::string ModuleNode::getCExpr(C_Emitter& e) const {
+    return "vyne_null()";
+}
 
 // ============================================================
 // NATIVE MODULE — CODEGEN
@@ -138,6 +149,21 @@ std::string ModuleNode::getCExpr(C_Emitter& e) const { return "vyne_null()"; }
 // harmless (includeSet deduplicates by path).
 // ============================================================
 void NativeModuleNode::compile(C_Emitter& e) const {
+    // The `arduino` pseudo-module has no standalone `arduino.h` under
+    // vyne/runtime/modules. Its runtime lives in vyne/runtime/arduino/
+    // and is included by C_Emitter::finalize() whenever the Arduino
+    // target is selected (`#include "vyne_arduino.h"`), which in turn
+    // pulls in <Arduino.h> through mcu_types.h and mcu_hardware.h.
+    // The only thing this node has to do is register the group so
+    // `arduino.pin_mode(...)` reaches the native-method dispatch.
+    if (moduleName == "arduino") {
+        e.registerGroup("arduino");
+        if (!alias.empty()) {
+            e.registerGroup(alias);
+        }
+        return;
+    }
+
     std::string base = FileUtils::getExeDir();
     std::filesystem::path moduleBase =
         std::filesystem::path(base) / "vyne" / "runtime" / "modules";
@@ -149,4 +175,3 @@ void NativeModuleNode::compile(C_Emitter& e) const {
         e.registerGroup(alias);
     }
 }
-
