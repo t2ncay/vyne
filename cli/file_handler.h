@@ -74,6 +74,15 @@ struct BuildOptions {
     std::string outputName;
     std::string arduinoBoard; // "uno", "nano", "mega2560", "leonardo" — empty =
                               // not arduino
+
+    // Arduino post-build actions. All three are opt-in; the two booleans
+    // only take effect under ArduinoRun (which --flash / --monitor set).
+    // They run arduino-cli AFTER avr-gcc produces the .hex — they do not
+    // change what gets built, only what happens next.
+    std::string arduinoPort;     // --port / --device-port, e.g. "COM3"
+    bool arduinoUpload = false;  // --flash: arduino-cli upload <hex>
+    bool arduinoMonitor = false; // --monitor: arduino-cli monitor
+    int baudRate = 115200;       // --baud: must match vyne_arduino.h
 };
 
 int runFile(

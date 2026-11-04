@@ -156,17 +156,39 @@ static void printHelp() {
         YELLOW,
         "Route vlin.multiply through " + C(CYAN, "cblas_dgemm"),
         W);
-    row("--arduino <board>",
-        YELLOW,
-        "Compile for Arduino MCU  " + C(CYAN, "(uno, nano, mega2560)"),
-        W);
-    row("--arduino-flash", YELLOW, "Compile + emit .hex for avrdude", W);
     row("-o <name>",
         YELLOW,
         "Override output base name " + C(CYAN, "(default: source stem)"),
         W);
     row("-h, --help", YELLOW, "Show this message", W);
     row("-V, --version", YELLOW, "Show version and exit", W);
+
+    header("ARDUINO");
+    row("--arduino <board>",
+        YELLOW,
+        "Target board  " + C(CYAN, "(uno, nano, mega2560, leonardo)"),
+        W);
+    row("--arduino-flash",
+        YELLOW,
+        "Emit " + C(CYAN, ".hex") + " after avr-gcc, no upload",
+        W);
+    row("--flash",
+        GREEN,
+        "Build then " + C(CYAN, "arduino-cli upload") + " the .hex",
+        W);
+    row("--monitor",
+        GREEN,
+        "Build then " + C(CYAN, "arduino-cli monitor") + " the port",
+        W);
+    row("--port <port>",
+        YELLOW,
+        "Serial port  " + C(CYAN, "(COM3, /dev/ttyUSB0)"),
+        W);
+    row("--device-port <port>", YELLOW, C(CYAN, "alias for --port"), W);
+    row("--baud <rate>",
+        YELLOW,
+        "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
+        W);
 
     header("TOOLS");
     row("--build-game <script.vy>",
@@ -197,6 +219,16 @@ static void printHelp() {
     std::cout << "    "
               << C(GREEN, "vynec --verify examples/training/ml_seq.vy") << "  "
               << C(CYAN, "# integrity-gated run") << "\n";
+    std::cout << "    "
+              << C(GREEN,
+                   "vynec --arduino uno --flash --port COM3 "
+                   "examples/arduino/reactive.vy")
+              << "\n";
+    std::cout << "    "
+              << C(GREEN,
+                   "vynec --arduino uno --flash --monitor --port COM3 "
+                   "examples/arduino/reactive.vy")
+              << "\n";
 
     std::cout << "\n";
 }
@@ -269,6 +301,34 @@ int main(int argc, char* argv[]) {
             setMode(RunMode::ArduinoCompile);
         } else if (arg == "--arduino-flash") {
             setMode(RunMode::ArduinoRun);
+        } else if (arg == "--flash") {
+            // Upload the emitted .hex via arduino-cli. Implies ArduinoRun
+            // (no hex without a build); the upload itself is a post-build
+            // step in file_handler.cpp.
+            opts.arduinoUpload = true;
+            setMode(RunMode::ArduinoRun);
+        } else if (arg == "--monitor") {
+            // Open arduino-cli monitor on the same port. Can be combined
+            // with --flash (upload, then watch) or used alone (attach to
+            // a board that's already running the last upload).
+            opts.arduinoMonitor = true;
+            setMode(RunMode::ArduinoRun);
+        } else if (
+            (arg == "--port" || arg == "--device-port") && i + 1 < argc
+        ) {
+            opts.arduinoPort = argv[++i];
+        } else if (arg.rfind("--port=", 0) == 0) {
+            opts.arduinoPort = arg.substr(std::strlen("--port="));
+        } else if (arg.rfind("--device-port=", 0) == 0) {
+            opts.arduinoPort = arg.substr(std::strlen("--device-port="));
+        } else if (arg == "--baud" && i + 1 < argc) {
+            try {
+                opts.baudRate = std::stoi(argv[++i]);
+            } catch (...) {
+                std::cerr << RED << "  error" << RESET
+                          << "  --baud requires an integer\n";
+                return 1;
+            }
         } else if (arg == "-o" && i + 1 < argc)
             opts.outputName = argv[++i];
         else if (arg.size() > 2 && arg[0] == '-' && arg[1] == 'o')

@@ -100,7 +100,8 @@ static int buildArduino(
     const std::string& mcu,
     const std::string& variant,
     bool emitHex,
-    const std::string& fqbn
+    const std::string& fqbn,
+    const std::string& boardName
 ) {
     std::string vyneInc = exeDir + "/vyne/runtime/arduino";
     std::string coreDir = exeDir + "/vendor/arduino/cores/arduino";
@@ -243,11 +244,111 @@ static int buildArduino(
         std::cout << GREEN << "  hex       " << RESET << "  " << outHex << "\n";
         std::cout << "\n  " << CYAN
                   << "To flash: arduino-cli upload -p <port> --fqbn " << fqbn
-                  << " ." << RESET << "\n";
+                  << " -i \"" << outHex << "\"" << RESET << "\n";
+        std::cout << "  " << CYAN << "Or:       vynec --arduino " << boardName
+                  << " --flash --port <port> <script.vy>" << RESET << "\n";
     }
 
     return 0;
 }
+
+// ---------------------------------------------------------------------------
+// Arduino post-build actions: upload and monitor
+// ---------------------------------------------------------------------------
+// Both are opt-in (--flash / --monitor) and both need a serial port. If
+// --port was not passed, we prompt on stdin. If stdin is closed or piped
+// from something that doesn't send a port, promptPort() fails fast with a
+// clear error rather than hanging on an invisible prompt.
+// ---------------------------------------------------------------------------
+static std::string promptPort() {
+    std::cout << "\n  " << YELLOW << "Enter Arduino port (e.g. COM3): " << RESET
+              << std::flush;
+    std::string port;
+    if (!std::getline(std::cin, port)) {
+        std::cerr << "\n  " << RED << "error" << RESET
+                  << "  no port given (stdin closed); pass --port\n\n";
+        return "";
+    }
+    size_t start = port.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos)
+        return "";
+    size_t end = port.find_last_not_of(" \t\r\n");
+    return port.substr(start, end - start + 1);
+}
+
+// Upload the emitted .hex to the board. The command is exactly what
+// arduino-cli expects; the hex path is quoted so paths with spaces still
+// resolve. Fails fast on a nonzero arduino-cli exit so the caller doesn't
+// try to open a monitor against a board that never got the new firmware.
+static int doArduinoUpload(
+    const std::string& base,
+    const std::string& fqbn,
+    std::string& port
+) {
+    std::string hexPath = base + ".hex";
+
+    sectionOpen("flash");
+
+    if (port.empty()) {
+        port = promptPort();
+        if (port.empty()) {
+            sectionClose();
+            return 1;
+        }
+    }
+
+    std::cout << "    " << CYAN << "port" << RESET << "        " << port
+              << "\n";
+    std::cout << "    " << CYAN << "fqbn" << RESET << "        " << fqbn
+              << "\n";
+    std::cout << "    " << CYAN << "hex" << RESET << "         " << hexPath
+              << "\n\n";
+
+    std::string cmd = "arduino-cli upload -p " + port + " --fqbn " + fqbn +
+                      " -i \"" + hexPath + "\"";
+    std::cout << "    " << CYAN << "running" << RESET << "     " << cmd
+              << "\n\n";
+
+    int rc = system(cmd.c_str());
+    if (rc != 0) {
+        sectionClose();
+        std::cerr << RED << "  error" << RESET
+                  << "  arduino-cli upload failed (exit " << rc << ")\n\n";
+        return 1;
+    }
+
+    sectionClose();
+    return 0;
+}
+
+// Open the serial monitor on the same port. Blocking call: the user exits
+// with Ctrl+C. arduino-cli handles the SIGINT and returns cleanly; the
+// parent's system() returns and we print the section close. On terminals
+// where Ctrl+C kills the whole process group, the prompt still comes back
+// to the shell — either behaviour is acceptable, since the user asked for
+// a blocking monitor.
+static int doArduinoMonitor(const std::string& port, int baud) {
+    if (port.empty())
+        return 0;
+
+    sectionOpen("monitor");
+
+    std::cout << "    " << CYAN << "port" << RESET << "        " << port
+              << "\n";
+    std::cout << "    " << CYAN << "baud" << RESET << "        " << baud
+              << "\n\n";
+
+    std::string cmd = "arduino-cli monitor -p " + port +
+                      " -c baudrate=" + std::to_string(baud);
+    std::cout << "    " << CYAN << "running" << RESET << "     " << cmd << "\n";
+    std::cout << "    " << YELLOW << "(press Ctrl+C to exit)" << RESET
+              << "\n\n";
+
+    int rc = system(cmd.c_str());
+    sectionClose();
+    return rc;
+}
+
 // ---------------------------------------------------------------------------
 // Transpile + downstream phases
 // ---------------------------------------------------------------------------
@@ -406,15 +507,37 @@ static int runTranspile(
             (std::string(board->name) == "mega2560") ? "mega" : "standard";
         bool emitHex = (opts.mode == RunMode::ArduinoRun);
 
-        return buildArduino(
+        int rc = buildArduino(
             base,
             ardCpp,
             exeDir,
             board->mcu,
             variant,
             emitHex,
-            board->fqbn
+            board->fqbn,
+            board->name
         );
+        if (rc != 0)
+            return rc;
+
+        // --flash / --monitor are post-build steps. They only make sense
+        // when a .hex was actually emitted; --flash / --monitor both set
+        // RunMode::ArduinoRun, so emitHex is true by construction.
+        std::string resolvedPort = opts.arduinoPort;
+
+        if (opts.arduinoUpload) {
+            rc = doArduinoUpload(base, board->fqbn, resolvedPort);
+            if (rc != 0)
+                return rc;
+        }
+
+        if (opts.arduinoMonitor) {
+            rc = doArduinoMonitor(resolvedPort, opts.baudRate);
+            if (rc != 0)
+                return rc;
+        }
+
+        return 0;
     }
 
     // Common gcc flags, extended per downstream mode.
