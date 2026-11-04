@@ -152,13 +152,26 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + std::to_string(bt->shape[0]) + ")) {"
             );
-            e.emit(
-                "    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
-                "out of bounds: dim 0 of shape [" +
-                std::to_string(bt->shape[0]) + "] got %lld at line " +
-                std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");"
-            );
-            e.emit("    exit(1);");
+            if (e.isArduinoTarget()) {
+                // Firmware: `fprintf(stderr, ...)` and `exit(1)` are
+                // not available. The MCU runtime exposes a panic that
+                // prints over Serial and halts.
+                e.emit(
+                    "    vyne_panic_bounds(\"dim 0\", " +
+                    std::to_string(bt->shape[0]) + ", " +
+                    std::to_string(lineNumber) + ", " + iv + ");"
+                );
+            } else {
+                e.emit(
+                    "    fprintf(stderr, \"Runtime error (VNE-072): scratch "
+                    "index "
+                    "out of bounds: dim 0 of shape [" +
+                    std::to_string(bt->shape[0]) + "] got %lld at line " +
+                    std::to_string(lineNumber) + "\\n\", (long long)" + iv +
+                    ");"
+                );
+                e.emit("    exit(1);");
+            }
             e.emit("}");
         } else {
             iv = idx;
@@ -325,13 +338,23 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + std::to_string(bt->shape[0]) + ")) {"
             );
-            e.emit(
-                "    fprintf(stderr, \"Runtime error (VNE-072): scratch index "
-                "out of bounds: dim 0 of shape [" +
-                std::to_string(bt->shape[0]) + "] got %lld at line " +
-                std::to_string(lineNumber) + "\\n\", (long long)" + iv + ");"
-            );
-            e.emit("    exit(1);");
+            if (e.isArduinoTarget()) {
+                e.emit(
+                    "    vyne_panic_bounds(\"dim 0\", " +
+                    std::to_string(bt->shape[0]) + ", " +
+                    std::to_string(lineNumber) + ", " + iv + ");"
+                );
+            } else {
+                e.emit(
+                    "    fprintf(stderr, \"Runtime error (VNE-072): scratch "
+                    "index "
+                    "out of bounds: dim 0 of shape [" +
+                    std::to_string(bt->shape[0]) + "] got %lld at line " +
+                    std::to_string(lineNumber) + "\\n\", (long long)" + iv +
+                    ");"
+                );
+                e.emit("    exit(1);");
+            }
             e.emit("}");
         } else {
             iv = idx;

@@ -1,7 +1,14 @@
-// runtime/arduino/detail/mcu_types.h
 #pragma once
 #include "mcu_arena.h"
 #include <Arduino.h>
+
+// Branch-prediction hint used by the emitted scratch bounds checks.
+// `__builtin_expect` compiles to a no-op tag on AVR but keeps the
+// emitter's output identical to the desktop target — one code path
+// for both.
+#ifndef VYNE_UNLIKELY
+#define VYNE_UNLIKELY(x) __builtin_expect(!!(x), 0)
+#endif
 
 typedef enum : uint8_t {
     V_NULL = 0,
