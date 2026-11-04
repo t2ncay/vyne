@@ -43,6 +43,11 @@ static inline void arena_free_all(void) {
     g_mcu_cp_top = 0;
 }
 
+// Byte count currently in use. Exposed via arduino.arena_used().
+static inline size_t arena_used(void) {
+    return g_mcu_cur;
+}
+
 typedef struct {
     size_t offset;
 } ArenaCheckpoint;

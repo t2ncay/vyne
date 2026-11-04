@@ -102,17 +102,20 @@ static std::string nativeInit(
         return val;
     }
 
+    std::string tmp = e.newTemp("ni");
+    e.emit("VyneValue " + tmp + " = " + e.boxAny(val) + ";");
+
     switch (declared.kind) {
     case CType::Kind::Int64:
-        return "((" + val + ").type == V_INT64) ? (" + val +
-               ").as.i64 : (int64_t)(" + val + ").as.f64";
+        return "((" + tmp + ").type == V_INT64) ? (" + tmp +
+               ").as.i64 : (int64_t)(" + tmp + ").as.f64";
     case CType::Kind::Float64:
-        return "((" + val + ").type == V_FLOAT64) ? (" + val +
-               ").as.f64 : (double)(" + val + ").as.i64";
+        return "((" + tmp + ").type == V_FLOAT64) ? (" + tmp +
+               ").as.f64 : (double)(" + tmp + ").as.i64";
     case CType::Kind::Bool:
-        return "((" + val + ").as.i64 != 0)";
+        return "((" + tmp + ").as.i64 != 0)";
     default:
-        return val;
+        return tmp;
     }
 }
 
