@@ -207,5 +207,7 @@ static const NativeMapEntry ARDUINO_MAP[] = {
     {"analog_read", "arduino_analog_read", false},
     {"analog_write", "arduino_analog_write", false},
     {"delay", "arduino_delay", false},
+    {"serial_begin", "arduino_serial_begin", false},
+    {"serial_print", "arduino_serial_print", false},
     {"millis", "arduino_millis()", true},
 };

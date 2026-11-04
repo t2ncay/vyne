@@ -9,8 +9,8 @@ arduino.pin_mode(led_pin, 1); # 1 = OUTPUT
 # Main loop
 through i :: 1..10000 -> loop {
     arduino.digital_write(led_pin, 1); # Turn LED ON
-    arduino.delay(1000);               # Wait 1 second
+    arduino.delay(5000);               # Wait 1 second
     
     arduino.digital_write(led_pin, 0); # Turn LED OFF
-    arduino.delay(1000);               # Wait 1 second
+    arduino.delay(5000);               # Wait 1 second
 };

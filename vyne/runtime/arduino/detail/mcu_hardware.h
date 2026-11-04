@@ -34,3 +34,13 @@ static inline VyneValue arduino_delay(VyneValue ms) {
 static inline VyneValue arduino_millis(void) {
     return vyne_int(millis());
 }
+
+static inline VyneValue arduino_serial_begin(VyneValue baud) {
+    ::Serial.begin((unsigned long)baud.as.i64);
+    return vyne_null();
+}
+
+static inline VyneValue arduino_serial_print(VyneValue v) {
+    _vyne_print_internal(v);
+    return vyne_null();
+}

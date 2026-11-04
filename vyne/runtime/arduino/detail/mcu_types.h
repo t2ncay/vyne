@@ -66,6 +66,15 @@ static inline VyneValue vyne_string(const char* s) {
     return v;
 }
 
+// Literals are stored in .rodata (flash). We just point to them
+// without copying to the arena, exactly like the desktop runtime.
+static inline VyneValue vyne_string_static(const char* s) {
+    VyneValue v;
+    v.type = V_STRING;
+    v.as.str = (char*)s;
+    return v;
+}
+
 static inline void _vyne_print_internal(VyneValue v) {
     // Qualified lookup only. On several AVR cores, `Serial.print`
     // participates in unqualified lookup together with `std::print`
