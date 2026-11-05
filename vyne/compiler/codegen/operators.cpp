@@ -522,24 +522,121 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
             std::to_string(lineNumber) + ")."
         );
     }
-    std::string val = e.boxAny(right->getCExpr(e));
-    std::string temp = e.newTemp("un");
-    int opCode = static_cast<int>(op);
 
+    // Evaluate the operand exactly once. The result may be native (a raw
+    // `int64_t` / `double` / `bool` C expression) or boxed (e.g.
+    // `vyne_float(0.2)` for a Float64 literal, or a `VyneValue` local).
+    // Fast paths below decide which, and emit the corresponding raw C
+    // operator when possible.
+    std::string rawVal = right->getCExpr(e);
+    std::string temp = e.newTemp("un");
+
+    // ---- Native fast paths -----------------------------------------
+    // The Arduino MCU runtime (arduino/detail/mcu_types.h) does not
+    // ship `vyne_unary` — only the desktop runtime does. So any path
+    // that falls through to `vyne_unary` breaks the AVR build. These
+    // fast paths keep the common unary operators native on every
+    // target, matching the pattern already established in
+    // `BinOpNode::getCExpr`.
+    //
+    // Order matters:
+    //   (1) Literal NUMBER / BOOLEAN — no emission needed, just use the
+    //       known literal value directly.
+    //   (2) Native expression (registered in `nativeTemps` or
+    //       `localTypes` as Int64 / Float64 / Bool).
+    //   (3) Boxed fallback via `vyne_unary`.
+
+    // (1) Number literal — emit the negated/complemented literal directly.
+    if (right->type() == NodeType::NUMBER) {
+        auto* num = static_cast<const NumberNode*>(right.get());
+        if (op == VTokenType::Substract) {
+            if (num->getStaticType() == VType::Int64) {
+                e.emit("int64_t " + temp + " = -" + num->nativeLiteral() + ";");
+                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+                return temp;
+            }
+            e.emit("double " + temp + " = -" + num->nativeLiteral() + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+            return temp;
+        }
+        if (op == VTokenType::Bitwise_Not &&
+            num->getStaticType() == VType::Int64) {
+            e.emit("int64_t " + temp + " = ~" + num->nativeLiteral() + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+    }
+
+    // (2) Boolean literal — `!true` / `!false` fold to the inverse literal.
+    if (right->type() == NodeType::BOOLEAN && op == VTokenType::Exclamatory) {
+        auto* b = static_cast<const BooleanNode*>(right.get());
+        std::string inverted =
+            (b->nativeLiteral() == "true") ? "false" : "true";
+        e.emit("VyneValue " + temp + " = vyne_bool(" + inverted + ");");
+        return temp;
+    }
+
+    // (3) Already-native expression — emit the corresponding raw C
+    //     operator. `exprNativeType` returns non-null only when the
+    //     operand is provably Int64 / Float64 / Bool, so we never
+    //     apply `-` to a struct or `~` to a double.
+    if (const CType* ct = e.exprNativeType(rawVal)) {
+        if (op == VTokenType::Substract) {
+            if (ct->kind == CType::Kind::Int64) {
+                e.emit("int64_t " + temp + " = -" + rawVal + ";");
+                e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+                return temp;
+            }
+            if (ct->kind == CType::Kind::Float64) {
+                e.emit("double " + temp + " = -" + rawVal + ";");
+                e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+                return temp;
+            }
+        }
+        if (op == VTokenType::Bitwise_Not && ct->kind == CType::Kind::Int64) {
+            e.emit("int64_t " + temp + " = ~" + rawVal + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+        if (op == VTokenType::Exclamatory) {
+            if (ct->kind == CType::Kind::Bool) {
+                e.emit("VyneValue " + temp + " = vyne_bool(!" + rawVal + ");");
+                return temp;
+            }
+            if (ct->kind == CType::Kind::Int64) {
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + rawVal + " == 0);"
+                );
+                return temp;
+            }
+            if (ct->kind == CType::Kind::Float64) {
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + rawVal + " == 0.0);"
+                );
+                return temp;
+            }
+        }
+    }
+
+    // ---- Slow path: boxed/dynamic through vyne_unary ----------------
+    // Only reached when the operand's static type is not provable at
+    // compile time. Desktop-only; on Arduino this path is never hit
+    // for well-typed code, and mis-typed code is a user error rather
+    // than a runtime binding gap.
+    int opCode = static_cast<int>(op);
     if (op == VTokenType::Exclamatory)
         opCode = 44;
     else if (op == VTokenType::Substract)
         opCode = 30;
     else if (op == VTokenType::Bitwise_Not)
-        opCode = 52; // enum value of bitwise not in codegen/operators.h
+        opCode = 52;
 
     e.emit(
-        "VyneValue " + temp + " = vyne_unary(" + val + ", " +
+        "VyneValue " + temp + " = vyne_unary(" + e.boxAny(rawVal) + ", " +
         std::to_string(opCode) + ");"
     );
     return temp;
 }
-
 void UnaryNode::compile(C_Emitter& e) const {
     getCExpr(e);
 }
