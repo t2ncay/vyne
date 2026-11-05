@@ -18,11 +18,25 @@ static inline VyneValue arduino_digital_read(VyneValue pin) {
 }
 
 static inline VyneValue arduino_analog_read(VyneValue pin) {
-    return vyne_int(analogRead(pin.as.i64));
+    // g_vyne_adc_shift defaults to 0 → identical behaviour to the
+    // pre-resolution API. arduino.analog_read_resolution(8) sets it to 2.
+    return vyne_int(analogRead(pin.as.i64) >> g_vyne_adc_shift);
 }
 
 static inline VyneValue arduino_analog_write(VyneValue pin, VyneValue val) {
-    analogWrite(pin.as.i64, val.as.i64);
+    // g_vyne_pwm_bits defaults to 8 → raw 0..255 pass-through, unchanged.
+    // If the sketch set a coarser resolution (e.g. 4 bits), scale so 0..15
+    // maps to 0..255 before reaching the hardware.
+    int64_t v = val.as.i64;
+    if (g_vyne_pwm_bits != 8) {
+        int64_t max_in = ((int64_t)1 << g_vyne_pwm_bits) - 1;
+        v = (v * 255) / max_in;
+        if (v < 0)
+            v = 0;
+        if (v > 255)
+            v = 255;
+    }
+    analogWrite(pin.as.i64, (int)v);
     return vyne_null();
 }
 

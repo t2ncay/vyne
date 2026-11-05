@@ -1,7 +1,15 @@
 // runtime/arduino/vyne_arduino.h
 #pragma once
 #include "detail/mcu_arena.h"
+#include "detail/mcu_bits.h"
+#include "detail/mcu_eeprom.h"
 #include "detail/mcu_hardware.h"
+#include "detail/mcu_interrupts.h"
+#include "detail/mcu_math.h"
+#include "detail/mcu_memory.h"
+#include "detail/mcu_pins_ext.h"
+#include "detail/mcu_serial.h"
+#include "detail/mcu_timing.h"
 #include "detail/mcu_types.h"
 #include <Arduino.h>
 

@@ -2,6 +2,17 @@
 #include "mcu_arena.h"
 #include <Arduino.h>
 
+// Runtime analog I/O state. Written by arduino.analog_read_resolution() and
+// arduino.analog_write_resolution(); read by
+// arduino.analog_read()/analog_write() in mcu_hardware.h. Defaults preserve
+// classic 10-bit ADC and 8-bit PWM, so existing sketches emit identical code.
+//
+// These are process-global and intentionally survive a region rewind —
+// resolution is configuration, not scratch state. Setting them from inside a
+// region does not roll back on exit.
+static uint8_t g_vyne_adc_shift = 0; // 0 = 10-bit, 2 = 8-bit, etc.
+static uint8_t g_vyne_pwm_bits = 8;  // 8 = raw 0..255, else software-scaled
+
 // Branch-prediction hint used by the emitted scratch bounds checks.
 // `__builtin_expect` compiles to a no-op tag on AVR but keeps the
 // emitter's output identical to the desktop target — one code path

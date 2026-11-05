@@ -201,6 +201,7 @@ static const NativeMapEntry VFS_MAP[] = {
 // No nativeF64 or nativeZero — none of these has a scalar return.
 // `millis` is a zero-arg getter, `delay` is a one-arg void.
 static const NativeMapEntry ARDUINO_MAP[] = {
+    // --- Base pin / digital / analog (mcu_hardware.h) ---
     {"pin_mode", "arduino_pin_mode", false},
     {"digital_write", "arduino_digital_write", false},
     {"digital_read", "arduino_digital_read", false},
@@ -208,12 +209,101 @@ static const NativeMapEntry ARDUINO_MAP[] = {
     {"analog_write", "arduino_analog_write", false},
     {"delay", "arduino_delay", false},
     {"delay_microseconds", "arduino_delay_microseconds", false},
+
+    // --- Serial (mcu_serial.h) ---
     {"serial_begin", "arduino_serial_begin", false},
     {"serial_print", "arduino_serial_print", false},
+    {"serial_available", "arduino_serial_available", false},
+    {"serial_read", "arduino_serial_read", false},
+    {"serial_read_line", "arduino_serial_read_line", false},
+    {"serial_parse_int", "arduino_serial_parse_int", false},
+    {"serial_parse_float", "arduino_serial_parse_float", false},
+    {"serial_println", "arduino_serial_println", false},
+    {"serial_flush", "arduino_serial_flush", false},
+
+    // --- Timing (mcu_hardware.h + mcu_timing.h) ---
     {"millis", "arduino_millis()", true},
     {"micros", "arduino_micros()", true},
+    {"pulse_width", "arduino_pulse_width", false},
+    {"timer_read", "arduino_timer_read", false},
+
+    // --- Math (mcu_math.h). The _f64 entries fire when every arg is
+    //     statically Float64; the boxed C symbol is the fallback. ---
+    {"sin", "arduino_sin", false, false, "arduino_sin_f64"},
+    {"cos", "arduino_cos", false, false, "arduino_cos_f64"},
+    {"sqrt", "arduino_sqrt", false, false, "arduino_sqrt_f64"},
+    {"tan", "arduino_tan", false, false, "arduino_tan_f64"},
+    {"asin", "arduino_asin", false, false, "arduino_asin_f64"},
+    {"acos", "arduino_acos", false, false, "arduino_acos_f64"},
+    {"atan", "arduino_atan", false, false, "arduino_atan_f64"},
+    {"atan2", "arduino_atan2", false, false, "arduino_atan2_f64"},
+    {"log", "arduino_log", false, false, "arduino_log_f64"},
+    {"log10", "arduino_log10", false, false, "arduino_log10_f64"},
+    {"exp", "arduino_exp", false, false, "arduino_exp_f64"},
+    {"pow", "arduino_pow", false, false, "arduino_pow_f64"},
+    {"fmod", "arduino_fmod", false, false, "arduino_fmod_f64"},
+    {"constrain", "arduino_constrain", false, false, "arduino_constrain_f64"},
+    {"fmap", "arduino_fmap", false, false, "arduino_fmap_f64"},
+    {"lerp", "arduino_lerp", false, false, "arduino_lerp_f64"},
+    {"smoothstep",
+     "arduino_smoothstep",
+     false,
+     false,
+     "arduino_smoothstep_f64"},
+    {"radians", "arduino_radians", false, false, "arduino_radians_f64"},
+    {"degrees", "arduino_degrees", false, false, "arduino_degrees_f64"},
+    {"random", "arduino_random_variadic", false, true}, // (max) or (lo, hi)
+    {"random_seed", "arduino_random_seed", false},
+
+    // --- Digital / analog extensions (mcu_pins_ext.h) ---
+    {"pin_toggle", "arduino_pin_toggle", false},
+    {"pulse_in", "arduino_pulse_in", false},
+    {"shift_out", "arduino_shift_out", false},
+    {"pulse_count", "arduino_pulse_count", false},
+    {"analog_read_voltage", "arduino_analog_read_voltage", false},
+    {"analog_reference", "arduino_analog_reference", false},
+    {"analog_read_resolution", "arduino_analog_read_resolution", false},
+    {"analog_write_resolution", "arduino_analog_write_resolution", false},
+    {"analog_read_oversampled", "arduino_analog_read_oversampled", false},
+
+    // --- Memory introspection (mcu_memory.h) ---
     {"arena_used", "arduino_arena_used()", true},
-    {"sin", "arduino_sin", false},
-    {"cos", "arduino_cos", false},
-    {"sqrt", "arduino_sqrt", false},
+    {"arena_peak", "arduino_arena_peak()", true},
+    {"arena_free", "arduino_arena_free()", true},
+    {"free_ram", "arduino_free_ram()", true},
+    {"stack_free", "arduino_stack_free()", true},
+
+    // --- Bit manipulation (mcu_bits.h) ---
+    {"bit_set", "arduino_bit_set", false},
+    {"bit_clear", "arduino_bit_clear", false},
+    {"bit_toggle", "arduino_bit_toggle", false},
+    {"bit_read", "arduino_bit_read", false},
+    {"low_byte", "arduino_low_byte", false},
+    {"high_byte", "arduino_high_byte", false},
+    {"make_word", "arduino_make_word", false},
+    {"popcount", "arduino_popcount", false},
+    {"crc8", "arduino_crc8", false},
+
+    // --- EEPROM (mcu_eeprom.h) ---
+    {"eeprom_read_int", "arduino_eeprom_read_int", false},
+    {"eeprom_write_int", "arduino_eeprom_write_int", false},
+    {"eeprom_read_float", "arduino_eeprom_read_float", false},
+    {"eeprom_write_float", "arduino_eeprom_write_float", false},
+
+    // --- Interrupts + watchdog (mcu_interrupts.h) ---
+    {"attach_interrupt", "arduino_attach_interrupt", false},
+    {"detach_interrupt", "arduino_detach_interrupt", false},
+    {"interrupt_count", "arduino_interrupt_count", false},
+    {"interrupt_reset", "arduino_interrupt_reset", false},
+    {"interrupt_fired", "arduino_interrupt_fired", false},
+    {"watchdog_enable", "arduino_watchdog_enable", false},
+    {"watchdog_reset", "arduino_watchdog_reset()", true},
+    {"watchdog_disable", "arduino_watchdog_disable()", true},
+
+    // --- NOT IMPLEMENTED (documented, intentionally absent from map) ---
+    // dot, norm, argmax, argmin require a typed-array container
+    // (VyneArray_f64 / VyneArray_i64) in mcu_types.h plus boxAny
+    // lowering for MCU targets. Calling these names from a sketch will
+    // fail at compile time with "not defined" — deliberately clearer
+    // than a runtime halt.
 };
