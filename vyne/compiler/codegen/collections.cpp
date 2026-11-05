@@ -200,6 +200,73 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         return name;
     }
 
+    // Runtime-dim scratch — `scratch buf :: Float64[n];` lowers to a
+    // raw C VLA (`double v_buf[n];`), not a `VyneArray_f64` container.
+    // Single-index access on it must therefore emit `bRaw[idx]`, not
+    // `bRaw.data[idx]` (which is the class of bug this branch exists
+    // to close). Detection keys on two facts the static path cannot
+    // satisfy simultaneously:
+    //   - kind == Array with a known element type (so it's an array),
+    //   - shape.empty() (so it's not a static-shape scratch),
+    //   - the runtime-dims registry has an entry for this C name
+    //     (so it *is* a runtime-dim scratch, not a bare Array<T>).
+    // Multi-index access on a runtime-dim scratch goes through
+    // ScratchIndexNode, which already handles arbitrary rank via
+    // scratchFlatIndex. Single-index on rank > 1 is a user error and
+    // gets VNE-071 with the correct fix.
+    if (bt && bt->kind == CType::Kind::Array && !bt->args.empty() &&
+        bt->shape.empty() && e.lookupScratchRuntimeDims(bRaw) != nullptr) {
+        const auto* runtimeDims = e.lookupScratchRuntimeDims(bRaw);
+        if (runtimeDims->size() != 1) {
+            throw std::runtime_error(
+                "Shape Error (VNE-071): single index on rank-" +
+                std::to_string(runtimeDims->size()) +
+                " runtime-dim scratch (line " + std::to_string(lineNumber) +
+                "). Use multi-index syntax `buf[i, j]` or `buf[i, j, k]`."
+            );
+        }
+
+        VType elem = bt->args[0].toVType();
+        std::string rawIdx = index->getCExpr(e);
+        std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
+
+        std::string iv;
+        if (e.isScratchBoundsEnabled()) {
+            iv = e.newTemp("si");
+            e.emit("int64_t " + iv + " = " + idx + ";");
+            e.emit(
+                "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
+                " >= " + (*runtimeDims)[0] + ")) {"
+            );
+            if (e.isArduinoTarget()) {
+                e.emit(
+                    "    vyne_panic_bounds(\"dim 0\", " + (*runtimeDims)[0] +
+                    ", " + std::to_string(lineNumber) + ", " + iv + ");"
+                );
+            } else {
+                e.emit(
+                    "    fprintf(stderr, \"Runtime error (VNE-072): scratch "
+                    "index out of bounds: dim 0 of runtime scratch got "
+                    "%lld at line " +
+                    std::to_string(lineNumber) + "\\n\", (long long)" + iv +
+                    ");"
+                );
+                e.emit("    exit(1);");
+            }
+            e.emit("}");
+        } else {
+            iv = idx;
+        }
+
+        std::string name = e.newTemp("idx");
+        e.emit(
+            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            bRaw + "[" + iv + "];"
+        );
+        e.declareNativeTemp(name, CType::fromVType(elem));
+        return name;
+    }
+
     if (bt && bt->kind == CType::Kind::Array && !bt->args.empty()) {
         const CType& elemCt = bt->args[0];
 
@@ -370,6 +437,62 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
         std::string rawVal = rhs->getCExpr(e);
         std::string val = coerceToNative(e, rhs.get(), rawVal, elem);
         e.emit(bRaw + "[" + idx + "] = " + val + ";");
+        return;
+    }
+
+    // Runtime-dim scratch store. Mirrors IndexAccessNode::getCExpr's
+    // runtime branch — the destination is a raw C array, not a
+    // VyneArray_* container, so `bRaw[idx] = val` is the correct
+    // lowering. Rank must be 1; multi-index writes go through
+    // ScratchStoreNode, which handles arbitrary rank via
+    // scratchFlatIndex.
+    if (bt && bt->kind == CType::Kind::Array && !bt->args.empty() &&
+        bt->shape.empty() && e.lookupScratchRuntimeDims(bRaw) != nullptr) {
+        const auto* runtimeDims = e.lookupScratchRuntimeDims(bRaw);
+        if (runtimeDims->size() != 1) {
+            throw std::runtime_error(
+                "Shape Error (VNE-071): single index on rank-" +
+                std::to_string(runtimeDims->size()) +
+                " runtime-dim scratch (line " + std::to_string(lineNumber) +
+                "). Use multi-index syntax `buf[i, j]` or `buf[i, j, k]`."
+            );
+        }
+
+        VType elem = bt->args[0].toVType();
+        std::string rawIdx = index->getCExpr(e);
+        std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
+        std::string rawVal = rhs->getCExpr(e);
+        std::string val = coerceToNative(e, rhs.get(), rawVal, elem);
+
+        std::string iv;
+        if (e.isScratchBoundsEnabled()) {
+            iv = e.newTemp("si");
+            e.emit("int64_t " + iv + " = " + idx + ";");
+            e.emit(
+                "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
+                " >= " + (*runtimeDims)[0] + ")) {"
+            );
+            if (e.isArduinoTarget()) {
+                e.emit(
+                    "    vyne_panic_bounds(\"dim 0\", " + (*runtimeDims)[0] +
+                    ", " + std::to_string(lineNumber) + ", " + iv + ");"
+                );
+            } else {
+                e.emit(
+                    "    fprintf(stderr, \"Runtime error (VNE-072): scratch "
+                    "index out of bounds: dim 0 of runtime scratch got "
+                    "%lld at line " +
+                    std::to_string(lineNumber) + "\\n\", (long long)" + iv +
+                    ");"
+                );
+                e.emit("    exit(1);");
+            }
+            e.emit("}");
+        } else {
+            iv = idx;
+        }
+
+        e.emit(bRaw + "[" + iv + "] = " + val + ";");
         return;
     }
 
