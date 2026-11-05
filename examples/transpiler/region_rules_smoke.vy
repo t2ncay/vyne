@@ -109,7 +109,7 @@ out("     (scratch is stack-allocated, never touches the arena)");
 scratch_sum :: Float64 := 0.0;
 
 @bounded<100> region scratch_heavy {
-    scratch buf :: Float64[2048];   # 16 KB on the C stack
+    scratch buf :: Float64[20048];   # 16 KB on the C stack
     buf[0]    = 42.0;
     buf[2047] = 84.0;
     scratch_sum = buf[0] + buf[2047];

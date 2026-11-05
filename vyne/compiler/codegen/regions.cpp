@@ -281,6 +281,7 @@ static void compileBoundedRegion(C_Emitter& e, const RegionNode& r) {
 
     std::string cpHandle = e.newTemp("vmem_cp");
     std::string startVar = e.newTemp("bounded_start");
+    std::string budgetVar = e.newTemp("bounded_budget");
     std::string usedVar = e.newTemp("bounded_used");
 
     e.emit(
@@ -289,9 +290,10 @@ static void compileBoundedRegion(C_Emitter& e, const RegionNode& r) {
     );
     e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
     e.emit("size_t " + startVar + " = g_arena.total_allocated;");
+    e.emit("int64_t " + budgetVar + " = " + std::to_string(bound) + ";");
 
     e.pushRegion(cpHandle);
-    e.pushBounded();
+    e.pushBounded(r.getRegionName(), bound, budgetVar, startVar);
     e.emitBlockOpen("{");
     for (const auto& stmt : r.getBody())
         if (stmt)
@@ -300,14 +302,20 @@ static void compileBoundedRegion(C_Emitter& e, const RegionNode& r) {
     e.popBounded();
     e.popRegion();
 
+    // `budgetVar` has been decremented by every static scratch
+    // declared inside the body. At this point budgetVar = N - staticUsed.
+    // The arena delta measures heap usage. Total region memory =
+    // staticUsed + arena_used = (N - budgetVar) + arena_used.
+    // The bound is honoured iff total <= N, i.e. arena_used <= budgetVar.
     e.emit(
         "size_t " + usedVar + " = g_arena.total_allocated - " + startVar + ";"
     );
-    e.emit("if (" + usedVar + " > " + std::to_string(bound) + ") {");
+    e.emit("if ((int64_t)" + usedVar + " > " + budgetVar + ") {");
     e.emit(
         "    vyne_panic_region_bound(\"" + r.getRegionName() + "\", " +
         std::to_string(r.lineNumber) + ", " + std::to_string(bound) + ", " +
-        usedVar + ");"
+        "(int64_t)" + usedVar + " + (" + std::to_string(bound) + " - " +
+        budgetVar + "));"
     );
     e.emit("}");
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");

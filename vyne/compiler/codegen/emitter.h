@@ -239,7 +239,32 @@ class C_Emitter {
     // decide between an uninitialized C array and a zeroed one. Cleared
     // per function; incremented / decremented by compileZeroedRegion.
     int zeroModeDepth = 0;
-    int boundedDepth = 0;
+
+    // Per-open-@bounded-region context. A stack because nested @bounded
+    // regions each carry their own bound. Every scratch declaration
+    // inside a region is inside every enclosing @bounded, so bytes are
+    // attributed to every context on the stack, and each context's
+    // static accumulator is compared against its own bound independently.
+    //
+    //   bound       : N from @bounded<N>
+    //   staticUsed  : compiler-side sum of static scratch bytes emitted
+    //                 so far (for VNE-101 enforcement)
+    //   budgetVar   : C variable name holding the runtime budget, e.g.
+    //                 `__budget_bounded_0` — initialised to N at region
+    //                 entry, decremented by static scratch during
+    //                 emission. The exit check compares `arena_used >
+    //                 budgetVar`, i.e. `arena_used + static_used > N`.
+    //   startVar    : C variable holding `g_arena.total_allocated` at
+    //                 region entry — read by the VLA runtime check to
+    //                 compute arena usage at the declaration point.
+    struct BoundedContext {
+        std::string regionName;
+        int64_t bound;
+        int64_t staticUsed;
+        std::string budgetVar;
+        std::string startVar;
+    };
+    std::vector<BoundedContext> boundedStack;
 
     bool inNativeVariant = false;
 
@@ -595,7 +620,7 @@ class C_Emitter {
         speculativeStack.clear();
         committedVars.clear();
         zeroModeDepth = 0;
-        boundedDepth = 0;
+        boundedStack.clear();
         nativeReturnType = CType{};
         currentFunctionReturnType_ = CType{};
         structReturnOutParams.clear();
@@ -614,6 +639,7 @@ class C_Emitter {
         currentInterfaceType.clear();
         currentFunctionReturnType_ = CType{};
         zeroModeDepth = 0;
+        boundedStack.clear();
         indentLevel = 1;
     }
     void setFunctionContext(bool inside) {
@@ -1132,15 +1158,48 @@ class C_Emitter {
         return zeroModeDepth > 0;
     }
 
-    void pushBounded() {
-        boundedDepth++;
+    void pushBounded(
+        const std::string& regionName,
+        int64_t bound,
+        const std::string& budgetVar,
+        const std::string& startVar
+    ) {
+        boundedStack.push_back({regionName, bound, 0, budgetVar, startVar});
     }
     void popBounded() {
-        if (boundedDepth > 0)
-            boundedDepth--;
+        if (!boundedStack.empty())
+            boundedStack.pop_back();
     }
     bool hasBounded() const {
-        return boundedDepth > 0;
+        return !boundedStack.empty();
+    }
+    const std::vector<BoundedContext>& getBoundedStack() const {
+        return boundedStack;
+    }
+
+    // Record `bytes` of static-shape scratch allocated inside every
+    // currently open @bounded region. Fires VNE-101 as soon as any
+    // context's cumulative static-used exceeds its bound, and emits
+    // a `__budget_<ctx> -= bytes;` decrement per context so the runtime
+    // exit check sees the reduced budget.
+    void applyBoundedStaticScratch(int64_t bytes, int line) {
+        for (auto& ctx : boundedStack) {
+            ctx.staticUsed += bytes;
+            if (ctx.staticUsed > ctx.bound) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-101): @bounded<" +
+                    std::to_string(ctx.bound) + "> on region '" +
+                    ctx.regionName + "' exceeded by static scratch: " +
+                    std::to_string(ctx.staticUsed) + " bytes used by line " +
+                    std::to_string(line) +
+                    ".\n"
+                    "  @bounded counts scratch (stack) plus arena (heap). "
+                    "Reduce the scratch size, split the region, or raise "
+                    "the bound."
+                );
+            }
+            emit(ctx.budgetVar + " -= " + std::to_string(bytes) + ";");
+        }
     }
 
     // Emit rewind calls for every live region, innermost first.
@@ -1340,6 +1399,7 @@ class C_Emitter {
         scratchBoundsEnabled = true;
         blasEnabled = false;
         zeroModeDepth = 0;
+        boundedStack.clear();
         currentReturnVar.clear();
         currentReturningVar.clear();
         localScopes.clear();

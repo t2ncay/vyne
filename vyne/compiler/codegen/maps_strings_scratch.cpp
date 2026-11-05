@@ -132,6 +132,41 @@ void ScratchNode::compile(C_Emitter& e) const {
             sizeExpr += dimTemps[i];
         }
 
+        // @bounded runtime check. Emitted BEFORE the VLA declaration so
+        // the panic fires before the stack pointer is advanced. One
+        // check per enclosing @bounded context: a VLA inside a nested
+        // region must satisfy both bounds. `vla_bytes` is materialised
+        // once so the checks and the VLA declaration read the same value.
+        //
+        // Limitation (documented in VNE-101's help text): the check is
+        // per-declaration. Two VLAs co-existing in the same block each
+        // pass individually but their sum is not checked. A future
+        // extension adds a running `__vla_total` per context; it is not
+        // done here because a VLA inside a loop would double-count across
+        // iterations, which is a worse failure mode than the current gap.
+        if (e.hasBounded()) {
+            std::string vlaBytes = e.newTemp("vla_bytes");
+            e.emit(
+                "int64_t " + vlaBytes + " = (int64_t)(" + sizeExpr +
+                ") * sizeof(" + elemCName + ");"
+            );
+            for (const auto& ctx : e.getBoundedStack()) {
+                e.emit(
+                    "if ((int64_t)(g_arena.total_allocated - " + ctx.startVar +
+                    ") + " + vlaBytes + " > " + ctx.budgetVar + ") {"
+                );
+                e.emit(
+                    "    vyne_panic_region_bound(\"" + ctx.regionName + "\", " +
+                    std::to_string(lineNumber) + ", " +
+                    std::to_string(ctx.bound) +
+                    ", (int64_t)(g_arena.total_allocated - " + ctx.startVar +
+                    ") + " + vlaBytes + " + (" + std::to_string(ctx.bound) +
+                    " - " + ctx.budgetVar + "));"
+                );
+                e.emit("}");
+            }
+        }
+
         // VLA. GCC and Clang accept this in C and C++ (as an extension
         // for the latter). See the MSVC note below if you ever target
         // that toolchain. VLAs cannot use `= {0}` — memset explicitly
@@ -170,8 +205,19 @@ void ScratchNode::compile(C_Emitter& e) const {
     arrType.shape = shape;
     arrType.nativeName = CType::elemCName(elemType);
 
-    // C declaration: double v_grad_w1[64*16];
+    // @bounded compile-time check + budget decrement. Runs BEFORE the C
+    // declaration so a program that would exceed any enclosing
+    // @bounded's bound fails at compile time (VNE-101), not at runtime.
+    // `applyBoundedStaticScratch` walks the stack: every enclosing
+    // @bounded accumulates the byte count, and each emits its own
+    // `__budget_X -= bytes;` decrement so the runtime exit check sees
+    // the correct reduced budget.
     int64_t n = arrType.numElements();
+    if (e.hasBounded()) {
+        e.applyBoundedStaticScratch(n * 8, lineNumber);
+    }
+
+    // C declaration: double v_grad_w1[64*16];
     if (e.hasZeroMode()) {
         e.emit(elemCName + " " + cName + "[" + std::to_string(n) + "] = {0};");
     } else {
@@ -189,6 +235,7 @@ void ScratchNode::compile(C_Emitter& e) const {
         );
     }
 }
+
 std::string ScratchNode::getCExpr(C_Emitter&) const {
     throw std::runtime_error("scratch is a declaration, not an expression");
 }
