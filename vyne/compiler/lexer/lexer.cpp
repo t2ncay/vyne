@@ -152,6 +152,51 @@ std::vector<Token> tokenize(std::string_view input) {
         }
 
         if (std::isdigit(character)) {
+            // Hex literals: `0x` or `0X` followed by one or more hex digits.
+            // Emitted as Int64 only. Float64 hex (`0x1.8p3`) is a C99 feature
+            // that would require reworking the NumberNode/codegen path; not
+            // needed for masks and bit constants, which is the common case.
+            if (character == '0' && i + 1 < input.length() &&
+                (input[i + 1] == 'x' || input[i + 1] == 'X')) {
+                size_t start = i;
+                i += 2; // skip 0x
+                std::string hexDigits;
+                while (i < input.length() &&
+                       std::isxdigit((unsigned char)input[i])) {
+                    hexDigits += input[i++];
+                }
+                if (hexDigits.empty()) {
+                    emitError(
+                        "Hex literal has no digits after '0x'",
+                        currentLine,
+                        "VNE-006",
+                        {"Write 0x followed by at least one hex digit"}
+                    );
+                    throw std::runtime_error(
+                        "Lexing failed at line " + std::to_string(currentLine)
+                    );
+                }
+                // Parse as unsigned 64-bit, then reinterpret as signed.
+                // `0xFFFFFFFFFFFFFFFF` wraps to -1, matching C's behaviour
+                // for out-of-range signed hex literals in a small way — the
+                // common case (`0x7FFFFFFF`, `0xFF`, `0xDEADBEEF`) is
+                // unaffected either way.
+                uint64_t unsignedVal = 0;
+                for (char c : hexDigits) {
+                    unsignedVal = unsignedVal * 16 +
+                                  (c >= '0' && c <= '9'   ? c - '0'
+                                   : c >= 'a' && c <= 'f' ? c - 'a' + 10
+                                                          : c - 'A' + 10);
+                }
+                tokens.emplace_back(
+                    VTokenType::Int64,
+                    currentLine,
+                    static_cast<int64_t>(unsignedVal),
+                    ""
+                );
+                continue;
+            }
+
             std::string buffer;
             bool isFloatingPoint = false;
 
