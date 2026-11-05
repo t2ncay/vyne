@@ -73,6 +73,36 @@ std::string WhileNode::getCExpr(C_Emitter& e) const {
 }
 
 void ReturnNode::compile(C_Emitter& e) const {
+    // @zeroed / @deterministic increment g_arena_zero_mode at region
+    // entry and decrement at region close. A `return` inside the body
+    // exits the function before the decrement, leaving the counter
+    // permanently elevated — every allocation for the rest of the
+    // program gets zero-filled. Reject at compile time until region
+    // unwinding is extended to restore the counter on early exit.
+    if (e.hasZeroMode()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-107): 'return' inside a @zeroed / "
+            "@deterministic region is not supported yet — "
+            "g_arena_zero_mode would leak and every later allocation "
+            "would be zero-filled. Restructure so the return is outside "
+            "the region, or drop @zeroed from this region "
+            "[ line " +
+            std::to_string(lineNumber) + " ]."
+        );
+    }
+
+    if (e.hasBounded()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-108): 'return' inside a @bounded region "
+            "is not supported yet — the bound check at region exit would "
+            "be skipped, silently bypassing the memory ceiling. "
+            "Restructure so the return is outside the region, or drop "
+            "@bounded from this region "
+            "[ line " +
+            std::to_string(lineNumber) + " ]."
+        );
+    }
+
     if (e.getNativeReturnType().isPrimitive()) {
         VType retVT = e.getNativeReturnType().toVType();
         std::string raw = expression ? expression->getCExpr(e) : "vyne_null()";

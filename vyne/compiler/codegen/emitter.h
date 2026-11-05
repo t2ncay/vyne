@@ -239,6 +239,7 @@ class C_Emitter {
     // decide between an uninitialized C array and a zeroed one. Cleared
     // per function; incremented / decremented by compileZeroedRegion.
     int zeroModeDepth = 0;
+    int boundedDepth = 0;
 
     bool inNativeVariant = false;
 
@@ -594,6 +595,7 @@ class C_Emitter {
         speculativeStack.clear();
         committedVars.clear();
         zeroModeDepth = 0;
+        boundedDepth = 0;
         nativeReturnType = CType{};
         currentFunctionReturnType_ = CType{};
         structReturnOutParams.clear();
@@ -1128,6 +1130,17 @@ class C_Emitter {
     }
     bool hasZeroMode() const {
         return zeroModeDepth > 0;
+    }
+
+    void pushBounded() {
+        boundedDepth++;
+    }
+    void popBounded() {
+        if (boundedDepth > 0)
+            boundedDepth--;
+    }
+    bool hasBounded() const {
+        return boundedDepth > 0;
     }
 
     // Emit rewind calls for every live region, innermost first.

@@ -291,11 +291,13 @@ static void compileBoundedRegion(C_Emitter& e, const RegionNode& r) {
     e.emit("size_t " + startVar + " = g_arena.total_allocated;");
 
     e.pushRegion(cpHandle);
+    e.pushBounded();
     e.emitBlockOpen("{");
     for (const auto& stmt : r.getBody())
         if (stmt)
             stmt->compile(e);
     e.emitBlockClose();
+    e.popBounded();
     e.popRegion();
 
     e.emit(
