@@ -234,6 +234,12 @@ class C_Emitter {
     bool poolRuntimeEmitted = false;
     int tempVarCount = 0;
 
+    // Nesting depth of @zeroed / @deterministic regions currently open
+    // in the function being emitted. Read by ScratchNode::compile to
+    // decide between an uninitialized C array and a zeroed one. Cleared
+    // per function; incremented / decremented by compileZeroedRegion.
+    int zeroModeDepth = 0;
+
     bool inNativeVariant = false;
 
     // Target selection. Only the entry-point emission and the runtime
@@ -587,6 +593,7 @@ class C_Emitter {
         poolStack.clear(); // paired with regionStack: both are per-function
         speculativeStack.clear();
         committedVars.clear();
+        zeroModeDepth = 0;
         nativeReturnType = CType{};
         currentFunctionReturnType_ = CType{};
         structReturnOutParams.clear();
@@ -604,6 +611,7 @@ class C_Emitter {
         fieldCache.clear();
         currentInterfaceType.clear();
         currentFunctionReturnType_ = CType{};
+        zeroModeDepth = 0;
         indentLevel = 1;
     }
     void setFunctionContext(bool inside) {
@@ -1108,6 +1116,20 @@ class C_Emitter {
         return regionStack;
     }
 
+    // @zeroed / @deterministic nesting depth. Incremented on entry,
+    // decremented on exit. ScratchNode::compile consults hasZeroMode()
+    // to decide between an uninitialised C array and a zeroed one.
+    void pushZeroMode() {
+        zeroModeDepth++;
+    }
+    void popZeroMode() {
+        if (zeroModeDepth > 0)
+            zeroModeDepth--;
+    }
+    bool hasZeroMode() const {
+        return zeroModeDepth > 0;
+    }
+
     // Emit rewind calls for every live region, innermost first.
     // Used by BreakNode / ContinueNode / ReturnNode before the transfer.
     void emitRegionUnwind() {
@@ -1304,6 +1326,7 @@ class C_Emitter {
         poolRuntimeEmitted = false;
         scratchBoundsEnabled = true;
         blasEnabled = false;
+        zeroModeDepth = 0;
         currentReturnVar.clear();
         currentReturningVar.clear();
         localScopes.clear();

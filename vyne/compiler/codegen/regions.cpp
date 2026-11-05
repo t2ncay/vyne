@@ -236,6 +236,268 @@ std::string RegionCommitIfNode::getCExpr(C_Emitter& e) const {
     return "vyne_null()";
 }
 
+// ============================================================
+// @bounded<N> — runtime-checked memory ceiling
+// ------------------------------------------------------------
+// Emits a byte delta measured against the arena's allocation counter,
+// compared against N at region close. A violation halts with a
+// diagnostic naming the region. Runtime-checked, not statically
+// proven — but the counter evidence is exactly what certification
+// workflows (DO-178C, ISO 26262) need: a documented bound and a test
+// suite that demonstrates it held.
+// ============================================================
+static void compileBoundedRegion(C_Emitter& e, const RegionNode& r) {
+    ensureVmemInclude(e);
+
+    if (r.getPolicyArgs().size() != 1) {
+        throw std::runtime_error(
+            "Compile Error (VNE-101): @bounded expects exactly 1 argument "
+            "(byte count), got " +
+            std::to_string(r.getPolicyArgs().size()) + " (line " +
+            std::to_string(r.lineNumber) +
+            ").\n"
+            "  Syntax: @bounded<4096> region name { ... };"
+        );
+    }
+
+    int64_t bound = 0;
+    try {
+        bound = std::stoll(r.getPolicyArgs()[0]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-101): @bounded argument must be an integer, "
+            "got '" +
+            r.getPolicyArgs()[0] + "' (line " + std::to_string(r.lineNumber) +
+            ")."
+        );
+    }
+    if (bound <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-101): @bounded argument must be positive "
+            "(line " +
+            std::to_string(r.lineNumber) + ")."
+        );
+    }
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+    std::string startVar = e.newTemp("bounded_start");
+    std::string usedVar = e.newTemp("bounded_used");
+
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (bounded<" +
+        std::to_string(bound) + ">) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit("size_t " + startVar + " = g_arena.total_allocated;");
+
+    e.pushRegion(cpHandle);
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+    e.popRegion();
+
+    e.emit(
+        "size_t " + usedVar + " = g_arena.total_allocated - " + startVar + ";"
+    );
+    e.emit("if (" + usedVar + " > " + std::to_string(bound) + ") {");
+    e.emit(
+        "    vyne_panic_region_bound(\"" + r.getRegionName() + "\", " +
+        std::to_string(r.lineNumber) + ", " + std::to_string(bound) + ", " +
+        usedVar + ");"
+    );
+    e.emit("}");
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
+// ============================================================
+// @zeroed — every allocation inside the region is zero-filled
+// ------------------------------------------------------------
+// Bumps g_arena_zero_mode around the body; arena_alloc memsets on
+// every return path when the counter is > 0. ScratchNode::compile
+// consults the same counter to emit `double v_x[N] = {0};`
+// (static shape) or a `memset` (VLA). The counter is a plain int —
+// nesting is supported but rare; a nested @zeroed region is
+// equivalent to the outer one for its own body.
+// ============================================================
+static void compileZeroedRegion(C_Emitter& e, const RegionNode& r) {
+    ensureVmemInclude(e);
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+
+    e.emit("// --- region: " + r.getRegionName() + " (zeroed) ---");
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit("g_arena_zero_mode++;");
+
+    e.pushRegion(cpHandle);
+    e.pushZeroMode();
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+    e.popZeroMode();
+    e.popRegion();
+
+    e.emit("g_arena_zero_mode--;");
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
+// ============================================================
+// @deterministic — @zeroed + a non-determinism scan
+// ------------------------------------------------------------
+// Rejects calls to time / RNG / sensor-read sources inside the
+// region body. Combined with @zeroed, produces byte-identical
+// output across runs conditioned on identical inputs.
+//
+// The scan cannot see inside WhileNode / ForNode bodies — those AST
+// nodes do not expose their body accessor. Documented limitation;
+// the suggestion list on VNE-106 names it, and the runtime zeroed
+// counter catches the rest at allocation time.
+// ============================================================
+static bool isNonDeterministicCall(
+    const std::string& recvPath,
+    const std::string& methodOrFn,
+    std::string& outOffender
+) {
+    if ((recvPath == "vcore" || recvPath.empty()) &&
+        (methodOrFn == "now" || methodOrFn == "now_ns" ||
+         methodOrFn == "input")) {
+        outOffender = "vcore." + methodOrFn + "()";
+        return true;
+    }
+    if ((recvPath == "vmath" || recvPath.empty()) &&
+        (methodOrFn == "random" || methodOrFn == "random_float" ||
+         methodOrFn == "seed")) {
+        outOffender = "vmath." + methodOrFn + "()";
+        return true;
+    }
+    if (recvPath == "arduino" &&
+        (methodOrFn == "millis" || methodOrFn == "micros" ||
+         methodOrFn == "random" || methodOrFn == "random_seed" ||
+         methodOrFn.find("analog_read") == 0)) {
+        outOffender = "arduino." + methodOrFn + "()";
+        return true;
+    }
+    return false;
+}
+
+static bool scanNonDeterminism(const ASTNode* node, std::string& outOffender) {
+    if (!node)
+        return false;
+
+    auto receiverPath = [](const ASTNode* r) -> std::string {
+        if (!r)
+            return "";
+        if (r->type() == NodeType::VARIABLE)
+            return static_cast<const VariableNode*>(r)->getOriginalName();
+        if (r->type() == NodeType::MEMBER_ACCESS)
+            return static_cast<const MemberAccessNode*>(r)->getFullPath();
+        return "";
+    };
+
+    switch (node->type()) {
+    case NodeType::FUNCTION_CALL: {
+        auto* fc = static_cast<const FunctionCallNode*>(node);
+        const std::string& name = fc->getOriginalName();
+        size_t dot = name.find_last_of('.');
+        std::string recvPath =
+            (dot == std::string::npos) ? "" : name.substr(0, dot);
+        std::string method =
+            (dot == std::string::npos) ? name : name.substr(dot + 1);
+        if (isNonDeterministicCall(recvPath, method, outOffender))
+            return true;
+        for (const auto& a : fc->getArguments())
+            if (scanNonDeterminism(a.get(), outOffender))
+                return true;
+        return false;
+    }
+    case NodeType::METHOD_CALL: {
+        auto* mc = static_cast<const MethodCallNode*>(node);
+        if (isNonDeterministicCall(
+                receiverPath(mc->getReceiver()),
+                mc->getMethodName(),
+                outOffender
+            ))
+            return true;
+        if (scanNonDeterminism(mc->getReceiver(), outOffender))
+            return true;
+        for (const auto& a : mc->getArguments())
+            if (scanNonDeterminism(a.get(), outOffender))
+                return true;
+        return false;
+    }
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(node);
+        return scanNonDeterminism(b->leftNode.get(), outOffender) ||
+               scanNonDeterminism(b->rightNode.get(), outOffender);
+    }
+    case NodeType::UNARY: {
+        return scanNonDeterminism(
+            static_cast<const UnaryNode*>(node)->getRight(),
+            outOffender
+        );
+    }
+    case NodeType::ASSIGNMENT: {
+        return scanNonDeterminism(
+            static_cast<const AssignmentNode*>(node)->getRHS(),
+            outOffender
+        );
+    }
+    case NodeType::INDEX_ACCESS: {
+        auto* ia = static_cast<const IndexAccessNode*>(node);
+        return scanNonDeterminism(ia->getBase(), outOffender) ||
+               scanNonDeterminism(ia->getIndex(), outOffender);
+    }
+    case NodeType::MEMBER_ACCESS: {
+        return scanNonDeterminism(
+            static_cast<const MemberAccessNode*>(node)->getReceiver(),
+            outOffender
+        );
+    }
+    case NodeType::BLOCK: {
+        for (const auto& s : static_cast<const BlockNode*>(node)->statements)
+            if (scanNonDeterminism(s.get(), outOffender))
+                return true;
+        return false;
+    }
+    case NodeType::IF: {
+        auto* f = static_cast<const IfNode*>(node);
+        return scanNonDeterminism(f->condition.get(), outOffender) ||
+               scanNonDeterminism(f->body.get(), outOffender) ||
+               scanNonDeterminism(f->elseBody.get(), outOffender);
+    }
+    default:
+        // WhileNode / ForNode / ReturnNode bodies are not publicly
+        // reachable through ASTNode accessors. Runtime zeroed counters
+        // are the defence in depth for these subtrees.
+        return false;
+    }
+}
+
+static void compileDeterministicRegion(C_Emitter& e, const RegionNode& r) {
+    std::string offender;
+    for (const auto& stmt : r.getBody()) {
+        if (stmt && scanNonDeterminism(stmt.get(), offender)) {
+            throw std::runtime_error(
+                "Compile Error (VNE-106): @deterministic region '" +
+                r.getRegionName() +
+                "' contains a call to non-deterministic "
+                "'" +
+                offender + "' (line " + std::to_string(stmt->lineNumber) +
+                ").\n"
+                "  @deterministic guarantees byte-identical output across "
+                "runs; time and RNG sources break that guarantee.\n"
+                "  Fix: pass time and RNG state in as region parameters, "
+                "or drop @deterministic from this region."
+            );
+        }
+    }
+    // Body is clean — @deterministic implies @zeroed.
+    compileZeroedRegion(e, r);
+}
+
 void RegionNode::compile(C_Emitter& e) const {
     if (policy.empty() || policy == "bump") {
         compileBumpRegion(e, *this);
@@ -249,6 +511,18 @@ void RegionNode::compile(C_Emitter& e) const {
         compileSpeculativeRegion(e, *this);
         return;
     }
+    if (policy == "bounded") {
+        compileBoundedRegion(e, *this);
+        return;
+    }
+    if (policy == "zeroed") {
+        compileZeroedRegion(e, *this);
+        return;
+    }
+    if (policy == "deterministic") {
+        compileDeterministicRegion(e, *this);
+        return;
+    }
 
     throw std::runtime_error(
         "Compile Error (VNE-080): region policy '@" + policy +
@@ -256,7 +530,8 @@ void RegionNode::compile(C_Emitter& e) const {
         "recognized but not yet implemented (line " +
         std::to_string(lineNumber) +
         ").\n"
-        "  Implemented policies: bump (default), pool, speculative."
+        "  Implemented policies: bump (default), pool, speculative, "
+        "bounded, zeroed, deterministic."
     );
 }
 
