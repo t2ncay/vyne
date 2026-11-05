@@ -134,8 +134,15 @@ void ScratchNode::compile(C_Emitter& e) const {
 
         // VLA. GCC and Clang accept this in C and C++ (as an extension
         // for the latter). See the MSVC note below if you ever target
-        // that toolchain.
+        // that toolchain. VLAs cannot use `= {0}` — memset explicitly
+        // when inside a @zeroed region.
         e.emit(elemCName + " " + cName + "[" + sizeExpr + "];");
+        if (e.hasZeroMode()) {
+            e.emit(
+                "memset(" + cName + ", 0, sizeof(" + elemCName + ") * (" +
+                sizeExpr + "));"
+            );
+        }
         CType arrType;
         arrType.kind = CType::Kind::Array;
         arrType.args.push_back(CType::fromVType(elemType));
@@ -165,7 +172,11 @@ void ScratchNode::compile(C_Emitter& e) const {
 
     // C declaration: double v_grad_w1[64*16];
     int64_t n = arrType.numElements();
-    e.emit(elemCName + " " + cName + "[" + std::to_string(n) + "];");
+    if (e.hasZeroMode()) {
+        e.emit(elemCName + " " + cName + "[" + std::to_string(n) + "] = {0};");
+    } else {
+        e.emit(elemCName + " " + cName + "[" + std::to_string(n) + "];");
+    }
 
     // Register as a scoped local with shape, so later accesses see it.
     e.declareLocal(cName, arrType);

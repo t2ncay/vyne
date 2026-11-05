@@ -1535,6 +1535,66 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
             consume(VTokenType::Dot);
             Token member = consume(VTokenType::Identifier);
 
+            // ---- <regionName>.commit(x) / <regionName>.commit_if(pred) ----
+            // Fires only when:
+            //   1. the method name is `commit` or `commit_if`,
+            //   2. the receiver is a bare variable (not `a.b`, not `f()`),
+            //   3. that variable names an *enclosing* region currently
+            //      being parsed, and
+            //   4. that region is the *innermost* one (vmem_runtime_commit
+            //      takes no checkpoint handle today, so it always targets
+            //      the innermost checkpoint — committing "across" a
+            //      nesting level would be silent misbehavior).
+            //
+            // Every other `.commit(...)` call falls through to the normal
+            // method-call path below — a user struct with a `commit`
+            // method is unaffected.
+            if ((member.name == "commit" || member.name == "commit_if") &&
+                node->type() == NodeType::VARIABLE) {
+                auto* var = static_cast<VariableNode*>(node.get());
+                const std::string& recvName = var->getOriginalName();
+
+                if (isRegionInScope(recvName)) {
+                    if (recvName != regionNameStack.back()) {
+                        emitError(
+                            "'" + recvName + "." + member.name +
+                                "(...)' "
+                                "requires '" +
+                                recvName +
+                                "' to be the innermost "
+                                "open region, but the innermost is currently "
+                                "'" +
+                                regionNameStack.back() + "'",
+                            member.line,
+                            "VNE-086",
+                            {"Use 'region." + member.name +
+                                 "(...)' to "
+                                 "commit to the innermost region regardless of "
+                                 "its name",
+                             "Or restructure so '" + recvName +
+                                 "' is the innermost region"}
+                        );
+                    }
+
+                    consume(VTokenType::Left_Parenthese);
+                    auto inner = parseExpression();
+                    consume(VTokenType::Right_Parenthese);
+
+                    if (member.name == "commit") {
+                        node = std::make_unique<RegionCommitNode>(
+                            std::move(inner)
+                        );
+                    } else {
+                        node = std::make_unique<RegionCommitIfNode>(
+                            std::move(inner)
+                        );
+                    }
+                    node->lineNumber = member.line;
+                    continue;
+                }
+            }
+            // ---- end <regionName>.commit interception ----
+
             if (peekToken().type == VTokenType::Left_Parenthese) {
                 consume(VTokenType::Left_Parenthese);
                 std::vector<std::unique_ptr<ASTNode>> args;
@@ -3136,11 +3196,13 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     std::string regionName = nameTok.name;
 
     consume(VTokenType::Left_CB);
+    regionNameStack.push_back(regionName);
     std::vector<std::shared_ptr<ASTNode>> body;
     while (peekToken().type != VTokenType::Right_CB &&
            peekToken().type != VTokenType::End) {
         body.emplace_back(parseStatement());
     }
+    regionNameStack.pop_back();
     consume(VTokenType::Right_CB);
     consumeSemicolon();
 

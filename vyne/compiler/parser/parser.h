@@ -46,8 +46,10 @@ class Parser {
     inline static std::unordered_set<std::string> declaredTypes;
     std::string currentGroupName;
     std::string currentModuleName;
+
     std::vector<std::string> groupPath;
     std::string sourceDir;
+    std::vector<std::string> regionNameStack;
 
     // Cache: canonical path → the declared-types set that parsing
     // that file produced (including everything it transitively pulled in).
@@ -127,6 +129,17 @@ class Parser {
                 return &((*it)[id]);
         }
         return nullptr;
+    }
+
+    // True iff `name` is the name of an enclosing region currently being
+    // parsed. Used by parseIdentifierExpr to recognize `epoch.commit(x)`
+    // as a region intrinsic rather than a normal method call.
+    bool isRegionInScope(const std::string& name) const {
+        for (const auto& n : regionNameStack) {
+            if (n == name)
+                return true;
+        }
+        return false;
     }
 
     bool isDeclaredAsStruct(const std::string& name) const {
