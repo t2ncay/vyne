@@ -18,6 +18,7 @@
 #pragma once
 #include <cctype>
 #include <charconv>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <string_view>
