@@ -40,6 +40,7 @@ build/*
 *.ps1
 *.txt
 *.ino.cpp
+vyne_contracts.log
 
 # `share/vyne` holds compiler data: project templates, license texts, and
 # bundled sample assets. Some of their extensions collide with the

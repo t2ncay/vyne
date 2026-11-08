@@ -24,5 +24,27 @@ while (i < 3) {
 ## Edge cases
 The supplied codegen rejects some `break` and `continue` placements inside `try`; verify the exact diagnostic and scope before documenting a universal rule. Exiting a region from a loop invokes special cleanup logic.
 
+## Loop invariants
+```text
+iteration ::= "@" "invariant" "(" expression ")" iteration
+```
+
+`@invariant(expr)` prefixes a `through ... -> loop` or `while` loop. The
+expression is checked after every iteration (the standard "invariant holds
+after each step" form). Checks follow the same `ruleset { contracts = ... }`
+mode as function contracts and halt with `VNE-111` on violation.
+
+```vyne
+total :: Int64 := 0;
+@invariant(i >= 0)
+through i :: 0..9 -> loop {
+    total = total + i;
+};
+```
+
+The check runs at the end of each normal iteration. `continue` jumps to the
+next iteration before the check in this slice; restructure the body or use a
+`while` loop if that path matters.
+
 ### See also
 [Functions](functions.md) · [Regions](regions.md) · [Errors](errors.md)

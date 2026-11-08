@@ -17,6 +17,7 @@
 
 #pragma once
 #include "../codegen.h"
+#include "../../contract_config.h"
 #include <cmath>
 
 // Shared, translation-unit-local emission helpers from the original
@@ -514,3 +515,33 @@ void registerInterfaceLayoutsFromMembers(
 // Slice 3g: predicate shared by the fixed-point pass in
 // ProgramNode::compile and the emitter inside InterfaceNode::compile.
 bool interfaceIsCEligible(C_Emitter& e, const InterfaceNode& iface);
+
+// Executable contract emitter. Reads the ruleset-selected ContractMode:
+//   Off      -> nothing
+//   Check    -> vyne_contract_assert(..., evidence=0)
+//   Evidence -> vyne_contract_assert(..., evidence=1)
+// `name` is the function or loop the clause belongs to; `file`/`line`
+// are the clause's source location.
+inline void emitContractCheck(
+    C_Emitter& e,
+    const ASTNode* expr,
+    const char* kind,
+    const std::string& name,
+    const std::string& file,
+    int line
+) {
+    if (!expr)
+        return;
+
+    ContractMode mode = contractMode();
+    if (mode == ContractMode::Off)
+        return;
+
+    e.noteArduinoContractsUse();
+    std::string cond = "vyne_is_truthy(" + e.boxAny(expr->getCExpr(e)) + ")";
+    e.emit(
+        "vyne_contract_assert(" + cond + ", \"" + kind + "\", \"" + name +
+        "\", \"" + file + "\", " + std::to_string(line) + ", " +
+        (mode == ContractMode::Evidence ? "1" : "0") + ");"
+    );
+}

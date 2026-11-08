@@ -1019,6 +1019,80 @@ static void compileDeterministicRegion(C_Emitter& e, const RegionNode& r) {
     compileZeroedRegion(e, r);
 }
 
+// ============================================================
+// @realtime<ms> — runtime-checked control-loop deadline
+// ------------------------------------------------------------
+// Records a monotonic timestamp at region entry and checks the elapsed
+// time at normal close and on every early return (ReturnNode emits the
+// check via C_Emitter::emitRealtimeChecks). A violation halts with
+// VNE-109. The stats table backs `vcore.realtime_*` /
+// `arduino.realtime_*` telemetry.
+//
+// This is a watchdog, not a static worst-case-execution-time proof.
+// ============================================================
+static void compileRealtimeRegion(C_Emitter& e, const RegionNode& r) {
+    ensureVmemInclude(e);
+
+    if (r.getPolicyArgs().size() != 1) {
+        throw std::runtime_error(
+            "Compile Error (VNE-089): @realtime expects exactly 1 argument "
+            "(milliseconds), got " +
+            std::to_string(r.getPolicyArgs().size()) + " (line " +
+            std::to_string(r.lineNumber) +
+            ").\n"
+            "  Syntax: @realtime<2> region control_tick { ... };"
+        );
+    }
+
+    int64_t deadlineMs = 0;
+    try {
+        deadlineMs = std::stoll(r.getPolicyArgs()[0]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-089): @realtime argument must be an integer, "
+            "got '" +
+            r.getPolicyArgs()[0] + "' (line " + std::to_string(r.lineNumber) +
+            ")."
+        );
+    }
+    if (deadlineMs <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-089): @realtime argument must be positive "
+            "(line " +
+            std::to_string(r.lineNumber) + ")."
+        );
+    }
+
+    e.noteArduinoRealtimeUse();
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+    std::string startVar = e.newTemp("realtime_start");
+
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (realtime<" +
+        std::to_string(deadlineMs) + ">ms) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit("uint64_t " + startVar + " = vyne_realtime_now_us();");
+
+    e.pushRegion(cpHandle);
+    e.pushRealtime(r.getRegionName(), deadlineMs, startVar, r.lineNumber);
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+    e.popRealtime();
+    e.popRegion();
+
+    e.emit(
+        "vyne_realtime_check(\"" + r.getRegionName() + "\", " +
+        std::to_string(r.lineNumber) + ", " + std::to_string(deadlineMs) +
+        ", " + startVar + ");"
+    );
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
 void RegionNode::compile(C_Emitter& e) const {
     if (policy.empty() || policy == "bump") {
         compileBumpRegion(e, *this);
@@ -1064,6 +1138,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compileDeterministicRegion(e, *this);
         return;
     }
+    if (policy == "realtime") {
+        compileRealtimeRegion(e, *this);
+        return;
+    }
 
     throw std::runtime_error(
         "Compile Error (VNE-080): region policy '@" + policy +
@@ -1072,7 +1150,8 @@ void RegionNode::compile(C_Emitter& e) const {
         std::to_string(lineNumber) +
         ").\n"
         "  Implemented policies: bump (default), pool, slab, ring, streamed, "
-        "persistent, device, speculative, bounded, zeroed, deterministic."
+        "persistent, device, speculative, bounded, zeroed, deterministic, "
+        "realtime."
     );
 }
 

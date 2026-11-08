@@ -130,7 +130,17 @@ AVR build.
 
 ---
 
-### C2 — `@realtime<deadline_ms>` policy `[ ]`
+### C2 — `@realtime<deadline_ms>` policy `[~]`
+
+**Status (2026-11-09):** runtime policy, early-return checks, and desktop +
+AVR telemetry implemented. Tests: `examples/test/realtime_test.vy` (positive,
+early return, nesting, reset), `examples/test/realtime_overrun_expected.vy`
+(VNE-109), and `examples/test/realtime_contract_avr.vy` (AVR build). Static
+WCET analysis remains out of scope for this slice. Two carried-forward
+limitations: a return expression's own evaluation is outside the measured
+window (the check fires before the return value is evaluated), and a
+`break`/`continue` nested inside a region inherits the pre-existing region-
+unwind bug documented in the v0.6.0 notes.
 
 **Why.** Robotics and audio need a guarantee, not a measurement: the control
 loop or audio callback must finish before its deadline or the system degrades
@@ -168,7 +178,16 @@ a watchdog today, a WCET obligation later.
 
 ---
 
-### C3 — `@invariant` / contracts `[ ]`
+### C3 — `@invariant` / contracts `[~]`
+
+**Status (2026-11-09):** `requires(...)`, `ensures(...)` (with `result`),
+loop `@invariant(...)`, and `ruleset { contracts = "check" | "evidence" | "off" }`
+implemented on desktop and AVR. Evidence mode writes CSV. Tests:
+`examples/test/contract_test.vy`, `contract_violation_expected.vy`,
+`contract_ensures_violation_expected.vy`, `contract_off_test.vy`,
+`contract_evidence_test.vy`, and `realtime_contract_avr.vy`. Loop invariants
+are checked on normal iteration completion (`continue` skips the check in this
+slice). Full traceability export remains a certification-track follow-up.
 
 **Why.** Certification and safety domains need executable assertions that can
 be stripped in release builds but retained in evidence builds. This is also the

@@ -28,7 +28,12 @@ static void emitFunctionBody(
     C_Emitter& e,
     const std::vector<Parameter>& parameters,
     const std::vector<std::shared_ptr<ASTNode>>& body,
-    const std::string& mangledName
+    const std::string& mangledName,
+    VType returnType,
+    const std::vector<ContractClause>& requiresContracts,
+    const std::vector<ContractClause>& ensuresContracts,
+    const std::string& displayName,
+    const std::string& sourceFile
 ) {
     // Parameters
     for (size_t i = 0; i < parameters.size(); ++i) {
@@ -89,6 +94,78 @@ static void emitFunctionBody(
 
     e.setReturnVars(retVar, retFlag);
 
+    // Preconditions. Parameters are declared, so `requires` sees them.
+    for (const auto& c : requiresContracts)
+        emitContractCheck(
+            e, c.expr.get(), "requires", displayName, sourceFile, c.line
+        );
+
+    // Postconditions. `result` is a synthetic local bound to the return
+    // value; the ensures expression is compiled in the function scope so
+    // it can also reference parameters and locals that are still live.
+    // Installed as an emitter callback so ReturnNode runs it on early
+    // exits as well as at the normal fallthrough.
+    if (!ensuresContracts.empty()) {
+        e.setEnsuresEmitter(
+            [&e,
+             ensuresContracts,
+             displayName,
+             sourceFile,
+             mangledName,
+             returnType](const std::string& resultExpr) {
+                std::string resultVar = "v_" + mangledName + "_result";
+                // Scope the result alias so multiple return paths in the
+                // same C block do not redeclare the same variable.
+                e.emitBlockOpen("{");
+                // For primitive returns, alias `result` to a native local.
+                // This keeps ensures clauses on the native fast path (and,
+                // on AVR, avoids the boxed vyne_binop operator dispatcher).
+                if (returnType == VType::Int64 ||
+                    returnType == VType::Float64 ||
+                    returnType == VType::Bool) {
+                    CType rct = CType::fromVType(returnType);
+                    e.declareLocal(resultVar, rct);
+                    std::string nativeInit;
+                    if (returnType == VType::Int64) {
+                        nativeInit = "((" + resultExpr +
+                                     ").type == V_INT64) ? (" + resultExpr +
+                                     ").as.i64 : (int64_t)(" + resultExpr +
+                                     ").as.f64";
+                    } else if (returnType == VType::Float64) {
+                        nativeInit = "((" + resultExpr +
+                                     ").type == V_FLOAT64) ? (" + resultExpr +
+                                     ").as.f64 : (double)(" + resultExpr +
+                                     ").as.i64";
+                    } else {
+                        nativeInit =
+                            "((" + resultExpr + ").as.i64 != 0)";
+                    }
+                    e.emit(
+                        rct.cTypeName() + " " + resultVar + " = " +
+                        nativeInit + ";"
+                    );
+                } else {
+                    e.declareLocal(
+                        resultVar, CType::fromKind(CType::Kind::Unknown)
+                    );
+                    e.emit(
+                        "VyneValue " + resultVar + " = " + resultExpr + ";"
+                    );
+                }
+                for (const auto& c : ensuresContracts)
+                    emitContractCheck(
+                        e,
+                        c.expr.get(),
+                        "ensures",
+                        displayName,
+                        sourceFile,
+                        c.line
+                    );
+                e.emitBlockClose();
+            }
+        );
+    }
+
     // Top-level defers (unchanged collection logic)
     std::vector<DeferNode*> defers;
     for (const auto& s : body) {
@@ -118,9 +195,13 @@ static void emitFunctionBody(
             (*it)->getBody()->compile(e);
         }
 
+        e.emitEnsuresForResult(retVar);
+        e.clearEnsuresEmitter();
         e.emit("return " + retVar + ";");
         e.popDeferContext();
     } else {
+        e.emitEnsuresForResult(retVar);
+        e.clearEnsuresEmitter();
         e.emit("return " + retVar + ";");
     }
 
@@ -132,7 +213,11 @@ static void emitNativeFunctionBody(
     const std::vector<Parameter>& parameters,
     const std::vector<std::shared_ptr<ASTNode>>& body,
     const std::string& nativeName,
-    const CType& returnType
+    const CType& returnType,
+    const std::vector<ContractClause>& requiresContracts,
+    const std::vector<ContractClause>& ensuresContracts,
+    const std::string& displayName,
+    const std::string& sourceFile
 ) {
     e.pushFunctionContext();
     e.enterFunction(nativeName); // prefix used for local resolution
@@ -276,7 +361,6 @@ static void emitNativeFunctionBody(
     for (size_t i = 0; i < parameters.size(); ++i) {
         std::string pName = "v_" + nativeName + "_" + parameters[i].name;
         CType pt = CType::fromVType(parameters[i].type);
-
         if (parameters[i].type == VType::Array &&
             parameters[i].arrayElemType != VType::Unknown) {
             CType raw;
@@ -349,18 +433,59 @@ static void emitNativeFunctionBody(
         }
     }
 
+    // Preconditions — parameters are C locals at this point.
+    for (const auto& c : requiresContracts)
+        emitContractCheck(
+            e, c.expr.get(), "requires", displayName, sourceFile, c.line
+        );
+
+    // Postconditions for primitive native returns. `result` is a native
+    // local of the same C type, so the ensures expression lowers without
+    // boxing. Struct/array returns are outside this slice.
+    if (!ensuresContracts.empty() && returnType.isPrimitive()) {
+        e.setEnsuresEmitter(
+            [&e,
+             ensuresContracts,
+             displayName,
+             sourceFile,
+             nativeName,
+             returnType](const std::string& resultExpr) {
+                std::string resultVar = "v_" + nativeName + "_result";
+                e.emitBlockOpen("{");
+                e.declareLocal(resultVar, returnType);
+                e.emit(
+                    returnType.cTypeName() + " " + resultVar + " = " +
+                    resultExpr + ";"
+                );
+                for (const auto& c : ensuresContracts)
+                    emitContractCheck(
+                        e,
+                        c.expr.get(),
+                        "ensures",
+                        displayName,
+                        sourceFile,
+                        c.line
+                    );
+                e.emitBlockClose();
+            }
+        );
+    }
+
     for (const auto& stmt : body)
         if (stmt)
             stmt->compile(e);
 
     switch (returnType.kind) {
     case CType::Kind::Float64:
+        e.emitEnsuresForResult("0.0");
         e.emit("return 0.0;");
         break;
     case CType::Kind::Int64:
+        e.emitEnsuresForResult("0");
         e.emit("return 0;");
         break;
     case CType::Kind::Bool:
+        e.emitEnsuresForResult("false");
         e.emit("return false;");
         break;
     case CType::Kind::Struct:
@@ -380,9 +505,12 @@ static void emitNativeFunctionBody(
         }
         break;
     default:
+        e.emitEnsuresForResult("0");
         e.emit("return 0;");
         break;
     }
+
+    e.clearEnsuresEmitter();
 
     e.emitBlockClose();
     e.emit("");
@@ -462,7 +590,17 @@ void FunctionNode::compile(C_Emitter& e) const {
         e.setCurrentFunctionReturnType(retCt);
     }
 
-    emitFunctionBody(e, parameters, body, mangledName);
+    emitFunctionBody(
+        e,
+        parameters,
+        body,
+        mangledName,
+        returnType,
+        getRequires(),
+        getEnsures(),
+        originalName,
+        getSourceFile()
+    );
 
     e.clearCurrentFunctionReturnType();
 
@@ -490,7 +628,17 @@ void FunctionNode::compile(C_Emitter& e) const {
             if (returnType == VType::Struct && !getReturnTypePath().empty()) {
                 retCt.mangledName = getReturnTypePath();
             }
-            emitNativeFunctionBody(e, parameters, body, *nv, retCt);
+            emitNativeFunctionBody(
+                e,
+                parameters,
+                body,
+                *nv,
+                retCt,
+                getRequires(),
+                getEnsures(),
+                originalName,
+                getSourceFile()
+            );
         }
     }
 }
@@ -534,7 +682,17 @@ void FunctionNode::compileAs(
         e.setCurrentFunctionReturnType(retCt);
     }
 
-    emitFunctionBody(e, parameters, body, name);
+    emitFunctionBody(
+        e,
+        parameters,
+        body,
+        name,
+        returnType,
+        getRequires(),
+        getEnsures(),
+        originalName,
+        getSourceFile()
+    );
 
     e.clearCurrentFunctionReturnType();
 

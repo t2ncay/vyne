@@ -334,4 +334,33 @@ static inline VyneValue vcore_get_mem(void) {
     return vyne_float(rss);
 }
 
+/* ---------- @realtime telemetry ------------------------------------ */
+/* Worst observed and total overrun counters for @realtime regions.
+ * The aggregate forms cover every region in the program; the *_named
+ * forms look up one region by the name written in the source. */
+static inline VyneValue vcore_realtime_worst_ms(void) {
+    return vyne_float(vyne_realtime_worst_ms());
+}
+
+static inline VyneValue vcore_realtime_overruns(void) {
+    return vyne_int(vyne_realtime_overruns());
+}
+
+static inline VyneValue vcore_realtime_reset(void) {
+    vyne_realtime_reset();
+    return vyne_null();
+}
+
+static inline VyneValue vcore_realtime_worst_ms_named(VyneValue name) {
+    const char* n =
+        (name.type == V_STRING && name.as.str) ? name.as.str : "";
+    return vyne_float(vyne_realtime_worst_ms_named(n));
+}
+
+static inline VyneValue vcore_realtime_overruns_named(VyneValue name) {
+    const char* n =
+        (name.type == V_STRING && name.as.str) ? name.as.str : "";
+    return vyne_int(vyne_realtime_overruns_named(n));
+}
+
 #endif /* VYNE_VCORE_RT_H */

@@ -38,6 +38,7 @@ A region may carry one policy attribute: `@name<args> region name { ... };`.
 | `@bounded<N>` | Runtime-checked byte ceiling for the region. |
 | `@zeroed` | Every allocation in the region is zero-filled. |
 | `@deterministic` | `@zeroed` plus a non-determinism scan (rejects time/RNG sources). |
+| `@realtime<ms>` | Runtime-checked deadline: records a monotonic timestamp on entry and checks the elapsed time on every exit path. Overrun halts with `VNE-109`. |
 
 Policies are compiled-backend features. `slab_alloc(n)`, `ring_alloc(n)`, and
 `streamed_alloc(n)` zero-fill the requested `n` elements; their buffers are
@@ -61,6 +62,12 @@ already outlive the region, the escape checker does not treat a persistent
 region as a deeper region: assigning a persistent value to an outer variable is
 allowed, and `region.commit(x)` inside `@persistent` is a no-op. Nested
 `@persistent` regions share the commit arena.
+
+`@realtime<ms>` measures wall-clock time from region entry to every exit,
+including early `return`s. The check is a runtime watchdog, not a static WCET
+proof: it records the worst observed time and total overruns, exposed as
+`vcore.realtime_*` on desktop and `arduino.realtime_*` on AVR. A region that
+exceeds its deadline halts with `VNE-109`.
 
 The same policy applies for the whole region; a second policy means a second
 region.
