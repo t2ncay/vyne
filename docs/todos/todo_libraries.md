@@ -1,534 +1,696 @@
 # TODO — Standard Library
 
-Draft. Companion to `todo.md` (Paper 1 pipeline), `todo_2.md` (feature axes),
-and `todo_optimization.md` (codegen speed).
+**Last updated:** 2026-11-08
 
-**Status.** Five user-facing libraries ship today: `vlin`, `vml`, `vbio`,
-`vfft`, `vjson`. Four are documented; `vjson`'s README is pending. This
-file tracks what to build next, in priority order, with the same
-three-question test the original draft used.
+Live roadmap for the Vyne standard library. This file replaces the earlier
+draft, which predated the native array ABI, the region-policy work, and the
+first batch of external libraries. It records what ships, what was learned,
+what the next five libraries are, and the long tail.
 
-**Do not start any new library until Paper 1 is submitted.** Every
-remaining entry either depends on §6.2 (native array ABI), on Paper 2/3
-features, or on the paper's numbers being frozen. Touching the compiler
-or the runtime to add a library invalidates §5.6, §5.7, §5.9, or all
-three.
+Companion documents:
 
-The through-line: **a good Vyne library has a natural per-call boundary,
-does arithmetic on native types, and gives the caller a compile-time peak
-bound.** If a candidate library fails any of the three, it's a fight with
-the language, not a use of it. Every entry below is scored against that
-test.
+- `todo.md` — Paper 1 pipeline (regions, scratch, peak bounds).
+- `todo_2.md` — post-Paper-1 feature axes (shape/range/unique/effect types,
+  device regions, region policies).
+- `todo_optimization.md` — codegen peepholes and structural performance work.
+- `todo_rulesets.md` — per-file safety rulesets.
+- `todo_drug_discovery.md` — the `vchem` pipeline.
+- `milestone.md` (repo root) — the overall scientific/numerical roadmap.
+
+The through-line is unchanged: **a good Vyne library has a natural per-call
+boundary, does arithmetic on native types, and gives the caller a compile-time
+peak bound.** If a candidate fails any of the three, it is a fight with the
+language, not a use of it.
+
+---
+
+## What changed in this revision
+
+The compiler is no longer frozen behind Paper 1 for library work. The native
+array ABI, native struct ABI, region policies, and the first library batch have
+landed. The standard library now has eleven user-facing libraries in the tree,
+five of them from the current scientific-library push.
+
+The top-10 scientific/numerical set was defined as:
+
+| # | Library | State | PR |
+| --- | --- | --- | --- |
+| 1 | `vstat` — statistics | **Shipped** | #104 |
+| 2 | `vtermplot` — terminal plotting | **Shipped** | #105 |
+| 3 | `vcomplex` — complex numbers | **Shipped** | #107 |
+| 4 | `vinterp` — 1-D/2-D interpolation | **Shipped** | #108 |
+| 5 | `vcsv` — CSV/TSV tables | **Shipped** | #109 |
+| 6 | `voptim` — optimizers | **Next** | — |
+| 7 | `vsignal` — signal processing | **Next** | — |
+| 8 | `vsparse` — sparse matrices | **Next** | — |
+| 9 | `vdecomp` — decompositions/solvers | **Next** | — |
+| 10 | `vnum` — numerical methods | **Next** | — |
+
+Two codegen/runtime fixes came out of this batch and are now load-bearing for
+library work:
+
+- **Float64 literal form.** Whole-valued doubles were emitted without a decimal
+  point, so `32.0 / 7.0` lowered to integer division. `floatLit` now appends
+  `.0` when needed and maps inf/nan to `INFINITY`/`NAN`.
+- **`vcore.sb_append_char`.** The existing runtime byte append is now exposed.
+  Parsers can scan with `String.byte_at` and append bytes without allocating a
+  one-character string per input byte. The 274 KB / 10k-row CSV benchmark went
+  from ~2270 ms to ~1 ms.
+
+---
+
+## Delivery workflow
+
+The current process is one library per branch/PR.
+
+- **One library per PR.** Stack the next branch on the previous one when its
+  integration test needs the earlier libraries; otherwise branch from `master`.
+- **Directory shape.** `<lib>/<lib>.vy` facade, leaf modules named by
+  responsibility (`Types.vy`, `Kernels.vy`, `Ops.vy`, `Reductions.vy`,
+  `Constructors.vy`, domain leaves), and `README.md`.
+- **Tests.** `examples/test/<lib>_test.vy` with a `check(name, cond)` helper and
+  a non-zero exit if any check fails.
+- **Benchmarks.** `examples/benchmark/<lib>_bench.vy`, using `vcore.now_ns()`.
+- **Cross-library tests.** Put integration tests on the last branch of a stack,
+  e.g. `examples/test/libraries_integration_test.vy`, so they can import every
+  library in the stack.
+- **Verification per PR.** `xmake build` if the compiler/runtime changed, the
+  library test, its benchmark, the affected integration test, and the safety
+  suite (`examples/safety/run_safety.ps1`, currently 10/10).
+- **Commit shape.** Separate commits for runtime prerequisites, the library,
+  tests/benchmarks, and docs. Headers and bodies explain the why and the
+  verification, not just the file list.
+
+### Codegen constraints every library author hits
+
+These are real constraints in the current emitter. Design around them; do not
+fight them inside a library PR.
+
+1. **Typed declarations use `:=`**, not `=`: `x :: Int64 := 0;`. Reassignment is
+   plain `x = ...;`.
+2. **Function definitions end with `}`**, no trailing semicolon.
+   **`through ... -> loop/mode { ... };` ends with `;`.** **`while` and `if`
+   blocks do not take a trailing `;`.**
+3. **`out` is a builtin.** Never use it as a variable, parameter, or local
+   name. The same applies to other reserved keywords.
+4. **Function parameters are not reassignable.** Copy to a local first:
+   `x :: Float64 := fx; if x < 0.0 { x = 0.0; }`.
+5. **A native array parameter is a bare pointer.** Inside a native-variant
+   function you cannot call `.size()` on it, and you cannot pass it to another
+   function that takes an array parameter. Pass `n` explicitly, or take a boxed
+   `Array` in a convenience entry point and copy into typed locals.
+6. **Prefer a struct with data + length.** A `Series { data :: Array<Float64>,
+   n :: Int64 }` keeps the pointer and length together and lets wrappers call
+   `k_*` kernels with unboxed arrays. This is the safest zero-copy pattern.
+7. **Same-named functions with different signatures collide** at C name
+   mangling. Use distinct names (`nearest` vs `nearest2d`).
+8. **Native struct construction from raw array parameters fails.** Build the
+   struct through a boxed helper or from typed locals.
+9. **Boxed `Array` parameters are the convenience escape hatch.** They can hold
+   any element type, but entry points that take them copy once. Document the
+   copy and offer a direct constructor for zero-copy use.
+10. **Recursion with array parameters should be iterative or explicit-stack.**
+    Native-to-native array calls are rejected; an explicit stack of indices or a
+    single inlined loop avoids the gate.
+11. **Use the `vcore` string builder for O(n) string work.** `sb_create`,
+    `sb_append`, `sb_append_char`, `sb_build`. Plain `s = s + x` in a loop is
+    O(n²).
+12. **File I/O is `vfs.read` / `vfs.write` / `vfs.exists` / `vfs.remove`.**
+    Desktop only; do not put `vfs` into an AVR-target library.
 
 ---
 
 ## The scoring test
 
-| Question                                      | If no, then...                     |
-| --------------------------------------------- | ---------------------------------- |
-| Does it have a natural per-call boundary?     | Region model doesn't help          |
-| Does it do arithmetic on `Int64` / `Float64`? | Native boxing buys you nothing     |
-| Does the caller benefit from a peak bound?    | The language's pitch is irrelevant |
+| Question | If no, then... |
+| --- | --- |
+| Does it have a natural per-call boundary? | Region model doesn't help |
+| Does it do arithmetic on `Int64` / `Float64`? | Native boxing buys you nothing |
+| Does the caller benefit from a peak bound? | The language's pitch is irrelevant |
 
 Three yeses → strong library. Two yeses → usable but not a demo. One yes →
-don't.
+don't. Every remaining entry is scored against this test.
 
 ---
 
 ## What ships today
 
-Runtime modules built into the compiler. Not libraries — they are pulled
-in through `use native`, not through `use external`.
+### Built-in native modules
 
-| Module  | Contents                                                          | Doc             |
-| ------- | ----------------------------------------------------------------- | --------------- |
-| `vcore` | Platform, time, process info, string builder, `chr`, JSON helpers | header comments |
-| `vmath` | Scalar math, PCG32 RNG, `_f64` unboxed variants                   | header comments |
-| `vmem`  | Arena checkpoint / rewind, peak and live inspection               | header comments |
-| `vfs`   | File read/write, directory listing, walk, glob, path helpers      | header comments |
+These are pulled in with `use native`, not `use external`.
 
-User-facing libraries under `vyne/modules/external/`. These are written
-in Vyne and imported through `use external`.
+| Module | Contents | Notes |
+| --- | --- | --- |
+| `vcore` | Time, platform, process info, string builder, `chr`, JSON helpers | `sb_append_char` added for byte parsers |
+| `vmath` | Scalar math, PCG32 RNG, `_f64` unboxed variants | Trig, exp/log, rounding, min/max/clamp |
+| `vmem` | Arena checkpoint/rewind, peak/live inspection, stream introspection | Region policies are in the runtime |
+| `vfs` | File read/write, lines, bytes, walk, glob, path ops | Desktop only |
+| `arduino` | AVR-only serial/GPIO/ADC/EEPROM/watchdog runtime | 60+ functions on the Uno R3 |
 
-| Library   | State    | README                   | One-line summary                                             |
-| --------- | -------- | ------------------------ | ------------------------------------------------------------ |
-| `vlin`    | **Done** | `vlin/README.md`         | Matrix and vector linear algebra over `Array<Float64>`.      |
-| `vml`     | **Done** | `vml/README.md`          | Dense neural network primitives on top of `vlin`.            |
-| `vbio`    | **Done** | `vbio/README.md`         | Nucleotide and protein sequence primitives.                  |
-| `vfft`    | **Done** | `vfft/README.md`         | Iterative radix-2 Cooley-Tukey FFT with plan caching.        |
-| `vjson`   | **Done** | _(pending)_              | Recursive-descent JSON parser and string-builder serializer. |
-| `vcolors` | **Done** | _(header comments only)_ | ANSI color helpers for diagnostics and demo output.          |
+### External libraries (`vyne/modules/external/`)
 
-### Condensed READMEs of completed libraries
+| Library | State | Manual | One-line summary |
+| --- | --- | --- | --- |
+| `vlin` | **Done** | `vlin/README.md` | Dense matrix/vector algebra over `Array<Float64>`. |
+| `vml` | **Done** | `vml/README.md` | Dense neural-network primitives on `vlin`. |
+| `vfft` | **Done** | `vfft/README.md` | Radix-2 Cooley-Tukey FFT with plan caching. |
+| `vrand` | **Done** | `vrand/README.md` | Continuous/discrete distributions and sampling. |
+| `vjson` | **Done** | `vjson/README.md` | Recursive-descent JSON parser and serializer. |
+| `vbio` | **Done** | `vbio/README.md` | Nucleotide/protein sequence primitives. |
+| `vstat` | **Done** | `vstat/README.md` | Descriptive stats, correlation, regression, histograms, KDE, Welford. |
+| `vtermplot` | **Done** | `vtermplot/README.md` | Terminal line/scatter/bar/histogram/heatmap/sparkline plots. |
+| `vcomplex` | **Done** | `vcomplex/README.md` | Scalar/array complex arithmetic, functions, polar helpers. |
+| `vinterp` | **Done** | `vinterp/README.md` | 1-D nearest/linear/Lagrange/spline and 2-D nearest/bilinear/bicubic. |
+| `vcsv` | **Done** | `vcsv/README.md` | RFC 4180 CSV/TSV parser, writer, typed columns. |
+| `vchem` | **Partial** | `vchem/` | `vchem_common` (elements/constants) + `vgraph` (CSR, BFS, DFS, Dijkstra). |
+| `vcolors` | **Done** | header comments | ANSI color helpers. |
+| `vconvert` | **Done** | header comments | Unit conversions (temperature, distance). |
+| `vstring` | **Done** | header comments | Legacy string helpers. |
+| `vplot` | **Toy** | — | Single-file bar chart. Superseded by `vtermplot`; do not extend. |
 
-`vlin` — the numerical core. Row-major flat-buffer `Matrix` and a 2-D
-geometric `Vector`. Split into `Kernels` (`k_*` loops over typed arrays,
-native-ABI eligible) and `Ops`/`Reductions`/`Constructors` (matrix-level
-wrappers that allocate the output and dispatch). Two calling conventions:
-`vlin.multiply(a, b)` and `a.transposed()`. Same kernel underneath. Weight
-initializers (`xavier_init`, `he_init`, `random_uniform`). In-place
-variants (`add_into`, `multiply_into`) for training loops that reuse
-buffers. **Load-bearing detail:** the `data :: Array<Float64>` annotation
-on the `Matrix` interface is what unboxes the field into a native
-`VyneArray_f64` at every read. Changing it to plain `Array` compiles but
-makes every element access 8× slower. Actively maintained.
-
-`vml` — a thin composition layer over `vlin`. `Dense` (weight matrix +
-bias + activation name), `Sequential` (list of layers), `SGD`
-(learning-rate holder). Forward pass, four activation derivatives, one
-SGD step. Backward pass is manual, written by the user in terms of `vlin`
-operations. `W` is stored `(in, out)` so the forward pass is `x @ W` with
-no transpose allocation. Deliberately no autograd, no GPU, no
-conv/recurrent layers, no adaptive optimizers in 0.1.0. **The main
-limitation:** `vlin.relu_prime` produces a matrix of nulls due to a
-codegen issue in `ForNode::getCExpr`; use `tanh` or `sigmoid` for hidden
-layers until it's fixed.
-
-`vbio` — nucleotide and protein sequence primitives. Complement,
-reverse-complement, transcription, codon-table translation, reverse
-translation, GC content, melting temperature (Wallace + GC-based),
-Hamming distance, codon composition. Sequences are plain `String`s; the
-`DNA`/`RNA`/`Protein` interfaces are thin wrappers carrying a `name`
-label. No alignment, no secondary structure, no ambiguity codes. Codon
-bias is hard-coded to E. coli K-12; edit `Codon.vy` to change it. Used
-by `ml_seq.vy` for codon-usage feature extraction.
-
-`vfft` — iterative radix-2 Cooley-Tukey, complex input only, power-of-two
-lengths only. **Plan caching** is the load-bearing design: twiddle tables
-and bit-reversal indices are computed once per length and reused.
-`forward` and `inverse` conjugate-symmetry trick keeps one kernel for
-both directions. The inverse is unscaled forward with conjugate on both
-sides and a 1/N final scale. Public surface: `forward`, `inverse`,
-`next_pow2`, `log2_exact`, `pow2`, `make_plan`, `ensure_plan`,
-`fft_kernel`, `bit_reverse`. **Load-bearing warning:** the plan is
-arena-allocated, but the cache's invalidation sentinel is a plain global.
-If the plan is first built inside a `region` and the region rewinds,
-`ensure_plan` will hand back a dangling pointer. Warm the plan at
-top-level scope before any region loop. The same hazard applies to any
-lazily-cached arena structure.
-
-`vjson` — recursive-descent parser and string-builder serializer.
-Supports all seven JSON value types, nested containers, escapes,
-surrogate pairs, `\uXXXX` decoding with UTF-8 encoding. `parse`,
-`serialize`, `validate`, `depth`, plus type predicates. Errors are raised
-with `throw` and carry a byte offset. **Load-bearing detail:** source
-strings containing `{` need `\{` — the Vyne lexer treats bare `{` inside
-a string as the start of an interpolation. Same for `}` only if it
-appears as the terminator of an actual interpolation. Serializer preserves
-all JSON value semantics; key order is hash-order, not insertion-order,
-which is valid JSON but not byte-identical on round-trip. **README
-pending.**
-
-`vcolors` — ANSI escape helpers for bold, red, green, yellow, cyan,
-magenta, reset. Used by every demo that prints colored banners. Header
-comments only; no README, no version.
+`vchem`'s full pipeline (`vmol`, `vsmiles`, `vdesc`, `vfp`, `vforce`, `vconf`,
+`vdock`) is tracked in `todo_drug_discovery.md`.
 
 ---
 
-## Tier 1 — The three that make the language defensible
+## Condensed manuals of the shipped libraries
 
-One of the three now ships. The other two are the priority.
+### `vlin`
 
-### L1.1 — `vfft` — **DONE**
+Row-major flat `Matrix` plus a 2-D `Vector`. Split into `Kernels` (`k_*` loops
+over typed arrays, native-ABI eligible) and `Ops`/`Reductions`/`Constructors`
+(matrix-level wrappers). Two calling conventions: `vlin.multiply(a, b)` and
+`a.transposed()`. Weight initializers, in-place variants, activations,
+elementwise ops, reductions, and `sgd_update_inplace`.
 
-Shipped. See the completed libraries section above. README at
-`vfft/README.md`.
+**Load-bearing detail:** the `data :: Array<Float64>` annotation is what
+unboxes the field into `VyneArray_f64` at every read. Changing it to plain
+`Array` compiles but makes element access much slower.
 
-Remaining work: `rfft` / `irfft` (real-input fast path), batched
-transforms, region-aware plan invalidation. All deferred to 0.2.
+### `vml`
+
+A thin composition layer over `vlin`: `Dense`, `Sequential`, `SGD`, forward
+pass, activation derivatives, one SGD step. Backward pass is manual. Native
+`vml` bindings also carry Adam-family optimizers; the planned `voptim` library
+will promote the optimizer surface to a first-class `vlin`/`voptim` API.
+
+### `vfft`
+
+Iterative radix-2 FFT, complex input, power-of-two lengths. Plan caching for
+twiddles and bit reversal. `forward`, `inverse`, `next_pow2`, `log2_exact`,
+`pow2`, `make_plan`, `ensure_plan`, `fft_kernel`, `bit_reverse`.
+
+**Plan-cache hazard:** the plan is arena-allocated, but the invalidation
+sentinel is a plain global. Warm the plan at top-level scope before a region
+loop; a plan first built inside a rewound region dangles. `rfft`/`irfft`,
+batched transforms, and region-aware invalidation are still open.
+
+### `vrand`
+
+Continuous and discrete distributions, sampling utilities, and RNG access on top
+of PCG32. Seedable; deterministic. The process-global RNG stream is still a
+limitation for independent simulations (`todo_2.md` has the state-carrying RNG
+direction).
+
+### `vjson`
+
+Recursive-descent parser and string-builder serializer. All seven JSON value
+types, nested containers, escapes, surrogate pairs, `\uXXXX` decoding.
+`parse`, `serialize`, `validate`, `depth`, type predicates. **Lexer hazard:**
+literal `{` in a source string must be escaped as `\{`; `}` only when it closes
+an interpolation. Key order is hash-order, not insertion-order.
+
+### `vbio`
+
+Nucleotide/protein sequence primitives: complement, reverse-complement,
+transcription, codon translation, reverse translation, GC content, melting
+temperature, Hamming distance, codon composition. Sequences are `String`s; the
+`DNA`/`RNA`/`Protein` interfaces carry a label. Codon bias defaults to E. coli
+K-12.
+
+### `vstat`
+
+`Series { data :: Array<Float64>, n :: Int64 }` carries a typed array and its
+length for zero-copy kernel calls. Surface: sum/mean/min/max/range, variance
+and stddev (population/sample), median/quantile/percentile/IQR/MAD/mode,
+weighted mean, summary; z-score, min-max normalize, absolute, cumulative sum,
+difference, average rank; covariance, Pearson, Spearman, autocorrelation,
+cross-correlation, R²; linear/predict/residuals, multiple linear, ridge,
+predict-row; histogram/histogram_range, density, CDF, empirical CDF, quantiles,
+Gaussian KDE; Welford and bivariate Welford state. `from_array` copies a boxed
+array; the direct constructor is zero-copy.
+
+### `vtermplot`
+
+Matplotlib-flavoured terminal plotting. A `Plot` owns a flat width×height grid
+of marker codes; `SeriesData` carries typed x/y arrays. Surface: line, scatter,
+bars, histogram, heatmap, sparkline, axes/labels, Unicode/ASCII themes, optional
+ANSI color, and `save` via `vfs`. One-call helpers: `plot_line`, `plot_scatter`,
+`plot_bars`, `plot_hist`, `plot_heatmap`, `plot_line_series`,
+`bars_series_plot`. Sparklines use the `vcore` string builder.
+
+### `vcomplex`
+
+Scalar `Complex { re, im }`, split `ComplexArray { re[], im[], n }`, and
+`Polar { r, theta }`. Scalar ops, exp/log/sqrt/pow/sin/cos/tan, polar
+conversion/rotation, and element-wise array ops (`a_add`, `a_sub`, `a_mul`,
+`a_scale`, `a_conj`, `a_abs`, `a_abs_sq`, `a_arg`, `a_sum`, `a_dot`,
+`a_from_polar`). Functions use the principal branch.
+
+### `vinterp`
+
+1-D over a sorted `Curve { xs, ys, n }`: nearest, linear with linear
+extrapolation, clamped linear, Lagrange polynomial, natural cubic spline,
+linear/spline resampling. 2-D over a row-major `Grid { data, rows, cols }`:
+nearest, bilinear, Catmull-Rom bicubic, both at fractional grid indices and at
+physical coordinates. `curve`/`grid` boxed constructors copy and validate; the
+direct constructors are zero-copy. `Curve.xs` must be strictly ascending.
+
+### `vcsv`
+
+RFC 4180-style CSV/TSV. `Table { headers :: Array, cells :: Array, n_rows,
+n_cols }` with flat row-major cells. Quoted fields, doubled quotes, embedded
+delimiters/newlines, CRLF, optional headers, custom single-byte delimiter.
+Access: cell/header/row/column, typed `column_f64`/`column_i64`, `shape`,
+`select_columns`, `column_names`. Serializer quotes only when needed and uses
+the `vcore` string builder; file I/O via `vfs`. The parser scans with
+`String.byte_at` and `vcore.sb_append_char`.
 
 ---
 
-### L1.2 — `vfilter` — IIR / FIR design and application
+## The next five libraries
 
-**Why second.** Direct continuation of the audio case study in
-`regions.md` §6.9. It's what `vaudio` most needs. Proves the language is
-for real-time DSP, not just batch numeric work. Per-sample update is one
-multiply-accumulate; per-block application is a region per callback.
+These are the remaining top-10 items, in order. Each gets its own PR, README,
+`examples/test/<lib>_test.vy`, and `examples/benchmark/<lib>_bench.vy`.
+
+### L1.6 — `voptim` — Optimizers for training loops
+
+**Why next.** It is the shortest path to a measurable ML improvement: the
+classifier and `vml` training loops get Adam/AdamW and schedules, and per-step
+updates can be proven allocation-free.
 
 **What lands.**
 
-- Second-order-section (SOS) forms: Butterworth, Chebyshev I, Chebyshev II, Linkwitz-Riley.
-- Response types: lowpass, highpass, bandpass, bandstop, allpass, peaking, lowshelf, highshelf.
-- Coefficient design via RBJ Audio EQ Cookbook.
-- Direct Form II Transposed apply — 6 lines per sample.
-- Cascade apply for N-th-order filters.
-- Magnitude and group-delay analysis.
+- Update rules: `sgd`, `sgd_momentum`, `nesterov`, `rmsprop`, `adagrad`,
+  `adam`, `adamw`.
+- Learning-rate schedules: `constant`, `step`, `exponential`, `cosine`,
+  `warmup_cosine`.
+- In-place kernels over `Array<Float64>` (`k_sgd_update`, `k_adam_update`, …)
+  and matrix wrappers over `vlin.Types.Matrix`.
+- State interfaces: `SGDState`, `MomentumState`, `RMSPropState`, `AdamState`
+  (`m`, `v`, step count), with session-scoped allocation.
+- A small `Optimizer` protocol so a training loop can keep one state value and
+  call `step(params, grads)`.
 
-**Signature shape.**
+**Design constraints.**
 
-```vyne
-region session {
-    scratch lp_state :: Float64[2, 4];
-    scratch hp_state :: Float64[2, 4];
-    through block :: 0..n_blocks-1 -> loop {
-        region callback {
-            scratch in  :: Float64[2, 512];
-            scratch out :: Float64[2, 512];
-            vfilter.apply_cascade(lp_sos, lp_state, in, out);
-            vfilter.apply_cascade(hp_sos, hp_state, out, out);
-        };
-    };
-};
-```
+- Updates happen in place; `state` and parameter buffers are reused every step.
+- Per-parameter state lives in a session region; per-step code allocates
+  nothing.
+- The kernels take data + length (`Series`/matrix fields); wrappers build the
+  state once.
 
-The `session` region declares persistent state; the `callback` region
-declares per-block scratch. The compiler proves the callback path never
-allocates — the real-time guarantee `vaudio` promises and cannot
-currently verify.
+**Depends on.** `vlin`.
+
+**Effort.** 1 week.
+
+**Validation.** Train XOR and the `ml_seq` classifier; measure epochs to target
+versus plain SGD; assert zero arena growth per step; benchmark 1M-parameter
+updates.
+
+**File shape.** `Types.vy`, `Kernels.vy`, `Schedules.vy`, `Ops.vy`,
+`Optimizers.vy`, `voptim.vy`, `README.md`.
+
+---
+
+### L1.7 — `vsignal` — Signal processing
+
+**Why next.** It builds directly on `vfft` and turns the DSP story into a real
+library: windows, convolution, filters, spectra, and allocation-free block
+processing. It absorbs most of the old `vfilter` plan.
+
+**What lands.**
+
+- Windows: rectangular, Hann, Hamming, Blackman, Bartlett.
+- Convolution: direct, FIR, moving average, exponential moving average.
+- Filters: first-order low/high, biquad/SOS with RBJ Audio EQ Cookbook design,
+  cascade apply, magnitude and group-delay analysis. A `vfilter` submodule can
+  host the real-time SOS layer if it wants its own name.
+- Spectral: power spectrum, one-sided magnitude, spectrogram over `vfft`
+  (with the plan warmed outside any region), and a real-input helper.
+- Signal stats: RMS, peak, peak-to-peak, zero crossings, energy.
+- Resampling: decimate, linear resample, frame/window extraction.
+
+**Design constraints.**
+
+- Typed arrays throughout; filter state is a small struct reused across blocks.
+- Spectrogram/window allocations belong in a caller region; document the plan
+  caching hazard.
+- Do not call `vfft.forward` with a raw native array parameter; pass typed
+  containers from a wrapper.
+
+**Depends on.** `vfft`, `vmath`; optionally `vcomplex`.
 
 **Effort.** 2 weeks.
 
-**Depends on.** Nothing strictly; lands harder once §6.9 is written.
+**Validation.** Sine FFT peak at the expected bin; filter magnitude response
+against the cookbook; convolution against a direct reference; spectrogram on a
+chirp; an allocation-free block callback.
+
+**File shape.** `Types.vy`, `Windows.vy`, `Kernels.vy`, `Convolution.vy`,
+`Filters.vy`, `Spectral.vy`, `Stats.vy`, `vsignal.vy`, `README.md`.
 
 ---
 
-### L1.3 — `voptim` — Optimizers for training loops
+### L1.8 — `vsparse` — Sparse matrices and iterative solvers
 
-**Why third.** Directly improves §5.6's classifier numbers. Every ML
-training loop needs it, and Adam is twenty lines. Ship it and the
-classifier gets measurably faster, which gives §5.6 a real before/after
-story.
+**Why next.** Sparse matvec is a natural Vyne kernel: typed index/value arrays,
+a per-call peak bound, and no boxing. It unlocks force-field Hessians, graph
+Laplacians, and PDE stencils.
 
 **What lands.**
 
-- `sgd`, `sgd_momentum`, `rmsprop`, `adam`, `adamw`.
-- LR schedules: `schedule_step`, `schedule_cosine`.
-- Per-parameter state is region-scoped at session level; per-step update
-  allocates nothing.
+- CSR and CSC types over `Array<Int64>` indices and `Array<Float64>` values.
+- Constructors: from COO, from dense, identity, transpose, diagonal.
+- Operations: SpMV, SpMM, scalar multiply, add, Frobenius norm, residual.
+- Iterative solvers: Jacobi, Gauss–Seidel, conjugate gradient (SPD).
+- Graph helpers: Laplacian/adjacency construction from edge lists.
+
+**Design constraints.**
+
+- Kernels are leaves over typed arrays; wrappers validate shape and allocate.
+- `vsparse` is a general-purpose library; keep it at the top level, not under
+  `vchem/`, even though chemistry is the first consumer.
+- Solver iterations reuse workspace arrays; document the region/scratch
+  pattern.
+
+**Depends on.** `vlin` for dense fallback/RHS.
 
 **Effort.** 1 week.
 
-**Depends on.** Nothing, but stronger once §6.2 lands because then `W`
-and `grad` become raw pointers and the update is a tight C loop.
+**Validation.** SpMV/SpMM against a dense oracle on random sparse matrices;
+conjugate gradient against a dense SPD solve; graph Laplacian sanity checks.
+
+**File shape.** `Types.vy`, `Constructors.vy`, `Kernels.vy`, `Ops.vy`,
+`Solvers.vy`, `vsparse.vy`, `README.md`.
 
 ---
 
-## Tier 2 — Real, but not demo-critical
+### L1.9 — `vdecomp` — Matrix decompositions and direct solvers
 
-Unchanged from the original draft. Each is a week or less and useful on
-its own; none is a paper.
+**Why next.** It is the LAPACK-shaped layer the scientific stack lacks: LU, QR,
+Cholesky, eigen, SVD, and the solves built on them. It is also the natural
+backend for `vstat`'s regressions, `vconf`, and force-field minimization.
 
-### L2.1 — `vstat` — Statistics
+**What lands.**
 
-Central tendency (mean, median, mode, weighted mean), spread (variance,
-stddev, MAD, IQR, range), correlation (Pearson, Spearman, covariance,
-autocorrelation), regression (linear least squares, multiple linear,
-ridge), distributions (histogram, quantiles, CDF, PDF estimation),
-streaming accumulators (Welford).
+- LU with partial pivoting: `lu`, `solve`, `inverse`, `determinant`.
+- QR by Householder: `qr`, `least_squares`, orthogonal residual checks.
+- Cholesky for SPD matrices; triangular solves.
+- Symmetric eigen via Jacobi rotations; power iteration for the dominant
+  eigenpair.
+- SVD via the symmetric eigen of `AᵀA` (documented conditioning limits), or a
+  dedicated one-sided Jacobi if it proves cleaner.
+- Small helpers: matrix norm, condition estimate, pivoting diagnostics.
 
-**Effort.** 1 week.
+**Design constraints.**
 
----
+- Pure Vyne over `vlin.Types.Matrix`/flat `Array<Float64>`; no LAPACK dependency.
+- Each factorization returns a result struct with the factors and pivot/status
+  information. Factorizations that allocate workspace should document it.
+- Inline the triangular/tridiagonal loops where the native-call gate would
+  otherwise reject a helper, or use `Series`-style struct calls.
+- Native `vblas`/`vlapack` bindings remain a separate future item; `vdecomp` is
+  the portable pure-Vyne layer.
 
-### L2.2 — `vrand` — Random distributions
+**Depends on.** `vlin`.
 
-Current state: `vmath.random(lo, hi)` and `vmath.random_float(lo, hi)`.
-Missing all the useful distributions. Add: Gaussian (Box-Muller and
-Ziggurat), exponential, Poisson, binomial, gamma, beta, categorical,
-Fisher-Yates shuffle, reservoir sampling. Seedable and deterministic
-on top of the existing PCG32.
+**Effort.** 2–3 weeks.
 
-**Effort.** 3–4 days.
+**Validation.** Residual norms and orthogonality on known matrices; LU/QR/
+Cholesky/SVD compared with NumPy/LAPACK on random matrices; least squares on a
+rank-deficient system; eigenpairs checked by `A v ≈ λ v`.
 
----
-
-### L2.3 — `vnum` — Numerical methods
-
-Root finding (bisection, Newton, secant, Brent), integration
-(trapezoidal, Simpson, Gauss-Legendre, adaptive), ODE (Euler, midpoint,
-RK4, adaptive RK45), interpolation (linear, polynomial, cubic spline),
-curve fitting (least squares, polynomial).
-
-**Effort.** 1.5 weeks.
-
-**Note.** Function-pointer callbacks require either monomorphization or a
-small dispatcher. Monomorphization is the right answer and you already
-have it.
+**File shape.** `Types.vy`, `LU.vy`, `QR.vy`, `Cholesky.vy`, `Eigen.vy`,
+`Solve.vy`, `vdecomp.vy`, `README.md`.
 
 ---
 
-### L2.4 — `vgeom` — Computational geometry
+### L1.10 — `vnum` — Numerical methods
 
-Vector 2D/3D ops, line and segment intersection, point-in-polygon (ray
-casting and winding number), convex hull (Graham scan, Andrew monotone
-chain), AABB / circle / sphere intersection, spatial hashing, quadtrees,
-octrees.
+**Why last of the top-10.** It composes everything above: roots, quadrature,
+ODE integration, interpolation, and fitting. It is also the library most
+sensitive to the callback design.
 
-**Effort.** 1 week for the core; a month for the spatial structures.
+**What lands.**
 
-**Pairs with.** `vglib` and the graphics examples.
+- Root finding: bisection, Newton, secant, Brent.
+- Integration: trapezoidal, Simpson, Gauss–Legendre (nodes/weights), adaptive
+  quadrature.
+- ODE: Euler, midpoint, RK4, adaptive RK45.
+- Interpolation/fitting wrappers: reuse `vinterp` for 1-D interpolation;
+  polynomial least-squares fit; linear/ridge from `vstat` where appropriate.
+- Result structs carrying iterations, residual, and convergence status.
 
----
+**Callback protocol (load-bearing).**
 
-## Tier 3 — Needs §6.2 or is a longer project
+Function values are broken in the compiled backend, so **do not pass a function
+as a value**. Instead, define an interface with the method the solver needs and
+use generic method dispatch:
 
-`vlin` has moved out of this tier (shipped). The rest are unchanged.
+```vyne
+interface Fn {
+    eval(x :: Float64) -> Float64;
+}
 
-### L3.1 — `vblas` — OpenBLAS / MKL bindings
+interface Dfn {
+    eval(x :: Float64) -> Float64;
+    deriv(x :: Float64) -> Float64;
+}
 
-Thin wrappers over `dgemm`, `daxpy`, `dscal`, `dgemv`, plus level-2
-(`dger`) and symmetric variants (`dsyrk`). Driver `-lopenblas` behind a
-`--blas` flag.
+fn bisection<F>(f :: F, lo :: Float64, hi :: Float64, tol :: Float64) -> Float64 {
+    # f.eval(x) is monomorphized for the concrete interface.
+}
 
-**Effort.** 1 day, once §6.2 exists.
+fn newton<F>(f :: F, x0 :: Float64, tol :: Float64) -> Float64 {
+    # f.eval(x) and f.deriv(x)
+}
+```
 
----
+For vector ODEs, use an interface with `rhs(t, y :: Array<Float64>) ->
+Array<Float64>` and copy into typed locals inside the wrapper; avoid
+native-to-native array calls.
 
-### L3.2 — `vlapack` — LAPACK bindings
+**Depends on.** `vinterp` (optional), `vlin`.
 
-LU, QR, Cholesky, SVD, eigenvalues, linear least squares. LAPACK's
-workspace-query convention (`lwork = -1` then re-call with the sized
-buffer) is a natural fit for the region model.
+**Effort.** 2 weeks.
 
-**Effort.** 3–4 days, after §6.2.
+**Validation.** Known roots (`sqrt(2)`, a cubic), `∫₀¹ x²` by each method,
+convergence orders, ODE against analytic solutions, and a callback example in
+the README.
 
----
-
-### L3.3 — `vlin` — **DONE**
-
-Shipped. See completed libraries section. README at `vlin/README.md`.
-
-Remaining work: activations module (`apply_tanh`, `apply_sigmoid`,
-`apply_relu` and their primes), losses (`mse`, `cross_entropy` and their
-primes), `sgd_update_inplace`, `insert_row`, `dot`/`outer`,
-`sub_scalar`/`div_scalar`. All listed in `vlin/README.md`'s roadmap.
-
----
-
-### L3.4 — `vpath` — Pathfinding
-
-Grid-based A*, Dijkstra, BFS, DFS, IDA*. Heuristics (Manhattan,
-Chebyshev, Euclidean, octile). Flow field generation. Navigation mesh
-basics.
-
-**Effort.** 1 week.
-
-**Pairs with.** `vglib`, the maze and nextbot examples.
+**File shape.** `Types.vy`, `Callbacks.vy`, `Roots.vy`, `Integration.vy`,
+`ODE.vy`, `Fitting.vy`, `vnum.vy`, `README.md`.
 
 ---
 
-### L3.5 — `vparse` — Parsers
+## Tier 2 — real, but not on the critical path
 
-**Update.** JSON is done (`vjson`). Remaining: TOML, INI, CSV, plus a
-recursive-descent parser for a small expression language.
+Ordered by how often the next project will need them.
 
-**Effort.** 2 days each for INI and CSV; 1 week for TOML; 3–5 days for
-the expression language.
+| Library | What it does | Effort | Notes |
+| --- | --- | --- | --- |
+| `vunits` | Length/mass/temperature/pressure/time conversions; dimensional helpers | 2 days | Pairs with scientific input parsing; `vconvert` is the legacy toy |
+| `vgeom` | 2-D/3-D vectors, intersections, point-in-polygon, hulls, AABB | 1 week | Pairs with graphics; overlaps `vlin.Vector` |
+| `vtime` | ISO 8601 parse/format, arithmetic, comparisons | 3 days | Desktop, `vcore.now` |
+| `vduration` | `"1h30m"`, `"500ms"` parse/format/arithmetic | 1 day | Use with `vtime` |
+| `vcalendar` | Day-of-week, week-number, leap years, month names | 2 days | Use with `vtime` |
+| `vuuid` | UUID v4/v7 generation | 1 day | `vrand` for randomness |
+| `vconfig` | Layered INI/JSON/env config lookup | 4 days | Builds on `vjson`, `vini` |
+| `vini` | INI parser/serializer | 2 days | Step toward `vtoml` |
+| `vtoml` | TOML parser | 1 week | After `vini` and `vcsv` |
+| `vlog` | Structured logging, levels, JSON output | 3 days | Builds on `vjson` |
+| `vsort` | Merge/radix/counting/bucket sorts over typed arrays | 4 days | Kernel-native |
+| `vsearch` | Binary/lower/upper/exponential/interpolation search | 2 days | Kernel-native |
+| `vbitset` | Fixed-size bitset, popcount, and/or/xor | 2 days | Uses `Array<Int64>` |
+| `vquat` | Quaternion arithmetic, rotations | 3 days | Pairs with `vcomplex` |
+| `vfilter` | Real-time SOS/IIR layer (if `vsignal` does not absorb it) | 2 weeks | Optional split from `vsignal` |
+
+`vfilter` is deliberately duplicated here and inside `vsignal`: ship the signal
+library first; if the real-time SOS API wants its own name and docs, promote it
+to a separate `vfilter` module rather than growing `vsignal` indefinitely.
 
 ---
 
-## Tier 4 — Defer until Papers 2 and 3
+## Tier 3 — longer projects or ecosystem polish
 
-Unchanged. Nothing in this tier is doable with today's feature set.
+| Library | What it does | Effort |
+| --- | --- | --- |
+| `vbigint` | Arbitrary-precision integers over `Array<Int64>` | 1.5 weeks |
+| `vpath` | Grid A*, Dijkstra, BFS, DFS, flow fields | 1 week |
+| `vparse` | Expression-language parser (CSV/INI/TOML are separate) | 3–5 days |
+| `vregex` | NFA regex engine | 1.5 weeks |
+| `vmarkdown` | Markdown subset to HTML | 1 week |
+| `vbase64` / `vhex` | Encoding helpers | 1 day each |
+| `vsemver` | Semantic-version parse/compare/ranges | 2 days |
+| `vheap` / `vtreap` / `vtrie` / `vunion` / `vbloom` | Data structures | 1–3 days each |
+| `vgraph` | General graph algorithms (separate from `vchem/vgraph`) | 1 week |
+| `vimage` | PPM/PNG loading and pixel access | 1 week |
+| `vaudio` | WAV read/write, sample access, resampling | 4 days |
+| `vcolor` | RGB/HSL/HSV/Lab conversions | 2 days |
+| `vtest` / `vbench` | Test and benchmark harnesses | 2–3 days each |
+| `vprocess` | Subprocess spawn/capture/wait | 3 days |
 
-- **`vtensor`** — autodiff tensors. Needs linear types (Paper 2) and shape types (Paper 3).
-- **`vode` / `vpde`** — differential equation solvers. Needs shape types.
-- **`vsim`** — 3D physics at scale. Needs shape types and linear types.
-- **`v3d`** — 3D math types. Needs shape types to distinguish `Vec3` / `Vec4` / `Mat4`.
+### Native bindings, kept separate
+
+- `vblas` — OpenBLAS/MKL wrappers (`dgemm`, `daxpy`, `dscal`, `dgemv`, …).
+  Driver `-lopenblas` behind `--blas`; the existing BLAS dispatch already covers
+  `vlin.multiply`.
+- `vlapack` — LAPACK workspace-query bindings, for the cases `vdecomp` should
+  not implement in pure Vyne.
+
+These are interop libraries, not pure-Vyne scientific libraries. Keep them out
+of `vdecomp`/`vsparse` so those stay portable.
+
+---
+
+## Tier 4 — defer until Papers 2 and 3
+
+Nothing here is doable with today's feature set.
+
+- `vtensor` — autodiff tensors. Needs linear types and shape types.
+- `vode` / `vpde` — differential-equation solvers at scale. Needs shape types.
+- `vsim` — 3-D physics at scale. Needs shape and linear types.
+- `v3d` — `Vec3`/`Vec4`/`Mat4` as distinct shape types.
+- `vautodiff` — reverse-mode AD over `vtensor`; needs the tensor and effect
+  work.
 
 ---
 
 ## Never
 
-Unchanged. `vcrypto` (bind libsodium, don't roll your own), `vnet`
-(sockets require syscalls; bind the C API), `vxml` (no), `vgui` / `vweb`
-(state-and-callback languages, not arithmetic).
-
----
-
-## Thirty more useful libraries
-
-New since the last revision. Organized by domain. Each entry is scored
-against the three-question test and given an effort estimate. None of
-these should be started before the Tier 1 and Tier 2 entries above are
-in the tree.
-
-### Data structures
-
-| Library   | What it does                                                  | Fits? | Effort |
-| --------- | ------------------------------------------------------------- | ----- | ------ |
-| `vheap`   | Binary heap / priority queue with caller-supplied comparator. | ✓✓✓   | 2 days |
-| `vtreap`  | Balanced BST (treap). Ordered iteration, range queries.       | ✓✓✓   | 3 days |
-| `vtrie`   | Prefix tree for string lookup. Compressed variant optional.   | ✓✓✓   | 3 days |
-| `vunion`  | Union-find / disjoint set with path compression.              | ✓✓✓   | 1 day  |
-| `vbitset` | Fixed-size bitset with popcount, and/or/xor.                  | ✓✓✓   | 2 days |
-| `vbloom`  | Bloom filter with configurable false-positive rate.           | ✓✓    | 1 day  |
-
-All six have a clean per-call boundary and benefit from a compile-time
-peak bound. `vbitset` is the strongest because it uses `Array<Int64>` as
-storage and every operation is a scalar loop over words.
-
-### Algorithms
-
-| Library   | What it does                                                                               | Fits? | Effort |
-| --------- | ------------------------------------------------------------------------------------------ | ----- | ------ |
-| `vgraph`  | Graph representation + BFS, DFS, topological sort, Dijkstra, Bellman-Ford, Floyd-Warshall. | ✓✓✓   | 1 week |
-| `vsort`   | Sorting algorithms beyond `qsort`: merge, radix, counting, bucket, timsort-lite.           | ✓✓✓   | 4 days |
-| `vsearch` | Binary search, lower_bound, upper_bound, exponential search, interpolation search.         | ✓✓✓   | 2 days |
-
-`vsort` is a natural fit for `Array<Float64>` — every kernel is a native
-loop.
-
-### Text and parsing
-
-| Library     | What it does                                                               | Fits? | Effort    |
-| ----------- | -------------------------------------------------------------------------- | ----- | --------- |
-| `vregex`    | NFA-based regular expression engine with the standard syntax.              | ✓✓    | 1.5 weeks |
-| `vstring`   | Levenshtein, Jaro-Winkler, kebab/snake/camel case, wrap, indent, truncate. | ✓✓    | 4 days    |
-| `vbase64`   | Base64 encode / decode.                                                    | ✓✓✓   | 1 day     |
-| `vhex`      | Hex dump, hex encode, hex decode.                                          | ✓✓✓   | 1 day     |
-| `vsemver`   | Semantic versioning: parse, compare, range matching.                       | ✓✓✓   | 2 days    |
-| `vmarkdown` | Markdown to HTML. Subset: headings, lists, code, emphasis.                 | ✓✓    | 1 week    |
-
-`vregex` and `vmarkdown` are the "tree-shaped work" demos alongside
-`vjson` — they exercise recursive descent and arena-scoped intermediates.
-
-### Encoding, time, config
-
-| Library     | What it does                                                             | Fits? | Effort |
-| ----------- | ------------------------------------------------------------------------ | ----- | ------ |
-| `vtime`     | Date and time arithmetic: parse ISO 8601, format, add/subtract, compare. | ✓✓✓   | 3 days |
-| `vduration` | Duration parsing (`"1h30m"`, `"500ms"`), format, arithmetic.             | ✓✓✓   | 1 day  |
-| `vcalendar` | Calendar arithmetic: day-of-week, week-number, month names, leap years.  | ✓✓✓   | 2 days |
-| `vuuid`     | UUID v4 (random) and v7 (time-ordered) generation.                       | ✓✓✓   | 1 day  |
-| `vconfig`   | Config loading: INI, JSON, environment variables. Layered lookup.        | ✓✓    | 4 days |
-| `vcsv`      | CSV reader / writer with configurable delimiter and quoting.             | ✓✓✓   | 3 days |
-| `vini`      | INI parser and serializer.                                               | ✓✓✓   | 2 days |
-| `vtoml`     | TOML parser. Larger than INI; the grammar has more edge cases.           | ✓✓    | 1 week |
-| `vlog`      | Structured logging: levels, key-value fields, JSON output.               | ✓✓    | 3 days |
-| `vprocess`  | Subprocess spawning, capture stdout/stderr, wait, signal.                | ✓     | 3 days |
-
-`vtoml` is a full parser project; do it after `vini` and `vcsv` have
-shaken out the patterns. `vprocess` is platform-specific (POSIX
-`fork`/`exec` vs Windows `CreateProcess`); budget for the divergence.
-
-### Numeric extras
-
-| Library    | What it does                                                                 | Fits? | Effort    |
-| ---------- | ---------------------------------------------------------------------------- | ----- | --------- |
-| `vcomplex` | Complex number arithmetic over pairs of `Float64`.                           | ✓✓✓   | 2 days    |
-| `vquat`    | Quaternion arithmetic, unit quaternions, rotations.                          | ✓✓✓   | 3 days    |
-| `vbigint`  | Arbitrary-precision integers over `Array<Int64>`.                            | ✓✓✓   | 1.5 weeks |
-| `vsparse`  | Sparse matrices in CSR and CSC formats.                                      | ✓✓✓   | 1 week    |
-| `vsignal`  | Signal processing: windowing, convolution, FIR/IIR application, spectrogram. | ✓✓✓   | 1 week    |
-| `vinterp`  | 1-D and 2-D interpolation: nearest, linear, cubic, bilinear.                 | ✓✓✓   | 3 days    |
-
-`vsparse` is the strongest fit — sparse matrix-vector products have a
-natural per-call peak bound, use `Array<Int64>` for indices and
-`Array<Float64>` for values, and every kernel is a native loop.
-`vbigint` is the largest effort and the one with the most subtle
-correctness surface.
-
-### Media and device
-
-| Library  | What it does                                                     | Fits? | Effort |
-| -------- | ---------------------------------------------------------------- | ----- | ------ |
-| `vimage` | Image loading and saving: PPM, PNG (uncompressed). Pixel access. | ✓✓    | 1 week |
-| `vaudio` | WAV file reading and writing, sample access, resampling.         | ✓✓    | 4 days |
-| `vcolor` | Color space conversions: RGB, HSL, HSV, Lab, sRGB gamma.         | ✓✓✓   | 2 days |
-| `vunits` | Unit conversions: length, mass, temperature, pressure, time.     | ✓✓✓   | 2 days |
-| `vtest`  | Unit testing framework: assertions, grouping, reporting.         | ✓     | 3 days |
-| `vbench` | Benchmarking harness: warmup, sampling, statistics.              | ✓     | 2 days |
-
-`vimage` and `vaudio` are Tier-2-quality demos because they connect to
-the graphics and DSP stories the language is already telling. PNG
-requires DEFLATE — either bundle miniz or implement it, budget
-accordingly.
-
-### Library count check
-
-Data structures: 6. Algorithms: 3. Text: 6. Encoding/time/config: 10.
-Numeric: 6. Media/device: 6. Total: **37**, but I've folded the
-least-essential (a couple of the media entries) into "nice to have" so
-you can pick the 30 that matter without re-organizing.
+- `vcrypto` — bind libsodium; do not roll your own.
+- `vnet` — sockets need syscalls; bind the C API.
+- `vxml` — no.
+- `vgui` / `vweb` — state-and-callback UI languages, not arithmetic.
 
 ---
 
 ## Ordering
 
 ```
-After Paper 1 submits
-    ↓
-Tier 0 + Tier 1 codegen optimizations (todo_optimization.md, ~1.5 days)
-    ↓
-L1.3 voptim        (1 week)     ← improves §5.6 directly
-    ↓
-L1.2 vfilter       (2 weeks)    ← audio case study + vaudio port
-    ↓
-Then Edit 1 (field annotation) + §6.2 native ABI
-    ↓
-Tier 2 in whatever order the next project needs
-    ↓
-30 more libraries, prioritized by which demo or paper they serve
+Done:  vstat, vtermplot, vcomplex, vinterp, vcsv
+  ↓
+voptim      (1 week)     ← training loops, Adam/AdamW, schedules
+  ↓
+vsignal     (2 weeks)    ← windows, convolution, filters, spectra
+  ↓
+vsparse     (1 week)     ← CSR/CSC, SpMV/SpMM, CG
+  ↓
+vdecomp     (2–3 weeks)  ← LU/QR/Cholesky/eigen/SVD
+  ↓
+vnum        (2 weeks)    ← roots, quadrature, ODE, fitting
+  ↓
+Tier 2 in the order the next project needs
+  ↓
+Tier 3 and native bindings, one at a time
 ```
 
-The reason `vfft` is no longer in the queue: it shipped. The reason
-`voptim` is now first: it's the shortest path to a measurable §5.6
-improvement, and the paper benefits directly. `vfilter` is second
-because it's the strongest new demo the language can produce in two
-weeks.
+Reasoning: `voptim` is the shortest measurable ML win. `vsignal` turns the FFT
+into a DSP story and absorbs `vfilter`. `vsparse`, `vdecomp`, and `vnum`
+complete the scientific stack in dependency order. `vdecomp` comes before
+`vnum` because fitting and ODE work reuse the solvers.
 
 ---
 
 ## What each library contributes to the story
 
-Updated. Done rows are marked.
-
-| Library   | State  | Audience             | Claim                                               |
-| --------- | ------ | -------------------- | --------------------------------------------------- |
-| `vlin`    | Done   | Numeric              | "The numerical core, with native-ABI kernels"       |
-| `vml`     | Done   | ML                   | "Training loops work, and the numbers are real"     |
-| `vbio`    | Done   | Bioinformatics       | "The language has credible non-numeric reach"       |
-| `vfft`    | Done   | Numeric / scientific | "Real numeric code, no deps, competitive speed"     |
-| `vjson`   | Done   | Tooling              | "Recursive descent without a GC"                    |
-| `vfilter` | Next   | Real-time DSP        | "Allocation-free audio callbacks, provably"         |
-| `voptim`  | Next   | ML                   | "Training loops get faster and the numbers improve" |
-| `vstat`   | Tier 2 | Data / analytics     | "The language has the boring stuff you need"        |
-| `vrand`   | Tier 2 | Everything           | "We have distributions, not just a PRNG"            |
-| `vnum`    | Tier 2 | Scientific           | "ODE and root-finding belong here"                  |
-| `vgeom`   | Tier 2 | Games / graphics     | "Pairs with vglib"                                  |
-| `vblas`   | Tier 3 | ML / numeric         | "Calls BLAS with pointers into the arena"           |
-| `vpath`   | Tier 3 | Games                | "A\* in a language with bounded memory"             |
-| `vtensor` | Tier 4 | ML                   | "Autodiff as a first-class primitive"               |
-
-Six rows ship today. The remaining entries are the ecosystem story.
+| Library | State | Audience | Claim |
+| --- | --- | --- | --- |
+| `vlin` | Done | Numeric | "The numerical core, with native-ABI kernels" |
+| `vml` | Done | ML | "Training loops work, and the numbers are real" |
+| `vfft` | Done | Numeric/scientific | "Real numeric code, no deps, competitive speed" |
+| `vrand` | Done | Everything | "We have distributions, not just a PRNG" |
+| `vjson` | Done | Tooling | "Recursive descent without a GC" |
+| `vbio` | Done | Bioinformatics | "Credible non-numeric reach" |
+| `vstat` | Done | Data/analytics | "The boring statistics you actually need" |
+| `vtermplot` | Done | Scientific/data | "Matplotlib in the terminal" |
+| `vcomplex` | Done | Numeric/signals | "Complex math over split arrays" |
+| `vinterp` | Done | Scientific | "Sampled data becomes a function" |
+| `vcsv` | Done | Data | "Real data gets in without a scripting layer" |
+| `voptim` | Next | ML | "Training loops get faster, and allocations stay flat" |
+| `vsignal` | Next | DSP/audio | "Allocation-free block processing, provably" |
+| `vsparse` | Next | Scientific | "Sparse systems with a per-call peak bound" |
+| `vdecomp` | Next | Scientific | "LAPACK-shaped solves in pure Vyne" |
+| `vnum` | Next | Scientific | "Roots, integrals, and ODEs belong here" |
+| `vtensor` | Tier 4 | ML | "Autodiff as a first-class primitive" |
 
 ---
 
 ## Don't do this
 
-- **Don't start any of these before Paper 1 ships.** The compiler is
-  frozen; a new library is a compiler edit.
-- **Don't ship `vblas` before §6.2.** Every call copies otherwise.
-- **Don't build `vtensor` before Papers 2 and 3.** It's the wrong tool
-  for the current feature set.
-- **Don't try to match FFTW's last 30%.** 0.7–0.9× FFTW is the honest
-  number and a good one.
-- **Don't add every distribution to `vrand`.** Gaussian, exponential,
-  and categorical cover 90% of uses.
-- **Don't write two libraries at once.** Each one teaches you something
-  about the language. Serialize.
-- **Don't chase key-order preservation in `vjson`.** It's a valid
-  improvement but a low-priority one; the trigger condition is "first
-  user-facing serialize-to-file use case", not "now".
-- **Don't roll your own crypto, ever.** Bind libsodium through §6.2 or
-  don't ship a crypto library at all.
+- **Don't start a library before its dependencies.** The dependency graph is a
+  DAG; walking it out of order creates rework.
+- **Don't break the one-library-per-PR workflow.** Each library should ship
+  with a README, a test, and a benchmark.
+- **Don't use function values in compiled code.** They do not lower correctly;
+  use the generic interface-method callback pattern in `vnum` and
+  `vsignal`.
+- **Don't name two functions the same with different signatures.** C name
+  mangling collides; use `nearest` vs `nearest2d`.
+- **Don't use `out` as a variable or parameter.** It is a builtin.
+- **Don't reassign a function parameter.** Copy to a local first.
+- **Don't call `.size()` on a native array parameter**, and do not pass a native
+  array parameter to another array-parameter function. Use a `Series`-style
+  struct or a boxed convenience entry point.
+- **Don't build `vtensor`/autodiff before shape and linear types.**
+- **Don't ship `vblas`/`vlapack` before the native array ABI and region-backed
+  buffers are stable** — they are stable now, so this is about scheduling, not
+  a blocker.
+- **Don't try to match FFTW's last 30%.** 0.7–0.9× FFTW is the honest number.
+- **Don't add every distribution to `vrand`.** Gaussian, exponential, and
+  categorical cover most uses.
+- **Don't write two libraries at once.** Serialize; each teaches something about
+  the language.
+- **Don't chase key-order preservation in `vjson`.** It is valid JSON without it.
+- **Don't extend the legacy `vplot.vy`.** Use `vtermplot`.
+- **Don't roll your own crypto.** Bind libsodium or don't ship it.
 
 ---
 
-## What "done" looks like for this file
+## What "done" looks like
 
-When you can compile `examples/benchmark/` and get:
+When `examples/benchmark/` and `examples/test/` can demonstrate:
 
-- A matmul at native-C speed (Paper 1, `vlin`)
-- An FFT at 0.8× FFTW (`vfft`)
-- A 4-band EQ with an allocation-free callback (`vfilter`)
-- A classifier trained with Adam in fewer epochs (`voptim`)
-- A JSON parser that round-trips a real payload (`vjson`)
-- All of the above with provable peak scratch bounds
+- A matmul at native-C speed (`vlin`, checks on).
+- An FFT at 0.8× FFTW (`vfft`; `rfft` still open).
+- A 4-band EQ with an allocation-free callback (`vsignal`/`vfilter`).
+- A classifier trained with Adam in fewer epochs (`voptim`).
+- A JSON payload round-trip (`vjson`).
+- A CSV → stats → interpolation → complex → terminal-plot pipeline
+  (`vcsv` + `vstat` + `vinterp` + `vcomplex` + `vtermplot`; the integration test
+  already does this).
+- A sparse system solved by conjugate gradient (`vsparse`).
+- LU/QR/Cholesky/eigen solves with residual checks (`vdecomp`).
+- Roots, quadrature, and an ODE integration with convergence checks (`vnum`).
+- All of the above with provable peak scratch bounds.
 
-...the language has both a numeric story and a memory-model story, and
-both are backed by measurements a reviewer can read. That's what the
-library work is for — it's what turns the compiler's guarantees from
-_interesting_ into _useful_.
+...the library layer has both a numeric story and a memory-model story, backed
+by measurements a reviewer can read. That is what turns the compiler's
+guarantees from _interesting_ into _useful_.
+
+---
+
+## Cross-references and PR log
+
+- Top-10 batch:
+  - #104 `vstat`
+  - #105 `vtermplot`
+  - #107 `vcomplex`
+  - #108 `vinterp`
+  - #109 `vcsv` + `examples/test/libraries_integration_test.vy`
+- Tests: `examples/test/{vstat,vtermplot,vcomplex,vinterp,vcsv}_test.vy`,
+  `examples/test/libraries_integration_test.vy`.
+- Benchmarks: `examples/benchmark/{vstat,vtermplot,vcomplex,vinterp,vcsv}_bench.vy`.
+- Paper/feature roadmaps: `todo.md`, `todo_2.md`, `todo_optimization.md`,
+  `todo_rulesets.md`, `todo_drug_discovery.md`, and `milestone.md`.
