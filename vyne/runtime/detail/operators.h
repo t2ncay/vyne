@@ -36,6 +36,10 @@ enum {
     VBOP_BITWISE_SRL = 57
 };
 
+static inline VyneValue _vyne_float_arith(double x, int both_f32) {
+    return both_f32 ? vyne_float32((float)x) : vyne_float(x);
+}
+
 static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
     // String concatenation
     if (op == VBOP_ADD && (left.type == V_STRING || right.type == V_STRING)) {
@@ -69,8 +73,8 @@ static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
     }
 
     if (op == VBOP_ADD && _vyne_array_size(left) > 0 && _vyne_array_size(right) > 0
-        && (left.type == V_ARRAY || left.type == V_F64_ARRAY || left.type == V_I64_ARRAY)
-        && (right.type == V_ARRAY || right.type == V_F64_ARRAY || right.type == V_I64_ARRAY)) {
+        && (left.type == V_ARRAY || left.type == V_F64_ARRAY || left.type == V_F32_ARRAY || left.type == V_I64_ARRAY)
+        && (right.type == V_ARRAY || right.type == V_F64_ARRAY || right.type == V_F32_ARRAY || right.type == V_I64_ARRAY)) {
         VyneValue result = vyne_array_create(0);
         int64_t ln = _vyne_array_size(left);
         for (int64_t i = 0; i < ln; ++i) vyne_array_push(result, _vyne_array_elem_at(left, i));
@@ -82,24 +86,29 @@ static VyneValue vyne_binop_slow(VyneValue left, VyneValue right, int op) {
     if (op == VBOP_AND) return vyne_bool(vyne_is_truthy(left) && vyne_is_truthy(right));
     if (op == VBOP_OR)  return vyne_bool(vyne_is_truthy(left) || vyne_is_truthy(right));
 
-    // Float math
-    bool is_float_math = (left.type == V_FLOAT64 || right.type == V_FLOAT64);
-    if (is_float_math &&
-        (left.type == V_FLOAT64 || left.type == V_INT64) &&
-        (right.type == V_FLOAT64 || right.type == V_INT64)) {
-        double l = (left.type == V_FLOAT64) ? left.as.f64 : (double)left.as.i64;
-        double r = (right.type == V_FLOAT64) ? right.as.f64 : (double)right.as.i64;
+    // Float math (Float32 stays Float32 only when both operands are Float32;
+    // any mix with Float64 or Int64 promotes to Float64).
+    bool is_float_math = (left.type == V_FLOAT64 || left.type == V_FLOAT32 ||
+                          right.type == V_FLOAT64 || right.type == V_FLOAT32);
+    bool lnumeric = (left.type == V_FLOAT64 || left.type == V_FLOAT32 ||
+                     left.type == V_INT64);
+    bool rnumeric = (right.type == V_FLOAT64 || right.type == V_FLOAT32 ||
+                     right.type == V_INT64);
+    if (is_float_math && lnumeric && rnumeric) {
+        double l = (left.type == V_INT64) ? (double)left.as.i64 : left.as.f64;
+        double r = (right.type == V_INT64) ? (double)right.as.i64 : right.as.f64;
+        int both_f32 = (left.type == V_FLOAT32 && right.type == V_FLOAT32);
         switch (op) {
-            case VBOP_ADD: return vyne_float(l + r);
-            case VBOP_SUB: return vyne_float(l - r);
-            case VBOP_MUL: return vyne_float(l * r);
+            case VBOP_ADD: return _vyne_float_arith(l + r, both_f32);
+            case VBOP_SUB: return _vyne_float_arith(l - r, both_f32);
+            case VBOP_MUL: return _vyne_float_arith(l * r, both_f32);
             case VBOP_DIV:
                 if (r == 0.0) { fprintf(stderr, "Runtime error: Division by zero!\n"); exit(1); }
-                return vyne_float(l / r);
+                return _vyne_float_arith(l / r, both_f32);
             case VBOP_MOD:
                 if (r == 0.0) { fprintf(stderr, "Runtime error: Modulo by zero!\n"); exit(1); }
-                return vyne_float(fmod(l, r));
-            case VBOP_POW: return vyne_float(pow(l, r));
+                return _vyne_float_arith(fmod(l, r), both_f32);
+            case VBOP_POW: return _vyne_float_arith(pow(l, r), both_f32);
             case VBOP_EQ:  return vyne_bool(l == r);
             case VBOP_NEQ: return vyne_bool(l != r);
             case VBOP_GT:  return vyne_bool(l > r);
@@ -249,6 +258,7 @@ static inline VyneValue vyne_unary(VyneValue val, int op) {
         case VBOP_SUB: // '-'
             if (val.type == V_INT64) return vyne_int(-val.as.i64);
             if (val.type == V_FLOAT64) return vyne_float(-val.as.f64);
+            if (val.type == V_FLOAT32) return vyne_float32((float)(-val.as.f64));
             return vyne_null();
         case VBOP_BITWISE_NOT:
             return vyne_int(~val.as.i64);

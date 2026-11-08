@@ -113,7 +113,11 @@ std::optional<std::string> tryEmitNativeCall(
             VType wantVT = want.toVType();
             bool ok = (argVTypes[i] == wantVT) ||
                       (wantVT == VType::Float64 &&
-                       argVTypes[i] == VType::Int64);
+                       (argVTypes[i] == VType::Int64 ||
+                        argVTypes[i] == VType::Float32)) ||
+                      (wantVT == VType::Float32 &&
+                       (argVTypes[i] == VType::Int64 ||
+                        argVTypes[i] == VType::Float64));
             if (!ok) return std::nullopt;
         }
     }
@@ -172,8 +176,16 @@ std::optional<std::string> tryEmitNativeCall(
                 } else if (fd.type.kind == CType::Kind::Float64) {
                     std::string fv = e.newTemp("sff");
                     e.emit("double " + fv + " = (" + fieldBoxed +
-                           ".type == V_FLOAT64) ? " + fieldBoxed +
+                           ".type == V_FLOAT64 || " + fieldBoxed +
+                           ".type == V_FLOAT32) ? " + fieldBoxed +
                            ".as.f64 : (double)" + fieldBoxed + ".as.i64;");
+                    argList += fv;
+                } else if (fd.type.kind == CType::Kind::Float32) {
+                    std::string fv = e.newTemp("sff32");
+                    e.emit("float " + fv + " = (" + fieldBoxed +
+                           ".type == V_FLOAT64 || " + fieldBoxed +
+                           ".type == V_FLOAT32) ? (float)" + fieldBoxed +
+                           ".as.f64 : (float)" + fieldBoxed + ".as.i64;");
                     argList += fv;
                 } else if (fd.type.kind == CType::Kind::Array &&
                            !fd.type.args.empty()) {
@@ -182,9 +194,14 @@ std::optional<std::string> tryEmitNativeCall(
                     // the boxed value is already a V_F64_ARRAY (shares
                     // the backing buffer), O(N) otherwise. Either way
                     // the callee gets a valid pointer and the right size.
-                    bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
-                    std::string cName = isF64 ? "VyneArray_f64" : "VyneArray_i64";
+                    VType felem = fd.type.args[0].toVType();
+                    bool isF64 = (felem == VType::Float64);
+                    bool isF32 = (felem == VType::Float32);
+                    std::string cName = isF64 ? "VyneArray_f64"
+                                      : isF32 ? "VyneArray_f32"
+                                              : "VyneArray_i64";
                     std::string conv  = isF64 ? "vyne_value_to_array_f64"
+                                      : isF32 ? "vyne_value_to_array_f32"
                                               : "vyne_value_to_array_i64";
                     std::string av = e.newTemp("sfa");
                     e.emit(cName + " " + av + " = " + conv + "(" +
@@ -217,9 +234,12 @@ std::optional<std::string> tryEmitNativeCall(
                 e.emit("double " + ov + " = 0.0;");
             } else if (fd.type.kind == CType::Kind::Array &&
                        !fd.type.args.empty()) {
-                bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
+                VType felem = fd.type.args[0].toVType();
+                bool isF64 = (felem == VType::Float64);
+                bool isF32 = (felem == VType::Float32);
                 e.emit(std::string(isF64 ? "VyneArray_f64 "
-                                         : "VyneArray_i64 ") + ov + ";");
+                                  : isF32 ? "VyneArray_f32 "
+                                          : "VyneArray_i64 ") + ov + ";");
             }
         }
 
@@ -248,9 +268,12 @@ std::optional<std::string> tryEmitNativeCall(
                 ctorArgs += "vyne_float(" + ov + ")";
             } else if (fd.type.kind == CType::Kind::Array &&
                        !fd.type.args.empty()) {
-                bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
+                VType felem = fd.type.args[0].toVType();
+                bool isF64 = (felem == VType::Float64);
+                bool isF32 = (felem == VType::Float32);
                 std::string wrap = isF64 ? "vyne_array_f64_to_value"
-                                         : "vyne_array_i64_to_value";
+                                   : isF32 ? "vyne_array_f32_to_value"
+                                           : "vyne_array_i64_to_value";
                 ctorArgs += wrap + "(&" + ov + ")";
             }
         }
@@ -266,6 +289,7 @@ std::optional<std::string> tryEmitNativeCall(
     if (retCt->kind == CType::Kind::Array && !retCt->args.empty()) {
         VType elem = retCt->args[0].toVType();
         retCName = (elem == VType::Float64) ? "VyneArray_f64"
+                 : (elem == VType::Float32) ? "VyneArray_f32"
                                             : "VyneArray_i64";
     } else {
         retCName = retCt->cTypeName();

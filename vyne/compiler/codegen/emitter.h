@@ -588,6 +588,8 @@ class C_Emitter {
             VType elem = el.toVType();
             if (elem == VType::Float64)
                 return "vyne_array_f64_to_value(&" + expr + ")";
+            if (elem == VType::Float32)
+                return "vyne_array_f32_to_value(&" + expr + ")";
             if (elem == VType::Int64)
                 return "vyne_array_i64_to_value(&" + expr + ")";
         }

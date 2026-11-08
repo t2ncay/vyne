@@ -40,6 +40,7 @@ struct CType {
         Unknown, // dynamic → stay boxed as VyneValue
         Int64,
         Float64,
+        Float32,
         Bool,
         Str,         // M1: still boxed (char* + length is a later milestone)
         Array,       // element type in args[0]
@@ -119,12 +120,12 @@ struct CType {
     }
 
     bool isBoxed() const {
-        return kind != Kind::Int64 && kind != Kind::Float64 &&
+        return kind != Kind::Int64 && kind != Kind::Float64 && kind != Kind::Float32 &&
                kind != Kind::Bool;
     }
 
     bool isPrimitive() const {
-        return kind == Kind::Int64 || kind == Kind::Float64 ||
+        return kind == Kind::Int64 || kind == Kind::Float64 || kind == Kind::Float32 ||
                kind == Kind::Bool;
     }
 
@@ -136,6 +137,8 @@ struct CType {
             return "int64_t";
         case Kind::Float64:
             return "double";
+        case Kind::Float32:
+            return "float";
         case Kind::Bool:
             return "bool";
         case Kind::RawArrayPtr: {
@@ -152,6 +155,8 @@ struct CType {
                 const CType& el = args[0];
                 if (el.kind == Kind::Float64)
                     return "VyneArray_f64";
+                if (el.kind == Kind::Float32)
+                    return "VyneArray_f32";
                 if (el.kind == Kind::Int64)
                     return "VyneArray_i64";
                 if (el.kind == Kind::Struct && el.nativeCStruct &&
@@ -180,6 +185,8 @@ struct CType {
             return "vyne_int(" + expr + ")";
         case Kind::Float64:
             return "vyne_float(" + expr + ")";
+        case Kind::Float32:
+            return "vyne_float32(" + expr + ")";
         case Kind::Bool:
             return "vyne_bool(" + expr + ")";
         default:
@@ -195,6 +202,8 @@ struct CType {
             return expr + ".as.i64";
         case Kind::Float64:
             return expr + ".as.f64";
+        case Kind::Float32:
+            return "(float)(" + expr + ").as.f64";
         case Kind::Bool:
             return expr + ".as.i64"; // bools live in .as.i64
         default:
@@ -216,6 +225,8 @@ struct CType {
             return "i64";
         case Kind::Float64:
             return "f64";
+        case Kind::Float32:
+            return "f32";
         case Kind::Bool:
             return "b";
         case Kind::Str:
@@ -241,6 +252,8 @@ struct CType {
             return VType::Int64;
         case Kind::Float64:
             return VType::Float64;
+        case Kind::Float32:
+            return VType::Float32;
         case Kind::Bool:
             return VType::Bool;
         case Kind::Str:
@@ -266,6 +279,8 @@ struct CType {
             return CType{Kind::Int64};
         case VType::Float64:
             return CType{Kind::Float64};
+        case VType::Float32:
+            return CType{Kind::Float32};
         case VType::Bool:
             return CType{Kind::Bool};
         case VType::String:
@@ -299,6 +314,8 @@ struct CType {
             return "int64_t";
         case VType::Float64:
             return "double";
+        case VType::Float32:
+            return "float";
         case VType::Bool:
             return "bool";
         default:
@@ -313,6 +330,8 @@ struct CType {
             return "VyneArray_i64";
         case VType::Float64:
             return "VyneArray_f64";
+        case VType::Float32:
+            return "VyneArray_f32";
         default:
             return "VyneValue";
         }

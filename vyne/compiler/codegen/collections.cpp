@@ -28,8 +28,11 @@ std::string ArrayNode::getCExpr(C_Emitter& e) const {
     VType elem = inferArrayElemType(this);
     if (elem != VType::Unknown && !elements.empty()) {
         std::string name = e.newTemp("arr");
-        std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create"
-                                                    : "vyne_array_i64_create";
+        std::string ctor = (elem == VType::Float64)
+                               ? "vyne_array_f64_create"
+                               : (elem == VType::Float32)
+                                     ? "vyne_array_f32_create"
+                                     : "vyne_array_i64_create";
 
         e.emit(
             CType::arrayContainerName(elem) + " " + name + " = " + ctor + "(" +
@@ -179,7 +182,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
 
         std::string name = e.newTemp("idx");
         e.emit(
-            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            (elem == VType::Float64 ? "double " : elem == VType::Float32 ? "float " : "int64_t ") + name + " = " +
             bRaw + "[" + iv + "];"
         );
         e.declareNativeTemp(name, CType::fromVType(elem));
@@ -193,7 +196,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
 
         std::string name = e.newTemp("idx");
         e.emit(
-            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            (elem == VType::Float64 ? "double " : elem == VType::Float32 ? "float " : "int64_t ") + name + " = " +
             bRaw + "[" + idx + "];"
         );
         e.declareNativeTemp(name, CType::fromVType(elem));
@@ -260,7 +263,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
 
         std::string name = e.newTemp("idx");
         e.emit(
-            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            (elem == VType::Float64 ? "double " : elem == VType::Float32 ? "float " : "int64_t ") + name + " = " +
             bRaw + "[" + iv + "];"
         );
         e.declareNativeTemp(name, CType::fromVType(elem));
@@ -311,7 +314,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
 
         std::string name = e.newTemp("idx");
         e.emit(
-            (elem == VType::Float64 ? "double " : "int64_t ") + name + " = " +
+            (elem == VType::Float64 ? "double " : elem == VType::Float32 ? "float " : "int64_t ") + name + " = " +
             bRaw + ".data[" + idx + "];"
         );
         e.declareNativeTemp(name, CType::fromVType(elem));
@@ -551,8 +554,11 @@ std::string SliceNode::getCExpr(C_Emitter& e) const {
             high ? coerceToNative(e, high.get(), rawHi, VType::Int64)
                  : (bRaw + ".size");
 
-        std::string fn = (elem == VType::Float64) ? "vyne_array_f64_slice"
-                                                  : "vyne_array_i64_slice";
+        std::string fn = (elem == VType::Float64)
+                             ? "vyne_array_f64_slice"
+                             : (elem == VType::Float32)
+                                   ? "vyne_array_f32_slice"
+                                   : "vyne_array_i64_slice";
         std::string name = e.newTemp("slc");
         e.emit(
             CType::arrayContainerName(elem) + " " + name + " = " + fn + "(&" +

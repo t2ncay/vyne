@@ -46,6 +46,10 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
         if (arguments.empty()) return "vyne_float(0.0)";
         return "vyne_to_float(" + e.boxAny(arguments[0]->getCExpr(e)) + ")";
     }
+    if (funcName == "float32") {
+        if (arguments.empty()) return "vyne_float32(0.0f)";
+        return "vyne_to_float32(" + e.boxAny(arguments[0]->getCExpr(e)) + ")";
+    }
     if (funcName == "sizeof") {
         if (arguments.empty()) return "vyne_int(0)";
         std::string arg = e.boxAny(arguments[0]->getCExpr(e));

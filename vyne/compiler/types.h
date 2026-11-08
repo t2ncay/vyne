@@ -31,12 +31,14 @@ enum class VType {
     Reference = 8,
     Map = 9,
     Null = 10,
-    Bool = 11
+    Bool = 11,
+    Float32 = 12
 };
 
 inline VType stringToVType(std::string_view name) {
     if (name == "Int64")    return VType::Int64;
     if (name == "Float64")  return VType::Float64;
+    if (name == "Float32")  return VType::Float32;
     if (name == "Array")    return VType::Array;
     if (name == "String")   return VType::String;
     if (name == "Null")     return VType::Null;
@@ -49,6 +51,7 @@ inline std::string VTypeToString(VType type) {
     switch (type) {
         case VType::Int64:     return "Int64";
         case VType::Float64:   return "Float64";
+        case VType::Float32:   return "Float32";
         case VType::Array:     return "Array";
         case VType::String:    return "String";
         case VType::Function:  return "Function";

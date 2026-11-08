@@ -33,6 +33,17 @@ static inline VyneValue vyne_slice_get(VyneValue base, VyneValue lo_v, VyneValue
         VyneArray_f64 r = vyne_array_f64_slice(a, lo, hi);
         return vyne_array_f64_to_value(&r);
     }
+    if (base.type == V_F32_ARRAY) {
+        VyneArray_f32* a = base.as.arr_f32;
+        int64_t len = a->size;
+        if (lo < 0) lo = 0;
+        if (lo > len) lo = len;
+        if (hi < 0) hi = 0;
+        if (hi > len) hi = len;
+        if (lo >= hi) return vyne_array_f32_to_value(&(VyneArray_f32){NULL, 0, 0});
+        VyneArray_f32 r = vyne_array_f32_slice(a, lo, hi);
+        return vyne_array_f32_to_value(&r);
+    }
     if (base.type == V_I64_ARRAY) {
         VyneArray_i64* a = base.as.arr_i64;
         int64_t len = a->size;
@@ -84,7 +95,8 @@ static inline VyneValue vyne_slice_get(VyneValue base, VyneValue lo_v, VyneValue
 
 // Polymorphic dispatch for methods that exist on both arrays and maps
 static inline VyneValue vyne_delete_any(VyneValue recv, VyneValue val) {
-    if (recv.type == V_ARRAY || recv.type == V_F64_ARRAY || recv.type == V_I64_ARRAY) {
+    if (recv.type == V_ARRAY || recv.type == V_F64_ARRAY ||
+        recv.type == V_F32_ARRAY || recv.type == V_I64_ARRAY) {
         return vyne_bool(vyne_array_delete(recv, val));
     }
     if (recv.type == V_MAP && val.type == V_STRING) {
@@ -95,7 +107,8 @@ static inline VyneValue vyne_delete_any(VyneValue recv, VyneValue val) {
 }
 
 static inline void vyne_clear_any(VyneValue recv) {
-    if (recv.type == V_ARRAY || recv.type == V_F64_ARRAY || recv.type == V_I64_ARRAY)
+    if (recv.type == V_ARRAY || recv.type == V_F64_ARRAY ||
+        recv.type == V_F32_ARRAY || recv.type == V_I64_ARRAY)
         vyne_array_clear(recv);
     else if (recv.type == V_MAP)
         vyne_map_clear(recv);
@@ -106,8 +119,10 @@ static inline void vyne_clear_any(VyneValue recv) {
 // ============================================================================
 
 static inline VyneValue vyne_range_create(VyneValue start_val, VyneValue end_val) {
-    if ((start_val.type == V_INT64 || start_val.type == V_FLOAT64) &&
-        (end_val.type == V_INT64 || end_val.type == V_FLOAT64)) {
+    if ((start_val.type == V_INT64 || start_val.type == V_FLOAT64 ||
+         start_val.type == V_FLOAT32) &&
+        (end_val.type == V_INT64 || end_val.type == V_FLOAT64 ||
+         end_val.type == V_FLOAT32)) {
 
         if (start_val.type == V_INT64 && end_val.type == V_INT64) {
             int64_t start = start_val.as.i64;
@@ -124,10 +139,10 @@ static inline VyneValue vyne_range_create(VyneValue start_val, VyneValue end_val
                 return res;
             }
         } else {
-            double start = (start_val.type == V_FLOAT64) ? start_val.as.f64
-                                                         : (double)start_val.as.i64;
-            double end   = (end_val.type == V_FLOAT64) ? end_val.as.f64
-                                                       : (double)end_val.as.i64;
+            double start = (start_val.type == V_INT64) ? (double)start_val.as.i64
+                                                       : start_val.as.f64;
+            double end   = (end_val.type == V_INT64) ? (double)end_val.as.i64
+                                                     : end_val.as.f64;
             if (start <= end) {
                 // Same conservative capacity guess; float ranges are rare
                 // and we can't size them exactly without counting first.

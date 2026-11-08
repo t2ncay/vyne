@@ -163,7 +163,8 @@ static inline VyneValue vmem_runtime_reset(void) {
 static inline VyneValue vmem_deep_clone(VyneValue v) {
     switch (v.type) {
         case V_ARRAY:
-        case V_F64_ARRAY:   // vyne_array_deepcopy handles all three
+        case V_F64_ARRAY:   // vyne_array_deepcopy handles all typed arrays
+        case V_F32_ARRAY:
         case V_I64_ARRAY:
             return vyne_array_deepcopy(v);
         case V_MAP:   return vyne_map_deepcopy(v);

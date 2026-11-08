@@ -157,6 +157,13 @@ static inline VyneArray_i64 vyne_array_i64_slice(const VyneArray_i64* a,
 //   anything    -> empty array.
 static inline VyneArray_f64 vyne_value_to_array_f64(VyneValue v) {
     if (v.type == V_F64_ARRAY) return *v.as.arr_f64;   // O(1)
+    if (v.type == V_F32_ARRAY) {
+        VyneArray_f32* s = v.as.arr_f32;
+        VyneArray_f64 r = vyne_array_f64_create(s->size);
+        for (int64_t i = 0; i < s->size; ++i)
+            r.data[i] = (double)s->data[i];
+        return r;
+    }
     if (v.type == V_I64_ARRAY) {
         VyneArray_i64* s = v.as.arr_i64;
         VyneArray_f64 r = vyne_array_f64_create(s->size);
@@ -169,7 +176,10 @@ static inline VyneArray_f64 vyne_value_to_array_f64(VyneValue v) {
     VyneArray_f64 r = vyne_array_f64_create(n);
     for (int64_t i = 0; i < n; ++i) {
         VyneValue e = v.as.arr->elements[i];
-        r.data[i] = (e.type == V_FLOAT64) ? e.as.f64 : (double)e.as.i64;
+        if (e.type == V_FLOAT64 || e.type == V_FLOAT32)
+            r.data[i] = e.as.f64;
+        else
+            r.data[i] = (double)e.as.i64;
     }
     return r;
 }
@@ -183,12 +193,115 @@ static inline VyneArray_i64 vyne_value_to_array_i64(VyneValue v) {
             r.data[i] = (int64_t)s->data[i];
         return r;
     }
+    if (v.type == V_F32_ARRAY) {
+        VyneArray_f32* s = v.as.arr_f32;
+        VyneArray_i64 r = vyne_array_i64_create(s->size);
+        for (int64_t i = 0; i < s->size; ++i)
+            r.data[i] = (int64_t)s->data[i];
+        return r;
+    }
     if (v.type != V_ARRAY) return vyne_array_i64_create(0);
     int64_t n = v.as.arr->size;
     VyneArray_i64 r = vyne_array_i64_create(n);
     for (int64_t i = 0; i < n; ++i) {
         VyneValue e = v.as.arr->elements[i];
-        r.data[i] = (e.type == V_INT64) ? e.as.i64 : (int64_t)e.as.f64;
+        if (e.type == V_INT64)
+            r.data[i] = e.as.i64;
+        else if (e.type == V_FLOAT64 || e.type == V_FLOAT32)
+            r.data[i] = (int64_t)e.as.f64;
+        else
+            r.data[i] = 0;
+    }
+    return r;
+}
+
+static inline VyneArray_f32 vyne_array_f32_create(int64_t n) {
+    VyneArray_f32 a;
+    a.size = n;
+    a.cap  = _vyne_next_pow2(n);
+    a.data = (float*)arena_alloc_aligned(
+        sizeof(float) * (size_t)a.cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
+    memset(a.data, 0, sizeof(float) * (size_t)n);
+    return a;
+}
+
+static inline void vyne_array_f32_push(VyneArray_f32* a, float v) {
+    if (VYNE_UNLIKELY(a->size >= a->cap)) {
+        int64_t new_cap = a->cap * 2;
+        float* old_data = a->data;
+        arena_try_reclaim(old_data, sizeof(float) * (size_t)a->cap);
+        float* new_data = (float*)arena_alloc_aligned(
+            sizeof(float) * (size_t)new_cap,
+            VYNE_TYPED_ARRAY_ALIGN
+        );
+        if (new_data != old_data)
+            memcpy(new_data, old_data, sizeof(float) * (size_t)a->size);
+        a->data = new_data;
+        a->cap  = new_cap;
+    }
+    a->data[a->size++] = v;
+}
+
+static inline float vyne_array_f32_get(const VyneArray_f32* a, int64_t i) {
+    return (i < 0 || i >= a->size) ? 0.0f : a->data[i];
+}
+
+static inline void vyne_array_f32_set(VyneArray_f32* a, int64_t i, float v) {
+    if (i >= 0 && i < a->size) a->data[i] = v;
+}
+
+static inline VyneValue vyne_array_f32_to_value(const VyneArray_f32* a) {
+    VyneArray_f32* w = (VyneArray_f32*)arena_alloc(sizeof(VyneArray_f32));
+    w->data = a->data;
+    w->size = a->size;
+    w->cap  = a->cap;
+    VyneValue v;
+    v.type      = V_F32_ARRAY;
+    v._reserved = 0;
+    v.as.arr_f32 = w;
+    return v;
+}
+
+static inline VyneArray_f32 vyne_array_f32_slice(const VyneArray_f32* a,
+                                                 int64_t lo, int64_t hi) {
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (lo >= hi) return vyne_array_f32_create(0);
+    int64_t n = hi - lo;
+    VyneArray_f32 r = vyne_array_f32_create(n);
+    memcpy(r.data, a->data + lo, sizeof(float) * (size_t)n);
+    return r;
+}
+
+static inline VyneArray_f32 vyne_value_to_array_f32(VyneValue v) {
+    if (v.type == V_F32_ARRAY) return *v.as.arr_f32;   // O(1)
+    if (v.type == V_F64_ARRAY) {
+        VyneArray_f64* s = v.as.arr_f64;
+        VyneArray_f32 r = vyne_array_f32_create(s->size);
+        for (int64_t i = 0; i < s->size; ++i)
+            r.data[i] = (float)s->data[i];
+        return r;
+    }
+    if (v.type == V_I64_ARRAY) {
+        VyneArray_i64* s = v.as.arr_i64;
+        VyneArray_f32 r = vyne_array_f32_create(s->size);
+        for (int64_t i = 0; i < s->size; ++i)
+            r.data[i] = (float)s->data[i];
+        return r;
+    }
+    if (v.type != V_ARRAY) return vyne_array_f32_create(0);
+    int64_t n = v.as.arr->size;
+    VyneArray_f32 r = vyne_array_f32_create(n);
+    for (int64_t i = 0; i < n; ++i) {
+        VyneValue e = v.as.arr->elements[i];
+        if (e.type == V_FLOAT64 || e.type == V_FLOAT32)
+            r.data[i] = (float)e.as.f64;
+        else
+            r.data[i] = (float)e.as.i64;
     }
     return r;
 }

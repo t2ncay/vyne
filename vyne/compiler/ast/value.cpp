@@ -64,6 +64,7 @@ Value::Value(const Value& other) : type(other.type), isReadOnly(other.isReadOnly
     } else {
         switch(type) {
             case VType::Float64:   data.f64 = other.data.f64; break;
+            case VType::Float32:   data.f64 = other.data.f64; break;
             case VType::Int64:     data.i64 = other.data.i64; break;
             case VType::Reference: data.ref = other.data.ref; break;
             default:               data.i64 = other.data.i64; break;
@@ -124,6 +125,7 @@ int Value::getType() const {
     switch(type) {
         case VType::Null:    return NONE;
         case VType::Float64: return FLOAT64;
+        case VType::Float32: return FLOAT32;
         case VType::Int64:   return INT64;
         case VType::String:  return STRING;
         case VType::Reference: return REFERENCE;
@@ -145,6 +147,7 @@ std::string Value::getTypeName() const {
     int t = getType();
     switch(t) {
         case FLOAT64: return "Float64";
+        case FLOAT32: return "Float32";
         case INT64:   return "Int64";
         case STRING:  return "String";
         case ARRAY:   return "Array";
@@ -157,14 +160,20 @@ std::string Value::getTypeName() const {
 }
 
 double Value::asFloat() const {
-    if (type == VType::Float64) return data.f64;
+    if (type == VType::Float64 || type == VType::Float32) return data.f64;
     if (type == VType::Int64) return static_cast<double>(data.i64);
     return 0.0;
 }
 
+float Value::asFloat32() const {
+    if (type == VType::Float32) return static_cast<float>(data.f64);
+    return static_cast<float>(asFloat());
+}
+
 int64_t Value::asInt() const {
     if (type == VType::Int64) return data.i64;
-    if (type == VType::Float64) return static_cast<int64_t>(data.f64);
+    if (type == VType::Float64 || type == VType::Float32)
+        return static_cast<int64_t>(data.f64);
     return 0;
 }
 
@@ -217,6 +226,14 @@ void Value::print() const {
                 std::printf("%.1f", data.f64);
             else 
                 std::printf("%g", data.f64);
+            break;
+        }
+        case VType::Float32: {
+            float v = static_cast<float>(data.f64);
+            if (v == static_cast<int64_t>(v))
+                std::printf("%.1f", (double)v);
+            else
+                std::printf("%g", (double)v);
             break;
         }
         case VType::Int64:  std::printf("%lld", (long long)data.i64); break;
@@ -288,6 +305,7 @@ size_t Value::getShallowBytes() const { return isObject() ? 16 + 8 : 8; }
 bool Value::isTruthy() const {
     switch(type) {
         case VType::Float64: return data.f64 != 0;
+        case VType::Float32: return data.f64 != 0;
         case VType::Int64:   return data.i64 != 0;
         case VType::String:  return stringId != 0;
         case VType::Null:    return false;
@@ -300,6 +318,7 @@ bool Value::operator==(const Value& other) const {
     switch (type) {
         case VType::Null:    return true;
         case VType::Float64: return data.f64 == other.data.f64;
+        case VType::Float32: return data.f64 == other.data.f64;
         case VType::Int64:   return data.i64 == other.data.i64;
         case VType::String:  return stringId == other.stringId;
         default:             return data.obj == other.data.obj;
@@ -312,6 +331,7 @@ bool Value::operator<(const Value& other) const {
     if (type != other.type) return type < other.type;
     switch (type) {
         case VType::Float64: return data.f64 < other.data.f64;
+        case VType::Float32: return data.f64 < other.data.f64;
         case VType::Int64:   return data.i64 < other.data.i64;
         case VType::String:  return stringId < other.stringId;
         default:             return data.obj < other.data.obj;
@@ -334,6 +354,7 @@ std::string Value::toString() const {
     switch (type) {
         case VType::Null:    return "null";
         case VType::Float64: return std::format("{}", data.f64);
+        case VType::Float32: return std::format("{}", static_cast<float>(data.f64));
         case VType::Int64:   return std::format("{}", data.i64);
         case VType::String:  return asString();
         case VType::Map: {

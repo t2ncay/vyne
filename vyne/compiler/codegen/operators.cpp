@@ -55,7 +55,9 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
             lct->sameShape(*rct) && !lct->args.empty()) {
 
             VType elem = lct->args[0].toVType();
-            const char* ct = (elem == VType::Float64) ? "double" : "int64_t";
+            const char* ct = (elem == VType::Float64)
+                                 ? "double"
+                                 : (elem == VType::Float32 ? "float" : "int64_t");
             int64_t n = lct->numElements();
 
             std::string dst = e.newTemp("arrsum");
@@ -94,14 +96,24 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
                 st == VType::Float64) {
                 return num->nativeLiteral();
             }
+            if (st == VType::Float32)
+                return "(float)(" + num->nativeLiteral() + ")";
         }
-        if (st == VType::Int64 || st == VType::Float64) {
+        if (st == VType::Int64 || st == VType::Float64 || st == VType::Float32) {
             if (const CType* ct = e.exprNativeType(expr)) {
                 if (ct->toVType() == st)
                     return expr;
                 if (ct->kind == CType::Kind::Int64 && st == VType::Float64)
                     return "(double)(" + expr + ")";
+                if (ct->kind == CType::Kind::Int64 && st == VType::Float32)
+                    return "(float)(" + expr + ")";
+                if (ct->kind == CType::Kind::Float32 && st == VType::Float64)
+                    return "(double)(" + expr + ")";
+                if (ct->kind == CType::Kind::Float64 && st == VType::Float32)
+                    return "(float)(" + expr + ")";
             }
+            if (st == VType::Float32)
+                return "(float)(" + expr + ").as.f64";
             return "(" + expr + ")." +
                    (st == VType::Float64 ? "as.f64" : "as.i64");
         }
@@ -285,7 +297,8 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
 
     // f3rhd : you may change this later based on the semantic rules, for now i
     // assume no bitwise operations if they include any floating numbers
-    if (lt == VType::Float64 || rt == VType::Float64) {
+    if (lt == VType::Float64 || rt == VType::Float64 ||
+        lt == VType::Float32 || rt == VType::Float32) {
         switch (op) {
         case VTokenType::Bitwise_And:
         case VTokenType::Bitwise_Not:
@@ -305,6 +318,94 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     // =========================================================
     // FAST PATH: Float64 op Float64 → native double result
     // =========================================================
+    // =========================================================
+    // FAST PATH: Float32 op Float32 → native float result
+    // =========================================================
+    if (lt == VType::Float32 && rt == VType::Float32) {
+        std::string lv = operand(leftNode.get(), l, VType::Float32);
+        std::string rv = operand(rightNode.get(), r, VType::Float32);
+        double rlit = 0.0;
+        const bool rightIsLiteral = isLiteralNumber(rightNode.get(), rlit);
+        if (op == VTokenType::Substract && rightIsLiteral && rlit == 0.0)
+            return emitIdentity(lv, "float", VType::Float32);
+        if (op == VTokenType::Multiply) {
+            if (rightIsLiteral && rlit == 1.0)
+                return emitIdentity(lv, "float", VType::Float32);
+            double llit = 0.0;
+            if (isLiteralNumber(leftNode.get(), llit) && llit == 1.0)
+                return emitIdentity(rv, "float", VType::Float32);
+        }
+        if (op == VTokenType::Division && rightIsLiteral && rlit == 1.0)
+            return emitIdentity(lv, "float", VType::Float32);
+
+        switch (op) {
+        case VTokenType::Add:
+            e.emit("float " + temp + " = " + lv + " + " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Substract:
+            e.emit("float " + temp + " = " + lv + " - " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Multiply:
+            e.emit("float " + temp + " = " + lv + " * " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Division:
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: division by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit("if (" + rv + " == 0.0f) { fprintf(stderr, "
+                       "\"Runtime error: Division by zero!\\n\"); exit(1); }");
+            }
+            e.emit("float " + temp + " = " + lv + " / " + rv + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Modulo:
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: modulo by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit("if (" + rv + " == 0.0f) { fprintf(stderr, "
+                       "\"Runtime error: Modulo by zero!\\n\"); exit(1); }");
+            }
+            e.emit("float " + temp + " = fmodf(" + lv + ", " + rv + ");");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Power:
+            e.emit("float " + temp + " = powf(" + lv + ", " + rv + ");");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+            return temp;
+        case VTokenType::Double_Equals:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " == " + rv + ");");
+            return temp;
+        case VTokenType::Not_Equal:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " != " + rv + ");");
+            return temp;
+        case VTokenType::Greater:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " > " + rv + ");");
+            return temp;
+        case VTokenType::Smaller:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " < " + rv + ");");
+            return temp;
+        case VTokenType::Greater_Or_Equal:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " >= " + rv + ");");
+            return temp;
+        case VTokenType::Smaller_Or_Equal:
+            e.emit("VyneValue " + temp + " = vyne_bool(" + lv + " <= " + rv + ");");
+            return temp;
+        default:
+            break;
+        }
+    }
+
     if (lt == VType::Float64 && rt == VType::Float64) {
         std::string lv = operand(leftNode.get(), l, VType::Float64);
         std::string rv = operand(rightNode.get(), r, VType::Float64);
@@ -408,8 +509,10 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     }
 
     {
-        bool ltNum = (lt == VType::Int64 || lt == VType::Float64);
-        bool rtNum = (rt == VType::Int64 || rt == VType::Float64);
+        bool ltNum = (lt == VType::Int64 || lt == VType::Float64 ||
+                      lt == VType::Float32);
+        bool rtNum = (rt == VType::Int64 || rt == VType::Float64 ||
+                      rt == VType::Float32);
         if (ltNum && rtNum) {
             std::string lv = operand(leftNode.get(), l, VType::Float64);
             std::string rv = operand(rightNode.get(), r, VType::Float64);

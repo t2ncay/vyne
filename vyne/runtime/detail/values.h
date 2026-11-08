@@ -34,6 +34,12 @@ static inline VyneValue vyne_float(double v) {
     return val;
 }
 
+static inline VyneValue vyne_float32(float v) {
+    VyneValue val = { .type = V_FLOAT32 };
+    val.as.f64 = (double)v;
+    return val;
+}
+
 static inline VyneValue vyne_string(const char* s) {
     VyneValue val = { .type = V_STRING };
     if (s) {

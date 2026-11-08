@@ -9,10 +9,13 @@
 
 static inline bool vyne_values_equal(VyneValue a, VyneValue b) {
     if (a.type != b.type) {
-        if ((a.type == V_INT64 || a.type == V_FLOAT64) &&
-            (b.type == V_INT64 || b.type == V_FLOAT64)) {
-            double av = (a.type == V_FLOAT64) ? a.as.f64 : (double)a.as.i64;
-            double bv = (b.type == V_FLOAT64) ? b.as.f64 : (double)b.as.i64;
+        bool an = (a.type == V_INT64 || a.type == V_FLOAT64 ||
+                   a.type == V_FLOAT32);
+        bool bn = (b.type == V_INT64 || b.type == V_FLOAT64 ||
+                   b.type == V_FLOAT32);
+        if (an && bn) {
+            double av = (a.type == V_INT64) ? (double)a.as.i64 : a.as.f64;
+            double bv = (b.type == V_INT64) ? (double)b.as.i64 : b.as.f64;
             return av == bv;
         }
         return false;
@@ -21,7 +24,16 @@ static inline bool vyne_values_equal(VyneValue a, VyneValue b) {
         case V_NULL:    return true;
         case V_BOOL:
         case V_INT64:   return a.as.i64 == b.as.i64;
-        case V_FLOAT64: return a.as.f64 == b.as.f64;
+        case V_FLOAT64:
+        case V_FLOAT32: return a.as.f64 == b.as.f64;
+        case V_F32_ARRAY: {
+            VyneArray_f32* af = a.as.arr_f32;
+            VyneArray_f32* bf = b.as.arr_f32;
+            if (af->size != bf->size) return false;
+            for (int64_t i = 0; i < af->size; ++i)
+                if (af->data[i] != bf->data[i]) return false;
+            return true;
+        }
         case V_STRING:  return strcmp(a.as.str, b.as.str) == 0;
         case V_F64_ARRAY: {
             VyneArray_f64* af = a.as.arr_f64;

@@ -31,6 +31,7 @@ enum class VTokenType {
     Identifier, // Variable and function names
     Int64,      // 42
     Float64,    // 3.14
+    Float32,    // 3.14f
     String,     // String
     True,
     False,
@@ -145,6 +146,7 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"string", VTokenType::BuiltIn},
     {"int64", VTokenType::BuiltIn},
     {"float64", VTokenType::BuiltIn},
+    {"float32", VTokenType::BuiltIn},
     {"sequence", VTokenType::BuiltIn},
     {"exit", VTokenType::BuiltIn},
     {"group", VTokenType::Group},
@@ -242,6 +244,8 @@ inline std::string VTokenTypeToString(VTokenType type) {
         return "Int64";
     case VTokenType::Float64:
         return "Float64";
+    case VTokenType::Float32:
+        return "Float32";
     case VTokenType::String:
         return "String";
     case VTokenType::True:

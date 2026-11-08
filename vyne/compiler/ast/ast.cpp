@@ -638,6 +638,14 @@ Value BuiltInCallNode::evaluate(
 
     case BuiltInType::INT64:
         return handleInt64(argValues);
+    case BuiltInType::FLOAT32: {
+        if (argValues.size() != 1)
+            throw std::runtime_error(
+                "Argument Error: float32() expects 1 argument [ line " +
+                std::to_string(lineNumber) + " ]"
+            );
+        return Value(static_cast<float>(argValues[0].asFloat()));
+    }
     case BuiltInType::FREE: {
         if (argValues.size() != 1) {
             throw std::runtime_error(
