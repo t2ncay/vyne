@@ -249,6 +249,27 @@ static inline VyneValue vcore_sb_append(VyneValue handle, VyneValue value) {
     return vyne_null();
 }
 
+static inline VyneValue vcore_sb_append_char(VyneValue handle, VyneValue code) {
+    if (handle.type != V_INT64) {
+        fprintf(
+            stderr,
+            "Runtime error: vcore.sb_append_char() expects an Int64 handle "
+            "as its first argument.\n"
+        );
+        exit(1);
+    }
+    VyneStringBuilder* sb = _vyne_sb_from_handle(handle.as.i64);
+    if (!sb)
+        return vyne_null();
+    int64_t c = (code.type == V_INT64) ? code.as.i64 : (int64_t)code.as.f64;
+    if (c < 0)
+        c = 0;
+    if (c > 255)
+        c = 255;
+    vyne_sb_append_char(sb, (char)c);
+    return vyne_null();
+}
+
 static inline VyneValue vcore_sb_build(VyneValue handle) {
     if (handle.type != V_INT64)
         return vyne_string("");
