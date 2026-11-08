@@ -96,6 +96,21 @@ you have a boxed `Array`, `vstat.from_array(xs)` copies it once and returns a
 one. The normal equations use a local partial-pivot Gaussian solve; `vdecomp`
 will provide the full LU/QR/eigen surface.
 
+### Image and error metrics
+
+| Function | Result |
+| --- | --- |
+| `mse(a, b)` | mean squared error |
+| `mae(a, b)` | mean absolute error |
+| `psnr(a, b, max_value)` | peak signal-to-noise ratio in dB; identical inputs return 100 dB |
+| `ssim(a, b, width, height, channels)` | mean SSIM over HWC `[0,1]` buffers using an 8x8 uniform window |
+
+`psnr` takes the data range explicitly (`1.0` for normalised images,
+`255.0` for 8-bit buffers). `ssim` expects `width * height * channels`
+samples in HWC order, the same layout `vimage.Image` uses. The window is
+uniform rather than Gaussian; state that when reporting numbers against
+published SSIM values.
+
 ### Histograms and density
 
 | Function | Result |

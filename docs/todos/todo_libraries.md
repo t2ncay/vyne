@@ -145,6 +145,8 @@ These are pulled in with `use native`, not `use external`.
 | `vmath` | Scalar math, PCG32 RNG, `_f64` unboxed variants | Trig, exp/log, rounding, min/max/clamp |
 | `vmem` | Arena checkpoint/rewind, peak/live inspection, stream introspection | Region policies are in the runtime |
 | `vfs` | File read/write, lines, bytes, walk, glob, path ops | Desktop only |
+| `vimage` | PNG/JPEG decode/encode, resize, crop, grayscale | Vendored stb; header-only |
+| `vconv` | Forward conv2d, activations, pixel shuffle, weight bundles | CPU; backward pass is a follow-up |
 | `arduino` | AVR-only serial/GPIO/ADC/EEPROM/watchdog runtime | 60+ functions on the Uno R3 |
 
 ### External libraries (`vyne/modules/external/`)
@@ -162,6 +164,8 @@ These are pulled in with `use native`, not `use external`.
 | `vcomplex` | **Done** | `vcomplex/README.md` | Scalar/array complex arithmetic, functions, polar helpers. |
 | `vinterp` | **Done** | `vinterp/README.md` | 1-D nearest/linear/Lagrange/spline and 2-D nearest/bilinear/bicubic. |
 | `vcsv` | **Done** | `vcsv/README.md` | RFC 4180 CSV/TSV parser, writer, typed columns. |
+| `vimage` | **Done** | `vimage/README.md` | PNG/JPEG/BMP/TGA decode and encode over vendored stb. |
+| `vconv` | **Done** | `vconv/README.md` | Forward conv2d, activations, pixel shuffle, weight bundles. |
 | `vchem` | **Partial** | `vchem/` | `vchem_common` (elements/constants) + `vgraph` (CSR, BFS, DFS, Dijkstra). |
 | `vcolors` | **Done** | header comments | ANSI color helpers. |
 | `vconvert` | **Done** | header comments | Unit conversions (temperature, distance). |

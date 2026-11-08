@@ -161,3 +161,27 @@ fn :: vstat k_rank_average(xs :: Array<Float64>, n :: Int64,
     };
     return 0;
 }
+
+# Sum of squared differences. Caller divides by n for MSE. Image metrics
+# pass HWC pixel buffers, so this is also the inner loop for PSNR.
+fn :: vstat k_mse_sum(xs :: Array<Float64>, ys :: Array<Float64>,
+                      n :: Int64) -> Float64 {
+    s :: Float64 := 0.0;
+    through i :: 0..n-1 -> loop {
+        d :: Float64 := xs[i] - ys[i];
+        s = s + d * d;
+    };
+    return s;
+}
+
+# Sum of absolute differences.
+fn :: vstat k_mae_sum(xs :: Array<Float64>, ys :: Array<Float64>,
+                      n :: Int64) -> Float64 {
+    s :: Float64 := 0.0;
+    through i :: 0..n-1 -> loop {
+        d :: Float64 := xs[i] - ys[i];
+        if d < 0.0 { d = 0.0 - d; }
+        s = s + d;
+    };
+    return s;
+}
