@@ -213,6 +213,10 @@ class C_Emitter {
     // Parallel to regionStack: true for @persistent regions, which do not
     // rewind on exit and do not add to the escape-analysis region depth.
     std::vector<bool> persistentRegionStack;
+    // Parallel to regionStack: true for @device regions, which close their
+    // device frame before the host rewind.
+    std::vector<bool> deviceRegionStack;
+    int deviceRegionCount = 0;
     std::unordered_set<std::string> committedVars;
 
     // Active @pool context. The pool's own C variable name lives here
@@ -666,6 +670,8 @@ class C_Emitter {
         streamedRegionStack.clear();
         streamedElemStack.clear();
         persistentRegionStack.clear();
+        deviceRegionStack.clear();
+        deviceRegionCount = 0;
         poolStack.clear(); // paired with regionStack: both are per-function
         slabStack.clear(); // paired with regionStack: both are per-function
         ringStack.clear(); // paired with regionStack: both are per-function
@@ -1186,6 +1192,7 @@ class C_Emitter {
         regionStack.push_back(cpHandle);
         streamedRegionStack.push_back(false);
         persistentRegionStack.push_back(false);
+        deviceRegionStack.push_back(false);
     }
     // A @streamed region has both a main-arena checkpoint (for ordinary
     // allocations and the region lifetime) and a stream-arena frame (for
@@ -1196,6 +1203,7 @@ class C_Emitter {
         regionStack.push_back(cpHandle);
         streamedRegionStack.push_back(true);
         persistentRegionStack.push_back(false);
+        deviceRegionStack.push_back(false);
         streamedElemStack.push_back(elem);
     }
     // A @persistent region swaps the allocator to the commit arena and never
@@ -1206,11 +1214,24 @@ class C_Emitter {
         regionStack.push_back(cpHandle);
         streamedRegionStack.push_back(false);
         persistentRegionStack.push_back(true);
+        deviceRegionStack.push_back(false);
+    }
+    // A @device region is also a normal host region; the device frame is
+    // closed before the host rewind on every exit path.
+    void pushDeviceRegion(const std::string& cpHandle) {
+        regionStack.push_back(cpHandle);
+        streamedRegionStack.push_back(false);
+        persistentRegionStack.push_back(false);
+        deviceRegionStack.push_back(true);
+        deviceRegionCount++;
     }
     void popRegion() {
         if (!regionStack.empty()) {
             if (streamedRegionStack.back())
                 streamedElemStack.pop_back();
+            if (deviceRegionStack.back())
+                deviceRegionCount--;
+            deviceRegionStack.pop_back();
             persistentRegionStack.pop_back();
             streamedRegionStack.pop_back();
             regionStack.pop_back();
@@ -1224,6 +1245,9 @@ class C_Emitter {
     }
     VType currentStreamedElem() const {
         return streamedElemStack.back();
+    }
+    bool hasDevice() const {
+        return deviceRegionCount > 0;
     }
     const std::vector<std::string>& getRegionStack() const {
         return regionStack;
@@ -1299,6 +1323,9 @@ class C_Emitter {
             ) {
                 emit("vyne_persistent_leave();");
                 emit("vmem_runtime_pop_checkpoints(1);");
+            } else if (i < deviceRegionStack.size() && deviceRegionStack[i]) {
+                emit("vyne_device_leave();");
+                emit("vmem_runtime_rewind(" + regionStack[i] + ");");
             } else {
                 emit("vmem_runtime_rewind(" + regionStack[i] + ");");
             }
@@ -1322,6 +1349,15 @@ class C_Emitter {
         for (size_t i = regionStack.size(); i-- > 0;) {
             if (i < persistentRegionStack.size() && persistentRegionStack[i])
                 emit("vyne_persistent_leave();");
+        }
+    }
+
+    // Close only the @device frames, innermost first. Used by early-return
+    // paths that pop checkpoints instead of rewinding the host arena.
+    void emitDeviceUnwind() {
+        for (size_t i = regionStack.size(); i-- > 0;) {
+            if (i < deviceRegionStack.size() && deviceRegionStack[i])
+                emit("vyne_device_leave();");
         }
     }
 
@@ -1563,6 +1599,8 @@ class C_Emitter {
         streamedRegionStack.clear();
         streamedElemStack.clear();
         persistentRegionStack.clear();
+        deviceRegionStack.clear();
+        deviceRegionCount = 0;
         committedVars.clear();
         poolStack.clear();
         slabStack.clear();
