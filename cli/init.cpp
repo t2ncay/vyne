@@ -22,6 +22,7 @@
 #include "../vyne/utils/file_utils.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -306,6 +307,21 @@ std::string defaultAuthor() {
     return name + " <" + email + ">";
 }
 
+std::string sanitizeProjectName(std::string raw) {
+    std::string out;
+    for (char c : raw) {
+        if (std::isalnum((unsigned char)c) || c == '_' || c == '-')
+            out += c;
+        else
+            out += '_';
+    }
+    if (out.empty())
+        out = "vyne_project";
+    if (std::isdigit((unsigned char)out[0]) || out[0] == '-')
+        out = "_" + out;
+    return out;
+}
+
 std::string projectNameFromPath(const fs::path& root) {
     fs::path abs = fs::absolute(root);
     std::string name = abs.filename().string();
@@ -313,7 +329,7 @@ std::string projectNameFromPath(const fs::path& root) {
         name = abs.parent_path().filename().string();
     if (name.empty() || name == ".")
         name = "vyne_project";
-    return name;
+    return sanitizeProjectName(name);
 }
 
 bool readTextFile(const fs::path& path, std::string& out) {

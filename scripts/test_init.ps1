@@ -141,6 +141,14 @@ try {
     Check "yes-exit" ((Run-Init @("init", "--yes", "--no-git", $yes)) -eq 0)
     Check "yes-blank" (Test-Path (Join-Path $yes "src/main.vy"))
 
+    # Directory names with spaces must still produce a valid project name
+    # instead of blocking the TUI before it can launch.
+    $space = Join-Path $base "space demo"
+    New-Item -ItemType Directory -Path $space | Out-Null
+    Check "space-exit" ((Run-Init @("init", "--yes", "--no-git", $space)) -eq 0)
+    $spaceToml = Get-Content -Raw (Join-Path $space "project.toml")
+    Check "space-name-sanitized" ($spaceToml -match 'name = "space_demo"')
+
     $badKind = Join-Path $base "bad_kind"
     New-Item -ItemType Directory -Path $badKind | Out-Null
     Check "unknown-kind-exit" ((Run-Init @("init", "--name", "bad_kind", "--kind", "nonsense", "--no-git", $badKind)) -eq 4)
