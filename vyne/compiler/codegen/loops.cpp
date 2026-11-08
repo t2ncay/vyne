@@ -587,12 +587,16 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
 
             if (mode == ForMode::COLLECT && bodyType == elem) {
                 std::string outName = e.newTemp("cfld");
-                std::string ctor = (elem == VType::Float64)
-                                       ? "vyne_array_f64_create"
-                                       : "vyne_array_i64_create";
-                std::string pushFn = (elem == VType::Float64)
-                                         ? "vyne_array_f64_push"
-                                         : "vyne_array_i64_push";
+                std::string ctor =
+                    (elem == VType::Float64)
+                        ? "vyne_array_f64_create"
+                        : (elem == VType::Float32 ? "vyne_array_f32_create"
+                                                  : "vyne_array_i64_create");
+                std::string pushFn =
+                    (elem == VType::Float64)
+                        ? "vyne_array_f64_push"
+                        : (elem == VType::Float32 ? "vyne_array_f32_push"
+                                                  : "vyne_array_i64_push");
 
                 e.emit(
                     CType::arrayContainerName(elem) + " " + outName + " = " +

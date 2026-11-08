@@ -13,6 +13,7 @@
 typedef struct VyneValue VyneValue;
 struct VyneArray;
 struct VyneArray_f64;
+struct VyneArray_f32;
 struct VyneArray_i64;
 struct VyneStruct;
 
@@ -31,7 +32,9 @@ typedef enum {
     V_REFERENCE = 9,
     V_MAP = 10,
     V_F64_ARRAY = 11,   // NEW: .as.arr_f64 — raw double* data, O(1) box/unbox
-    V_I64_ARRAY = 12    // NEW: .as.arr_i64 — raw int64_t* data, O(1) box/unbox
+    V_I64_ARRAY = 12,
+    V_FLOAT32 = 13,
+    V_F32_ARRAY = 14    // NEW: .as.arr_i64 — raw int64_t* data, O(1) box/unbox
 } VyneType;
 
 struct VyneValue {
@@ -43,6 +46,7 @@ struct VyneValue {
         char* str;
         struct VyneArray* arr;
         struct VyneArray_f64* arr_f64;
+        struct VyneArray_f32* arr_f32;
         struct VyneArray_i64* arr_i64;
         struct VyneStruct* strct;
         struct VyneFunction* fn;
@@ -72,6 +76,12 @@ typedef struct VyneArray_i64 {   // named so the union can forward-reference it
     int64_t  size;
     int64_t  cap;
 } VyneArray_i64;
+
+typedef struct VyneArray_f32 {   // Float32 payload, same layout as f64
+    float*   data;
+    int64_t  size;
+    int64_t  cap;
+} VyneArray_f32;
 
 // ============================================================================
 // MAP

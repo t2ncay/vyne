@@ -22,6 +22,8 @@
 std::string NumberNode::getCExpr(C_Emitter& e) const {
     if (value.getType() == Value::INT64)
         return "vyne_int(" + std::to_string(value.asInt()) + ")";
+    if (value.getType() == Value::FLOAT32)
+        return "vyne_float32((float)(" + floatLit(value.asFloat()) + "))";
     return "vyne_float(" + floatLit(value.asFloat()) + ")";
 }
 

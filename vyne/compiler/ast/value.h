@@ -123,7 +123,7 @@ struct Value {
     enum TypeIndex { 
         NONE = 0, FLOAT64 = 1, INT64 = 2, STRING = 3, 
         ARRAY = 4, FUNCTION = 5, MODULE = 6, STRUCT = 7, REFERENCE = 8, 
-        MAP = 9
+        MAP = 9, FLOAT32 = 10
     };
 
     union Data {
@@ -142,6 +142,7 @@ struct Value {
 
     Value() : type(VType::Null) { data.i64 = 0; }
     Value(double n) : type(VType::Float64) { data.f64 = n; }
+    Value(float n) : type(VType::Float32) { data.f64 = static_cast<double>(n); }
     Value(int64_t n) : type(VType::Int64) { data.i64 = n; }
     Value(int n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
     Value(unsigned int n) : type(VType::Int64) { data.i64 = static_cast<int64_t>(n); }
@@ -175,6 +176,7 @@ struct Value {
     int getType() const;
     std::string getTypeName() const;
     double  asFloat() const;
+    float   asFloat32() const;
     int64_t asInt()   const;
     const std::string& asString() const;
     std::vector<Value>& asList();

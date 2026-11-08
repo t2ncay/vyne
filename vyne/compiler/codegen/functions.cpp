@@ -193,10 +193,13 @@ static void emitNativeFunctionBody(
             } else if (
                 fd.type.kind == CType::Kind::Array && !fd.type.args.empty()
             ) {
-                bool isF64 = (fd.type.args[0].toVType() == VType::Float64);
-                paramList +=
-                    std::string(isF64 ? "VyneArray_f64* " : "VyneArray_i64* ") +
-                    op;
+                VType felem = fd.type.args[0].toVType();
+                bool isF64 = (felem == VType::Float64);
+                bool isF32 = (felem == VType::Float32);
+                paramList += std::string(isF64 ? "VyneArray_f64* "
+                                         : isF32 ? "VyneArray_f32* "
+                                                 : "VyneArray_i64* ") +
+                             op;
             }
         }
     }
@@ -208,7 +211,10 @@ static void emitNativeFunctionBody(
         if (parameters[i].type == VType::Array &&
             parameters[i].arrayElemType != VType::Unknown) {
             VType elem = parameters[i].arrayElemType;
-            std::string elemC = (elem == VType::Float64) ? "double" : "int64_t";
+            std::string elemC = (elem == VType::Float64)
+                                    ? "double"
+                                    : (elem == VType::Float32 ? "float"
+                                                              : "int64_t");
             paramList += elemC + "* __restrict__ " + pName;
         } else if (parameters[i].type == VType::Struct) {
             const std::string& ifaceName = parameters[i].typePath;

@@ -226,6 +226,205 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         }
     }
 
+    // ----------------------------------------------------------------
+    // Device intrinsics. These are intercepted only inside an active
+    // @device region. Handles are Int64 pointer values; host buffers
+    // must be typed Array<Float64> values so `.data` is a double*.
+    // ----------------------------------------------------------------
+    if (e.hasDevice()) {
+        auto normInt = [&](const std::unique_ptr<ASTNode>& arg) -> std::string {
+            if (arg->type() == NodeType::NUMBER) {
+                return static_cast<const NumberNode*>(arg.get())
+                    ->nativeLiteral();
+            }
+            std::string raw = arg->getCExpr(e);
+            if (const CType* ct = e.exprNativeType(raw)) {
+                if (ct->kind == CType::Kind::Int64)
+                    return raw;
+                if (ct->kind == CType::Kind::Float64)
+                    return "(int64_t)(" + raw + ")";
+            }
+            return "vyne_to_int(" + e.boxAny(raw) + ").as.i64";
+        };
+
+        auto normFloat = [&](const std::unique_ptr<ASTNode>& arg) -> std::string {
+            if (arg->type() == NodeType::NUMBER) {
+                return static_cast<const NumberNode*>(arg.get())
+                    ->nativeLiteral();
+            }
+            std::string raw = arg->getCExpr(e);
+            if (const CType* ct = e.exprNativeType(raw)) {
+                if (ct->kind == CType::Kind::Float64)
+                    return raw;
+                if (ct->kind == CType::Kind::Int64)
+                    return "(double)(" + raw + ")";
+            }
+            return "(" + e.boxAny(raw) + ").as.f64";
+        };
+
+        auto hostData = [&](const std::unique_ptr<ASTNode>& arg,
+                            const char* what, bool& isF32) -> std::string {
+            std::string raw = arg->getCExpr(e);
+            const CType* ct = e.lookupAnyType(raw);
+            if (!ct || ct->kind != CType::Kind::Array || ct->args.empty()) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): " + std::string(what) +
+                    " expects a typed Array<Float32> or Array<Float64> "
+                    "buffer (line " + std::to_string(lineNumber) + ").");
+            }
+            VType et = ct->args[0].toVType();
+            if (et == VType::Float32) {
+                isF32 = true;
+                return "(" + raw + ").data";
+            }
+            if (et == VType::Float64) {
+                isF32 = false;
+                return "(" + raw + ").data";
+            }
+            throw std::runtime_error(
+                "Compile Error (VNE-083): " + std::string(what) +
+                " expects a typed Array<Float32> or Array<Float64> buffer, "
+                "got " + VTypeToString(et) + " (line " +
+                std::to_string(lineNumber) + ").");
+        };
+
+        auto expectArgs = [&](size_t want, const char* what) {
+            if (arguments.size() != want) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): " + std::string(what) +
+                    " expects " + std::to_string(want) +
+                    " argument(s), got " + std::to_string(arguments.size()) +
+                    " (line " + std::to_string(lineNumber) + ").");
+            }
+        };
+
+        if (originalName == "device_alloc" || originalName == "device_alloc_f64") {
+            const bool wantF64 = (originalName == "device_alloc_f64");
+            expectArgs(1, wantF64 ? "device_alloc_f64(n)" : "device_alloc(n)");
+            std::string temp = e.newTemp("dev_ptr");
+            e.emit("int64_t " + temp + " = " +
+                   (wantF64 ? "vyne_device_alloc_f64("
+                            : "vyne_device_alloc(") +
+                   normInt(arguments[0]) + ");");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+
+        if (originalName == "device_upload") {
+            expectArgs(3, "device_upload(handle, host, n)");
+            bool f32 = false;
+            std::string data = hostData(arguments[1], "device_upload", f32);
+            e.emit(std::string(f32 ? "vyne_device_upload_f32("
+                                   : "vyne_device_upload_f64(") +
+                   normInt(arguments[0]) + ", " + data + ", " +
+                   normInt(arguments[2]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_download") {
+            expectArgs(3, "device_download(handle, host, n)");
+            bool f32 = false;
+            std::string data = hostData(arguments[1], "device_download", f32);
+            e.emit(std::string(f32 ? "vyne_device_download_f32("
+                                   : "vyne_device_download_f64(") +
+                   normInt(arguments[0]) + ", " + data + ", " +
+                   normInt(arguments[2]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_add") {
+            expectArgs(4, "device_add(out, a, b, n)");
+            e.emit("vyne_device_add(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_sub") {
+            expectArgs(4, "device_sub(out, a, b, n)");
+            e.emit("vyne_device_sub(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_mul") {
+            expectArgs(4, "device_mul(out, a, b, n)");
+            e.emit("vyne_device_mul(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_scale") {
+            expectArgs(4, "device_scale(out, a, s, n)");
+            e.emit("vyne_device_scale(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normFloat(arguments[2]) +
+                   ", " + normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_relu") {
+            expectArgs(3, "device_relu(out, a, n)");
+            e.emit("vyne_device_relu(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_fill") {
+            expectArgs(3, "device_fill(handle, value, n)");
+            e.emit("vyne_device_fill(" + normInt(arguments[0]) + ", " +
+                   normFloat(arguments[1]) + ", " + normInt(arguments[2]) +
+                   ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_matmul") {
+            expectArgs(6, "device_matmul(out, a, b, m, n, k)");
+            e.emit("vyne_device_matmul(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_sync") {
+            expectArgs(0, "device_sync()");
+            e.emit("vyne_device_sync();");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_bytes") {
+            expectArgs(0, "device_bytes()");
+            std::string temp = e.newTemp("dev_bytes");
+            e.emit("int64_t " + temp + " = vyne_device_bytes().as.i64;");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+
+        if (originalName == "device_peak_bytes") {
+            expectArgs(0, "device_peak_bytes()");
+            std::string temp = e.newTemp("dev_peak");
+            e.emit("int64_t " + temp + " = vyne_device_peak_bytes().as.i64;");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+
+        if (originalName == "device_backend") {
+            expectArgs(0, "device_backend()");
+            std::string temp = e.newTemp("dev_backend");
+            e.emit("VyneValue " + temp + " = vyne_device_backend();");
+            return temp;
+        }
+
+        if (originalName == "device_available") {
+            expectArgs(0, "device_available()");
+            std::string temp = e.newTemp("dev_avail");
+            e.emit("VyneValue " + temp + " = vyne_device_available();");
+            return temp;
+        }
+    }
+
     // --- Resolve named args (unchanged) -----------------------------
     std::vector<ASTNode*> orderedArgs;
     if (hasNamedArguments()) {

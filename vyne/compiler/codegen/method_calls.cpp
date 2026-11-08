@@ -721,9 +721,11 @@ std::optional<std::string> tryEmitTypedArrayMethod(
     if (methodName == "push") {
         if (rt && rt->kind == CType::Kind::Array && !rt->args.empty()) {
             VType elem = rt->args[0].toVType();
-            std::string pushFn = (elem == VType::Float64)
-                                     ? "vyne_array_f64_push"
-                                     : "vyne_array_i64_push";
+            std::string pushFn =
+                (elem == VType::Float64)
+                    ? "vyne_array_f64_push"
+                    : (elem == VType::Float32 ? "vyne_array_f32_push"
+                                              : "vyne_array_i64_push");
             for (const auto& argNode : args) {
                 std::string rawVal = argNode->getCExpr(e);
                 std::string val =

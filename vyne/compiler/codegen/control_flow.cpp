@@ -110,6 +110,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         if (e.hasRegion()) {
             e.emitStreamedUnwind();
             e.emitPersistentUnwind();
+            e.emitDeviceUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" +
                 std::to_string(e.getRegionStack().size()) + ");"
@@ -172,6 +173,7 @@ void ReturnNode::compile(C_Emitter& e) const {
             if (e.hasRegion()) {
                 e.emitStreamedUnwind();
                 e.emitPersistentUnwind();
+                e.emitDeviceUnwind();
                 e.emit(
                     "vmem_runtime_pop_checkpoints(" +
                     std::to_string(e.getRegionStack().size()) + ");"
@@ -309,6 +311,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         } else {
             e.emitStreamedUnwind();
             e.emitPersistentUnwind();
+            e.emitDeviceUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" + std::to_string(nRegions) +
                 ");"

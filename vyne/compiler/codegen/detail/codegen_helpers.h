@@ -63,13 +63,18 @@ static VType inferArrayElemType(const ASTNode* node) {
     VType common = VType::Unknown;
     for (const auto& el : elems) {
         VType et = el->getStaticType();
-        if (et != VType::Int64 && et != VType::Float64)
+        if (et != VType::Int64 && et != VType::Float64 &&
+            et != VType::Float32)
             return VType::Unknown;
         if (common == VType::Unknown) {
             common = et;
         } else if (common != et) {
-            if ((common == VType::Int64 && et == VType::Float64) ||
-                (common == VType::Float64 && et == VType::Int64)) {
+            // Float32 stays Float32 only when every element is Float32.
+            // Any mix with Int64 or Float64 promotes to Float64.
+            if ((common == VType::Int64 || common == VType::Float64 ||
+                 common == VType::Float32) &&
+                (et == VType::Int64 || et == VType::Float64 ||
+                 et == VType::Float32)) {
                 common = VType::Float64;
             } else {
                 return VType::Unknown;
@@ -92,6 +97,8 @@ static std::string coerceToNative(
             (want == VType::Float64)) {
             return num->nativeLiteral();
         }
+        if (want == VType::Float32)
+            return "(float)(" + num->nativeLiteral() + ")";
     }
     if (node && node->type() == NodeType::BOOLEAN && want == VType::Bool) {
         return static_cast<const BooleanNode*>(node)->nativeLiteral();
@@ -100,15 +107,28 @@ static std::string coerceToNative(
     if (ct && ct->isPrimitive()) {
         if (ct->toVType() == want)
             return expr;
-        if (want == VType::Float64 && ct->kind == CType::Kind::Int64)
+        if (want == VType::Float64 &&
+            (ct->kind == CType::Kind::Int64 ||
+             ct->kind == CType::Kind::Float32))
             return "(double)(" + expr + ")";
-        if (want == VType::Int64 && ct->kind == CType::Kind::Float64)
+        if (want == VType::Int64 &&
+            (ct->kind == CType::Kind::Float64 ||
+             ct->kind == CType::Kind::Float32))
             return "(int64_t)(" + expr + ")";
+        if (want == VType::Float32 &&
+            (ct->kind == CType::Kind::Int64 ||
+             ct->kind == CType::Kind::Float64))
+            return "(float)(" + expr + ")";
         return expr;
     }
     if (want == VType::Float64)
-        return "((" + expr + ").type == V_FLOAT64) ? (" + expr +
+        return "((" + expr + ").type == V_FLOAT64 || (" + expr +
+               ").type == V_FLOAT32) ? (" + expr +
                ").as.f64 : (double)(" + expr + ").as.i64";
+    if (want == VType::Float32)
+        return "((" + expr + ").type == V_FLOAT64 || (" + expr +
+               ").type == V_FLOAT32) ? (float)(" + expr +
+               ").as.f64 : (float)(" + expr + ").as.i64";
     if (want == VType::Int64)
         return "((" + expr + ").type == V_INT64) ? (" + expr +
                ").as.i64 : (int64_t)(" + expr + ").as.f64";

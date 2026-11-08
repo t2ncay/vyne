@@ -435,8 +435,11 @@ class NumberNode : public ASTNode {
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
     VType getStaticType() const override {
-        return (value.getType() == Value::INT64) ? VType::Int64
-                                                 : VType::Float64;
+        if (value.getType() == Value::INT64)
+            return VType::Int64;
+        if (value.getType() == Value::FLOAT32)
+            return VType::Float32;
+        return VType::Float64;
     }
 
     // Raw literal text for unboxed (native) C contexts: "42", "3.140000".
@@ -776,6 +779,7 @@ class BuiltInCallNode : public ASTNode {
         STRING,
         INT64,
         FLOAT64,
+        FLOAT32,
         SIZEOF,
         SEQUENCE,
         MAP,
@@ -795,6 +799,7 @@ class BuiltInCallNode : public ASTNode {
             {"string", BuiltInType::STRING},
             {"int64", BuiltInType::INT64},
             {"float64", BuiltInType::FLOAT64},
+            {"float32", BuiltInType::FLOAT32},
             {"sizeof", BuiltInType::SIZEOF},
             {"sequence", BuiltInType::SEQUENCE},
             {"map", BuiltInType::MAP},

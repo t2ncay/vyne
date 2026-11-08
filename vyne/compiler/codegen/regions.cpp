@@ -73,6 +73,13 @@ static void emitRingRuntimeOnce(C_Emitter& e) {
     e.markRingRuntimeEmitted();
 }
 
+static void ensureDeviceInclude(C_Emitter& e) {
+    std::string base = FileUtils::getExeDir();
+    std::filesystem::path moduleBase =
+        std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+    e.addInclude((moduleBase / "vdevice.h").string());
+}
+
 static void compileBumpRegion(C_Emitter& e, const RegionNode& r) {
     ensureVmemInclude(e);
 
@@ -605,6 +612,79 @@ static void compilePersistentRegion(C_Emitter& e, const RegionNode& r) {
     e.emit("vmem_runtime_pop_checkpoints(1);");
 }
 
+// ============================================================
+// @device<backend> — accelerator region
+// ------------------------------------------------------------
+// The region opens a device frame, executes the body (which uses the
+// device_* intrinsics), then closes the device frame and rewinds the
+// host arena. Device allocations live in the device arena and are
+// released at the frame close; ordinary host allocations keep the
+// normal region lifetime.
+//
+// The runtime selects the backend. `cuda` falls back to `cpu` with a
+// warning when the driver/device is unavailable; `auto` picks CUDA if it
+// can initialize. Unknown names also fall back to CPU.
+//
+// The first release supports explicit intrinsics:
+//   device_alloc, device_upload, device_download, device_add,
+//   device_sub, device_mul, device_scale, device_relu, device_fill,
+//   device_matmul, device_sync, device_bytes, device_peak_bytes,
+//   device_backend, device_available.
+//
+// Tensors are Float64. Automatic staging/op-list codegen is a follow-up;
+// this slice proves the device arena and GPU execution path end to end.
+// ============================================================
+static void compileDeviceRegion(C_Emitter& e, const RegionNode& r) {
+    if (e.isArduinoTarget()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @device is not supported on the AVR "
+            "target (line " +
+            std::to_string(r.lineNumber) + ")."
+        );
+    }
+
+    const auto& args = r.getPolicyArgs();
+    std::string backend = "auto";
+
+    if (args.size() == 1) {
+        backend = args[0];
+    } else if (args.size() == 2 && args[0] == "backend") {
+        backend = args[1];
+    } else if (!args.empty()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @device expects 0 or 1 backend argument "
+            "(or 'backend, <name>'), got " +
+            std::to_string(args.size()) + " (line " +
+            std::to_string(r.lineNumber) + ").\n"
+            "  Syntax: @device<cuda> region name { ... };"
+        );
+    }
+
+    ensureVmemInclude(e);
+    ensureDeviceInclude(e);
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (device<" + backend + ">) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit("vyne_device_enter(\"" + backend + "\");");
+
+    e.pushDeviceRegion(cpHandle);
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+
+    e.popRegion();
+
+    e.emit("vyne_device_leave();");
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
 static void compileSpeculativeRegion(C_Emitter& e, const RegionNode& r) {
     if (!r.getPolicyArgs().empty()) {
         throw std::runtime_error(
@@ -964,6 +1044,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compilePersistentRegion(e, *this);
         return;
     }
+    if (policy == "device") {
+        compileDeviceRegion(e, *this);
+        return;
+    }
     if (policy == "speculative") {
         compileSpeculativeRegion(e, *this);
         return;
@@ -988,7 +1072,7 @@ void RegionNode::compile(C_Emitter& e) const {
         std::to_string(lineNumber) +
         ").\n"
         "  Implemented policies: bump (default), pool, slab, ring, streamed, "
-        "persistent, speculative, bounded, zeroed, deterministic."
+        "persistent, device, speculative, bounded, zeroed, deterministic."
     );
 }
 

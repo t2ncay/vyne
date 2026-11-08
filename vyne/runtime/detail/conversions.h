@@ -12,7 +12,8 @@
 
 static inline VyneValue vyne_to_int(VyneValue v) {
     if (v.type == V_INT64) return v;
-    if (v.type == V_FLOAT64) return vyne_int((int64_t)v.as.f64);
+    if (v.type == V_FLOAT64 || v.type == V_FLOAT32)
+        return vyne_int((int64_t)v.as.f64);
     if (v.type == V_STRING) return vyne_int(atoll(v.as.str));
     if (v.type == V_BOOL) return vyne_int(v.as.i64);
     return vyne_int(0);
@@ -20,19 +21,30 @@ static inline VyneValue vyne_to_int(VyneValue v) {
 
 static inline VyneValue vyne_to_float(VyneValue v) {
     if (v.type == V_FLOAT64) return v;
+    if (v.type == V_FLOAT32) return vyne_float(v.as.f64);
     if (v.type == V_INT64) return vyne_float((double)v.as.i64);
     if (v.type == V_STRING) return vyne_float(atof(v.as.str));
     return vyne_float(0.0);
+}
+
+static inline VyneValue vyne_to_float32(VyneValue v) {
+    if (v.type == V_FLOAT32) return v;
+    if (v.type == V_FLOAT64) return vyne_float32((float)v.as.f64);
+    if (v.type == V_INT64) return vyne_float32((float)v.as.i64);
+    if (v.type == V_STRING) return vyne_float32((float)atof(v.as.str));
+    return vyne_float32(0.0f);
 }
 
 static inline const char* vyne_get_type_name(VyneValue v) {
     switch (v.type) {
         case V_INT64:   return "Int64";
         case V_FLOAT64: return "Float64";
+        case V_FLOAT32: return "Float32";
         case V_STRING:  return "String";
         case V_BOOL:    return "Boolean";
         case V_ARRAY:     return "Array";
         case V_F64_ARRAY: return "Array<Float64>";
+        case V_F32_ARRAY: return "Array<Float32>";
         case V_I64_ARRAY: return "Array<Int64>";
         case V_MAP:       return "Map";
         case V_STRUCT:  return "Struct";
@@ -44,6 +56,7 @@ static inline const char* vyne_get_type_name(VyneValue v) {
 static inline int64_t vyne_get_sizeof(VyneValue v) {
     if (v.type == V_ARRAY)     return (int64_t)v.as.arr->size;
     if (v.type == V_F64_ARRAY) return v.as.arr_f64->size;
+    if (v.type == V_F32_ARRAY) return v.as.arr_f32->size;
     if (v.type == V_I64_ARRAY) return v.as.arr_i64->size;
     if (v.type == V_MAP)       return (int64_t)v.as.map->size;
     if (v.type == V_STRING)    return (int64_t)strlen(v.as.str);
@@ -62,6 +75,7 @@ static inline VyneValue vyne_to_string(VyneValue v) {
     switch (v.type) {
         case V_INT64:   sprintf(buf, "%lld", v.as.i64); break;
         case V_FLOAT64: _vyne_format_float(buf, v.as.f64); break;
+        case V_FLOAT32: _vyne_format_float(buf, (double)(float)v.as.f64); break;
         case V_BOOL:    strcpy(buf, v.as.i64 ? "true" : "false"); break;
         case V_NULL:    strcpy(buf, "null"); break;
         case V_STRING:  return v;
@@ -98,6 +112,24 @@ static inline VyneValue vyne_to_string(VyneValue v) {
                 if (i > 0) { tmp[pos++] = ','; tmp[pos++] = ' '; }
                 char fbuf[32];
                 _vyne_format_float(fbuf, a->data[i]);
+                size_t slen = strlen(fbuf);
+                memcpy(tmp + pos, fbuf, slen); pos += slen;
+            }
+            tmp[pos++] = ']';
+            tmp[pos]   = '\0';
+            return vyne_string_own(tmp);
+        }
+        case V_F32_ARRAY: {
+            VyneArray_f32* a = v.as.arr_f32;
+            size_t total = 3;
+            for (int64_t i = 0; i < a->size; ++i) total += 24;
+            char* tmp = (char*)arena_alloc(total);
+            size_t pos = 0;
+            tmp[pos++] = '[';
+            for (int64_t i = 0; i < a->size; ++i) {
+                if (i > 0) { tmp[pos++] = ','; tmp[pos++] = ' '; }
+                char fbuf[32];
+                _vyne_format_float(fbuf, (double)a->data[i]);
                 size_t slen = strlen(fbuf);
                 memcpy(tmp + pos, fbuf, slen); pos += slen;
             }

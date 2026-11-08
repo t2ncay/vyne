@@ -48,7 +48,7 @@ static std::string arrayElemTypeName(const InterfaceMember& m) {
 static bool memberIsCEligible(C_Emitter& e, const InterfaceMember& m) {
     // Primitives fit the flat representation directly.
     if (m.type == VType::Int64 || m.type == VType::Float64 ||
-        m.type == VType::Bool)
+        m.type == VType::Float32 || m.type == VType::Bool)
         return true;
 
     // String and Map store as a single VyneValue inside the C typedef.
@@ -88,6 +88,8 @@ static CType cFieldTypeFor(C_Emitter& e, const InterfaceMember& m) {
         return CType::fromKind(CType::Kind::Int64);
     case VType::Float64:
         return CType::fromKind(CType::Kind::Float64);
+    case VType::Float32:
+        return CType::fromKind(CType::Kind::Float32);
     case VType::Bool:
         return CType::fromKind(CType::Kind::Bool);
     case VType::String:
@@ -301,6 +303,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
                 std::string fld = "arr.data[i]." + fieldNames[i];
                 if (ft.kind == CType::Kind::Float64) {
                     ctorArgs += "vyne_float(" + fld + ")";
+                } else if (ft.kind == CType::Kind::Float32) {
+                    ctorArgs += "vyne_float32(" + fld + ")";
                 } else if (ft.kind == CType::Kind::Int64) {
                     ctorArgs += "vyne_int(" + fld + ")";
                 } else if (ft.kind == CType::Kind::Bool) {
@@ -317,6 +321,8 @@ void InterfaceNode::compile(C_Emitter& e) const {
                                     "(" + fld + ")";
                     } else if (el.kind == CType::Kind::Float64) {
                         ctorArgs += "vyne_array_f64_to_value(&" + fld + ")";
+                    } else if (el.kind == CType::Kind::Float32) {
+                        ctorArgs += "vyne_array_f32_to_value(&" + fld + ")";
                     } else if (el.kind == CType::Kind::Int64) {
                         ctorArgs += "vyne_array_i64_to_value(&" + fld + ")";
                     }
@@ -378,6 +384,9 @@ void InterfaceNode::compile(C_Emitter& e) const {
                 break;
             case VType::Float64:
                 defaults.push_back("vyne_float(0.0)");
+                break;
+            case VType::Float32:
+                defaults.push_back("vyne_float32(0.0f)");
                 break;
             case VType::Array:
                 defaults.push_back("vyne_array_create(0)");
@@ -566,8 +575,15 @@ void InterfaceNode::compile(C_Emitter& e) const {
                     break;
                 case CType::Kind::Float64:
                     init = "(" + guard + ") ? ((" + arg +
-                           ".type == V_FLOAT64) ? " + arg +
+                           ".type == V_FLOAT64 || " + arg +
+                           ".type == V_FLOAT32) ? " + arg +
                            ".as.f64 : (double)" + arg + ".as.i64) : 0.0";
+                    break;
+                case CType::Kind::Float32:
+                    init = "(" + guard + ") ? ((" + arg +
+                           ".type == V_FLOAT64 || " + arg +
+                           ".type == V_FLOAT32) ? (float)" + arg +
+                           ".as.f64 : (float)" + arg + ".as.i64) : 0.0f";
                     break;
                 case CType::Kind::Bool:
                     init =
@@ -641,9 +657,12 @@ void registerInterfaceLayoutsFromMembers(
             fd.type = CType::fromKind(CType::Kind::Int64);
         } else if (m.type == VType::Float64) {
             fd.type = CType::fromKind(CType::Kind::Float64);
+        } else if (m.type == VType::Float32) {
+            fd.type = CType::fromKind(CType::Kind::Float32);
         } else if (
             m.type == VType::Array && (m.arrayElemType == VType::Int64 ||
-                                       m.arrayElemType == VType::Float64)
+                                       m.arrayElemType == VType::Float64 ||
+                                       m.arrayElemType == VType::Float32)
         ) {
             fd.type.kind = CType::Kind::Array;
             fd.type.args.push_back(CType::fromVType(m.arrayElemType));

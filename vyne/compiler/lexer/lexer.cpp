@@ -251,6 +251,22 @@ std::vector<Token> tokenize(std::string_view input) {
                 }
             }
 
+            // Phase 3 - optional Float32 suffix. `1.0f` / `2f` / `1e3f`
+            // lex as a Float32 literal. The suffix is only consumed when it
+            // is not followed by an identifier character, so `1.0foo` still
+            // becomes a Float64 followed by identifier `foo`.
+            bool isFloat32Literal = false;
+            if (i < input.length() && (input[i] == 'f' || input[i] == 'F')) {
+                size_t next = i + 1;
+                bool ident_after = (next < input.length()) &&
+                    (std::isalnum((unsigned char)input[next]) || input[next] == '_');
+                if (!ident_after) {
+                    isFloat32Literal = true;
+                    isFloatingPoint = true;
+                    i++;
+                }
+            }
+
             if (isFloatingPoint) {
                 double val;
                 auto [ptr, ec] = std::from_chars(
@@ -260,7 +276,8 @@ std::vector<Token> tokenize(std::string_view input) {
                 );
                 if (ec == std::errc{}) {
                     tokens.emplace_back(
-                        VTokenType::Float64,
+                        isFloat32Literal ? VTokenType::Float32
+                                         : VTokenType::Float64,
                         currentLine,
                         val,
                         ""

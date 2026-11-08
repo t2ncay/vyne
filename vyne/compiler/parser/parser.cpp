@@ -92,8 +92,8 @@ VType Parser::resolveType(std::string_view typeName) {
     }
 
     if (name.find('.') == std::string::npos && name != "Int64" &&
-        name != "Float64" && name != "String" && name != "Array" &&
-        name != "Bool" && name != "null") {
+        name != "Float64" && name != "Float32" && name != "String" &&
+        name != "Array" && name != "Bool" && name != "null") {
 
         bool isGroupName = false;
         for (const auto& t : declaredTypes) {
@@ -152,7 +152,7 @@ VType Parser::resolveType(std::string_view typeName) {
         0, // We don't have line info here
         "VNE-003",
         {"Check the type name spelling",
-         "Use: Int64, Float64, String, Array, Bool, or a defined struct/enum"}
+         "Use: Int64, Float64, Float32, String, Array, Bool, or a defined struct/enum"}
     );
 
     throw std::runtime_error("Type resolution failed");
@@ -1043,6 +1043,8 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
         return parseNumberLiteral();
     case VTokenType::Float64:
         return parseNumberLiteral();
+    case VTokenType::Float32:
+        return parseNumberLiteral();
     case VTokenType::True:
     case VTokenType::False:
         return parseBooleanLiteral();
@@ -1106,6 +1108,14 @@ std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
         consume(VTokenType::Float64);
         double val = std::get<double>(current.literal);
         auto node = std::make_unique<NumberNode>(Value(val));
+        node->lineNumber = line;
+        return node;
+    } else if (current.type == VTokenType::Float32) {
+        consume(VTokenType::Float32);
+        double val = std::get<double>(current.literal);
+        auto node = std::make_unique<NumberNode>(
+            Value(static_cast<float>(val))
+        );
         node->lineNumber = line;
         return node;
     }
@@ -3224,9 +3234,9 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
 
     std::string elemTypeName = parseTypePath();
     VType elemType = resolveType(elemTypeName);
-    if (elemType != VType::Float64 && elemType != VType::Int64) {
+    if (elemType != VType::Float64 && elemType != VType::Float32 && elemType != VType::Int64) {
         emitError(
-            "scratch element type must be Float64 or Int64, got '" +
+            "scratch element type must be Float64, Float32, or Int64, got '" +
                 elemTypeName + "'",
             line,
             "VNE-060",

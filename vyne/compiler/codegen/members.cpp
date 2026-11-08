@@ -99,7 +99,8 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
 
         if (!typeName.empty()) {
             VType elem = e.getInterfaceArrayElem(typeName, memberName);
-            if (elem == VType::Int64 || elem == VType::Float64) {
+            if (elem == VType::Int64 || elem == VType::Float64 ||
+                elem == VType::Float32) {
                 std::string cacheKey = recvName + "." + memberName;
                 if (const auto* cached = e.getFieldCache(cacheKey))
                     return cached->temp;
@@ -107,11 +108,16 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
                 std::string recv = e.boxAny(recvC);
                 uint32_t fid = StringPool::intern(memberName);
                 std::string temp = e.newTemp("fld");
-                const char* cName = (elem == VType::Float64) ? "VyneArray_f64"
-                                                             : "VyneArray_i64";
+                const char* cName = (elem == VType::Float64)
+                                        ? "VyneArray_f64"
+                                        : (elem == VType::Float32)
+                                              ? "VyneArray_f32"
+                                              : "VyneArray_i64";
                 const char* fn = (elem == VType::Float64)
                                      ? "vyne_value_to_array_f64"
-                                     : "vyne_value_to_array_i64";
+                                     : (elem == VType::Float32)
+                                           ? "vyne_value_to_array_f32"
+                                           : "vyne_value_to_array_i64";
 
                 e.emit(
                     std::string(cName) + " " + temp + " = " + fn +
@@ -132,7 +138,8 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
             // temp so downstream native dispatch (tryEmitNativeCall) sees
             // a provably-typed operand.
             VType ptype = e.getInterfacePrimitiveField(typeName, memberName);
-            if (ptype == VType::Int64 || ptype == VType::Float64) {
+            if (ptype == VType::Int64 || ptype == VType::Float64 ||
+                ptype == VType::Float32) {
                 std::string cacheKey = recvName + "." + memberName + ":prim";
                 if (const auto* cached = e.getFieldCache(cacheKey))
                     return cached->temp;
@@ -149,10 +156,19 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
                 if (ptype == VType::Float64) {
                     e.emit(
                         "double " + temp + " = (" + boxed +
-                        ".type == V_FLOAT64) ? " + boxed +
+                        ".type == V_FLOAT64 || " + boxed +
+                        ".type == V_FLOAT32) ? " + boxed +
                         ".as.f64 : (double)" + boxed + ".as.i64;"
                     );
                     e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
+                } else if (ptype == VType::Float32) {
+                    e.emit(
+                        "float " + temp + " = (" + boxed +
+                        ".type == V_FLOAT64 || " + boxed +
+                        ".type == V_FLOAT32) ? (float)" + boxed +
+                        ".as.f64 : (float)" + boxed + ".as.i64;"
+                    );
+                    e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
                 } else {
                     e.emit(
                         "int64_t " + temp + " = (" + boxed +
@@ -304,7 +320,8 @@ void MemberAssignmentNode::compile(C_Emitter& e) const {
                 VType st = rhs->getStaticType();
                 safe =
                     (st == VType::Int64 || st == VType::Float64 ||
-                     st == VType::Bool || st == VType::Null);
+                     st == VType::Float32 || st == VType::Bool ||
+                     st == VType::Null);
             }
             // NEW: same reasoning as IndexAssignmentNode — a read whose
             // root variable lives outside the region cannot produce a

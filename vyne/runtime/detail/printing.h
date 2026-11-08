@@ -13,7 +13,7 @@
 static inline bool vyne_is_truthy(VyneValue v) {
     if (v.type == V_NULL) return false;
     if (v.type == V_BOOL || v.type == V_INT64) return v.as.i64 != 0;
-    if (v.type == V_FLOAT64) return v.as.f64 != 0.0;
+    if (v.type == V_FLOAT64 || v.type == V_FLOAT32) return v.as.f64 != 0.0;
     return true;
 }
 
@@ -29,6 +29,24 @@ static inline void _vyne_print_internal(VyneValue v) {
             if (strchr(buf, '.') == NULL && strchr(buf, 'e') == NULL)
                 strcat(buf, ".0");
             printf("%s", buf);
+            break;
+        }
+        case V_FLOAT32: {
+            char buf[64];
+            sprintf(buf, "%g", (double)(float)v.as.f64);
+            if (strchr(buf, '.') == NULL && strchr(buf, 'e') == NULL)
+                strcat(buf, ".0");
+            printf("%s", buf);
+            break;
+        }
+        case V_F32_ARRAY: {
+            printf("[");
+            VyneArray_f32* a = v.as.arr_f32;
+            for (int64_t i = 0; i < a->size; i++) {
+                _vyne_print_internal(vyne_float32(a->data[i]));
+                if (i < a->size - 1) printf(", ");
+            }
+            printf("]");
             break;
         }
         case V_ARRAY: {

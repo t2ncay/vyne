@@ -81,6 +81,8 @@ static std::string nativeInit(
             (declared.kind == CType::Kind::Float64)) {
             return num->nativeLiteral();
         }
+        if (declared.kind == CType::Kind::Float32)
+            return "(float)(" + num->nativeLiteral() + ")";
     }
     if (rhs->type() == NodeType::BOOLEAN &&
         declared.kind == CType::Kind::Bool) {
@@ -94,11 +96,17 @@ static std::string nativeInit(
         if (vt->kind == declared.kind)
             return val;
         if (declared.kind == CType::Kind::Float64 &&
-            vt->kind == CType::Kind::Int64)
+            (vt->kind == CType::Kind::Int64 ||
+             vt->kind == CType::Kind::Float32))
             return "(double)(" + val + ")";
         if (declared.kind == CType::Kind::Int64 &&
-            vt->kind == CType::Kind::Float64)
+            (vt->kind == CType::Kind::Float64 ||
+             vt->kind == CType::Kind::Float32))
             return "(int64_t)(" + val + ")";
+        if (declared.kind == CType::Kind::Float32 &&
+            (vt->kind == CType::Kind::Int64 ||
+             vt->kind == CType::Kind::Float64))
+            return "(float)(" + val + ")";
         return val;
     }
 
@@ -110,8 +118,13 @@ static std::string nativeInit(
         return "((" + tmp + ").type == V_INT64) ? (" + tmp +
                ").as.i64 : (int64_t)(" + tmp + ").as.f64";
     case CType::Kind::Float64:
-        return "((" + tmp + ").type == V_FLOAT64) ? (" + tmp +
+        return "((" + tmp + ").type == V_FLOAT64 || (" + tmp +
+               ").type == V_FLOAT32) ? (" + tmp +
                ").as.f64 : (double)(" + tmp + ").as.i64";
+    case CType::Kind::Float32:
+        return "((" + tmp + ").type == V_FLOAT64 || (" + tmp +
+               ").type == V_FLOAT32) ? (float)(" + tmp +
+               ").as.f64 : (float)(" + tmp + ").as.i64";
     case CType::Kind::Bool:
         return "((" + tmp + ").as.i64 != 0)";
     default:
@@ -179,8 +192,8 @@ static void checkRegionEscape(
 
     // Primitive RHS: copied by value, always safe to escape.
     VType st = resolveRHSKind(e, rhs);
-    if (st == VType::Int64 || st == VType::Float64 || st == VType::Bool ||
-        st == VType::Null) {
+    if (st == VType::Int64 || st == VType::Float64 ||
+        st == VType::Float32 || st == VType::Bool || st == VType::Null) {
         return;
     }
 
@@ -344,7 +357,7 @@ static void emitScratchStore(
     VType elem =
         dstType.args.empty() ? VType::Float64 : dstType.args[0].toVType();
     int64_t n = dstType.numElements();
-    const char* elemCName = (elem == VType::Float64) ? "double" : "int64_t";
+    const char* elemCName = (elem == VType::Float64) ? "double" : elem == VType::Float32 ? "float" : "int64_t";
 
     std::string src = rhsNode->getCExpr(e);
     const CType* rt = e.lookupType(src);
@@ -405,8 +418,17 @@ static void emitScratchStore(
     std::string cell = srcVar + ".as.arr->elements[" + k + "]";
     if (elem == VType::Float64) {
         e.emit(
-            dstName + "[" + k + "] = ((" + cell + ").type == V_FLOAT64) ? (" +
-            cell + ").as.f64 : (double)(" + cell + ").as.i64;"
+            dstName + "[" + k + "] = ((" + cell +
+            ").type == V_FLOAT64 || (" + cell +
+            ").type == V_FLOAT32) ? (" + cell +
+            ").as.f64 : (double)(" + cell + ").as.i64;"
+        );
+    } else if (elem == VType::Float32) {
+        e.emit(
+            dstName + "[" + k + "] = ((" + cell +
+            ").type == V_FLOAT64 || (" + cell +
+            ").type == V_FLOAT32) ? (float)(" + cell +
+            ").as.f64 : (float)(" + cell + ").as.i64;"
         );
     } else {
         e.emit(
@@ -457,8 +479,13 @@ void AssignmentNode::compile(C_Emitter& e) const {
             );
             CType ft = ns->fieldTypes[i];
             if (ft.kind == CType::Kind::Float64) {
-                init += "(" + cell + ".type == V_FLOAT64) ? " + cell +
+                init += "(" + cell + ".type == V_FLOAT64 || " + cell +
+                        ".type == V_FLOAT32) ? " + cell +
                         ".as.f64 : (double)" + cell + ".as.i64";
+            } else if (ft.kind == CType::Kind::Float32) {
+                init += "(" + cell + ".type == V_FLOAT64 || " + cell +
+                        ".type == V_FLOAT32) ? (float)" + cell +
+                        ".as.f64 : (float)" + cell + ".as.i64";
             } else if (ft.kind == CType::Kind::Int64) {
                 init += "(" + cell + ".type == V_INT64) ? " + cell +
                         ".as.i64 : (int64_t)" + cell + ".as.f64";
@@ -487,6 +514,8 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 }
                 if (el.kind == CType::Kind::Float64) {
                     init += "vyne_value_to_array_f64(" + cell + ")";
+                } else if (el.kind == CType::Kind::Float32) {
+                    init += "vyne_value_to_array_f32(" + cell + ")";
                 } else if (el.kind == CType::Kind::Int64) {
                     init += "vyne_value_to_array_i64(" + cell + ")";
                 } else {
@@ -587,9 +616,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 if (rhs->type() == NodeType::ARRAY) {
                     auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
                     if (arrRhs->getElements().empty()) {
-                        std::string ctor = (elem == VType::Float64)
-                                               ? "vyne_array_f64_create"
-                                               : "vyne_array_i64_create";
+                        std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create" : (elem == VType::Float32) ? "vyne_array_f32_create" : "vyne_array_i64_create";
                         CType arrType;
                         arrType.kind = CType::Kind::Array;
                         arrType.args.push_back(CType::fromVType(elem));
@@ -676,9 +703,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
             if (rhs->type() == NodeType::ARRAY) {
                 auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
                 if (arrRhs->getElements().empty()) {
-                    std::string ctor = (elem == VType::Float64)
-                                           ? "vyne_array_f64_create"
-                                           : "vyne_array_i64_create";
+                    std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create" : (elem == VType::Float32) ? "vyne_array_f32_create" : "vyne_array_i64_create";
                     e.emit(bareName + " = " + ctor + "(0);");
                     return;
                 }
@@ -790,9 +815,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
                 // Fall through to the generic path, which will declare the
                 // local from the RHS's own CType (or box it).
                 if (elem != VType::Unknown && elem != VType::Struct) {
-                    std::string ctor = (elem == VType::Float64)
-                                           ? "vyne_array_f64_create"
-                                           : "vyne_array_i64_create";
+                    std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create" : (elem == VType::Float32) ? "vyne_array_f32_create" : "vyne_array_i64_create";
                     CType arrType;
                     arrType.kind = CType::Kind::Array;
                     arrType.args.push_back(CType::fromVType(elem));
@@ -838,7 +861,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
             }
 
             VType elem = elemCt.toVType();
-            if (elem == VType::Float64 || elem == VType::Int64) {
+            if (elem == VType::Float64 || elem == VType::Float32 || elem == VType::Int64) {
                 CType arrType = *rt;
                 e.declareLocal(varName, arrType);
                 e.emit(
@@ -895,6 +918,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
         const CType* rt = e.lookupType(val);
         if (rt && rt->kind == CType::Kind::Array && !rt->args.empty() &&
             (rt->args[0].toVType() == VType::Float64 ||
+             rt->args[0].toVType() == VType::Float32 ||
              rt->args[0].toVType() == VType::Int64)) {
             e.declareLocal(varName, *rt);
             e.emit(
@@ -936,9 +960,7 @@ void AssignmentNode::compile(C_Emitter& e) const {
         if (rhs->type() == NodeType::ARRAY) {
             auto* arrRhs = static_cast<const ArrayNode*>(rhs.get());
             if (arrRhs->getElements().empty()) {
-                std::string ctor = (elem == VType::Float64)
-                                       ? "vyne_array_f64_create"
-                                       : "vyne_array_i64_create";
+                std::string ctor = (elem == VType::Float64) ? "vyne_array_f64_create" : (elem == VType::Float32) ? "vyne_array_f32_create" : "vyne_array_i64_create";
                 e.emit(varName + " = " + ctor + "(0);");
                 return;
             }
