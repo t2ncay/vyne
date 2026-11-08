@@ -71,6 +71,68 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         }
     }
 
+    // ----------------------------------------------------------------
+    // Slab intrinsics. Like the pool intrinsics above, these are
+    // intercepted by name only while a @slab context is active, so a
+    // user-defined `fn slab_alloc()` outside a slab region still works.
+    // ----------------------------------------------------------------
+    if (e.hasSlab()) {
+        const auto& slab  = e.currentSlab();
+        const bool  isF64 = (slab.elemType == VType::Float64);
+
+        if (originalName == "slab_alloc") {
+            if (arguments.size() != 1) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): slab_alloc(n) takes exactly "
+                    "one argument (line " + std::to_string(lineNumber) + ").");
+            }
+            // Accept a literal, a native Int64/Float64, or a boxed value and
+            // normalize to int64_t with the least boxing possible.
+            std::string nExpr;
+            if (arguments[0]->type() == NodeType::NUMBER) {
+                nExpr = static_cast<const NumberNode*>(arguments[0].get())
+                            ->nativeLiteral();
+            } else {
+                std::string nRaw = arguments[0]->getCExpr(e);
+                if (const CType* ct = e.exprNativeType(nRaw)) {
+                    if (ct->kind == CType::Kind::Int64)
+                        nExpr = nRaw;
+                    else if (ct->kind == CType::Kind::Float64)
+                        nExpr = "(int64_t)(" + nRaw + ")";
+                    else
+                        nExpr = "vyne_to_int(" + e.boxAny(nRaw) + ").as.i64";
+                } else {
+                    nExpr = "vyne_to_int(" + e.boxAny(nRaw) + ").as.i64";
+                }
+            }
+            std::string temp = e.newTemp("slab_arr");
+            std::string fn = isF64 ? "vyne_slab_f64_alloc"
+                                   : "vyne_slab_i64_alloc";
+            e.emit(std::string(isF64 ? "VyneArray_f64 " : "VyneArray_i64 ") +
+                   temp + " = " + fn + "(&" + slab.handle + ", " + nExpr +
+                   ");");
+
+            CType arr;
+            arr.kind = CType::Kind::Array;
+            arr.args.push_back(CType::fromVType(slab.elemType));
+            e.declareNativeTemp(temp, arr);
+            return temp;
+        }
+
+        if (originalName == "slab_free") {
+            if (arguments.size() != 1) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): slab_free(x) takes exactly "
+                    "one argument (line " + std::to_string(lineNumber) + ").");
+            }
+            std::string arg = arguments[0]->getCExpr(e);
+            std::string fn = isF64 ? "vyne_slab_f64_free"
+                                   : "vyne_slab_i64_free";
+            e.emit(fn + "(&" + slab.handle + ", &" + arg + ");");
+            return "vyne_null()";
+        }
+    }
+
     // --- Resolve named args (unchanged) -----------------------------
     std::vector<ASTNode*> orderedArgs;
     if (hasNamedArguments()) {

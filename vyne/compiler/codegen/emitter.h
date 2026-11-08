@@ -219,6 +219,18 @@ class C_Emitter {
     };
     std::vector<PoolContext> poolStack;
 
+    // Active @slab context. Mirrors PoolContext: the C variable name of the
+    // VyneSlab_f64/i64 struct so `slab_alloc(n)` / `slab_free(x)` — intercepted
+    // in FunctionCallNode::getCExpr — can address it. Innermost slab wins; nested
+    // @slab regions shadow cleanly via LIFO.
+    struct SlabContext {
+        std::string handle;  // C variable name of the VyneSlab struct
+        VType elemType;      // Float64 or Int64
+        int64_t maxElems;    // largest single allocation, in elements
+        int64_t capacity;    // slots per size class
+    };
+    std::vector<SlabContext> slabStack;
+
     // Active @speculative context. Tracks the C variable name of the
     // per-region commit flag so `region.commit_if(pred)` — intercepted
     // in RegionCommitIfNode::compile — knows which flag to assign. Only
@@ -232,6 +244,7 @@ class C_Emitter {
     bool scratchBoundsEnabled = true;
     bool blasEnabled = false;
     bool poolRuntimeEmitted = false;
+    bool slabRuntimeEmitted = false;
     int tempVarCount = 0;
 
     // Nesting depth of @zeroed / @deterministic regions currently open
@@ -617,6 +630,7 @@ class C_Emitter {
         currentInterfaceType.clear();
         regionStack.clear();
         poolStack.clear(); // paired with regionStack: both are per-function
+        slabStack.clear(); // paired with regionStack: both are per-function
         speculativeStack.clear();
         committedVars.clear();
         zeroModeDepth = 0;
@@ -1238,6 +1252,32 @@ class C_Emitter {
         poolRuntimeEmitted = true;
     }
 
+    // --- Slab context ------------------------------------------------
+    // Like @pool, @slab is a lookup layer over regionStack: the slab
+    // checkpoints on entry and rewinds on exit, reclaiming the slab struct's
+    // backing store along with the body's allocations.
+    void pushSlab(const SlabContext& s) {
+        slabStack.push_back(s);
+    }
+    void popSlab() {
+        if (!slabStack.empty())
+            slabStack.pop_back();
+    }
+    bool hasSlab() const {
+        return !slabStack.empty();
+    }
+    const SlabContext& currentSlab() const {
+        return slabStack.back();
+    }
+
+    // Idempotent include emit for vyne_slab_runtime.h.
+    bool isSlabRuntimeEmitted() const {
+        return slabRuntimeEmitted;
+    }
+    void markSlabRuntimeEmitted() {
+        slabRuntimeEmitted = true;
+    }
+
     // --- Speculative context -----------------------------------------
     // Pushed by compileSpeculativeRegion, read by RegionCommitIfNode.
     // A speculative region still goes on regionStack; the speculative
@@ -1394,8 +1434,10 @@ class C_Emitter {
         regionStack.clear();
         committedVars.clear();
         poolStack.clear();
+        slabStack.clear();
         speculativeStack.clear();
         poolRuntimeEmitted = false;
+        slabRuntimeEmitted = false;
         scratchBoundsEnabled = true;
         blasEnabled = false;
         zeroModeDepth = 0;
