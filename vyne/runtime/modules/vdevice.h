@@ -94,6 +94,7 @@ typedef struct {
     void* ptr;
     size_t bytes;
     int64_t n;     // elements
+    int elem_size; // 4 = Float32 (default), 8 = Float64
 } VyneDeviceAlloc;
 
 typedef struct {
@@ -137,6 +138,14 @@ static CUfunction g_k_vec_scale = NULL;
 static CUfunction g_k_vec_relu = NULL;
 static CUfunction g_k_vec_fill = NULL;
 static CUfunction g_k_matmul = NULL;
+
+static CUfunction g_k_vec_add_f32 = NULL;
+static CUfunction g_k_vec_sub_f32 = NULL;
+static CUfunction g_k_vec_mul_f32 = NULL;
+static CUfunction g_k_vec_scale_f32 = NULL;
+static CUfunction g_k_vec_relu_f32 = NULL;
+static CUfunction g_k_vec_fill_f32 = NULL;
+static CUfunction g_k_matmul_f32 = NULL;
 
 #define VYNE_CUDA_LOAD(field, name)                                      \
     do {                                                                 \
@@ -203,6 +212,21 @@ static int vyne_device_cuda_init(void) {
     if (g_cuModuleGetFunction(&g_k_matmul, g_vyne_cuda_module, "matmul_f64") != 0)
         return 0;
 
+    if (g_cuModuleGetFunction(&g_k_vec_add_f32, g_vyne_cuda_module, "vec_add_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_sub_f32, g_vyne_cuda_module, "vec_sub_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_mul_f32, g_vyne_cuda_module, "vec_mul_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_scale_f32, g_vyne_cuda_module, "vec_scale_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_relu_f32, g_vyne_cuda_module, "vec_relu_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_fill_f32, g_vyne_cuda_module, "vec_fill_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_matmul_f32, g_vyne_cuda_module, "matmul_f32") != 0)
+        return 0;
+
     g_vyne_dev_cuda_ok = 1;
     return 1;
 }
@@ -222,7 +246,8 @@ static void vyne_dev_check(CUresult r, const char* what) {
     }
 }
 
-static void vyne_dev_track(void* ptr, int backend, size_t bytes, int64_t n) {
+static void vyne_dev_track(void* ptr, int backend, size_t bytes, int64_t n,
+                           int elem_size) {
     if (g_vyne_dev_count == g_vyne_dev_cap) {
         size_t cap = g_vyne_dev_cap ? g_vyne_dev_cap * 2 : 64;
         VyneDeviceAlloc* p = (VyneDeviceAlloc*)realloc(
@@ -240,6 +265,7 @@ static void vyne_dev_track(void* ptr, int backend, size_t bytes, int64_t n) {
     a->ptr = ptr;
     a->bytes = bytes;
     a->n = n;
+    a->elem_size = elem_size;
     g_vyne_dev_live += bytes;
     if (g_vyne_dev_live > g_vyne_dev_peak)
         g_vyne_dev_peak = g_vyne_dev_live;
@@ -320,14 +346,15 @@ static inline void vyne_device_leave(void) {
 }
 
 // --- allocation / staging ----------------------------------------------------
-static inline int64_t vyne_device_alloc_f64(int64_t n) {
-    if (n < 0 || (uint64_t)n > (uint64_t)SIZE_MAX / sizeof(double)) {
+static inline int64_t vyne_dev_alloc(int64_t n, int elem_size) {
+    const size_t es = (size_t)elem_size;
+    if (n < 0 || es == 0 || (uint64_t)n > (uint64_t)SIZE_MAX / es) {
         fprintf(stderr, "vyne device: invalid allocation length\n");
         exit(1);
     }
-    size_t bytes = (size_t)n * sizeof(double);
+    size_t bytes = (size_t)n * es;
     if (bytes == 0)
-        bytes = sizeof(double);
+        bytes = es;
     void* p = NULL;
     if (g_vyne_dev_backend == 1) {
         if (!g_vyne_dev_cuda_ok && !vyne_device_cuda_init()) {
@@ -344,13 +371,30 @@ static inline int64_t vyne_device_alloc_f64(int64_t n) {
             exit(1);
         }
     }
-    vyne_dev_track(p, g_vyne_dev_backend, bytes, n);
+    vyne_dev_track(p, g_vyne_dev_backend, bytes, n, elem_size);
     return (int64_t)(uintptr_t)p;
+}
+
+// Float32 is the default device dtype.
+static inline int64_t vyne_device_alloc(int64_t n) {
+    return vyne_dev_alloc(n, (int)sizeof(float));
+}
+
+static inline int64_t vyne_device_alloc_f32(int64_t n) {
+    return vyne_dev_alloc(n, (int)sizeof(float));
+}
+
+static inline int64_t vyne_device_alloc_f64(int64_t n) {
+    return vyne_dev_alloc(n, (int)sizeof(double));
 }
 
 static inline void vyne_device_upload_f64(int64_t handle, const double* host,
                                           int64_t n) {
-    (void)vyne_dev_find(handle, n, "device_upload");
+    VyneDeviceAlloc* a = vyne_dev_find(handle, n, "device_upload");
+    if (a->elem_size != (int)sizeof(double)) {
+        fprintf(stderr, "vyne device: device_upload dtype mismatch (handle is Float32)\n");
+        exit(1);
+    }
     size_t bytes = (size_t)n * sizeof(double);
     if (bytes == 0)
         return;
@@ -366,8 +410,52 @@ static inline void vyne_device_upload_f64(int64_t handle, const double* host,
 
 static inline void vyne_device_download_f64(int64_t handle, double* host,
                                             int64_t n) {
-    (void)vyne_dev_find(handle, n, "device_download");
+    VyneDeviceAlloc* a = vyne_dev_find(handle, n, "device_download");
+    if (a->elem_size != (int)sizeof(double)) {
+        fprintf(stderr, "vyne device: device_download dtype mismatch (handle is Float32)\n");
+        exit(1);
+    }
     size_t bytes = (size_t)n * sizeof(double);
+    if (bytes == 0)
+        return;
+    if (g_vyne_dev_backend == 1) {
+        vyne_dev_check(
+            g_cuMemcpyDtoH_v2(host, (CUdeviceptr)(uintptr_t)handle, bytes),
+            "cuMemcpyDtoH"
+        );
+    } else {
+        memcpy(host, (void*)(uintptr_t)handle, bytes);
+    }
+}
+
+static inline void vyne_device_upload_f32(int64_t handle, const float* host,
+                                          int64_t n) {
+    VyneDeviceAlloc* a = vyne_dev_find(handle, n, "device_upload");
+    if (a->elem_size != (int)sizeof(float)) {
+        fprintf(stderr, "vyne device: device_upload dtype mismatch (handle is Float64)\n");
+        exit(1);
+    }
+    size_t bytes = (size_t)n * sizeof(float);
+    if (bytes == 0)
+        return;
+    if (g_vyne_dev_backend == 1) {
+        vyne_dev_check(
+            g_cuMemcpyHtoD_v2((CUdeviceptr)(uintptr_t)handle, host, bytes),
+            "cuMemcpyHtoD"
+        );
+    } else {
+        memcpy((void*)(uintptr_t)handle, host, bytes);
+    }
+}
+
+static inline void vyne_device_download_f32(int64_t handle, float* host,
+                                            int64_t n) {
+    VyneDeviceAlloc* a = vyne_dev_find(handle, n, "device_download");
+    if (a->elem_size != (int)sizeof(float)) {
+        fprintf(stderr, "vyne device: device_download dtype mismatch (handle is Float64)\n");
+        exit(1);
+    }
+    size_t bytes = (size_t)n * sizeof(float);
     if (bytes == 0)
         return;
     if (g_vyne_dev_backend == 1) {
@@ -517,6 +605,212 @@ static inline void vyne_device_fill_f64(int64_t out, double v, int64_t n) {
     }
 }
 
+// --- dtype-dispatched elementwise ops (Float32 default, Float64 opt-in) ----
+static inline int vyne_dev_elementwise_dtype(int64_t out, int64_t a,
+                                             int64_t b, int64_t n,
+                                             const char* what) {
+    VyneDeviceAlloc* o = vyne_dev_find(out, n, what);
+    VyneDeviceAlloc* x = vyne_dev_find(a, n, what);
+    VyneDeviceAlloc* y = (b != 0) ? vyne_dev_find(b, n, what) : x;
+    if (x->elem_size != o->elem_size || y->elem_size != o->elem_size) {
+        fprintf(stderr, "vyne device: %s mixed element sizes\n", what);
+        exit(1);
+    }
+    return o->elem_size;
+}
+
+static inline void vyne_device_add(int64_t out, int64_t a, int64_t b,
+                                   int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, a, b, n, "device_add");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            const float* bp = (const float*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_add_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            const double* bp = (const double*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_add, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ap = (const float*)(uintptr_t)a;
+        const float* bp = (const float*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] + bp[i];
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ap = (const double*)(uintptr_t)a;
+        const double* bp = (const double*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] + bp[i];
+    }
+}
+
+static inline void vyne_device_sub(int64_t out, int64_t a, int64_t b,
+                                   int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, a, b, n, "device_sub");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            const float* bp = (const float*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_sub_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            const double* bp = (const double*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_sub, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ap = (const float*)(uintptr_t)a;
+        const float* bp = (const float*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] - bp[i];
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ap = (const double*)(uintptr_t)a;
+        const double* bp = (const double*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] - bp[i];
+    }
+}
+
+static inline void vyne_device_mul(int64_t out, int64_t a, int64_t b,
+                                   int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, a, b, n, "device_mul");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            const float* bp = (const float*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_mul_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            const double* bp = (const double*)(uintptr_t)b;
+            void* args[] = { &op, &ap, &bp, &nn };
+            vyne_dev_launch(g_k_vec_mul, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ap = (const float*)(uintptr_t)a;
+        const float* bp = (const float*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] * bp[i];
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ap = (const double*)(uintptr_t)a;
+        const double* bp = (const double*)(uintptr_t)b;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] * bp[i];
+    }
+}
+
+static inline void vyne_device_scale(int64_t out, int64_t a, double s,
+                                     int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, a, 0, n, "device_scale");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            float ss = (float)s;
+            void* args[] = { &op, &ap, &ss, &nn };
+            vyne_dev_launch(g_k_vec_scale_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            double ss = s;
+            void* args[] = { &op, &ap, &ss, &nn };
+            vyne_dev_launch(g_k_vec_scale, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ap = (const float*)(uintptr_t)a;
+        float ss = (float)s;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] * ss;
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ap = (const double*)(uintptr_t)a;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] * s;
+    }
+}
+
+static inline void vyne_device_relu(int64_t out, int64_t a, int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, a, 0, n, "device_relu");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            void* args[] = { &op, &ap, &nn };
+            vyne_dev_launch(g_k_vec_relu_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            void* args[] = { &op, &ap, &nn };
+            vyne_dev_launch(g_k_vec_relu, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ap = (const float*)(uintptr_t)a;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] > 0.0f ? ap[i] : 0.0f;
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ap = (const double*)(uintptr_t)a;
+        for (int64_t i = 0; i < n; ++i) op[i] = ap[i] > 0.0 ? ap[i] : 0.0;
+    }
+}
+
+static inline void vyne_device_fill(int64_t out, double v, int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, out, 0, n, "device_fill");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            float vv = (float)v;
+            void* args[] = { &op, &vv, &nn };
+            vyne_dev_launch(g_k_vec_fill_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            double vv = v;
+            void* args[] = { &op, &vv, &nn };
+            vyne_dev_launch(g_k_vec_fill, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        float vv = (float)v;
+        for (int64_t i = 0; i < n; ++i) op[i] = vv;
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        for (int64_t i = 0; i < n; ++i) op[i] = v;
+    }
+}
+
 static inline void vyne_device_matmul_f64(int64_t out, int64_t a, int64_t b,
                                           int64_t m, int64_t n, int64_t k) {
     if (m < 0 || n < 0 || k < 0 ||
@@ -538,6 +832,69 @@ static inline void vyne_device_matmul_f64(int64_t out, int64_t a, int64_t b,
         unsigned int gx = (unsigned int)((N + 15) / 16);
         unsigned int gy = (unsigned int)((M + 15) / 16);
         vyne_dev_launch(g_k_matmul, gx, gy, 1, 16, 16, 1, args);
+    } else {
+        double* C = (double*)(uintptr_t)out;
+        const double* A = (const double*)(uintptr_t)a;
+        const double* B = (const double*)(uintptr_t)b;
+        for (int64_t i = 0; i < m; ++i) {
+            for (int64_t j = 0; j < n; ++j) {
+                double s = 0.0;
+                for (int64_t p = 0; p < k; ++p)
+                    s += A[i * k + p] * B[p * n + j];
+                C[i * n + j] = s;
+            }
+        }
+    }
+}
+
+// Generic matmul: Float32 handles use the F32 kernel, Float64 handles use
+// the F64 kernel. Handles must all share the same dtype.
+static inline void vyne_device_matmul(int64_t out, int64_t a, int64_t b,
+                                      int64_t m, int64_t n, int64_t k) {
+    if (m < 0 || n < 0 || k < 0 ||
+        m > 2147483647LL || n > 2147483647LL || k > 2147483647LL) {
+        fprintf(stderr, "vyne device: matmul dimensions are out of range\n");
+        exit(1);
+    }
+    VyneDeviceAlloc* o = vyne_dev_find(out, m * n, "device_matmul(out)");
+    VyneDeviceAlloc* A = vyne_dev_find(a, m * k, "device_matmul(A)");
+    VyneDeviceAlloc* B = vyne_dev_find(b, k * n, "device_matmul(B)");
+    if (o->elem_size != A->elem_size || o->elem_size != B->elem_size) {
+        fprintf(stderr, "vyne device: device_matmul mixed element sizes\n");
+        exit(1);
+    }
+    if (m == 0 || n == 0 || k == 0)
+        return;
+    int es = o->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        int M = (int)m, N = (int)n, K = (int)k;
+        unsigned int gx = (unsigned int)((N + 15) / 16);
+        unsigned int gy = (unsigned int)((M + 15) / 16);
+        if (es == 4) {
+            float* cp = (float*)(uintptr_t)out;
+            const float* ap = (const float*)(uintptr_t)a;
+            const float* bp = (const float*)(uintptr_t)b;
+            void* args[] = { &cp, &ap, &bp, &M, &N, &K };
+            vyne_dev_launch(g_k_matmul_f32, gx, gy, 1, 16, 16, 1, args);
+        } else {
+            double* cp = (double*)(uintptr_t)out;
+            const double* ap = (const double*)(uintptr_t)a;
+            const double* bp = (const double*)(uintptr_t)b;
+            void* args[] = { &cp, &ap, &bp, &M, &N, &K };
+            vyne_dev_launch(g_k_matmul, gx, gy, 1, 16, 16, 1, args);
+        }
+    } else if (es == 4) {
+        float* C = (float*)(uintptr_t)out;
+        const float* A = (const float*)(uintptr_t)a;
+        const float* B = (const float*)(uintptr_t)b;
+        for (int64_t i = 0; i < m; ++i) {
+            for (int64_t j = 0; j < n; ++j) {
+                float s = 0.0f;
+                for (int64_t p = 0; p < k; ++p)
+                    s += A[i * k + p] * B[p * n + j];
+                C[i * n + j] = s;
+            }
+        }
     } else {
         double* C = (double*)(uintptr_t)out;
         const double* A = (const double*)(uintptr_t)a;

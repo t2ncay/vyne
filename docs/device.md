@@ -3,21 +3,23 @@
 `@device` is the region policy that scopes work to an accelerator and back. The
 first implementation ships a **direct CUDA driver backend** with a CPU fallback.
 It does not depend on ggml or on CUDA headers/link flags in the generated C.
+**Float32 is the default device dtype**; `device_alloc_f64` keeps the Float64
+path available.
 
 ```vyne
 @device<cuda> region gpu {
     n :: Int64 := 1024;
 
-    a :: Array<Float64> := [];
-    b :: Array<Float64> := [];
-    c :: Array<Float64> := [];
+    a :: Array<Float32> := [];
+    b :: Array<Float32> := [];
+    c :: Array<Float32> := [];
     through i :: 0..n-1 -> loop {
-        a.push(float64(i));
-        b.push(float64(2 * i));
-        c.push(0.0);
+        a.push(float32(i));
+        b.push(float32(2 * i));
+        c.push(0.0f);
     };
 
-    da :: Int64 := device_alloc(n);
+    da :: Int64 := device_alloc(n);       # Float32 by default
     db :: Int64 := device_alloc(n);
     dc :: Int64 := device_alloc(n);
 
@@ -54,20 +56,27 @@ closed on early returns and on `break`/`continue` before the host rewind.
 ## Intrinsics
 
 All handles are `Int64` pointer values. Host buffers must be typed
-`Array<Float64>` values. Tensors are Float64 in this release.
+`Array<Float32>` or `Array<Float64>` values. **Float32 is the default device
+dtype**; use `device_alloc_f64(n)` for a double-precision allocation. An
+operation's handles must all have the same dtype.
+
+Float32 scalars are written with the `f` suffix (`1.0f`) or with the
+`float32(x)` conversion. Float32 stays Float32 only when both operands are
+Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 
 | Intrinsic | Meaning |
 | --- | --- |
-| `device_alloc(n)` | allocate `n` Float64 elements in the device arena |
-| `device_upload(h, host, n)` | copy `n` elements from a host typed array to `h` |
-| `device_download(h, host, n)` | copy `n` elements from `h` to a host typed array |
-| `device_add(out, a, b, n)` | `out = a + b` |
-| `device_sub(out, a, b, n)` | `out = a - b` |
-| `device_mul(out, a, b, n)` | `out = a * b` |
-| `device_scale(out, a, s, n)` | `out = a * s` |
-| `device_relu(out, a, n)` | `out = max(a, 0)` |
-| `device_fill(h, v, n)` | fill with `v` |
-| `device_matmul(out, a, b, m, n, k)` | `C[m,n] = A[m,k] * B[k,n]`, row-major |
+| `device_alloc(n)` | allocate `n` **Float32** elements in the device arena |
+| `device_alloc_f64(n)` | allocate `n` Float64 elements (opt-in) |
+| `device_upload(h, host, n)` | copy `n` elements from a host typed array to `h`; dtype must match |
+| `device_download(h, host, n)` | copy `n` elements from `h` to a host typed array; dtype must match |
+| `device_add(out, a, b, n)` | `out = a + b`, dtype-dispatched |
+| `device_sub(out, a, b, n)` | `out = a - b`, dtype-dispatched |
+| `device_mul(out, a, b, n)` | `out = a * b`, dtype-dispatched |
+| `device_scale(out, a, s, n)` | `out = a * s`, dtype-dispatched |
+| `device_relu(out, a, n)` | `out = max(a, 0)`, dtype-dispatched |
+| `device_fill(h, v, n)` | fill with `v`, dtype-dispatched |
+| `device_matmul(out, a, b, m, n, k)` | `C[m,n] = A[m,k] * B[k,n]`, row-major, dtype-dispatched |
 | `device_sync()` | wait for outstanding device work |
 | `device_bytes()` | live device-arena bytes |
 | `device_peak_bytes()` | peak device-arena bytes |
@@ -141,42 +150,49 @@ so ordinary builds do not need nvcc.
 
 ./vynec --compile examples/test/device_test.vy
 ./examples/test/device_test
+
+./vynec --compile examples/test/float32_test.vy
+./examples/test/float32_test
 ```
 
 ### Performance honesty
 
-The backend works, but **Float64 GPU is not automatically faster than a tuned
-CPU BLAS** on consumer hardware. Measured on an RTX 5060 (CUDA 13.4) and an
-i7-14700 with OpenBLAS `dgemm`:
+Measured on an RTX 5060 (CUDA 13.4) and an i7-14700 with OpenBLAS. The default
+**Float32** path is compared against `sgemm`:
 
-| Workload | GPU kernel | GPU download | GPU end-to-end | OpenBLAS CPU | Naive Vyne CPU loop |
+| Workload | GPU kernel | GPU download | GPU end-to-end | OpenBLAS sgemm | Naive Vyne f32 loop |
 | --- | --- | --- | --- | --- | --- |
-| 512×512 | 932 µs (288 GFLOP/s) | 244 µs | ~1.18 ms | 1661 µs (162 GFLOP/s) | 192 ms (1.4 GFLOP/s) |
-| 1024×1024 | 7318 µs (293 GFLOP/s) | 891 µs | ~8.21 ms | 6742 µs (319 GFLOP/s) | 2331 ms (0.92 GFLOP/s) |
+| 512x512 | 167 us (1607 GFLOP/s) | 155 us | 322 us | 626 us (429 GFLOP/s) | 60.7 ms (4.42 GFLOP/s) |
+| 1024x1024 | 1409 us (1524 GFLOP/s) | 420 us | 1829 us | 2615 us (821 GFLOP/s) | 2263 ms (0.95 GFLOP/s) |
 
 Reading the table:
 
-- Against the **naive Vyne triple loop**, the GPU is roughly 200–300× faster.
-  That baseline is not a fair CPU comparison; it is simply what the library-free
-  path does today.
-- Against **OpenBLAS dgemm**, the FP64 GPU is ~1.8× faster at 512² but ~8%
-  slower at 1024². It is parity, not a scalable win, because consumer Blackwell
-  FP64 throughput is heavily reduced (the kernel is already near ~290 GFLOP/s).
-- The PCIe download costs ~0.24 ms at 512² and ~0.89 ms at 1024². Keeping data
-  device-resident across many kernels is where the GPU amortizes staging.
-- **Float32 is the important next step for ML.** Consumer FP32 throughput is far
-  higher than FP64; a Float32 tensor/kernel path is expected to beat CPU BLAS by
-  a wide margin. Float64 remains useful for scientific double-precision work
-  when data already lives on the device or the workload is much larger.
+- At 512² the FP32 GPU is ~1.9x faster than OpenBLAS `sgemm` end-to-end and
+  ~3.8x faster kernel-only. At 1024² it is ~1.4x faster end-to-end and ~1.9x
+  faster kernel-only.
+- The GPU kernel is ~1.5 TFLOP/s, far below the consumer FP32 peak. The next
+  performance levers are vectorized loads, larger tiles, register blocking, and
+  asynchronous copies; the current kernel is the same simple 16x16 tile as the
+  FP64 path.
+- The naive Vyne CPU loop is not a fair baseline; it is shown only to make the
+  staging cost visible.
+- Keeping tensors device-resident across many kernels amortizes the
+  0.16-0.42 ms download cost.
 
-Maximum element error is around 1.4e-14 at 512² and 2.8e-14 at 1024².
+**Float64 is opt-in** via `device_alloc_f64`. On this hardware it is roughly at
+parity with OpenBLAS `dgemm` (see the earlier finding: ~1.8x faster at 512²,
+~8% slower at 1024²), because consumer Blackwell FP64 throughput is heavily
+reduced. Use Float64 only when double precision is required.
 
+Maximum element error is around 7.6e-6 at 512² and 1.5e-5 at 1024² for Float32,
+and around 1.4e-14 / 2.8e-14 for Float64.
 ## Limitations and next steps
 
 - **Explicit intrinsics only.** This release does not automatically classify
   staged tensors or build an operation list from arbitrary region arithmetic.
   The report's automatic staging/op-list codegen is the next milestone.
-- **Float64 tensors only.** Float32/Float16/BFloat16 arrive with precision types.
+- **Float32 default, Float64 opt-in.** Float16/BFloat16 are not implemented; the
+  device API rejects mixed-dtype handle sets rather than silently converting.
 - **No device pointers in host data structures.** Handles are integers; the
   escape checker does not know they name device memory. Keep them region-local.
 - **`scratch` is host-only.** Do not use `scratch` inside a `@device` region.

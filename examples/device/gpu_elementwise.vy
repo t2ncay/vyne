@@ -9,10 +9,10 @@
 
 failures :: Array<Int64> := [0];
 
-fn close(a :: Float64, b :: Float64) -> Bool {
-    d :: Float64 := a - b;
-    if d < 0.0 { d = 0.0 - d; }
-    return d < 0.000001;
+fn close(a :: Float32, b :: Float32) -> Bool {
+    d :: Float32 := a - b;
+    if d < 0.0f { d = 0.0f - d; }
+    return d < 0.0001;
 }
 
 fn check(name :: String, cond :: Bool) {
@@ -30,14 +30,14 @@ out("=== @device elementwise ===");
     out("backend:   " + device_backend());
 
     n :: Int64 := 16;
-    a :: Array<Float64> := [];
-    b :: Array<Float64> := [];
-    c :: Array<Float64> := [];
+    a :: Array<Float32> := [];
+    b :: Array<Float32> := [];
+    c :: Array<Float32> := [];
 
     through i :: 0..n-1 -> loop {
-        a.push(float64(i));
-        b.push(float64(2 * i));
-        c.push(0.0);
+        a.push(float32(i));
+        b.push(float32(2 * i));
+        c.push(0.0f);
     };
 
     da :: Int64 := device_alloc(n);
@@ -94,16 +94,16 @@ out("=== @device elementwise ===");
     check("device-fill", ok5);
 
     # relu
-    r :: Array<Float64> := [];
-    through i :: 0..n-1 -> loop { r.push(float64(i) - 8.0); };
+    r :: Array<Float32> := [];
+    through i :: 0..n-1 -> loop { r.push(float32(i) - 8.0); };
     dr :: Int64 := device_alloc(n);
     device_upload(dr, r, n);
     device_relu(dc, dr, n);
     device_download(dc, c, n);
     ok6 :: Bool := true;
     through i :: 0..n-1 -> loop {
-        expected :: Float64 := 0.0;
-        if r[i] > 0.0 { expected = r[i]; }
+        expected :: Float32 := 0.0f;
+        if r[i] > 0.0f { expected = r[i]; }
         if !close(c[i], expected) { ok6 = false; }
     };
     check("device-relu", ok6);

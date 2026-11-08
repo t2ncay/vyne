@@ -76,3 +76,72 @@ extern "C" __global__ void matmul_f64(double* C, const double* A,
 
     if (row < M && col < N) C[row * N + col] = sum;
 }
+
+// ============================================================================
+// Float32 kernels (the default device dtype)
+// ============================================================================
+
+extern "C" __global__ void vec_add_f32(float* c, const float* a,
+                                       const float* b, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] + b[i];
+}
+
+extern "C" __global__ void vec_sub_f32(float* c, const float* a,
+                                       const float* b, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] - b[i];
+}
+
+extern "C" __global__ void vec_mul_f32(float* c, const float* a,
+                                       const float* b, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] * b[i];
+}
+
+extern "C" __global__ void vec_scale_f32(float* c, const float* a,
+                                         float s, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] * s;
+}
+
+extern "C" __global__ void vec_relu_f32(float* c, const float* a,
+                                        long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = a[i] > 0.0f ? a[i] : 0.0f;
+}
+
+extern "C" __global__ void vec_fill_f32(float* c, float v, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) c[i] = v;
+}
+
+extern "C" __global__ void matmul_f32(float* C, const float* A,
+                                      const float* B, int M, int N, int K) {
+    __shared__ float As[VYNE_TILE][VYNE_TILE];
+    __shared__ float Bs[VYNE_TILE][VYNE_TILE];
+
+    int row = blockIdx.y * VYNE_TILE + threadIdx.y;
+    int col = blockIdx.x * VYNE_TILE + threadIdx.x;
+    float sum = 0.0f;
+
+    int tiles = (K + VYNE_TILE - 1) / VYNE_TILE;
+    for (int t = 0; t < tiles; ++t) {
+        int aRow = row;
+        int aCol = t * VYNE_TILE + threadIdx.x;
+        As[threadIdx.y][threadIdx.x] =
+            (aRow < M && aCol < K) ? A[aRow * K + aCol] : 0.0f;
+
+        int bRow = t * VYNE_TILE + threadIdx.y;
+        int bCol = col;
+        Bs[threadIdx.y][threadIdx.x] =
+            (bRow < K && bCol < N) ? B[bRow * N + bCol] : 0.0f;
+
+        __syncthreads();
+        for (int i = 0; i < VYNE_TILE; ++i)
+            sum += As[threadIdx.y][i] * Bs[i][threadIdx.x];
+        __syncthreads();
+    }
+
+    if (row < M && col < N) C[row * N + col] = sum;
+}

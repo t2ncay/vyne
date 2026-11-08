@@ -1,4 +1,4 @@
-# gpu_matmul.vy - @device 128x128 Float64 matmul against a CPU reference.
+# gpu_matmul.vy - @device 128x128 Float32 matmul against a CPU reference.
 #
 #   ./vynec --compile examples/device/gpu_matmul.vy
 #   ./examples/device/gpu_matmul
@@ -21,22 +21,22 @@ out("=== @device matmul ===");
     n :: Int64 := 128;
     total :: Int64 := n * n;
 
-    A :: Array<Float64> := [];
-    B :: Array<Float64> := [];
-    C :: Array<Float64> := [];
-    ref :: Array<Float64> := [];
+    A :: Array<Float32> := [];
+    B :: Array<Float32> := [];
+    C :: Array<Float32> := [];
+    ref :: Array<Float32> := [];
 
     through i :: 0..total-1 -> loop {
-        A.push(float64((i * 7) % 13) / 13.0);
-        B.push(float64((i * 11) % 17) / 17.0);
-        C.push(0.0);
-        ref.push(0.0);
+        A.push(float32((i * 7) % 13) / 13.0);
+        B.push(float32((i * 11) % 17) / 17.0);
+        C.push(0.0f);
+        ref.push(0.0f);
     };
 
     # CPU reference.
     through i :: 0..n-1 -> loop {
         through j :: 0..n-1 -> loop {
-            s :: Float64 := 0.0;
+            s :: Float32 := 0.0f;
             through k :: 0..n-1 -> loop {
                 s = s + A[i * n + k] * B[k * n + j];
             };
@@ -54,14 +54,14 @@ out("=== @device matmul ===");
     device_sync();
     device_download(dc, C, total);
 
-    max_err :: Float64 := 0.0;
+    max_err :: Float32 := 0.0f;
     through i :: 0..total-1 -> loop {
-        d :: Float64 := C[i] - ref[i];
-        if d < 0.0 { d = 0.0 - d; }
+        d :: Float32 := C[i] - ref[i];
+        if d < 0.0f { d = 0.0f - d; }
         if d > max_err { max_err = d; }
     };
     out("max error: " + string(max_err));
-    check("matmul-128", max_err < 0.000000001);
+    check("matmul-128", max_err < 0.0001);
     check("device-peak", device_peak_bytes() > 0);
 };
 

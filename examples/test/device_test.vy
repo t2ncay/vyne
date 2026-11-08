@@ -8,10 +8,10 @@
 
 failures :: Array<Int64> := [0];
 
-fn close(a :: Float64, b :: Float64) -> Bool {
-    d :: Float64 := a - b;
-    if d < 0.0 { d = 0.0 - d; }
-    return d < 0.000001;
+fn close(a :: Float32, b :: Float32) -> Bool {
+    d :: Float32 := a - b;
+    if d < 0.0f { d = 0.0f - d; }
+    return d < 0.0001;
 }
 
 fn check(name :: String, cond :: Bool) {
@@ -31,13 +31,13 @@ out("=== @device ===");
 
     # --- element-wise ---
     n :: Int64 := 8;
-    a :: Array<Float64> := [];
-    b :: Array<Float64> := [];
-    c :: Array<Float64> := [];
+    a :: Array<Float32> := [];
+    b :: Array<Float32> := [];
+    c :: Array<Float32> := [];
     through i :: 0..n-1 -> loop {
-        a.push(float64(i + 1));
-        b.push(float64(2 * i + 3));
-        c.push(0.0);
+        a.push(float32(i + 1));
+        b.push(float32(2 * i + 3));
+        c.push(0.0f);
     };
 
     da :: Int64 := device_alloc(n);
@@ -75,20 +75,20 @@ out("=== @device ===");
     # --- matmul 32x32 ---
     m :: Int64 := 32;
     total :: Int64 := m * m;
-    A :: Array<Float64> := [];
-    B :: Array<Float64> := [];
-    C :: Array<Float64> := [];
-    ref :: Array<Float64> := [];
+    A :: Array<Float32> := [];
+    B :: Array<Float32> := [];
+    C :: Array<Float32> := [];
+    ref :: Array<Float32> := [];
     through i :: 0..total-1 -> loop {
-        A.push(float64((i * 5) % 11) / 11.0);
-        B.push(float64((i * 3) % 7) / 7.0);
-        C.push(0.0);
-        ref.push(0.0);
+        A.push(float32((i * 5) % 11) / 11.0);
+        B.push(float32((i * 3) % 7) / 7.0);
+        C.push(0.0f);
+        ref.push(0.0f);
     };
 
     through i :: 0..m-1 -> loop {
         through j :: 0..m-1 -> loop {
-            s :: Float64 := 0.0;
+            s :: Float32 := 0.0f;
             through k :: 0..m-1 -> loop {
                 s = s + A[i * m + k] * B[k * m + j];
             };
@@ -105,13 +105,36 @@ out("=== @device ===");
     device_sync();
     device_download(mc, C, total);
 
-    max_err :: Float64 := 0.0;
+    max_err :: Float32 := 0.0f;
     through i :: 0..total-1 -> loop {
-        d :: Float64 := C[i] - ref[i];
-        if d < 0.0 { d = 0.0 - d; }
+        d :: Float32 := C[i] - ref[i];
+        if d < 0.0f { d = 0.0f - d; }
         if d > max_err { max_err = d; }
     };
-    check("matmul-32", max_err < 0.000000001);
+    check("matmul-32", max_err < 0.0001);
+    # --- Float64 opt-in (device_alloc_f64) ---
+    nf :: Int64 := 4;
+    af :: Array<Float64> := [];
+    bf :: Array<Float64> := [];
+    cf :: Array<Float64> := [];
+    through i :: 0..nf-1 -> loop {
+        af.push(float64(i + 1));
+        bf.push(float64(i + 2));
+        cf.push(0.0);
+    };
+    dfa :: Int64 := device_alloc_f64(nf);
+    dfb :: Int64 := device_alloc_f64(nf);
+    dfc :: Int64 := device_alloc_f64(nf);
+    device_upload(dfa, af, nf);
+    device_upload(dfb, bf, nf);
+    device_add(dfc, dfa, dfb, nf);
+    device_download(dfc, cf, nf);
+    okf :: Bool := true;
+    through i :: 0..nf-1 -> loop {
+        if cf[i] != af[i] + bf[i] { okf = false; }
+    };
+    check("f64-add", okf);
+
     check("peak", device_peak_bytes() > 0);
 
     out("max matmul error: " + string(max_err));
@@ -121,13 +144,13 @@ out("=== @device ===");
     check("backend-cpu", device_backend() == "cpu");
 
     n2 :: Int64 := 4;
-    a2 :: Array<Float64> := [];
-    b2 :: Array<Float64> := [];
-    c2 :: Array<Float64> := [];
+    a2 :: Array<Float32> := [];
+    b2 :: Array<Float32> := [];
+    c2 :: Array<Float32> := [];
     through i :: 0..n2-1 -> loop {
-        a2.push(float64(i + 1));
-        b2.push(float64(i + 2));
-        c2.push(0.0);
+        a2.push(float32(i + 1));
+        b2.push(float32(i + 2));
+        c2.push(0.0f);
     };
     da2 :: Int64 := device_alloc(n2);
     db2 :: Int64 := device_alloc(n2);
