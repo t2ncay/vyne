@@ -130,11 +130,100 @@ try {
     # --- non-interactive and unknown kind ----------------------------
     $nope = Join-Path $base "no_name"
     New-Item -ItemType Directory -Path $nope | Out-Null
-    Check "noninteractive-exit" ((Run-Init @("init", "--kind", "blank", "--no-git", $nope)) -eq 2)
+    Check "noninteractive-exit" ((Run-Init @("init", "--no-git", $nope)) -eq 2)
+
+    $implicitBlank = Join-Path $base "implicit_blank"
+    New-Item -ItemType Directory -Path $implicitBlank | Out-Null
+    Check "implicit-blank-exit" ((Run-Init @("init", "--kind", "blank", "--no-git", $implicitBlank)) -eq 0)
+
+    $yes = Join-Path $base "yes_demo"
+    New-Item -ItemType Directory -Path $yes | Out-Null
+    Check "yes-exit" ((Run-Init @("init", "--yes", "--no-git", $yes)) -eq 0)
+    Check "yes-blank" (Test-Path (Join-Path $yes "src/main.vy"))
 
     $badKind = Join-Path $base "bad_kind"
     New-Item -ItemType Directory -Path $badKind | Out-Null
-    Check "unknown-kind-exit" ((Run-Init @("init", "--name", "bad_kind", "--kind", "ml", "--no-git", $badKind)) -eq 4)
+    Check "unknown-kind-exit" ((Run-Init @("init", "--name", "bad_kind", "--kind", "nonsense", "--no-git", $badKind)) -eq 4)
+
+    # --- M3 templates ------------------------------------------------
+    function Build-Run([string]$dir) {
+        Push-Location -LiteralPath $dir
+        try {
+            & $vynec --compile "src/main.vy" 2>$null | Out-Null
+            $compile = $LASTEXITCODE
+            $runOutput = ""
+            if ($compile -eq 0 -and (Test-Path -LiteralPath "src/main.exe")) {
+                $runOutput = & ".\src\main.exe" 2>&1 | Out-String
+            }
+            return @{ Compile = $compile; Output = $runOutput }
+        } finally {
+            Pop-Location
+        }
+    }
+
+    # ML
+    $ml = Join-Path $base "ml_demo"
+    New-Item -ItemType Directory -Path $ml | Out-Null
+    Check "ml-exit" ((Run-Init @("init", "--name", "ml_demo", "--kind", "ml", "--no-git", $ml)) -eq 0)
+    Check "ml-main" (Test-Path (Join-Path $ml "src/main.vy"))
+    Check "ml-models" (Test-Path (Join-Path $ml "src/models.vy"))
+    Check "ml-data-src" (Test-Path (Join-Path $ml "src/data.vy"))
+    Check "ml-iris" (Test-Path (Join-Path $ml "data/iris.data"))
+    Check "ml-contributing" (Test-Path (Join-Path $ml "CONTRIBUTING.md"))
+    $mlToml = Get-Content -Raw (Join-Path $ml "project.toml")
+    Check "ml-data-section" ($mlToml -match '\[data\]')
+    Check "ml-iris-url" ($mlToml -match 'iris = \{ url =')
+    Check "ml-vml" ($mlToml -match 'vml = "0\.4"')
+    $mlRun = Build-Run $ml
+    Check "ml-compile" ($mlRun.Compile -eq 0)
+    Check "ml-training" ($mlRun.Output -match "Training complete")
+    Check "ml-loss-curve" ($mlRun.Output -match "Iris training loss")
+
+    # Scientific
+    $sci = Join-Path $base "sci_demo"
+    New-Item -ItemType Directory -Path $sci | Out-Null
+    Check "sci-exit" ((Run-Init @("init", "--name", "sci_demo", "--kind", "scientific", "--no-git", $sci)) -eq 0)
+    Check "sci-solver" (Test-Path (Join-Path $sci "src/solver.vy"))
+    $sciRun = Build-Run $sci
+    Check "sci-compile" ($sciRun.Compile -eq 0)
+    Check "sci-lyapunov" ($sciRun.Output -match "Lyapunov")
+    Check "sci-attractor" ($sciRun.Output -match "Lorenz attractor")
+
+    # Image / super-resolution
+    $sr = Join-Path $base "sr_demo"
+    New-Item -ItemType Directory -Path $sr | Out-Null
+    Check "sr-exit" ((Run-Init @("init", "--name", "sr_demo", "--kind", "sr", "--no-git", $sr)) -eq 0)
+    Check "sr-sample" (Test-Path (Join-Path $sr "data/sample.png"))
+    Check "sr-reference" (Test-Path (Join-Path $sr "data/reference.png"))
+    Check "sr-model" (Test-Path (Join-Path $sr "data/espcn_x2.vwy"))
+    Check "sr-exporter" (Test-Path (Join-Path $sr "scripts/export_espcn_weights.py"))
+    $srToml = Get-Content -Raw (Join-Path $sr "project.toml")
+    Check "sr-vimage" ($srToml -match 'vimage = "0\.4"')
+    Check "sr-vconv" ($srToml -match 'vconv = "0\.4"')
+    $srRun = Build-Run $sr
+    Check "sr-compile" ($srRun.Compile -eq 0)
+    Check "sr-psnr" ($srRun.Output -match "PSNR")
+    Check "sr-output" (Test-Path (Join-Path $sr "build/output.png"))
+
+    # Embedded (AVR build when the toolchain is present)
+    $emb = Join-Path $base "emb_demo"
+    New-Item -ItemType Directory -Path $emb | Out-Null
+    Check "emb-exit" ((Run-Init @("init", "--name", "emb_demo", "--kind", "embedded", "--no-git", $emb)) -eq 0)
+    Check "emb-hardware" (Test-Path (Join-Path $emb "hardware.toml"))
+    $embToml = Get-Content -Raw (Join-Path $emb "project.toml")
+    Check "emb-target" ($embToml -match '\[targets\.arduino-uno\]')
+    if (Get-Command avr-gcc -ErrorAction SilentlyContinue) {
+        Push-Location -LiteralPath $emb
+        try {
+            & $vynec --arduino uno --arduino-flash "src/main.vy" 2>$null | Out-Null
+            Check "emb-avr-compile" ($LASTEXITCODE -eq 0)
+            Check "emb-hex" (Test-Path -LiteralPath "src/main.hex")
+        } finally {
+            Pop-Location
+        }
+    } else {
+        Write-Host "SKIP emb-avr (avr-gcc not found)"
+    }
 
     # --- git integration (uses local temp repo only) -----------------
     $gitDemo = Join-Path $base "git_demo"

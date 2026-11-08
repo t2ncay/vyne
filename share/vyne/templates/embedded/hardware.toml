@@ -1,0 +1,13 @@
+[board]
+name = "arduino:avr:uno"
+mcu = "ATmega328P"
+flash_kb = 32
+sram_kb = 2
+
+[pinout]
+led_builtin = 13
+adc_0 = "A0"
+
+[budget]
+flash_kb = 28
+sram_kb = 1.5
