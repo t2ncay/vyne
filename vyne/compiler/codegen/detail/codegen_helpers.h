@@ -17,6 +17,7 @@
 
 #pragma once
 #include "../codegen.h"
+#include <cmath>
 
 // Shared, translation-unit-local emission helpers from the original
 // codegen.cpp. These helpers do not retain mutable state; per-compilation state
@@ -26,12 +27,29 @@
 // ============================================================
 
 static std::string floatLit(double v) {
+    if (std::isnan(v))
+        return "NAN";
+    if (std::isinf(v))
+        return v < 0.0 ? "(-INFINITY)" : "INFINITY";
+
     char buf[32];
     auto [p, ec] =
         std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general);
     if (ec != std::errc{})
         return "0.0";
-    return std::string(buf, p);
+    std::string s(buf, p);
+
+    // `chars_format::general` prints a whole-valued double as "32", which is
+    // an integer literal in the emitted C. Without a decimal point,
+    // `32.0 / 7.0` would lower to `32 / 7` and silently become integer
+    // division. Force a floating-point literal form when there is no
+    // fractional or exponent part.
+    if (s.find('.') == std::string::npos &&
+        s.find('e') == std::string::npos &&
+        s.find('E') == std::string::npos) {
+        s += ".0";
+    }
+    return s;
 }
 
 static VType inferArrayElemType(const ASTNode* node) {
