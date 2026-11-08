@@ -47,6 +47,68 @@ typedef struct {
 static VyneCheckpointSlot g_vmem_slots[VYNE_MAX_CHECKPOINTS];
 static int                g_vmem_top = 0;
 
+/* ===================================================================
+ * @PERSISTENT FRAMES
+ * -------------------------------------------------------------------
+ * A @persistent region allocates from the commit arena and never
+ * rewinds it. The outermost enter saves the enclosing arena; nested
+ * enters only bump the depth. Every leave is a no-op except the
+ * outermost, which publishes the advanced commit-arena bump pointer and
+ * restores the enclosing arena.
+ * =================================================================== */
+
+#define VYNE_MAX_PERSISTENT_DEPTH 16
+
+typedef struct {
+    VyneArena arena;
+    uint8_t*  cur;
+    uint8_t*  end;
+} VynePersistentFrame;
+
+static VynePersistentFrame g_persistent_frames[VYNE_MAX_PERSISTENT_DEPTH];
+static int                 g_persistent_depth = 0;
+
+static inline void vyne_persistent_enter(void) {
+    if (g_persistent_depth >= VYNE_MAX_PERSISTENT_DEPTH) {
+        fprintf(stderr,
+                "Runtime error (VNE-080): @persistent nesting exceeds %d\n",
+                VYNE_MAX_PERSISTENT_DEPTH);
+        exit(1);
+    }
+    if (g_persistent_depth == 0) {
+        VynePersistentFrame* f = &g_persistent_frames[0];
+        f->arena = g_arena;
+        f->cur   = g_arena_cur;
+        f->end   = g_arena_end;
+
+        g_arena     = g_commit_arena;
+        g_arena_cur = g_commit_cur;
+        g_arena_end = g_commit_end;
+    }
+    g_persistent_depth++;
+}
+
+static inline void vyne_persistent_leave(void) {
+    if (g_persistent_depth <= 0) {
+        fprintf(stderr,
+                "Runtime error (VNE-083): unmatched @persistent region exit\n");
+        exit(1);
+    }
+    g_persistent_depth--;
+    if (g_persistent_depth == 0) {
+        /* Persistent allocations are never rewound: publish the advanced
+         * commit-arena bump pointer, then restore the enclosing arena. */
+        g_commit_arena = g_arena;
+        g_commit_cur   = g_arena_cur;
+        g_commit_end   = g_arena_end;
+
+        VynePersistentFrame* f = &g_persistent_frames[0];
+        g_arena     = f->arena;
+        g_arena_cur = f->cur;
+        g_arena_end = f->end;
+    }
+}
+
 static inline VyneValue vmem_runtime_checkpoint(void) {
     if (g_vmem_top >= VYNE_MAX_CHECKPOINTS) {
         fprintf(stderr,
@@ -94,6 +156,7 @@ static inline VyneValue vmem_runtime_total_allocated(void) {
 static inline VyneValue vmem_runtime_reset(void) {
     arena_free_all();      /* also resets both peaks */
     g_vmem_top = 0;
+    g_persistent_depth = 0;
     return vyne_null();
 }
 
@@ -116,6 +179,11 @@ static inline VyneValue vmem_deep_clone(VyneValue v) {
 }
 
 static inline VyneValue vmem_runtime_commit(VyneValue v) {
+    /* Inside @persistent the value already lives in the commit arena; a
+     * second commit would copy it onto itself. Return it unchanged. */
+    if (g_persistent_depth > 0)
+        return v;
+
     VyneArena   saved_arena = g_arena;
     uint8_t*    saved_cur   = g_arena_cur;
     uint8_t*    saved_end   = g_arena_end;
@@ -153,7 +221,10 @@ static inline VyneValue vmem_runtime_peak_allocated(void) {
 }
 
 static inline VyneValue vmem_runtime_commit_peak_allocated(void) {
-    return vyne_int((int64_t)g_commit_arena.peak_allocated);
+    size_t peak = (g_persistent_depth > 0)
+                      ? g_arena.peak_allocated
+                      : g_commit_arena.peak_allocated;
+    return vyne_int((int64_t)peak);
 }
 
 /* Zero the peaks without touching the arena. Useful between benchmark
@@ -203,7 +274,10 @@ static inline VyneValue vmem_runtime_current_block_capacity(void) {
 }
 
 static inline VyneValue vmem_runtime_commit_total_allocated(void) {
-    return vyne_int((int64_t)g_commit_arena.total_allocated);
+    size_t total = (g_persistent_depth > 0)
+                       ? g_arena.total_allocated
+                       : g_commit_arena.total_allocated;
+    return vyne_int((int64_t)total);
 }
 
 /* ===================================================================

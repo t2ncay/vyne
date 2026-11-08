@@ -69,14 +69,21 @@ draws from it under a total byte budget, and the region leave reclaims the pinne
 blocks. `vmem.stream_*` reports live/peak bytes, block count, and whether the
 provider actually pinned the pages.
 
-Tests: `tests/alignment.c`, `tests/slab.c`, `tests/ring.c`, and
-`tests/streamed.c`.
+`@persistent` uses the commit arena in `vmem.h`: `vyne_persistent_enter` /
+`vyne_persistent_leave` save the enclosing arena, route allocations to
+`g_commit_arena`, and publish the advanced state on the outermost leave. Values
+live until `arena_free_all()` at program exit; nested persistent frames share the
+commit arena.
+
+Tests: `tests/alignment.c`, `tests/slab.c`, `tests/ring.c`, `tests/streamed.c`,
+and `tests/persistent.c`.
 
 ```sh
 cc -std=c11 vyne/runtime/tests/alignment.c -lm -o alignment && ./alignment
 cc -std=c11 vyne/runtime/tests/slab.c -lm -o slab && ./slab
 cc -std=c11 vyne/runtime/tests/ring.c -lm -o ring && ./ring
 cc -std=c11 vyne/runtime/tests/streamed.c -lm -o streamed && ./streamed
+cc -std=c11 vyne/runtime/tests/persistent.c -lm -o persistent && ./persistent
 ```
 
 ## Debug: poison-on-rewind

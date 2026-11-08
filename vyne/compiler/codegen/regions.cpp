@@ -545,6 +545,66 @@ static void compileStreamedRegion(C_Emitter& e, const RegionNode& r) {
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");
 }
 
+// ============================================================
+// @persistent — commit-arena region (whole-program lifetime)
+// ------------------------------------------------------------
+// The region swaps the current allocator to the commit arena for its
+// body and never rewinds it. Everything allocated inside therefore
+// survives the closing brace and any enclosing region's rewind; it is
+// freed only by arena_free_all() at program exit.
+//
+// A checkpoint is still taken so the vmem stack and early-return path
+// stay balanced. On close (and on early exit) the region emits
+// persistent_leave() and pops its checkpoint instead of rewinding.
+//
+// The escape checker's region depth excludes persistent regions: a
+// value allocated inside is already in the commit arena, so assigning
+// it to an outer variable is not an escape (VNE-070 is suppressed for
+// this case). `region.commit` inside @persistent is a no-op.
+//
+// The programmer owns peak memory: there is no automatic reclamation.
+// Persistence is correct for weights/optimizer state and wrong for a
+// per-iteration cache.
+// ============================================================
+static void compilePersistentRegion(C_Emitter& e, const RegionNode& r) {
+    if (e.isArduinoTarget()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @persistent is not supported on the "
+            "AVR target yet (line " +
+            std::to_string(r.lineNumber) + ").\n"
+            "  Use @ring or @bounded for bounded MCU buffers."
+        );
+    }
+    if (!r.getPolicyArgs().empty()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @persistent takes no arguments, got " +
+            std::to_string(r.getPolicyArgs().size()) + " (line " +
+            std::to_string(r.lineNumber) + ")."
+        );
+    }
+
+    ensureVmemInclude(e);
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+
+    e.emit("// --- region: " + r.getRegionName() + " (persistent) ---");
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit("vyne_persistent_enter();");
+
+    e.pushPersistentRegion(cpHandle);
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+
+    e.popRegion();
+
+    e.emit("vyne_persistent_leave();");
+    e.emit("vmem_runtime_pop_checkpoints(1);");
+}
+
 static void compileSpeculativeRegion(C_Emitter& e, const RegionNode& r) {
     if (!r.getPolicyArgs().empty()) {
         throw std::runtime_error(
@@ -900,6 +960,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compileStreamedRegion(e, *this);
         return;
     }
+    if (policy == "persistent") {
+        compilePersistentRegion(e, *this);
+        return;
+    }
     if (policy == "speculative") {
         compileSpeculativeRegion(e, *this);
         return;
@@ -924,7 +988,7 @@ void RegionNode::compile(C_Emitter& e) const {
         std::to_string(lineNumber) +
         ").\n"
         "  Implemented policies: bump (default), pool, slab, ring, streamed, "
-        "speculative, bounded, zeroed, deterministic."
+        "persistent, speculative, bounded, zeroed, deterministic."
     );
 }
 

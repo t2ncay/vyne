@@ -210,6 +210,9 @@ class C_Emitter {
     std::vector<bool> streamedRegionStack;
     // Innermost @streamed element types, used by the streamed_alloc intrinsic.
     std::vector<VType> streamedElemStack;
+    // Parallel to regionStack: true for @persistent regions, which do not
+    // rewind on exit and do not add to the escape-analysis region depth.
+    std::vector<bool> persistentRegionStack;
     std::unordered_set<std::string> committedVars;
 
     // Active @pool context. The pool's own C variable name lives here
@@ -435,7 +438,7 @@ class C_Emitter {
             // it. Without this, lookupLocalRegionDepth returns -1 for every
             // boxed local and the check treats it as a depth-0 escape.
             localScopes.back().regionDepthAtDeclaration[name] =
-                (int)regionStack.size();
+                regionEscapeDepth();
         }
     }
 
@@ -453,7 +456,7 @@ class C_Emitter {
         localScopes.back().names.insert(name);
         localScopes.back().types[name] = ct;
         if (regionDepth < 0)
-            regionDepth = (int)regionStack.size();
+            regionDepth = regionEscapeDepth();
         localScopes.back().regionDepthAtDeclaration[name] = regionDepth;
     }
     void declareGlobal(const std::string& name, const CType& ct) {
@@ -483,8 +486,21 @@ class C_Emitter {
         return -1;
     }
 
+    // Region depth used by the escape checker. @persistent regions do not
+    // increase it: their allocations survive any enclosing rewind, so an
+    // assignment out of a persistent region is not an escape.
+    int regionEscapeDepth() const {
+        int n = 0;
+        for (size_t i = 0; i < regionStack.size(); ++i) {
+            if (i >= persistentRegionStack.size() ||
+                !persistentRegionStack[i])
+                ++n;
+        }
+        return n;
+    }
+
     int currentRegionDepth() const {
-        return (int)regionStack.size();
+        return regionEscapeDepth();
     }
 
     void markCommitted(const std::string& name) {
@@ -649,6 +665,7 @@ class C_Emitter {
         regionStack.clear();
         streamedRegionStack.clear();
         streamedElemStack.clear();
+        persistentRegionStack.clear();
         poolStack.clear(); // paired with regionStack: both are per-function
         slabStack.clear(); // paired with regionStack: both are per-function
         ringStack.clear(); // paired with regionStack: both are per-function
@@ -1168,6 +1185,7 @@ class C_Emitter {
     void pushRegion(const std::string& cpHandle) {
         regionStack.push_back(cpHandle);
         streamedRegionStack.push_back(false);
+        persistentRegionStack.push_back(false);
     }
     // A @streamed region has both a main-arena checkpoint (for ordinary
     // allocations and the region lifetime) and a stream-arena frame (for
@@ -1177,12 +1195,23 @@ class C_Emitter {
     void pushStreamedRegion(const std::string& cpHandle, VType elem) {
         regionStack.push_back(cpHandle);
         streamedRegionStack.push_back(true);
+        persistentRegionStack.push_back(false);
         streamedElemStack.push_back(elem);
+    }
+    // A @persistent region swaps the allocator to the commit arena and never
+    // rewinds it. The checkpoint handle is used only to keep the vmem stack
+    // balanced; the persistent flag drives persistent_leave() and a checkpoint
+    // pop instead of a rewind.
+    void pushPersistentRegion(const std::string& cpHandle) {
+        regionStack.push_back(cpHandle);
+        streamedRegionStack.push_back(false);
+        persistentRegionStack.push_back(true);
     }
     void popRegion() {
         if (!regionStack.empty()) {
             if (streamedRegionStack.back())
                 streamedElemStack.pop_back();
+            persistentRegionStack.pop_back();
             streamedRegionStack.pop_back();
             regionStack.pop_back();
         }
@@ -1262,9 +1291,17 @@ class C_Emitter {
     // Used by BreakNode / ContinueNode / ReturnNode before the transfer.
     void emitRegionUnwind() {
         for (size_t i = regionStack.size(); i-- > 0;) {
-            if (i < streamedRegionStack.size() && streamedRegionStack[i])
+            if (i < streamedRegionStack.size() && streamedRegionStack[i]) {
                 emit("vyne_stream_leave();");
-            emit("vmem_runtime_rewind(" + regionStack[i] + ");");
+                emit("vmem_runtime_rewind(" + regionStack[i] + ");");
+            } else if (
+                i < persistentRegionStack.size() && persistentRegionStack[i]
+            ) {
+                emit("vyne_persistent_leave();");
+                emit("vmem_runtime_pop_checkpoints(1);");
+            } else {
+                emit("vmem_runtime_rewind(" + regionStack[i] + ");");
+            }
         }
     }
 
@@ -1276,6 +1313,15 @@ class C_Emitter {
         for (size_t i = regionStack.size(); i-- > 0;) {
             if (i < streamedRegionStack.size() && streamedRegionStack[i])
                 emit("vyne_stream_leave();");
+        }
+    }
+
+    // Close only the @persistent frames, innermost first. The outermost leave
+    // restores the enclosing arena; nested leaves only decrement the depth.
+    void emitPersistentUnwind() {
+        for (size_t i = regionStack.size(); i-- > 0;) {
+            if (i < persistentRegionStack.size() && persistentRegionStack[i])
+                emit("vyne_persistent_leave();");
         }
     }
 
@@ -1516,6 +1562,7 @@ class C_Emitter {
         regionStack.clear();
         streamedRegionStack.clear();
         streamedElemStack.clear();
+        persistentRegionStack.clear();
         committedVars.clear();
         poolStack.clear();
         slabStack.clear();
