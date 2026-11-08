@@ -62,12 +62,21 @@ and zero-fill on allocation. The region rewind reclaims every class's backing.
 rotate in order and overwrite the oldest after N allocations. It never grows and
 has no free intrinsic; the region rewind reclaims the backing.
 
-Tests: `tests/alignment.c`, `tests/slab.c`, and `tests/ring.c`.
+`modules/vyne_stream_runtime.h` backs `@streamed<T, MAX>`: a separate bump arena
+backed by page-locked host memory (`VirtualAlloc` + `VirtualLock` on Windows,
+`mmap` + `mlock` on Linux/macOS, plain `malloc` elsewhere). `streamed_alloc(n)`
+draws from it under a total byte budget, and the region leave reclaims the pinned
+blocks. `vmem.stream_*` reports live/peak bytes, block count, and whether the
+provider actually pinned the pages.
+
+Tests: `tests/alignment.c`, `tests/slab.c`, `tests/ring.c`, and
+`tests/streamed.c`.
 
 ```sh
 cc -std=c11 vyne/runtime/tests/alignment.c -lm -o alignment && ./alignment
 cc -std=c11 vyne/runtime/tests/slab.c -lm -o slab && ./slab
 cc -std=c11 vyne/runtime/tests/ring.c -lm -o ring && ./ring
+cc -std=c11 vyne/runtime/tests/streamed.c -lm -o streamed && ./streamed
 ```
 
 ## Debug: poison-on-rewind

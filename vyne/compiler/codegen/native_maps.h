@@ -147,6 +147,12 @@ static const NativeMapEntry VMEM_MAP[] = {
     {"current_block_capacity", "vmem_runtime_current_block_capacity", false},
     {"commit_total_allocated", "vmem_runtime_commit_total_allocated", false},
 
+    // @streamed pinned arena
+    {"stream_total_allocated", "vmem_runtime_stream_total_allocated", false},
+    {"stream_peak_allocated", "vmem_runtime_stream_peak_allocated", false},
+    {"stream_is_pinned", "vmem_runtime_stream_is_pinned", false},
+    {"stream_block_count", "vmem_runtime_stream_block_count", false},
+
     // Checkpoint management
     {"pop", "vmem_runtime_pop", false},
     {"pop_n", "vmem_runtime_pop_n", false},

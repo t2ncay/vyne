@@ -108,6 +108,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         std::string raw = expression ? expression->getCExpr(e) : "vyne_null()";
         std::string native = coerceToNative(e, expression.get(), raw, retVT);
         if (e.hasRegion()) {
+            e.emitStreamedUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" +
                 std::to_string(e.getRegionStack().size()) + ");"
@@ -168,6 +169,7 @@ void ReturnNode::compile(C_Emitter& e) const {
             }
 
             if (e.hasRegion()) {
+                e.emitStreamedUnwind();
                 e.emit(
                     "vmem_runtime_pop_checkpoints(" +
                     std::to_string(e.getRegionStack().size()) + ");"
@@ -303,6 +305,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         if (primitiveSafe) {
             e.emitRegionUnwind();
         } else {
+            e.emitStreamedUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" + std::to_string(nRegions) +
                 ");"

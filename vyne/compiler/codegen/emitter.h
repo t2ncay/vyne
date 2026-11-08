@@ -205,6 +205,11 @@ class C_Emitter {
     std::string currentReturningVar;
 
     std::vector<std::string> regionStack;
+    // Parallel to regionStack: true for @streamed regions, which need a
+    // stream_leave() in addition to the main-arena rewind on early exit.
+    std::vector<bool> streamedRegionStack;
+    // Innermost @streamed element types, used by the streamed_alloc intrinsic.
+    std::vector<VType> streamedElemStack;
     std::unordered_set<std::string> committedVars;
 
     // Active @pool context. The pool's own C variable name lives here
@@ -642,6 +647,8 @@ class C_Emitter {
         fieldCache.clear();
         currentInterfaceType.clear();
         regionStack.clear();
+        streamedRegionStack.clear();
+        streamedElemStack.clear();
         poolStack.clear(); // paired with regionStack: both are per-function
         slabStack.clear(); // paired with regionStack: both are per-function
         ringStack.clear(); // paired with regionStack: both are per-function
@@ -1160,13 +1167,34 @@ class C_Emitter {
     // --- Region emitters --------------------------------------------
     void pushRegion(const std::string& cpHandle) {
         regionStack.push_back(cpHandle);
+        streamedRegionStack.push_back(false);
+    }
+    // A @streamed region has both a main-arena checkpoint (for ordinary
+    // allocations and the region lifetime) and a stream-arena frame (for
+    // pinned streamed_alloc buffers). The checkpoint handle is stored so the
+    // existing rewind path still works; the streamed flag drives the extra
+    // stream_leave() on close and on early exit.
+    void pushStreamedRegion(const std::string& cpHandle, VType elem) {
+        regionStack.push_back(cpHandle);
+        streamedRegionStack.push_back(true);
+        streamedElemStack.push_back(elem);
     }
     void popRegion() {
-        if (!regionStack.empty())
+        if (!regionStack.empty()) {
+            if (streamedRegionStack.back())
+                streamedElemStack.pop_back();
+            streamedRegionStack.pop_back();
             regionStack.pop_back();
+        }
     }
     bool hasRegion() const {
         return !regionStack.empty();
+    }
+    bool hasStreamed() const {
+        return !streamedElemStack.empty();
+    }
+    VType currentStreamedElem() const {
+        return streamedElemStack.back();
     }
     const std::vector<std::string>& getRegionStack() const {
         return regionStack;
@@ -1233,8 +1261,22 @@ class C_Emitter {
     // Emit rewind calls for every live region, innermost first.
     // Used by BreakNode / ContinueNode / ReturnNode before the transfer.
     void emitRegionUnwind() {
-        for (auto it = regionStack.rbegin(); it != regionStack.rend(); ++it)
-            emit("vmem_runtime_rewind(" + *it + ");");
+        for (size_t i = regionStack.size(); i-- > 0;) {
+            if (i < streamedRegionStack.size() && streamedRegionStack[i])
+                emit("vyne_stream_leave();");
+            emit("vmem_runtime_rewind(" + regionStack[i] + ");");
+        }
+    }
+
+    // Close only the @streamed frames, innermost first, without touching the
+    // main arena. Used by early-return paths that pop checkpoints instead of
+    // rewinding (native primitive/struct returns, non-primitive returns that
+    // must keep arena values alive).
+    void emitStreamedUnwind() {
+        for (size_t i = regionStack.size(); i-- > 0;) {
+            if (i < streamedRegionStack.size() && streamedRegionStack[i])
+                emit("vyne_stream_leave();");
+        }
     }
 
     // --- Pool context ------------------------------------------------
@@ -1472,6 +1514,8 @@ class C_Emitter {
         tryCleanupStack.clear();
         deferCtx = {};
         regionStack.clear();
+        streamedRegionStack.clear();
+        streamedElemStack.clear();
         committedVars.clear();
         poolStack.clear();
         slabStack.clear();
