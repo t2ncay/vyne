@@ -122,6 +122,69 @@ static int g_arena_zero_mode = 0;
 // escapes to a subsequent allocation.
 static int g_arena_last_alloc_was_fresh_page = 0;
 
+// ---------------------------------------------------------------------------
+// Optional poison-on-rewind (debug aid; C2 in the memory-model roadmap).
+//
+// When enabled, arena_rewind() and arena_try_reclaim() overwrite the bytes
+// they release with a recognizable quiet-NaN word. A stale read then shows
+// NaN in a Float64 result (or a legible sentinel in a hex dump) instead of
+// silently returning a valid-looking value.
+//
+// Disabled by default: the checks compile to one predictable branch and no
+// writes. Enable with VYNE_POISON_ARENA=1 in the environment, or call
+// vyne_arena_set_poison(1) from a harness. Compile with
+// -DVYNE_ARENA_POISON_DEFAULT=1 to turn it on unconditionally.
+//
+// This is a desktop runtime feature. The MCU arena is a separate header and
+// is intentionally unchanged.
+// ---------------------------------------------------------------------------
+#ifndef VYNE_ARENA_POISON_DEFAULT
+#define VYNE_ARENA_POISON_DEFAULT 0
+#endif
+
+#define VYNE_ARENA_POISON_WORD UINT64_C(0x7FF8DEADBEEFCAFE)
+#define VYNE_ARENA_POISON_BYTE 0xA5
+
+static int g_arena_poison_mode = -1; // -1 = uninitialized; 0 = off; 1 = on
+
+static inline int vyne_arena_poison_enabled(void) {
+    if (VYNE_UNLIKELY(g_arena_poison_mode < 0)) {
+        const char* v = getenv("VYNE_POISON_ARENA");
+        if (v != NULL && v[0] != '\0') {
+            g_arena_poison_mode = (v[0] == '0' && v[1] == '\0') ? 0 : 1;
+        } else {
+            g_arena_poison_mode = VYNE_ARENA_POISON_DEFAULT ? 1 : 0;
+        }
+    }
+    return g_arena_poison_mode;
+}
+
+static inline void vyne_arena_set_poison(int on) {
+    g_arena_poison_mode = on ? 1 : 0;
+}
+
+// Fill [from, to) with the poison pattern. `from` is normally 8-byte aligned
+// (arena allocations round to 8), so the whole range is written as words; a
+// misaligned base or a trailing remainder falls back to a byte fill. memcpy
+// is used instead of a uint64_t store to avoid strict-aliasing UB on memory
+// whose effective type was a double or a struct.
+static inline void arena_poison_range(uint8_t* from, uint8_t* to) {
+    if (from == NULL || to <= from)
+        return;
+    size_t n = (size_t)(to - from);
+    if (((uintptr_t)from & 7u) == 0) {
+        uint64_t word = VYNE_ARENA_POISON_WORD;
+        size_t words = n >> 3;
+        for (size_t i = 0; i < words; ++i)
+            memcpy(from + (i << 3), &word, sizeof word);
+        size_t rem = n & 7u;
+        if (rem != 0)
+            memset(from + (words << 3), VYNE_ARENA_POISON_BYTE, rem);
+    } else {
+        memset(from, VYNE_ARENA_POISON_BYTE, n);
+    }
+}
+
 typedef void (*VyneArenaCleanupFn)(void);
 static VyneArenaCleanupFn g_arena_cleanup_hook = NULL;
 
@@ -162,6 +225,12 @@ static inline void* arena_alloc(size_t size) {
         }
         b->used = size;
         b->capacity = cap;
+        // Record the high-water mark of the block we are leaving. `used` is
+        // otherwise only ever written, never read, so this is a safe place to
+        // keep it for poison-on-rewind: a rewind to a checkpoint in this block
+        // needs to know how far the block was filled after the checkpoint.
+        if (g_arena.head != NULL && g_arena_cur != NULL)
+            g_arena.head->used = (size_t)(g_arena_cur - g_arena.head->data);
         b->next = g_arena.head;
         g_arena.head = b;
 
@@ -211,6 +280,10 @@ static inline void* arena_alloc_aligned(size_t size, size_t align) {
         }
         b->used = size + pad;
         b->capacity = cap;
+        // Keep the high-water mark of the block we are leaving for
+        // poison-on-rewind (see arena_alloc).
+        if (g_arena.head != NULL && g_arena_cur != NULL)
+            g_arena.head->used = (size_t)(g_arena_cur - g_arena.head->data);
         b->next = g_arena.head;
         g_arena.head = b;
 
@@ -248,6 +321,8 @@ static inline int arena_try_reclaim(void* ptr, size_t size) {
     uint8_t* p = (uint8_t*)ptr;
     if (p + size != g_arena_cur)
         return 0;
+    if (VYNE_UNLIKELY(vyne_arena_poison_enabled()))
+        arena_poison_range(p, p + size);
     g_arena_cur = p;
     g_arena.total_allocated -= size;
     return 1;
@@ -319,6 +394,18 @@ static inline ArenaCheckpoint arena_checkpoint(void) {
 }
 
 static inline void arena_rewind(ArenaCheckpoint cp) {
+    // Poison the tail we are about to release before mutating the bump
+    // pointers, so a stale read into the rewound window is observable.
+    // If the checkpoint's block is still the head, the released range is
+    // [cp.offset, current bump pointer). If a later block was created, this
+    // block's high-water mark was recorded when the allocator switched away.
+    if (VYNE_UNLIKELY(vyne_arena_poison_enabled()) && cp.block != NULL) {
+        uint8_t* from = cp.block->data + cp.offset;
+        uint8_t* to = (g_arena.head == cp.block && g_arena_cur != NULL)
+                          ? g_arena_cur
+                          : cp.block->data + cp.block->used;
+        arena_poison_range(from, to);
+    }
     // Drop every block that was created after the checkpoint.
     while (g_arena.head != cp.block && g_arena.head != NULL) {
         ArenaBlock* next = g_arena.head->next;
