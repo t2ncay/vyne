@@ -8,6 +8,7 @@ use "Correlation.vy";
 use "Regression.vy";
 use "Histogram.vy";
 use "Streaming.vy";
+use "Metrics.vy";
 
 ruleset { dynamic_casting };
 
