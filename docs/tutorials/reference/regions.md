@@ -33,6 +33,7 @@ A region may carry one policy attribute: `@name<args> region name { ... };`.
 | `@slab<T, MAX[, CAP]>` | Power-of-two size-class allocator: `slab_alloc(n)` / `slab_free(x)`. Each class's backing is allocated lazily and reclaimed by the region rewind. `CAP` defaults to 8. |
 | `@ring<T, N, MAX>` | Rotating fixed slots: `ring_alloc(n)` returns the next of `N` slots (each `MAX` elements wide), overwriting the oldest after `N` allocations. There is no free intrinsic. |
 | `@streamed<T, MAX>` | Pinned host memory: `streamed_alloc(n)` draws from a page-locked arena with a total budget of `MAX` elements (`MAX * sizeof(T)` bytes). Desktop only; the AVR target rejects it. |
+| `@persistent` | Commit-arena region: allocations survive the closing brace and any enclosing rewind for the whole program. No automatic reclamation; nested `@persistent` regions share the commit arena. Desktop only for now. |
 | `@speculative` | Runs the body, then commits or rewinds based on `region.commit_if(pred)`. |
 | `@bounded<N>` | Runtime-checked byte ceiling for the region. |
 | `@zeroed` | Every allocation in the region is zero-filled. |
@@ -52,6 +53,14 @@ ordinary memory. The region also keeps the normal checkpoint/rewind lifetime for
 ordinary allocations. `@streamed` is desktop-only and is rejected on AVR.
 `vmem.total_allocated()` reports the main arena; use `vmem.stream_total_allocated()`
 for the pinned arena.
+
+`@persistent` routes the body's allocations to the commit arena and does not
+rewind it. The values are freed only by program-exit arena cleanup, so peak
+memory is the programmer's responsibility. Because persistent allocations
+already outlive the region, the escape checker does not treat a persistent
+region as a deeper region: assigning a persistent value to an outer variable is
+allowed, and `region.commit(x)` inside `@persistent` is a no-op. Nested
+`@persistent` regions share the commit arena.
 
 The same policy applies for the whole region; a second policy means a second
 region.
