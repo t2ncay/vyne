@@ -1,0 +1,17 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the Iris demo
+        run: |
+          # The Vyne toolchain image is not published yet. Until it is,
+          # install vynec {{vyne_version}} and make it available on PATH.
+          command -v vynec
+          vynec run src/main.vy

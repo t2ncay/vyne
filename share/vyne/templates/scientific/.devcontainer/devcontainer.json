@@ -1,0 +1,10 @@
+{
+  "name": "{{name}}",
+  "image": "ghcr.io/vyne-lang/base:{{vyne_version}}",
+  "postCreateCommand": "vynec --version",
+  "customizations": {
+    "vscode": {
+      "extensions": ["vyne-lang.vyne"]
+    }
+  }
+}

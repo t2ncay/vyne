@@ -40,3 +40,8 @@ build/*
 *.ps1
 *.txt
 *.ino.cpp
+
+# `share/vyne` holds compiler data: project templates, license texts, and
+# bundled sample assets. Some of their extensions collide with the
+# build-output ignores above, but they are source files.
+!share/vyne/**
