@@ -62,6 +62,8 @@ smaller change; the second is a separate piece of work.
   - [Memory — `mcu_memory.h`](#memory--mcu_memoryh)
   - [Bits — `mcu_bits.h`](#bits--mcu_bitsh)
   - [EEPROM — `mcu_eeprom.h`](#eeprom--mcu_eepromh)
+  - [I2C — `mcu_i2c.h`](#i2c--mcu_i2ch)
+  - [SPI — `mcu_spi.h`](#spi--mcu_spih)
   - [Interrupts — `mcu_interrupts.h`](#interrupts--mcu_interruptsh)
   - [Watchdog — `mcu_interrupts.h`](#watchdog--mcu_interruptsh)
   - [Typed arrays — `mcu_types.h`](#typed-arrays--mcu_typesh)
@@ -88,11 +90,13 @@ smaller change; the second is a separate piece of work.
 | `detail/mcu_memory.h` | 4 | `arduino.*` | Arena peak/free, free RAM, stack free |
 | `detail/mcu_bits.h` | 9 | `arduino.*` | Bit set/clear/toggle/read, byte split/merge, popcount, CRC-8 |
 | `detail/mcu_eeprom.h` | 4 | `arduino.*` | Read/write Int64 and Float64 across resets |
+| `detail/mcu_i2c.h` | 8 | `arduino.*` | I2C master via `Wire`: byte/register read-write, clock |
+| `detail/mcu_spi.h` | 6 | `arduino.*` | SPI master via `SPI`: settings, byte/word transfer |
 | `detail/mcu_interrupts.h` | 8 | `arduino.*` | Counter-based external interrupts (D2/D3) + watchdog |
 | `detail/mcu_types.h` | 23 | internal | `VyneValue`, typed-array containers, box/unbox |
 | `detail/mcu_arena.h` | 6 | internal | Bump allocator, checkpoint stack, `arena_alloc` |
 
-Total exposed to Vyne source: **91 functions**.
+Total exposed to Vyne source: **105 functions** (91 core + 14 peripheral).
 
 ---
 
@@ -253,8 +257,16 @@ arduino/
     ├── mcu_memory.h        # arena_peak/free, free_ram, stack_free
     ├── mcu_bits.h          # bit ops, popcount, crc8
     ├── mcu_eeprom.h        # EEPROM via <avr/eeprom.h>
+    ├── mcu_i2c.h           # I2C master via bundled <Wire.h>  (opt-in)
+    ├── mcu_spi.h           # SPI master via bundled <SPI.h>    (opt-in)
     └── mcu_interrupts.h    # counter-based interrupts + watchdog
 ```
+
+`mcu_i2c.h` and `mcu_spi.h` are included only when the sketch actually
+calls an `arduino.i2c_*` / `arduino.spi_*` binding. The emitter records
+that use while lowering the body and emits `VYNE_USE_I2C` /
+`VYNE_USE_SPI` before including `vyne_arduino.h`, so a blink sketch does
+not pull in the `Wire` / `SPI` globals or their flash cost.
 
 Headers are included in dependency order:
 
@@ -934,6 +946,75 @@ in a comment at the top of the sketch.
 
 ---
 
+### I2C — `mcu_i2c.h`
+
+I2C/TWI master bindings backed by the bundled Arduino `Wire` library.
+On the Uno R3, SDA is A4 and SCL is A5. The build integration compiles
+`vendor/arduino/libraries/Wire/src` (including `utility/twi.c`) and adds
+it to the include path.
+
+| Binding | Returns | Notes |
+| :--- | :--- | :--- |
+| `arduino.i2c_begin()` | `Null` | Start the bus master |
+| `arduino.i2c_end()` | `Null` | Release the peripheral |
+| `arduino.i2c_set_clock(hz)` | `Null` | `0` keeps the 100 kHz default |
+| `arduino.i2c_write(addr, value)` | `Int64` | `endTransmission` status |
+| `arduino.i2c_read(addr)` | `Int64` | One byte, or `-1` |
+| `arduino.i2c_write_reg(addr, reg, value)` | `Int64` | Register write |
+| `arduino.i2c_read_reg(addr, reg)` | `Int64` | Repeated-start read, or `-1` |
+| `arduino.i2c_available()` | `Int64` | Bytes in the receive buffer |
+
+Addresses are 7-bit (0..127). The C layer casts to `uint8_t`; the typed
+`vi2c` wrapper validates first and returns `-2` / `-3` for bad
+arguments instead of truncating. `endTransmission` status values are
+Arduino's: `0` ACK, `1` data too long, `2` NACK address, `3` NACK data,
+`4` other.
+
+```vyne
+use native arduino;
+use external "vi2c/vi2c.vy";
+
+vi2c.begin();
+id :: Int64 := vi2c.read_reg(0x68, 0x75);   # MPU-6050 WHO_AM_I
+vi2c.end();
+```
+
+See `examples/arduino/i2c_imu.vy` and `vyne/modules/external/vi2c/README.md`.
+
+### SPI — `mcu_spi.h`
+
+SPI master bindings backed by the bundled Arduino `SPI` library. On the
+Uno R3, MOSI is D11, MISO D12, SCK D13, and SS D10 (drive SS yourself).
+The build integration compiles `vendor/arduino/libraries/SPI/src` and adds
+it to the include path.
+
+| Binding | Returns | Notes |
+| :--- | :--- | :--- |
+| `arduino.spi_begin()` | `Null` | Power the peripheral |
+| `arduino.spi_end()` | `Null` | Release it |
+| `arduino.spi_set(clock_hz, mode)` | `Null` | Begins a transaction; MSB first; `mode` 0..3 |
+| `arduino.spi_end_transaction()` | `Null` | Ends the transaction |
+| `arduino.spi_transfer(value)` | `Int64` | 8-bit full-duplex |
+| `arduino.spi_transfer16(value)` | `Int64` | 16-bit full-duplex |
+
+`arduino.spi_set` falls back to mode 0 for an out-of-range mode and to
+4 MHz for a zero clock, so a bad constant cannot hang the bus. The typed
+`vspi` wrapper validates clock, mode, and value widths and returns `-2`
+/ `-3` instead.
+
+```vyne
+use native arduino;
+use external "vspi/vspi.vy";
+
+vspi.begin();
+vspi.set(1000000, 0);
+id :: Int64 := vspi.transfer(0x9F);   # JEDEC ID
+vspi.end_transaction();
+vspi.end();
+```
+
+See `examples/arduino/spi_loopback.vy` and `vyne/modules/external/vspi/README.md`.
+
 ### Interrupts — `mcu_interrupts.h`
 
 The Uno R3 has two external-interrupt pins: D2 (IRQ 0) and D3 (IRQ 1).
@@ -1264,34 +1345,44 @@ Adding a new `arduino.*` binding requires four changes:
    known-good reference; a compile-only test is not enough.
 
 If the binding needs a bundled Arduino library (Wire, SPI, etc.), the
-build integration needs updating too — see the next section.
+build integration already compiles and links it — see the next section
+for the header guard and wrapper conventions.
 
 ### Adding a bundled-library binding
 
-The rule is: **do not `#include` a bundled library header from
-`arduino/detail/`**. That directory is on the include path of the AVR
-build; the bundled libraries are not.
+The AVR build integration now scans `vendor/arduino/libraries/*/src`
+(cli/file_handler.cpp::buildArduino). For every library with a `src/`
+directory it appends `-I<lib>/src` to the include path. Compilation is
+demand-driven: a library is compiled — recursively, including nested
+utility directories such as `Wire/src/utility/twi.c` — and linked only
+when the generated translation unit defines its `VYNE_USE_<bus>` macro.
+Unused libraries are never built, so their global constructors cannot
+add flash to a sketch that does not use them.
 
-Two options:
+So a new bundled-library binding no longer needs build-integration work.
+The steps are:
 
-**Option A: reimplement against avr-libc.** `mcu_eeprom.h` is the
-reference example. `<avr/eeprom.h>` is always present; the Arduino
-`EEPROM` library is a thin wrapper around it. The four EEPROM functions
-fit in fifty lines of direct avr-libc code. This is usually the smaller
-change.
+1. **Define the C wrappers** in a new `detail/mcu_<bus>.h`. Include
+   `mcu_types.h` first, then the bundled header (`<Wire.h>`, `<SPI.h>`,
+   `<SoftwareSerial.h>`, ...). Every parameter and return value is
+   `VyneValue` unless a `_f64` unboxed variant is also added.
+2. **Register the mapping** in `ARDUINO_MAP` (`native_maps.h`).
+3. **Guard the include** in `vyne_arduino.h` with a `VYNE_USE_<BUS>`
+   macro, and set that macro from the emitter when the corresponding
+   `arduino.<bus>_*` member is lowered (see `noteArduinoI2cUse` /
+   `noteArduinoSpiUse` in `emitter.h` and the dispatcher in
+   `method_calls.cpp`). This keeps unused peripherals out of the
+   generated translation unit and avoids dragging in their global
+   constructors.
+4. **Add a typed wrapper** under `vyne/modules/external/v<bus>/` if the
+   raw `VyneValue` API is too loose for users (address/range validation,
+   named error codes).
+5. **Add a hardware test** under `examples/arduino/`.
 
-**Option B: teach the build integration.** The AVR build would need to:
-
-- add `arduino/libraries/<Lib>/src` to the include path,
-- compile every `.cpp` and `.c` under that directory into object files,
-- link those objects into the firmware.
-
-The compiler's AVR backend (`--arduino uno`) currently does none of
-this. Adding it is a separate work item. For Wire and SPI specifically,
-the `.cpp` sources are nontrivial (interrupt handlers, hardware register
-setup, C++ classes) and the integration has to negotiate with the
-Arduino core's existing `Wire` and `SPI` object instances. Not a
-one-line change.
+`mcu_i2c.h` and `mcu_spi.h` follow exactly this pattern. The alternative
+still exists for libraries that are pure avr-libc wrappers — reimplement
+directly (`mcu_eeprom.h` is the reference) and skip the build integration
+and the macro guard entirely.
 
 ---
 
@@ -1346,13 +1437,15 @@ sufficient for the rarer case of "run this Vyne function inside the
 ISR", which nobody should be doing on an AVR anyway (ISRs should be
 short, and Vyne functions are not guaranteed to be).
 
-### Wire (I2C), SPI, SoftwareSerial
+### SoftwareSerial
 
-Not bound. The reasoning is in
-[Adding a bundled-library binding](#adding-a-bundled-library-binding):
-those libraries ship `.cpp` sources that the Vyne AVR build integration
-does not currently compile. A future change to the build integration
-would unblock them.
+Not bound. `SoftwareSerial` ships a `.cpp` source and is now compiled by
+the build integration, but no Vyne bindings are registered for it yet.
+A future `mcu_softserial.h` would follow the same five-step pattern as
+`mcu_i2c.h` / `mcu_spi.h` and add its own `VYNE_USE_SOFTSERIAL` guard.
+
+I2C (`Wire`) and SPI are now bound — see the [I2C](#i2c--mcu_i2ch) and
+[SPI](#spi--mcu_spih) API sections.
 
 ### `out()` (the boxed print engine)
 
@@ -1465,8 +1558,13 @@ cannot be invalidated by a rewind; a dynamic one can.
 **`attach_interrupt` is counter-based.** No callbacks. See
 [What is not bound and why](#what-is-not-bound-and-why).
 
-**Wire, SPI, SoftwareSerial are not bound.** See
-[What is not bound and why](#what-is-not-bound-and-why).
+**I2C and SPI are bound; SoftwareSerial is not.** See
+[What is not bound and why](#what-is-not-bound-and-why). Both peripheral
+headers are opt-in and compile only when used.
+
+**I2C/SPI block transfers are not bound yet.** Only single-byte and
+16-bit word transfers are exposed. Multi-byte transfers need a buffer
+ABI on the MCU runtime.
 
 **`free_ram` and `stack_free` return the same value.** Without
 stack-painting instrumentation there is no separate stack watermark.

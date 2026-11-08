@@ -4,6 +4,9 @@
 #include "detail/mcu_bits.h"
 #include "detail/mcu_eeprom.h"
 #include "detail/mcu_hardware.h"
+#if defined(VYNE_USE_I2C)
+#include "detail/mcu_i2c.h"
+#endif
 #include "detail/mcu_interrupts.h"
 #include "detail/mcu_math.h"
 #include "detail/mcu_memory.h"
@@ -11,6 +14,9 @@
 #include "detail/mcu_serial.h"
 #include "detail/mcu_timing.h"
 #include "detail/mcu_types.h"
+#if defined(VYNE_USE_SPI)
+#include "detail/mcu_spi.h"
+#endif
 #include <Arduino.h>
 
 // Declare the Vyne program's setup and loop

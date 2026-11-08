@@ -94,7 +94,14 @@ return on engineering weeks (ew).
 
 Legend: `[ ]` not started, `[~]` in progress, `[x]` shipped.
 
-### C1 — MCU peripheral-bus bindings (I2C / SPI / Wire) `[ ]`
+### C1 — MCU peripheral-bus bindings (I2C / SPI / Wire) `[~]`
+
+**Status (2026-11-09):** implemented on branch `feat/arduino-i2c-spi`.
+Bundled-library build integration, `mcu_i2c.h` / `mcu_spi.h`, 14
+`ARDUINO_MAP` entries, opt-in `VYNE_USE_I2C` / `VYNE_USE_SPI` guards, and
+typed `vi2c` / `vspi` wrappers with validation ship. Firmware compiles
+and links; hardware confirmation on a real IMU and SPI loopback is the
+remaining exit-criteria item.
 
 **Why.** Every real sensor, IMU, motor driver, display, and audio codec talks
 I2C or SPI. The AVR runtime deliberately binds neither today: those Arduino

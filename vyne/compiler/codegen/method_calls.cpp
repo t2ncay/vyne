@@ -107,6 +107,17 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     if (!entry)
         return std::nullopt;
 
+    // Track bundled-peripheral use so finalize() can emit the
+    // VYNE_USE_I2C / VYNE_USE_SPI defines before including the MCU
+    // runtime. A sketch that never touches these names does not pull in
+    // the Wire/SPI global constructors. Key on the resolved C symbol
+    // rather than the receiver path so `use native arduino as x;`
+    // aliases are covered too.
+    if (std::string(entry->cName).rfind("arduino_i2c_", 0) == 0)
+        e.noteArduinoI2cUse();
+    else if (std::string(entry->cName).rfind("arduino_spi_", 0) == 0)
+        e.noteArduinoSpiUse();
+
     // Auto-include the module's runtime header for every native call
     // resolved through this dispatcher. `addInclude` is idempotent —
     // includeSet dedupes — so the cost is one set-lookup per call.

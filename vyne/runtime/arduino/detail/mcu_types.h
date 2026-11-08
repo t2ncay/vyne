@@ -403,3 +403,11 @@ static inline void vyne_out(VyneValue v) {
     _vyne_print_internal(v);
     Serial.println();
 }
+
+// Module deployment is a desktop-only introspection hook. External
+// libraries ship `deploy <module>;` in their facades; on AVR the call
+// lowers to this no-op so the same library source compiles on both
+// targets without a conditional.
+static inline void vyne_deploy_module(const char* name) {
+    (void)name;
+}

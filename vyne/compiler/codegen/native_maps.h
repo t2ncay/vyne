@@ -322,6 +322,26 @@ static const NativeMapEntry ARDUINO_MAP[] = {
     {"eeprom_read_float", "arduino_eeprom_read_float", false},
     {"eeprom_write_float", "arduino_eeprom_write_float", false},
 
+    // --- I2C / TWI (mcu_i2c.h + bundled Wire library) ---
+    // Zero-arg entry points are ordinary functions (not properties):
+    // the emitter emits `arduino_i2c_begin()` and discards the result.
+    {"i2c_begin", "arduino_i2c_begin", false},
+    {"i2c_end", "arduino_i2c_end", false},
+    {"i2c_set_clock", "arduino_i2c_set_clock", false},
+    {"i2c_write", "arduino_i2c_write", false},
+    {"i2c_read", "arduino_i2c_read", false},
+    {"i2c_write_reg", "arduino_i2c_write_reg", false},
+    {"i2c_read_reg", "arduino_i2c_read_reg", false},
+    {"i2c_available", "arduino_i2c_available", false},
+
+    // --- SPI (mcu_spi.h + bundled SPI library) ---
+    {"spi_begin", "arduino_spi_begin", false},
+    {"spi_end", "arduino_spi_end", false},
+    {"spi_set", "arduino_spi_set", false},
+    {"spi_end_transaction", "arduino_spi_end_transaction", false},
+    {"spi_transfer", "arduino_spi_transfer", false},
+    {"spi_transfer16", "arduino_spi_transfer16", false},
+
     // --- Interrupts + watchdog (mcu_interrupts.h) ---
     {"attach_interrupt", "arduino_attach_interrupt", false},
     {"detach_interrupt", "arduino_detach_interrupt", false},
