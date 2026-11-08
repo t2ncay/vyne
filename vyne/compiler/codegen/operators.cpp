@@ -776,6 +776,12 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
                 e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
                 return temp;
             }
+            if (num->getStaticType() == VType::Float32) {
+                e.emit("float " + temp + " = -(float)(" +
+                       num->nativeLiteral() + ");");
+                e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+                return temp;
+            }
             e.emit("double " + temp + " = -" + num->nativeLiteral() + ";");
             e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
             return temp;
@@ -813,6 +819,11 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             }
+            if (ct->kind == CType::Kind::Float32) {
+                e.emit("float " + temp + " = -" + rawVal + ";");
+                e.declareNativeTemp(temp, CType::fromVType(VType::Float32));
+                return temp;
+            }
         }
         if (op == VTokenType::Bitwise_Not && ct->kind == CType::Kind::Int64) {
             e.emit("int64_t " + temp + " = ~" + rawVal + ";");
@@ -833,6 +844,12 @@ std::string UnaryNode::getCExpr(C_Emitter& e) const {
             if (ct->kind == CType::Kind::Float64) {
                 e.emit(
                     "VyneValue " + temp + " = vyne_bool(" + rawVal + " == 0.0);"
+                );
+                return temp;
+            }
+            if (ct->kind == CType::Kind::Float32) {
+                e.emit(
+                    "VyneValue " + temp + " = vyne_bool(" + rawVal + " == 0.0f);"
                 );
                 return temp;
             }

@@ -38,6 +38,17 @@ c :: Float32 := float32(9);
 check("float32-cast", type(c) == "Float32");
 check("float32-cast-value", c == 9.0f);
 
+neg :: Float32 := -a;
+check("unary-minus-type", type(neg) == "Float32");
+check("unary-minus-value", close32(neg, -1.5f));
+
+region scratch_test {
+    scratch buf :: Float32[4];
+    buf[0] = 1.5f;
+    buf[1] = -2.25f;
+    check("scratch-value", buf[0] == 1.5f && buf[1] == -2.25f);
+};
+
 arr :: Array<Float32> := [1.0f, 2.0f, 3.0f];
 check("array-elem-type", type(arr[0]) == "Float32");
 check("array-value", arr[0] == 1.0f);
