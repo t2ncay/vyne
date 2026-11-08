@@ -1,14 +1,7 @@
-# main.vy - ESPCN-style 2x upscaling demo.
+# main.vy - ESPCN-style 2x upscaling demo with CUDA acceleration.
 #
 # Run from the project root:
 #   vynec run src/main.vy
-#
-# The bundled data/espcn_x2.vwy is a deterministic passthrough model:
-# 1x1 identity convolutions plus a sub-pixel fan-out. It exercises the
-# same decode -> conv -> pixel-shuffle -> encode path a trained ESPCN
-# uses. Replace it with a real checkpoint exported by
-# scripts/export_espcn_weights.py; the `meta` tensor in the bundle
-# selects the channel widths, kernel sizes, scale, and activation.
 
 use native vfs;
 use native vmath;
@@ -20,7 +13,7 @@ ruleset { dynamic_casting };
 INPUT :: String := "data/sample.png";
 REFERENCE :: String := "data/reference.png";
 MODEL :: String := "data/espcn_x2.vwy";
-OUTPUT :: String := "build/output.png";
+OUTPUT :: String := "build/output_cuda.png";
 
 fn psnr(a :: Array<Float64>, b :: Array<Float64>, n :: Int64) -> Float64 {
     mse :: Float64 := 0.0;
@@ -33,13 +26,7 @@ fn psnr(a :: Array<Float64>, b :: Array<Float64>, n :: Int64) -> Float64 {
     return 10.0 * vmath.log10(1.0 / mse);
 }
 
-fn activate(t :: vconv.Tensor, code :: Int64) -> vconv.Tensor {
-    if code == 0 { return vconv.relu(t); }
-    if code == 2 { return vconv.leaky_relu(t, 0.1); }
-    return vconv.tanh(t);
-}
-
-out("=== {{name}} - ESPCN 2x ===");
+out("=== gpu-trial - ESPCN 2x (CUDA) ===");
 out("");
 
 input :: vimage.Image := vimage.load(INPUT);
@@ -74,21 +61,115 @@ b2 :: Array<Float64> := vconv.get_tensor(model, "conv2.bias");
 w3 :: Array<Float64> := vconv.get_tensor(model, "conv3.weight");
 b3 :: Array<Float64> := vconv.get_tensor(model, "conv3.bias");
 
-x :: vconv.Tensor := vconv.tensor(
-    input.pixels, input.height, input.width, input.channels
-);
-
 out("input      : " + string(input.width) + "x" + string(input.height) +
     "x" + string(input.channels));
 out("model      : " + MODEL + "  (" + string(c1) + "->" + string(c2) +
     "->" + string(c3) + ", scale " + string(scale) + ")");
 
-h1 :: vconv.Tensor := vconv.conv2d(x, w1, b1, c1, k1, 1, k1 / 2);
-a1 :: vconv.Tensor := activate(h1, act);
-h2 :: vconv.Tensor := vconv.conv2d(a1, w2, b2, c2, k2, 1, k2 / 2);
-a2 :: vconv.Tensor := activate(h2, act);
-h3 :: vconv.Tensor := vconv.conv2d(a2, w3, b3, c3, k3, 1, k3 / 2);
-out_t :: vconv.Tensor := vconv.pixel_shuffle(h3, scale);
+# Flatten the image to [H*W, 3] for the 1x1 convolution matmul
+hw :: Int64 := input.height * input.width;
+img_flat :: Array<Float32> := [];
+through i :: 0..hw-1 -> loop {
+    img_flat.push(float32(input.pixels[i * input.channels + 0]));
+    img_flat.push(float32(input.pixels[i * input.channels + 1]));
+    img_flat.push(float32(input.pixels[i * input.channels + 2]));
+};
+
+# Transpose weights to match matmul expectations [K, N]
+# w1 is [c1, 3]. We need [3, c1].
+w1_f32 :: Array<Float32> := [];
+through r :: 0..3-1 -> loop {
+    through c :: 0..c1-1 -> loop {
+        w1_f32.push(float32(w1[c * 3 + r]));
+    };
+};
+
+# w2 is [c2, c1]. We need [c1, c2].
+w2_f32 :: Array<Float32> := [];
+through r :: 0..c1-1 -> loop {
+    through c :: 0..c2-1 -> loop {
+        w2_f32.push(float32(w2[c * c1 + r]));
+    };
+};
+
+# w3 is [c3, c2]. We need [c2, c3].
+w3_f32 :: Array<Float32> := [];
+through r :: 0..c2-1 -> loop {
+    through c :: 0..c3-1 -> loop {
+        w3_f32.push(float32(w3[c * c2 + r]));
+    };
+};
+
+# Broadcast biases to [H*W, C]
+b1_bc :: Array<Float32> := [];
+through i :: 0..hw-1 -> loop {
+    through c :: 0..c1-1 -> loop { b1_bc.push(float32(b1[c])); };
+};
+
+b2_bc :: Array<Float32> := [];
+through i :: 0..hw-1 -> loop {
+    through c :: 0..c2-1 -> loop { b2_bc.push(float32(b2[c])); };
+};
+
+b3_bc :: Array<Float32> := [];
+through i :: 0..hw-1 -> loop {
+    through c :: 0..c3-1 -> loop { b3_bc.push(float32(b3[c])); };
+};
+
+out_flat :: Array<Float32> := [];
+through i :: 0..(hw*c3)-1 -> loop { out_flat.push(0.0f); };
+
+@device<cuda> region gpu {
+    out("device     : " + device_backend());
+
+    # 1. Allocate and upload inputs & weights
+    d_x  :: Int64 := device_alloc(hw * 3);
+    d_w1 :: Int64 := device_alloc(3 * c1);
+    d_w2 :: Int64 := device_alloc(c1 * c2);
+    d_w3 :: Int64 := device_alloc(c2 * c3);
+    
+    device_upload(d_x,  img_flat, hw * 3);
+    device_upload(d_w1, w1_f32, 3 * c1);
+    device_upload(d_w2, w2_f32, c1 * c2);
+    device_upload(d_w3, w3_f32, c2 * c3);
+
+    d_b1 :: Int64 := device_alloc(hw * c1);
+    d_b2 :: Int64 := device_alloc(hw * c2);
+    d_b3 :: Int64 := device_alloc(hw * c3);
+    
+    device_upload(d_b1, b1_bc, hw * c1);
+    device_upload(d_b2, b2_bc, hw * c2);
+    device_upload(d_b3, b3_bc, hw * c3);
+
+    # 2. Layer 1: Matmul -> Bias -> ReLU
+    d_h1 :: Int64 := device_alloc(hw * c1);
+    device_matmul(d_h1, d_x, d_w1, hw, c1, 3); # [hw,3] * [3,c1]
+    device_add(d_h1, d_h1, d_b1, hw * c1);
+    device_relu(d_h1, d_h1, hw * c1);
+
+    # 3. Layer 2: Matmul -> Bias -> ReLU
+    d_h2 :: Int64 := device_alloc(hw * c2);
+    device_matmul(d_h2, d_h1, d_w2, hw, c2, c1); # [hw,c1] * [c1,c2]
+    device_add(d_h2, d_h2, d_b2, hw * c2);
+    device_relu(d_h2, d_h2, hw * c2);
+
+    # 4. Layer 3: Matmul -> Bias (no activation before pixel shuffle)
+    d_h3 :: Int64 := device_alloc(hw * c3);
+    device_matmul(d_h3, d_h2, d_w3, hw, c3, c2); # [hw,c2] * [c2,c3]
+    device_add(d_h3, d_h3, d_b3, hw * c3);
+
+    # 5. Download results
+    device_download(d_h3, out_flat, hw * c3);
+    device_sync();
+};
+
+# Convert Float32 back to Float64 for vconv
+out_f64 :: Array<Float64> := [];
+through i :: 0..(hw*c3)-1 -> loop { out_f64.push(float64(out_flat[i])); };
+
+# 6. Pixel Shuffle (CPU)
+h3_tensor :: vconv.Tensor := vconv.tensor(out_f64, input.height, input.width, c3);
+out_t :: vconv.Tensor := vconv.pixel_shuffle(h3_tensor, scale);
 
 vfs.mkdir_p("build");
 result :: vimage.Image := vimage.Image(
@@ -99,6 +180,7 @@ vimage.save(OUTPUT, result);
 out("output     : " + OUTPUT + "  (" + string(out_t.width) + "x" +
     string(out_t.height) + "x" + string(out_t.channels) + ")");
 
+# --- PSNR Evaluation ---
 if reference.width == out_t.width && reference.height == out_t.height &&
     reference.channels == out_t.channels {
     baseline :: vimage.Image := vimage.resize(
