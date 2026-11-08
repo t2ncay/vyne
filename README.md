@@ -134,12 +134,21 @@ design.
 **A standard library built for numerical work.** `vmath`, `vcore`,
 `vmem`, `vfs` cover the basics. `vlin` (linear algebra), `vml` (neural
 network primitives), `vfft` (radix-2 FFT with plan caching), `vrand`
-(distributions), and `vbio` (nucleotide / protein sequences) are written
-in Vyne itself, in the same kernel/wrapper pattern, and ship with a full
-manual each. On AVR, the same numerical idioms run through a 60-function
-`arduino` module: serial I/O, ADC, bit manipulation, EEPROM, watchdog,
-and an unboxed math family (`_f64` variants) that the emitter picks at
-call sites where every argument is a provable `Float64`.
+(distributions), `vstat` (statistics plus PSNR/SSIM), `vtermplot`
+(terminal plots), `vcsv`, `vcomplex`, `vimage` (PNG/JPEG I/O), `vconv`
+(forward convolution), and `vbio` (nucleotide / protein sequences) are
+written in Vyne itself, in the same kernel/wrapper pattern, and ship with
+a full manual each. On AVR, the same numerical idioms run through a
+60-function `arduino` module: serial I/O, ADC, bit manipulation, EEPROM,
+watchdog, and an unboxed math family (`_f64` variants) that the emitter
+picks at call sites where every argument is a provable `Float64`.
+
+**Start from a working project.** `vynec init` opens an ftxui
+questionnaire and scaffolds an ML training project, an Arduino sketch
+with `@bounded` regions, a Lorenz simulation, an ESPCN image upscaler,
+or a minimal blank project. Every template compiles and runs out of the
+box, and the generated `project.toml` records the targets, dependencies,
+and device configuration you chose.
 
 ---
 
@@ -156,7 +165,7 @@ Scaffold a new project with the interactive questionnaire:
 
 ```bash
 ./vynec init
-# ML, embedded, scientific, image/SR, and blank templates
+# choose ML, embedded, scientific, image/SR, or blank
 ```
 
 Or run it non-interactively:
@@ -166,6 +175,9 @@ Or run it non-interactively:
 cd myproject
 vynec run src/main.vy
 ```
+
+`./vynec init --help` lists the flags, the five questions, and the exit
+codes.
 
 Transpile a program to a standalone binary:
 
@@ -546,6 +558,11 @@ The Arduino Uno R3 target ships a 60+ function runtime under
 never from a bundled `arduino/libraries/*` header, so `avr-gcc` compiles
 the runtime without the Vyne AVR build integration having to add library
 `src/` directories to its include path.
+
+`@bounded<bytes>` regions lower on AVR as well. The MCU arena maintains
+the same live-allocation counter as the desktop arena, `@bounded` checks
+it at region exit, and `vyne_panic_region_bound` halts the sketch on a
+violation. The `embedded` project template exercises this path directly.
 
 | Header                  | Count | Contents                                                                                                    |
 | :---------------------- | :---- | :---------------------------------------------------------------------------------------------------------- |
@@ -988,6 +1005,35 @@ For the Arduino target, `--flash` requires `arduino-cli` and the
 connected board. Both flags also accept `--fqbn <string>` to override
 the board identifier (default `arduino:avr:uno`).
 
+### `vynec init`
+
+Scaffolds a new project. With no `--name` and a terminal, it opens an
+ftxui questionnaire for the project kind, targets, libraries, CUDA, and
+license, then shows a confirmation screen. In scripts and CI it is
+fully non-interactive.
+
+| Flag | Effect |
+| :--- | :--- |
+| `--name <name>` | project name; also suppresses the TUI |
+| `--kind <kind>` | `blank`, `ml`, `embedded`, `scientific`, `sr`, `mixed` |
+| `--targets <list>` | `desktop`, `arduino-uno`, `coral`, `jetson` |
+| `--libraries <list>` | `vlin`, `vml`, `vstat`, `vtermplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv` |
+| `--cuda yes\|no` | write `[device.cuda]` |
+| `--license <id>` | `AGPL-3.0-only`, `MIT`, `proprietary` |
+| `--yes` | accept defaults without prompting |
+| `--no-tui` | force non-interactive |
+| `--no-git` | skip `git init` and the initial commit |
+
+The templates are `blank` (`@bounded` + `@deterministic`), `ml` (Iris
+MLP with a `vtermplot` loss curve), `embedded` (Uno blinky with
+`@bounded`), `scientific` (Lorenz RK4 + Lyapunov estimate), and `sr`
+(ESPCN 2x upscaling with `vimage` + `vconv`). `mixed` uses the ML
+template with every library.
+
+Exit codes: `0` success, `1` cancel, `2` non-interactive without a
+name or a terminal smaller than 80x24, `3` `project.toml` already
+exists, `4` generation or configuration error.
+
 ---
 
 ## Build from source
@@ -1005,7 +1051,10 @@ the board identifier (default `arduino:avr:uno`).
   only required for `--flash` and `--monitor`; `--arduino uno` alone
   produces the `.hex` given the AVR toolchain.
 
-Vendored dependencies under `vendor/`: OpenBLAS (optional, for `--blas`).
+Vendored dependencies under `vendor/`: OpenBLAS (optional, for
+`--blas`), the stb single headers used by `vimage`, and the FTXUI
+amalgamated header (MIT) used by `vynec init`'s questionnaire. FTXUI is
+header-only and adds no runtime dependency to generated projects.
 
 ### Build
 
@@ -1106,10 +1155,16 @@ vyne/
 │       ├── vml/                   # neural network primitives
 │       ├── vfft/                  # FFT with plan caching
 │       ├── vrand/                 # distributions and sampling
+│       ├── vstat/                 # statistics, PSNR/SSIM
+│       ├── vtermplot/             # terminal plotting
+│       ├── vcsv/                  # CSV/TSV tables
+│       ├── vcomplex/              # complex numbers
+│       ├── vimage/                # PNG/JPEG I/O
+│       ├── vconv/                 # forward convolution
 │       ├── vbio/                  # bioinformatics
 │       ├── vcolors.vy, vconvert.vy, vplot.vy, vstring.vy
 │
-├── cli/                           # REPL, file handler, packager
+├── cli/                           # REPL, file handler, packager, init + TUI
 ├── editors/
 │   ├── vscode/lsp/                # VS Code extension + LSP backend
 │   └── nvim/                      # Neovim plugin
@@ -1126,8 +1181,11 @@ vyne/
 ├── tests/                         # test suite
 ├── docs/                          # documentation site
 ├── scripts/                       # build and test scripts
+├── share/vyne/                    # init templates + license texts
 └── vendor/                        # third-party libraries
-    └── openblas/
+    ├── openblas/
+    ├── stb/                       # image codecs for vimage
+    └── ftxui_all.hpp              # TUI for vynec init
 ```
 
 ---
