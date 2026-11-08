@@ -204,6 +204,31 @@ static const NativeMapEntry VFS_MAP[] = {
     {"join", "vfs_join", false},
 };
 
+// --- vimage ----------------------------------------------------------------
+// Image decode/encode on top of vendored stb_image / stb_image_write.
+// All functions take boxed VyneValue arguments; typed arrays cross the
+// boundary O(1) through vyne_array_f64_to_value.
+static const NativeMapEntry VIMAGE_MAP[] = {
+    {"load_raw", "vimage_load_raw", false},
+    {"pixels", "vimage_pixels", false},
+    {"save_raw", "vimage_save_raw", false},
+    {"resize_bilinear", "vimage_resize_bilinear", false},
+    {"crop_raw", "vimage_crop", false},
+    {"grayscale_raw", "vimage_grayscale", false},
+};
+
+// --- vconv -----------------------------------------------------------------
+// CPU forward convolution primitives for the SR inference path.
+static const NativeMapEntry VCONV_MAP[] = {
+    {"conv2d_fwd", "vconv_conv2d_fwd", false},
+    {"relu_fwd", "vconv_relu_fwd", false},
+    {"leaky_relu_fwd", "vconv_leaky_relu_fwd", false},
+    {"tanh_fwd", "vconv_tanh_fwd", false},
+    {"sigmoid_fwd", "vconv_sigmoid_fwd", false},
+    {"pixel_shuffle_fwd", "vconv_pixel_shuffle_fwd", false},
+    {"load_model", "vconv_load_model", false},
+};
+
 // --- arduino ---------------------------------------------------------------
 // No nativeF64 or nativeZero — none of these has a scalar return.
 // `millis` is a zero-arg getter, `delay` is a one-arg void.

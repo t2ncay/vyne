@@ -1023,6 +1023,12 @@ class C_Emitter {
         } else if (module == "vfs") {
             table = VFS_MAP;
             count = sizeof(VFS_MAP) / sizeof(VFS_MAP[0]);
+        } else if (module == "vimage") {
+            table = VIMAGE_MAP;
+            count = sizeof(VIMAGE_MAP) / sizeof(VIMAGE_MAP[0]);
+        } else if (module == "vconv") {
+            table = VCONV_MAP;
+            count = sizeof(VCONV_MAP) / sizeof(VCONV_MAP[0]);
         } else if (module == "arduino") {
             table = ARDUINO_MAP;
             count = sizeof(ARDUINO_MAP) / sizeof(ARDUINO_MAP[0]);
