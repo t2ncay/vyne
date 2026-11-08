@@ -32,17 +32,29 @@ A region may carry one policy attribute: `@name<args> region name { ... };`.
 | `@pool<T, N>` | Fixed-slot pool: `pool_alloc()` / `pool_free(x)`. `T` is `Float64` or `Int64`. |
 | `@slab<T, MAX[, CAP]>` | Power-of-two size-class allocator: `slab_alloc(n)` / `slab_free(x)`. Each class's backing is allocated lazily and reclaimed by the region rewind. `CAP` defaults to 8. |
 | `@ring<T, N, MAX>` | Rotating fixed slots: `ring_alloc(n)` returns the next of `N` slots (each `MAX` elements wide), overwriting the oldest after `N` allocations. There is no free intrinsic. |
+| `@streamed<T, MAX>` | Pinned host memory: `streamed_alloc(n)` draws from a page-locked arena with a total budget of `MAX` elements (`MAX * sizeof(T)` bytes). Desktop only; the AVR target rejects it. |
 | `@speculative` | Runs the body, then commits or rewinds based on `region.commit_if(pred)`. |
 | `@bounded<N>` | Runtime-checked byte ceiling for the region. |
 | `@zeroed` | Every allocation in the region is zero-filled. |
 | `@deterministic` | `@zeroed` plus a non-determinism scan (rejects time/RNG sources). |
 
-Policies are compiled-backend features. `slab_alloc(n)` and `ring_alloc(n)`
-zero-fill the requested `n` elements; their buffers are fixed-size and must not
-be grown with `push`. A `@ring` value must not be retained longer than `N`
-subsequent `ring_alloc` calls — the bounded-history contract the policy exists
-to express. The same policy applies for the whole region; a second policy means
-a second region.
+Policies are compiled-backend features. `slab_alloc(n)`, `ring_alloc(n)`, and
+`streamed_alloc(n)` zero-fill the requested `n` elements; their buffers are
+fixed-size and must not be grown with `push`. A `@ring` value must not be
+retained longer than `N` subsequent `ring_alloc` calls — the bounded-history
+contract the policy exists to express.
+
+`@streamed` draws from a separate pinned arena; `MAX` is a total budget across
+all allocations in the region, and exceeding it is a `VNE-082` runtime error.
+The platform reports whether the memory was actually page-locked via
+`vmem.stream_is_pinned()`; without page-locking support the arena falls back to
+ordinary memory. The region also keeps the normal checkpoint/rewind lifetime for
+ordinary allocations. `@streamed` is desktop-only and is rejected on AVR.
+`vmem.total_allocated()` reports the main arena; use `vmem.stream_total_allocated()`
+for the pinned arena.
+
+The same policy applies for the whole region; a second policy means a second
+region.
 
 ## Edge cases
 The parser requires `;` after the closing region brace. Regions are a compiled-code feature; the interpreter's behavior must be verified before promising support. Returns, breaks and continues use special cleanup paths.
