@@ -510,11 +510,21 @@ void printInitHelp() {
     std::cout << "    --no-git             skip git init and the initial commit\n";
     std::cout << "    -h, --help           show this help\n\n";
 
+    std::cout << "  " << INIT_CYAN << "TEMPLATES" << INIT_RESET << "\n";
+    std::cout << "    blank        @bounded + @deterministic starter\n";
+    std::cout << "    ml           Iris MLP, Adam, vtermplot loss curve\n";
+    std::cout << "    embedded     Arduino Uno blinky with @bounded\n";
+    std::cout << "    scientific   Lorenz RK4 + Lyapunov estimate\n";
+    std::cout << "    sr           ESPCN 2x upscaling with vimage + vconv\n";
+    std::cout << "    mixed        ML template with every library\n\n";
+
     std::cout << "  " << INIT_CYAN << "DEVELOPER" << INIT_RESET << "\n";
     std::cout << "    --self-test          run the template-engine checks and exit\n\n";
 
     std::cout << "  Run without --name on a terminal to open the interactive\n";
-    std::cout << "  questionnaire. The TUI is skipped in non-interactive shells.\n\n";
+    std::cout << "  questionnaire (kind, targets, libraries, CUDA, license).\n";
+    std::cout << "  --name, --yes, or --no-tui make it non-interactive. A\n";
+    std::cout << "  non-TTY shell or a terminal smaller than 80x24 exits with 2.\n\n";
 }
 
 int matchValue(int& i,

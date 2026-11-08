@@ -135,6 +135,7 @@ static void printHelp() {
     header("USAGE");
     row("vynec <script.vy> [flags]", GREEN, C(CYAN, "compile and run"), W);
     row("vynec <mode> <script.vy> [flags]", GREEN, C(CYAN, "explicit mode"), W);
+    row("vynec init [path]", GREEN, C(CYAN, "scaffold a new project"), W);
 
     header("MODES");
     row("--run",
@@ -191,8 +192,12 @@ static void printHelp() {
         "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
         W);
 
-    header("COMMANDS");
-    row("init [path]", MAGENTA, "Scaffold a new Vyne project", W);
+    header("PROJECTS");
+    row("init [path]", MAGENTA, "Scaffold with the interactive questionnaire", W);
+    std::cout << "      " << C(CYAN, "templates: ")
+              << C(GREEN, "blank, ml, embedded, scientific, sr")
+              << C(CYAN, "  (run ") << C(GREEN, "vynec init --help")
+              << C(CYAN, " for flags)") << "\n";
 
     header("TOOLS");
     row("--build-game <script.vy>",
@@ -205,6 +210,11 @@ static void printHelp() {
               << C(CYAN, " with no arguments to start the REPL.") << "\n";
 
     header("EXAMPLES");
+    std::cout << "    " << C(GREEN, "vynec init") << "  "
+              << C(CYAN, "# interactive questionnaire") << "\n";
+    std::cout << "    "
+              << C(GREEN, "vynec init --name demo --kind ml --no-git")
+              << "  " << C(CYAN, "# non-interactive") << "\n";
     std::cout << "    " << C(GREEN, "vynec examples/training/ml_seq.vy") << "  "
               << C(CYAN, "# compile + run") << "\n";
     std::cout << "    "
