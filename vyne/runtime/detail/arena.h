@@ -78,6 +78,14 @@ static inline void vyne_block_free(uint8_t* p, size_t cap) {
 #endif
 
 #define VYNE_ARENA_BLOCK_SIZE (8 * 1024 * 1024)
+
+// Preferred alignment for numeric buffer payloads (typed arrays and @slab
+// slots). 32 bytes covers AVX2 and half an AVX-512 register. Override with
+// -DVYNE_TYPED_ARRAY_ALIGN=64 for wider kernels. Small structs and boxed
+// values keep the default 8-byte bump alignment.
+#ifndef VYNE_TYPED_ARRAY_ALIGN
+#define VYNE_TYPED_ARRAY_ALIGN 32
+#endif
 // Method dispatch table size. 256 was too small the moment a program
 // imported more than two or three `use external` modules. Every group
 // function AND every interface method registers an entry. 4096 entries

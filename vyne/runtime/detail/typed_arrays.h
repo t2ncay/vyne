@@ -21,7 +21,10 @@ static inline VyneArray_f64 vyne_array_f64_create(int64_t n) {
     VyneArray_f64 a;
     a.size = n;
     a.cap  = _vyne_next_pow2(n);
-    a.data = (double*)arena_alloc(sizeof(double) * (size_t)a.cap);
+    a.data = (double*)arena_alloc_aligned(
+        sizeof(double) * (size_t)a.cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
     memset(a.data, 0, sizeof(double) * (size_t)n);
     return a;
 }
@@ -30,7 +33,10 @@ static inline VyneArray_i64 vyne_array_i64_create(int64_t n) {
     VyneArray_i64 a;
     a.size = n;
     a.cap  = _vyne_next_pow2(n);
-    a.data = (int64_t*)arena_alloc(sizeof(int64_t) * (size_t)a.cap);
+    a.data = (int64_t*)arena_alloc_aligned(
+        sizeof(int64_t) * (size_t)a.cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
     memset(a.data, 0, sizeof(int64_t) * (size_t)n);
     return a;
 }
@@ -40,7 +46,10 @@ static inline void vyne_array_f64_push(VyneArray_f64* a, double v) {
         int64_t new_cap = a->cap * 2;
         double* old_data = a->data;
         arena_try_reclaim(old_data, sizeof(double) * (size_t)a->cap);
-        double* new_data = (double*)arena_alloc(sizeof(double) * (size_t)new_cap);
+        double* new_data = (double*)arena_alloc_aligned(
+            sizeof(double) * (size_t)new_cap,
+            VYNE_TYPED_ARRAY_ALIGN
+        );
         if (new_data != old_data) {
             memcpy(new_data, old_data, sizeof(double) * (size_t)a->size);
         }
@@ -57,7 +66,10 @@ static inline void vyne_array_i64_push(VyneArray_i64* a, int64_t v) {
 
         arena_try_reclaim(old_data, sizeof(int64_t) * (size_t)a->cap);
 
-        int64_t* new_data = (int64_t*)arena_alloc(sizeof(int64_t) * (size_t)new_cap);
+        int64_t* new_data = (int64_t*)arena_alloc_aligned(
+            sizeof(int64_t) * (size_t)new_cap,
+            VYNE_TYPED_ARRAY_ALIGN
+        );
         if (new_data != old_data) {
             memcpy(new_data, old_data, sizeof(int64_t) * (size_t)a->size);
         }
