@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "detail/codegen_helpers.h"
+#include <cstdlib>
 #include <stdexcept>
 
 // Binary, unary and postfix operations; operands may emit prerequisite
@@ -107,12 +108,55 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
         return expr;
     };
 
+    // Identity peepholes (O1.1), safe subset only:
+    //   x - 0 -> x   (exact for Int64 and IEEE-754)
+    //   x * 1 -> x   (exact)
+    //   x / 1 -> x   (exact; also removes the divide-by-zero check)
+    //   x + 0 -> x   (Int64 only; -0.0 + 0.0 flips the sign of zero)
+    // A literal is materialized into a typed temp so the emitter's native
+    // type table stays consistent; GCC removes the copy.
+    auto isLiteralNumber = [](const ASTNode* node, double& out) -> bool {
+        if (node->type() != NodeType::NUMBER)
+            return false;
+        auto* num = static_cast<const NumberNode*>(node);
+        out = std::strtod(num->nativeLiteral().c_str(), nullptr);
+        return true;
+    };
+    auto emitIdentity = [&](const std::string& kept,
+                            const char* ctype,
+                            VType vt) -> std::string {
+        e.emit(std::string(ctype) + " " + temp + " = " + kept + ";");
+        e.declareNativeTemp(temp, CType::fromVType(vt));
+        return temp;
+    };
+
     // =========================================================
     // FAST PATH: Int64 op Int64 → native int64_t result
     // =========================================================
     if (lt == VType::Int64 && rt == VType::Int64) {
         std::string lv = operand(leftNode.get(), l, VType::Int64);
         std::string rv = operand(rightNode.get(), r, VType::Int64);
+        double rlit = 0.0;
+        const bool rightIsLiteral = isLiteralNumber(rightNode.get(), rlit);
+        if (op == VTokenType::Add) {
+            if (rightIsLiteral && rlit == 0.0)
+                return emitIdentity(lv, "int64_t", VType::Int64);
+            double llit = 0.0;
+            if (isLiteralNumber(leftNode.get(), llit) && llit == 0.0)
+                return emitIdentity(rv, "int64_t", VType::Int64);
+        }
+        if (op == VTokenType::Substract && rightIsLiteral && rlit == 0.0)
+            return emitIdentity(lv, "int64_t", VType::Int64);
+        if (op == VTokenType::Multiply) {
+            if (rightIsLiteral && rlit == 1.0)
+                return emitIdentity(lv, "int64_t", VType::Int64);
+            double llit = 0.0;
+            if (isLiteralNumber(leftNode.get(), llit) && llit == 1.0)
+                return emitIdentity(rv, "int64_t", VType::Int64);
+        }
+        if ((op == VTokenType::Division || op == VTokenType::Floor_Divide) &&
+            rightIsLiteral && rlit == 1.0)
+            return emitIdentity(lv, "int64_t", VType::Int64);
         switch (op) {
         case VTokenType::Add:
             e.emit("int64_t " + temp + " = " + lv + " + " + rv + ";");
@@ -128,20 +172,36 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
             return temp;
         case VTokenType::Division:
         case VTokenType::Floor_Divide:
-            e.emit(
-                "if (" + rv +
-                " == 0) { fprintf(stderr, \"Runtime error: Division by "
-                "zero!\\n\"); exit(1); }"
-            );
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: division by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit(
+                    "if (" + rv +
+                    " == 0) { fprintf(stderr, \"Runtime error: Division by "
+                    "zero!\\n\"); exit(1); }"
+                );
+            }
             e.emit("int64_t " + temp + " = " + lv + " / " + rv + ";");
             e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
             return temp;
         case VTokenType::Modulo:
-            e.emit(
-                "if (" + rv +
-                " == 0) { fprintf(stderr, \"Runtime error: Modulo by "
-                "zero!\\n\"); exit(1); }"
-            );
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: modulo by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit(
+                    "if (" + rv +
+                    " == 0) { fprintf(stderr, \"Runtime error: Modulo by "
+                    "zero!\\n\"); exit(1); }"
+                );
+            }
             e.emit("int64_t " + temp + " = " + lv + " % " + rv + ";");
             e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
             return temp;
@@ -248,6 +308,19 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
     if (lt == VType::Float64 && rt == VType::Float64) {
         std::string lv = operand(leftNode.get(), l, VType::Float64);
         std::string rv = operand(rightNode.get(), r, VType::Float64);
+        double rlit = 0.0;
+        const bool rightIsLiteral = isLiteralNumber(rightNode.get(), rlit);
+        if (op == VTokenType::Substract && rightIsLiteral && rlit == 0.0)
+            return emitIdentity(lv, "double", VType::Float64);
+        if (op == VTokenType::Multiply) {
+            if (rightIsLiteral && rlit == 1.0)
+                return emitIdentity(lv, "double", VType::Float64);
+            double llit = 0.0;
+            if (isLiteralNumber(leftNode.get(), llit) && llit == 1.0)
+                return emitIdentity(rv, "double", VType::Float64);
+        }
+        if (op == VTokenType::Division && rightIsLiteral && rlit == 1.0)
+            return emitIdentity(lv, "double", VType::Float64);
         switch (op) {
         case VTokenType::Add:
             e.emit("double " + temp + " = " + lv + " + " + rv + ";");
@@ -262,20 +335,36 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
             e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
             return temp;
         case VTokenType::Division:
-            e.emit(
-                "if (" + rv +
-                " == 0.0) { fprintf(stderr, \"Runtime error: Division by "
-                "zero!\\n\"); exit(1); }"
-            );
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: division by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit(
+                    "if (" + rv +
+                    " == 0.0) { fprintf(stderr, \"Runtime error: Division by "
+                    "zero!\\n\"); exit(1); }"
+                );
+            }
             e.emit("double " + temp + " = " + lv + " / " + rv + ";");
             e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
             return temp;
         case VTokenType::Modulo:
-            e.emit(
-                "if (" + rv +
-                " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
-                "zero!\\n\"); exit(1); }"
-            );
+            if (rightIsLiteral) {
+                if (rlit == 0.0)
+                    throw std::runtime_error(
+                        "Compile Error: modulo by zero literal (line " +
+                        std::to_string(lineNumber) + ")"
+                    );
+            } else {
+                e.emit(
+                    "if (" + rv +
+                    " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
+                    "zero!\\n\"); exit(1); }"
+                );
+            }
             e.emit("double " + temp + " = fmod(" + lv + ", " + rv + ");");
             e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
             return temp;
@@ -324,6 +413,19 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
         if (ltNum && rtNum) {
             std::string lv = operand(leftNode.get(), l, VType::Float64);
             std::string rv = operand(rightNode.get(), r, VType::Float64);
+            double rlit = 0.0;
+            const bool rightIsLiteral = isLiteralNumber(rightNode.get(), rlit);
+            if (op == VTokenType::Substract && rightIsLiteral && rlit == 0.0)
+                return emitIdentity(lv, "double", VType::Float64);
+            if (op == VTokenType::Multiply) {
+                if (rightIsLiteral && rlit == 1.0)
+                    return emitIdentity(lv, "double", VType::Float64);
+                double llit = 0.0;
+                if (isLiteralNumber(leftNode.get(), llit) && llit == 1.0)
+                    return emitIdentity(rv, "double", VType::Float64);
+            }
+            if (op == VTokenType::Division && rightIsLiteral && rlit == 1.0)
+                return emitIdentity(lv, "double", VType::Float64);
             switch (op) {
             case VTokenType::Add:
                 e.emit("double " + temp + " = " + lv + " + " + rv + ";");
@@ -338,20 +440,36 @@ std::string BinOpNode::getCExpr(C_Emitter& e) const {
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             case VTokenType::Division:
-                e.emit(
-                    "if (" + rv +
-                    " == 0.0) { fprintf(stderr, \"Runtime error: Division by "
-                    "zero!\\n\"); exit(1); }"
-                );
+                if (rightIsLiteral) {
+                    if (rlit == 0.0)
+                        throw std::runtime_error(
+                            "Compile Error: division by zero literal (line " +
+                            std::to_string(lineNumber) + ")"
+                        );
+                } else {
+                    e.emit(
+                        "if (" + rv +
+                        " == 0.0) { fprintf(stderr, \"Runtime error: Division "
+                        "by zero!\\n\"); exit(1); }"
+                    );
+                }
                 e.emit("double " + temp + " = " + lv + " / " + rv + ";");
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
             case VTokenType::Modulo:
-                e.emit(
-                    "if (" + rv +
-                    " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
-                    "zero!\\n\"); exit(1); }"
-                );
+                if (rightIsLiteral) {
+                    if (rlit == 0.0)
+                        throw std::runtime_error(
+                            "Compile Error: modulo by zero literal (line " +
+                            std::to_string(lineNumber) + ")"
+                        );
+                } else {
+                    e.emit(
+                        "if (" + rv +
+                        " == 0.0) { fprintf(stderr, \"Runtime error: Modulo by "
+                        "zero!\\n\"); exit(1); }"
+                    );
+                }
                 e.emit("double " + temp + " = fmod(" + lv + ", " + rv + ");");
                 e.declareNativeTemp(temp, CType::fromVType(VType::Float64));
                 return temp;
