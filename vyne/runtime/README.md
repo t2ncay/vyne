@@ -47,6 +47,23 @@ and `vyne_getpid`; these unrelated existing module issues are not altered by
 this split. The runtime itself and all individual detail headers pass C11
 syntax checks.
 
+## Typed-array alignment and @slab
+
+Typed-array payloads come from `arena_alloc_aligned(..., VYNE_TYPED_ARRAY_ALIGN)`.
+The default alignment is 32 bytes; override with
+`-DVYNE_TYPED_ARRAY_ALIGN=64` for wider SIMD kernels. Small values and boxed
+structs keep the 8-byte bump alignment.
+
+`modules/vyne_slab_runtime.h` backs the `@slab<T, MAX[, CAP]>` region policy: a
+power-of-two size-class allocator with O(1) alloc/free, lazy per-class backing,
+and zero-fill on allocation. The region rewind reclaims every class's backing.
+Tests: `tests/alignment.c` and `tests/slab.c`.
+
+```sh
+cc -std=c11 vyne/runtime/tests/alignment.c -lm -o alignment && ./alignment
+cc -std=c11 vyne/runtime/tests/slab.c -lm -o slab && ./slab
+```
+
 ## Debug: poison-on-rewind
 
 `arena_rewind` and `arena_try_reclaim` can overwrite the bytes they release
