@@ -42,6 +42,7 @@ jobs:
           #   */CMakeFiles/*     — CMake artifacts
           g++-13 -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
+              -I./vendor \
               -I./vendor/stb \
               $(find . -type f -name "*.cpp" \
                   ! -path "./vendor/arduino/*" \
