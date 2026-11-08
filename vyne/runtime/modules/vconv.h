@@ -347,6 +347,7 @@ static inline VyneValue _vconv_load_binary(
         if (pos + 4 > size) return _vconv_empty_model();
         uint32_t name_len = _vconv_le_u32(buf + pos);
         pos += 4;
+        if (name_len == 0 || name_len > 4096) return _vconv_empty_model();
         if (pos + name_len > size) return _vconv_empty_model();
 
         char* name = (char*)arena_alloc((size_t)name_len + 1);
@@ -367,7 +368,9 @@ static inline VyneValue _vconv_load_binary(
             n *= (int64_t)dim;
         }
 
-        if (n < 0 || pos + (size_t)n * 4 > size)
+        /* Reject counts that cannot fit in the remaining bytes before
+         * doing any multiplication that could overflow size_t. */
+        if (n <= 0 || (uint64_t)n > (uint64_t)((size - pos) / 4))
             return _vconv_empty_model();
 
         VyneArray_f64 arr = vyne_array_f64_create(n);
