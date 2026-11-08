@@ -302,6 +302,28 @@ on_run(function()
 end)
 task_end()
 
+task("test-init")
+set_category("test")
+set_menu({ description = "Run vynec init tests" })
+on_run(function()
+	if os.host() ~= "windows" then
+		print("test-init: skipped (PowerShell test script is Windows-only)")
+		return
+	end
+	local script = path.join(ROOT, "scripts/test_init.ps1")
+	if not os.isfile(script) then
+		raise("scripts/test_init.ps1 not found")
+	end
+	os.execv("powershell", {
+		"-NoProfile",
+		"-ExecutionPolicy",
+		"Bypass",
+		"-File",
+		script,
+	}, { curdir = ROOT })
+end)
+task_end()
+
 -- ---------------------------------------------------------------------------
 -- Aggregate tasks
 -- ---------------------------------------------------------------------------
