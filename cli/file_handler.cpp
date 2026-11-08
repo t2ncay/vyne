@@ -17,7 +17,9 @@
 
 #include "file_handler.h"
 #include "../vyne/utils/sha256.h"
+#include <functional>
 #include <map>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Integrity check (unchanged)
@@ -107,6 +109,7 @@ static int buildArduino(
     std::string coreDir = exeDir + "/vendor/arduino/cores/arduino";
     std::string apiDir = exeDir + "/vendor/arduino/cores/api";
     std::string varDir = exeDir + "/vendor/arduino/variants/" + variant;
+    std::string libRoot = exeDir + "/vendor/arduino/libraries";
 
     std::string incFlags = " -I\"" + vyneInc +
                            "\""
@@ -118,6 +121,31 @@ static int buildArduino(
                            "\""
                            " -I\"" +
                            varDir + "\"";
+
+    // Discover bundled Arduino libraries (Wire, SPI, SoftwareSerial, ...).
+    // Every library's `src/` directory joins the include path so any
+    // header resolves. Compilation is separate and demand-driven (step 3
+    // below): only libraries whose VYNE_USE_<bus> macro appears in the
+    // generated translation unit are built, because their global
+    // constructors survive --gc-sections. Recursion picks up nested
+    // utility directories such as Wire's `src/utility/twi.c`.
+    std::vector<std::filesystem::path> librarySrcDirs;
+    {
+        std::error_code lec;
+        if (std::filesystem::exists(libRoot, lec)) {
+            for (const auto& libEntry :
+                 std::filesystem::directory_iterator(libRoot, lec)) {
+                if (!libEntry.is_directory())
+                    continue;
+                std::filesystem::path src = libEntry.path() / "src";
+                if (!std::filesystem::exists(src, lec) ||
+                    !std::filesystem::is_directory(src, lec))
+                    continue;
+                librarySrcDirs.push_back(src);
+                incFlags += " -I\"" + src.string() + "\"";
+            }
+        }
+    }
 
     std::string commonFlags = std::string(" -mmcu=") + mcu +
                               " -Os -ffunction-sections -fdata-sections -w"
@@ -178,26 +206,70 @@ static int buildArduino(
     );
 
     // 2. Core source files
-    auto processDir = [&](const std::string& dir) {
-        if (!std::filesystem::exists(dir))
-            return;
-        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-            if (entry.path().extension() == ".cpp") {
-                addFile(
-                    entry.path(),
-                    "avr-g++",
-                    "-std=gnu++11",
-                    "-fno-exceptions -fno-threadsafe-statics"
-                );
-            } else if (entry.path().extension() == ".c") {
-                addFile(entry.path(), "avr-gcc", "-std=gnu11", "");
+    std::function<void(const std::string&)> processDir =
+        [&](const std::string& dir) {
+            if (!std::filesystem::exists(dir))
+                return;
+            for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+                if (entry.is_directory()) {
+                    processDir(entry.path().string());
+                    continue;
+                }
+                if (entry.path().extension() == ".cpp") {
+                    addFile(
+                        entry.path(),
+                        "avr-g++",
+                        "-std=gnu++11",
+                        "-fno-exceptions -fno-threadsafe-statics"
+                    );
+                } else if (entry.path().extension() == ".c") {
+                    addFile(entry.path(), "avr-gcc", "-std=gnu11", "");
+                }
             }
-        }
-    };
+        };
     processDir(coreDir);
     processDir(apiDir);
 
-    // 3. Link
+    // 3. Bundled Arduino libraries. The include paths above are always
+    //    added so any header resolves. Compilation is demand-driven: a
+    //    library is compiled only when the generated translation unit
+    //    defines its VYNE_USE_<bus> macro. This matters because these
+    //    objects carry global constructors (TwoWire) that --gc-sections
+    //    cannot drop, so compiling Wire into every blink sketch would
+    //    cost ~1.4 KB of flash for nothing.
+    std::string generatedSource;
+    {
+        std::ifstream gen(ardCpp);
+        std::stringstream ss;
+        ss << gen.rdbuf();
+        generatedSource = ss.str();
+    }
+    auto usesMacro = [&](const char* macro) {
+        return generatedSource.find(std::string("#define ") + macro + " 1") !=
+               std::string::npos;
+    };
+    struct BundledLib {
+        const char* macro;
+        const char* name;
+    };
+    static const BundledLib bundledLibs[] = {
+        {"VYNE_USE_I2C", "Wire"},
+        {"VYNE_USE_SPI", "SPI"},
+    };
+    for (const auto& src : librarySrcDirs) {
+        std::string libName = src.parent_path().filename().string();
+        bool needed = false;
+        for (const auto& lib : bundledLibs) {
+            if (libName == lib.name && usesMacro(lib.macro)) {
+                needed = true;
+                break;
+            }
+        }
+        if (needed)
+            processDir(src.string());
+    }
+
+    // 4. Link
     std::string outElf = base + ".elf";
     script << "avr-g++" << commonFlags << " -Wl,--gc-sections -o \"" << outElf
            << "\" " << objects << " -lm\n";

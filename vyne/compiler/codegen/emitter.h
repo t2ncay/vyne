@@ -310,12 +310,33 @@ class C_Emitter {
     // header name depend on this; every AST lowering path stays identical.
     bool arduinoTarget_ = false;
 
+    // Bundled-library use flags. Set when a native call resolves to an
+    // `arduino.i2c_*` / `arduino.spi_*` member. finalize() turns them
+    // into VYNE_USE_I2C / VYNE_USE_SPI defines so vyne_arduino.h pulls
+    // only the peripheral headers the sketch actually uses. Without
+    // this, every sketch would drag in Wire/SPI global constructors and
+    // their flash cost.
+    bool arduinoUsesI2c_ = false;
+    bool arduinoUsesSpi_ = false;
+
   public:
     void setArduinoTarget(bool v) {
         arduinoTarget_ = v;
     }
     bool isArduinoTarget() const {
         return arduinoTarget_;
+    }
+    void noteArduinoI2cUse() {
+        arduinoUsesI2c_ = true;
+    }
+    void noteArduinoSpiUse() {
+        arduinoUsesSpi_ = true;
+    }
+    bool arduinoUsesI2c() const {
+        return arduinoUsesI2c_;
+    }
+    bool arduinoUsesSpi() const {
+        return arduinoUsesSpi_;
     }
 
     void setInNativeVariant(bool v) {
@@ -1508,6 +1529,14 @@ class C_Emitter {
 
         if (arduinoTarget_) {
             out << "#include <Arduino.h>\n";
+            // Peripheral headers are opt-in: a sketch that never calls
+            // arduino.i2c_* / arduino.spi_* must not link the Wire/SPI
+            // globals. The defines below are set by the native-call
+            // dispatcher (method_calls.cpp) while lowering the body.
+            if (arduinoUsesI2c_)
+                out << "#define VYNE_USE_I2C 1\n";
+            if (arduinoUsesSpi_)
+                out << "#define VYNE_USE_SPI 1\n";
             // Arduino target uses the MCU runtime, not the desktop one.
             // The caller (file_handler) is responsible for placing
             // vyne_arduino.h somewhere avr-gcc's -I list can see it.
@@ -1651,6 +1680,8 @@ class C_Emitter {
 
         inNativeVariant = false;
         arduinoTarget_ = false;
+        arduinoUsesI2c_ = false;
+        arduinoUsesSpi_ = false;
         tempVarCount = 0;
         indentLevel = 1;
     }
