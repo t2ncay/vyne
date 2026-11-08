@@ -52,6 +52,7 @@ static const NativeMapEntry VCORE_MAP[] = {
     // String builder — general-purpose O(1)-append string accumulation.
     {"sb_create", "vcore_sb_create", false},
     {"sb_append", "vcore_sb_append", false},
+    {"sb_append_char", "vcore_sb_append_char", false},
     {"sb_build", "vcore_sb_build", false},
     {"sb_reset", "vcore_sb_reset", false},
 
