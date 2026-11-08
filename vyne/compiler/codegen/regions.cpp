@@ -52,6 +52,16 @@ static void emitPoolRuntimeOnce(C_Emitter& e) {
     e.markPoolRuntimeEmitted();
 }
 
+static void emitSlabRuntimeOnce(C_Emitter& e) {
+    if (e.isSlabRuntimeEmitted())
+        return;
+    std::string base = FileUtils::getExeDir();
+    std::filesystem::path moduleBase =
+        std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+    e.addInclude((moduleBase / "vyne_slab_runtime.h").string());
+    e.markSlabRuntimeEmitted();
+}
+
 static void compileBumpRegion(C_Emitter& e, const RegionNode& r) {
     ensureVmemInclude(e);
 
@@ -169,6 +179,133 @@ static void compilePoolRegion(C_Emitter& e, const RegionNode& r) {
     e.emitBlockClose();
 
     e.popPool();
+    e.popRegion();
+
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
+// ============================================================
+// @slab<T, MAX[, CAP]> — size-class allocator region
+// ------------------------------------------------------------
+// Generalizes @pool from "one fixed slot size" to power-of-two size
+// classes. `slab_alloc(n)` rounds n up to the next class and recycles a
+// slot from that class's free list; `slab_free(x)` returns it. Each
+// class's backing store is arena-allocated lazily on first use, above
+// the checkpoint, so the region rewind reclaims the whole slab.
+//
+// MAX is the largest single allocation in elements; CAP (default 8) is
+// the number of live slots per class. Both are compile-time constants,
+// which is what makes the region's peak bound a static property.
+// ============================================================
+static void compileSlabRegion(C_Emitter& e, const RegionNode& r) {
+    const auto& args = r.getPolicyArgs();
+    const int line = r.lineNumber;
+
+    if (args.size() != 2 && args.size() != 3) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @slab expects 2 or 3 arguments "
+            "(element type, max elements[, capacity]), got " +
+            std::to_string(args.size()) + " (line " + std::to_string(line) +
+            ").\n"
+            "  Syntax: @slab<Float64, 1024, 8> region name { ... };"
+        );
+    }
+
+    VType elem;
+    if (args[0] == "Float64")
+        elem = VType::Float64;
+    else if (args[0] == "Int64")
+        elem = VType::Int64;
+    else {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @slab element type must be "
+            "Float64 or Int64, got '" +
+            args[0] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+
+    int64_t maxElems = 0;
+    try {
+        maxElems = std::stoll(args[1]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @slab max elements must be an integer, "
+            "got '" +
+            args[1] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+    if (maxElems <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @slab max elements must be positive "
+            "(line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    // Must match vyne_slab_runtime.h: VYNE_SLAB_MIN_ELEMS (8) through
+    // 8 << (VYNE_SLAB_MAX_CLASSES - 1), i.e. 24 classes.
+    const int64_t maxSupported = (int64_t)8 << 23;
+    if (maxElems > maxSupported) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @slab max elements exceeds the supported "
+            "ceiling of " +
+            std::to_string(maxSupported) + " elements (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    int64_t capacity = 8;
+    if (args.size() == 3) {
+        try {
+            capacity = std::stoll(args[2]);
+        } catch (...) {
+            throw std::runtime_error(
+                "Compile Error (VNE-080): @slab capacity must be an integer, "
+                "got '" +
+                args[2] + "' (line " + std::to_string(line) + ")."
+            );
+        }
+        if (capacity <= 0) {
+            throw std::runtime_error(
+                "Compile Error (VNE-080): @slab capacity must be positive "
+                "(line " +
+                std::to_string(line) + ")."
+            );
+        }
+    }
+
+    ensureVmemInclude(e);
+    emitSlabRuntimeOnce(e);
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+    std::string slabVar = e.newTemp("vmem_slab");
+    std::string ctor = (elem == VType::Float64) ? "vyne_slab_f64_create"
+                                                : "vyne_slab_i64_create";
+    const char* slabCName =
+        (elem == VType::Float64) ? "VyneSlab_f64" : "VyneSlab_i64";
+
+    std::string capText =
+        (args.size() == 3) ? args[2] : "8 (default)";
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (slab<" + args[0] + ", " +
+        args[1] + ", " + capText + ">) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit(
+        std::string(slabCName) + " " + slabVar + " = " + ctor + "(" +
+        std::to_string(maxElems) + ", " + std::to_string(capacity) + ");"
+    );
+
+    e.pushRegion(cpHandle);
+    e.pushSlab({slabVar, elem, maxElems, capacity});
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+
+    e.popSlab();
     e.popRegion();
 
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");
@@ -517,6 +654,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compilePoolRegion(e, *this);
         return;
     }
+    if (policy == "slab") {
+        compileSlabRegion(e, *this);
+        return;
+    }
     if (policy == "speculative") {
         compileSpeculativeRegion(e, *this);
         return;
@@ -540,7 +681,7 @@ void RegionNode::compile(C_Emitter& e) const {
         "recognized but not yet implemented (line " +
         std::to_string(lineNumber) +
         ").\n"
-        "  Implemented policies: bump (default), pool, speculative, "
+        "  Implemented policies: bump (default), pool, slab, speculative, "
         "bounded, zeroed, deterministic."
     );
 }
