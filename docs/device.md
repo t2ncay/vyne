@@ -143,9 +143,33 @@ so ordinary builds do not need nvcc.
 ./examples/test/device_test
 ```
 
-On an RTX 5060, the 512×512 Float64 matmul benchmark reports `backend: cuda`,
-roughly 1 ms per run (including download) versus roughly 132 ms for the CPU
-reference, with a maximum element error around 1.4e-14.
+### Performance honesty
+
+The backend works, but **Float64 GPU is not automatically faster than a tuned
+CPU BLAS** on consumer hardware. Measured on an RTX 5060 (CUDA 13.4) and an
+i7-14700 with OpenBLAS `dgemm`:
+
+| Workload | GPU kernel | GPU download | GPU end-to-end | OpenBLAS CPU | Naive Vyne CPU loop |
+| --- | --- | --- | --- | --- | --- |
+| 512×512 | 932 µs (288 GFLOP/s) | 244 µs | ~1.18 ms | 1661 µs (162 GFLOP/s) | 192 ms (1.4 GFLOP/s) |
+| 1024×1024 | 7318 µs (293 GFLOP/s) | 891 µs | ~8.21 ms | 6742 µs (319 GFLOP/s) | 2331 ms (0.92 GFLOP/s) |
+
+Reading the table:
+
+- Against the **naive Vyne triple loop**, the GPU is roughly 200–300× faster.
+  That baseline is not a fair CPU comparison; it is simply what the library-free
+  path does today.
+- Against **OpenBLAS dgemm**, the FP64 GPU is ~1.8× faster at 512² but ~8%
+  slower at 1024². It is parity, not a scalable win, because consumer Blackwell
+  FP64 throughput is heavily reduced (the kernel is already near ~290 GFLOP/s).
+- The PCIe download costs ~0.24 ms at 512² and ~0.89 ms at 1024². Keeping data
+  device-resident across many kernels is where the GPU amortizes staging.
+- **Float32 is the important next step for ML.** Consumer FP32 throughput is far
+  higher than FP64; a Float32 tensor/kernel path is expected to beat CPU BLAS by
+  a wide margin. Float64 remains useful for scientific double-precision work
+  when data already lives on the device or the workload is much larger.
+
+Maximum element error is around 1.4e-14 at 512² and 2.8e-14 at 1024².
 
 ## Limitations and next steps
 

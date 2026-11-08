@@ -1,5 +1,10 @@
 # device_matmul_bench.vy - GPU vs CPU 512x512 Float64 matmul.
 #
+# The CPU row here is a naive Vyne triple loop, not BLAS. For the fair
+# comparison, see docs/device.md: on an i7-14700, OpenBLAS dgemm is
+# ~1661 us at 512x512 and ~6742 us at 1024x1024, so the FP64 GPU is
+# roughly parity-to-1.8x, not a scalable win. Float32 is the next step.
+#
 #   ./vynec --compile examples/benchmark/device_matmul_bench.vy
 #   ./examples/benchmark/device_matmul_bench
 
@@ -12,6 +17,7 @@ out("=== @device matmul benchmark ===");
 
     n :: Int64 := 512;
     total :: Int64 := n * n;
+    iters :: Int64 := 20;
 
     A :: Array<Float64> := [];
     B :: Array<Float64> := [];
@@ -34,16 +40,22 @@ out("=== @device matmul benchmark ===");
     # Warm up the module/kernel path.
     device_matmul(dc, da, db, n, n, n);
     device_sync();
+    device_download(dc, C, total);
 
-    t0 :: Int64 := vcore.now_ns();
-    through r :: 0..2 -> loop {
+    kt0 :: Int64 := vcore.now_ns();
+    through r :: 0..iters-1 -> loop {
         device_matmul(dc, da, db, n, n, n);
         device_sync();
+    };
+    kt1 :: Int64 := vcore.now_ns();
+
+    dt0 :: Int64 := vcore.now_ns();
+    through r :: 0..iters-1 -> loop {
         device_download(dc, C, total);
     };
-    t1 :: Int64 := vcore.now_ns();
+    dt1 :: Int64 := vcore.now_ns();
 
-    t2 :: Int64 := vcore.now_ns();
+    ct0 :: Int64 := vcore.now_ns();
     through i :: 0..n-1 -> loop {
         through j :: 0..n-1 -> loop {
             s :: Float64 := 0.0;
@@ -53,7 +65,7 @@ out("=== @device matmul benchmark ===");
             ref[i * n + j] = s;
         };
     };
-    t3 :: Int64 := vcore.now_ns();
+    ct1 :: Int64 := vcore.now_ns();
 
     max_err :: Float64 := 0.0;
     through i :: 0..total-1 -> loop {
@@ -62,10 +74,21 @@ out("=== @device matmul benchmark ===");
         if d > max_err { max_err = d; }
     };
 
-    gpu_ms :: Int64 := (t1 - t0) / 3000000;
-    cpu_ms :: Int64 := (t3 - t2) / 1000000;
-    out("gpu (3 runs, incl. download): " + string(gpu_ms) + " ms/run");
-    out("cpu reference               : " + string(cpu_ms) + " ms/run");
-    out("max error                   : " + string(max_err));
-    out("device peak                 : " + string(device_peak_bytes()) + " bytes");
+    kernel_us :: Int64 := (kt1 - kt0) / (iters * 1000);
+    download_us :: Int64 := (dt1 - dt0) / (iters * 1000);
+    cpu_ns :: Int64 := ct1 - ct0;
+    cpu_us :: Int64 := cpu_ns / 1000;
+
+    flops :: Float64 := 2.0 * float64(n) * float64(n) * float64(n);
+    gpu_gflops :: Float64 := flops / (float64(kernel_us) * 1000.0);
+    cpu_gflops :: Float64 := flops / float64(cpu_ns);
+
+    out("gpu kernel      : " + string(kernel_us) + " us (" +
+        string(gpu_gflops) + " GFLOP/s)");
+    out("gpu download    : " + string(download_us) + " us");
+    out("gpu end-to-end  : " + string(kernel_us + download_us) + " us");
+    out("naive cpu loop  : " + string(cpu_us) + " us (" +
+        string(cpu_gflops) + " GFLOP/s)");
+    out("max error       : " + string(max_err));
+    out("device peak     : " + string(device_peak_bytes()) + " bytes");
 };
