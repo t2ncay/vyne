@@ -109,6 +109,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         std::string native = coerceToNative(e, expression.get(), raw, retVT);
         if (e.hasRegion()) {
             e.emitStreamedUnwind();
+            e.emitPersistentUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" +
                 std::to_string(e.getRegionStack().size()) + ");"
@@ -170,6 +171,7 @@ void ReturnNode::compile(C_Emitter& e) const {
 
             if (e.hasRegion()) {
                 e.emitStreamedUnwind();
+                e.emitPersistentUnwind();
                 e.emit(
                     "vmem_runtime_pop_checkpoints(" +
                     std::to_string(e.getRegionStack().size()) + ");"
@@ -306,6 +308,7 @@ void ReturnNode::compile(C_Emitter& e) const {
             e.emitRegionUnwind();
         } else {
             e.emitStreamedUnwind();
+            e.emitPersistentUnwind();
             e.emit(
                 "vmem_runtime_pop_checkpoints(" + std::to_string(nRegions) +
                 ");"
