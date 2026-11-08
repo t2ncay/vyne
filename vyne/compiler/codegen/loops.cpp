@@ -422,6 +422,15 @@ void ForNode::compile(C_Emitter& e) const {
         e.emit("int64_t " + elemVar + " = " + iv + ";");
         if (body)
             body->compile(e);
+        if (const ASTNode* inv = getInvariant())
+            emitContractCheck(
+                e,
+                inv,
+                "invariant",
+                "loop:" + iteratorName,
+                "",
+                getInvariantLine()
+            );
         e.emitBlockClose();
         return;
     }
@@ -447,6 +456,15 @@ void ForNode::compile(C_Emitter& e) const {
             );
             if (body)
                 body->compile(e);
+            if (const ASTNode* inv = getInvariant())
+                emitContractCheck(
+                    e,
+                    inv,
+                    "invariant",
+                    "loop:" + iteratorName,
+                    "",
+                    getInvariantLine()
+                );
             e.emitBlockClose();
             return;
         }
@@ -471,6 +489,15 @@ void ForNode::compile(C_Emitter& e) const {
     );
     if (body)
         body->compile(e);
+    if (const ASTNode* inv = getInvariant())
+        emitContractCheck(
+            e,
+            inv,
+            "invariant",
+            "loop:" + iteratorName,
+            "",
+            getInvariantLine()
+        );
     e.emitBlockClose();
     e.emitBlockClose();
 }

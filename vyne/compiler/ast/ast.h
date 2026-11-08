@@ -1141,6 +1141,14 @@ class IndexAssignmentNode : public ASTNode {
     }
 };
 
+// A single requires/ensures clause. Kept next to FunctionNode because it
+// is not an AST node of its own: the condition is compiled in the
+// function's scope, and `result` resolves to the return-value alias.
+struct ContractClause {
+    std::shared_ptr<ASTNode> expr;
+    int line = 0;
+};
+
 class FunctionNode : public ASTNode {
     uint32_t targetModuleId;
     std::string targetModule;
@@ -1152,6 +1160,9 @@ class FunctionNode : public ASTNode {
     std::vector<std::string> typeParams;
     VType returnArrayElemType = VType::Unknown; // M4-C1
     std::string returnTypePath;
+    std::vector<ContractClause> requiresContracts;
+    std::vector<ContractClause> ensuresContracts;
+    std::string sourceFile;
 
   public:
     FunctionNode(
@@ -1219,6 +1230,26 @@ class FunctionNode : public ASTNode {
 
     const std::string& getTargetModule() const {
         return targetModule;
+    }
+
+    // --- Contracts ---------------------------------------------------
+    void addRequires(std::shared_ptr<ASTNode> expr, int line) {
+        requiresContracts.push_back({std::move(expr), line});
+    }
+    void addEnsures(std::shared_ptr<ASTNode> expr, int line) {
+        ensuresContracts.push_back({std::move(expr), line});
+    }
+    const std::vector<ContractClause>& getRequires() const {
+        return requiresContracts;
+    }
+    const std::vector<ContractClause>& getEnsures() const {
+        return ensuresContracts;
+    }
+    void setSourceFile(std::string file) {
+        sourceFile = std::move(file);
+    }
+    const std::string& getSourceFile() const {
+        return sourceFile;
     }
 };
 
@@ -1362,6 +1393,8 @@ class MethodCallNode : public ASTNode {
 class WhileNode : public ASTNode {
     std::unique_ptr<ASTNode> condition;
     std::unique_ptr<ASTNode> body;
+    std::shared_ptr<ASTNode> invariantExpr;
+    int invariantLine = 0;
 
   public:
     WhileNode(std::unique_ptr<ASTNode> c, std::unique_ptr<ASTNode> b)
@@ -1373,6 +1406,17 @@ class WhileNode : public ASTNode {
     evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     std::string getCExpr(C_Emitter& e) const override;
     void compile(C_Emitter& e) const override;
+
+    void setInvariant(std::shared_ptr<ASTNode> expr, int line) {
+        invariantExpr = std::move(expr);
+        invariantLine = line;
+    }
+    const ASTNode* getInvariant() const {
+        return invariantExpr.get();
+    }
+    int getInvariantLine() const {
+        return invariantLine;
+    }
 };
 
 class ForNode : public ASTNode {
@@ -1381,6 +1425,8 @@ class ForNode : public ASTNode {
     std::unique_ptr<ASTNode> body;
     std::string iteratorName;
     ForMode mode;
+    std::shared_ptr<ASTNode> invariantExpr;
+    int invariantLine = 0;
 
   public:
     ForNode(
@@ -1399,6 +1445,20 @@ class ForNode : public ASTNode {
     evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+
+    void setInvariant(std::shared_ptr<ASTNode> expr, int line) {
+        invariantExpr = std::move(expr);
+        invariantLine = line;
+    }
+    const ASTNode* getInvariant() const {
+        return invariantExpr.get();
+    }
+    int getInvariantLine() const {
+        return invariantLine;
+    }
+    const std::string& getIteratorName() const {
+        return iteratorName;
+    }
 
     static ForMode getForMode(const std::string& modeStr) {
         if (modeStr == "collect")

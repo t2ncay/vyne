@@ -173,6 +173,7 @@ class Parser {
     std::unique_ptr<ASTNode> parseIfStatement();
     std::unique_ptr<ASTNode> parseWhileLoop();
     std::unique_ptr<ASTNode> parseForLoop();
+    std::unique_ptr<ASTNode> parseInvariantLoop();
     std::unique_ptr<ASTNode> parseAssignment();
     std::unique_ptr<ASTNode> parseVariableAssignment(
         std::unique_ptr<ASTNode> lhs,

@@ -380,6 +380,18 @@ static inline VyneValue vyne_string_static(const char* s) {
     return v;
 }
 
+// Truthiness for contract conditions and boxed boolean branches.
+// Mirrors the desktop `vyne_is_truthy` in printing.h.
+static inline bool vyne_is_truthy(VyneValue v) {
+    if (v.type == V_NULL)
+        return false;
+    if (v.type == V_BOOL || v.type == V_INT64)
+        return v.as.i64 != 0;
+    if (v.type == V_FLOAT64)
+        return v.as.f64 != 0.0;
+    return true;
+}
+
 static inline void _vyne_print_internal(VyneValue v) {
     // Qualified lookup only. On several AVR cores, `Serial.print`
     // participates in unqualified lookup together with `std::print`

@@ -18,6 +18,7 @@
 #include "parser.h"
 #include "../../runtime/diagnostics.h"
 #include "../ast/value.h"
+#include "../contract_config.h"
 
 #define RESET "\033[0m"
 #define RED "\033[31m"
@@ -762,6 +763,10 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
     case VTokenType::Region:
         return parseRegionStatement();
     case VTokenType::At:
+        if (lookAhead(1).type == VTokenType::Identifier &&
+            lookAhead(1).name == "invariant") {
+            return parseInvariantLoop();
+        }
         return parseRegionStatement();
     case VTokenType::Scratch:
         return parseScratchDeclaration();
@@ -1333,6 +1338,55 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         retArrayElem = resolveArrayElementType(retTypePath);
     }
 
+    // Contract clauses: requires(expr) / ensures(expr), zero or more,
+    // between the return type and the body. Parentheses make the clause
+    // boundary unambiguous; a trailing semicolon is optional.
+    std::vector<std::pair<std::shared_ptr<ASTNode>, int>> requiresClauses;
+    std::vector<std::pair<std::shared_ptr<ASTNode>, int>> ensuresClauses;
+    while (peekToken().type == VTokenType::Identifier &&
+           (peekToken().name == "requires" ||
+            peekToken().name == "ensures")) {
+        bool isRequires = peekToken().name == "requires";
+        int clauseLine = peekToken().line;
+        getNextToken();
+
+        if (peekToken().type != VTokenType::Left_Parenthese) {
+            emitError(
+                "'" + std::string(isRequires ? "requires" : "ensures") +
+                    "' must be followed by a parenthesised expression",
+                clauseLine,
+                "VNE-112",
+                {"Syntax: requires(x > 0) ensures(result > 0)"}
+            );
+            break;
+        }
+
+        consume(VTokenType::Left_Parenthese);
+        auto clauseExpr = parseExpression();
+        consume(VTokenType::Right_Parenthese);
+        if (peekToken().type == VTokenType::Semicolon)
+            consume(VTokenType::Semicolon);
+
+        if (!clauseExpr) {
+            emitError(
+                "empty contract clause",
+                clauseLine,
+                "VNE-112",
+                {"Provide a boolean expression, e.g. requires(x > 0)"}
+            );
+            continue;
+        }
+
+        if (isRequires)
+            requiresClauses.emplace_back(
+                std::shared_ptr<ASTNode>(std::move(clauseExpr)), clauseLine
+            );
+        else
+            ensuresClauses.emplace_back(
+                std::shared_ptr<ASTNode>(std::move(clauseExpr)), clauseLine
+            );
+    }
+
     consume(VTokenType::Left_CB);
     std::vector<std::shared_ptr<ASTNode>> body;
     while (peekToken().type != VTokenType::Right_CB &&
@@ -1363,6 +1417,11 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
     if (retType == VType::Struct) {
         node->setReturnTypePath(std::move(retTypePath));
     }
+    for (auto& c : requiresClauses)
+        node->addRequires(std::move(c.first), c.second);
+    for (auto& c : ensuresClauses)
+        node->addEnsures(std::move(c.first), c.second);
+    node->setSourceFile(Vyne::DiagnosticEngine::getCurrentFile());
     return node;
 }
 
@@ -1813,6 +1872,67 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
     );
     node->lineNumber = line;
     return node;
+}
+
+// `@invariant(expr) through ... -> loop { ... };`
+// `@invariant(expr) while ... { ... };`
+//
+// The clause is evaluated before the loop and after every iteration.
+// The parser attaches it to the loop node; loops.cpp emits the checks.
+std::unique_ptr<ASTNode> Parser::parseInvariantLoop() {
+    int line = peekToken().line;
+    consume(VTokenType::At);
+    Token kw = consume(VTokenType::Identifier);
+    if (kw.name != "invariant") {
+        emitError(
+            "Expected 'invariant' after '@'",
+            line,
+            "VNE-112",
+            {"Syntax: @invariant(i < n) through i :: 0..n-1 -> loop { ... };"}
+        );
+    }
+
+    if (peekToken().type != VTokenType::Left_Parenthese) {
+        emitError(
+            "@invariant must be followed by a parenthesised expression",
+            line,
+            "VNE-112",
+            {"Syntax: @invariant(i < n) through i :: 0..n-1 -> loop { ... };"}
+        );
+        return std::make_unique<NullNode>();
+    }
+
+    consume(VTokenType::Left_Parenthese);
+    auto expr = parseExpression();
+    consume(VTokenType::Right_Parenthese);
+
+    if (!expr) {
+        emitError(
+            "empty @invariant expression",
+            line,
+            "VNE-112",
+            {"Provide a boolean expression, e.g. @invariant(i < n)"}
+        );
+        return std::make_unique<NullNode>();
+    }
+
+    auto loop = parseStatement();
+    auto sharedExpr = std::shared_ptr<ASTNode>(std::move(expr));
+
+    if (loop && loop->type() == NodeType::FOR) {
+        static_cast<ForNode*>(loop.get())->setInvariant(sharedExpr, line);
+    } else if (loop && loop->type() == NodeType::WHILE) {
+        static_cast<WhileNode*>(loop.get())->setInvariant(sharedExpr, line);
+    } else {
+        emitError(
+            "@invariant must prefix a `through` or `while` loop",
+            line,
+            "VNE-112",
+            {"Move the clause above the loop, or remove it"}
+        );
+    }
+
+    return loop;
 }
 
 std::unique_ptr<ASTNode> Parser::parseAssignment() {
@@ -2655,6 +2775,40 @@ void Parser::applyRulesetValue(
         return;
     }
 
+    // Handle contract emission mode
+    if (ruleName.name == "contracts" || ruleName.name == "contract") {
+        if (value == "off" || value == "none" || value == "release") {
+            setContractMode(ContractMode::Off);
+        } else if (value == "evidence") {
+            setContractMode(ContractMode::Evidence);
+        } else if (
+            value == "check" || value == "on" || value == "strict"
+        ) {
+            setContractMode(ContractMode::Check);
+        } else {
+            emitWarning(
+                "Unknown contracts mode: " + value,
+                line,
+                Vyne::Category::Type,
+                "VNE-112",
+                {"Available: check, evidence, off"}
+            );
+        }
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Contracts mode set to: " + value,
+                "",
+                line,
+                0,
+                {"Modes: check (assert), evidence (assert + log), off"},
+                "VNE-113"
+            }
+        );
+        return;
+    }
+
     // Handle type check mode
     if (ruleName.name == "type_check" || ruleName.name == "type") {
         if (value == "hybrid" || value == "strict" || value == "dynamic") {
@@ -2783,7 +2937,7 @@ void Parser::applyRulesetValue(
         Vyne::Category::Runtime,
         "VNE-016",
         {"Available: warnings, memory_limit, type_check, implicit_casting, "
-         "profiling, debug, trace"}
+         "profiling, debug, trace, contracts"}
     );
 }
 
@@ -2833,6 +2987,24 @@ void Parser::applyRulesetValue(const Token& ruleName, int64_t value, int line) {
 }
 
 void Parser::applyRulesetFlag(const Token& ruleName, int line) {
+    // Contracts (flag form enables the default check mode)
+    if (ruleName.name == "contracts" || ruleName.name == "contract") {
+        setContractMode(ContractMode::Check);
+        emit(
+            Vyne::Diagnostic{
+                Vyne::Severity::Note,
+                Vyne::Category::Type,
+                "Contracts enabled (check mode)",
+                "",
+                line,
+                0,
+                {"Use contracts = \"evidence\" for a machine-readable log"},
+                "VNE-113"
+            }
+        );
+        return;
+    }
+
     // Warnings
     if (ruleName.type == VTokenType::Warnings || ruleName.name == "warnings") {
         Vyne::setQuietMode(false);
