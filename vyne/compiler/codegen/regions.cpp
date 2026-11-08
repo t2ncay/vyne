@@ -62,6 +62,16 @@ static void emitSlabRuntimeOnce(C_Emitter& e) {
     e.markSlabRuntimeEmitted();
 }
 
+static void emitRingRuntimeOnce(C_Emitter& e) {
+    if (e.isRingRuntimeEmitted())
+        return;
+    std::string base = FileUtils::getExeDir();
+    std::filesystem::path moduleBase =
+        std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+    e.addInclude((moduleBase / "vyne_ring_runtime.h").string());
+    e.markRingRuntimeEmitted();
+}
+
 static void compileBumpRegion(C_Emitter& e, const RegionNode& r) {
     ensureVmemInclude(e);
 
@@ -306,6 +316,118 @@ static void compileSlabRegion(C_Emitter& e, const RegionNode& r) {
     e.emitBlockClose();
 
     e.popSlab();
+    e.popRegion();
+
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
+// ============================================================
+// @ring<T, N, MAX> — rotating fixed-slot region
+// ------------------------------------------------------------
+// N slots of MAX elements, allocated once when the region opens.
+// `ring_alloc(n)` returns the next slot (0 < n <= MAX) and advances
+// the cursor; after N allocations the oldest slot is overwritten.
+// There is no free intrinsic. The backing store sits above the
+// checkpoint, so the region rewind reclaims it.
+//
+// The programmer contract: no value obtained from ring_alloc may
+// outlive N subsequent ring_alloc calls. This is the bounded-history
+// discipline of a sliding window or streaming pipeline; the compiler
+// does not yet prove it.
+// ============================================================
+static void compileRingRegion(C_Emitter& e, const RegionNode& r) {
+    const auto& args = r.getPolicyArgs();
+    const int line = r.lineNumber;
+
+    if (args.size() != 3) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring expects exactly 3 arguments "
+            "(element type, slot count, slot size), got " +
+            std::to_string(args.size()) + " (line " + std::to_string(line) +
+            ").\n"
+            "  Syntax: @ring<Float64, 4, 512> region name { ... };"
+        );
+    }
+
+    VType elem;
+    if (args[0] == "Float64")
+        elem = VType::Float64;
+    else if (args[0] == "Int64")
+        elem = VType::Int64;
+    else {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring element type must be "
+            "Float64 or Int64, got '" +
+            args[0] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+
+    int64_t slots = 0;
+    try {
+        slots = std::stoll(args[1]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring slot count must be an integer, "
+            "got '" +
+            args[1] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+    if (slots <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring slot count must be positive "
+            "(line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    int64_t slotElems = 0;
+    try {
+        slotElems = std::stoll(args[2]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring slot size must be an integer, "
+            "got '" +
+            args[2] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+    if (slotElems <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @ring slot size must be positive "
+            "(line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    ensureVmemInclude(e);
+    emitRingRuntimeOnce(e);
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+    std::string ringVar = e.newTemp("vmem_ring");
+    std::string ctor = (elem == VType::Float64) ? "vyne_ring_f64_create"
+                                                : "vyne_ring_i64_create";
+    const char* ringCName =
+        (elem == VType::Float64) ? "VyneRing_f64" : "VyneRing_i64";
+
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (ring<" + args[0] + ", " +
+        args[1] + ", " + args[2] + ">) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit(
+        std::string(ringCName) + " " + ringVar + " = " + ctor + "(" +
+        std::to_string(slots) + ", " + std::to_string(slotElems) + ");"
+    );
+
+    e.pushRegion(cpHandle);
+    e.pushRing({ringVar, elem, slots, slotElems});
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+
+    e.popRing();
     e.popRegion();
 
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");
@@ -658,6 +780,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compileSlabRegion(e, *this);
         return;
     }
+    if (policy == "ring") {
+        compileRingRegion(e, *this);
+        return;
+    }
     if (policy == "speculative") {
         compileSpeculativeRegion(e, *this);
         return;
@@ -681,8 +807,8 @@ void RegionNode::compile(C_Emitter& e) const {
         "recognized but not yet implemented (line " +
         std::to_string(lineNumber) +
         ").\n"
-        "  Implemented policies: bump (default), pool, slab, speculative, "
-        "bounded, zeroed, deterministic."
+        "  Implemented policies: bump (default), pool, slab, ring, "
+        "speculative, bounded, zeroed, deterministic."
     );
 }
 

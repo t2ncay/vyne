@@ -57,11 +57,17 @@ structs keep the 8-byte bump alignment.
 `modules/vyne_slab_runtime.h` backs the `@slab<T, MAX[, CAP]>` region policy: a
 power-of-two size-class allocator with O(1) alloc/free, lazy per-class backing,
 and zero-fill on allocation. The region rewind reclaims every class's backing.
-Tests: `tests/alignment.c` and `tests/slab.c`.
+
+`modules/vyne_ring_runtime.h` backs `@ring<T, N, MAX>`: N fixed-size slots that
+rotate in order and overwrite the oldest after N allocations. It never grows and
+has no free intrinsic; the region rewind reclaims the backing.
+
+Tests: `tests/alignment.c`, `tests/slab.c`, and `tests/ring.c`.
 
 ```sh
 cc -std=c11 vyne/runtime/tests/alignment.c -lm -o alignment && ./alignment
 cc -std=c11 vyne/runtime/tests/slab.c -lm -o slab && ./slab
+cc -std=c11 vyne/runtime/tests/ring.c -lm -o ring && ./ring
 ```
 
 ## Debug: poison-on-rewind
