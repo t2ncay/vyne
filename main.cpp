@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "cli/file_handler.h"
+#include "cli/init.h"
 #include "cli/packager.h"
 #include "cli/repl.h"
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
@@ -190,6 +191,9 @@ static void printHelp() {
         "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
         W);
 
+    header("COMMANDS");
+    row("init [path]", MAGENTA, "Scaffold a new Vyne project", W);
+
     header("TOOLS");
     row("--build-game <script.vy>",
         MAGENTA,
@@ -243,6 +247,11 @@ int main(int argc, char* argv[]) {
     SymbolContainer env;
     uint32_t globalId = StringPool::instance().intern("global");
     env[globalId] = {};
+
+    // Project scaffolder. Kept ahead of the flag scan so `init` can own
+    // its own option namespace without colliding with compile flags.
+    if (argc >= 2 && strcmp(argv[1], "init") == 0)
+        return runInit(argc, argv);
 
     if (argc == 3 && strcmp(argv[1], "--build-game") == 0) {
         VynePackager packager(argv[2]);
