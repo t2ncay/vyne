@@ -532,3 +532,346 @@ Typed arrays now participate in region commits; allocation and commit behaviour 
 See `git log v0.4.0..HEAD` for the raw list. The 66 commits this release covers span `c65a1e45` (2026-10-04) through `3d772e4c` (2026-10-26).
 
 **Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.4.0...v0.5.0>
+
+---
+
+# Vyne v0.6.0 — region policies, CUDA + Float32, the Arduino Uno backend, and `vynec init`
+
+**Released 2026-11-09**
+
+This release turns the region memory model into a policy suite (`@bounded`, `@zeroed`, `@deterministic`, `@ring`, `@streamed`, `@persistent`, `@slab`), makes `Float32` a first-class type and lands the CUDA `@device` backend with FP32 as the default device dtype, ships five scientific standard libraries (`vstat`, `vtermplot`, `vcomplex`, `vinterp`, `vcsv`) plus the image stack (`vimage`, `vconv`, ESPCN inference), adds the first non-desktop target (the Arduino Uno AVR backend) with a 91-function MCU runtime, and introduces `vynec init` with an interactive FTXUI questionnaire and five project templates. It also hardens `vlin`, adds typed-array alignment and codegen peepholes, and closes a cluster of region and MCU codegen defects.
+
+---
+
+## Highlights
+
+- **Region policy suite.** Seven policies and a qualified commit syntax. `@bounded<N>`, `@zeroed`, and `@deterministic` land with `<regionName>.commit(x)` / `.commit_if(pred)`; `@ring<T, N, MAX>`, `@streamed<T, MAX>`, `@slab<T, MAX[, CAP]>`, and `@persistent` follow. Commits `3837317` (#97), `a6abd34` (#99), `80a0e74` (#100), `a10425a` (#101), `a684ed0` (#102).
+
+- **First-class `Float32` and the CUDA `@device` backend.** `Float32` spans the lexer, parser, interpreter, tagged values, typed arrays, native ABI, and codegen. `@device<backend>` runs regions on a device arena with a dynamic CUDA driver backend, a CPU fallback, and FP32 as the default. Measured on an RTX 5060 + i7-14700: 512×512 FP32 matmul in 167 µs (1607 GFLOP/s) versus OpenBLAS `sgemm` at 626 µs (429 GFLOP/s). Commit `9c8275e` (#111).
+
+- **Five scientific libraries.** `vstat` (descriptive statistics, correlation, regression, histograms, streaming), `vtermplot` (terminal line/scatter/bar/histogram/heatmap/sparkline), `vcomplex` (scalar and split-array complex arithmetic), `vinterp` (1-D and 2-D interpolation), and `vcsv` (RFC 4180 CSV/TSV). Each ships a README, a test, and a benchmark. Commits `3c8d8d4` (#104), `53ec847` (#105), `f7e7984` (#107), `ee81de9` (#108), `28a0a40` (#109).
+
+- **Image and super-resolution stack.** `vimage` (stb-backed decode/encode, resize, crop, grayscale) and `vconv` (OIHW `conv2d`, activations, ESPCN pixel shuffle, weight-bundle loader), plus `vstat` metrics (`mse`, `mae`, `psnr`, `ssim`), an end-to-end ESPCN inference example, and a PyTorch weight exporter. Commit `0dfb939` (#112).
+
+- **Arduino Uno AVR backend.** The first non-desktop target: a self-contained MCU runtime (1 KB bump arena, 16-deep checkpoints, hard-halt OOM), 91 functions across 10 headers, typed-array containers, `region`/`scratch` lowering, `@bounded` on MCU, and single-command transpile → avr-gcc → flash → serial monitor. Commits `f3fc3bf` (#95), `1c8a703` (#96), `f4af3e9`, `2f78387`, `23a3de7`, `5a803e9`.
+
+- **`vynec init`.** A dependency-free template engine, an interactive FTXUI 7.1.0 questionnaire, and five templates (blank, ML, embedded, scientific, SR). Generated ML/scientific/SR projects build and run offline. Commits `681e7e0` (#113), `6ff43e1` (#114), `0ddbf0a`, `31bc169` (#115).
+
+---
+
+## New features
+
+### Region policies
+
+#### `@bounded`, `@zeroed`, `@deterministic`, and qualified commits
+
+`@bounded<N>` brackets a region with arena accounting and halts on exit if the region exceeded `N` bytes (VNE-101 at compile time, VNE-102 at runtime). `@zeroed` sets `g_arena_zero_mode`, so every allocation inside the region is zero-filled, and static scratch is emitted as `= {0}` with a `memset` for VLAs. `@deterministic` is `@zeroed` plus an AST scan that rejects calls to `vcore.now`/`now_ns`/`input`, `vmath.random`/`random_float`/`seed`, and `arduino.millis`/`micros`/`random`/`analog_read*` (VNE-106).
+
+The parser recognizes `<regionName>.commit(x)` and `<regionName>.commit_if(pred)` only when the qualifier names the innermost open region; committing across a nesting level fires VNE-086. Commit `3837317` (#97).
+
+`@bounded` accounting was later extended to include static scratch and runtime-sized VLAs, not just arena traffic: static scratch is counted at compile time (`applyBoundedStaticScratch`) and VLAs are checked per declaration before the stack pointer advances. Commit `73fb29a`.
+
+#### `@ring<T, N, MAX>`
+
+A rotating-slot allocator: `N` fixed slots backed by one `N*MAX` region allocation. `ring_alloc(n)` returns the next slot, zero-fills the requested elements, and advances the cursor; after `N` allocations the oldest slot is overwritten. There is no `ring_free` — the region rewind reclaims the backing store. Commit `80a0e74` (#100).
+
+#### `@streamed<T, MAX>`
+
+A pinned-memory frame for host/device transfer staging. The runtime uses `VirtualAlloc` + `VirtualLock` on Windows and `mmap` + `mlock` elsewhere, falling back to `malloc` where locking is unavailable; lock success is reported by `vmem.stream_is_pinned`. `streamed_alloc(n)` zero-fills at `VYNE_TYPED_ARRAY_ALIGN` and enforces a total element budget (VNE-082). Nested frames reclaim independently, and every early-return path unwinds the stream frame first. Commit `a10425a` (#101).
+
+#### `@persistent`
+
+Routes a region body's allocations to `g_commit_arena`, so values survive ordinary region rewinds for the whole program lifetime. The outermost `enter` saves the enclosing arena and the outermost `leave` publishes the advanced commit-arena pointer; nested `@persistent` regions share storage. `region.commit(x)` inside `@persistent` returns its argument unchanged (already in the commit arena), and persistent regions are excluded from escape checks (VNE-070). Desktop-only. Commit `a684ed0` (#102).
+
+#### `@slab<T, MAX[, CAP]>` and typed-array alignment
+
+`@slab` is a power-of-two size-class allocator: lazy per-class backing from the region arena, O(1) `slab_alloc(n)` / `slab_free(x)`, zero-fill on allocation, and double-free/wrong-region diagnostics. Typed-array payloads (create, push reallocation, slice) now come from `arena_alloc_aligned(..., VYNE_TYPED_ARRAY_ALIGN)`, defaulting to 32 bytes and overridable with `-DVYNE_TYPED_ARRAY_ALIGN=64`. Commit `a6abd34` (#99).
+
+#### Codegen peepholes
+
+Identity folds remove `x - 0`, `x * 1`, `1 * x`, `x / 1`, and (Int64 only) `x + 0`; the Float64 `+ 0` case is deliberately not folded because `-0.0 + 0.0` flips the sign of zero. Division and modulo by a non-zero numeric literal skip the runtime divide-by-zero branch, and a literal zero divisor is now a compile-time error. Commit `a6abd34` (#99).
+
+#### Poison-on-rewind (debug mode)
+
+When enabled, `arena_rewind()` and `arena_try_reclaim()` overwrite released memory with a quiet-NaN word (`0x7FF8DEADBEEFCAFE`) and an `0xA5` byte remainder, so a stale read after a rewind yields NaN instead of a plausible leftover. Off by default; enable with `VYNE_POISON_ARENA=1`, `vyne_arena_set_poison(1)`, or `-DVYNE_ARENA_POISON_DEFAULT=1`. Desktop-only. Commit `793ec9f` (#98).
+
+### `Float32` and the CUDA `@device` backend
+
+`Float32` is now a real `VType` across the compiler and runtime. Literals use the `1.0f` / `2f` / `1e3f` forms, and the `float32(x)` builtin converts explicitly. `Array<Float32>` lowers to `VyneArray_f32` / `V_F32_ARRAY`, scalars use `V_FLOAT32`, native functions can take or return `Array<Float32>` as `float*` / `VyneArray_f32`, and struct fields, `type()`, `string()`, `push`/`index`/`slice`/`pop`/`sort` all handle the type. Promotion is sticky: `Float32` op `Float32` stays `Float32`; mixing with `Float64` or `Int64` promotes to `Float64`.
+
+`@device<backend>` opens a device frame, runs the body, closes the frame, then rewinds the host arena; early returns and native return paths unwind the device frame first. The intrinsics `device_alloc`, `device_alloc_f64`, `upload`, `download`, `add`, `sub`, `mul`, `scale`, `relu`, `fill`, `matmul`, `sync`, `bytes`, `peak_bytes`, `backend`, and `available` are intercepted only inside an active device region. Host buffers must be typed `Array<Float32>` / `Array<Float64>`; handles are `Int64` device pointers. `device_alloc(n)` allocates `Float32` by default. CUDA kernels are compiled to PTX by `scripts/build_cuda_ptx.ps1`, embedded in `detail/vyne_cuda_ptx.h`, and JIT-compiled by the driver, so generated C needs no CUDA headers or link flags. `@device` is rejected on AVR. Commit `9c8275e` (#111).
+
+### Standard libraries
+
+#### `vstat`
+
+A full descriptive-statistics and least-squares library layered as Types/Kernels/Reductions/Correlation/Regression/Histogram/Streaming/Metrics leaves plus a facade. The surface includes `Series { data, n }` for zero-copy native calls, `sum`/`mean`/`min`/`max`/`range`, variance/stddev, median/quantile/percentile/IQR/MAD/mode, z-scores, cumulative sums, differences, covariance, Pearson/Spearman, autocorrelation, cross-correlation, linear/multiple/ridge regression, histograms/CDF/KDE, and Welford one-pass state. Commit `3c8d8d4` (#104). `mse`, `mae`, `psnr`, and `ssim` were added by `0dfb939` (#112).
+
+#### `vtermplot`
+
+A matplotlib-flavoured terminal plotting library with line, scatter, bars, histogram, heatmap, and sparkline surfaces; Unicode and ASCII themes, optional ANSI color, axes/labels, and file export. `SeriesData` carries typed x/y arrays, rendering is string-based, and sparklines use the `vcore` string builder for O(n) output. Commit `53ec847` (#105).
+
+#### `vcomplex`
+
+Scalar complex arithmetic (`add`/`sub`/`mul`/`div`/`scale`/`neg`/`conj`/`abs`/`abs_sq`/`arg`/`equals`), elementary functions (`exp`/`log`/`sqrt`/`pow`/`sin`/`cos`/`tan`), polar conversion and rotation, and element-wise operations over split `(re, im)` arrays. Element-wise kernels are native leaves over `Array<Float64>`; `ComplexArray` wrappers allocate the output and make one native call. Commit `f7e7984` (#107).
+
+#### `vinterp`
+
+1-D interpolation over sorted curves (nearest, linear with extrapolation, clamped linear, Lagrange, natural cubic spline, resampling) and 2-D interpolation over row-major grids (nearest, bilinear, Catmull-Rom bicubic, fractional-index and physical-coordinate wrappers). Kernels inline their binary search so they remain leaves under the native array ABI. Commit `ee81de9` (#108).
+
+#### `vcsv`
+
+RFC 4180-style CSV/TSV parse and write with quoted fields, doubled quotes, embedded delimiters/newlines, CRLF input, optional headers, flat row-major storage, typed-column extraction, column selection, serialization, and vfs-backed file I/O. The parser scans bytes with `String.byte_at` and appends with the new `vcore.sb_append_char`, eliminating per-character string allocation; a 274 KB / 10k-row parse dropped from ~2270 ms to ~1 ms. A cross-library integration test chains `vcsv` → `vstat` → `vinterp` → `vcomplex` → `vtermplot`. Commit `28a0a40` (#109).
+
+#### `vimage` and `vconv`
+
+`vimage` wraps vendored `stb_image` / `stb_image_write` for PNG/JPEG/BMP/TGA decode and encode, with bilinear resize, clamped crop, and Rec.601 grayscale; pixels are HWC `Float64` in `[0,1]`, and `load_raw` returns a `[width, height, channels, samples...]` header stripped by an O(1) `pixels()` view. `vconv` is the CPU forward convolution core: square-kernel `conv2d` with stride and zero padding, PyTorch OIHW weight layout, optional bias, ReLU/leaky-ReLU/tanh/sigmoid, ESPCN pixel shuffle, and a `.vwy`/`.vwt` weight-bundle loader. Both are wired into `native_maps.h` and `C_Emitter::findNative`. Commit `0dfb939` (#112).
+
+`examples/espcn_inference.vy` is the first end-to-end image SR program (decode → three conv layers → activation → pixel shuffle → encode, with PSNR/SSIM against a ground truth and a bilinear baseline), and `scripts/export_espcn_weights.py` exports PyTorch state dicts (or a deterministic passthrough model with `--random`) into the binary `.vwy` format.
+
+### Arduino Uno AVR backend
+
+#### Backend and MCU runtime
+
+`vynec --arduino uno --arduino-flash examples/arduino/blink.vy` transpiles, builds against the MCU runtime with avr-gcc, and produces `.elf` / `.hex` ready for `arduino-cli upload`. The MCU runtime is a separate, self-contained implementation (it does not reuse `vyne_runtime.h`): `vyne_arduino.h` owns `setup()` / `loop()` and calls the emitted `vyne_setup()` / `vyne_loop()`; `detail/mcu_arena.h` provides a 1 KB bump allocator with 8-byte alignment and a 16-deep checkpoint stack, halting hard on OOM; `detail/mcu_types.h` mirrors the desktop `VyneValue` discriminant layout; `detail/mcu_hardware.h` is the only file that touches the Arduino API. `C_Emitter` gained `arduinoTarget_` / `isArduinoTarget()`, a two-branch `finalize()`, and the `arduino` pseudo-module. Commit `f3fc3bf` (#95).
+
+The `region`/`scratch` model was then brought to AVR: `vmem_runtime_checkpoint` / `vmem_runtime_rewind` alias the single MCU arena, `vyne_panic_bounds` replaces `fprintf(stderr) + exit` for VNE-072, `VYNE_UNLIKELY` keeps bounds branches identical across targets, and `arduino.micros`/`sin`/`cos`/`sqrt`/`delay_microseconds`/`arena_used` are registered. The `nativeInit` path now binds boxed property getters to an `ni_N` temp before the union-tag check, removing a double evaluation. Commit `1c8a703` (#96).
+
+#### 91-function MCU runtime
+
+The monolithic `mcu_hardware.h` was split into one self-contained header per concern (each pulls only from `<Arduino.h>` and avr-libc): `mcu_serial.h` (7), `mcu_timing.h` (2), `mcu_math.h` (34), `mcu_pins_ext.h` (9), `mcu_memory.h` (4), `mcu_bits.h` (9), `mcu_eeprom.h` (4), and `mcu_interrupts.h` (8). `mcu_types.h` gained `g_vyne_adc_shift` / `g_vyne_pwm_bits` so `analog_read` / `analog_write` honour their resolution setters, and the EEPROM bindings were reimplemented against `<avr/eeprom.h>` instead of the bundled Arduino library. Commit `f4af3e9`.
+
+#### Typed arrays on the MCU runtime
+
+`VyneArray_f64`, `VyneArray_i64`, and the untyped `VyneArray` fallback now exist in `mcu_types.h`, matching the symbols the emitter already produces (create, push, slice, `to_value`, `value_to_array_*`, plus `vyne_array_create`/`set`/`push`/`get`/`_vyne_array_size`). Typed containers are 4 bytes per `Float64` element (8 per `Int64`) versus 16 per boxed `VyneValue`; boxing is a pointer pun that relies on the shared size/cap offsets, and push grows by 1.5× above 8 elements from the arena. Commit `2f78387`.
+
+#### TinyML XOR and reactive demos
+
+`examples/arduino/tinyml_xor.vy` is a 2→3→1 MLP learning XOR live on the board with a source-level LCG for reproducibility, ReLU + MSE to avoid transcendentals, `region step` / `region probe` blocks, and a hardware math self-test. It converges (loss 0.20 → 0.09 over 30k steps) to 91% on 10 held-out samples; the plateau is a documented ReLU dead-unit artifact, not a runtime bug. `examples/arduino/reactive.vy` blinks the built-in LED according to whether the arena grew and uses SOS to signal a rewind failure. `examples/arduino/typed_arrays.vy` exercises empty-literal push growth, literals, indexing, slicing, and region rewind. Commits `f4af3e9`, `1c8a703`, `2f78387`.
+
+#### Arduino CLI and codegen fixes
+
+The CLI gained `--arduino`, `--flash`/`--arduino-flash`, `--monitor`, `--port`, `--baud`, and `--fqbn`, driving the full transpile → avr-gcc → upload → monitor pipeline. Commit `5a803e9`. Hex literals (`0x...`) are accepted by the lexer (`ced54ff`), and `UnaryNode::getCExpr` now emits native operators for literals and provable-native expressions instead of the desktop-only `vyne_unary` call, fixing every unary minus on MCU and shrinking desktop output (`4332172`, `f4af3e9`). Serial `begin` and printing were fixed for debugging (`c6cf264`).
+
+### `vynec init` project initializer
+
+Milestone 1 added a dependency-free template engine supporting `{{var}}`, `{{#if var}}...{{/if}}`, `{{#each list}}...{{/each}}`, and `{{.}}` / `{{@index}}`, with unknown variables rendering as the empty string and no partials, expression evaluation, or escaping. The `init` command generates `project.toml` plus `src/main.vy`, `README.md`, `.gitignore`, and `LICENSE`; it refuses to overwrite an existing `project.toml` (exit 3), skips other existing files, initializes and commits a git repository when appropriate, and writes complete toolchain/dependency/target/build/test/bench sections. Flags: `--name`, `--kind`, `--targets`, `--libraries`, `--cuda`, `--license`, `--yes`, `--no-tui`, `--no-git`, `--self-test`. Commit `681e7e0` (#113).
+
+Milestone 2 replaced the placeholder with an FTXUI 7.1.0 questionnaire: five questions (kind, targets, libraries, conditional CUDA, license), recommended defaults per kind, single-select bullets and multi-select checkboxes, back/cancel navigation, a confirmation screen that lists the files to be created, an 80×24 minimum, and a clean exit 2 in non-TTY environments before entering the alternate screen. Milestone 3 added the five templates — `blank`, `ml` (4→16→3 MLP on UCI Iris, `vcsv` loader, Adam + SGD, `vtermplot` loss curve, `@bounded<1048576>`), `embedded` (Arduino Uno blinky with `@bounded<512>` and `hardware.toml`), `scientific` (RK4 Lorenz + Lyapunov estimate, `@bounded<16777216>`), and `sr` (ESPCN 2× inference with bundled sample/reference PNGs and an exported `.vwy` model). `mixed` maps to the ML template with every library. Commit `6ff43e1` (#114).
+
+`vynec init` later gained derived-name sanitization (spaces and non-identifier characters become `_`, a leading digit or `-` gets a `_` prefix, fallback `vyne_project`), so directories such as "Coding projects" no longer block the TUI. Commit `0ddbf0a`.
+
+### `vlin` hardening
+
+Every public `vlin` operation now throws on shape mismatch instead of returning a `0x0` (or `-1`) matrix that propagates NaN. New element-wise primitives: `abs`, `sqrt`, `exp`, `log`, `pow_scalar`, `pow_elementwise`, `max_elementwise`, `min_elementwise`. New in-place variants for the backward pass: `sub_into`, `hadamard_into`, `div_into`, `scale_into`, `copy_into`, `transpose_into`, alongside `add_into` / `multiply_into`. `add_bias` validates the bias length, and `Matrix.reshape` now throws on size mismatch. Commit `e16f3e4`.
+
+### Language and codegen
+
+- **Hex literals.** Hexadecimal integer literals are accepted by the lexer. Commits `ced54ff`, `6077f22`, `28ca465`.
+- **Native unary fast paths.** Literals, booleans, and provable-native expressions lower to raw C operators. Commits `4332172`, `f4af3e9`.
+- **Floating-point literal form preserved.** `floatLit` now appends `.0` when a whole-valued double would otherwise print as an integer, and maps `inf`/`nan` to `INFINITY`/`NAN`; this fixes `32.0 / 7.0` silently becoming integer division. Commit `3c8d8d4` (#104).
+- **`Float32` unary and scratch support.** Native fast paths for unary minus and logical not, plus `Float32` scratch arrays. Commit `9c8275e` (#111).
+
+### Examples and tooling
+
+- `alphafold_distance_map.vy` — runtime-dim scratch, new scratch reductions, `.copy_to()` into a typed array. Commit `c5a8de2` (#94).
+- `earthquake_model.vy` — decision-tree model modernized. Commit `13e38e7`.
+- Library tests and benchmarks: `vstat_test` / `vstat_bench`, `vtermplot_test` / `vtermplot_bench`, `vcomplex_test` / `vcomplex_bench`, `vinterp_test` / `vinterp_bench`, `vcsv_test` / `vcsv_bench`, `libraries_integration_test`, `vimage_test`, `vconv_test`, `vstat_metrics_test`, `vconv_bench`. Commits `3c8d8d4`, `53ec847`, `f7e7984`, `ee81de9`, `28a0a40`, `0dfb939`.
+- Device tests: `gpu_elementwise.vy`, `gpu_matmul.vy`, `device_test.vy`, `device_matmul_bench.vy`. Commit `9c8275e` (#111).
+- Region tests: `region_rules_smoke.vy`, `region_ring.vy`, `region_slab.vy`, `region_streamed.vy`, `region_persistent.vy`, `codegen_peepholes.vy`, and the safety files `region_early_exit_zeroed.vy`, `region_early_exit_bounded.vy`, `region_scratch_over_bound.vy`, `region_vla_over_bound.vy`. Commits `3837317`, `73fb29a`, `eb236d7`, `a6abd34`, `80a0e74`, `a10425a`, `a684ed0`.
+- Arduino demos: `reactive.vy`, `tinyml_xor.vy`, `typed_arrays.vy`. Commits `1c8a703`, `f4af3e9`, `2f78387`.
+- The SR project template was updated with a CUDA-accelerated ESPCN path (Float32 conversion, transposed weights, broadcast biases). Commit `47795fd`.
+
+---
+
+## Bug fixes
+
+### Region semantics
+
+- **Early returns skipping exit checks.** A `return` inside `@zeroed` / `@deterministic` skipped the zero-mode decrement, and a `return` inside `@bounded` skipped the bound check. These are now compile-time errors: VNE-107 (`@zeroed`/`@deterministic`) and VNE-108 (`@bounded`). `break` and `continue` are unaffected. Commit `eb236d7`.
+- **`@bounded` ignored scratch.** Static scratch and runtime VLAs never touch the arena, so a region could hold far more memory than its bound. The bound now counts all three sources, with compile-time accounting for static scratch (VNE-101) and a pre-declaration runtime check for VLAs (VNE-102); the exit panic reports the true peak. Commit `73fb29a`.
+- **Single-index access on runtime-dim scratch.** `scratch buf :: Float64[n]` lowers to a raw C VLA, but `buf[i]` fell through to the `Array` path and emitted `v_buf.data[i]`. Both `IndexAccessNode` and `IndexAssignmentNode` now detect runtime-dim scratch, enforce rank 1 (VNE-071 for higher rank), and emit `bRaw[idx]` with the normal bounds check. Commit `c79cb9f`.
+
+### Arduino / MCU codegen
+
+- **Unlinked `vyne_unary` on every unary minus.** Fixed by the native unary fast paths (`4332172`, `f4af3e9`).
+- **`region`/`scratch` link failures on AVR.** Fixed by the MCU runtime shims and bounds-check dispatch (`1c8a703`, #96).
+- **Double-evaluated boxed property getters.** `nativeInit` re-emitted a getter inside the emitted ternary; it now binds the boxed RHS to a temp first. Commit `1c8a703` (#96).
+- **Serial `begin` / printing.** Fixed for debugging. Commit `c6cf264`.
+
+### Typed arrays
+
+- **`.place_all()` mutated a throwaway wrapper.** The typed-array path fell through to the boxed fallback and grew the wrapper rather than the array, so a later `arr.size` read 0. A dedicated handler now targets the underlying `VyneArray_f64`. Commit `c5a8de2` (#94).
+- **`Float32` unary and scratch gaps.** Completed by native Float32 fast paths. Commit `9c8275e` (#111).
+
+### `vlin`
+
+- **Silent shape mismatches.** All public ops now throw with row/column counts in the message instead of returning `0x0` / `-1`. Commit `e16f3e4`.
+- **README worked example triggered a shape mismatch.** Rewritten to use `add_bias`. Commit `e16f3e4`.
+
+### Runtime and libraries
+
+- **`vconv` weight-bundle bounds.** The `.vwy` parser now caps names at 4096 bytes and rejects value counts that cannot fit in the remaining file bytes before multiplication, turning malformed bundles into empty models instead of oversized allocations or `size_t` overflow. Commit `0dfb939` (#112).
+- **Floating-point literals emitting as integers.** Fixed in `floatLit`. Commit `3c8d8d4` (#104).
+- **`vcsv` per-character allocation.** Byte-oriented parsing via `String.byte_at` + `vcore.sb_append_char`. Commit `28a0a40` (#109).
+
+### Build and CI
+
+- **Ubuntu 24.04 host build.** Added `<cstdint>` to `lexer.h` (both `int64_t` and the new `uint64_t` were satisfied only transitively) and escaped `??=` trigraph sequences in user-facing strings. Commit `28ca465`.
+- **FTXUI include path in CI.** Added `-I./vendor` so `cli/tui.cpp` compiles on Linux. Commit `b5dfd26` (#116).
+- **Raylib removed from CI.** Dropped the X11/OpenGL dev packages, the raylib clone/build step, and the `-lraylib -lGL -lX11` link flags. Commit `28ca465`.
+- **Init TUI with space-containing directory names.** Derived project names are sanitized. Commit `0ddbf0a`.
+
+---
+
+## Runtime and memory
+
+### Desktop arena
+
+- Poison-on-rewind debug mode, with `ArenaBlock.used` now recording the high-water mark so a rewind to an earlier block poisons exactly the bytes filled after the checkpoint. Commit `793ec9f` (#98).
+- 32-byte typed-array payload alignment (`VYNE_TYPED_ARRAY_ALIGN`), with `@slab` power-of-two size classes. Commit `a6abd34` (#99).
+- `@ring` rotating-slot runtime (`vyne_ring_runtime.h`). Commit `80a0e74` (#100).
+- `@streamed` pinned-memory runtime (`vyne_stream_runtime.h`) with platform providers and best-effort locking. Commit `a10425a` (#101).
+- `@persistent` commit-arena frames (`vyne_persistent_enter` / `vyne_persistent_leave`) and commit-arena introspection. Commit `a684ed0` (#102).
+- `vmem` gains `stream_total_allocated`, `stream_peak_allocated`, `stream_is_pinned`, `stream_block_count`, and commit-arena totals.
+
+### CUDA device arena
+
+`vdevice.h` provides a device arena with checkpoint/rewind, a dynamic CUDA driver backend (`nvcuda.dll` / `libcuda.so.1`), a CPU fallback, and elementwise/matmul kernels for Float32 and Float64. `@device` regions and the `device_*` intrinsics lower through codegen. Commit `9c8275e` (#111).
+
+### MCU arena
+
+The Arduino arena exposes `arena_used()` and a `g_arena.total_allocated` counter that `@bounded` reads; `@bounded` overflow halts via `vyne_panic_region_bound`. Commit `6ff43e1` (#114). The arena is 1 KB with a 16-deep checkpoint stack and hard-halt OOM (`f3fc3bf`, #95).
+
+### String builder
+
+`vcore.sb_append_char(handle, code)` appends a single byte without allocating a one-character string, the substrate for `vcsv`'s byte-oriented parser. Commit `28a0a40` (#109).
+
+---
+
+## Documentation
+
+- **README refocused** on scientific/embedded computing with the AVR target in scope: corrected operator table, documented bitwise support and hex literals, fixed ruleset examples, added VNE-006/-007/-083/-090/-091, expanded the CLI reference, and archived the removed modules. Commit `cf9be6c`.
+- **Arduino runtime API reference** (`vyne/runtime/arduino/README.md`): full API reference for 91 functions across 10 headers, design constraints, memory model, common patterns, a four-step binding checklist, and an explicit not-bound list. Commit `23a3de7`.
+- **`docs/device.md`**: `@device` syntax, intrinsics, device-arena semantics, the CUDA driver/PTX path, the CPU fallback, PTX regeneration, performance comparison, and limitations. Commit `9c8275e` (#111).
+- **`docs/init.md`**: questionnaire, flags, templates, exit codes, and test command. Commit `6ff43e1` (#114).
+- **Regions reference** (`docs/tutorials/reference/regions.md`) updated with the implemented-policy table for `@bounded`, `@zeroed`, `@deterministic`, `@ring`, `@streamed`, `@persistent`, and `@slab`. Commits `3837317`, `80a0e74`, `a10425a`, `a684ed0`, `a6abd34`.
+- **Standard-library roadmap rewritten** (`docs/todos/todo_libraries.md`): shipped libraries marked, remaining work (`voptim`, `vsignal`, `vsparse`, `vdecomp`, `vnum`) defined, and codegen constraints for library authors recorded. Commit `47c9e22`.
+- **Language design milestone** (`milestone.md`): a 1323-line goals document. Commit `742165d`.
+- **Library READMEs** for `vstat`, `vtermplot`, `vcomplex`, `vinterp`, `vcsv`, `vimage`, and `vconv`, plus the ESPCN asset guide (`examples/espcn_inference.md`). Commits `3c8d8d4`, `53ec847`, `f7e7984`, `ee81de9`, `28a0a40`, `0dfb939`.
+- **`vlin` README**: `Elementwise.vy` in the layout table, a new element-wise math section, and a corrected worked example. Commit `e16f3e4`.
+- **CLI README and help refresh**: `vynec init` documented with templates, flags, and exit codes; `vynec --help` and `vynec init --help` updated. Commit `31bc169` (#115).
+
+---
+
+## Internal changes
+
+### Codegen and parser
+
+- Region-policy emission (`regions.cpp`), `BoundedContext` stack, `zeroModeDepth`, and qualified-commit parsing. Commits `3837317`, `73fb29a`, `eb236d7`.
+- Scratch method dispatch (`tryEmitScratchMethod`) wired ahead of typed-array methods, and a `place_all` handler in `tryEmitTypedArrayMethod`. Commit `c5a8de2` (#94).
+- Runtime-dim scratch indexing in `collections.cpp`. Commit `c79cb9f`.
+- `UnaryNode::getCExpr` native fast paths in `operators.cpp`. Commits `4332172`, `f4af3e9`.
+- Hex-literal tokenization in `lexer.cpp` and `#include <cstdint>` in `lexer.h`. Commits `ced54ff`, `6077f22`, `28ca465`.
+- Floating-point literal emission in `floatLit`. Commit `3c8d8d4` (#104).
+- `Float32` across parser, interpreter, AST, typed arrays, and native ABI. Commit `9c8275e` (#111).
+- `@device` region lowering and intrinsic interception. Commit `9c8275e` (#111).
+- `vynec init` dispatch in `main.cpp`, `cli/template_engine.h`, `cli/init.cpp`, `cli/tui.cpp`, and `cli/tui.h`. Commits `681e7e0`, `6ff43e1`, `0ddbf0a`.
+
+### Build and CI
+
+- xmake gains the init test target (`xmake test-init`), FTXUI vendoring configuration, and `UNICODE` / `_UNICODE` / `NOMINMAX` definitions on Windows. Commits `681e7e0`, `6ff43e1`.
+- Host CI drops Raylib/X11/OpenGL and keeps the `vendor/arduino` exclusion; adds `-I./vendor` for FTXUI. Commits `28ca465`, `b5dfd26` (#116).
+
+### Vendoring
+
+- `vendor/ftxui_all.hpp` with the FTXUI MIT license, generated by `tools/amalgamate.py`; `cli/tui.cpp` is the single FTXUI implementation translation unit. Commit `6ff43e1` (#114).
+- `stb_image` / `stb_image_write` vendored for `vimage`, compiled into the generated translation unit. Commit `0dfb939` (#112).
+
+### Tests
+
+- Runtime tests: `poison.c`, `alignment.c`, `ring.c`, `slab.c`, `streamed.c`, `persistent.c` under `vyne/runtime/tests/`. Commits `793ec9f`, `a6abd34`, `80a0e74`, `a10425a`, `a684ed0`.
+- `scripts/test_init.ps1` covers every template (generate, inspect, compile/run ML/scientific/SR, build embedded firmware when avr-gcc is present, `--yes`, implicit blank, and the no-name non-interactive fallback); 75 checks. Commits `6ff43e1`, `0ddbf0a`.
+- Library, device, region, Arduino, and codegen-peephole tests listed under New features.
+
+### Changelog housekeeping
+
+- The v0.4.0 changelog update is the oldest commit in this release window. Commit `7ac3925`.
+
+---
+
+## Breaking changes
+
+### `vlin` throws on shape mismatch
+
+Every public `vlin` op now throws on mismatch instead of returning `0x0` / `-1`, and `Matrix.reshape` throws on size mismatch. Callers that checked for `0x0` must be updated; callers that ignored it will now see a hard error at the mismatch. Commit `e16f3e4`.
+
+### `@bounded` counts scratch and VLAs
+
+A region that fit its bound under the arena-only accounting may now fail VNE-101 (static scratch) or VNE-102 (runtime VLA / arena). Raise the bound or shrink the scratch. Commit `73fb29a`.
+
+### Early returns in checked regions are rejected
+
+`return` inside `@zeroed` / `@deterministic` fires VNE-107, and `return` inside `@bounded` fires VNE-108. Restructure so the return is outside the region, or drop the policy. Commit `eb236d7`.
+
+### `Float32` semantics and device dtype default
+
+`Float32` op `Float32` stays `Float32`; mixing with `Float64` or `Int64` promotes to `Float64`. `device_alloc(n)` now allocates `Float32`; use `device_alloc_f64(n)` for the double path. Mixed-dtype handle sets are rejected. Commit `9c8275e` (#111).
+
+### Typed-array alignment
+
+Typed-array payloads are now 32-byte aligned by default. Code that assumed 8-byte payload alignment (for pointer arithmetic or hand-rolled interop) should re-check; override with `-DVYNE_TYPED_ARRAY_ALIGN`. Commit `a6abd34` (#99).
+
+### Desktop-only region policies
+
+`@streamed` and `@persistent` are rejected on AVR, and `@device` is rejected on AVR. `@bounded`, `@zeroed`, and `@deterministic` do lower on the MCU runtime. Commits `a10425a` (#101), `a684ed0` (#102), `9c8275e` (#111).
+
+### Removed CI dependencies
+
+Raylib, X11/OpenGL dev packages, and their link flags are gone from CI. This matches the earlier `vglib` removal from the surface and does not reintroduce the module. Commit `28ca465`.
+
+---
+
+## Upgrade guide
+
+1. **Catch `vlin` shape errors.** Remove explicit `0x0` checks and rely on the new throw; audit any code that previously ignored a `0x0` return.
+2. **Re-check `@bounded` budgets.** Bounds now include static scratch and runtime VLAs. Raise `N` or shrink scratch arrays; run the region safety files for the exact diagnostics.
+3. **Move `return` out of `@zeroed` / `@deterministic` / `@bounded` regions,** or drop the policy from that region (VNE-107 / VNE-108).
+4. **Adopt `Float32` deliberately.** Add the `f` suffix or `float32(x)` where you want single precision, and use `device_alloc_f64` if you need the double device path.
+5. **Re-check typed-array interop** if you relied on 8-byte payload alignment; 32 bytes is now the default.
+6. **Keep device/persistent/streamed regions on desktop.** These policies are rejected on AVR; `@bounded`, `@zeroed`, and `@deterministic` are supported there.
+7. **Try `vynec init`.** Use the interactive questionnaire or `--yes` / `--name` for scripted generation, then `vynec init --help` for templates and exit codes.
+8. **Rebuild with xmake** after pulling; the Arduino backend, FTXUI, and stb integrations changed the build graph.
+9. **Verify the version string** in CLI help after publishing; `main.cpp` and `cli/init.cpp` still carry the previous version constant and need bumping to `0.6.0`.
+
+---
+
+## Known limitations
+
+- **`@deterministic` scan is shallow.** It cannot see inside `WhileNode` / `ForNode` bodies; the runtime zeroed counter is the defence-in-depth there. It also does not imply `@bounded`.
+- **Multiple VLAs in one block** are checked per declaration; their combined peak is not separately checked.
+- **`region.commit` on a primitive `Float64` / `Int64` local** is still not lowered (`RegionCommitNode::compile` assumes `VyneValue`).
+- **Slices of runtime VLAs** (`buf[lo:hi]`) still lower through `SliceNode` to a container-style call; slices of runtime-dim scratch are not supported yet.
+- **`break` / `continue` from a loop nested inside a region** triggers `emitRegionUnwind` for every open region (pre-existing use-after-free risk). Keep loops outside regions until the fix lands.
+- **`@streamed` pinning is best-effort.** Platforms without locking fall back to `malloc`, and `vmem.stream_is_pinned` reports the actual outcome.
+- **`@persistent` has no automatic reclamation** and is desktop-only; values live for the whole program.
+- **CUDA `@device` FP64 is parity, not a scalable win.** Against tuned BLAS, FP64 is ~1.8× faster at 512×512 but ~8% slower at 1024×1024 on consumer Blackwell; the 200–300× figure is against the naive Vyne CPU loop only. FP32 is the recommended path. The CPU fallback is naive, not tuned BLAS.
+- **`vimage` / `vconv` bind only in compiled mode.** The AST interpreter does not bind these native modules yet.
+- **SSIM uses an 8×8 uniform window, not Gaussian.** Numbers quoted against published SSIM values should account for this; identical inputs return 1.0 and identical `psnr` inputs return a 100 dB sentinel.
+- **`vconv` is CPU-only.** The `@device` path accelerates elementwise/matmul intrinsics, not the convolution kernels.
+- **Arduino is Uno R3 only.** No I2C/SPI/Wire/SoftwareSerial bindings, no callback-based interrupts (`attach_interrupt` counts edges only), no typed-array bounds checking, 32-bit `double`, emulated `int64`, 16 nested regions max, and `out()` is unavailable.
+- **MCU typed-array method surface is partial.** `contains`, `pop`, `reverse`, `sort`, `place_all`, `delete_at`, `back`, and `pop_front` are not bound on AVR.
+- **`vlin.multiply` through the `Ops.vy` wrapper is still boxed** on MCU even though the kernel is unboxed; direct `vlin.k_*` calls from a sketch have not been hardware-tested.
+- **`vynec init` needs an 80×24 terminal.** Non-TTY environments exit 2, and `--no-tui` without `--name` also exits 2.
+
+---
+
+## Contributors
+
+- **Tuncay Gafarli** — all commits in this release.
+
+## Full commit list
+
+See `git log v0.5.0..HEAD` for the raw list. The 40 commits this release covers span `7ac3925` (2026-10-29) through `47795fd` (2026-11-09).
+
+**Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.5.0...v0.6.0>
