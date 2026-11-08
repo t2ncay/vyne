@@ -133,6 +133,53 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         }
     }
 
+    // ----------------------------------------------------------------
+    // Ring intrinsic. `ring_alloc(n)` rotates through N fixed-size
+    // slots; the oldest is overwritten after N allocations. There is
+    // no free intrinsic by design.
+    // ----------------------------------------------------------------
+    if (e.hasRing()) {
+        const auto& ring  = e.currentRing();
+        const bool  isF64 = (ring.elemType == VType::Float64);
+
+        if (originalName == "ring_alloc") {
+            if (arguments.size() != 1) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): ring_alloc(n) takes exactly "
+                    "one argument (line " + std::to_string(lineNumber) + ").");
+            }
+            std::string nExpr;
+            if (arguments[0]->type() == NodeType::NUMBER) {
+                nExpr = static_cast<const NumberNode*>(arguments[0].get())
+                            ->nativeLiteral();
+            } else {
+                std::string nRaw = arguments[0]->getCExpr(e);
+                if (const CType* ct = e.exprNativeType(nRaw)) {
+                    if (ct->kind == CType::Kind::Int64)
+                        nExpr = nRaw;
+                    else if (ct->kind == CType::Kind::Float64)
+                        nExpr = "(int64_t)(" + nRaw + ")";
+                    else
+                        nExpr = "vyne_to_int(" + e.boxAny(nRaw) + ").as.i64";
+                } else {
+                    nExpr = "vyne_to_int(" + e.boxAny(nRaw) + ").as.i64";
+                }
+            }
+            std::string temp = e.newTemp("ring_arr");
+            std::string fn = isF64 ? "vyne_ring_f64_alloc"
+                                   : "vyne_ring_i64_alloc";
+            e.emit(std::string(isF64 ? "VyneArray_f64 " : "VyneArray_i64 ") +
+                   temp + " = " + fn + "(&" + ring.handle + ", " + nExpr +
+                   ");");
+
+            CType arr;
+            arr.kind = CType::Kind::Array;
+            arr.args.push_back(CType::fromVType(ring.elemType));
+            e.declareNativeTemp(temp, arr);
+            return temp;
+        }
+    }
+
     // --- Resolve named args (unchanged) -----------------------------
     std::vector<ASTNode*> orderedArgs;
     if (hasNamedArguments()) {

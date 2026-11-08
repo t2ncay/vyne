@@ -231,6 +231,18 @@ class C_Emitter {
     };
     std::vector<SlabContext> slabStack;
 
+    // Active @ring context. A ring is N fixed-size slots rotating in order;
+    // `ring_alloc(n)` — intercepted in FunctionCallNode::getCExpr — addresses
+    // the innermost ring. There is no free intrinsic: the slot is overwritten
+    // after N allocations.
+    struct RingContext {
+        std::string handle;   // C variable name of the VyneRing struct
+        VType elemType;       // Float64 or Int64
+        int64_t slots;        // number of rotating slots
+        int64_t slotElems;    // elements per slot
+    };
+    std::vector<RingContext> ringStack;
+
     // Active @speculative context. Tracks the C variable name of the
     // per-region commit flag so `region.commit_if(pred)` — intercepted
     // in RegionCommitIfNode::compile — knows which flag to assign. Only
@@ -245,6 +257,7 @@ class C_Emitter {
     bool blasEnabled = false;
     bool poolRuntimeEmitted = false;
     bool slabRuntimeEmitted = false;
+    bool ringRuntimeEmitted = false;
     int tempVarCount = 0;
 
     // Nesting depth of @zeroed / @deterministic regions currently open
@@ -631,6 +644,7 @@ class C_Emitter {
         regionStack.clear();
         poolStack.clear(); // paired with regionStack: both are per-function
         slabStack.clear(); // paired with regionStack: both are per-function
+        ringStack.clear(); // paired with regionStack: both are per-function
         speculativeStack.clear();
         committedVars.clear();
         zeroModeDepth = 0;
@@ -1278,6 +1292,32 @@ class C_Emitter {
         slabRuntimeEmitted = true;
     }
 
+    // --- Ring context ------------------------------------------------
+    // Like @slab, @ring is a lookup layer over regionStack: the ring is
+    // created after the checkpoint and its backing store is reclaimed by the
+    // region rewind.
+    void pushRing(const RingContext& r) {
+        ringStack.push_back(r);
+    }
+    void popRing() {
+        if (!ringStack.empty())
+            ringStack.pop_back();
+    }
+    bool hasRing() const {
+        return !ringStack.empty();
+    }
+    const RingContext& currentRing() const {
+        return ringStack.back();
+    }
+
+    // Idempotent include emit for vyne_ring_runtime.h.
+    bool isRingRuntimeEmitted() const {
+        return ringRuntimeEmitted;
+    }
+    void markRingRuntimeEmitted() {
+        ringRuntimeEmitted = true;
+    }
+
     // --- Speculative context -----------------------------------------
     // Pushed by compileSpeculativeRegion, read by RegionCommitIfNode.
     // A speculative region still goes on regionStack; the speculative
@@ -1435,9 +1475,11 @@ class C_Emitter {
         committedVars.clear();
         poolStack.clear();
         slabStack.clear();
+        ringStack.clear();
         speculativeStack.clear();
         poolRuntimeEmitted = false;
         slabRuntimeEmitted = false;
+        ringRuntimeEmitted = false;
         scratchBoundsEnabled = true;
         blasEnabled = false;
         zeroModeDepth = 0;
