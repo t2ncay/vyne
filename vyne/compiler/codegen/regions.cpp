@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "detail/codegen_helpers.h"
+#include <cstdint>
 
 // Region checkpoint and commit lowering.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -433,6 +434,117 @@ static void compileRingRegion(C_Emitter& e, const RegionNode& r) {
     e.emit("vmem_runtime_rewind(" + cpHandle + ");");
 }
 
+// ============================================================
+// @streamed<T, MAX> — pinned host memory scoped to a region
+// ------------------------------------------------------------
+// The region keeps the normal checkpoint/rewind lifetime for ordinary
+// allocations and additionally opens a stream-arena frame backed by
+// page-locked host memory (VirtualLock / mlock, with a plain-memory
+// fallback). `streamed_alloc(n)` draws n elements from that frame.
+//
+// MAX is the region's total element budget; the emitted budget is
+// MAX * sizeof(T) bytes. Exceeding it is a VNE-082 runtime error. On
+// close (and on early exit) the stream frame is rewound first, then
+// the main arena rewind runs, so both the pinned bytes and the
+// region's ordinary allocations are released.
+//
+// @streamed is a desktop-backend feature; the AVR runtime has no
+// pinned memory and the policy is rejected there.
+// ============================================================
+static void compileStreamedRegion(C_Emitter& e, const RegionNode& r) {
+    if (e.isArduinoTarget()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed is not supported on the "
+            "AVR target (line " +
+            std::to_string(r.lineNumber) + ").\n"
+            "  The MCU runtime has no pinned host memory. Use @ring or "
+            "@bounded for bounded MCU buffers."
+        );
+    }
+
+    const auto& args = r.getPolicyArgs();
+    const int line = r.lineNumber;
+
+    if (args.size() != 2) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed expects exactly 2 arguments "
+            "(element type, max elements), got " +
+            std::to_string(args.size()) + " (line " + std::to_string(line) +
+            ").\n"
+            "  Syntax: @streamed<Float64, 65536> region name { ... };"
+        );
+    }
+
+    VType elem;
+    if (args[0] == "Float64")
+        elem = VType::Float64;
+    else if (args[0] == "Int64")
+        elem = VType::Int64;
+    else {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed element type must be "
+            "Float64 or Int64, got '" +
+            args[0] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+
+    int64_t maxElems = 0;
+    try {
+        maxElems = std::stoll(args[1]);
+    } catch (...) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed max elements must be an "
+            "integer, got '" +
+            args[1] + "' (line " + std::to_string(line) + ")."
+        );
+    }
+    if (maxElems <= 0) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed max elements must be positive "
+            "(line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    // Both element types are 8 bytes. Guard the emitted size_t budget
+    // against overflow before multiplying.
+    const int64_t elemBytes = 8;
+    if ((uint64_t)maxElems > (uint64_t)SIZE_MAX / (uint64_t)elemBytes) {
+        throw std::runtime_error(
+            "Compile Error (VNE-080): @streamed element budget is too large "
+            "for this target's size_t (line " +
+            std::to_string(line) + ")."
+        );
+    }
+    const uint64_t budgetBytes = (uint64_t)maxElems * (uint64_t)elemBytes;
+
+    ensureVmemInclude(e); // vmem.h includes vyne_stream_runtime.h
+
+    std::string cpHandle = e.newTemp("vmem_cp");
+
+    e.emit(
+        "// --- region: " + r.getRegionName() + " (streamed<" + args[0] + ", " +
+        args[1] + ">) ---"
+    );
+    e.emit("VyneValue " + cpHandle + " = vmem_runtime_checkpoint();");
+    e.emit(
+        "vyne_stream_enter((size_t)" + std::to_string(budgetBytes) + ");"
+    );
+
+    e.pushStreamedRegion(cpHandle, elem);
+
+    e.emitBlockOpen("{");
+    for (const auto& stmt : r.getBody())
+        if (stmt)
+            stmt->compile(e);
+    e.emitBlockClose();
+
+    e.popRegion();
+
+    e.emit("vyne_stream_leave();");
+    e.emit("vmem_runtime_rewind(" + cpHandle + ");");
+}
+
 static void compileSpeculativeRegion(C_Emitter& e, const RegionNode& r) {
     if (!r.getPolicyArgs().empty()) {
         throw std::runtime_error(
@@ -784,6 +896,10 @@ void RegionNode::compile(C_Emitter& e) const {
         compileRingRegion(e, *this);
         return;
     }
+    if (policy == "streamed") {
+        compileStreamedRegion(e, *this);
+        return;
+    }
     if (policy == "speculative") {
         compileSpeculativeRegion(e, *this);
         return;
@@ -807,7 +923,7 @@ void RegionNode::compile(C_Emitter& e) const {
         "recognized but not yet implemented (line " +
         std::to_string(lineNumber) +
         ").\n"
-        "  Implemented policies: bump (default), pool, slab, ring, "
+        "  Implemented policies: bump (default), pool, slab, ring, streamed, "
         "speculative, bounded, zeroed, deterministic."
     );
 }

@@ -26,6 +26,7 @@
 #define VYNE_VMEM_RT_H
 
 #include "../vyne_runtime.h"
+#include "vyne_stream_runtime.h"
 
 /* ===================================================================
  * CHECKPOINT STACK
@@ -369,6 +370,30 @@ static inline VyneValue vmem_runtime_stats(void) {
     vyne_map_set(m, vyne_string_static("checkpoint_capacity"),
                  vyne_int((int64_t)VYNE_MAX_CHECKPOINTS));
     return m;
+}
+
+/* ===================================================================
+ * STREAM ARENA INSPECTION
+ * -------------------------------------------------------------------
+ * The @streamed pinned arena is independent of g_arena. These report
+ * its live/peak bytes and whether the platform actually page-locked
+ * the current blocks. All return Int64; stream_is_pinned() is 0/1.
+ * =================================================================== */
+
+static inline VyneValue vmem_runtime_stream_total_allocated(void) {
+    return vyne_int((int64_t)vyne_stream_total_allocated());
+}
+
+static inline VyneValue vmem_runtime_stream_peak_allocated(void) {
+    return vyne_int((int64_t)vyne_stream_peak_allocated());
+}
+
+static inline VyneValue vmem_runtime_stream_is_pinned(void) {
+    return vyne_int((int64_t)vyne_stream_is_pinned());
+}
+
+static inline VyneValue vmem_runtime_stream_block_count(void) {
+    return vyne_int((int64_t)vyne_stream_block_count());
 }
 
 #endif /* VYNE_VMEM_RT_H */
