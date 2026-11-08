@@ -18,6 +18,7 @@
 #include "init.h"
 
 #include "template_engine.h"
+#include "tui.h"
 #include "../vyne/utils/file_utils.h"
 
 #include <algorithm>
@@ -86,6 +87,7 @@ struct Options {
     bool haveCuda = false;
 
     std::string license = "AGPL-3.0-only";
+    bool haveLicense = false;
 
     bool yes = false;
     bool noTui = false;
@@ -192,6 +194,20 @@ std::string join(const std::vector<std::string>& values,
     return out;
 }
 
+bool isBinaryAsset(const fs::path& path) {
+    static const char* extensions[] = {
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tga",
+        ".vwy", ".vwt", ".zip", ".gz", ".pdf",
+        ".ttf", ".otf", ".ico", ".woff", ".woff2",
+    };
+    std::string ext = lower(path.extension().string());
+    for (const char* candidate : extensions) {
+        if (ext == candidate)
+            return true;
+    }
+    return false;
+}
+
 bool knownTarget(const std::string& name) {
     return name == "desktop" || name == "arduino-uno" ||
            name == "coral" || name == "jetson";
@@ -218,6 +234,8 @@ std::vector<std::string> defaultTargets(const std::string& kind) {
         return {"desktop"};
     if (kind == "sr")
         return {"desktop", "jetson"};
+    if (kind == "mixed")
+        return {"desktop", "arduino-uno", "coral", "jetson"};
     return {"desktop"};
 }
 
@@ -230,7 +248,19 @@ std::vector<std::string> defaultLibraries(const std::string& kind) {
         return {"vlin", "vfft", "vstat", "vcomplex", "vtermplot"};
     if (kind == "sr")
         return {"vimage", "vconv", "vfft"};
+    if (kind == "mixed")
+        return {"vlin", "vml", "vstat", "vtermplot", "vfft",
+                "vcomplex", "vcsv", "vimage", "vconv"};
     return {};
+}
+
+std::string templateKindFor(const std::string& kind) {
+    return kind == "mixed" ? "ml" : kind;
+}
+
+bool isKnownKind(const std::string& kind) {
+    return kind == "blank" || kind == "ml" || kind == "embedded" ||
+           kind == "scientific" || kind == "sr" || kind == "mixed";
 }
 
 std::string dependencyVersion(const std::string& name) {
@@ -352,6 +382,7 @@ std::string buildProjectToml(
     const std::string& author,
     const std::string& license,
     const std::string& description,
+    const std::string& kind,
     const std::vector<std::string>& targets,
     const std::vector<std::string>& libraries,
     bool cuda,
@@ -426,6 +457,16 @@ std::string buildProjectToml(
     out << "iterations = 100\n";
     out << "report = \"build/bench.json\"\n";
 
+    if (templateKindFor(kind) == "ml") {
+        out << "\n[data]\n";
+        out << "iris = { url = "
+               "\"https://archive.ics.uci.edu/ml/machine-learning-databases/"
+               "iris/iris.data\", "
+               "sha256 = "
+               "\"6f608b71a7317216319b4d27b4d9bc84e6abd734eda7872b71a458569e2656c0\" "
+               "}\n";
+    }
+
     if (cudaSection) {
         out << "\n[device.cuda]\n";
         out << "sm_version = \"86\"\n";
@@ -443,7 +484,7 @@ void printInitHelp() {
 
     std::cout << "  " << INIT_CYAN << "OPTIONS" << INIT_RESET << "\n";
     std::cout << "    --name <name>        project name (default: basename of PATH)\n";
-    std::cout << "    --kind <kind>        blank (Milestone 1); ml/embedded/scientific/sr later\n";
+    std::cout << "    --kind <kind>        blank | ml | embedded | scientific | sr | mixed\n";
     std::cout << "    --targets <list>     desktop, arduino-uno, coral, jetson\n";
     std::cout << "    --libraries <list>   comma-separated library names\n";
     std::cout << "    --cuda <yes|no>      add [device.cuda] when yes\n";
@@ -456,9 +497,8 @@ void printInitHelp() {
     std::cout << "  " << INIT_CYAN << "DEVELOPER" << INIT_RESET << "\n";
     std::cout << "    --self-test          run the template-engine checks and exit\n\n";
 
-    std::cout << "  Milestone 1 ships the template engine and the blank template.\n";
-    std::cout << "  The interactive questionnaire and the other templates land in\n";
-    std::cout << "  later milestones.\n\n";
+    std::cout << "  Run without --name on a terminal to open the interactive\n";
+    std::cout << "  questionnaire. The TUI is skipped in non-interactive shells.\n\n";
 }
 
 int matchValue(int& i,
@@ -579,6 +619,7 @@ int runInit(int argc, char** argv) {
                           << "  --license needs a value\n";
                 return 4;
             }
+            opts.haveLicense = true;
             continue;
         }
         if ((matched = matchValue(
@@ -629,11 +670,10 @@ int runInit(int argc, char** argv) {
     if (!opts.haveKind)
         opts.kind = "blank";
 
-    if (opts.kind != "blank") {
+    if (!isKnownKind(opts.kind)) {
         std::cerr << INIT_RED << "  error" << INIT_RESET
-                  << "  the '" << opts.kind
-                  << "' template lands in Milestone 3; Milestone 1 ships "
-                     "'blank'\n";
+                  << "  unknown kind '" << opts.kind
+                  << "'; use blank, ml, embedded, scientific, sr, or mixed\n";
         return 4;
     }
 
@@ -672,19 +712,94 @@ int runInit(int argc, char** argv) {
         return 4;
     }
 
+    bool tuiWanted = !opts.haveName && !opts.yes && !opts.noTui &&
+                     stdoutIsTty() &&
+                     !(opts.haveKind && opts.kind == "blank");
+
+    bool tuiRan = false;
+    if (tuiWanted) {
+        std::string derived = projectNameFromPath(opts.path);
+        if (!validName(derived)) {
+            std::cerr << INIT_RED << "  error" << INIT_RESET
+                      << "  could not derive a valid project name from '"
+                      << opts.path << "'; pass --name\n";
+            return 4;
+        }
+
+        fs::path share =
+            fs::path(FileUtils::getExeDir()) / "share" / "vyne";
+
+        InitChoices choices;
+        choices.kind = opts.haveKind ? opts.kind : "ml";
+        choices.targets = opts.haveTargets
+                              ? splitCsv(opts.targets)
+                              : std::vector<std::string>{};
+        choices.libraries = opts.haveLibraries
+                                ? splitCsv(opts.libraries)
+                                : std::vector<std::string>{};
+        choices.cuda = cuda;
+        choices.license = opts.license;
+
+        std::set<std::string> locked;
+        if (opts.haveKind)
+            locked.insert("kind");
+        if (opts.haveTargets)
+            locked.insert("targets");
+        if (opts.haveLibraries)
+            locked.insert("libraries");
+        if (opts.haveCuda)
+            locked.insert("cuda");
+        if (opts.haveLicense)
+            locked.insert("license");
+
+        std::string tuiError;
+        bool cancelled = false;
+        bool confirmed = runQuestionnaire(
+            choices,
+            share,
+            derived,
+            locked,
+            tuiError,
+            cancelled
+        );
+
+        if (cancelled) {
+            std::cout << "\n  " << INIT_YELLOW << "cancelled"
+                      << INIT_RESET << "\n\n";
+            return 1;
+        }
+        if (!confirmed) {
+            std::cerr << INIT_RED << "  error" << INIT_RESET << "  "
+                      << tuiError << "\n";
+            return 2;
+        }
+
+        opts.kind = choices.kind;
+        opts.haveKind = true;
+        opts.targets = join(choices.targets, ",");
+        opts.haveTargets = true;
+        opts.libraries = join(choices.libraries, ",");
+        opts.haveLibraries = true;
+        opts.cuda = choices.cuda ? "yes" : "no";
+        opts.haveCuda = true;
+        opts.license = choices.license;
+        opts.haveLicense = true;
+        cuda = choices.cuda;
+        tuiRan = true;
+    }
+
+    bool implicitNonInteractive = opts.haveKind && opts.kind == "blank";
+
     std::string name = opts.name;
     if (!opts.haveName) {
-        if (!opts.yes) {
+        if (!tuiRan && !opts.yes && !implicitNonInteractive) {
             if (!stdoutIsTty()) {
                 std::cerr << INIT_RED << "  error" << INIT_RESET
                           << "  non-interactive environment detected; use "
-                             "--name and --kind flags\n";
+                             "--name (and optionally --kind)\n";
             } else {
-                std::cerr << INIT_YELLOW << "  notice" << INIT_RESET
-                          << "  the interactive questionnaire lands in "
-                             "Milestone 2\n"
-                          << "          re-run with --name <name> --kind "
-                             "blank\n";
+                std::cerr << INIT_RED << "  error" << INIT_RESET
+                          << "  --no-tui requires --name\n";
             }
             return 2;
         }
@@ -762,7 +877,7 @@ int runInit(int argc, char** argv) {
     }
 
     fs::path share = fs::path(FileUtils::getExeDir()) / "share" / "vyne";
-    fs::path templateDir = share / "templates" / opts.kind;
+    fs::path templateDir = share / "templates" / templateKindFor(opts.kind);
     if (!fs::is_directory(templateDir, ec)) {
         std::cerr << INIT_RED << "  error" << INIT_RESET
                   << "  template directory not found: " << templateDir.string()
@@ -793,6 +908,11 @@ int runInit(int argc, char** argv) {
     ctx.vars["targets_list"] = join(targets, ", ");
     ctx.vars["library_list"] = join(libraries, ", ");
     ctx.vars["description"] = description;
+    ctx.vars["cuda"] = cuda ? "1" : "0";
+    ctx.vars["cpu"] = cuda ? "0" : "1";
+    ctx.vars["device_attr"] = cuda ? "cuda" : "cpu";
+    ctx.vars["proprietary"] =
+        opts.license == "proprietary" ? "1" : "0";
     ctx.lists["targets"] = targets;
     ctx.lists["libraries"] = libraries;
 
@@ -808,6 +928,7 @@ int runInit(int argc, char** argv) {
         author,
         opts.license,
         description,
+        opts.kind,
         targets,
         libraries,
         cuda,
@@ -919,7 +1040,9 @@ int runInit(int argc, char** argv) {
 
         std::string rendered;
         std::string error;
-        if (!Engine::render(sourceText, ctx, rendered, error)) {
+        if (isBinaryAsset(relative)) {
+            rendered = std::move(sourceText);
+        } else if (!Engine::render(sourceText, ctx, rendered, error)) {
             std::cerr << INIT_RED << "  error" << INIT_RESET << "  "
                       << relative.generic_string() << ": " << error << "\n";
             return 4;
@@ -994,7 +1117,12 @@ int runInit(int argc, char** argv) {
     std::cout << "  Next steps:\n";
     if (display != ".")
         std::cout << "    cd " << quote(display) << "\n";
-    std::cout << "    vynec run src/main.vy\n\n";
+    if (opts.kind == "embedded") {
+        std::cout << "    vynec --arduino uno src/main.vy\n";
+        std::cout << "    # add --flash --port COM3 to upload\n\n";
+    } else {
+        std::cout << "    vynec run src/main.vy\n\n";
+    }
 
     return 0;
 }

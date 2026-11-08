@@ -52,6 +52,10 @@ if is_windows then
 		"WIN32_LEAN_AND_MEAN",
 		"NOGDI",
 		"NOUSER",
+		-- FTXUI (the `vynec init` TUI) requires these on Windows.
+		"UNICODE",
+		"_UNICODE",
+		"NOMINMAX",
 	})
 end
 
@@ -104,6 +108,7 @@ set_targetdir(ROOT)
 add_files(VYNEC_SOURCES)
 
 add_includedirs(".")
+add_includedirs("vendor")
 
 add_defines(COMMON_DEFINES)
 

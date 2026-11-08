@@ -152,6 +152,21 @@ make
 ./vynec examples/hello.vy
 ```
 
+Scaffold a new project with the interactive questionnaire:
+
+```bash
+./vynec init
+# ML, embedded, scientific, image/SR, and blank templates
+```
+
+Or run it non-interactively:
+
+```bash
+./vynec init --name myproject --kind ml --no-git
+cd myproject
+vynec run src/main.vy
+```
+
 Transpile a program to a standalone binary:
 
 ```bash
