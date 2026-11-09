@@ -205,7 +205,16 @@ disable them for release; evidence mode writes a machine-readable contract log.
 
 ---
 
-### C4 — `vsignal` DSP library `[ ]`
+### C4 — `vsignal` DSP library `[~]`
+
+**Status (2026-11-09):** shipped `Types`, `Constructors`, `Kernels`, `Iir`,
+`Fir`, `Windows`, `Resample`, `Spectral`, facade, and README under
+`vyne/modules/external/vsignal`. Tests and benchmark live in
+`examples/libs/vsignal_test.vy` and `examples/libs/vsignal_bench.vy`
+(1 M-sample moving average / exponential / FIR / biquad timing). Desktop
+coverage is complete. MCU linkage is blocked on the AVR struct runtime:
+the public surface uses interfaces, which the MCU runtime does not implement
+yet. The kernels themselves are plain array loops.
 
 **Why.** Filters are the shared primitive of robotics, audio, and industrial
 sensing: moving average, exponential smoothing, FIR, biquad IIR (low/high/band
@@ -229,7 +238,17 @@ biquad demos run on both desktop and MCU.
 
 ---
 
-### C5 — `vcontrol` control-systems library `[ ]`
+### C5 — `vcontrol` control-systems library `[~]`
+
+**Status (2026-11-09):** shipped `Types`, `Pid`, `Filters`, `Kalman`,
+`StateSpace`, facade, and README under `vyne/modules/external/vcontrol`.
+Tests and benchmark live in `examples/libs/vcontrol_test.vy` and
+`examples/libs/vcontrol_bench.vy`. Covers PID (anti-windup, derivative
+filtering, bumpless transfer), complementary filter, Kalman1D, a
+constant-velocity Kalman2, and a two-state state-space model. Desktop
+coverage is complete. AVR linkage shares the C4 blocker (interfaces need the
+MCU struct runtime). The test uses a simulated plant; a physical motor /
+LED-dimmer rig remains a hardware follow-up.
 
 **Why.** PID, complementary filters, and Kalman filters are the canonical
 robotics primitives. Pure-Vyne, no compiler work.

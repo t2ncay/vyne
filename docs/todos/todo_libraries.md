@@ -41,10 +41,12 @@ The top-10 scientific/numerical set was defined as:
 | 4 | `vinterp` — 1-D/2-D interpolation | **Shipped** | #108 |
 | 5 | `vcsv` — CSV/TSV tables | **Shipped** | #109 |
 | 6 | `voptim` — optimizers | **Next** | — |
-| 7 | `vsignal` — signal processing | **Next** | — |
+| 7 | `vsignal` — signal processing | **Shipped** | this PR |
 | 8 | `vsparse` — sparse matrices | **Next** | — |
 | 9 | `vdecomp` — decompositions/solvers | **Next** | — |
 | 10 | `vnum` — numerical methods | **Next** | — |
+
+`vcontrol` (PID, complementary filter, Kalman1D/Kalman2, state-space) ships alongside `vsignal` as the first control-systems library.
 
 Two codegen/runtime fixes came out of this batch and are now load-bearing for
 library work:
