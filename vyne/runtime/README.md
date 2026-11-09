@@ -75,8 +75,28 @@ provider actually pinned the pages.
 live until `arena_free_all()` at program exit; nested persistent frames share the
 commit arena.
 
+## Thread-local arenas and the shared commit arena
+
+`g_arena`, its bump pointers, the `@zeroed` counter, the checkpoint stack, and
+the `@persistent` frame stack are `VYNE_THREAD_LOCAL`. A thread that allocates
+gets its own block chain and never contends with another thread's region
+allocations. The commit arena (`g_commit_arena` / `g_commit_cur` / `g_commit_end`)
+is intentionally process-global: it is the hand-off point between threads. Every
+access to it — `region.commit`, `region.move`'s copy fallback, stats and peak
+queries — takes a recursive spinlock (`vyne_commit_lock_acquire/release`).
+`@persistent` holds that lock for the body of the outermost region, because it
+uses the shared commit arena as its bump arena.
+
+Worker threads must call `vmem_runtime_thread_cleanup()` (or
+`arena_free_thread()`) before exiting; it frees only the calling thread's region
+arena. `arena_free_all()` / `vmem_runtime_reset()` are process-teardown paths and
+also free the shared commit arena.
+
+`@parallel` lowering is a separate future feature; this slice makes the arena
+layer safe for it and for user-managed OS threads.
+
 Tests: `tests/alignment.c`, `tests/slab.c`, `tests/ring.c`, `tests/streamed.c`,
-and `tests/persistent.c`.
+`tests/persistent.c`, and `tests/tls_arena.c`.
 
 ```sh
 cc -std=c11 vyne/runtime/tests/alignment.c -lm -o alignment && ./alignment
@@ -84,6 +104,7 @@ cc -std=c11 vyne/runtime/tests/slab.c -lm -o slab && ./slab
 cc -std=c11 vyne/runtime/tests/ring.c -lm -o ring && ./ring
 cc -std=c11 vyne/runtime/tests/streamed.c -lm -o streamed && ./streamed
 cc -std=c11 vyne/runtime/tests/persistent.c -lm -o persistent && ./persistent
+cc -std=c11 -pthread vyne/runtime/tests/tls_arena.c -lm -o tls_arena && ./tls_arena
 ```
 
 ## Debug: poison-on-rewind
