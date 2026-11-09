@@ -35,6 +35,7 @@ monolithic `codegen.cpp` alongside these files: that duplicates definitions.
 | `groups_modules.cpp`, `imports.cpp`                 | Groups, modules, imports                                  |
 | `language_features.cpp`                             | Enums, defer, lifecycle, coalescing, membership, pipeline |
 | `exceptions.cpp`, `regions.cpp`                     | Exception and region constructs                           |
+| `autodiff.h`, `autodiff.cpp`                        | `@differentiable` adjoints, `@backward`, `grad`           |
 | `maps_strings_scratch.cpp`                          | Maps, interpolation, scratch arrays                       |
 
 ## Invariants when extending codegen

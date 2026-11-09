@@ -440,6 +440,38 @@ arena — on a 2 KB SRAM chip, stack allocation for small scratch arrays
 is the right tool, and the compiler enforces that it lives inside a
 region.
 
+### Automatic differentiation
+
+`@differentiable` marks a function whose adjoint the compiler generates;
+`@backward` scopes the reverse sweep to a region; `grad(f, x)` is the
+expression-level sugar. `@backward` composes with the memory policies:
+
+```vyne
+@differentiable
+fn loss(w :: Float64, b :: Float64) -> Float64 {
+    z :: Float64 := w * 1.0 + b;
+    p :: Float64 := 1.0 / (1.0 + vmath.exp(-z));
+    return (p - 0.0) * (p - 0.0);
+}
+
+@backward
+@bounded<64_000_000>
+region train_step {
+    l :: Float64 := loss(w, b);
+    backward(l);
+    out(string(w.grad) + ", " + string(b.grad));
+};
+```
+
+The compiler emits a primal and a `fn_<name>_grad` companion; there is no
+runtime tape interpreter and no per-operation dispatch. The tape is a set
+of ordinary C locals inside the region block, so it dies at rewind and
+`@bounded` accounts for it. This release implements the surface plus
+straight-line `Float64` reverse mode; arrays, loops, branches,
+`@recompute`, and `@mixed` lowering are deferred and rejected rather than
+miscompiled. See `docs/tutorials/reference/autodiff.md` and
+`examples/autodiff/`.
+
 ---
 
 ## Memory model
