@@ -1104,6 +1104,11 @@ void RegionNode::compile(C_Emitter& e) const {
         );
     }
 
+    // Layout is a compile-time property of the lexical region body. Push it
+    // before any statement is lowered so scratch declarations see the mode,
+    // and pop after the policy lowering finishes.
+    e.pushLayout(getLayout());
+
     auto dispatch = [&]() {
         if (policy.empty() || policy == "bump") {
             compileBumpRegion(e, *this);
@@ -1181,6 +1186,8 @@ void RegionNode::compile(C_Emitter& e) const {
     }
 
     dispatch();
+
+    e.popLayout();
 
     if (isBackward())
         e.popBackwardRegion();

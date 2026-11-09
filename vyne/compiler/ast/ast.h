@@ -2026,6 +2026,11 @@ class RegionNode : public ASTNode {
     std::vector<Attribute> attributes_;
     bool backward_ = false;
 
+    // Layout policy for scratch storage inside this region. "aos" (the
+    // default) keeps array-of-structs; "soa" lowers struct scratch to one
+    // array per field. Composes with any memory policy.
+    std::string layoutMode_ = "aos";
+
   public:
     RegionNode(std::string name, std::vector<std::shared_ptr<ASTNode>> b)
         : ASTNode(NodeType::REGION)
@@ -2078,6 +2083,12 @@ class RegionNode : public ASTNode {
     }
     bool isBackward() const {
         return backward_;
+    }
+    void setLayout(std::string mode) {
+        layoutMode_ = std::move(mode);
+    }
+    const std::string& getLayout() const {
+        return layoutMode_;
     }
 };
 // ============================================================
@@ -2180,6 +2191,7 @@ class ScratchNode : public ASTNode {
     uint32_t nameId;
     std::string varName;
     VType elemType;
+    std::string elemTypeName; // source spelling; used for @layout<soa>
     std::vector<int64_t> shape;
     // NEW: runtime dimension expressions. Empty iff `shape` carries every
     // dim as a compile-time literal. Populated by parseScratchDeclaration
@@ -2216,6 +2228,12 @@ class ScratchNode : public ASTNode {
     }
     VType getElemType() const {
         return elemType;
+    }
+    void setElemTypeName(std::string n) {
+        elemTypeName = std::move(n);
+    }
+    const std::string& getElemTypeName() const {
+        return elemTypeName;
     }
     const std::vector<int64_t>& getShape() const {
         return shape;

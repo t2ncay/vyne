@@ -3373,6 +3373,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     // a later phase.
     std::vector<std::pair<std::string, std::vector<std::string>>> attributes;
     bool sawBackward = false;
+    std::string layoutMode = "aos";
 
     while (peekToken().type == VTokenType::At) {
         consume(VTokenType::At);
@@ -3389,6 +3390,31 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
             continue;
         }
         if (attrTok.name == "recompute" || attrTok.name == "mixed") {
+            continue;
+        }
+        if (attrTok.name == "layout") {
+            if (attrArgs.size() != 1) {
+                emitError(
+                    "@layout expects exactly one mode argument (soa or aos)",
+                    line,
+                    "VNE-063",
+                    {"Supported: @layout<soa>, @layout<aos>, "
+                     "@layout<struct_of_arrays>"}
+                );
+            }
+            std::string mode = attrArgs[0];
+            if (mode == "struct_of_arrays")
+                mode = "soa";
+            if (mode != "soa" && mode != "aos") {
+                emitError(
+                    "unknown @layout mode '" + mode + "'",
+                    line,
+                    "VNE-063",
+                    {"Supported: @layout<soa>, @layout<aos>, "
+                     "@layout<struct_of_arrays>"}
+                );
+            }
+            layoutMode = mode;
             continue;
         }
         if (policy != "bump") {
@@ -3481,6 +3507,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     for (auto& a : attributes)
         node->addAttribute(a.first, std::move(a.second));
     node->setBackward(sawBackward);
+    node->setLayout(layoutMode);
     return node;
 }
 std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
@@ -3496,13 +3523,17 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
 
     std::string elemTypeName = parseTypePath();
     VType elemType = resolveType(elemTypeName);
-    if (elemType != VType::Float64 && elemType != VType::Float32 && elemType != VType::Int64) {
+    if (elemType != VType::Float64 && elemType != VType::Float32 &&
+        elemType != VType::Int64 && elemType != VType::Struct) {
         emitError(
-            "scratch element type must be Float64, Float32, or Int64, got '" +
+            "scratch element type must be Float64, Float32, Int64, or a "
+            "C-eligible interface, got '" +
                 elemTypeName + "'",
             line,
             "VNE-060",
-            {"Supported: scratch x :: Float64[d1, d2];"}
+            {"Supported: scratch x :: Float64[d1, d2];",
+             "Struct scratch requires @layout<soa> on the region: "
+             "scratch p :: Particle[N];"}
         );
     }
 
@@ -3575,6 +3606,7 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
         std::move(init)
     );
     node->setDimExprs(std::move(dimExprs));
+    node->setElemTypeName(elemTypeName);
     node->lineNumber = line;
     return node;
 }

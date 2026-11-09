@@ -23,6 +23,71 @@
 // MEMBER ACCESS / ASSIGNMENT
 // ============================================================
 
+// Resolve `particles[i].field` (or `particles[i, j].field`) against an
+// @layout<soa> scratch registry. Returns false when the receiver is not
+// an index into a SoA scratch; throws when it is but the field does not
+// exist. On success, `flat` is the checked row-major index expression
+// and `field->arrayName` is the per-field C array.
+namespace {
+struct SoaTarget {
+    const C_Emitter::SoaField* field = nullptr;
+    std::string flat;
+};
+
+bool resolveSoaTarget(
+    C_Emitter& e,
+    const ASTNode* receiver,
+    const std::string& member,
+    int line,
+    SoaTarget& out
+) {
+    const ASTNode* baseNode = nullptr;
+    std::vector<const ASTNode*> idxNodes;
+
+    if (receiver->type() == NodeType::INDEX_ACCESS) {
+        auto* ia = static_cast<const IndexAccessNode*>(receiver);
+        baseNode = ia->getBase();
+        idxNodes.push_back(ia->getIndex());
+    } else if (receiver->type() == NodeType::SCRATCH_INDEX) {
+        auto* si = static_cast<const ScratchIndexNode*>(receiver);
+        baseNode = si->getBase();
+        for (const auto& n : si->getIndices())
+            idxNodes.push_back(n.get());
+    } else {
+        return false;
+    }
+
+    if (!baseNode || baseNode->type() != NodeType::VARIABLE)
+        return false;
+
+    std::string baseName = baseNode->getCExpr(e);
+    const auto* info = e.getSoaScratch(baseName);
+    if (!info)
+        return false;
+
+    for (const auto& f : info->fields) {
+        if (f.name == member) {
+            const CType* bt = e.lookupType(baseName);
+            if (!bt) {
+                throw std::runtime_error(
+                    "internal: @layout<soa> scratch '" + baseName +
+                    "' has no CType (line " + std::to_string(line) + ")."
+                );
+            }
+            out.field = &f;
+            out.flat = scratchFlatIndexFromNodes(e, *bt, idxNodes, baseName);
+            return true;
+        }
+    }
+
+    throw std::runtime_error(
+        "Compile Error (VNE-063): @layout<soa> scratch '" + baseName +
+        "' has no field '" + member + "' (line " + std::to_string(line) +
+        ")."
+    );
+}
+} // namespace
+
 std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
     // Phase B (AD): `w.grad` reads the slot populated by a preceding
     // `backward(...)` inside the same @backward region. The slot is an
@@ -32,6 +97,22 @@ std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
         if (const std::string* g =
                 e.lookupGradientAccess(v->getOriginalName()))
             return *g;
+    }
+
+    // --- @layout<soa> field read -------------------------------------
+    // The receiver is `particles[i]`, which has no materialized struct in
+    // SoA mode. Emit the per-field array load directly.
+    {
+        SoaTarget soa;
+        if (resolveSoaTarget(e, receiver.get(), memberName, lineNumber, soa)) {
+            std::string temp = e.newTemp("soa");
+            e.emit(
+                soa.field->type.cTypeName() + " " + temp + " = " +
+                soa.field->arrayName + "[" + soa.flat + "];"
+            );
+            e.declareNativeTemp(temp, soa.field->type);
+            return temp;
+        }
     }
 
     // --- Slice 3c (+ extension): direct field access on a native C struct ---
@@ -206,6 +287,22 @@ void MemberAccessNode::compile(C_Emitter& e) const {
 void MemberAssignmentNode::compile(C_Emitter& e) const {
     // Any write invalidates all cached unboxes for this function.
     e.clearFieldCache();
+
+    // --- @layout<soa> field write -------------------------------------
+    // `particles[i].x = v` writes straight into the per-field array.
+    {
+        SoaTarget soa;
+        if (resolveSoaTarget(e, receiver.get(), memberName, lineNumber, soa)) {
+            std::string rawRhs = rhs->getCExpr(e);
+            std::string native = coerceToNative(
+                e, rhs.get(), rawRhs, soa.field->type.toVType()
+            );
+            e.emit(
+                soa.field->arrayName + "[" + soa.flat + "] = " + native + ";"
+            );
+            return;
+        }
+    }
 
     // --- FAST PATH: index-into-native-struct-array as lvalue -----------
     // `arr[i].member = value` where `arr` is an `Array<Struct>` cannot

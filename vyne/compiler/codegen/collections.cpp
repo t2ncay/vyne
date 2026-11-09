@@ -128,6 +128,15 @@ void ArrayNode::compile(C_Emitter& e) const {
 
 std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
+    if (e.getSoaScratch(bRaw)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-063): @layout<soa> scratch element cannot be "
+            "read as a whole struct (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Read individual fields instead, e.g. particles[i].x."
+        );
+    }
     const CType* bt = e.lookupType(bRaw);
 
     if (bt && bt->hasShape()) {
@@ -335,6 +344,15 @@ void IndexAccessNode::compile(C_Emitter& e) const {
 
 void IndexAssignmentNode::compile(C_Emitter& e) const {
     std::string bRaw = base->getCExpr(e);
+    if (e.getSoaScratch(bRaw)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-063): @layout<soa> scratch element cannot be "
+            "assigned as a whole struct (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Assign individual fields instead, e.g. particles[i].x = v."
+        );
+    }
     const CType* bt = e.lookupType(bRaw);
 
     // --- Region escape check ------------------------------------------
