@@ -2675,7 +2675,9 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
 
 std::unique_ptr<ASTNode> Parser::parseInterpolatedString() {
     const Token& tok = getNextToken();
-    auto parts =
+    // The token vector owns this literal for the whole parse, so borrowing
+    // the parts avoids copying the vector and every part string.
+    const auto& parts =
         std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
 
     auto node = std::make_unique<InterpolatedStringNode>();
