@@ -37,6 +37,16 @@ check("uppercase-length", u.size() == 11);
 check("lowercase-value", v == "hello world");
 check("lowercase-length", v.size() == 11);
 
+abc :: String := "abcdef";
+slice :: String := abc[1:3];
+check("string-slice", slice == "bc");
+
+interpolated :: String := "v={1 + 2}";
+check("interpolated-value", interpolated == "v=3");
+
+arr :: Array := [1, 2, 3];
+check("array-string", string(arr) == "[1, 2, 3]");
+
 # --- maps ------------------------------------------------------------
 m :: Map := map();
 m["alpha"] = 1;
@@ -46,6 +56,12 @@ m["alpha"] = 3;
 check("map-overwrite", m["alpha"] == 3);
 check("map-second-key", m["beta"] == 2);
 check("map-missing", m["gamma"] == null);
+check("map-missing-has", m.has("gamma") == false);
+m.delete("gamma");
+check("map-missing-delete", m.size() == 2);
+
+missingKey :: String := "no" + "pe";
+check("map-missing-dynamic", m[missingKey] == null);
 
 through i :: 0..63 -> loop {
     m["k" + string(i)] = i;
