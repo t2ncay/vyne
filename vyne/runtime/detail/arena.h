@@ -22,6 +22,23 @@
 #define VYNE_NOINLINE
 #endif
 
+// ---------------------------------------------------------------------------
+// Thread-local storage. The region arena is per-thread: two OS threads
+// allocating at the same time must never share a bump pointer. The commit
+// arena remains process-global because it is the hand-off point between
+// threads, and is protected by a spinlock (see below).
+//
+// MSVC and the GNU/Clang family both spell this differently; the C11
+// fallback keeps freestanding C compilers working.
+// ---------------------------------------------------------------------------
+#if defined(__GNUC__) || defined(__clang__)
+#define VYNE_THREAD_LOCAL __thread
+#elif defined(_MSC_VER)
+#define VYNE_THREAD_LOCAL __declspec(thread)
+#else
+#define VYNE_THREAD_LOCAL _Thread_local
+#endif
+
 #if defined(__GNUC__) || defined(__clang__)
 #define VYNE_LIKELY(x) __builtin_expect(!!(x), 1)
 #define VYNE_UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -94,6 +111,66 @@ static inline void vyne_block_free(uint8_t* p, size_t cap) {
 #define VYNE_MAX_FRAME_SIZE 1024
 
 // ============================================================================
+// COMMIT-ARENA SPINLOCK
+// ----------------------------------------------------------------------------
+// The main arena is thread-local, so local allocation needs no locks. The
+// commit arena is shared (it is how a worker publishes a value to the
+// thread that will outlive it), so every read/modify/write of its bump
+// pointers is serialized here.
+//
+// The lock is recursive for the owning thread: @persistent holds it for the
+// whole region body, and commit helpers called from inside a persistent
+// region must not deadlock on their own lock. `g_commit_lock_depth` is
+// thread-local and counts nesting for that owner only.
+// ============================================================================
+#if defined(_MSC_VER)
+#include <intrin.h>
+typedef volatile long VyneSpinlock;
+static inline void vyne_spin_lock(VyneSpinlock* l) {
+    while (_InterlockedExchange(l, 1) != 0) {
+        /* spin */
+    }
+}
+static inline void vyne_spin_unlock(VyneSpinlock* l) {
+    _InterlockedExchange(l, 0);
+}
+#else
+typedef volatile int VyneSpinlock;
+static inline void vyne_spin_lock(VyneSpinlock* l) {
+#if defined(__GNUC__) || defined(__clang__)
+    while (__sync_lock_test_and_set(l, 1)) {
+        /* spin */
+    }
+#else
+    while (*l) {
+        /* spin */
+    }
+    *l = 1;
+#endif
+}
+static inline void vyne_spin_unlock(VyneSpinlock* l) {
+#if defined(__GNUC__) || defined(__clang__)
+    __sync_lock_release(l);
+#else
+    *l = 0;
+#endif
+}
+#endif
+
+static VyneSpinlock g_commit_lock = 0;
+static VYNE_THREAD_LOCAL int g_commit_lock_depth = 0;
+
+static inline void vyne_commit_lock_acquire(void) {
+    if (g_commit_lock_depth++ == 0)
+        vyne_spin_lock(&g_commit_lock);
+}
+
+static inline void vyne_commit_lock_release(void) {
+    if (--g_commit_lock_depth == 0)
+        vyne_spin_unlock(&g_commit_lock);
+}
+
+// ============================================================================
 // ARENA ALLOCATOR
 // ============================================================================
 
@@ -110,25 +187,29 @@ typedef struct {
     size_t peak_allocated;
 } VyneArena;
 
-static VyneArena g_arena = {NULL, 0, 0};
+// Per-thread region arena. Every OS thread that allocates gets its own
+// block chain, bump pointers and byte counters. A thread publishes values
+// to other threads only through the shared commit arena below.
+static VYNE_THREAD_LOCAL VyneArena g_arena = {NULL, 0, 0};
 
 // Fast-path bump pointers. Kept in sync with g_arena.head at all times.
 // g_arena_cur is the next free byte; g_arena_end is one-past-the-end.
-static uint8_t* g_arena_cur = NULL;
-static uint8_t* g_arena_end = NULL;
+static VYNE_THREAD_LOCAL uint8_t* g_arena_cur = NULL;
+static VYNE_THREAD_LOCAL uint8_t* g_arena_end = NULL;
 
 // Zero-mode counter. When > 0, every arena_alloc zero-fills the returned
 // buffer. Set by @zeroed / @deterministic region entry, cleared at exit.
 // Nested @zeroed regions increment/decrement, so the outer one still holds
-// after the inner one closes.
-static int g_arena_zero_mode = 0;
+// after the inner one closes. Allocation context is per-thread, so this
+// counter is too.
+static VYNE_THREAD_LOCAL int g_arena_zero_mode = 0;
 
 // Set true for exactly the duration of the first allocation from a
 // freshly mmap'd block. Consumers that would otherwise memset their
 // region can read this to skip redundant zeroing. Reset to false at the
 // end of every arena_alloc and arena_rewind, so a stale true never
 // escapes to a subsequent allocation.
-static int g_arena_last_alloc_was_fresh_page = 0;
+static VYNE_THREAD_LOCAL int g_arena_last_alloc_was_fresh_page = 0;
 
 // ---------------------------------------------------------------------------
 // Optional poison-on-rewind (debug aid; C2 in the memory-model roadmap).
@@ -404,6 +485,9 @@ static inline int vyne_arena_move_to_commit(void* ptr, size_t size) {
     // bump block, splice the moved block immediately after it so the commit
     // bump pointers and checkpoint offsets stay valid. When it is empty, the
     // moved block becomes the head and may serve future commit allocations.
+    // The commit arena is shared across threads; the region-side unlink
+    // above only touched thread-local state, so the lock can be taken here.
+    vyne_commit_lock_acquire();
     b->used = size;
     if (g_commit_arena.head == NULL) {
         b->next = NULL;
@@ -418,18 +502,17 @@ static inline int vyne_arena_move_to_commit(void* ptr, size_t size) {
     g_commit_arena.total_allocated += size;
     if (g_commit_arena.total_allocated > g_commit_arena.peak_allocated)
         g_commit_arena.peak_allocated = g_commit_arena.total_allocated;
+    vyne_commit_lock_release();
 
     return 1;
 }
 
-static inline void arena_free_all(void) {
-    // Fire the cleanup hook if anything registered one. The intern
-    // table registers itself on first allocation; its canonical
-    // pointers into arena blocks would dangle after this function
-    // returns, so clearing it here is mandatory, not optional.
-    if (g_arena_cleanup_hook)
-        g_arena_cleanup_hook();
-
+// Release the calling thread's region arena only. Worker threads should
+// call this before exiting; calling arena_free_all() from a worker would
+// also free the shared commit arena out from under every other thread.
+// The cleanup hook is per-process infrastructure, so it only fires from
+// arena_free_all().
+static inline void arena_free_thread(void) {
     ArenaBlock* block = g_arena.head;
     while (block) {
         ArenaBlock* next = block->next;
@@ -442,8 +525,22 @@ static inline void arena_free_all(void) {
     g_arena_end = NULL;
     g_arena.total_allocated = 0;
     g_arena.peak_allocated = 0;
+}
 
-    // also free the commit arena if exists ( see the region part )
+static inline void arena_free_all(void) {
+    // Fire the cleanup hook if anything registered one. The intern
+    // table registers itself on first allocation; its canonical
+    // pointers into arena blocks would dangle after this function
+    // returns, so clearing it here is mandatory, not optional.
+    if (g_arena_cleanup_hook)
+        g_arena_cleanup_hook();
+
+    arena_free_thread();
+
+    // The commit arena is shared. Only the process teardown path should
+    // free it, and only under the lock: another thread may still be
+    // publishing into it.
+    vyne_commit_lock_acquire();
     ArenaBlock* cblock = g_commit_arena.head;
     while (cblock) {
         ArenaBlock* next = cblock->next;
@@ -456,6 +553,7 @@ static inline void arena_free_all(void) {
     g_commit_end = NULL;
     g_commit_arena.total_allocated = 0;
     g_commit_arena.peak_allocated = 0;
+    vyne_commit_lock_release();
 }
 
 // ============================================================================

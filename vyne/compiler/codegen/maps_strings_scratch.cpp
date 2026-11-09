@@ -106,6 +106,165 @@ void ScratchNode::compile(C_Emitter& e) const {
     std::string cName =
         prefix.empty() ? ("v_" + sanitized) : ("v_" + prefix + "_" + sanitized);
 
+    // -------- @layout<soa> struct scratch ----------------------------
+    // `scratch p :: Particle[N];` inside @layout<soa> lowers to one C
+    // array per primitive field. There is no `v_p` array of structs;
+    // member access is rewritten to the field array directly (see
+    // members.cpp). This keeps the payload perfectly packed and makes
+    // a future device upload a set of coalesced row-major buffers.
+    if (elemType == VType::Struct) {
+        if (e.currentLayout() != "soa") {
+            throw std::runtime_error(
+                "Compile Error (VNE-062): struct scratch '" + varName +
+                "' requires @layout<soa> on its region (line " +
+                std::to_string(lineNumber) +
+                ").\n"
+                "  Use `@layout<soa> region ... { scratch p :: Particle[N]; "
+                "}` or use an interface variable instead."
+            );
+        }
+        const auto* ns = e.getNativeCStruct(elemTypeName);
+        if (!ns) {
+            throw std::runtime_error(
+                "Compile Error (VNE-062): '" + elemTypeName +
+                "' has no C-eligible struct layout for @layout<soa> scratch "
+                "(line " +
+                std::to_string(lineNumber) +
+                ").\n"
+                "  SoA scratch supports interfaces whose fields are "
+                "Int64/Float64/Float32/Bool."
+            );
+        }
+
+        C_Emitter::SoaScratch info;
+        info.elemTypeName = elemTypeName;
+        info.tag = ns->tag;
+        int64_t elemBytes = 0;
+        for (size_t i = 0; i < ns->fieldNames.size(); ++i) {
+            const CType& ft = ns->fieldTypes[i];
+            if (!ft.isPrimitive()) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-063): @layout<soa> field '" +
+                    ns->fieldNames[i] + "' of '" + elemTypeName +
+                    "' is not a primitive scalar (line " +
+                    std::to_string(lineNumber) +
+                    ").\n"
+                    "  SoA scratch supports Int64, Float64, Float32, and "
+                    "Bool fields."
+                );
+            }
+            int64_t fbytes = 8;
+            if (ft.kind == CType::Kind::Float32)
+                fbytes = 4;
+            else if (ft.kind == CType::Kind::Bool)
+                fbytes = 1;
+            elemBytes += fbytes;
+
+            C_Emitter::SoaField sf;
+            sf.name = ns->fieldNames[i];
+            sf.arrayName = cName + "_" + sf.name;
+            sf.type = ft;
+            info.fields.push_back(std::move(sf));
+        }
+
+        // -------- runtime-dimension SoA -----------------------------
+        if (shape.empty() && !dimExprs.empty()) {
+            std::vector<std::string> dimTemps;
+            dimTemps.reserve(dimExprs.size());
+            for (size_t i = 0; i < dimExprs.size(); ++i) {
+                std::string raw = dimExprs[i]->getCExpr(e);
+                std::string v =
+                    coerceToNative(e, dimExprs[i].get(), raw, VType::Int64);
+                std::string t = e.newTemp("dim");
+                e.emit("int64_t " + t + " = " + v + ";");
+                dimTemps.push_back(t);
+            }
+            std::string sizeExpr;
+            for (size_t i = 0; i < dimTemps.size(); ++i) {
+                if (i)
+                    sizeExpr += " * ";
+                sizeExpr += dimTemps[i];
+            }
+
+            if (e.hasBounded()) {
+                std::string soaBytes = e.newTemp("soa_bytes");
+                e.emit(
+                    "int64_t " + soaBytes + " = (int64_t)(" + sizeExpr +
+                    ") * " + std::to_string(elemBytes) + ";"
+                );
+                for (const auto& ctx : e.getBoundedStack()) {
+                    e.emit(
+                        "if ((int64_t)(g_arena.total_allocated - " +
+                        ctx.startVar + ") + " + soaBytes + " > " +
+                        ctx.budgetVar + ") {"
+                    );
+                    e.emit(
+                        "    vyne_panic_region_bound(\"" + ctx.regionName +
+                        "\", " + std::to_string(lineNumber) + ", " +
+                        std::to_string(ctx.bound) +
+                        ", (int64_t)(g_arena.total_allocated - " + ctx.startVar +
+                        ") + " + soaBytes + " + (" +
+                        std::to_string(ctx.bound) + " - " + ctx.budgetVar +
+                        "));"
+                    );
+                    e.emit("}");
+                }
+            }
+
+            for (const auto& f : info.fields) {
+                e.emit(
+                    f.type.cTypeName() + " " + f.arrayName + "[" + sizeExpr +
+                    "];"
+                );
+                if (e.hasZeroMode()) {
+                    e.emit(
+                        "memset(" + f.arrayName + ", 0, sizeof(" +
+                        f.type.cTypeName() + ") * (" + sizeExpr + "));"
+                    );
+                }
+            }
+
+            CType arrType;
+            arrType.kind = CType::Kind::Array;
+            arrType.nativeName = ns->tag;
+            e.declareLocal(cName, arrType);
+            e.registerScratchRuntimeDims(cName, std::move(dimTemps));
+            e.registerSoaScratch(cName, std::move(info));
+            return;
+        }
+
+        // -------- static-shape SoA ---------------------------------
+        int64_t n = 1;
+        for (int64_t d : shape)
+            n *= d;
+        if (e.hasBounded())
+            e.applyBoundedStaticScratch(n * elemBytes, lineNumber);
+
+        for (const auto& f : info.fields) {
+            if (e.hasZeroMode()) {
+                e.emit(
+                    f.type.cTypeName() + " " + f.arrayName + "[" +
+                    std::to_string(n) + "] = {0};"
+                );
+            } else {
+                e.emit(
+                    f.type.cTypeName() + " " + f.arrayName + "[" +
+                    std::to_string(n) + "];"
+                );
+            }
+        }
+
+        info.shape = shape;
+        CType arrType;
+        arrType.kind = CType::Kind::Array;
+        arrType.nativeName = ns->tag;
+        arrType.shape = shape;
+        e.declareLocal(cName, arrType);
+        e.registerSoaScratch(cName, std::move(info));
+        return;
+    }
+    // -------- end @layout<soa> struct scratch -----------------------
+
     const std::string elemCName = CType::elemCName(elemType);
 
     // -------- runtime-dimension path --------------------------------
@@ -250,10 +409,10 @@ static std::string e_shapeStr(const CType& ct) {
     return s;
 }
 
-static std::string scratchFlatIndex(
+std::string scratchFlatIndexFromNodes(
     C_Emitter& e,
     const CType& arrType,
-    const std::vector<std::unique_ptr<ASTNode>>& idxNodes,
+    const std::vector<const ASTNode*>& idxNodes,
     const std::string& baseCName
 ) {
 
@@ -275,7 +434,7 @@ static std::string scratchFlatIndex(
         for (size_t k = 0; k < idxNodes.size(); ++k) {
             std::string raw = idxNodes[k]->getCExpr(e);
             std::string idxExpr =
-                coerceToNative(e, idxNodes[k].get(), raw, VType::Int64);
+                coerceToNative(e, idxNodes[k], raw, VType::Int64);
 
             // Materialize the index once so the bounds check and the
             // load read the same value, matching the static path.
@@ -342,7 +501,7 @@ static std::string scratchFlatIndex(
     for (size_t k = 0; k < idxNodes.size(); ++k) {
         std::string raw = idxNodes[k]->getCExpr(e);
         std::string idxExpr =
-            coerceToNative(e, idxNodes[k].get(), raw, VType::Int64);
+            coerceToNative(e, idxNodes[k], raw, VType::Int64);
 
         // Materialize into a temp, then bounds-check per dimension.
         // The check is gated so a benchmark build can turn it off;
@@ -381,8 +540,30 @@ static std::string scratchFlatIndex(
     return flat;
 }
 
+static std::string scratchFlatIndex(
+    C_Emitter& e,
+    const CType& arrType,
+    const std::vector<std::unique_ptr<ASTNode>>& idxNodes,
+    const std::string& baseCName
+) {
+    std::vector<const ASTNode*> raw;
+    raw.reserve(idxNodes.size());
+    for (const auto& n : idxNodes)
+        raw.push_back(n.get());
+    return scratchFlatIndexFromNodes(e, arrType, raw, baseCName);
+}
+
 std::string ScratchIndexNode::getCExpr(C_Emitter& e) const {
     std::string baseExpr = base->getCExpr(e);
+    if (e.getSoaScratch(baseExpr)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-063): @layout<soa> scratch element cannot be "
+            "read as a whole struct (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Read individual fields instead, e.g. particles[i].x."
+        );
+    }
     const CType* bt = e.lookupAnyType(baseExpr);
 
     // A runtime-dim scratch has no static shape; the registry is the
@@ -413,6 +594,15 @@ void ScratchIndexNode::compile(C_Emitter& e) const {
 
 void ScratchStoreNode::compile(C_Emitter& e) const {
     std::string baseExpr = base->getCExpr(e);
+    if (e.getSoaScratch(baseExpr)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-063): @layout<soa> scratch element cannot be "
+            "assigned as a whole struct (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Assign individual fields instead, e.g. particles[i].x = v."
+        );
+    }
     const CType* bt = e.lookupAnyType(baseExpr);
     bool hasRuntimeDims = (e.lookupScratchRuntimeDims(baseExpr) != nullptr);
     if (!bt || (!bt->hasShape() && !hasRuntimeDims)) {

@@ -44,8 +44,8 @@ typedef struct {
     int             active;
 } VyneCheckpointSlot;
 
-static VyneCheckpointSlot g_vmem_slots[VYNE_MAX_CHECKPOINTS];
-static int                g_vmem_top = 0;
+static VYNE_THREAD_LOCAL VyneCheckpointSlot g_vmem_slots[VYNE_MAX_CHECKPOINTS];
+static VYNE_THREAD_LOCAL int                g_vmem_top = 0;
 
 /* ===================================================================
  * @PERSISTENT FRAMES
@@ -65,8 +65,9 @@ typedef struct {
     uint8_t*  end;
 } VynePersistentFrame;
 
-static VynePersistentFrame g_persistent_frames[VYNE_MAX_PERSISTENT_DEPTH];
-static int                 g_persistent_depth = 0;
+static VYNE_THREAD_LOCAL VynePersistentFrame
+    g_persistent_frames[VYNE_MAX_PERSISTENT_DEPTH];
+static VYNE_THREAD_LOCAL int g_persistent_depth = 0;
 
 static inline void vyne_persistent_enter(void) {
     if (g_persistent_depth >= VYNE_MAX_PERSISTENT_DEPTH) {
@@ -75,6 +76,12 @@ static inline void vyne_persistent_enter(void) {
                 VYNE_MAX_PERSISTENT_DEPTH);
         exit(1);
     }
+    /* @persistent borrows the shared commit arena as its bump arena for
+     * the whole body. Hold the commit lock for that duration so another
+     * thread cannot publish into the same bump pointer. The lock is
+     * recursive for this thread, so commit helpers called from the body
+     * still work. */
+    vyne_commit_lock_acquire();
     if (g_persistent_depth == 0) {
         VynePersistentFrame* f = &g_persistent_frames[0];
         f->arena = g_arena;
@@ -107,6 +114,7 @@ static inline void vyne_persistent_leave(void) {
         g_arena_cur = f->cur;
         g_arena_end = f->end;
     }
+    vyne_commit_lock_release();
 }
 
 static inline VyneValue vmem_runtime_checkpoint(void) {
@@ -160,6 +168,21 @@ static inline VyneValue vmem_runtime_reset(void) {
     return vyne_null();
 }
 
+/* Drop this thread's region arena and checkpoint stack without touching
+ * the shared commit arena. Worker threads must call this before exiting;
+ * process teardown uses arena_free_all()/vmem_runtime_reset(). */
+static inline void vmem_runtime_thread_cleanup(void) {
+    if (g_persistent_depth != 0) {
+        fprintf(stderr,
+                "Runtime error (VNE-083): thread cleanup while @persistent "
+                "depth is %d\n",
+                g_persistent_depth);
+        exit(1);
+    }
+    g_vmem_top = 0;
+    arena_free_thread();
+}
+
 static inline VyneValue vmem_deep_clone(VyneValue v) {
     switch (v.type) {
         case V_ARRAY:
@@ -189,6 +212,7 @@ static inline VyneValue vmem_runtime_commit(VyneValue v) {
     uint8_t*    saved_cur   = g_arena_cur;
     uint8_t*    saved_end   = g_arena_end;
 
+    vyne_commit_lock_acquire();
     g_arena     = g_commit_arena;
     g_arena_cur = g_commit_cur;
     g_arena_end = g_commit_end;
@@ -198,6 +222,7 @@ static inline VyneValue vmem_runtime_commit(VyneValue v) {
     g_commit_arena = g_arena;
     g_commit_cur   = g_arena_cur;
     g_commit_end   = g_arena_end;
+    vyne_commit_lock_release();
 
     g_arena     = saved_arena;
     g_arena_cur = saved_cur;
@@ -299,6 +324,7 @@ static inline VyneArray_f64 vmem_runtime_move_array_f64(VyneArray_f64 a) {
     uint8_t*  saved_cur   = g_arena_cur;
     uint8_t*  saved_end   = g_arena_end;
 
+    vyne_commit_lock_acquire();
     g_arena     = g_commit_arena;
     g_arena_cur = g_commit_cur;
     g_arena_end = g_commit_end;
@@ -310,6 +336,7 @@ static inline VyneArray_f64 vmem_runtime_move_array_f64(VyneArray_f64 a) {
     g_commit_arena = g_arena;
     g_commit_cur   = g_arena_cur;
     g_commit_end   = g_arena_end;
+    vyne_commit_lock_release();
 
     g_arena     = saved_arena;
     g_arena_cur = saved_cur;
@@ -329,6 +356,7 @@ static inline VyneArray_i64 vmem_runtime_move_array_i64(VyneArray_i64 a) {
     uint8_t*  saved_cur   = g_arena_cur;
     uint8_t*  saved_end   = g_arena_end;
 
+    vyne_commit_lock_acquire();
     g_arena     = g_commit_arena;
     g_arena_cur = g_commit_cur;
     g_arena_end = g_commit_end;
@@ -340,6 +368,7 @@ static inline VyneArray_i64 vmem_runtime_move_array_i64(VyneArray_i64 a) {
     g_commit_arena = g_arena;
     g_commit_cur   = g_arena_cur;
     g_commit_end   = g_arena_end;
+    vyne_commit_lock_release();
 
     g_arena     = saved_arena;
     g_arena_cur = saved_cur;
@@ -359,6 +388,7 @@ static inline VyneArray_f32 vmem_runtime_move_array_f32(VyneArray_f32 a) {
     uint8_t*  saved_cur   = g_arena_cur;
     uint8_t*  saved_end   = g_arena_end;
 
+    vyne_commit_lock_acquire();
     g_arena     = g_commit_arena;
     g_arena_cur = g_commit_cur;
     g_arena_end = g_commit_end;
@@ -370,6 +400,7 @@ static inline VyneArray_f32 vmem_runtime_move_array_f32(VyneArray_f32 a) {
     g_commit_arena = g_arena;
     g_commit_cur   = g_arena_cur;
     g_commit_end   = g_arena_end;
+    vyne_commit_lock_release();
 
     g_arena     = saved_arena;
     g_arena_cur = saved_cur;
@@ -393,17 +424,24 @@ static inline VyneValue vmem_runtime_peak_allocated(void) {
 }
 
 static inline VyneValue vmem_runtime_commit_peak_allocated(void) {
-    size_t peak = (g_persistent_depth > 0)
-                      ? g_arena.peak_allocated
-                      : g_commit_arena.peak_allocated;
+    size_t peak;
+    if (g_persistent_depth > 0) {
+        peak = g_arena.peak_allocated; /* lock already held by @persistent */
+    } else {
+        vyne_commit_lock_acquire();
+        peak = g_commit_arena.peak_allocated;
+        vyne_commit_lock_release();
+    }
     return vyne_int((int64_t)peak);
 }
 
 /* Zero the peaks without touching the arena. Useful between benchmark
  * runs: sample a warm-up, clear the peaks, then sample the real run. */
 static inline VyneValue vmem_runtime_peak_reset(void) {
-    g_arena.peak_allocated        = g_arena.total_allocated;
+    g_arena.peak_allocated = g_arena.total_allocated;
+    vyne_commit_lock_acquire();
     g_commit_arena.peak_allocated = g_commit_arena.total_allocated;
+    vyne_commit_lock_release();
     return vyne_null();
 }
 
@@ -446,9 +484,14 @@ static inline VyneValue vmem_runtime_current_block_capacity(void) {
 }
 
 static inline VyneValue vmem_runtime_commit_total_allocated(void) {
-    size_t total = (g_persistent_depth > 0)
-                       ? g_arena.total_allocated
-                       : g_commit_arena.total_allocated;
+    size_t total;
+    if (g_persistent_depth > 0) {
+        total = g_arena.total_allocated; /* lock already held by @persistent */
+    } else {
+        vyne_commit_lock_acquire();
+        total = g_commit_arena.total_allocated;
+        vyne_commit_lock_release();
+    }
     return vyne_int((int64_t)total);
 }
 
@@ -564,6 +607,11 @@ static inline VyneValue vmem_runtime_dump(void) {
         cur_cap  = g_arena.head->capacity;
     }
 
+    vyne_commit_lock_acquire();
+    size_t commit_live = g_commit_arena.total_allocated;
+    size_t commit_peak = g_commit_arena.peak_allocated;
+    vyne_commit_lock_release();
+
     fprintf(stderr,
         "vmem dump\n"
         "  main:    live=%zu  peak=%zu  blocks=%zu  cap=%zu\n"
@@ -572,7 +620,7 @@ static inline VyneValue vmem_runtime_dump(void) {
         "  ckpts:   depth=%d / %d\n",
         g_arena.total_allocated, g_arena.peak_allocated, blocks, cap,
         cur_used, cur_cap,
-        g_commit_arena.total_allocated, g_commit_arena.peak_allocated,
+        commit_live, commit_peak,
         g_vmem_top, VYNE_MAX_CHECKPOINTS);
     return vyne_null();
 }
@@ -594,15 +642,20 @@ static inline VyneValue vmem_runtime_stats(void) {
         cur_cap  = g_arena.head->capacity;
     }
 
+    vyne_commit_lock_acquire();
+    size_t commit_live = g_commit_arena.total_allocated;
+    size_t commit_peak = g_commit_arena.peak_allocated;
+    vyne_commit_lock_release();
+
     VyneValue m = vyne_map_create();
     vyne_map_set(m, vyne_string_static("live"),
                  vyne_int((int64_t)g_arena.total_allocated));
     vyne_map_set(m, vyne_string_static("peak"),
                  vyne_int((int64_t)g_arena.peak_allocated));
     vyne_map_set(m, vyne_string_static("commit_live"),
-                 vyne_int((int64_t)g_commit_arena.total_allocated));
+                 vyne_int((int64_t)commit_live));
     vyne_map_set(m, vyne_string_static("commit_peak"),
-                 vyne_int((int64_t)g_commit_arena.peak_allocated));
+                 vyne_int((int64_t)commit_peak));
     vyne_map_set(m, vyne_string_static("blocks"),
                  vyne_int((int64_t)blocks));
     vyne_map_set(m, vyne_string_static("capacity"),

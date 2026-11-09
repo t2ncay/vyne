@@ -143,6 +143,34 @@ class C_Emitter {
     };
     std::unordered_map<std::string, NativeCStruct> nativeCStructs;
 
+  public:
+    // --- Layout-aware scratch (AoS / SoA) --------------------------------
+    // A `scratch particles :: Particle[N];` declaration inside a
+    // `@layout<soa>` region is lowered to one C array per field instead
+    // of one array of structs. This registry is how member access later
+    // finds the field arrays without re-resolving the interface.
+    struct SoaField {
+        std::string name;       // source field name
+        std::string arrayName;  // emitted C array, e.g. v_particles_x
+        CType type;             // field type (primitive only)
+    };
+    struct SoaScratch {
+        std::string elemTypeName;         // source interface name
+        std::string tag;                  // C typedef tag, e.g. vyne_Particle
+        std::vector<int64_t> shape;       // static shape (empty if runtime)
+        std::vector<SoaField> fields;     // declaration order
+    };
+    std::unordered_map<std::string, SoaScratch> soaScratch;
+
+    void registerSoaScratch(const std::string& cName, SoaScratch s) {
+        soaScratch[cName] = std::move(s);
+    }
+    const SoaScratch* getSoaScratch(const std::string& cName) const {
+        auto it = soaScratch.find(cName);
+        return it == soaScratch.end() ? nullptr : &it->second;
+    }
+
+  private:
     // Slice 3g: fixed-point C-eligibility set. An interface name lands
     // here once every field is a primitive scalar, a String, a Map, or
     // an Array<X> whose element X is itself in this set. Populated by
@@ -210,6 +238,10 @@ class C_Emitter {
     std::string currentReturningVar;
 
     std::vector<std::string> regionStack;
+    // Layout mode of each open region ("aos" by default, "soa" for
+    // `@layout<soa>`). Unlike regionStack this is compile-time-only: it is
+    // pushed/popped by RegionNode::compile and read by ScratchNode.
+    std::vector<std::string> layoutStack;
     // Parallel to regionStack: true for @streamed regions, which need a
     // stream_leave() in addition to the main-arena rewind on early exit.
     std::vector<bool> streamedRegionStack;
@@ -813,6 +845,7 @@ class C_Emitter {
         fieldCache.clear();
         currentInterfaceType.clear();
         regionStack.clear();
+        layoutStack.clear();
         streamedRegionStack.clear();
         streamedElemStack.clear();
         persistentRegionStack.clear();
@@ -1393,6 +1426,23 @@ class C_Emitter {
             regionStack.pop_back();
         }
     }
+
+    // --- Layout context ----------------------------------------------
+    // Compile-time stack parallel to the lexical region nesting. Scratch
+    // declarations consult the innermost open layout. @layout<soa> is the
+    // only non-default mode today; everything else is "aos".
+    void pushLayout(const std::string& mode) {
+        layoutStack.push_back(mode);
+    }
+    void popLayout() {
+        if (!layoutStack.empty())
+            layoutStack.pop_back();
+    }
+    const std::string& currentLayout() const {
+        static const std::string aos = "aos";
+        return layoutStack.empty() ? aos : layoutStack.back();
+    }
+
     bool hasRegion() const {
         return !regionStack.empty();
     }
@@ -1847,6 +1897,7 @@ class C_Emitter {
         interfaceArrayFields.clear();
         interfacePrimitiveFields.clear();
         nativeCStructs.clear();
+        soaScratch.clear();
         cEligibleInterfaces.clear();
         interfaceStructLayout.clear();
         localStructTypes.clear();

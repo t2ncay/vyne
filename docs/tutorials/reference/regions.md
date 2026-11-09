@@ -51,6 +51,7 @@ A region may carry one policy attribute: `@name<args> region name { ... };`.
 | `@zeroed` | Every allocation in the region is zero-filled. |
 | `@deterministic` | `@zeroed` plus a non-determinism scan (rejects time/RNG sources). |
 | `@realtime<ms>` | Runtime-checked deadline: records a monotonic timestamp on entry and checks the elapsed time on every exit path. Overrun halts with `VNE-109`. |
+| `@layout<soa>` | Composition attribute, not a memory policy: struct `scratch` declarations lower to one packed array per field instead of an array of structs. |
 
 Policies are compiled-backend features. `slab_alloc(n)`, `ring_alloc(n)`, and
 `streamed_alloc(n)` zero-fill the requested `n` elements; their buffers are
@@ -83,6 +84,35 @@ exceeds its deadline halts with `VNE-109`.
 
 The same policy applies for the whole region; a second policy means a second
 region.
+
+### `@layout<soa>`
+
+`@layout<soa>` composes with any memory policy and changes the storage layout of
+struct `scratch` declarations in the region body:
+
+```vyne
+interface Particle {
+    x :: Float64, y :: Float64, z :: Float64, mass :: Float64,
+}
+
+@layout<soa> @bounded<400_000> region physics {
+    scratch particles :: Particle[10_000];
+    particles[i].x = 1.0;          # writes the per-field array directly
+};
+```
+
+Instead of `vyne_Particle v_particles[10000]` (array-of-structs), the compiler
+emits four contiguous arrays — `v_particles_x`, `v_particles_y`,
+`v_particles_z`, `v_particles_mass` — each `double[10000]`. Member reads and
+writes on `particles[i]` are rewritten to the corresponding field array, and
+multi-dimensional scratch (`Particle[rows, cols]`) flattens row-major. The
+result is perfectly packed memory for SIMD and for a future coalesced device
+upload. Only primitive fields (`Int64`, `Float64`, `Float32`, `Bool`) are
+supported. Using struct scratch without `@layout<soa>` is `VNE-062`; accessing a
+whole SoA element as a struct is `VNE-063` — read or write fields instead.
+
+`@layout<aos>` is the explicit default. `@layout<struct_of_arrays>` is accepted
+as an alias for `soa`.
 
 ## Edge cases
 The parser requires `;` after the closing region brace. Regions are a compiled-code feature; the interpreter's behavior must be verified before promising support. Returns, breaks and continues use special cleanup paths.

@@ -138,6 +138,18 @@ static std::string coerceToNative(
     return expr;
 }
 
+// Compute the row-major flat index for a shaped scratch array, emitting
+// per-dimension bounds checks (VNE-072) when enabled. Shared by
+// ScratchIndexNode, IndexAccessNode's @layout<soa> member fast path and
+// MemberAssignmentNode. `arrType.shape` or the runtime-dims registry must
+// describe the array.
+std::string scratchFlatIndexFromNodes(
+    C_Emitter& e,
+    const CType& arrType,
+    const std::vector<const ASTNode*>& idxNodes,
+    const std::string& baseCName
+);
+
 // Resolve the "kind" of an RHS expression without emitting any code.
 // The emitter's static type table is authoritative for variables and
 // typed-array index reads; the AST is a fallback for literals. BinOps
@@ -199,6 +211,29 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
         if (bct->hasShape() && !bct->args.empty())
             return bct->args[0].toVType();
         return VType::Unknown;
+    }
+
+    // --- @layout<soa> field reads --------------------------------
+    // `particles[i].x` has no materialized struct; the emitter's SoA
+    // registry knows the field's primitive type. This keeps the escape
+    // checker from treating a scalar field read as an unknown allocation.
+    if (rhs->type() == NodeType::MEMBER_ACCESS) {
+        auto* ma = static_cast<const MemberAccessNode*>(rhs);
+        const ASTNode* recv = ma->getReceiver();
+        const ASTNode* baseNode = nullptr;
+        if (recv && recv->type() == NodeType::INDEX_ACCESS)
+            baseNode = static_cast<const IndexAccessNode*>(recv)->getBase();
+        else if (recv && recv->type() == NodeType::SCRATCH_INDEX)
+            baseNode = static_cast<const ScratchIndexNode*>(recv)->getBase();
+
+        if (baseNode && baseNode->type() == NodeType::VARIABLE) {
+            std::string cName = baseNode->getCExpr(e);
+            if (const auto* soa = e.getSoaScratch(cName)) {
+                for (const auto& f : soa->fields)
+                    if (f.name == ma->getMemberName())
+                        return f.type.toVType();
+            }
+        }
     }
 
     // --- Binary operations ---------------------------------------
