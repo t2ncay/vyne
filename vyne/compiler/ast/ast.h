@@ -337,6 +337,7 @@ enum class NodeType {
     REGION,           // A1: lexical region  { ... }
     REGION_COMMIT,    // A3: region.commit(expr)
     REGION_COMMIT_IF, // region.commit_if(pred) — inside @speculative
+    REGION_MOVE,      // region.move(expr) — zero-copy transfer to commit arena
 
     SCRATCH,
     SCRATCH_INDEX,
@@ -784,6 +785,7 @@ class BuiltInCallNode : public ASTNode {
         SEQUENCE,
         MAP,
         FREE,
+        DROP,
         UNKNOWN
     };
 
@@ -803,7 +805,8 @@ class BuiltInCallNode : public ASTNode {
             {"sizeof", BuiltInType::SIZEOF},
             {"sequence", BuiltInType::SEQUENCE},
             {"map", BuiltInType::MAP},
-            {"free", BuiltInType::FREE}
+            {"free", BuiltInType::FREE},
+            {"drop", BuiltInType::DROP}
         };
 
         auto it = map.find(name);
@@ -2123,6 +2126,45 @@ class RegionCommitIfNode : public ASTNode {
 
     ASTNode* getPredicate() const {
         return predicate.get();
+    }
+};
+
+// ============================================================
+// A4 — REGION MOVE
+// ------------------------------------------------------------
+// `region.move(expr)` transfers an arena allocation into the commit
+// arena, where it survives the enclosing rewind. It is the zero-copy
+// sibling of region.commit: when the value is a dedicated tail block
+// (a large typed array), the block changes owners in O(1) instead of
+// being deep-copied. Smaller values fall back to commit's copy path.
+//
+// Unlike commit, move is an expression: it yields the moved value, so
+// both forms are valid:
+//
+//     region.move(model);                    // statement
+//     persistent := region.move(model);      // expression
+//
+// The source variable is rebound to the moved value and marked
+// committed, so any later use inside the region is safe.
+// ============================================================
+class RegionMoveNode : public ASTNode {
+    std::unique_ptr<ASTNode> expression;
+
+  public:
+    RegionMoveNode(std::unique_ptr<ASTNode> expr)
+        : ASTNode(NodeType::REGION_MOVE)
+        , expression(std::move(expr)) {}
+
+    Value
+    evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
+    void compile(C_Emitter& e) const override;
+    std::string getCExpr(C_Emitter& e) const override;
+    VType getStaticType() const override {
+        return VType::Unknown;
+    }
+
+    ASTNode* getExpression() const {
+        return expression.get();
     }
 };
 

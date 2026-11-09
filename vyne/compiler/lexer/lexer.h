@@ -184,6 +184,7 @@ static const std::unordered_map<std::string_view, VTokenType> keywords = {
     {"enum", VTokenType::Enum},
     {"defer", VTokenType::Defer},
     {"free", VTokenType::BuiltIn},
+    {"drop", VTokenType::BuiltIn},
     {"in", VTokenType::In},
     {"try", VTokenType::Try},
     {"catch", VTokenType::Catch},
