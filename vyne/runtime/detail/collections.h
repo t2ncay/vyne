@@ -87,7 +87,7 @@ static inline VyneValue vyne_slice_get(VyneValue base, VyneValue lo_v, VyneValue
         char* buf = (char*)arena_alloc((size_t)n + 1);
         memcpy(buf, s + lo, (size_t)n);
         buf[n] = '\0';
-        return vyne_string(buf);
+        return vyne_string_own(buf);
     }
 
     return vyne_null();
