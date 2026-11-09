@@ -135,13 +135,16 @@ design.
 `vmem`, `vfs` cover the basics. `vlin` (linear algebra), `vml` (neural
 network primitives), `vfft` (radix-2 FFT with plan caching), `vrand`
 (distributions), `vstat` (statistics plus PSNR/SSIM), `vtermplot`
-(terminal plots), `vcsv`, `vcomplex`, `vimage` (PNG/JPEG I/O), `vconv`
-(forward convolution), and `vbio` (nucleotide / protein sequences) are
-written in Vyne itself, in the same kernel/wrapper pattern, and ship with
-a full manual each. On AVR, the same numerical idioms run through a
-60-function `arduino` module: serial I/O, ADC, bit manipulation, EEPROM,
-watchdog, and an unboxed math family (`_f64` variants) that the emitter
-picks at call sites where every argument is a provable `Float64`.
+(terminal plots), `vcsv`, `vcomplex`, `vinterp` (interpolation), `vimage`
+(PNG/JPEG I/O), `vconv` (forward convolution), `vsignal` (filters and DSP),
+`vcontrol` (PID / Kalman / state-space), and `vbio` (nucleotide / protein
+sequences) are written in Vyne itself, in the same kernel/wrapper pattern,
+and the major libraries ship with a full manual each. On AVR, the same
+numerical idioms run
+through a 110-function `arduino` module: serial I/O, ADC, I2C/SPI, bit
+manipulation, EEPROM, watchdog, realtime deadline telemetry, and an unboxed
+math family (`_f64` variants) that the emitter picks at call sites where
+every argument is a provable `Float64`.
 
 **Start from a working project.** `vynec init` opens an ftxui
 questionnaire and scaffolds an ML training project, an Arduino sketch
@@ -518,7 +521,7 @@ module exists on both targets, the surface is identical.
 | `vmath` | Trig, exp/log, rounding, sigmoid/relu, clamp, PCG32 random. On AVR the same surface, with `_f64` unboxed variants emitted where provable. |
 | `vfs`   | Filesystem: read, write, lines, bytes, walk, glob, mkdir, path ops. Desktop only — AVR has no filesystem.             |
 | `vmem`  | Arena checkpoints, peak tracking, live-state inspection, commit.                                                     |
-| `arduino` | **AVR-only.** 60+ bindings covering serial, GPIO, ADC, EEPROM, bit manipulation, watchdog, interrupts, memory introspection. See [Arduino backend](#arduino-backend). |
+| `arduino` | **AVR-only.** 110 bindings covering serial, GPIO, ADC, I2C/SPI, EEPROM, bit manipulation, watchdog, interrupts, memory introspection, and `@realtime` telemetry. See [Arduino backend](#arduino-backend). |
 
 ### Built-in functions
 
@@ -682,48 +685,86 @@ touched. That is the region-based memory model working on a chip with
 
 ## External library system
 
-Libraries written in Vyne itself live under `modules/external/`. A
-facade `.vy` file re-exports the leaf modules via `use lib` and `module`.
-The language's own numerical stack is written this way, and the same
-pattern applies to any user library.
+Libraries written in Vyne itself live under `vyne/modules/external/`. Each
+library is a directory with a facade `<lib>.vy` that imports its leaf modules
+and ends with `deploy <lib>;`:
+
+```vyne
+# vyne/modules/external/vsignal/vsignal.vy
+use "Types.vy";
+use "Kernels.vy";
+use "Iir.vy";
+use "Fir.vy";
+
+ruleset { dynamic_casting };
+module vsignal;
+deploy vsignal;
+```
+
+Consumers import the facade through an external import:
+
+```vyne
+use external "vsignal/vsignal.vy";
+use external "vcontrol/vcontrol.vy";
+```
+
+The `external` path is resolved against `vyne/modules/external/`; leaf modules
+are imported relative to the facade (`use "Types.vy";`). A library may depend
+on another external library by importing its facade. `vcontrol`, for example,
+is designed to be paired with `vsignal` for sensor pre-filtering, while the
+`vchem` facade re-exports its `vchem_common` and `vgraph` sub-modules.
 
 ### Libraries in this repository
 
-| Library    | Purpose                                                                 |
-| :--------- | :---------------------------------------------------------------------- |
-| `vjson`    | RFC 8259 parser and serializer, built on the vcore string builder       |
-| `vlin`     | Dense linear algebra: matrices, matmul, reductions, element-wise ops    |
-| `vml`      | Dense neural network primitives: `Dense`, `Sequential`, `SGD`, `Adam`   |
-| `vfft`     | Iterative radix-2 Cooley-Tukey FFT with plan caching and bit-reversal   |
-| `vrand`    | Distributions and sampling: normal, gamma, beta, Poisson, categorical   |
-| `vbio`     | Nucleotide and protein sequence primitives: complement, translation, GC |
-| `vcolors`  | ANSI color helpers                                                      |
-| `vconvert` | Data format conversion                                                  |
-| `vstring`  | String utilities                                                        |
-| `vplot`    | Plotting                                                                |
+| Area | Libraries |
+| :--- | :--- |
+| Linear algebra and ML | `vlin`, `vml`, `vfft`, `vrand` |
+| Statistics and numerics | `vstat`, `vcomplex`, `vinterp` |
+| DSP and control | `vsignal`, `vcontrol` |
+| Data and plotting | `vcsv`, `vjson`, `vtermplot` |
+| Image and vision | `vimage`, `vconv` |
+| Embedded buses | `vi2c`, `vspi` |
+| Domain | `vbio`, `vchem` (`vchem_common`, `vgraph`) |
+| Single-file helpers | `vcolors.vy`, `vconvert.vy`, `vplot.vy`, `vstring.vy` |
 
-Each library ships with a full manual in its directory. `vlin/README.md`,
-`vml/README.md`, `vjson/README.md`, `vfft/README.md`, `vrand/README.md`,
-and `vbio/README.md` are the reference for the user-visible surface.
+Every library directory ships a `README.md` describing its user-visible
+surface, conventions, and limitations. The most complete references are
+`vlin/README.md`, `vml/README.md`, `vstat/README.md`, `vsignal/README.md`,
+and `vcontrol/README.md`.
 
 ### Kernel/wrapper pattern
 
-Every performance-sensitive library in this repository splits into two
-layers:
+Performance-sensitive libraries split into a few layers:
 
 ```
-Kernels.vy    # loops over typed arrays; native ABI; no boxing
-Ops.vy        # shape checks, allocation, dispatch to kernels
+Kernels.vy    # loops over Array<Float64>; native-array ABI; no boxing
+Types.vy      # interfaces: Series, Matrix, filter/controller state
+Ops.vy / ...  # validation, allocation, dispatch to kernels
+<lib>.vy      # facade: use leaf modules, module <lib>, deploy <lib>
 ```
 
-The kernels are functions of the form
-`(Array<Float64>, Int64) -> Float64` or
-`(Array<Float64>, Array<Float64>, Int64) -> Int64`. The transpiler
-recognizes this shape and emits a direct C function; the wrappers handle
-shape validation, scratch buffer allocation, and dispatch. The same
-pattern is what would make a future `.vy` numerical library usable on
-both the desktop and the MCU target, since the kernel shape is exactly
-what the AVR backend's unboxed dispatch looks for.
+Kernels have the shape `(Array<Float64>, Int64) -> Float64` or
+`(Array<Float64>, Array<Float64>, Int64) -> Int64`. The transpiler recognizes
+this shape and emits a direct C function; the wrappers handle shape validation,
+allocation, and dispatch.
+
+- `vstat` and `vinterp` use a `Series`/`Curve` interface to keep a typed buffer
+  and its length together.
+- `vsignal` and `vcontrol` keep streaming state in an `Array<Float64>` field,
+  so a filter/controller step updates shared state without returning a new
+  struct.
+- `vimage`/`vconv` pair a typed `Image`/`Tensor` surface with native HWC
+  buffers.
+
+Each library ships tests and at least one benchmark:
+
+- `examples/test/<lib>_test.vy` (older libraries) or
+  `examples/libs/<lib>_test.vy` (newer libraries).
+- `examples/benchmark/<lib>_bench.vy` (older libraries) or
+  `examples/libs/<lib>_bench.vy` (newer libraries).
+
+Run them with `vynec --compile <file>` followed by the produced executable
+(`vynec --run` also works for interpreter-friendly tests).
 
 ### BLAS dispatch
 
@@ -1150,18 +1191,24 @@ vyne/
 │   │   ├── vmem/                  # memory
 │   │   └── vml/                   # ML native bindings
 │   └── external/                  # libraries written in Vyne
-│       ├── vjson/                 # JSON parser and serializer
 │       ├── vlin/                  # linear algebra
 │       ├── vml/                   # neural network primitives
 │       ├── vfft/                  # FFT with plan caching
 │       ├── vrand/                 # distributions and sampling
 │       ├── vstat/                 # statistics, PSNR/SSIM
-│       ├── vtermplot/             # terminal plotting
-│       ├── vcsv/                  # CSV/TSV tables
 │       ├── vcomplex/              # complex numbers
+│       ├── vinterp/               # 1-D / 2-D interpolation
+│       ├── vsignal/               # filters, windows, resampling, spectra
+│       ├── vcontrol/              # PID, complementary/Kalman filters, state space
+│       ├── vcsv/                  # CSV/TSV tables
+│       ├── vjson/                 # JSON parser and serializer
+│       ├── vtermplot/             # terminal plotting
 │       ├── vimage/                # PNG/JPEG I/O
 │       ├── vconv/                 # forward convolution
+│       ├── vi2c/                  # I2C device surface (AVR)
+│       ├── vspi/                  # SPI device surface (AVR)
 │       ├── vbio/                  # bioinformatics
+│       ├── vchem/                 # chemistry (vchem_common, vgraph)
 │       ├── vcolors.vy, vconvert.vy, vplot.vy, vstring.vy
 │
 ├── cli/                           # REPL, file handler, packager, init + TUI
@@ -1172,6 +1219,7 @@ vyne/
 ├── examples/                      # language and library examples
 │   ├── arduino/                   # AVR firmware examples (tinyml_xor.vy, ...)
 │   ├── benchmark/                 # matmul, recursion, ML training
+│   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, vfft)
 │   ├── network/                   # vnet (archival, no longer maintained)
 │   ├── safety/                    # region escape negative tests
 │   ├── training/                  # vlin/vml training scripts
