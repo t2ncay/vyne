@@ -42,6 +42,24 @@ int main(void) {
     assert(d.size == 104); // the initial 4 zero slots + 100 pushes
     assert(d.data[103] == 99);
 
+    // Boxed dispatch path: vyne_array_push/place_all also reallocate the
+    // typed payload and must preserve the same alignment.
+    VyneArray_f64 e = vyne_array_f64_create(4);
+    VyneValue boxed_f64 = vyne_array_f64_to_value(&e);
+    for (int i = 0; i < 200; ++i) {
+        vyne_array_push(boxed_f64, vyne_float((double)i));
+        assert(aligned(boxed_f64.as.arr_f64->data));
+    }
+    assert(boxed_f64.as.arr_f64->size == 204);
+
+    VyneArray_i64 f = vyne_array_i64_create(4);
+    VyneValue boxed_i64 = vyne_array_i64_to_value(&f);
+    vyne_array_place_all(boxed_i64, vyne_int(7), 300);
+    assert(aligned(boxed_i64.as.arr_i64->data));
+    assert(boxed_i64.as.arr_i64->size == 300);
+    assert(boxed_i64.as.arr_i64->data[0] == 7 &&
+           boxed_i64.as.arr_i64->data[299] == 7);
+
     arena_free_all();
     return 0;
 }
