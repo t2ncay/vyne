@@ -126,10 +126,12 @@ static inline VyneValue vyne_map_create(void) {
 
 static inline int _vyne_map_find_hashed(VyneMap* m, const char* key_canon,
                                         uint32_t kh) {
-    (void)kh;  // scalar probe re-hashes; the pointer compare is the win
+    // Every caller already has the hash: vyne_map_get/set/has/delete intern
+    // the key first, and _vyne_map_find hashes it once. Re-hashing the
+    // canonical pointer here doubled the cost of every lookup probe.
     if (m->size == 0) return -1;
     uint32_t mask = (uint32_t)(m->capacity - 1);
-    uint32_t i = _vyne_hash_str(key_canon) & mask;
+    uint32_t i = kh & mask;
 
     for (int probes = 0; probes < m->capacity; ++probes) {
         const char* k = m->entries[i].key;

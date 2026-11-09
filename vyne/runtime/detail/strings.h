@@ -40,7 +40,7 @@ static inline VyneValue vyne_string_uppercase(VyneValue str) {
     char* buf = (char*)arena_alloc(len + 1);
     for (size_t i = 0; i < len; i++) buf[i] = (char)toupper((unsigned char)str.as.str[i]);
     buf[len] = '\0';
-    return vyne_string(buf);
+    return vyne_string_own(buf);
 }
 
 static inline VyneValue vyne_string_lowercase(VyneValue str) {
@@ -49,7 +49,7 @@ static inline VyneValue vyne_string_lowercase(VyneValue str) {
     char* buf = (char*)arena_alloc(len + 1);
     for (size_t i = 0; i < len; i++) buf[i] = (char)tolower((unsigned char)str.as.str[i]);
     buf[len] = '\0';
-    return vyne_string(buf);
+    return vyne_string_own(buf);
 }
 
 static inline VyneValue vyne_string_trim(VyneValue str) {
@@ -64,7 +64,7 @@ static inline VyneValue vyne_string_trim(VyneValue str) {
     char* buf = (char*)arena_alloc(new_len + 1);
     memcpy(buf, s + start, new_len);
     buf[new_len] = '\0';
-    return vyne_string(buf);
+    return vyne_string_own(buf);
 }
 
 static inline VyneValue vyne_string_replace(VyneValue str, VyneValue old_s, VyneValue new_s) {

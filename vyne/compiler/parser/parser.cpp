@@ -272,7 +272,7 @@ std::unique_ptr<ASTNode> Parser::parseDeployModule() {
     int line = peekToken().line;
     consume(VTokenType::Deploy);
 
-    Token modTok = consume(VTokenType::Identifier);
+    const Token& modTok = consume(VTokenType::Identifier);
     std::string moduleName = modTok.name;
 
     consumeSemicolon();
@@ -292,7 +292,7 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
     // codegen pulls in a runtime header instead.
     if (peekToken().type == VTokenType::Native) {
         consume(VTokenType::Native);
-        Token nameTok = consume(VTokenType::Identifier);
+        const Token& nameTok = consume(VTokenType::Identifier);
         std::string alias;
         if (peekToken().type == VTokenType::As) {
             consume(VTokenType::As);
@@ -315,7 +315,7 @@ std::unique_ptr<ASTNode> Parser::parseImportModule() {
         isExtern = true;
     }
 
-    Token pathTok = consume(VTokenType::String);
+    const Token& pathTok = consume(VTokenType::String);
     std::string filePath = std::get<std::string>(pathTok.literal);
 
     std::string cleanPath = filePath;
@@ -483,7 +483,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
     int line = peekToken().line;
     consume(VTokenType::Interface);
 
-    Token interfaceIdentifier = consume(VTokenType::Identifier);
+    const Token& interfaceIdentifier = consume(VTokenType::Identifier);
     std::string interfaceName = interfaceIdentifier.name;
 
     std::vector<std::string> typeParams;
@@ -561,7 +561,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
         if (lookAhead(1).type == VTokenType::Left_Parenthese) {
-            Token methodName = consume(VTokenType::Identifier);
+            const Token& methodName = consume(VTokenType::Identifier);
             consume(VTokenType::Left_Parenthese);
 
             std::vector<Parameter> params;
@@ -572,7 +572,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                         consume(VTokenType::Comma);
                     }
 
-                    Token paramTok = consume(VTokenType::Identifier);
+                    const Token& paramTok = consume(VTokenType::Identifier);
                     uint32_t pId = StringPool::instance().intern(paramTok.name);
                     VType pType = VType::Unknown;
                     VType pArrayElem = VType::Unknown;
@@ -643,7 +643,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
             }
             methods.push_back(methodNode);
         } else {
-            Token memberName = consume(VTokenType::Identifier);
+            const Token& memberName = consume(VTokenType::Identifier);
             consume(VTokenType::Extends);
 
             std::string typePath = parseTypePath();
@@ -693,7 +693,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
 }
 
 void Parser::consumeSemicolon() {
-    Token t = peekToken();
+    const Token& t = peekToken();
     if (t.type == VTokenType::Semicolon) {
         consume(VTokenType::Semicolon);
     } else if (t.type != VTokenType::End && t.type != VTokenType::Right_CB) {
@@ -722,7 +722,7 @@ std::unique_ptr<ProgramNode> Parser::parseProgram(SymbolContainer& env) {
 }
 
 std::unique_ptr<ASTNode> Parser::parseStatement() {
-    Token current = peekToken();
+    const Token& current = peekToken();
 
     switch (current.type) {
     case VTokenType::Function:
@@ -874,7 +874,7 @@ std::unique_ptr<ASTNode> Parser::parseRange() {
     auto left = parseLogicalOr();
 
     while (peekToken().type == VTokenType::Double_Dot) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseLogicalOr();
         left = std::make_unique<RangeNode>(std::move(left), std::move(right));
     }
@@ -884,7 +884,7 @@ std::unique_ptr<ASTNode> Parser::parseRange() {
 std::unique_ptr<ASTNode> Parser::parseLogicalOr() {
     auto left = parseLogicalAnd();
     while (peekToken().type == VTokenType::Or) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseLogicalAnd();
         left = std::make_unique<BinOpNode>(
             VTokenType::Or,
@@ -898,7 +898,7 @@ std::unique_ptr<ASTNode> Parser::parseLogicalOr() {
 std::unique_ptr<ASTNode> Parser::parseLogicalAnd() {
     auto left = parseBitwiseOr();
     while (peekToken().type == VTokenType::And) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseBitwiseOr();
         left = std::make_unique<BinOpNode>(
             VTokenType::And,
@@ -912,7 +912,7 @@ std::unique_ptr<ASTNode> Parser::parseLogicalAnd() {
 std::unique_ptr<ASTNode> Parser::parseBitwiseOr() {
     auto left = parseBitwiseXor();
     while (peekToken().type == VTokenType::Bitwise_Or) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseBitwiseXor();
         left = std::make_unique<BinOpNode>(
             VTokenType::Bitwise_Or,
@@ -925,7 +925,7 @@ std::unique_ptr<ASTNode> Parser::parseBitwiseOr() {
 std::unique_ptr<ASTNode> Parser::parseBitwiseXor() {
     auto left = parseBitwiseAnd();
     while (peekToken().type == VTokenType::Bitwise_Xor) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseBitwiseAnd();
         left = std::make_unique<BinOpNode>(
             VTokenType::Bitwise_Xor,
@@ -938,7 +938,7 @@ std::unique_ptr<ASTNode> Parser::parseBitwiseXor() {
 std::unique_ptr<ASTNode> Parser::parseBitwiseAnd() {
     auto left = parseEquality();
     while (peekToken().type == VTokenType::Bitwise_And) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseEquality();
         left = std::make_unique<BinOpNode>(
             VTokenType::Bitwise_And,
@@ -952,7 +952,7 @@ std::unique_ptr<ASTNode> Parser::parseEquality() {
     auto left = parseInExpression();
     while (peekToken().type == VTokenType::Double_Equals ||
            peekToken().type == VTokenType::Not_Equal) {
-        Token op = getNextToken();
+        const Token& op = getNextToken();
         auto right = parseInExpression();
         left = std::make_unique<BinOpNode>(
             op.type,
@@ -969,7 +969,7 @@ std::unique_ptr<ASTNode> Parser::parseRelational() {
            peekToken().type == VTokenType::Smaller ||
            peekToken().type == VTokenType::Greater_Or_Equal ||
            peekToken().type == VTokenType::Smaller_Or_Equal) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseShift();
         left = std::make_unique<BinOpNode>(
             opToken.type,
@@ -984,7 +984,7 @@ std::unique_ptr<ASTNode> Parser::parseShift() {
     auto left = parseAdditive();
     while (peekToken().type == VTokenType::Bitwise_Sll ||
            peekToken().type == VTokenType::Bitwise_Srl) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseAdditive();
         left = std::make_unique<BinOpNode>(
             opToken.type,
@@ -1000,7 +1000,7 @@ std::unique_ptr<ASTNode> Parser::parseAdditive() {
            peekToken().type == VTokenType::Substract ||
            peekToken().type == VTokenType::Floor_Divide ||
            peekToken().type == VTokenType::Modulo) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseTerm();
         left = std::make_unique<BinOpNode>(
             opToken.type,
@@ -1016,7 +1016,7 @@ std::unique_ptr<ASTNode> Parser::parseTerm() {
     while (peekToken().type == VTokenType::Multiply ||
            peekToken().type == VTokenType::Division ||
            peekToken().type == VTokenType::Power) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto right = parseUnary();
         auto node = std::make_unique<BinOpNode>(
             opToken.type,
@@ -1034,7 +1034,7 @@ std::unique_ptr<ASTNode> Parser::parseUnary() {
         peekToken().type == VTokenType::Substract ||
         peekToken().type == VTokenType::Addresser ||
         peekToken().type == VTokenType::Bitwise_Not) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
 
         auto right = parseUnary();
 
@@ -1049,7 +1049,7 @@ std::unique_ptr<ASTNode> Parser::parsePostfix() {
     auto left = parseFactor();
     while (peekToken().type == VTokenType::Double_Increment ||
            peekToken().type == VTokenType::Double_Decrement) {
-        Token opToken = getNextToken();
+        const Token& opToken = getNextToken();
         auto node =
             std::make_unique<PostFixNode>(opToken.type, std::move(left));
         node->lineNumber = opToken.line;
@@ -1059,7 +1059,7 @@ std::unique_ptr<ASTNode> Parser::parsePostfix() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseFactor() {
-    Token current = peekToken();
+    const Token& current = peekToken();
     switch (current.type) {
     case VTokenType::String:
         return parseStringLiteral();
@@ -1130,7 +1130,7 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
-    Token current = peekToken();
+    const Token& current = peekToken();
     int line = current.line;
 
     consume(VTokenType::String);
@@ -1144,7 +1144,7 @@ std::unique_ptr<ASTNode> Parser::parseStringLiteral() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
-    Token current = peekToken();
+    const Token& current = peekToken();
     int line = current.line;
 
     if (current.type == VTokenType::Int64) {
@@ -1175,7 +1175,7 @@ std::unique_ptr<ASTNode> Parser::parseNumberLiteral() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseBooleanLiteral() {
-    Token tok = peekToken();
+    const Token& tok = peekToken();
     bool value = (tok.type == VTokenType::True);
     consume(tok.type);
 
@@ -1185,7 +1185,7 @@ std::unique_ptr<ASTNode> Parser::parseBooleanLiteral() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseArrayLiteral() {
-    Token tok = peekToken();
+    const Token& tok = peekToken();
     int line = tok.line;
 
     consume(VTokenType::Left_Bracket);
@@ -1254,7 +1254,7 @@ std::unique_ptr<ASTNode> Parser::parseGroupingExpr() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
-    Token funcTok = consume(VTokenType::Function);
+    const Token& funcTok = consume(VTokenType::Function);
     int line = funcTok.line;
 
     std::string targetModule = "";
@@ -1265,17 +1265,17 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
         consume(VTokenType::Extends);
         targetModule = consume(VTokenType::Identifier).name;
 
-        Token actualFuncTok = consume(VTokenType::Identifier);
+        const Token& actualFuncTok = consume(VTokenType::Identifier);
         funcName = actualFuncTok.name;
     } else {
-        Token firstTok = consume(VTokenType::Identifier);
+        const Token& firstTok = consume(VTokenType::Identifier);
 
         if (peekToken().type == VTokenType::Extends) {
             consume(VTokenType::Extends);
 
             targetModule = firstTok.name;
 
-            Token actualFuncTok = consume(VTokenType::Identifier);
+            const Token& actualFuncTok = consume(VTokenType::Identifier);
             funcName = actualFuncTok.name;
 
         } else {
@@ -1332,7 +1332,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
                 consume(VTokenType::Comma);
             }
 
-            Token paramTok = consume(VTokenType::Identifier);
+            const Token& paramTok = consume(VTokenType::Identifier);
             uint32_t pId = StringPool::instance().intern(paramTok.name);
             VType pType = VType::Unknown;
             VType pArrayElem = VType::Unknown; // M4-C1
@@ -1470,7 +1470,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseBuiltInCall() {
-    Token tok = consume(VTokenType::BuiltIn);
+    const Token& tok = consume(VTokenType::BuiltIn);
     int line = tok.line;
 
     consume(VTokenType::Left_Parenthese);
@@ -1492,7 +1492,7 @@ std::unique_ptr<ASTNode> Parser::parseBuiltInCall() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
-    Token tok = consume(VTokenType::Identifier);
+    const Token& tok = consume(VTokenType::Identifier);
     int line = tok.line;
     bool isRefVar = false;
 
@@ -1521,7 +1521,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 
     if (peekToken().type == VTokenType::Extends) {
         consume(VTokenType::Extends);
-        Token startTypeTok = peekToken();
+        const Token& startTypeTok = peekToken();
 
         // Capture the raw source path so parseVariableAssignment can
         // stash it on the AssignmentNode — otherwise resolveType()
@@ -1646,7 +1646,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
            peekToken().type == VTokenType::Left_Bracket) {
         if (peekToken().type == VTokenType::Dot) {
             consume(VTokenType::Dot);
-            Token member = consume(VTokenType::Identifier);
+            const Token& member = consume(VTokenType::Identifier);
 
             // ---- <regionName>.commit(x) / <regionName>.commit_if(pred) ----
             // Fires only when:
@@ -1926,7 +1926,7 @@ std::unique_ptr<ASTNode> Parser::parseForLoop() {
 std::unique_ptr<ASTNode> Parser::parseInvariantLoop() {
     int line = peekToken().line;
     consume(VTokenType::At);
-    Token kw = consume(VTokenType::Identifier);
+    const Token& kw = consume(VTokenType::Identifier);
     if (kw.name != "invariant") {
         emitError(
             "Expected 'invariant' after '@'",
@@ -2380,7 +2380,7 @@ std::unique_ptr<ASTNode> Parser::parseEnum() {
     int line = peekToken().line;
     consume(VTokenType::Enum);
 
-    Token enumTok = consume(VTokenType::Identifier);
+    const Token& enumTok = consume(VTokenType::Identifier);
     std::string enumName = enumTok.name;
 
     consume(VTokenType::Left_CB);
@@ -2389,12 +2389,12 @@ std::unique_ptr<ASTNode> Parser::parseEnum() {
     uint32_t counter = 0;
 
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
-        Token memberTok = consume(VTokenType::Identifier);
+        const Token& memberTok = consume(VTokenType::Identifier);
         std::string memberName = memberTok.name;
 
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
-            Token valTok = consume(VTokenType::Int64);
+            const Token& valTok = consume(VTokenType::Int64);
             counter = static_cast<uint32_t>(std::get<int64_t>(valTok.literal));
         }
 
@@ -2431,7 +2431,7 @@ std::unique_ptr<ASTNode> Parser::parseGroupDefinition() {
         targetModule = consume(VTokenType::Identifier).name;
         groupName = consume(VTokenType::Identifier).name;
     } else {
-        Token first = consume(VTokenType::Identifier);
+        const Token& first = consume(VTokenType::Identifier);
 
         if (peekToken().type == VTokenType::Extends) {
             consume(VTokenType::Extends);
@@ -2511,7 +2511,7 @@ std::unique_ptr<ASTNode> Parser::parseReturnStatement() {
 }
 
 std::unique_ptr<ASTNode> Parser::parseLoopControl() {
-    Token tok = getNextToken();
+    const Token& tok = getNextToken();
     consumeSemicolon();
 
     std::unique_ptr<ASTNode> node;
@@ -2529,7 +2529,7 @@ std::unique_ptr<ASTNode> Parser::parseModuleStatement() {
     int line = peekToken().line;
     consume(VTokenType::Module);
 
-    Token nameToken = consume(VTokenType::Identifier);
+    const Token& nameToken = consume(VTokenType::Identifier);
     currentModuleName = nameToken.name;
     uint32_t mId = StringPool::instance().intern(nameToken.name);
     consumeSemicolon();
@@ -2543,7 +2543,7 @@ std::unique_ptr<ASTNode> Parser::parseDismissStatement() {
     int line = peekToken().line;
     consume(VTokenType::Dismiss);
 
-    Token nameToken = consume(VTokenType::Identifier);
+    const Token& nameToken = consume(VTokenType::Identifier);
     uint32_t mId = StringPool::instance().intern(nameToken.name);
     consumeSemicolon();
 
@@ -2560,7 +2560,7 @@ std::unique_ptr<ASTNode> Parser::parseRuleset() {
         return parseRulesetBlock(line);
     }
 
-    Token rulesetType = consume(VTokenType::Identifier);
+    const Token& rulesetType = consume(VTokenType::Identifier);
 
     if (peekToken().type == VTokenType::Semicolon) {
         consume(VTokenType::Semicolon);
@@ -2627,22 +2627,22 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
     consume(VTokenType::Left_CB);
 
     while (peekToken().type != VTokenType::Right_CB && !isAtEnd()) {
-        Token ruleName = getNextToken();
+        const Token& ruleName = getNextToken();
 
         if (peekToken().type == VTokenType::Equals) {
             consume(VTokenType::Equals);
 
             if (peekToken().type == VTokenType::Int64) {
-                Token valueToken = consume(VTokenType::Int64);
+                const Token& valueToken = consume(VTokenType::Int64);
                 int64_t value = std::get<int64_t>(valueToken.literal);
                 applyRulesetValue(ruleName, value, line);
             } else if (peekToken().type == VTokenType::String) {
-                Token valueToken = consume(VTokenType::String);
+                const Token& valueToken = consume(VTokenType::String);
                 std::string value = std::get<std::string>(valueToken.literal);
                 applyRulesetValue(ruleName, value, line);
             } else if (peekToken().type == VTokenType::Identifier) {
                 // Handle non-quoted strings like 'all', 'strict', 'on', 'off'
-                Token valueToken = consume(VTokenType::Identifier);
+                const Token& valueToken = consume(VTokenType::Identifier);
                 applyRulesetValue(ruleName, valueToken.name, line);
             } else if (peekToken().type == VTokenType::Left_Bracket) {
                 auto values = parseArrayLiteral();
@@ -2674,7 +2674,7 @@ std::unique_ptr<ASTNode> Parser::parseRulesetBlock(int line) {
 }
 
 std::unique_ptr<ASTNode> Parser::parseInterpolatedString() {
-    Token tok = getNextToken();
+    const Token& tok = getNextToken();
     auto parts =
         std::get<std::vector<std::pair<std::string, bool>>>(tok.literal);
 
@@ -3302,7 +3302,7 @@ std::unique_ptr<ASTNode> Parser::parseTryCatch() {
 
         if (peekToken().type == VTokenType::Left_Parenthese) {
             consume(VTokenType::Left_Parenthese);
-            Token varTok = consume(VTokenType::Identifier);
+            const Token& varTok = consume(VTokenType::Identifier);
             catchVarName = varTok.name;
             consume(VTokenType::Right_Parenthese);
         }
@@ -3377,7 +3377,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
 
     while (peekToken().type == VTokenType::At) {
         consume(VTokenType::At);
-        Token attrTok = consume(VTokenType::Identifier);
+        const Token& attrTok = consume(VTokenType::Identifier);
 
         std::vector<std::string> attrArgs;
         if (peekToken().type == VTokenType::Smaller)
@@ -3436,7 +3436,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     // ---- A3: region.commit(expr); -----------------------------------
     if (peekToken().type == VTokenType::Dot) {
         consume(VTokenType::Dot);
-        Token methodTok = consume(VTokenType::Identifier);
+        const Token& methodTok = consume(VTokenType::Identifier);
 
         if (methodTok.name == "commit") {
             consume(VTokenType::Left_Parenthese);
@@ -3487,7 +3487,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     }
 
     // ---- A1: region name { ... }; -----------------------------------
-    Token nameTok = consume(VTokenType::Identifier);
+    const Token& nameTok = consume(VTokenType::Identifier);
     std::string regionName = nameTok.name;
 
     consume(VTokenType::Left_CB);
@@ -3514,7 +3514,7 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
     int line = peekToken().line;
     consume(VTokenType::Scratch);
 
-    Token nameTok = consume(VTokenType::Identifier);
+    const Token& nameTok = consume(VTokenType::Identifier);
     std::string varName = nameTok.name;
     uint32_t varId = StringPool::instance().intern(varName);
 
@@ -3543,7 +3543,7 @@ std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
     bool allLiteral = true;
 
     while (true) {
-        Token dimTok = peekToken();
+        const Token& dimTok = peekToken();
 
         if (dimTok.type == VTokenType::Int64) {
             consume(VTokenType::Int64);
@@ -3615,11 +3615,11 @@ std::vector<std::string> Parser::parsePolicyArgs() {
     consume(VTokenType::Smaller);
 
     while (true) {
-        Token tok = peekToken();
+        const Token& tok = peekToken();
         if (tok.type == VTokenType::Identifier) {
             args.push_back(consume(VTokenType::Identifier).name);
         } else if (tok.type == VTokenType::Int64) {
-            Token n = consume(VTokenType::Int64);
+            const Token& n = consume(VTokenType::Int64);
             args.push_back(std::to_string(std::get<int64_t>(n.literal)));
         } else if (tok.type == VTokenType::Colon) {
             // `@mixed<compute: Float16, accumulate: Float32>` style

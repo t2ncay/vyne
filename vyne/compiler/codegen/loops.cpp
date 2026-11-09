@@ -46,6 +46,23 @@ int64Bound(C_Emitter& e, const ASTNode* node, const std::string& expr) {
            expr + ".as.f64)";
 }
 
+// Materialize a `through` bound, but keep immutable Int64 literals inline.
+// A literal cannot be mutated by the loop body, so re-evaluating it in the
+// `for` condition is free; a computed or variable bound is still hoisted so
+// the body sees the value captured at loop entry.
+static std::string
+emitRangeBound(C_Emitter& e, const ASTNode* node, const std::string& expr,
+               const char* prefix) {
+    if (node && node->type() == NodeType::NUMBER) {
+        auto* num = static_cast<const NumberNode*>(node);
+        if (num->getStaticType() == VType::Int64)
+            return int64Bound(e, node, expr);
+    }
+    std::string temp = e.newTemp(prefix);
+    e.emit("int64_t " + temp + " = " + int64Bound(e, node, expr) + ";");
+    return temp;
+}
+
 // ============================================================
 // SIMD-safety analysis for the #pragma omp simd hint
 // ------------------------------------------------------------
@@ -382,17 +399,10 @@ void ForNode::compile(C_Emitter& e) const {
         auto* rng = static_cast<RangeNode*>(iterable.get());
         std::string lo = rng->getLeft()->getCExpr(e);
         std::string hi = rng->getRight()->getCExpr(e);
-        std::string loT = e.newTemp("lo_i");
-        std::string hiT = e.newTemp("hi_i");
+        std::string loT = emitRangeBound(e, rng->getLeft(), lo, "lo_i");
+        std::string hiT = emitRangeBound(e, rng->getRight(), hi, "hi_i");
         std::string iv = e.newTemp("i");
         std::string elemVar = "v_" + iteratorName;
-
-        e.emit(
-            "int64_t " + loT + " = " + int64Bound(e, rng->getLeft(), lo) + ";"
-        );
-        e.emit(
-            "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
-        );
 
         // Vectorization hint. Fires only when:
         //   1. We are inside a native-variant body (see
@@ -520,17 +530,10 @@ std::string ForNode::getCExpr(C_Emitter& e) const {
         auto* rng = static_cast<RangeNode*>(iterable.get());
         std::string lo = rng->getLeft()->getCExpr(e);
         std::string hi = rng->getRight()->getCExpr(e);
-        std::string loT = e.newTemp("lo_i");
-        std::string hiT = e.newTemp("hi_i");
+        std::string loT = emitRangeBound(e, rng->getLeft(), lo, "lo_i");
+        std::string hiT = emitRangeBound(e, rng->getRight(), hi, "hi_i");
         std::string iv = e.newTemp("i");
         std::string elemVar = "v_" + iteratorName;
-
-        e.emit(
-            "int64_t " + loT + " = " + int64Bound(e, rng->getLeft(), lo) + ";"
-        );
-        e.emit(
-            "int64_t " + hiT + " = " + int64Bound(e, rng->getRight(), hi) + ";"
-        );
 
         // --- EVERY mode ---
         if (mode == ForMode::EVERY) {
