@@ -1298,3 +1298,128 @@ std::string RegionCommitNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
+
+// ============================================================
+// A4 — REGION MOVE
+// ------------------------------------------------------------
+// `region.move(x)` is the zero-copy sibling of `region.commit(x)`.
+// The variable must be an lvalue. For a native typed array, only the
+// payload lives in the arena — the container is a C struct on the
+// stack — so the runtime can splice the payload's dedicated block into
+// the commit arena and return the same container. For everything else
+// the runtime falls back to commit's deep clone into the commit arena.
+//
+// The source variable is rebound to the result so subsequent uses
+// inside the region observe the moved storage. markCommitted() makes
+// the escape checker treat it at depth 0, which is what allows:
+//
+//     persistent := region.move(model);
+//
+// when `persistent` was declared outside the region.
+//
+// A stack scratch array is rejected for the same reason commit rejects
+// it: its storage dies with the C stack frame, so a move cannot make
+// it outlive the region.
+// ============================================================
+std::string RegionMoveNode::getCExpr(C_Emitter& e) const {
+    auto* var = dynamic_cast<VariableNode*>(expression.get());
+    if (!var) {
+        throw std::runtime_error(
+            "Compile Error (VNE-083): region.move() requires an lvalue "
+            "variable (line " +
+            std::to_string(lineNumber) + ")."
+        );
+    }
+
+    // Same mangling rule as VariableNode::getCExpr and RegionCommitNode.
+    std::string sanitized = var->getOriginalName();
+    std::replace(sanitized.begin(), sanitized.end(), '.', '_');
+
+    std::string prefix = e.getActiveFunctionPrefix();
+    std::string cVar;
+    if (!prefix.empty()) {
+        std::string localName = "v_" + prefix + "_" + sanitized;
+        cVar = e.isLocalDeclared(localName) ? localName : ("v_" + sanitized);
+    } else {
+        cVar = "v_" + sanitized;
+    }
+
+    // Moving an allocation that was made *before* this region would shrink
+    // the main arena below the region's @bounded start mark (and the value
+    // already outlives this rewind). Restrict move to allocations owned by
+    // the current region, or to top-level code.
+    int srcDepth = e.lookupLocalRegionDepth(cVar);
+    int curDepth = e.currentRegionDepth();
+    if (curDepth > 0 &&
+        ((srcDepth >= 0 && srcDepth < curDepth) ||
+         (srcDepth < 0 && e.isGlobalDeclared(cVar)))) {
+        throw std::runtime_error(
+            "Compile Error (VNE-083): region.move() source '" +
+            var->getOriginalName() +
+            "' was declared outside the current region (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Move only transfers allocations owned by the region being "
+            "closed; use region.commit() for an already-outer value."
+        );
+    }
+
+    const CType* ct = e.lookupType(cVar);
+    if (ct && ct->isPrimitive()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-083): region.move() expects an arena-backed "
+            "value, but '" +
+            var->getOriginalName() + "' is a primitive (line " +
+            std::to_string(lineNumber) +
+            "). Primitives are copied by value and need no move."
+        );
+    }
+
+    if (ct && ct->kind == CType::Kind::Array && !ct->args.empty()) {
+        if (ct->hasShape()) {
+            throw std::runtime_error(
+                "Compile Error (VNE-084): region.move() on a stack-allocated "
+                "scratch array is impossible (line " +
+                std::to_string(lineNumber) +
+                ").\n"
+                "  Copy elements into a boxed Array<Float64> and move that "
+                "instead."
+            );
+        }
+
+        VType elem = ct->args[0].toVType();
+        const char* fn = nullptr;
+        if (elem == VType::Float64)
+            fn = "vmem_runtime_move_array_f64";
+        else if (elem == VType::Float32)
+            fn = "vmem_runtime_move_array_f32";
+        else if (elem == VType::Int64)
+            fn = "vmem_runtime_move_array_i64";
+
+        if (fn != nullptr) {
+            ensureVmemInclude(e);
+            std::string temp = e.newTemp("move");
+            e.emit(
+                CType::arrayContainerName(elem) + " " + temp + " = " + fn +
+                "(" + cVar + ");"
+            );
+            e.emit(cVar + " = " + temp + ";");
+            e.declareNativeTemp(temp, *ct);
+            e.markCommitted(cVar);
+            return temp;
+        }
+    }
+
+    // Boxed value (or an array element type without a fast move). The
+    // runtime falls back to a deep clone in the commit arena.
+    ensureVmemInclude(e);
+    std::string tmp = e.newTemp("move");
+    e.emit("VyneValue " + tmp + " = vmem_runtime_move(" + cVar + ");");
+    e.emit(cVar + " = " + tmp + ";");
+    e.markCommitted(cVar);
+    return tmp;
+}
+
+void RegionMoveNode::compile(C_Emitter& e) const {
+    getCExpr(e);
+}

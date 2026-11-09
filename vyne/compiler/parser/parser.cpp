@@ -760,8 +760,14 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
         return parseTryCatch();
     case VTokenType::Throw:
         return parseThrowStatement();
-    case VTokenType::Region:
+    case VTokenType::Region: {
+        // `region.move(x)` is an expression-valued method and may also
+        // stand alone as a statement. parseRegionStatement handles the
+        // statement form (including the trailing semicolon); the
+        // expression form is reached from parseFactor when region.move
+        // appears on a right-hand side.
         return parseRegionStatement();
+    }
     case VTokenType::At:
         if (lookAhead(1).type == VTokenType::Identifier &&
             lookAhead(1).name == "invariant") {
@@ -1080,6 +1086,31 @@ std::unique_ptr<ASTNode> Parser::parseFactor() {
         return parseForLoop();
     case VTokenType::InterpolatedString:
         return parseInterpolatedString();
+    case VTokenType::Region: {
+        // Only `region.move(expr)` is an expression today. A region block
+        // is a statement and is rejected here so `x := region foo { ... }`
+        // cannot silently parse as something else.
+        if (lookAhead(1).type == VTokenType::Dot &&
+            lookAhead(2).type == VTokenType::Identifier &&
+            lookAhead(2).name == "move") {
+            int line = peekToken().line;
+            consume(VTokenType::Region);
+            consume(VTokenType::Dot);
+            consume(VTokenType::Identifier);
+            consume(VTokenType::Left_Parenthese);
+            auto expr = parseExpression();
+            consume(VTokenType::Right_Parenthese);
+
+            auto node = std::make_unique<RegionMoveNode>(std::move(expr));
+            node->lineNumber = line;
+            return node;
+        }
+        throw std::runtime_error(
+            "Syntax Error: a region block is a statement, not an expression "
+            "[ line " +
+            std::to_string(current.line) + " ]"
+        );
+    }
     case VTokenType::Left_CB: { // ADDED DISAMBIGUATION
         if (lookAhead(1).type == VTokenType::Right_CB ||
             (lookAhead(1).type == VTokenType::String &&
@@ -3403,15 +3434,29 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
             return node;
         }
 
+        if (methodTok.name == "move") {
+            consume(VTokenType::Left_Parenthese);
+            auto expr = parseExpression();
+            consume(VTokenType::Right_Parenthese);
+            consumeSemicolon();
+
+            auto node = std::make_unique<RegionMoveNode>(std::move(expr));
+            node->lineNumber = line;
+            return node;
+        }
+
         emitError(
-            "Expected 'commit' or 'commit_if' after 'region.', but got '" +
+            "Expected 'commit', 'commit_if', or 'move' after 'region.', but "
+            "got '" +
                 methodTok.name + "'",
             line,
             "VNE-050",
             {"Use 'region.commit(value)' to preserve a single value past "
              "rewind",
              "Use 'region.commit_if(pred)' inside @speculative to "
-             "conditionally commit the whole region"}
+             "conditionally commit the whole region",
+             "Use 'region.move(value)' to transfer an allocation into the "
+             "commit arena without a deep copy"}
         );
     }
 

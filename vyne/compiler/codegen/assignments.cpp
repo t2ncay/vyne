@@ -190,6 +190,14 @@ static void checkRegionEscape(
         return;
     }
 
+    // region.move(x) transfers the allocation into the commit arena before
+    // yielding it, so the result is always rooted outside the region. The
+    // move node marks its source committed when it compiles; the escape
+    // checker runs first and must accept the pattern syntactically.
+    if (rhs->type() == NodeType::REGION_MOVE) {
+        return;
+    }
+
     // Primitive RHS: copied by value, always safe to escape.
     VType st = resolveRHSKind(e, rhs);
     if (st == VType::Int64 || st == VType::Float64 ||

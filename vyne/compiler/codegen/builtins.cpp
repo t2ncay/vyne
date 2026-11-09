@@ -23,6 +23,32 @@
 // BUILT-INS
 // ============================================================
 
+static void ensureVmemIncludeForDrop(C_Emitter& e) {
+    std::string base = FileUtils::getExeDir();
+    std::filesystem::path moduleBase =
+        std::filesystem::path(base) / "vyne" / "runtime" / "modules";
+    e.addInclude((moduleBase / "vmem.h").string());
+}
+
+// Resolve the C name of an lvalue argument using the same mangling rule as
+// VariableNode::getCExpr and RegionCommitNode::compile. Kept local so the
+// three sites can evolve independently (they already differ in how they
+// report errors).
+static std::string resolveLvalueName(
+    C_Emitter& e,
+    const std::string& originalName
+) {
+    std::string sanitized = originalName;
+    std::replace(sanitized.begin(), sanitized.end(), '.', '_');
+
+    std::string prefix = e.getActiveFunctionPrefix();
+    if (!prefix.empty()) {
+        std::string localName = "v_" + prefix + "_" + sanitized;
+        return e.isLocalDeclared(localName) ? localName : ("v_" + sanitized);
+    }
+    return "v_" + sanitized;
+}
+
 std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
     if (funcName == "out") {
         for (const auto& arg : arguments) {
@@ -69,6 +95,72 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
         // Free is a no-op in the C runtime since we use arena allocation
         e.emit("// free() called on: " + e.boxAny(arguments[0]->getCExpr(e)));
         return "vyne_null()";
+    }
+    if (funcName == "drop") {
+        if (arguments.size() != 1) {
+            throw std::runtime_error(
+                "Compile Error (VNE-083): drop(x) takes exactly one variable "
+                "argument, got " +
+                std::to_string(arguments.size()) + " (line " +
+                std::to_string(lineNumber) + ")."
+            );
+        }
+        auto* var = dynamic_cast<VariableNode*>(arguments[0].get());
+        if (!var) {
+            throw std::runtime_error(
+                "Compile Error (VNE-083): drop(x) requires an lvalue "
+                "variable, not an expression (line " +
+                std::to_string(lineNumber) + ").\n"
+                "  Drop is a LIFO tail reclamation; it needs the variable "
+                "whose allocation should be released."
+            );
+        }
+
+        std::string cVar = resolveLvalueName(e, var->getOriginalName());
+        const CType* ct = e.lookupType(cVar);
+        if (!ct || ct->kind != CType::Kind::Array || ct->args.empty()) {
+            throw std::runtime_error(
+                "Compile Error (VNE-083): drop(x) currently supports typed "
+                "Array<Float64>, Array<Float32>, and Array<Int64> variables "
+                "(line " +
+                std::to_string(lineNumber) + ").\n"
+                "  The container must be a native typed array so its LIFO "
+                "payload can be released without a per-element scan."
+            );
+        }
+        if (ct->hasShape()) {
+            throw std::runtime_error(
+                "Compile Error (VNE-084): drop() on a stack-allocated "
+                "scratch array is impossible (line " +
+                std::to_string(lineNumber) +
+                ").\n"
+                "  Scratch arrays are C stack storage, not arena "
+                "allocations."
+            );
+        }
+
+        VType elem = ct->args[0].toVType();
+        const char* fn = nullptr;
+        if (elem == VType::Float64)
+            fn = "vmem_runtime_drop_array_f64";
+        else if (elem == VType::Float32)
+            fn = "vmem_runtime_drop_array_f32";
+        else if (elem == VType::Int64)
+            fn = "vmem_runtime_drop_array_i64";
+        else {
+            throw std::runtime_error(
+                "Compile Error (VNE-083): drop(x) supports only Float64, "
+                "Float32, and Int64 array elements (line " +
+                std::to_string(lineNumber) + ")."
+            );
+        }
+
+        ensureVmemIncludeForDrop(e);
+        std::string temp = e.newTemp("drop_ok");
+        e.emit(
+            "VyneValue " + temp + " = " + fn + "(&" + cVar + ");"
+        );
+        return temp;
     }
     if (funcName == "exit") {
         if (!arguments.empty()) {

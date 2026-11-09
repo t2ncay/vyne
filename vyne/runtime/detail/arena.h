@@ -322,6 +322,14 @@ static inline void* arena_alloc_aligned(size_t size, size_t align) {
 }
 
 // Reclaim the most-recent allocation iff it is still the arena tail.
+//
+// `size` is the payload size handed to arena_alloc / arena_alloc_aligned.
+// The call is a no-op unless the allocation is still the tail of the
+// current block, which is exactly the LIFO discipline `drop(var)` relies
+// on. A successful reclaim moves the bump pointer backwards; it never
+// frees the underlying block, because the block is reused by the next
+// allocation (and released wholesale by a region rewind or
+// arena_free_all()).
 static inline int arena_try_reclaim(void* ptr, size_t size) {
     if (ptr == NULL)
         return 0;
@@ -333,6 +341,84 @@ static inline int arena_try_reclaim(void* ptr, size_t size) {
         arena_poison_range(p, p + size);
     g_arena_cur = p;
     g_arena.total_allocated -= size;
+    return 1;
+}
+
+// ============================================================================
+// ZERO-COPY REGION MOVE
+// ----------------------------------------------------------------------------
+// Move one allocation from the region arena into the commit arena without
+// copying its payload. The implementation works at the block level:
+//
+//   - The allocation must own the start of the *head* block and end exactly
+//     at the current bump pointer. Those two conditions imply the block
+//     contains no other live allocation, so the whole ArenaBlock can change
+//     owners safely.
+//   - The block is unlinked from g_arena, inserted into g_commit_arena's
+//     block chain, and every byte counter is adjusted as if the object had
+//     been allocated in the commit arena in the first place.
+//   - Returning 0 means "not a dedicated tail block" — the caller must fall
+//     back to a copy (the region.move high-level helpers do exactly that).
+//
+// The O(1) path is what a large model allocation gets: any single
+// allocation larger than VYNE_ARENA_BLOCK_SIZE is served from its own
+// block, so committing it no longer doubles peak RSS.
+// ============================================================================
+static inline int vyne_arena_move_to_commit(void* ptr, size_t size) {
+    if (ptr == NULL || size == 0)
+        return 0;
+    size = (size + 7) & ~(size_t)7;
+
+    ArenaBlock* b = g_arena.head;
+    if (b == NULL)
+        return 0;
+
+    uint8_t* p = (uint8_t*)ptr;
+    // The allocation must start at the block base (no earlier allocation in
+    // this block) and end at the live bump pointer (no later allocation).
+    if (p != b->data)
+        return 0;
+    size_t used = (g_arena_cur != NULL)
+                      ? (size_t)(g_arena_cur - b->data)
+                      : b->used;
+    if (size != used)
+        return 0;
+
+    // Unlink from the region arena. The previous head's `used` field is the
+    // high-water mark recorded when the allocator switched blocks, so it is
+    // safe to resume bumping there.
+    g_arena.head = b->next;
+    if (g_arena.head != NULL) {
+        g_arena_cur = g_arena.head->data + g_arena.head->used;
+        g_arena_end = g_arena.head->data + g_arena.head->capacity;
+    } else {
+        g_arena_cur = NULL;
+        g_arena_end = NULL;
+    }
+    if (g_arena.total_allocated >= size)
+        g_arena.total_allocated -= size;
+    else
+        g_arena.total_allocated = 0;
+
+    // Link into the commit arena. When the commit arena already has a live
+    // bump block, splice the moved block immediately after it so the commit
+    // bump pointers and checkpoint offsets stay valid. When it is empty, the
+    // moved block becomes the head and may serve future commit allocations.
+    b->used = size;
+    if (g_commit_arena.head == NULL) {
+        b->next = NULL;
+        g_commit_arena.head = b;
+        g_commit_cur = b->data + size;
+        g_commit_end = b->data + b->capacity;
+    } else {
+        b->next = g_commit_arena.head->next;
+        g_commit_arena.head->next = b;
+    }
+
+    g_commit_arena.total_allocated += size;
+    if (g_commit_arena.total_allocated > g_commit_arena.peak_allocated)
+        g_commit_arena.peak_allocated = g_commit_arena.total_allocated;
+
     return 1;
 }
 

@@ -9,10 +9,22 @@ A region bounds the lifetime of arena-allocated values created while the region 
 ```text
 region-statement ::= "region" identifier "{" {statement} "}" ";"
 commit-statement ::= "region" "." "commit" "(" expression ")" ";"
+move-statement   ::= "region" "." "move"   "(" expression ")" ";"
+drop-statement   ::= "drop" "(" identifier ")" ";"
 ```
 
 ## Semantics
 The compiled backend saves an arena checkpoint when it enters a region and rewinds when it leaves. A committed value is copied into a second arena that survives the rewind. Commit storage currently persists until global arena cleanup, so commits in an unbounded loop can grow memory. `vmem.total_allocated()` reports arena accounting; do not interpret it as exact process memory usage.
+
+`region.move(x)` is the zero-copy sibling of `region.commit(x)`. When `x` is a typed array whose payload occupies a dedicated arena block (any allocation larger than the 8 MiB block size), the block is unlinked from the region arena and linked into the commit arena in O(1); no payload bytes are copied and peak RSS does not double. Smaller values, boxed values, maps and strings fall back to a commit-arena copy. The source variable is rebound to the moved value and becomes committed, so it remains safe to read inside the region. `move` is also an expression:
+
+```vyne
+persistent := region.move(model);   # declaration before the region
+```
+
+Moving a value that was allocated *before* the current region is rejected: it would move bytes the region does not own and skew `@bounded` accounting. Use `region.commit` for values that already outlive the rewind.
+
+`drop(x)` releases a typed-array payload early when it is still the most recent allocation in the arena's current block. Because the arena is a bump allocator this is a pure pointer rewind — the `@bounded` live counter decreases immediately and the freed space is available to later allocations in the same region. If `x` is not the arena tail, `drop` is a no-op; the memory is reclaimed normally by the region rewind. A successful drop empties the container (`size` and `cap` become 0), so a stale read cannot observe reclaimed bytes. `drop` supports `Array<Float64>`, `Array<Float32>` and `Array<Int64>`; stack-shaped `scratch` arrays are rejected.
 
 ## Example
 ```vyne

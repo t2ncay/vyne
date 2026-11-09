@@ -3122,6 +3122,17 @@ Value RegionCommitIfNode::evaluate(
     );
 }
 
+Value RegionMoveNode::evaluate(
+    SymbolContainer& env,
+    uint32_t currentGroupId
+) const {
+    throw std::runtime_error(
+        "Runtime Error: 'region.move' is not supported by the interpreter "
+        "[ line " +
+        std::to_string(lineNumber) + " ]"
+    );
+}
+
 Value ScratchNode::evaluate(SymbolContainer&, uint32_t) const {
     throw std::runtime_error(
         "Runtime Error: 'scratch' is a codegen-only construct and is not "

@@ -206,6 +206,177 @@ static inline VyneValue vmem_runtime_commit(VyneValue v) {
     return copy;
 }
 
+/* ===================================================================
+ * DROP — LIFO tail reclamation
+ * -------------------------------------------------------------------
+ * `drop(x)` lowers here for typed arrays. The array payload is handed
+ * to arena_try_reclaim(), which succeeds only when it is still the most
+ * recent allocation in the current block. On success the bump pointer
+ * moves backwards and the container is emptied so a stale read cannot
+ * observe reclaimed bytes. On failure this is a no-op: the memory stays
+ * live until the enclosing region rewind, exactly as documented.
+ *
+ * The return value is 1 when bytes were reclaimed, 0 otherwise. It is
+ * useful in tests and for @bounded telemetry, and costs nothing in the
+ * statement form.
+ * =================================================================== */
+
+static inline VyneValue vmem_runtime_drop_bytes(void* ptr, size_t bytes) {
+    return vyne_int(arena_try_reclaim(ptr, bytes));
+}
+
+static inline VyneValue vmem_runtime_drop_array_f64(VyneArray_f64* a) {
+    if (a == NULL || a->data == NULL)
+        return vyne_int(0);
+    size_t bytes = sizeof(double) * (size_t)a->cap;
+    int moved = arena_try_reclaim(a->data, bytes);
+    if (moved) {
+        a->data = NULL;
+        a->size = 0;
+        a->cap  = 0;
+    }
+    return vyne_int(moved);
+}
+
+static inline VyneValue vmem_runtime_drop_array_i64(VyneArray_i64* a) {
+    if (a == NULL || a->data == NULL)
+        return vyne_int(0);
+    size_t bytes = sizeof(int64_t) * (size_t)a->cap;
+    int moved = arena_try_reclaim(a->data, bytes);
+    if (moved) {
+        a->data = NULL;
+        a->size = 0;
+        a->cap  = 0;
+    }
+    return vyne_int(moved);
+}
+
+static inline VyneValue vmem_runtime_drop_array_f32(VyneArray_f32* a) {
+    if (a == NULL || a->data == NULL)
+        return vyne_int(0);
+    size_t bytes = sizeof(float) * (size_t)a->cap;
+    int moved = arena_try_reclaim(a->data, bytes);
+    if (moved) {
+        a->data = NULL;
+        a->size = 0;
+        a->cap  = 0;
+    }
+    return vyne_int(moved);
+}
+
+/* ===================================================================
+ * MOVE — zero-copy region → commit transfer
+ * -------------------------------------------------------------------
+ * `region.move(x)` lowers here. For typed arrays the container lives on
+ * the C stack, so only its payload block has to change arenas. When the
+ * payload is a dedicated tail block (any allocation larger than the
+ * arena block size), vyne_arena_move_to_commit() splices the block and
+ * the move is O(1) with no copy and no peak-memory doubling.
+ *
+ * Anything else falls back to a deep copy into the commit arena. The
+ * fallback keeps move correct for small arrays, boxed values, maps and
+ * strings; it simply does not get the O(1) win.
+ *
+ * Inside @persistent the value already lives in the commit arena, so a
+ * move is the identity.
+ * =================================================================== */
+
+static inline VyneValue vmem_runtime_move(VyneValue v) {
+    if (g_persistent_depth > 0)
+        return v;
+    return vmem_runtime_commit(v);
+}
+
+static inline VyneArray_f64 vmem_runtime_move_array_f64(VyneArray_f64 a) {
+    if (a.data == NULL || a.cap <= 0 || g_persistent_depth > 0)
+        return a;
+
+    size_t bytes = sizeof(double) * (size_t)a.cap;
+    if (vyne_arena_move_to_commit(a.data, bytes))
+        return a;
+
+    VyneArena saved_arena = g_arena;
+    uint8_t*  saved_cur   = g_arena_cur;
+    uint8_t*  saved_end   = g_arena_end;
+
+    g_arena     = g_commit_arena;
+    g_arena_cur = g_commit_cur;
+    g_arena_end = g_commit_end;
+
+    VyneArray_f64 copy = vyne_array_f64_create(a.size);
+    if (a.size > 0)
+        memcpy(copy.data, a.data, sizeof(double) * (size_t)a.size);
+
+    g_commit_arena = g_arena;
+    g_commit_cur   = g_arena_cur;
+    g_commit_end   = g_arena_end;
+
+    g_arena     = saved_arena;
+    g_arena_cur = saved_cur;
+    g_arena_end = saved_end;
+    return copy;
+}
+
+static inline VyneArray_i64 vmem_runtime_move_array_i64(VyneArray_i64 a) {
+    if (a.data == NULL || a.cap <= 0 || g_persistent_depth > 0)
+        return a;
+
+    size_t bytes = sizeof(int64_t) * (size_t)a.cap;
+    if (vyne_arena_move_to_commit(a.data, bytes))
+        return a;
+
+    VyneArena saved_arena = g_arena;
+    uint8_t*  saved_cur   = g_arena_cur;
+    uint8_t*  saved_end   = g_arena_end;
+
+    g_arena     = g_commit_arena;
+    g_arena_cur = g_commit_cur;
+    g_arena_end = g_commit_end;
+
+    VyneArray_i64 copy = vyne_array_i64_create(a.size);
+    if (a.size > 0)
+        memcpy(copy.data, a.data, sizeof(int64_t) * (size_t)a.size);
+
+    g_commit_arena = g_arena;
+    g_commit_cur   = g_arena_cur;
+    g_commit_end   = g_arena_end;
+
+    g_arena     = saved_arena;
+    g_arena_cur = saved_cur;
+    g_arena_end = saved_end;
+    return copy;
+}
+
+static inline VyneArray_f32 vmem_runtime_move_array_f32(VyneArray_f32 a) {
+    if (a.data == NULL || a.cap <= 0 || g_persistent_depth > 0)
+        return a;
+
+    size_t bytes = sizeof(float) * (size_t)a.cap;
+    if (vyne_arena_move_to_commit(a.data, bytes))
+        return a;
+
+    VyneArena saved_arena = g_arena;
+    uint8_t*  saved_cur   = g_arena_cur;
+    uint8_t*  saved_end   = g_arena_end;
+
+    g_arena     = g_commit_arena;
+    g_arena_cur = g_commit_cur;
+    g_arena_end = g_commit_end;
+
+    VyneArray_f32 copy = vyne_array_f32_create(a.size);
+    if (a.size > 0)
+        memcpy(copy.data, a.data, sizeof(float) * (size_t)a.size);
+
+    g_commit_arena = g_arena;
+    g_commit_cur   = g_arena_cur;
+    g_commit_end   = g_arena_end;
+
+    g_arena     = saved_arena;
+    g_arena_cur = saved_cur;
+    g_arena_end = saved_end;
+    return copy;
+}
+
 static inline void vmem_runtime_pop_checkpoints(int count) {
     while (count-- > 0 && g_vmem_top > 0) {
         g_vmem_top--;
