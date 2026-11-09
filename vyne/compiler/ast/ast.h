@@ -1164,6 +1164,11 @@ class FunctionNode : public ASTNode {
     std::vector<ContractClause> ensuresContracts;
     std::string sourceFile;
 
+    // Phase B (AD): set by `@differentiable`. The emitter generates a
+    // companion `fn_<name>_grad` that performs a reverse-mode sweep over
+    // a straight-line body. The primal emission is unchanged.
+    bool differentiable_ = false;
+
   public:
     FunctionNode(
         std::string tm,
@@ -1250,6 +1255,14 @@ class FunctionNode : public ASTNode {
     }
     const std::string& getSourceFile() const {
         return sourceFile;
+    }
+
+    // --- Automatic differentiation -----------------------------------
+    void setDifferentiable(bool v) {
+        differentiable_ = v;
+    }
+    bool isDifferentiable() const {
+        return differentiable_;
     }
 };
 
@@ -1354,6 +1367,11 @@ class ReturnNode : public ASTNode {
     evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     std::string getCExpr(C_Emitter& e) const override;
     void compile(C_Emitter& e) const override;
+
+    // Phase B (AD): the adjoint generator walks the returned expression.
+    ASTNode* getExpression() const {
+        return expression.get();
+    }
 };
 
 class MethodCallNode : public ASTNode {
@@ -1987,6 +2005,17 @@ class RegionNode : public ASTNode {
     std::string policy = "bump";
     std::vector<std::string> policyArgs;
 
+    // Phase B (AD): every attribute written before `region`, in source
+    // order. `@backward` is a predicate flag rather than a memory policy:
+    // it composes with `@bounded`, `@recompute`, `@mixed`, etc. The
+    // memory policy remains in `policy`/`policyArgs` above.
+    struct Attribute {
+        std::string name;
+        std::vector<std::string> args;
+    };
+    std::vector<Attribute> attributes_;
+    bool backward_ = false;
+
   public:
     RegionNode(std::string name, std::vector<std::shared_ptr<ASTNode>> b)
         : ASTNode(NodeType::REGION)
@@ -2019,6 +2048,26 @@ class RegionNode : public ASTNode {
     }
     const std::vector<std::string>& getPolicyArgs() const {
         return policyArgs;
+    }
+
+    // --- Phase B (AD): composed region attributes --------------------
+    void addAttribute(std::string name, std::vector<std::string> args = {}) {
+        attributes_.push_back({std::move(name), std::move(args)});
+    }
+    const std::vector<Attribute>& getAttributes() const {
+        return attributes_;
+    }
+    bool hasAttribute(const std::string& name) const {
+        for (const auto& a : attributes_)
+            if (a.name == name)
+                return true;
+        return false;
+    }
+    void setBackward(bool v) {
+        backward_ = v;
+    }
+    bool isBackward() const {
+        return backward_;
     }
 };
 // ============================================================
