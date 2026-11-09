@@ -1094,65 +1094,96 @@ static void compileRealtimeRegion(C_Emitter& e, const RegionNode& r) {
 }
 
 void RegionNode::compile(C_Emitter& e) const {
-    if (policy.empty() || policy == "bump") {
-        compileBumpRegion(e, *this);
-        return;
-    }
-    if (policy == "pool") {
-        compilePoolRegion(e, *this);
-        return;
-    }
-    if (policy == "slab") {
-        compileSlabRegion(e, *this);
-        return;
-    }
-    if (policy == "ring") {
-        compileRingRegion(e, *this);
-        return;
-    }
-    if (policy == "streamed") {
-        compileStreamedRegion(e, *this);
-        return;
-    }
-    if (policy == "persistent") {
-        compilePersistentRegion(e, *this);
-        return;
-    }
-    if (policy == "device") {
-        compileDeviceRegion(e, *this);
-        return;
-    }
-    if (policy == "speculative") {
-        compileSpeculativeRegion(e, *this);
-        return;
-    }
-    if (policy == "bounded") {
-        compileBoundedRegion(e, *this);
-        return;
-    }
-    if (policy == "zeroed") {
-        compileZeroedRegion(e, *this);
-        return;
-    }
-    if (policy == "deterministic") {
-        compileDeterministicRegion(e, *this);
-        return;
-    }
-    if (policy == "realtime") {
-        compileRealtimeRegion(e, *this);
-        return;
+    // Phase B (AD): `@backward` is a scope marker, not an allocator
+    // policy. Push the tape scope around whichever memory policy is
+    // selected below; `backward(...)` inside consumes the recorded calls.
+    if (isBackward()) {
+        e.pushBackwardRegion();
+        e.emit(
+            "// --- @backward tape scope: " + getRegionName() + " ---"
+        );
     }
 
-    throw std::runtime_error(
-        "Compile Error (VNE-080): region policy '@" + policy +
-        "' is "
-        "recognized but not yet implemented (line " +
-        std::to_string(lineNumber) +
-        ").\n"
-        "  Implemented policies: bump (default), pool, slab, ring, streamed, "
-        "persistent, device, speculative, bounded, zeroed, deterministic, "
-        "realtime."
-    );
+    auto dispatch = [&]() {
+        if (policy.empty() || policy == "bump") {
+            compileBumpRegion(e, *this);
+            return;
+        }
+        if (policy == "pool") {
+            compilePoolRegion(e, *this);
+            return;
+        }
+        if (policy == "slab") {
+            compileSlabRegion(e, *this);
+            return;
+        }
+        if (policy == "ring") {
+            compileRingRegion(e, *this);
+            return;
+        }
+        if (policy == "streamed") {
+            compileStreamedRegion(e, *this);
+            return;
+        }
+        if (policy == "persistent") {
+            compilePersistentRegion(e, *this);
+            return;
+        }
+        if (policy == "device") {
+            compileDeviceRegion(e, *this);
+            return;
+        }
+        if (policy == "speculative") {
+            compileSpeculativeRegion(e, *this);
+            return;
+        }
+        if (policy == "bounded") {
+            compileBoundedRegion(e, *this);
+            return;
+        }
+        if (policy == "zeroed") {
+            compileZeroedRegion(e, *this);
+            return;
+        }
+        if (policy == "deterministic") {
+            compileDeterministicRegion(e, *this);
+            return;
+        }
+        if (policy == "realtime") {
+            compileRealtimeRegion(e, *this);
+            return;
+        }
+
+        throw std::runtime_error(
+            "Compile Error (VNE-080): region policy '@" + policy +
+            "' is "
+            "recognized but not yet implemented (line " +
+            std::to_string(lineNumber) +
+            ").\n"
+            "  Implemented policies: bump (default), pool, slab, ring, "
+            "streamed, "
+            "persistent, device, speculative, bounded, zeroed, "
+            "deterministic, "
+            "realtime."
+        );
+    };
+
+    // @recompute / @mixed are parsed today; their lowering is a later
+    // phase. Record that fact in the emitted C so the guarantee is not
+    // silently advertised.
+    for (const auto& a : getAttributes()) {
+        if (a.name == "recompute")
+            e.emit("// @recompute: checkpointing metadata recorded "
+                   "(lowering deferred)");
+        if (a.name == "mixed")
+            e.emit("// @mixed: precision metadata recorded "
+                   "(lowering deferred)");
+    }
+
+    dispatch();
+
+    if (isBackward())
+        e.popBackwardRegion();
 }
 
 std::string RegionNode::getCExpr(C_Emitter& e) const {
