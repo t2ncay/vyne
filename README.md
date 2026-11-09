@@ -410,14 +410,18 @@ through epoch :: 1..N -> loop {
 };
 ```
 
-Three region policies exist:
+A region may carry one allocation/lifetime/verification policy plus any
+composition attributes. Common forms:
 
 - `region name { ... }` — default bump-checkpoint/rewind behavior.
-- `@pool<Float64, 64> region name { ... }` — fixed-capacity slot
-  allocator for repeated same-sized buffers.
-- `@speculative region name { ... }` — the rewind is conditional on
-  `region.commit_if(predicate)`; the region's allocations survive if any
-  commit fires.
+- `@bounded<bytes> region name { ... }` — runtime-checked memory ceiling.
+- `@persistent region name { ... }` — commit-arena lifetime for the whole body.
+- `@pool`, `@slab`, `@ring`, `@streamed`, and `@device` — specialized
+  allocators and memory locations.
+
+The complete matrix — every policy, its allocator, its lifetime rule, its
+target support, and the composition/deferred attributes — is in
+[Memory model → Region policies](#region-policies).
 
 Region escape analysis (`VNE-070`) rejects assignments that would write a
 region-local pointer into a shallower variable, catching the most common
@@ -515,6 +519,45 @@ limit on AVR.
 The region syntax is sugar over this. `region name { ... }` compiles to
 a checkpoint, the body, and a rewind at the closing brace, on both
 targets.
+
+### Region policies
+
+A region selects **at most one** allocation, lifetime, or verification policy.
+`@layout`, `@backward`, `@recompute`, and `@mixed` are composition attributes:
+they stack on top of that policy without choosing a second allocator. The
+language currently defines sixteen region modifiers.
+
+| Modifier | Category | What it does |
+| :--- | :--- | :--- |
+| *(none)* / `@bump` | Lifetime | Default behavior: checkpoint on entry, bump-allocate in the body, rewind at the closing brace. |
+| `@pool<T, N>` | Allocation | Fixed-capacity slot allocator. `pool_alloc()` returns a slot; `pool_free(x)` returns it to the free list. Slots are zero-filled and the pool backing is reclaimed by the region rewind. `T` is `Float64` or `Int64`; `N` is elements per slot. |
+| `@slab<T, MAX[, CAP]>` | Allocation | Power-of-two size-class allocator. `slab_alloc(n)` rounds `n` up to the next class and recycles a slot; `slab_free(x)` returns it. Each class's backing is allocated lazily and reclaimed by the rewind. `MAX` is the largest single allocation, `CAP` the live slots per class (default 8). |
+| `@ring<T, N, MAX>` | Lifetime + allocation | `N` rotating fixed-size slots, each `MAX` elements wide. `ring_alloc(n)` returns the next slot and overwrites the oldest after `N` allocations. There is no free intrinsic: the policy *is* the bounded-history contract. |
+| `@streamed<T, MAX>` | Location | Draws from a separate page-locked host arena (`mlock` / `VirtualLock`, plain-memory fallback). `streamed_alloc(n)` consumes from a total budget of `MAX` elements; `vmem.stream_*` reports live/peak bytes and whether pages were actually pinned. Desktop only; AVR rejects it. |
+| `@persistent` | Lifetime | Routes the whole body to the commit arena and never rewinds it. Values survive the closing brace and any enclosing rewind until program exit. Nested `@persistent` regions share the arena; `region.commit(x)` inside is a no-op. Desktop only for now; peak memory is the programmer's responsibility. |
+| `@device<backend>` | Location | Opens an accelerator frame and routes `device_*` intrinsics to the device arena. Allocations are released at frame close, then the host arena rewinds. Backend is `cuda`, `auto`, or `cpu`; unavailable CUDA falls back to CPU with a warning. Desktop only. |
+| `@speculative` | Lifetime + control | Runs the body, then commits only if `region.commit_if(pred)` fired. On commit the checkpoint is popped and allocations survive; otherwise the region rewinds. |
+| `@bounded<N>` | Verification | Runtime-checked byte ceiling for the region. Static scratch bytes are accounted at compile time; arena growth is measured at close. A violation halts with `VNE-102` and names the region. |
+| `@zeroed` | Initialization | Every arena allocation in the region is zero-filled, and scratch arrays are zero-initialized. The zero-mode counter nests, so an inner `@zeroed` region does not disable an outer one. |
+| `@deterministic` | Verification | Implies `@zeroed` and statically rejects time/RNG sources in the region body (`VNE-106`), so output is byte-identical across runs for identical inputs. The scan covers straight-line statements; runtime zeroing is the defence for loop bodies. |
+| `@realtime<ms>` | Verification | Records a monotonic timestamp on entry and checks the deadline at normal close and on every early return. Overrun halts with `VNE-109`; worst observed time and overruns are exposed as `vcore.realtime_*` (desktop) or `arduino.realtime_*` (AVR). A watchdog, not a worst-case-execution-time proof. |
+| `@layout<soa>` | Layout (composition) | Lowers struct `scratch` to one packed array per field instead of an array of structs. `particles[i].field` reads/writes address the field arrays directly; multi-index and runtime-length scratch flatten row-major. `@layout<aos>` is the explicit default; `@layout<struct_of_arrays>` is an alias. Struct scratch without `soa` is `VNE-062`; whole-element access is `VNE-063`. |
+| `@backward` | AD (composition) | Scopes the reverse sweep/tape to the region body. Calls to `@differentiable` functions are recorded; `backward(seed)` consumes them. It composes with a memory policy, as in `@backward @bounded<...> region`. |
+| `@recompute<...>` | AD metadata (deferred) | Parsed and recorded as checkpoint/recompute metadata for the autodiff planner. Lowering is deferred; the compiler currently emits a metadata comment and does not change allocation behavior. |
+| `@mixed<...>` | Precision metadata (deferred) | Parsed and recorded as mixed-precision intent (for example compute/accumulate types). Lowering is deferred; the compiler currently emits a metadata comment. |
+
+**Composition and target rules.** A second allocation/lifetime/verification
+policy is a compile error; use a second region instead. `@layout` composes with
+any policy. `@streamed`, `@device`, and `@persistent` are desktop-only in this
+release and are rejected on AVR. `@pool` and `@slab` accept only `Float64` /
+`Int64`; `@ring` and `@streamed` follow the same element-type rule. Buffers from
+`@pool`, `@slab`, `@ring`, and `@streamed` must not be grown with `push`; their
+size discipline is part of the policy.
+
+**Not region policies.** `@differentiable` marks a function, `@invariant`
+marks a loop contract, and `scratch` is a declaration. `@scratch` appears in
+the design notes as a future region-wide C-stack policy but is not accepted by
+this release.
 
 ### Interning
 
