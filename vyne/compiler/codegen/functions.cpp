@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "detail/codegen_helpers.h"
+#include "autodiff.h"
 
 // Function declarations and body emission, including parameter and return
 // handling. Keep expressions that emit statements in evaluation order; see
@@ -641,6 +642,35 @@ void FunctionNode::compile(C_Emitter& e) const {
             );
         }
     }
+
+    // Phase B (AD): emit the reverse-mode companion next to the primal.
+    if (isDifferentiable()) {
+        std::string adMangled = originalName;
+        std::replace(adMangled.begin(), adMangled.end(), '.', '_');
+        if (!targetModule.empty())
+            adMangled = targetModule + "_" + adMangled;
+
+        std::vector<VType> paramTypes;
+        paramTypes.reserve(parameters.size());
+        for (const auto& p : parameters)
+            paramTypes.push_back(p.type);
+
+        e.registerDifferentiable(
+            originalName,
+            vyne_ad::adjointCName(adMangled),
+            parameters.size(),
+            paramTypes
+        );
+        if (!targetModule.empty())
+            e.registerDifferentiable(
+                targetModule + "." + originalName,
+                vyne_ad::adjointCName(adMangled),
+                parameters.size(),
+                paramTypes
+            );
+
+        vyne_ad::emitAdjoint(e, *this, adMangled);
+    }
 }
 
 void FunctionNode::compileAs(
@@ -701,6 +731,27 @@ void FunctionNode::compileAs(
 
     e.exitFunction();
     e.popFunctionContext();
+
+    if (isDifferentiable()) {
+        std::vector<VType> paramTypes;
+        paramTypes.reserve(parameters.size());
+        for (const auto& p : parameters)
+            paramTypes.push_back(p.type);
+
+        e.registerDifferentiable(
+            originalName,
+            vyne_ad::adjointCName(name),
+            parameters.size(),
+            paramTypes
+        );
+        e.registerDifferentiable(
+            name,
+            vyne_ad::adjointCName(name),
+            parameters.size(),
+            paramTypes
+        );
+        vyne_ad::emitAdjoint(e, *this, name);
+    }
 }
 
 std::string FunctionNode::getCExpr(C_Emitter& e) const {

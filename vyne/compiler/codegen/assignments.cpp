@@ -449,6 +449,24 @@ void AssignmentNode::compile(C_Emitter& e) const {
         );
     }
 
+    // Phase B (AD): inside an `@backward` region, an assignment whose RHS
+    // is a call to a `@differentiable` function is the tape record that
+    // `backward(binding)` later consumes. Record the callee and its
+    // argument nodes before the normal lowering runs.
+    if (e.inBackwardRegion() && isFreshDeclaration() && rhs &&
+        rhs->type() == NodeType::FUNCTION_CALL) {
+        auto* call = static_cast<FunctionCallNode*>(rhs.get());
+        if (e.lookupDifferentiable(call->getOriginalName())) {
+            std::vector<const ASTNode*> args;
+            args.reserve(call->getArguments().size());
+            for (const auto& a : call->getArguments())
+                args.push_back(a.get());
+            e.recordBackwardCall(
+                originalName, call->getOriginalName(), std::move(args)
+            );
+        }
+    }
+
     // Slice 3b: unboxing helper. Closes the reverse direction of
     // boxAny. If `valExpr` is already a matching native struct, use it
     // directly. Otherwise it is a boxed VyneValue; bind once, extract

@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "detail/codegen_helpers.h"
+#include "autodiff.h"
 
 // Function invocation and native call lowering.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -24,6 +25,28 @@
 // ============================================================
 
 std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
+    // Phase B (AD) intrinsics. Like the pool/slab intrinsics below, they
+    // are intercepted only when the shape matches, so a user-defined
+    // `fn grad(...)` or `fn backward(...)` still resolves normally.
+    if (originalName == "grad" && arguments.size() == 2) {
+        std::string target;
+        if (arguments[0]->type() == NodeType::VARIABLE) {
+            target = static_cast<const VariableNode*>(arguments[0].get())
+                         ->getOriginalName();
+        } else if (arguments[0]->type() == NodeType::MEMBER_ACCESS) {
+            target = static_cast<const MemberAccessNode*>(arguments[0].get())
+                         ->getFullPath();
+        }
+        if (!target.empty() && e.lookupDifferentiable(target))
+            return vyne_ad::emitGradCall(e, *this);
+    }
+    if (originalName == "backward" && arguments.size() == 1 &&
+        arguments[0]->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<const VariableNode*>(arguments[0].get());
+        if (e.lookupBackwardCall(v->getOriginalName()))
+            return vyne_ad::emitBackwardCall(e, *this);
+    }
+
     // ----------------------------------------------------------------
     // Pool intrinsics. `pool_alloc` and `pool_free` are intercepted by
     // name *only when a pool context is active*; outside a @pool region

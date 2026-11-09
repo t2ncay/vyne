@@ -161,9 +161,18 @@ std::vector<Token> tokenize(std::string_view input) {
                 size_t start = i;
                 i += 2; // skip 0x
                 std::string hexDigits;
-                while (i < input.length() &&
-                       std::isxdigit((unsigned char)input[i])) {
-                    hexDigits += input[i++];
+                while (i < input.length()) {
+                    if (std::isxdigit((unsigned char)input[i])) {
+                        hexDigits += input[i++];
+                    } else if (
+                        input[i] == '_' && !hexDigits.empty() &&
+                        i + 1 < input.length() &&
+                        std::isxdigit((unsigned char)input[i + 1])
+                    ) {
+                        ++i; // digit separator
+                    } else {
+                        break;
+                    }
                 }
                 if (hexDigits.empty()) {
                     emitError(
@@ -207,6 +216,13 @@ std::vector<Token> tokenize(std::string_view input) {
             while (i < input.length()) {
                 if (std::isdigit(input[i])) {
                     buffer += input[i++];
+                } else if (
+                    input[i] == '_' && !buffer.empty() &&
+                    std::isdigit((unsigned char)buffer.back()) &&
+                    i + 1 < input.length() &&
+                    std::isdigit((unsigned char)input[i + 1])
+                ) {
+                    ++i; // digit separator: 64_000_000
                 } else if (input[i] == '.') {
                     if (i + 1 < input.length() && input[i + 1] == '.') {
                         break;
@@ -239,8 +255,17 @@ std::vector<Token> tokenize(std::string_view input) {
                     if (input[i] == '+' || input[i] == '-') {
                         buffer += input[i++]; // exponent sign
                     }
-                    while (i < input.length() && std::isdigit(input[i])) {
-                        buffer += input[i++]; // exponent digits
+                    while (i < input.length()) {
+                        if (std::isdigit(input[i])) {
+                            buffer += input[i++];
+                        } else if (
+                            input[i] == '_' && i + 1 < input.length() &&
+                            std::isdigit((unsigned char)input[i + 1])
+                        ) {
+                            ++i; // digit separator in the exponent
+                        } else {
+                            break;
+                        }
                     }
                     // Any literal written with e-notation is a float,
                     // even when the mantissa is integral. Matches C,

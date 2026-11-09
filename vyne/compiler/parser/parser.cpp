@@ -767,6 +767,19 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
             lookAhead(1).name == "invariant") {
             return parseInvariantLoop();
         }
+        // `@differentiable fn ...` — function-level AD annotation.
+        if (lookAhead(1).type == VTokenType::Identifier &&
+            lookAhead(1).name == "differentiable") {
+            int attrLine = peekToken().line;
+            consume(VTokenType::At);
+            consume(VTokenType::Identifier);
+            auto fn = parseFunctionDefinition();
+            if (auto* f = dynamic_cast<FunctionNode*>(fn.get())) {
+                f->setDifferentiable(true);
+                f->lineNumber = attrLine;
+            }
+            return fn;
+        }
         return parseRegionStatement();
     case VTokenType::Scratch:
         return parseScratchDeclaration();
@@ -3322,14 +3335,43 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     std::string policy = "bump";
     std::vector<std::string> policyArgs;
 
-    if (peekToken().type == VTokenType::At) {
-        consume(VTokenType::At);
-        Token policyTok = consume(VTokenType::Identifier);
-        policy = policyTok.name;
+    // Phase B (AD): a region may carry several attributes. `@backward` is
+    // a predicate; the memory policy (`bounded`, `zeroed`, ...) is still
+    // dispatched through RegionNode::compile. `@recompute` / `@mixed` are
+    // parsed and recorded so the surface is stable, but their lowering is
+    // a later phase.
+    std::vector<std::pair<std::string, std::vector<std::string>>> attributes;
+    bool sawBackward = false;
 
-        if (peekToken().type == VTokenType::Smaller) {
-            policyArgs = parsePolicyArgs();
+    while (peekToken().type == VTokenType::At) {
+        consume(VTokenType::At);
+        Token attrTok = consume(VTokenType::Identifier);
+
+        std::vector<std::string> attrArgs;
+        if (peekToken().type == VTokenType::Smaller)
+            attrArgs = parsePolicyArgs();
+
+        attributes.emplace_back(attrTok.name, attrArgs);
+
+        if (attrTok.name == "backward") {
+            sawBackward = true;
+            continue;
         }
+        if (attrTok.name == "recompute" || attrTok.name == "mixed") {
+            continue;
+        }
+        if (policy != "bump") {
+            emitError(
+                "region declares more than one memory policy ('@" + policy +
+                    "' and '@" + attrTok.name + "')",
+                line,
+                "VNE-080",
+                {"A region has at most one memory policy; @backward, "
+                 "@recompute, and @mixed compose with it"}
+            );
+        }
+        policy = attrTok.name;
+        policyArgs = std::move(attrArgs);
     }
 
     consume(VTokenType::Region);
@@ -3391,6 +3433,9 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     auto node = std::make_unique<RegionNode>(regionName, std::move(body));
     node->lineNumber = line;
     node->setPolicy(policy, std::move(policyArgs));
+    for (auto& a : attributes)
+        node->addAttribute(a.first, std::move(a.second));
+    node->setBackward(sawBackward);
     return node;
 }
 std::unique_ptr<ASTNode> Parser::parseScratchDeclaration() {
@@ -3499,6 +3544,12 @@ std::vector<std::string> Parser::parsePolicyArgs() {
         } else if (tok.type == VTokenType::Int64) {
             Token n = consume(VTokenType::Int64);
             args.push_back(std::to_string(std::get<int64_t>(n.literal)));
+        } else if (tok.type == VTokenType::Colon) {
+            // `@mixed<compute: Float16, accumulate: Float32>` style
+            // key/value arguments. The colon is structural; the policy
+            // interpreter sees only the two tokens.
+            consume(VTokenType::Colon);
+            continue;
         } else {
             emitError(
                 "Expected policy argument (identifier or integer), but got " +
@@ -3507,6 +3558,12 @@ std::vector<std::string> Parser::parsePolicyArgs() {
                 "VNE-081",
                 {"Syntax: @pool<Float64, 64> region name { ... }"}
             );
+        }
+
+        // `key: value` argument pairs (@recompute, @mixed).
+        if (peekToken().type == VTokenType::Colon) {
+            consume(VTokenType::Colon);
+            continue;
         }
 
         if (peekToken().type == VTokenType::Comma) {

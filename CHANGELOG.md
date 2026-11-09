@@ -1,3 +1,49 @@
+# Changelog
+
+## Unreleased — automatic differentiation surface + straight-line reverse mode
+
+This change lands the B + A AD surface recommended for Vyne:
+
+- `@differentiable` on a function marks it as having a compiler-generated
+  adjoint. The C backend emits the primal unchanged and a
+  `fn_<name>_grad(...)` companion.
+- `@backward` on a region creates the tape scope. It is a predicate that
+  composes with `@bounded`, `@recompute`, and `@mixed`; the memory policy is
+  still dispatched by `RegionNode::compile`.
+- `backward(loss)` seeds the adjoint sweep and populates `w.grad` for the
+  recorded arguments. The gradient slots are ordinary C locals inside the
+  region block, so they die at region rewind and are covered by `@bounded`.
+- `grad(f, x)` is expression-level sugar for the same seeded sweep, currently
+  for unary `Float64` functions.
+
+The reverse-mode generator (`codegen/autodiff.cpp`) recomputes the primal
+intermediates, seeds the returned expression, walks assignments in reverse, and
+publishes input gradients through out-parameters. It supports `+ - * / **`,
+`sin cos exp log sqrt tanh abs relu`, and `pow` over straight-line `Float64`
+bodies. Everything outside the subset is rejected with `VNE-120`..`VNE-126`
+instead of silently miscompiling.
+
+Array gradients are supported for `Float64 -> Float64` functions that reduce
+`Array<Float64>` values through the `vstat`/`vlin` kernels:
+
+- `grad(f, w)` returns a fresh `Array<Float64>` when `w :: Array<Float64>`;
+- the VJPs for `mse`/`k_mse_sum`, `mae`/`k_mae_sum`, `dot`/`k_dot`, `sum`,
+  `mean`, `norm_sq`/`sum_sq`, and `abs_sum` are emitted as loops over the
+  native array storage and accumulate into the caller-provided out container;
+- array arguments are plain variables (parameters or read-only globals);
+  array locals, element-wise intermediates, and matmul VJPs are deferred;
+- `backward(...)` on array parameters is deferred (use `grad(f, x)`).
+
+Also included:
+
+- region attributes may now compose (`@backward @bounded<...>`), with
+  `@recompute` / `@mixed` parsed and recorded for a later phase;
+- numeric literals accept `_` digit separators (`64_000_000`);
+- examples under `examples/autodiff/` (including `array_grad.vy`) and a
+  reference page at `docs/tutorials/reference/autodiff.md`.
+
+---
+
 # Vyne v0.4.0 — dual licensing, three new libraries, and the native-struct ABI
 
 **Released 2026-10-04**

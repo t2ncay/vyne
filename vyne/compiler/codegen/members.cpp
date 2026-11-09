@@ -24,6 +24,16 @@
 // ============================================================
 
 std::string MemberAccessNode::getCExpr(C_Emitter& e) const {
+    // Phase B (AD): `w.grad` reads the slot populated by a preceding
+    // `backward(...)` inside the same @backward region. The slot is an
+    // ordinary C local, so it dies with the region.
+    if (memberName == "grad" && receiver->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<VariableNode*>(receiver.get());
+        if (const std::string* g =
+                e.lookupGradientAccess(v->getOriginalName()))
+            return *g;
+    }
+
     // --- Slice 3c (+ extension): direct field access on a native C struct ---
     // The receiver's C-level value is the `vyne_*` typedef, not a
     // VyneValue, so vyne_struct_get is a type error. Emit `recv.member`

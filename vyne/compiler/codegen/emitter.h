@@ -28,6 +28,10 @@
 #include "ctype.h"
 #include "native_maps.h"
 
+// emitter.h is included from ast.h, so it cannot include ast.h back.
+// The AD tape record only stores opaque AST pointers.
+class ASTNode;
+
 class C_Emitter {
     // --- Output buffers --------------------------------------------------
     std::stringstream globalsStream;
@@ -381,6 +385,89 @@ class C_Emitter {
     bool isInNativeVariant() const {
         return inNativeVariant;
     }
+
+    // --- Phase B (AD): differentiable-function registry ----------------
+    // Populated by the ProgramNode pre-pass so a `grad(...)` or
+    // `backward(...)` call can resolve the companion even when the
+    // definition appears later in the source file.
+    struct ADInfo {
+        std::string adjointName; // C name of `fn_<mangled>_grad`
+        size_t arity = 0;
+        std::vector<VType> paramTypes;
+    };
+    void registerDifferentiable(
+        const std::string& name,
+        std::string adjointName,
+        size_t arity,
+        std::vector<VType> paramTypes = {}
+    ) {
+        differentiable_[name] =
+            ADInfo{std::move(adjointName), arity, std::move(paramTypes)};
+    }
+    const ADInfo* lookupDifferentiable(const std::string& name) const {
+        auto it = differentiable_.find(name);
+        return it == differentiable_.end() ? nullptr : &it->second;
+    }
+
+    // --- Phase B (AD): `@backward` region scope ------------------------
+    // Each open `@backward` region records the differentiable calls made
+    // in its body, keyed by the variable that receives the primal result.
+    // `backward(loss)` consumes that record to emit the adjoint call.
+    struct BackwardCall {
+        std::string callee;
+        std::vector<const ASTNode*> args;
+    };
+    struct BackwardRegion {
+        std::unordered_map<std::string, BackwardCall> calls;
+    };
+    void pushBackwardRegion() {
+        backwardRegions_.emplace_back();
+    }
+    void popBackwardRegion() {
+        if (!backwardRegions_.empty())
+            backwardRegions_.pop_back();
+    }
+    bool inBackwardRegion() const {
+        return !backwardRegions_.empty();
+    }
+    void recordBackwardCall(
+        const std::string& binding,
+        std::string callee,
+        std::vector<const ASTNode*> args
+    ) {
+        if (backwardRegions_.empty())
+            return;
+        backwardRegions_.back().calls[binding] =
+            BackwardCall{std::move(callee), std::move(args)};
+    }
+    const BackwardCall* lookupBackwardCall(const std::string& binding) const {
+        if (backwardRegions_.empty())
+            return nullptr;
+        auto it = backwardRegions_.back().calls.find(binding);
+        return it == backwardRegions_.back().calls.end() ? nullptr
+                                                          : &it->second;
+    }
+
+    // `w.grad` reads the gradient slot that `backward(...)` populated.
+    // Keyed by the source-level variable name, scoped per function
+    // context (cleared by push/popFunctionContext).
+    void registerGradientAccess(
+        const std::string& varName,
+        const std::string& cName
+    ) {
+        gradientAccess_[varName] = cName;
+    }
+    const std::string* lookupGradientAccess(const std::string& varName) const {
+        auto it = gradientAccess_.find(varName);
+        return it == gradientAccess_.end() ? nullptr : &it->second;
+    }
+
+    // Phase B (AD) state. `differentiable_` is program-global (survives
+    // function boundaries); the other two are per-function.
+    std::unordered_map<std::string, ADInfo> differentiable_;
+    std::vector<BackwardRegion> backwardRegions_;
+    std::unordered_map<std::string, std::string> gradientAccess_;
+
     // --- Context management ---------------------------------------------
     bool isAlreadyImported(const std::string& path) const {
         return importedFiles.count(path) > 0;
@@ -744,6 +831,8 @@ class C_Emitter {
         localScopes.clear();
         localScopes.emplace_back();
         scratchRuntimeDims.clear();
+        backwardRegions_.clear();
+        gradientAccess_.clear();
     }
     void popFunctionContext() {
         if (!contextStack.empty())
@@ -757,6 +846,8 @@ class C_Emitter {
         currentFunctionReturnType_ = CType{};
         zeroModeDepth = 0;
         boundedStack.clear();
+        backwardRegions_.clear();
+        gradientAccess_.clear();
         indentLevel = 1;
     }
     void setFunctionContext(bool inside) {
@@ -1746,6 +1837,9 @@ class C_Emitter {
         functionParamTypes.clear();
         functionReturnTypes.clear();
         nativeVariants.clear();
+        differentiable_.clear();
+        backwardRegions_.clear();
+        gradientAccess_.clear();
         nativeReturnType = CType{};
         currentFunctionReturnType_ = CType{};
         structReturnOutParams.clear();

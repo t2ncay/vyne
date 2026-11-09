@@ -17,6 +17,7 @@
 
 // --- AFTER ---
 #include "detail/codegen_helpers.h"
+#include "autodiff.h"
 
 // Program and block emission, plus ternary expressions.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -203,6 +204,48 @@ void ProgramNode::compile(C_Emitter& e) const {
                     fn->getOriginalName()
                 );
             }
+
+            // Phase B (AD): register differentiable functions and emit a
+            // forward prototype for their companion before any call site
+            // is lowered. This makes `grad(f, x)` legal even when `f` is
+            // declared later in the file.
+            if (fn->isDifferentiable()) {
+                std::string why;
+                if (!vyne_ad::validate(*fn, &why)) {
+                    throw std::runtime_error(
+                        "Compile Error (VNE-120): @differentiable function '" +
+                        fn->getOriginalName() +
+                        "' is outside the supported AD slice: " + why +
+                        " (line " + std::to_string(fn->lineNumber) + ")."
+                    );
+                }
+                std::string mangled = fn->getOriginalName();
+                std::replace(mangled.begin(), mangled.end(), '.', '_');
+                if (!fn->getTargetModule().empty())
+                    mangled = fn->getTargetModule() + "_" + mangled;
+
+                std::string adj = vyne_ad::adjointCName(mangled);
+                size_t arity = fn->getParameters().size();
+                std::vector<VType> paramTypes;
+                paramTypes.reserve(arity);
+                for (const auto& p : fn->getParameters())
+                    paramTypes.push_back(p.type);
+                e.registerDifferentiable(
+                    fn->getOriginalName(), adj, arity, paramTypes
+                );
+                e.registerDifferentiable(mangled, adj, arity, paramTypes);
+                if (!fn->getTargetModule().empty()) {
+                    e.registerDifferentiable(
+                        fn->getTargetModule() + "." + fn->getOriginalName(),
+                        adj,
+                        arity,
+                        paramTypes
+                    );
+                }
+                e.emitGlobalDecl(
+                    vyne_ad::adjointPrototype(*fn, mangled) + ";"
+                );
+            }
         } else if (stmt->type() == NodeType::INTERFACE) {
             auto* iface = static_cast<const InterfaceNode*>(stmt.get());
             if (!iface->getModuleName().empty()) {
@@ -324,6 +367,21 @@ void ProgramNode::compile(C_Emitter& e) const {
                 }
             }
 
+            // Array-parameter @differentiable functions are lowered
+            // through the boxed primal in this phase. A native variant can
+            // box raw `double*` array parameters into calls that expect a
+            // VyneValue array (the vstat/vlin kernel surface), which is not
+            // a valid ABI. The adjoint is emitted separately and is always
+            // native.
+            bool adArrayFunction = fn->isDifferentiable();
+            if (adArrayFunction) {
+                bool hasArray = false;
+                for (const auto& p : fn->getParameters())
+                    if (p.type == VType::Array)
+                        hasArray = true;
+                adArrayFunction = hasArray;
+            }
+
             e.registerFunctionSignature(
                 fn->getOriginalName(),
                 std::move(paramNames)
@@ -341,7 +399,7 @@ void ProgramNode::compile(C_Emitter& e) const {
             }
 
             if (allNativeCallable && retNative && !hasDeferOrTry &&
-                !callsArrayMethodOnParam) {
+                !callsArrayMethodOnParam && !adArrayFunction) {
                 std::string orig = fn->getOriginalName();
                 std::string mangled = orig;
                 std::replace(mangled.begin(), mangled.end(), '.', '_');
