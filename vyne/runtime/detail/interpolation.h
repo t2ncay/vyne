@@ -11,13 +11,23 @@
 // ============================================================================
 
 static inline VyneValue vyne_interpolate(const char* parts[], int part_count, VyneValue* values) {
+    // Render each interpolated value once. The measuring and copy passes
+    // used to call vyne_to_string twice per value, allocating a fresh
+    // string for every scalar, array, or map in the literal.
+    int value_count = part_count / 2;
+    VyneValue* rendered = (VyneValue*)arena_alloc(
+        sizeof(VyneValue) * (size_t)(value_count > 0 ? value_count : 1)
+    );
+    for (int i = 0; i < value_count; i++) {
+        rendered[i] = vyne_to_string(values[i]);
+    }
+
     size_t total_len = 1;
     for (int i = 0; i < part_count; i++) {
         if (i % 2 == 0) {
             total_len += strlen(parts[i]);
         } else {
-            VyneValue str = vyne_to_string(values[i / 2]);
-            total_len += strlen(str.as.str);
+            total_len += strlen(rendered[i / 2].as.str);
         }
     }
 
@@ -30,12 +40,11 @@ static inline VyneValue vyne_interpolate(const char* parts[], int part_count, Vy
             memcpy(result + pos, s, len);
             pos += len;
         } else {
-            VyneValue str = vyne_to_string(values[i / 2]);
-            size_t len = strlen(str.as.str);
-            memcpy(result + pos, str.as.str, len);
+            size_t len = strlen(rendered[i / 2].as.str);
+            memcpy(result + pos, rendered[i / 2].as.str, len);
             pos += len;
         }
     }
     result[pos] = '\0';
-    return vyne_string(result);
+    return vyne_string_own(result);
 }
