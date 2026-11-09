@@ -466,11 +466,12 @@ region train_step {
 The compiler emits a primal and a `fn_<name>_grad` companion; there is no
 runtime tape interpreter and no per-operation dispatch. The tape is a set
 of ordinary C locals inside the region block, so it dies at rewind and
-`@bounded` accounts for it. This release implements the surface plus
-straight-line `Float64` reverse mode; arrays, loops, branches,
-`@recompute`, and `@mixed` lowering are deferred and rejected rather than
-miscompiled. See `docs/tutorials/reference/autodiff.md` and
-`examples/autodiff/`.
+`@bounded` accounts for it. This release implements straight-line
+`Float64` reverse mode plus `Array<Float64>` gradients through the
+`vstat`/`vlin` reduction kernels (`grad(f, w)` returns an array). Array
+locals, loops, branches, `@recompute`, and `@mixed` lowering are deferred
+and rejected rather than miscompiled. See
+`docs/tutorials/reference/autodiff.md` and `examples/autodiff/`.
 
 ---
 

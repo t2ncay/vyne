@@ -23,13 +23,24 @@ publishes input gradients through out-parameters. It supports `+ - * / **`,
 bodies. Everything outside the subset is rejected with `VNE-120`..`VNE-126`
 instead of silently miscompiling.
 
+Array gradients are supported for `Float64 -> Float64` functions that reduce
+`Array<Float64>` values through the `vstat`/`vlin` kernels:
+
+- `grad(f, w)` returns a fresh `Array<Float64>` when `w :: Array<Float64>`;
+- the VJPs for `mse`/`k_mse_sum`, `mae`/`k_mae_sum`, `dot`/`k_dot`, `sum`,
+  `mean`, `norm_sq`/`sum_sq`, and `abs_sum` are emitted as loops over the
+  native array storage and accumulate into the caller-provided out container;
+- array arguments are plain variables (parameters or read-only globals);
+  array locals, element-wise intermediates, and matmul VJPs are deferred;
+- `backward(...)` on array parameters is deferred (use `grad(f, x)`).
+
 Also included:
 
 - region attributes may now compose (`@backward @bounded<...>`), with
   `@recompute` / `@mixed` parsed and recorded for a later phase;
 - numeric literals accept `_` digit separators (`64_000_000`);
-- examples under `examples/autodiff/` and a reference page at
-  `docs/tutorials/reference/autodiff.md`.
+- examples under `examples/autodiff/` (including `array_grad.vy`) and a
+  reference page at `docs/tutorials/reference/autodiff.md`.
 
 ---
 

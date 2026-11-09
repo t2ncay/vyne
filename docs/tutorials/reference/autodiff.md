@@ -2,7 +2,8 @@
 
 Vyne ships the **surface** for automatic differentiation (AD) and a working
 **source-to-source reverse-mode** implementation for straight-line `Float64`
-functions. The design composes two annotations and one intrinsic:
+functions and `Array<Float64>` reductions. The design composes two annotations
+and one intrinsic:
 
 | Form | Surface | Lowers to |
 | :--- | :--- | :--- |
@@ -65,6 +66,48 @@ region train_step {
 };
 ```
 
+## Example: array gradients
+
+`grad(f, w)` returns an `Array<Float64>` of the same length when `w` is an
+`Array<Float64>` parameter. The adjoint lowers each reduction VJP to a loop
+over the native array storage.
+
+```vyne
+use external "vstat/vstat.vy";
+
+target :: Array<Float64> := [1.0, 2.0, 3.0];
+
+@differentiable
+fn loss(w :: Array<Float64>) -> Float64 {
+    n :: Int64 := w.size();
+    return vstat.k_mse_sum(w, target, n) / float64(n);
+}
+
+w :: Array<Float64> := [1.0, 1.0, 1.0];
+gw :: Array<Float64> := grad(loss, w);
+# gw = [0.0, -0.666667, -1.33333]
+```
+
+`vstat.mse` is the `vstat.Series` API; `vstat.k_mse_sum` is the raw
+`Array<Float64>` kernel that `mse` wraps, and it is the primitive this slice
+differentiates.
+
+Recognized array reductions and their VJPs (`d` is the incoming scalar
+gradient, `n` is the array length):
+
+| Primitive | Scalar result | VJP |
+| :--- | :--- | :--- |
+| `mse(a,b)` / `k_mse_sum(a,b,n)` | mean / sum of squared error | `d_a += 2(a-b)/n * d`, `d_b -= ...` (the `k_` form omits `1/n`) |
+| `mae(a,b)` / `k_mae_sum(a,b,n)` | mean / sum absolute error | `d_a += sign(a-b)*d/n`, `d_b -= ...` |
+| `dot(a,b)` / `k_dot(a,b,n)` | dot product | `d_a += b*d`, `d_b += a*d` |
+| `sum(a,n)` / `mean(a,n)` | sum / mean | `d_a += d` / `d_a += d/n` |
+| `norm_sq(a,n)` / `sum_sq(a,n)` | squared norm / sum of squares | `d_a += 2a*d` |
+| `abs_sum(a,n)` | sum of absolute values | `d_a += sign(a)*d` |
+
+Array arguments must be plain variables (parameters or read-only globals). The
+gradient is returned in a fresh `VyneArray_f64`; when the call sits inside a
+region, that container is region-scoped like every other value.
+
 ## What the compiler emits
 
 For
@@ -112,15 +155,19 @@ is reclaimed at the region's closing brace, no heap allocation is involved, and
 
 ## Supported subset (Phase B)
 
-- Parameters and return type are `Float64` scalars.
-- The body is a sequence of fresh `Float64` declarations (`:=`) followed by one
+- Parameters are `Float64` scalars or `Array<Float64>`. The return type is
+  `Float64`.
+- The body is a sequence of fresh scalar declarations (`:=`) followed by one
   `return <expr>;`.
-- Expressions use `+`, `-`, `*`, `/`, `**`, and the math calls
+- Scalar expressions use `+`, `-`, `*`, `/`, `**`, and the math calls
   `sin`, `cos`, `exp`, `log`, `sqrt`, `tanh`, `abs`, `relu`, and `pow(a, b)`.
   Both `vmath.sin(x)` (method form) and a same-named plain call are accepted.
-- Bodies must be closed over their parameters: reading a global inside a
-  `@differentiable` body is rejected, because the global is not part of the
-  adjoint signature.
+- Array values participate through the reduction primitives listed above.
+  Array locals and element-wise array arithmetic are deferred.
+- Scalar bodies must be closed over their parameters: reading a scalar global
+  inside a scalar `@differentiable` body is rejected because the global is not
+  part of the adjoint signature. Array reductions may read read-only array
+  globals (`target` above), which are constants with respect to the adjoint.
 
 Everything else is rejected with a stable diagnostic instead of producing a
 wrong gradient:
@@ -136,7 +183,8 @@ wrong gradient:
 
 The following are deliberately not claimed yet:
 
-- arrays, tensors, and vector-Jacobian products;
+- array locals, element-wise array intermediates, and matrix/matmul VJPs;
+- `backward(...)` on array parameters (use `grad(f, x)`);
 - branches, `through`/`while` loops, and loop-carried state;
 - `@recompute` checkpointing and `@mixed` precision policies;
 - interpreter execution of `grad` / `backward` (use the compiled backend);

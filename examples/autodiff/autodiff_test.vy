@@ -4,6 +4,7 @@
 # Exits 0 on success, 1 on the first mismatch.
 
 use native vmath;
+use external "vstat/vstat.vy";
 
 fn near(a :: Float64, b :: Float64, tol :: Float64) -> Bool {
     d :: Float64 := a - b;
@@ -76,5 +77,33 @@ region step {
         exit(1);
     }
 };
+
+# 5. Array gradient through a reduction.
+target :: Array<Float64> := [1.0, 2.0, 3.0];
+
+@differentiable
+fn mse_loss(w :: Array<Float64>) -> Float64 {
+    n :: Int64 := w.size();
+    return vstat.k_mse_sum(w, target, n) / float64(n);
+}
+
+wvec :: Array<Float64> := [1.0, 1.0, 1.0];
+gw :: Array<Float64> := grad(mse_loss, wvec);
+if !near(gw[0], 0.0, 1e-9) {
+    out("FAIL array grad[0]: " + string(gw[0]));
+    exit(1);
+}
+if !near(gw[1], -2.0 / 3.0, 1e-9) {
+    out("FAIL array grad[1]: " + string(gw[1]));
+    exit(1);
+}
+if !near(gw[2], -4.0 / 3.0, 1e-9) {
+    out("FAIL array grad[2]: " + string(gw[2]));
+    exit(1);
+}
+if !near(mse_loss(wvec), 5.0 / 3.0, 1e-9) {
+    out("FAIL array loss: " + string(mse_loss(wvec)));
+    exit(1);
+}
 
 out("autodiff_test: all checks passed");
