@@ -23,6 +23,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <functional>
 
 #include "ctype.h"
 #include "native_maps.h"
@@ -304,6 +305,23 @@ class C_Emitter {
     };
     std::vector<BoundedContext> boundedStack;
 
+    // Per-open-@realtime-region context. The region records `startVar`
+    // on entry; the exit check and every early-return path call
+    // `vyne_realtime_check(name, line, deadline, startVar)`.
+    struct RealtimeContext {
+        std::string regionName;
+        int64_t deadlineMs;
+        std::string startVar;
+        int line;
+    };
+    std::vector<RealtimeContext> realtimeStack;
+
+    // Postcondition emitter installed by the function body emitter while
+    // that function's body is lowered. ReturnNode calls it before every
+    // return, so ensures clauses run on early exits too. Stored as a
+    // std::function so emitter.h does not need to know ASTNode.
+    std::function<void(const std::string&)> ensuresEmitter;
+
     bool inNativeVariant = false;
 
     // Target selection. Only the entry-point emission and the runtime
@@ -318,6 +336,12 @@ class C_Emitter {
     // their flash cost.
     bool arduinoUsesI2c_ = false;
     bool arduinoUsesSpi_ = false;
+
+    // Runtime-feature use flags for the MCU target. `@realtime` and
+    // executable contracts pull in their detail headers only when the
+    // program contains them.
+    bool arduinoUsesRealtime_ = false;
+    bool arduinoUsesContracts_ = false;
 
   public:
     void setArduinoTarget(bool v) {
@@ -337,6 +361,18 @@ class C_Emitter {
     }
     bool arduinoUsesSpi() const {
         return arduinoUsesSpi_;
+    }
+    void noteArduinoRealtimeUse() {
+        arduinoUsesRealtime_ = true;
+    }
+    void noteArduinoContractsUse() {
+        arduinoUsesContracts_ = true;
+    }
+    bool arduinoUsesRealtime() const {
+        return arduinoUsesRealtime_;
+    }
+    bool arduinoUsesContracts() const {
+        return arduinoUsesContracts_;
     }
 
     void setInNativeVariant(bool v) {
@@ -1315,6 +1351,51 @@ class C_Emitter {
         return boundedStack;
     }
 
+    // --- @realtime context -------------------------------------------
+    void pushRealtime(
+        const std::string& regionName,
+        int64_t deadlineMs,
+        const std::string& startVar,
+        int line
+    ) {
+        realtimeStack.push_back({regionName, deadlineMs, startVar, line});
+    }
+    void popRealtime() {
+        if (!realtimeStack.empty())
+            realtimeStack.pop_back();
+    }
+    bool hasRealtime() const {
+        return !realtimeStack.empty();
+    }
+    // Emit the deadline check for every open @realtime region, innermost
+    // first. Called by ReturnNode before an early exit and by the region
+    // itself at normal close.
+    void emitRealtimeChecks() {
+        for (size_t i = realtimeStack.size(); i-- > 0;) {
+            const auto& ctx = realtimeStack[i];
+            emit(
+                "vyne_realtime_check(\"" + ctx.regionName + "\", " +
+                std::to_string(ctx.line) + ", " +
+                std::to_string(ctx.deadlineMs) + ", " + ctx.startVar + ");"
+            );
+        }
+    }
+
+    // --- ensures/postcondition emitter --------------------------------
+    void setEnsuresEmitter(std::function<void(const std::string&)> fn) {
+        ensuresEmitter = std::move(fn);
+    }
+    void clearEnsuresEmitter() {
+        ensuresEmitter = nullptr;
+    }
+    bool hasEnsuresEmitter() const {
+        return static_cast<bool>(ensuresEmitter);
+    }
+    void emitEnsuresForResult(const std::string& resultExpr) {
+        if (ensuresEmitter)
+            ensuresEmitter(resultExpr);
+    }
+
     // Record `bytes` of static-shape scratch allocated inside every
     // currently open @bounded region. Fires VNE-101 as soon as any
     // context's cumulative static-used exceeds its bound, and emits
@@ -1537,6 +1618,10 @@ class C_Emitter {
                 out << "#define VYNE_USE_I2C 1\n";
             if (arduinoUsesSpi_)
                 out << "#define VYNE_USE_SPI 1\n";
+            if (arduinoUsesRealtime_)
+                out << "#define VYNE_USE_REALTIME 1\n";
+            if (arduinoUsesContracts_)
+                out << "#define VYNE_USE_CONTRACTS 1\n";
             // Arduino target uses the MCU runtime, not the desktop one.
             // The caller (file_handler) is responsible for placing
             // vyne_arduino.h somewhere avr-gcc's -I list can see it.
@@ -1682,6 +1767,10 @@ class C_Emitter {
         arduinoTarget_ = false;
         arduinoUsesI2c_ = false;
         arduinoUsesSpi_ = false;
+        arduinoUsesRealtime_ = false;
+        arduinoUsesContracts_ = false;
+        realtimeStack.clear();
+        ensuresEmitter = nullptr;
         tempVarCount = 0;
         indentLevel = 1;
     }

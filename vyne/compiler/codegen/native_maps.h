@@ -56,6 +56,13 @@ static const NativeMapEntry VCORE_MAP[] = {
     {"sb_build", "vcore_sb_build", false},
     {"sb_reset", "vcore_sb_reset", false},
 
+    // @realtime telemetry — see runtime/detail/realtime.h.
+    {"realtime_worst_ms", "vcore_realtime_worst_ms", false},
+    {"realtime_overruns", "vcore_realtime_overruns", false},
+    {"realtime_reset", "vcore_realtime_reset", false},
+    {"realtime_worst_ms_named", "vcore_realtime_worst_ms_named", false},
+    {"realtime_overruns_named", "vcore_realtime_overruns_named", false},
+
     {"version", "vcore_get_version()", true},
     {"engine", "vcore_get_engine()", true},
     {"build", "vcore_get_build()", true},
@@ -341,6 +348,13 @@ static const NativeMapEntry ARDUINO_MAP[] = {
     {"spi_end_transaction", "arduino_spi_end_transaction", false},
     {"spi_transfer", "arduino_spi_transfer", false},
     {"spi_transfer16", "arduino_spi_transfer16", false},
+
+    // --- @realtime telemetry (mcu_realtime.h) ---
+    {"realtime_worst_ms", "arduino_realtime_worst_ms", false},
+    {"realtime_overruns", "arduino_realtime_overruns", false},
+    {"realtime_reset", "arduino_realtime_reset", false},
+    {"realtime_worst_ms_named", "arduino_realtime_worst_ms_named", false},
+    {"realtime_overruns_named", "arduino_realtime_overruns_named", false},
 
     // --- Interrupts + watchdog (mcu_interrupts.h) ---
     {"attach_interrupt", "arduino_attach_interrupt", false},

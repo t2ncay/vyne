@@ -17,6 +17,7 @@
 
 #include "file_handler.h"
 #include "../vyne/utils/sha256.h"
+#include "../vyne/compiler/contract_config.h"
 #include <functional>
 #include <map>
 #include <vector>
@@ -572,8 +573,22 @@ static int runTranspile(
         // Rename the emitted .vy.c to .cpp. The Arduino toolchain
         // (both the IDE and arduino-cli) only compiles .cpp / .ino /
         // .c files in the sketch directory; a .vy.c would be ignored.
+        // std::rename fails on Windows when the destination exists, so
+        // remove the previous .ino.cpp first; otherwise avr-gcc silently
+        // compiles a stale translation unit.
         std::string ardCpp = base + ".ino.cpp";
-        std::rename(cFile.c_str(), ardCpp.c_str());
+        {
+            std::error_code rec;
+            std::filesystem::remove(ardCpp, rec);
+            std::filesystem::rename(cFile, ardCpp, rec);
+            if (rec) {
+                std::cerr << "\n"
+                          << RED << "  error" << RESET
+                          << "  cannot move " << cFile << " to " << ardCpp
+                          << ": " << rec.message() << "\n\n";
+                return 1;
+            }
+        }
 
         std::string variant =
             (std::string(board->name) == "mega2560") ? "mega" : "standard";
@@ -895,6 +910,7 @@ int runFile(
                 .parent_path()
                 .string()
         );
+        resetContractMode();
         auto programRoot = parser.parseProgram(env);
         std::shared_ptr<ASTNode> rootShared = std::move(programRoot);
 

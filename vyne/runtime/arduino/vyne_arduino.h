@@ -11,6 +11,12 @@
 #include "detail/mcu_math.h"
 #include "detail/mcu_memory.h"
 #include "detail/mcu_pins_ext.h"
+#if defined(VYNE_USE_CONTRACTS)
+#include "detail/mcu_contracts.h"
+#endif
+#if defined(VYNE_USE_REALTIME)
+#include "detail/mcu_realtime.h"
+#endif
 #include "detail/mcu_serial.h"
 #include "detail/mcu_timing.h"
 #include "detail/mcu_types.h"

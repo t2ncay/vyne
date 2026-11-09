@@ -10,3 +10,5 @@
 #include "detail/string_builder.h"
 #include "detail/blas_bridge.h"
 #include "detail/struct_arrays.h"
+#include "detail/realtime.h"
+#include "detail/contracts.h"

@@ -64,6 +64,10 @@ void WhileNode::compile(C_Emitter& e) const {
     e.emit("if (!(" + cond + ")) break;");
     if (body)
         body->compile(e);
+    if (const ASTNode* inv = getInvariant())
+        emitContractCheck(
+            e, inv, "invariant", "while", "", getInvariantLine()
+        );
     e.emitBlockClose();
 }
 
@@ -103,6 +107,13 @@ void ReturnNode::compile(C_Emitter& e) const {
         );
     }
 
+    // @realtime supports early returns: emit the deadline check for every
+    // enclosing realtime region before the transfer. This is the same
+    // call the normal region close emits, so a return cannot bypass the
+    // deadline.
+    if (e.hasRealtime())
+        e.emitRealtimeChecks();
+
     if (e.getNativeReturnType().isPrimitive()) {
         VType retVT = e.getNativeReturnType().toVType();
         std::string raw = expression ? expression->getCExpr(e) : "vyne_null()";
@@ -118,6 +129,7 @@ void ReturnNode::compile(C_Emitter& e) const {
         } else {
             e.emitRegionUnwind(); // no-op if stack is empty anyway
         }
+        e.emitEnsuresForResult(native);
         e.emit("return " + native + ";");
         return;
     }
@@ -285,6 +297,16 @@ void ReturnNode::compile(C_Emitter& e) const {
 
     if (expr.empty()) {
         expr = expression ? e.boxAny(expression->getCExpr(e)) : "vyne_null()";
+    }
+
+    // Postconditions run on every boxed return path. Capture the value
+    // once so the ensures expression and the returned value are the same
+    // evaluation.
+    if (e.hasEnsuresEmitter()) {
+        std::string slot = e.newTemp("ret_ens");
+        e.emit("VyneValue " + slot + " = " + expr + ";");
+        e.emitEnsuresForResult(slot);
+        expr = slot;
     }
 
     // Every region we're lexically inside at the point of this return.

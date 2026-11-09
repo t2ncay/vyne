@@ -92,11 +92,14 @@ smaller change; the second is a separate piece of work.
 | `detail/mcu_eeprom.h` | 4 | `arduino.*` | Read/write Int64 and Float64 across resets |
 | `detail/mcu_i2c.h` | 8 | `arduino.*` | I2C master via `Wire`: byte/register read-write, clock |
 | `detail/mcu_spi.h` | 6 | `arduino.*` | SPI master via `SPI`: settings, byte/word transfer |
+| `detail/mcu_realtime.h` | 5 | `arduino.*` | `@realtime` watchdog + worst/overrun telemetry (opt-in) |
+| `detail/mcu_contracts.h` | — | internal | `requires`/`ensures`/`@invariant` asserts (opt-in) |
 | `detail/mcu_interrupts.h` | 8 | `arduino.*` | Counter-based external interrupts (D2/D3) + watchdog |
 | `detail/mcu_types.h` | 23 | internal | `VyneValue`, typed-array containers, box/unbox |
 | `detail/mcu_arena.h` | 6 | internal | Bump allocator, checkpoint stack, `arena_alloc` |
 
-Total exposed to Vyne source: **105 functions** (91 core + 14 peripheral).
+Total exposed to Vyne source: **110 functions** (91 core + 14 peripheral + 5
+realtime telemetry).
 
 ---
 
@@ -259,14 +262,17 @@ arduino/
     ├── mcu_eeprom.h        # EEPROM via <avr/eeprom.h>
     ├── mcu_i2c.h           # I2C master via bundled <Wire.h>  (opt-in)
     ├── mcu_spi.h           # SPI master via bundled <SPI.h>    (opt-in)
+    ├── mcu_realtime.h      # @realtime watchdog + telemetry    (opt-in)
+    ├── mcu_contracts.h     # requires/ensures/@invariant        (opt-in)
     └── mcu_interrupts.h    # counter-based interrupts + watchdog
 ```
 
-`mcu_i2c.h` and `mcu_spi.h` are included only when the sketch actually
-calls an `arduino.i2c_*` / `arduino.spi_*` binding. The emitter records
-that use while lowering the body and emits `VYNE_USE_I2C` /
-`VYNE_USE_SPI` before including `vyne_arduino.h`, so a blink sketch does
-not pull in the `Wire` / `SPI` globals or their flash cost.
+`mcu_i2c.h`, `mcu_spi.h`, `mcu_realtime.h`, and `mcu_contracts.h` are
+included only when the sketch uses the corresponding feature. The
+emitter records that use and emits `VYNE_USE_I2C` / `VYNE_USE_SPI` /
+`VYNE_USE_REALTIME` / `VYNE_USE_CONTRACTS` before including
+`vyne_arduino.h`, so a blink sketch does not pull in their code or flash
+cost.
 
 Headers are included in dependency order:
 
@@ -1014,6 +1020,26 @@ vspi.end();
 ```
 
 See `examples/arduino/spi_loopback.vy` and `vyne/modules/external/vspi/README.md`.
+
+### Realtime and contracts — `mcu_realtime.h`, `mcu_contracts.h`
+
+`@realtime<ms>` compiles to `vyne_realtime_now_us()` at region entry and
+`vyne_realtime_check(name, line, deadline, start)` on every exit. Overrun
+halts with `VNE-109`. Telemetry is exposed as `arduino.*`:
+
+| Binding | Returns | Notes |
+| :--- | :--- | :--- |
+| `arduino.realtime_worst_ms()` | `Float64` | Worst observed across all regions |
+| `arduino.realtime_overruns()` | `Int64` | Total overruns |
+| `arduino.realtime_reset()` | `Null` | Clears all counters |
+| `arduino.realtime_worst_ms_named(name)` | `Float64` | One region by name |
+| `arduino.realtime_overruns_named(name)` | `Int64` | One region by name |
+
+`requires` / `ensures` / `@invariant` compile to `vyne_contract_assert`.
+A violation prints `VNE-111` over Serial and halts. In evidence mode the
+pass/fail CSV goes to Serial. `ruleset { contracts = "off" }` emits no
+checks, which is the release path. See
+`examples/test/realtime_contract_avr.vy`.
 
 ### Interrupts — `mcu_interrupts.h`
 
