@@ -578,7 +578,802 @@ struct LocalDef {
     std::string name;
     const ASTNode* rhs = nullptr;
     int line = 0;
+    VType type = VType::Unknown;
 };
+
+// ===========================================================================
+// Array AD (Phase B, reductions)
+// ===========================================================================
+// This slice differentiates Float64 -> Float64 functions whose cost is a
+// scalar expression over recognized array reductions:
+//
+//   mse(a,b) / k_mse_sum(a,b,n)
+//   mae(a,b) / k_mae_sum(a,b,n)
+//   dot(a,b) / k_dot(a,b,n)
+//   sum(a,n) / mean(a,n)
+//   norm_sq(a,n) / sum_sq(a,n) / abs_sum(a,n)
+//
+// Array values may be parameters or free globals (read-only constants).
+// Array locals are deferred. The VJP for each reduction is emitted as a
+// loop that accumulates into the caller-provided output containers, so
+// the result is an `Array<Float64>` gradient of the same length.
+
+struct ArrayAnalysis {
+    std::vector<LocalDef> locals;
+    const ASTNode* returnExpr = nullptr;
+
+    std::set<std::string> paramsScalar;
+    std::set<std::string> paramsArray;
+    std::set<std::string> localScalar; // all locals
+    std::set<std::string> localFloat;  // Float64 locals (differentiated)
+    std::set<std::string> freeScalars;
+    std::set<std::string> freeArrays;
+};
+
+int reductionArity(const std::string& base) {
+    if (base == "mse" || base == "k_mse_sum" || base == "mae" ||
+        base == "k_mae_sum" || base == "dot" || base == "k_dot")
+        return 2;
+    if (base == "sum" || base == "k_sum" || base == "mean" ||
+        base == "norm_sq" || base == "k_norm_sq" || base == "sum_sq" ||
+        base == "k_sum_sq" || base == "abs_sum" || base == "k_abs_sum")
+        return 1;
+    return 0;
+}
+
+bool getCallInfo(
+    const ASTNode* node,
+    std::string& name,
+    const std::vector<std::unique_ptr<ASTNode>>*& args
+) {
+    if (!node)
+        return false;
+    if (node->type() == NodeType::FUNCTION_CALL) {
+        auto* c = static_cast<const FunctionCallNode*>(node);
+        name = c->getOriginalName();
+        args = &c->getArguments();
+        return true;
+    }
+    if (node->type() == NodeType::METHOD_CALL) {
+        auto* c = static_cast<const MethodCallNode*>(node);
+        name = c->getMethodName();
+        args = &c->getArguments();
+        return true;
+    }
+    return false;
+}
+
+bool containsReduction(const ASTNode* node) {
+    if (!node)
+        return false;
+
+    std::string name;
+    const std::vector<std::unique_ptr<ASTNode>>* args = nullptr;
+    if (getCallInfo(node, name, args)) {
+        if (reductionArity(lastSegment(name)) > 0)
+            return true;
+        for (const auto& a : *args)
+            if (containsReduction(a.get()))
+                return true;
+        return false;
+    }
+
+    switch (node->type()) {
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(node);
+        return containsReduction(b->leftNode.get()) ||
+               containsReduction(b->rightNode.get());
+    }
+    case NodeType::UNARY:
+        return containsReduction(
+            static_cast<const UnaryNode*>(node)->getRight()
+        );
+    case NodeType::BUILTIN_CALL: {
+        auto* c = static_cast<const BuiltInCallNode*>(node);
+        for (const auto& a : c->getArguments())
+            if (containsReduction(a.get()))
+                return true;
+        return false;
+    }
+    default:
+        return false;
+    }
+}
+
+// Classify a scalar expression, recording array-valued operands. Rejects
+// array-valued arithmetic, array locals, and unknown calls.
+bool classifyArrayExpr(
+    const ASTNode* node,
+    ArrayAnalysis& A,
+    std::string& reason
+) {
+    if (!node)
+        return true;
+
+    std::string name;
+    const std::vector<std::unique_ptr<ASTNode>>* args = nullptr;
+    if (getCallInfo(node, name, args)) {
+        const std::string base = lastSegment(name);
+        const int arity = reductionArity(base);
+        if (arity > 0) {
+            if (args->size() < (size_t)arity) {
+                reason = "reduction '" + name + "' has too few arguments";
+                return false;
+            }
+            for (int i = 0; i < arity; ++i) {
+                const ASTNode* a = (*args)[i].get();
+                if (!a || a->type() != NodeType::VARIABLE) {
+                    reason = "in this phase every array argument of '" + name +
+                             "' must be a plain variable";
+                    return false;
+                }
+                auto* v = static_cast<const VariableNode*>(a);
+                const std::string& vn = v->getOriginalName();
+                if (A.paramsArray.count(vn))
+                    continue;
+                if (A.localScalar.count(vn)) {
+                    reason =
+                        "array locals are not supported yet ('" + vn + "')";
+                    return false;
+                }
+                if (A.freeScalars.count(vn)) {
+                    reason = "variable '" + vn +
+                             "' is used both as a scalar and as an array";
+                    return false;
+                }
+                A.freeArrays.insert(vn);
+            }
+            for (size_t i = (size_t)arity; i < args->size(); ++i)
+                if (!classifyArrayExpr((*args)[i].get(), A, reason))
+                    return false;
+            return true;
+        }
+
+        if (base == "size") {
+            if (args->size() != 0) {
+                reason = ".size() takes no arguments";
+                return false;
+            }
+            // The receiver is materialized by MethodCallNode; accept the
+            // common `array.size()` shape and mark the receiver as array.
+            return true;
+        }
+
+        if (isUnaryMath(base) || base == "pow") {
+            for (const auto& a : *args)
+                if (!classifyArrayExpr(a.get(), A, reason))
+                    return false;
+            return true;
+        }
+
+        reason = "call to '" + name + "' is not part of the array AD subset";
+        return false;
+    }
+
+    switch (node->type()) {
+    case NodeType::NUMBER:
+        return true;
+
+    case NodeType::VARIABLE: {
+        auto* v = static_cast<const VariableNode*>(node);
+        const std::string& vn = v->getOriginalName();
+        if (A.paramsScalar.count(vn) || A.paramsArray.count(vn) ||
+            A.localScalar.count(vn)) {
+            if (A.paramsArray.count(vn)) {
+                reason = "array parameter '" + vn + "' is used as a scalar";
+                return false;
+            }
+            return true;
+        }
+        if (A.freeArrays.count(vn)) {
+            reason = "array '" + vn + "' is used as a scalar";
+            return false;
+        }
+        A.freeScalars.insert(vn);
+        return true;
+    }
+
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(node);
+        return classifyArrayExpr(b->leftNode.get(), A, reason) &&
+               classifyArrayExpr(b->rightNode.get(), A, reason);
+    }
+
+    case NodeType::UNARY:
+        return classifyArrayExpr(
+            static_cast<const UnaryNode*>(node)->getRight(),
+            A,
+            reason
+        );
+
+    case NodeType::BUILTIN_CALL: {
+        auto* c = static_cast<const BuiltInCallNode*>(node);
+        const std::string& fn = c->getFunctionName();
+        if ((fn == "float64" || fn == "int64") && c->getArguments().size() == 1)
+            return classifyArrayExpr(c->getArguments()[0].get(), A, reason);
+        reason = "builtin '" + fn + "' is not part of the array AD subset";
+        return false;
+    }
+
+    default:
+        reason = "expression is not part of the array AD subset";
+        return false;
+    }
+}
+
+bool analyzeArrayBody(
+    const FunctionNode& fn,
+    ArrayAnalysis& A,
+    std::string& reason
+) {
+    for (const auto& p : fn.getParameters()) {
+        if (p.type == VType::Float64 && !p.isReference) {
+            A.paramsScalar.insert(p.name);
+        } else if (
+            p.type == VType::Array && p.arrayElemType == VType::Float64 &&
+            !p.isReference
+        ) {
+            A.paramsArray.insert(p.name);
+        } else {
+            reason =
+                "parameter '" + p.name + "' is not Float64 or Array<Float64>";
+            return false;
+        }
+    }
+
+    if (fn.getReturnType() != VType::Float64) {
+        reason = "array AD currently requires a Float64 return type";
+        return false;
+    }
+
+    const auto& body = fn.getBody();
+    for (size_t i = 0; i < body.size(); ++i) {
+        const auto& stmt = body[i];
+        if (!stmt)
+            continue;
+
+        if (stmt->type() == NodeType::ASSIGNMENT) {
+            auto* a = static_cast<const AssignmentNode*>(stmt.get());
+            if (!a->isFreshDeclaration()) {
+                reason = "assignment to '" + a->getOriginalName() +
+                         "' mutates a local; use fresh ':=' declarations";
+                return false;
+            }
+            if (a->getExpectedType() == VType::Array) {
+                reason = "array locals are not supported yet ('" +
+                         a->getOriginalName() + "')";
+                return false;
+            }
+            if (!classifyArrayExpr(a->getRHS(), A, reason)) {
+                reason = "in '" + a->getOriginalName() + "': " + reason;
+                return false;
+            }
+            A.localScalar.insert(a->getOriginalName());
+            if (a->getExpectedType() == VType::Float64 ||
+                a->getExpectedType() == VType::Unknown)
+                A.localFloat.insert(a->getOriginalName());
+            A.locals.push_back(
+                {a->getOriginalName(),
+                 a->getRHS(),
+                 a->lineNumber,
+                 a->getExpectedType()}
+            );
+            continue;
+        }
+
+        if (stmt->type() == NodeType::RETURN) {
+            if (A.returnExpr) {
+                reason = "multiple return statements are not supported";
+                return false;
+            }
+            A.returnExpr =
+                static_cast<const ReturnNode*>(stmt.get())->getExpression();
+            if (!A.returnExpr) {
+                reason = "return statement has no expression";
+                return false;
+            }
+            if (!classifyArrayExpr(A.returnExpr, A, reason)) {
+                reason = "in return: " + reason;
+                return false;
+            }
+            for (size_t j = i + 1; j < body.size(); ++j)
+                if (body[j]) {
+                    reason = "statement after return is not supported";
+                    return false;
+                }
+            continue;
+        }
+
+        reason = "only fresh scalar declarations and a final return are "
+                 "supported in array AD";
+        return false;
+    }
+
+    if (!A.returnExpr) {
+        reason = "body never returns a value";
+        return false;
+    }
+    return true;
+}
+
+struct ArrayCtx {
+    std::string gradName;
+    const ArrayAnalysis* A = nullptr;
+    std::set<std::string> unavailable;
+
+    std::string fwd(const std::string& name) const {
+        if (A->paramsScalar.count(name) || A->paramsArray.count(name) ||
+            A->localScalar.count(name))
+            return "v_" + gradName + "_" + sanitizeName(name);
+        return "v_" + sanitizeName(name);
+    }
+};
+
+// `containsReduction` plus the analysis knowledge that a local may be a
+// reduction result stored in a scalar temporary.
+bool containsReductionCtx(const ASTNode* node, const ArrayCtx& ctx) {
+    if (!node)
+        return false;
+
+    if (node->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<const VariableNode*>(node);
+        return ctx.unavailable.count(v->getOriginalName()) > 0;
+    }
+    if (node->type() == NodeType::NUMBER)
+        return false;
+
+    std::string name;
+    const std::vector<std::unique_ptr<ASTNode>>* args = nullptr;
+    if (getCallInfo(node, name, args)) {
+        if (reductionArity(lastSegment(name)) > 0)
+            return true;
+        for (const auto& a : *args)
+            if (containsReductionCtx(a.get(), ctx))
+                return true;
+        return false;
+    }
+
+    switch (node->type()) {
+    case NodeType::BINARY_OP: {
+        auto* b = static_cast<const BinOpNode*>(node);
+        return containsReductionCtx(b->leftNode.get(), ctx) ||
+               containsReductionCtx(b->rightNode.get(), ctx);
+    }
+    case NodeType::UNARY:
+        return containsReductionCtx(
+            static_cast<const UnaryNode*>(node)->getRight(),
+            ctx
+        );
+    case NodeType::BUILTIN_CALL: {
+        auto* c = static_cast<const BuiltInCallNode*>(node);
+        for (const auto& a : c->getArguments())
+            if (containsReductionCtx(a.get(), ctx))
+                return true;
+        return false;
+    }
+    default:
+        return false;
+    }
+}
+
+std::string
+valueExprCtx(const ASTNode* node, const ArrayCtx& ctx, std::string& err) {
+    if (!node) {
+        err = "empty expression";
+        return "0.0";
+    }
+
+    if (node->type() == NodeType::NUMBER)
+        return static_cast<const NumberNode*>(node)->nativeLiteral();
+
+    if (node->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<const VariableNode*>(node);
+        const std::string& n = v->getOriginalName();
+        if (ctx.unavailable.count(n)) {
+            err = "value of '" + n +
+                  "' depends on a reduction and is not materialized in this "
+                  "phase";
+            return "0.0";
+        }
+        return ctx.fwd(n);
+    }
+
+    if (node->type() == NodeType::BINARY_OP) {
+        auto* b = static_cast<const BinOpNode*>(node);
+        std::string l = valueExprCtx(b->leftNode.get(), ctx, err);
+        std::string r = valueExprCtx(b->rightNode.get(), ctx, err);
+        if (!err.empty())
+            return "0.0";
+        switch (b->op) {
+        case VTokenType::Add:
+            return "((" + l + ") + (" + r + "))";
+        case VTokenType::Substract:
+            return "((" + l + ") - (" + r + "))";
+        case VTokenType::Multiply:
+            return "((" + l + ") * (" + r + "))";
+        case VTokenType::Division:
+            return "((" + l + ") / (" + r + "))";
+        case VTokenType::Power:
+            return "pow((" + l + "), (" + r + "))";
+        default:
+            err = "operator is not supported in the array AD subset";
+            return "0.0";
+        }
+    }
+
+    if (node->type() == NodeType::UNARY) {
+        auto* u = static_cast<const UnaryNode*>(node);
+        std::string v = valueExprCtx(u->getRight(), ctx, err);
+        if (!err.empty())
+            return "0.0";
+        if (u->getOp() == VTokenType::Substract)
+            return "(-(" + v + "))";
+        if (u->getOp() == VTokenType::Add)
+            return v;
+        err = "unary operator is not supported in the array AD subset";
+        return "0.0";
+    }
+
+    if (node->type() == NodeType::BUILTIN_CALL) {
+        auto* c = static_cast<const BuiltInCallNode*>(node);
+        if (c->getArguments().size() == 1) {
+            std::string v = valueExprCtx(c->getArguments()[0].get(), ctx, err);
+            if (!err.empty())
+                return "0.0";
+            if (c->getFunctionName() == "float64")
+                return "((double)(" + v + "))";
+            if (c->getFunctionName() == "int64")
+                return "((int64_t)(" + v + "))";
+        }
+        err = "builtin is not supported in the array AD subset";
+        return "0.0";
+    }
+
+    std::string name;
+    const std::vector<std::unique_ptr<ASTNode>>* args = nullptr;
+    if (getCallInfo(node, name, args)) {
+        const std::string base = lastSegment(name);
+        if (reductionArity(base) > 0) {
+            err = "a reduction value is needed as a coefficient; this phase "
+                  "supports reductions only in additive/constant-scaled "
+                  "positions";
+            return "0.0";
+        }
+        if (base == "size" && args->empty()) {
+            if (node->type() == NodeType::METHOD_CALL) {
+                auto* mc = static_cast<const MethodCallNode*>(node);
+                if (mc->getReceiver()->type() == NodeType::VARIABLE) {
+                    auto* rv =
+                        static_cast<const VariableNode*>(mc->getReceiver());
+                    return "((double)(" + ctx.fwd(rv->getOriginalName()) +
+                           ".size))";
+                }
+            }
+            err = ".size() receiver is not a variable";
+            return "0.0";
+        }
+        if (isUnaryMath(base) && args->size() == 1) {
+            std::string a = valueExprCtx((*args)[0].get(), ctx, err);
+            if (!err.empty())
+                return "0.0";
+            if (base == "abs")
+                return "fabs((" + a + "))";
+            if (base == "relu")
+                return "(((" + a + ") > 0.0) ? (" + a + ") : 0.0)";
+            return base + "((" + a + "))";
+        }
+        if (base == "pow" && args->size() == 2) {
+            std::string a = valueExprCtx((*args)[0].get(), ctx, err);
+            std::string b = valueExprCtx((*args)[1].get(), ctx, err);
+            if (!err.empty())
+                return "0.0";
+            return "pow((" + a + "), (" + b + "))";
+        }
+        err = "call '" + name + "' is not supported in the array AD subset";
+        return "0.0";
+    }
+
+    err = "expression is not supported in the array AD subset";
+    return "0.0";
+}
+
+bool emitArrayVJPs(
+    C_Emitter& e,
+    const ASTNode* node,
+    const std::string& dCoeff,
+    const ArrayCtx& ctx,
+    std::string& err
+);
+
+bool emitReductionVJP(
+    C_Emitter& e,
+    const std::string& name,
+    const std::vector<std::unique_ptr<ASTNode>>& args,
+    const std::string& dCoeff,
+    const ArrayCtx& ctx,
+    std::string& err
+) {
+    const std::string base = lastSegment(name);
+    const int arity = reductionArity(base);
+    if (arity == 0 || args.size() < (size_t)arity) {
+        err = "malformed reduction '" + name + "'";
+        return false;
+    }
+
+    const ArrayAnalysis& A = *ctx.A;
+    std::vector<std::string> vn;
+    std::vector<std::string> fwd;
+    std::vector<bool> isParam;
+    for (int i = 0; i < arity; ++i) {
+        if (args[i]->type() != NodeType::VARIABLE) {
+            err = "array argument of '" + name + "' must be a variable";
+            return false;
+        }
+        auto* v = static_cast<const VariableNode*>(args[i].get());
+        vn.push_back(v->getOriginalName());
+        fwd.push_back(ctx.fwd(vn.back()));
+        isParam.push_back(A.paramsArray.count(vn.back()) > 0);
+    }
+
+    const std::string n = fwd[0] + ".size";
+    std::string loop = e.newTemp("adi");
+
+    auto out = [&](size_t i) { return "__d_" + sanitizeName(vn[i]); };
+
+    auto emitLoop = [&](const std::string& body) {
+        e.emit(
+            "for (int64_t " + loop + " = 0; " + loop + " < (int64_t)(" + n +
+            "); ++" + loop + ") {"
+        );
+        e.emit("    " + body);
+        e.emit("}");
+    };
+
+    const std::string idx = "[" + loop + "]";
+
+    if (base == "mse" || base == "k_mse_sum") {
+        const bool mean = (base == "mse");
+        const std::string scale = mean ? "(2.0 / (double)(" + n + "))" : "2.0";
+        const std::string diff = "((" + fwd[0] + ".data" + idx + ") - (" +
+                                 fwd[1] + ".data" + idx + "))";
+        std::string body;
+        if (isParam[0])
+            body += out(0) + "->data" + idx + " += (" + scale + ") * " + diff +
+                    " * (" + dCoeff + ");";
+        if (isParam[1]) {
+            if (!body.empty())
+                body += " ";
+            body += out(1) + "->data" + idx + " -= (" + scale + ") * " + diff +
+                    " * (" + dCoeff + ");";
+        }
+        if (!body.empty())
+            emitLoop(body);
+        return true;
+    }
+
+    if (base == "mae" || base == "k_mae_sum") {
+        const bool mean = (base == "mae");
+        const std::string scale = mean ? "(1.0 / (double)(" + n + "))" : "1.0";
+        const std::string diff = "((" + fwd[0] + ".data" + idx + ") - (" +
+                                 fwd[1] + ".data" + idx + "))";
+        std::string body;
+        if (isParam[0])
+            body += out(0) + "->data" + idx + " += ((" + diff +
+                    ") < 0.0 ? -((" + scale + ") * (" + dCoeff + ")) : ((" +
+                    scale + ") * (" + dCoeff + ")));";
+        if (isParam[1]) {
+            if (!body.empty())
+                body += " ";
+            body += out(1) + "->data" + idx + " += ((" + diff + ") < 0.0 ? ((" +
+                    scale + ") * (" + dCoeff + ")) : -((" + scale + ") * (" +
+                    dCoeff + ")));";
+        }
+        if (!body.empty())
+            emitLoop(body);
+        return true;
+    }
+
+    if (base == "dot" || base == "k_dot") {
+        std::string body;
+        if (isParam[0])
+            body += out(0) + "->data" + idx + " += (" + fwd[1] + ".data" + idx +
+                    ") * (" + dCoeff + ");";
+        if (isParam[1]) {
+            if (!body.empty())
+                body += " ";
+            body += out(1) + "->data" + idx + " += (" + fwd[0] + ".data" + idx +
+                    ") * (" + dCoeff + ");";
+        }
+        if (!body.empty())
+            emitLoop(body);
+        return true;
+    }
+
+    if (base == "sum" || base == "k_sum" || base == "mean") {
+        if (isParam[0]) {
+            const std::string term =
+                (base == "mean") ? "((" + dCoeff + ") / (double)(" + n + "))"
+                                 : "(" + dCoeff + ")";
+            emitLoop(out(0) + "->data" + idx + " += " + term + ";");
+        }
+        return true;
+    }
+
+    if (base == "norm_sq" || base == "k_norm_sq" || base == "sum_sq" ||
+        base == "k_sum_sq") {
+        if (isParam[0])
+            emitLoop(
+                out(0) + "->data" + idx + " += 2.0 * (" + fwd[0] + ".data" +
+                idx + ") * (" + dCoeff + ");"
+            );
+        return true;
+    }
+
+    if (base == "abs_sum" || base == "k_abs_sum") {
+        if (isParam[0])
+            emitLoop(
+                out(0) + "->data" + idx + " += ((" + fwd[0] + ".data" + idx +
+                ") < 0.0 ? -(" + dCoeff + ") : (" + dCoeff + "));"
+            );
+        return true;
+    }
+
+    err = "no array VJP rule for '" + name + "'";
+    return false;
+}
+
+bool emitArrayVJPs(
+    C_Emitter& e,
+    const ASTNode* node,
+    const std::string& dCoeff,
+    const ArrayCtx& ctx,
+    std::string& err
+) {
+    if (!node)
+        return true;
+
+    if (node->type() == NodeType::NUMBER)
+        return true;
+
+    if (node->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<const VariableNode*>(node);
+        const std::string& n = v->getOriginalName();
+        const ArrayAnalysis& A = *ctx.A;
+        if (A.paramsArray.count(n) || A.freeArrays.count(n)) {
+            err = "array '" + n + "' is used outside a reduction";
+            return false;
+        }
+        if (A.localFloat.count(n) || A.paramsScalar.count(n)) {
+            e.emit(deltaName(ctx.gradName, n) + " += (" + dCoeff + ");");
+        }
+        return true;
+    }
+
+    if (node->type() == NodeType::BINARY_OP) {
+        auto* b = static_cast<const BinOpNode*>(node);
+        const ASTNode* l = b->leftNode.get();
+        const ASTNode* r = b->rightNode.get();
+
+        switch (b->op) {
+        case VTokenType::Add:
+            return emitArrayVJPs(e, l, dCoeff, ctx, err) &&
+                   emitArrayVJPs(e, r, dCoeff, ctx, err);
+        case VTokenType::Substract:
+            return emitArrayVJPs(e, l, dCoeff, ctx, err) &&
+                   emitArrayVJPs(e, r, "(-(" + dCoeff + "))", ctx, err);
+        case VTokenType::Multiply: {
+            const bool lr = containsReductionCtx(l, ctx);
+            const bool rr = containsReductionCtx(r, ctx);
+            if (lr && rr) {
+                err = "product of two reduction terms is not supported";
+                return false;
+            }
+            if (lr) {
+                std::string coef = valueExprCtx(r, ctx, err);
+                if (!err.empty())
+                    return false;
+                return emitArrayVJPs(
+                    e,
+                    l,
+                    "((" + dCoeff + ") * (" + coef + "))",
+                    ctx,
+                    err
+                );
+            }
+            if (rr) {
+                std::string coef = valueExprCtx(l, ctx, err);
+                if (!err.empty())
+                    return false;
+                return emitArrayVJPs(
+                    e,
+                    r,
+                    "((" + dCoeff + ") * (" + coef + "))",
+                    ctx,
+                    err
+                );
+            }
+            return true;
+        }
+        case VTokenType::Division: {
+            const bool lr = containsReductionCtx(l, ctx);
+            const bool rr = containsReductionCtx(r, ctx);
+            if (lr && rr) {
+                err = "division of two reduction terms is not supported";
+                return false;
+            }
+            if (lr) {
+                std::string den = valueExprCtx(r, ctx, err);
+                if (!err.empty())
+                    return false;
+                return emitArrayVJPs(
+                    e,
+                    l,
+                    "((" + dCoeff + ") / (" + den + "))",
+                    ctx,
+                    err
+                );
+            }
+            if (rr) {
+                std::string num = valueExprCtx(l, ctx, err);
+                std::string den = valueExprCtx(r, ctx, err);
+                if (!err.empty())
+                    return false;
+                return emitArrayVJPs(
+                    e,
+                    r,
+                    "(-((" + num + ") * (" + dCoeff + ")) / ((" + den +
+                        ") * (" + den + ")))",
+                    ctx,
+                    err
+                );
+            }
+            return true;
+        }
+        default:
+            err = "operator is not supported in array AD";
+            return false;
+        }
+    }
+
+    if (node->type() == NodeType::UNARY) {
+        auto* u = static_cast<const UnaryNode*>(node);
+        if (u->getOp() == VTokenType::Substract)
+            return emitArrayVJPs(
+                e,
+                u->getRight(),
+                "(-(" + dCoeff + "))",
+                ctx,
+                err
+            );
+        if (u->getOp() == VTokenType::Add)
+            return emitArrayVJPs(e, u->getRight(), dCoeff, ctx, err);
+        err = "unary operator is not supported in array AD";
+        return false;
+    }
+
+    std::string name;
+    const std::vector<std::unique_ptr<ASTNode>>* args = nullptr;
+    if (getCallInfo(node, name, args)) {
+        if (reductionArity(lastSegment(name)) > 0)
+            return emitReductionVJP(e, name, *args, dCoeff, ctx, err);
+
+        // Scalar-only calls and `.size()` are constants for VJP purposes.
+        if (!containsReductionCtx(node, ctx))
+            return true;
+        err = "call '" + name + "' is not supported in array AD";
+        return false;
+    }
+
+    if (node->type() == NodeType::BUILTIN_CALL) {
+        if (!containsReductionCtx(node, ctx))
+            return true;
+        err = "builtin is not supported in array AD";
+        return false;
+    }
+
+    err = "expression is not supported in array AD";
+    return false;
+}
 
 bool analyzeBody(
     const FunctionNode& fn,
@@ -733,15 +1528,24 @@ bool analyzeBody(
 } // namespace
 
 bool validate(const FunctionNode& fn, std::string* reason) {
-    std::vector<LocalDef> locals;
-    const ASTNode* ret = nullptr;
+    bool anyArray = false;
+    for (const auto& p : fn.getParameters())
+        if (p.type == VType::Array)
+            anyArray = true;
+
     std::string why;
-    if (analyzeBody(fn, locals, ret, why)) {
-        return true;
+    bool ok = false;
+    if (anyArray) {
+        ArrayAnalysis A;
+        ok = analyzeArrayBody(fn, A, why);
+    } else {
+        std::vector<LocalDef> locals;
+        const ASTNode* ret = nullptr;
+        ok = analyzeBody(fn, locals, ret, why);
     }
-    if (reason)
+    if (!ok && reason)
         *reason = why;
-    return false;
+    return ok;
 }
 
 std::string adjointCName(const std::string& mangledName) {
@@ -758,24 +1562,44 @@ adjointPrototype(const FunctionNode& fn, const std::string& mangledName) {
         if (!first)
             s += ", ";
         first = false;
-        s += "double " + valueName(gradName, p.name);
+        const char* ty = (p.type == VType::Array) ? "VyneArray_f64" : "double";
+        s += std::string(ty) + " " + valueName(gradName, p.name);
     }
     if (!first)
         s += ", ";
     s += "double __d_out";
 
-    for (const auto& p : fn.getParameters())
-        s += ", double* __d_" + sanitizeName(p.name);
+    for (const auto& p : fn.getParameters()) {
+        if (p.type == VType::Array)
+            s += ", VyneArray_f64* __d_" + sanitizeName(p.name);
+        else
+            s += ", double* __d_" + sanitizeName(p.name);
+    }
 
     s += ")";
     return s;
 }
+
+static void emitArrayAdjoint(
+    C_Emitter& e,
+    const FunctionNode& fn,
+    const std::string& mangledName
+);
 
 void emitAdjoint(
     C_Emitter& e,
     const FunctionNode& fn,
     const std::string& mangledName
 ) {
+    bool anyArray = false;
+    for (const auto& p : fn.getParameters())
+        if (p.type == VType::Array)
+            anyArray = true;
+    if (anyArray) {
+        emitArrayAdjoint(e, fn, mangledName);
+        return;
+    }
+
     std::vector<LocalDef> locals;
     const ASTNode* returnExpr = nullptr;
     std::string reason;
@@ -893,6 +1717,137 @@ void emitAdjoint(
 }
 
 // ---------------------------------------------------------------------------
+// Array adjoint emission
+// ---------------------------------------------------------------------------
+
+static void emitArrayAdjoint(
+    C_Emitter& e,
+    const FunctionNode& fn,
+    const std::string& mangledName
+) {
+    ArrayAnalysis A;
+    std::string reason;
+    if (!analyzeArrayBody(fn, A, reason)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-120): @differentiable function '" +
+            fn.getOriginalName() + "' is outside the supported AD slice: " +
+            reason + " (line " + std::to_string(fn.lineNumber) + ")."
+        );
+    }
+
+    const std::string gradName = mangledName + "_grad";
+    const std::string proto = adjointPrototype(fn, mangledName);
+
+    e.pushFunctionContext();
+    e.enterFunction(gradName);
+    e.setInNativeVariant(true);
+
+    e.emitGlobalDecl(proto + ";");
+    e.emit("// reverse-mode (array VJP) adjoint of " + fn.getOriginalName());
+    e.emitBlockOpen(proto + " {");
+
+    for (const auto& p : fn.getParameters()) {
+        if (p.type == VType::Array) {
+            CType arr;
+            arr.kind = CType::Kind::Array;
+            arr.args.push_back(CType::fromVType(VType::Float64));
+            e.declareLocal(valueName(gradName, p.name), arr);
+        } else {
+            e.declareLocal(
+                valueName(gradName, p.name),
+                CType::fromVType(VType::Float64)
+            );
+        }
+    }
+
+    ArrayCtx ctx;
+    ctx.gradName = gradName;
+    ctx.A = &A;
+    for (const auto& l : A.locals)
+        if (containsReduction(l.rhs))
+            ctx.unavailable.insert(l.name);
+
+    std::string err;
+
+    // Forward recomputation for scalar locals that do not depend on a
+    // reduction. These are the only values needed as VJP coefficients.
+    for (const auto& l : A.locals) {
+        if (ctx.unavailable.count(l.name))
+            continue;
+        std::string rhs = valueExprCtx(l.rhs, ctx, err);
+        if (!err.empty()) {
+            throw std::runtime_error(
+                "Compile Error (VNE-121): " + err + " (line " +
+                std::to_string(l.line) + ")."
+            );
+        }
+        CType ct = (l.type == VType::Int64) ? CType::fromVType(VType::Int64)
+                                            : CType::fromVType(VType::Float64);
+        std::string cname = ctx.fwd(l.name);
+        e.emit(ct.cTypeName() + " " + cname + " = " + rhs + ";");
+        e.declareLocal(cname, ct);
+    }
+
+    // Scalar accumulators.
+    for (const auto& n : A.paramsScalar)
+        e.emit("double " + deltaName(gradName, n) + " = 0.0;");
+    for (const auto& n : A.localFloat)
+        e.emit("double " + deltaName(gradName, n) + " = 0.0;");
+
+    // Array outputs are caller-provided containers; zero them first so the
+    // VJP loops can accumulate.
+    for (const auto& p : fn.getParameters()) {
+        if (p.type != VType::Array)
+            continue;
+        std::string out = "__d_" + sanitizeName(p.name);
+        std::string i = e.newTemp("adz");
+        e.emit(
+            "for (int64_t " + i + " = 0; " + i + " < (int64_t)" + out +
+            "->size; ++" + i + ") { " + out + "->data[" + i + "] = 0.0; }"
+        );
+    }
+
+    // Seed the returned scalar expression.
+    if (!emitArrayVJPs(e, A.returnExpr, "__d_out", ctx, err)) {
+        throw std::runtime_error(
+            "Compile Error (VNE-122): " + err + " (line " +
+            std::to_string(fn.lineNumber) + ")."
+        );
+    }
+
+    // Reverse sweep over scalar locals.
+    for (auto it = A.locals.rbegin(); it != A.locals.rend(); ++it) {
+        if (!A.localFloat.count(it->name))
+            continue;
+        const std::string dv = deltaName(gradName, it->name);
+        if (!emitArrayVJPs(e, it->rhs, dv, ctx, err)) {
+            throw std::runtime_error(
+                "Compile Error (VNE-123): " + err + " (line " +
+                std::to_string(it->line) + ")."
+            );
+        }
+    }
+
+    // Publish scalar gradients. Array gradients were written directly
+    // into the out containers by the VJP loops.
+    for (const auto& p : fn.getParameters()) {
+        if (p.type == VType::Array)
+            continue;
+        e.emit(
+            "*__d_" + sanitizeName(p.name) + " = " +
+            deltaName(gradName, p.name) + ";"
+        );
+    }
+
+    e.emitBlockClose();
+    e.emit("");
+
+    e.exitFunction();
+    e.setInNativeVariant(false);
+    e.popFunctionContext();
+}
+
+// ---------------------------------------------------------------------------
 // `grad(f, x)` and `backward(loss)` lowering
 // ---------------------------------------------------------------------------
 
@@ -936,6 +1891,32 @@ std::string emitGradCall(C_Emitter& e, const FunctionCallNode& call) {
             fnName + "' has " + std::to_string(info->arity) +
             " parameters (line " + std::to_string(call.lineNumber) + ")."
         );
+    }
+
+    // Array unary: f(Array<Float64>) -> Float64, so grad returns a new
+    // Array<Float64> of the same length.
+    if (info->paramTypes.size() == 1 && info->paramTypes[0] == VType::Array) {
+        std::string raw = args[1]->getCExpr(e);
+        std::string arr;
+        const CType* ct = e.exprNativeType(raw);
+        if (ct && ct->kind == CType::Kind::Array) {
+            arr = raw;
+        } else {
+            arr = "vyne_value_to_array_f64(" + e.boxAny(raw) + ")";
+        }
+
+        std::string tmp = e.newTemp("ad_grad");
+        e.emit(
+            "VyneArray_f64 " + tmp + " = vyne_array_f64_create((int64_t)(" +
+            arr + ").size);"
+        );
+        e.emit(info->adjointName + "(" + arr + ", 1.0, &" + tmp + ");");
+
+        CType outCt;
+        outCt.kind = CType::Kind::Array;
+        outCt.args.push_back(CType::fromVType(VType::Float64));
+        e.declareLocal(tmp, outCt);
+        return tmp;
     }
 
     std::string x;
@@ -996,6 +1977,16 @@ std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {
             "the @differentiable signature (line " +
             std::to_string(call.lineNumber) + ")."
         );
+    }
+    for (VType t : info->paramTypes) {
+        if (t == VType::Array) {
+            throw std::runtime_error(
+                "Compile Error (VNE-126): backward() on array parameters is "
+                "deferred; use `grad(f, x)` for Array<Float64> gradients "
+                "(line " +
+                std::to_string(call.lineNumber) + ")."
+            );
+        }
     }
 
     std::vector<std::string> argExprs;

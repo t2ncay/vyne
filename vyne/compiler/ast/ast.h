@@ -895,6 +895,13 @@ class BuiltInCallNode : public ASTNode {
     evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;
     void compile(C_Emitter& e) const override;
     std::string getCExpr(C_Emitter& e) const override;
+
+    const std::string& getFunctionName() const {
+        return funcName;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getArguments() const {
+        return arguments;
+    }
 };
 
 class StringNode : public ASTNode {

@@ -393,13 +393,16 @@ class C_Emitter {
     struct ADInfo {
         std::string adjointName; // C name of `fn_<mangled>_grad`
         size_t arity = 0;
+        std::vector<VType> paramTypes;
     };
     void registerDifferentiable(
         const std::string& name,
         std::string adjointName,
-        size_t arity
+        size_t arity,
+        std::vector<VType> paramTypes = {}
     ) {
-        differentiable_[name] = ADInfo{std::move(adjointName), arity};
+        differentiable_[name] =
+            ADInfo{std::move(adjointName), arity, std::move(paramTypes)};
     }
     const ADInfo* lookupDifferentiable(const std::string& name) const {
         auto it = differentiable_.find(name);

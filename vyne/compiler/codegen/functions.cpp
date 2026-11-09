@@ -650,16 +650,23 @@ void FunctionNode::compile(C_Emitter& e) const {
         if (!targetModule.empty())
             adMangled = targetModule + "_" + adMangled;
 
+        std::vector<VType> paramTypes;
+        paramTypes.reserve(parameters.size());
+        for (const auto& p : parameters)
+            paramTypes.push_back(p.type);
+
         e.registerDifferentiable(
             originalName,
             vyne_ad::adjointCName(adMangled),
-            parameters.size()
+            parameters.size(),
+            paramTypes
         );
         if (!targetModule.empty())
             e.registerDifferentiable(
                 targetModule + "." + originalName,
                 vyne_ad::adjointCName(adMangled),
-                parameters.size()
+                parameters.size(),
+                paramTypes
             );
 
         vyne_ad::emitAdjoint(e, *this, adMangled);
@@ -726,15 +733,22 @@ void FunctionNode::compileAs(
     e.popFunctionContext();
 
     if (isDifferentiable()) {
+        std::vector<VType> paramTypes;
+        paramTypes.reserve(parameters.size());
+        for (const auto& p : parameters)
+            paramTypes.push_back(p.type);
+
         e.registerDifferentiable(
             originalName,
             vyne_ad::adjointCName(name),
-            parameters.size()
+            parameters.size(),
+            paramTypes
         );
         e.registerDifferentiable(
             name,
             vyne_ad::adjointCName(name),
-            parameters.size()
+            parameters.size(),
+            paramTypes
         );
         vyne_ad::emitAdjoint(e, *this, name);
     }

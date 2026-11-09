@@ -226,13 +226,20 @@ void ProgramNode::compile(C_Emitter& e) const {
 
                 std::string adj = vyne_ad::adjointCName(mangled);
                 size_t arity = fn->getParameters().size();
-                e.registerDifferentiable(fn->getOriginalName(), adj, arity);
-                e.registerDifferentiable(mangled, adj, arity);
+                std::vector<VType> paramTypes;
+                paramTypes.reserve(arity);
+                for (const auto& p : fn->getParameters())
+                    paramTypes.push_back(p.type);
+                e.registerDifferentiable(
+                    fn->getOriginalName(), adj, arity, paramTypes
+                );
+                e.registerDifferentiable(mangled, adj, arity, paramTypes);
                 if (!fn->getTargetModule().empty()) {
                     e.registerDifferentiable(
                         fn->getTargetModule() + "." + fn->getOriginalName(),
                         adj,
-                        arity
+                        arity,
+                        paramTypes
                     );
                 }
                 e.emitGlobalDecl(
@@ -360,6 +367,21 @@ void ProgramNode::compile(C_Emitter& e) const {
                 }
             }
 
+            // Array-parameter @differentiable functions are lowered
+            // through the boxed primal in this phase. A native variant can
+            // box raw `double*` array parameters into calls that expect a
+            // VyneValue array (the vstat/vlin kernel surface), which is not
+            // a valid ABI. The adjoint is emitted separately and is always
+            // native.
+            bool adArrayFunction = fn->isDifferentiable();
+            if (adArrayFunction) {
+                bool hasArray = false;
+                for (const auto& p : fn->getParameters())
+                    if (p.type == VType::Array)
+                        hasArray = true;
+                adArrayFunction = hasArray;
+            }
+
             e.registerFunctionSignature(
                 fn->getOriginalName(),
                 std::move(paramNames)
@@ -377,7 +399,7 @@ void ProgramNode::compile(C_Emitter& e) const {
             }
 
             if (allNativeCallable && retNative && !hasDeferOrTry &&
-                !callsArrayMethodOnParam) {
+                !callsArrayMethodOnParam && !adArrayFunction) {
                 std::string orig = fn->getOriginalName();
                 std::string mangled = orig;
                 std::replace(mangled.begin(), mangled.end(), '.', '_');
