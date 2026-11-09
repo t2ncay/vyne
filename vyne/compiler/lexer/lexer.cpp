@@ -26,7 +26,7 @@ std::vector<Token> tokenize(std::string_view input) {
     while (i < input.length()) {
         char character = input[i];
 
-        if (std::isspace(character)) {
+        if (std::isspace((unsigned char)character)) {
             if (character == '\n') {
                 currentLine++;
             }
@@ -37,13 +37,42 @@ std::vector<Token> tokenize(std::string_view input) {
         if (character == '"') {
             i++;
             std::string strBuffer;
+            strBuffer.reserve(64);
             std::vector<std::pair<std::string, bool>>
                 parts; // bool = is_interpolation
             bool isInterpolated = false;
             bool inInterpolation = false;
             std::string exprBuffer;
+            exprBuffer.reserve(32);
 
             while (i < input.length() && input[i] != '"') {
+                // Fast path: copy a whole run of ordinary characters with
+                // one append. Most string literals have no escapes and no
+                // interpolation, so this replaces a per-character
+                // branch+append with a single memcpy per segment.
+                if (input[i] != '\\' &&
+                    (inInterpolation ? input[i] != '}' : input[i] != '{')) {
+                    size_t start = i;
+                    if (inInterpolation) {
+                        while (i < input.length() && input[i] != '\\' &&
+                               input[i] != '}' && input[i] != '"') {
+                            ++i;
+                        }
+                    } else {
+                        while (i < input.length() && input[i] != '\\' &&
+                               input[i] != '{' && input[i] != '"') {
+                            ++i;
+                        }
+                    }
+                    if (i > start) {
+                        if (inInterpolation)
+                            exprBuffer.append(input.data() + start, i - start);
+                        else
+                            strBuffer.append(input.data() + start, i - start);
+                        continue;
+                    }
+                }
+
                 if (input[i] == '\\' && i + 1 < input.length()) {
                     char next = input[i + 1];
                     if (next == 'n') {
@@ -151,7 +180,7 @@ std::vector<Token> tokenize(std::string_view input) {
             continue;
         }
 
-        if (std::isdigit(character)) {
+        if (std::isdigit((unsigned char)character)) {
             // Hex literals: `0x` or `0X` followed by one or more hex digits.
             // Emitted as Int64 only. Float64 hex (`0x1.8p3`) is a C99 feature
             // that would require reworking the NumberNode/codegen path; not
@@ -214,7 +243,7 @@ std::vector<Token> tokenize(std::string_view input) {
             // range operator is rejected here so `0..10` does not get
             // misread as the float 0. followed by .10.
             while (i < input.length()) {
-                if (std::isdigit(input[i])) {
+                if (std::isdigit((unsigned char)input[i])) {
                     buffer += input[i++];
                 } else if (
                     input[i] == '_' && !buffer.empty() &&
@@ -250,13 +279,13 @@ std::vector<Token> tokenize(std::string_view input) {
                     (input[probe] == '+' || input[probe] == '-')) {
                     probe++;
                 }
-                if (probe < input.length() && std::isdigit(input[probe])) {
+                if (probe < input.length() && std::isdigit((unsigned char)input[probe])) {
                     buffer += input[i++]; // 'e' or 'E'
                     if (input[i] == '+' || input[i] == '-') {
                         buffer += input[i++]; // exponent sign
                     }
                     while (i < input.length()) {
-                        if (std::isdigit(input[i])) {
+                        if (std::isdigit((unsigned char)input[i])) {
                             buffer += input[i++];
                         } else if (
                             input[i] == '_' && i + 1 < input.length() &&
@@ -354,10 +383,10 @@ std::vector<Token> tokenize(std::string_view input) {
             continue;
         }
 
-        if (std::isalpha(character) || character == '_') {
+        if (std::isalpha((unsigned char)character) || character == '_') {
             size_t start = i;
             while (i < input.length() &&
-                   (std::isalnum(input[i]) || input[i] == '_')) {
+                   (std::isalnum((unsigned char)input[i]) || input[i] == '_')) {
                 i++;
             }
 
