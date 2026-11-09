@@ -34,9 +34,12 @@ class ASTNode;
 
 class C_Emitter {
     // --- Output buffers --------------------------------------------------
-    std::stringstream globalsStream;
-    std::stringstream functionStream;
-    std::stringstream mainStream;
+    // Plain strings, not stringstreams: emit() is the hottest codegen
+    // path, and operator<< on a stringstream costs a locale/vtable call
+    // per write while append/push_back is an inline memcpy.
+    std::string globalsStream;
+    std::string functionStream;
+    std::string mainStream;
     std::unordered_set<std::string> includeSet;
     std::unordered_set<std::string> systemIncludes;
 
@@ -44,7 +47,7 @@ class C_Emitter {
     enum class EmitContext { GLOBAL, FUNCTION, MAIN };
     std::vector<EmitContext> contextStack;
 
-    std::stringstream& currentStream() {
+    std::string& currentStream() {
         if (contextStack.empty())
             return mainStream;
         switch (contextStack.back()) {
@@ -57,8 +60,18 @@ class C_Emitter {
         }
     }
 
-    std::string getIndent() const {
-        return std::string(indentLevel * 4, ' ');
+    // Write indentation straight into the output buffer. The old
+    // getIndent() allocated a fresh std::string for every emitted line.
+    void writeIndent() {
+        static const char spaces[] =
+            "                                                                ";
+        constexpr size_t chunkMax = sizeof(spaces) - 1;
+        size_t n = static_cast<size_t>(indentLevel * 4);
+        while (n > 0) {
+            size_t chunk = n < chunkMax ? n : chunkMax;
+            currentStream().append(spaces, chunk);
+            n -= chunk;
+        }
     }
 
     // --- Name declaration tables ----------------------------------------
@@ -900,10 +913,13 @@ class C_Emitter {
     }
 
     void emit(const std::string& code) {
-        currentStream() << getIndent() << code << "\n";
+        writeIndent();
+        currentStream().append(code);
+        currentStream().push_back('\n');
     }
     void emitGlobalDecl(const std::string& code) {
-        globalsStream << code << "\n";
+        globalsStream.append(code);
+        globalsStream.push_back('\n');
     }
 
     void emitBlockOpen(const std::string& line) {
@@ -1776,11 +1792,11 @@ class C_Emitter {
         }
         out << "\n";
 
-        std::string globals = globalsStream.str();
+        const std::string& globals = globalsStream;
         if (!globals.empty())
             out << "// --- Globals ---\n" << globals << "\n";
 
-        std::string funcs = functionStream.str();
+        const std::string& funcs = functionStream;
         if (!funcs.empty())
             out << "// --- Functions ---\n" << funcs << "\n";
 
@@ -1802,7 +1818,7 @@ class C_Emitter {
             // walks the AST once at finalize-time; this stub is honest
             // about the limitation.
             out << "void vyne_setup() {\n";
-            out << mainStream.str();
+            out << mainStream;
             out << "    arena_free_all();\n";
             out << "}\n\n";
 
@@ -1811,7 +1827,7 @@ class C_Emitter {
             out << "}\n";
         } else {
             out << "int main(void) {\n";
-            out << mainStream.str();
+            out << mainStream;
             out << "    arena_free_all();\n";
             out << "    return 0;\n";
             out << "}\n";
@@ -1820,10 +1836,10 @@ class C_Emitter {
     }
 
     std::string getFunctionCode() {
-        return functionStream.str();
+        return functionStream;
     }
     std::string getBodyCode() {
-        return mainStream.str();
+        return mainStream;
     }
     std::string getIncludes() {
         std::string res;
@@ -1834,11 +1850,8 @@ class C_Emitter {
 
     // --- Full reset (between programs) ----------------------------------
     void reset() {
-        globalsStream.str("");
         globalsStream.clear();
-        functionStream.str("");
         functionStream.clear();
-        mainStream.str("");
         mainStream.clear();
         includeSet.clear();
         systemIncludes.clear();

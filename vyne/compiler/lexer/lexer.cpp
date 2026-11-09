@@ -17,9 +17,14 @@
 
 #include "lexer.h"
 #include "../../runtime/diagnostics.h"
+#include <algorithm>
 
 std::vector<Token> tokenize(std::string_view input) {
     std::vector<Token> tokens;
+    // Token density is typically one token per 3-5 source bytes. Reserve a
+    // conservative slice up front, capped so a multi-megabyte literal does
+    // not turn into a huge speculative allocation.
+    tokens.reserve(std::min<size_t>(input.size() / 4, 262144) + 16);
     size_t i = 0;
     int currentLine = 1;
 
@@ -125,7 +130,7 @@ std::vector<Token> tokenize(std::string_view input) {
                 if (input[i] == '{' && i + 1 < input.length() &&
                     input[i + 1] != '{') {
                     if (!strBuffer.empty()) {
-                        parts.emplace_back(strBuffer, false);
+                        parts.emplace_back(std::move(strBuffer), false);
                         strBuffer.clear();
                     }
                     isInterpolated = true;
@@ -137,7 +142,7 @@ std::vector<Token> tokenize(std::string_view input) {
                 if (input[i] == '}' && inInterpolation) {
                     // End of interpolation
                     if (!exprBuffer.empty()) {
-                        parts.emplace_back(exprBuffer, true);
+                        parts.emplace_back(std::move(exprBuffer), true);
                         exprBuffer.clear();
                     }
                     inInterpolation = false;
@@ -153,8 +158,10 @@ std::vector<Token> tokenize(std::string_view input) {
                 i++;
             }
 
-            if (!strBuffer.empty()) {
-                parts.emplace_back(strBuffer, false);
+            // Only interpolated strings need a parts vector. A plain literal
+            // was previously copied into `parts` too, then thrown away.
+            if (isInterpolated && !strBuffer.empty()) {
+                parts.emplace_back(std::move(strBuffer), false);
             }
 
             if (i < input.length())
@@ -165,7 +172,7 @@ std::vector<Token> tokenize(std::string_view input) {
                 tokens.emplace_back(
                     VTokenType::String,
                     currentLine,
-                    strBuffer,
+                    std::move(strBuffer),
                     ""
                 );
             } else {
@@ -173,7 +180,7 @@ std::vector<Token> tokenize(std::string_view input) {
                 tokens.emplace_back(
                     VTokenType::InterpolatedString,
                     currentLine,
-                    parts,
+                    std::move(parts),
                     ""
                 );
             }

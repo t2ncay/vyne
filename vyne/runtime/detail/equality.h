@@ -34,7 +34,10 @@ static inline bool vyne_values_equal(VyneValue a, VyneValue b) {
                 if (af->data[i] != bf->data[i]) return false;
             return true;
         }
-        case V_STRING:  return strcmp(a.as.str, b.as.str) == 0;
+        case V_STRING:
+            // Identical pointers are common for literals, interned keys,
+            // and values that flowed through assignment. Skip strcmp.
+            return a.as.str == b.as.str || strcmp(a.as.str, b.as.str) == 0;
         case V_F64_ARRAY: {
             VyneArray_f64* af = a.as.arr_f64;
             VyneArray_f64* bf = b.as.arr_f64;

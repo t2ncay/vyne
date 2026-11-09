@@ -124,11 +124,11 @@ static inline VyneValue vyne_map_create(void) {
     return val;
 }
 
-static inline int _vyne_map_find_hashed(VyneMap* m, const char* key_canon,
+static inline int _vyne_map_find_hashed(VyneMap* m, const char* key,
                                         uint32_t kh) {
-    // Every caller already has the hash: vyne_map_get/set/has/delete intern
-    // the key first, and _vyne_map_find hashes it once. Re-hashing the
-    // canonical pointer here doubled the cost of every lookup probe.
+    // Every caller already has the hash. Re-hashing here doubled the cost
+    // of every lookup probe. `key` is not necessarily a canonical interned
+    // pointer on read paths, so fall back to strcmp when the pointers differ.
     if (m->size == 0) return -1;
     uint32_t mask = (uint32_t)(m->capacity - 1);
     uint32_t i = kh & mask;
@@ -137,7 +137,7 @@ static inline int _vyne_map_find_hashed(VyneMap* m, const char* key_canon,
         const char* k = m->entries[i].key;
         if (k == NULL) return -1;
         if (k != VYNE_TOMBSTONE &&
-            (k == key_canon || strcmp(k, key_canon) == 0)) {
+            (k == key || strcmp(k, key) == 0)) {
             return (int)i;
         }
         i = (i + 1) & mask;
@@ -216,27 +216,27 @@ static inline void vyne_map_set(VyneValue map_val, VyneValue key, VyneValue val)
 
 static inline VyneValue vyne_map_get(VyneValue map_val, VyneValue key) {
     if (map_val.type != V_MAP || key.type != V_STRING) return vyne_null();
-    uint32_t kh = 0;
-    const char* key_canon = _vyne_intern(key.as.str, &kh);
+    // Reads do not intern the key. A miss must not allocate an arena copy
+    // or grow the process-global intern table; the probe only needs the
+    // hash plus pointer/string comparison against stored canonical keys.
+    uint32_t kh = _vyne_hash_str(key.as.str);
     VyneMap* m = map_val.as.map;
-    int idx = _vyne_map_find_hashed(m, key_canon, kh);
+    int idx = _vyne_map_find_hashed(m, key.as.str, kh);
     if (idx >= 0) return m->entries[idx].value;
     return vyne_null();
 }
 
 static inline bool vyne_map_has(VyneValue map_val, VyneValue key) {
     if (map_val.type != V_MAP || key.type != V_STRING) return false;
-    uint32_t kh = 0;
-    const char* key_canon = _vyne_intern(key.as.str, &kh);
-    return _vyne_map_find_hashed(map_val.as.map, key_canon, kh) >= 0;
+    uint32_t kh = _vyne_hash_str(key.as.str);
+    return _vyne_map_find_hashed(map_val.as.map, key.as.str, kh) >= 0;
 }
 
 static inline void vyne_map_delete(VyneValue map_val, VyneValue key) {
     if (map_val.type != V_MAP || key.type != V_STRING) return;
-    uint32_t kh = 0;
-    const char* key_canon = _vyne_intern(key.as.str, &kh);
+    uint32_t kh = _vyne_hash_str(key.as.str);
     VyneMap* m = map_val.as.map;
-    int idx = _vyne_map_find_hashed(m, key_canon, kh);
+    int idx = _vyne_map_find_hashed(m, key.as.str, kh);
     if (idx < 0) return;
 
     uint32_t mask = (uint32_t)(m->capacity - 1);
