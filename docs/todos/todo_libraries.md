@@ -1,11 +1,19 @@
 # TODO — Standard Library
 
-**Last updated:** 2026-11-08
+**Last updated:** 2026-11-10
 
 Live roadmap for the Vyne standard library. This file replaces the earlier
 draft, which predated the native array ABI, the region-policy work, and the
 first batch of external libraries. It records what ships, what was learned,
-what the next five libraries are, and the long tail.
+what the next libraries are, and the long tail.
+
+> **Status snapshot (2026-11-10).** The table below was written before
+> `vsignal`/`vcontrol` landed. Current states: `vstat`, `vtermplot`, `vcomplex`,
+> `vinterp`, `vcsv`, `vsignal`, `vcontrol`, `vimage`, `vconv` are shipped;
+> `voptim`, `vsparse`, `vdecomp`, `vnum` are still absent. `vchem` is partial
+> (`vchem_common` + `vgraph`). `vi2c` and `vspi` also exist. The "remaining
+> top-10 libraries" section should therefore be read as "next four: `voptim`,
+> `vsparse`, `vdecomp`, `vnum`".
 
 Companion documents:
 
@@ -27,9 +35,11 @@ language, not a use of it.
 ## What changed in this revision
 
 The compiler is no longer frozen behind Paper 1 for library work. The native
-array ABI, native struct ABI, region policies, and the first library batch have
-landed. The standard library now has eleven user-facing libraries in the tree,
-five of them from the current scientific-library push.
+array ABI, native struct ABI, region policies, autodiff, and the library
+batches have landed. The standard library now has a broad external surface in
+the tree: the top-10 items except `voptim`/`vsparse`/`vdecomp`/`vnum`, plus
+`vsignal` and `vcontrol` from the DSP/control push and `vimage`/`vconv` from
+the SR work.
 
 The top-10 scientific/numerical set was defined as:
 
@@ -41,12 +51,15 @@ The top-10 scientific/numerical set was defined as:
 | 4 | `vinterp` — 1-D/2-D interpolation | **Shipped** | #108 |
 | 5 | `vcsv` — CSV/TSV tables | **Shipped** | #109 |
 | 6 | `voptim` — optimizers | **Next** | — |
-| 7 | `vsignal` — signal processing | **Shipped** | this PR |
+| 7 | `vsignal` — signal processing | **Shipped** | #121 |
 | 8 | `vsparse` — sparse matrices | **Next** | — |
 | 9 | `vdecomp` — decompositions/solvers | **Next** | — |
 | 10 | `vnum` — numerical methods | **Next** | — |
 
-`vcontrol` (PID, complementary filter, Kalman1D/Kalman2, state-space) ships alongside `vsignal` as the first control-systems library.
+`vcontrol` (PID, complementary filter, Kalman1D/Kalman2, state-space) shipped
+alongside `vsignal` as the first control-systems library (#121). `vimage` and
+`vconv` also shipped (#112). That leaves `voptim`, `vsparse`, `vdecomp`, and
+`vnum` as the only top-10 items still missing.
 
 Two codegen/runtime fixes came out of this batch and are now load-bearing for
 library work:
@@ -149,7 +162,7 @@ These are pulled in with `use native`, not `use external`.
 | `vfs` | File read/write, lines, bytes, walk, glob, path ops | Desktop only |
 | `vimage` | PNG/JPEG decode/encode, resize, crop, grayscale | Vendored stb; header-only |
 | `vconv` | Forward conv2d, activations, pixel shuffle, weight bundles | CPU; backward pass is a follow-up |
-| `arduino` | AVR-only serial/GPIO/ADC/EEPROM/watchdog runtime | 60+ functions on the Uno R3 |
+| `arduino` | AVR-only serial/GPIO/ADC/I2C/SPI/EEPROM/watchdog runtime | 110 bindings on the Uno R3 |
 
 ### External libraries (`vyne/modules/external/`)
 
@@ -166,6 +179,9 @@ These are pulled in with `use native`, not `use external`.
 | `vcomplex` | **Done** | `vcomplex/README.md` | Scalar/array complex arithmetic, functions, polar helpers. |
 | `vinterp` | **Done** | `vinterp/README.md` | 1-D nearest/linear/Lagrange/spline and 2-D nearest/bilinear/bicubic. |
 | `vcsv` | **Done** | `vcsv/README.md` | RFC 4180 CSV/TSV parser, writer, typed columns. |
+| `vsignal` | **Done** | `vsignal/README.md` | Windows, FIR/IIR, resampling, spectral helpers, DSP kernels. |
+| `vcontrol` | **Done** | `vcontrol/README.md` | PID, complementary filters, Kalman1D/2, state-space helpers. |
+| `vi2c`, `vspi` | **Done** | header comments | Typed MCU I2C/SPI wrappers over the Arduino bindings. |
 | `vimage` | **Done** | `vimage/README.md` | PNG/JPEG/BMP/TGA decode and encode over vendored stb. |
 | `vconv` | **Done** | `vconv/README.md` | Forward conv2d, activations, pixel shuffle, weight bundles. |
 | `vchem` | **Partial** | `vchem/` | `vchem_common` (elements/constants) + `vgraph` (CSR, BFS, DFS, Dijkstra). |
@@ -272,6 +288,23 @@ nearest, bilinear, Catmull-Rom bicubic, both at fractional grid indices and at
 physical coordinates. `curve`/`grid` boxed constructors copy and validate; the
 direct constructors are zero-copy. `Curve.xs` must be strictly ascending.
 
+### `vsignal`
+
+DSP library over typed arrays: rectangular/Hann/Hamming/Blackman/Bartlett
+windows, moving-average/exponential/FIR/biquad filters, RBJ-style IIR design,
+resampling, and spectral helpers on `vfft`. Public surface uses interfaces, so
+the MCU linkage waits on the AVR struct runtime even though the kernels are
+plain array loops. Tests: `examples/libs/vsignal_test.vy`; benchmark:
+`examples/libs/vsignal_bench.vy`.
+
+### `vcontrol`
+
+Control-systems library: PID (anti-windup, derivative filtering, bumpless
+transfer), complementary filter, Kalman1D, constant-velocity Kalman2, and
+two-state state-space helpers. Depends on `vsignal`/`vlin` where useful.
+Desktop-complete; same MCU interface blocker as `vsignal`. Tests:
+`examples/libs/vcontrol_test.vy`; benchmark: `examples/libs/vcontrol_bench.vy`.
+
 ### `vcsv`
 
 RFC 4180-style CSV/TSV. `Table { headers :: Array, cells :: Array, n_rows,
@@ -284,10 +317,11 @@ the `vcore` string builder; file I/O via `vfs`. The parser scans with
 
 ---
 
-## The next five libraries
+## The remaining top-10 libraries
 
-These are the remaining top-10 items, in order. Each gets its own PR, README,
-`examples/test/<lib>_test.vy`, and `examples/benchmark/<lib>_bench.vy`.
+`vsignal` has shipped, so the queue is now **`voptim` → `vsparse` → `vdecomp` →
+`vnum`**. Each gets its own PR, README, `examples/test/<lib>_test.vy`, and
+`examples/benchmark/<lib>_bench.vy`.
 
 ### L1.6 — `voptim` — Optimizers for training loops
 
@@ -329,7 +363,13 @@ updates.
 
 ---
 
-### L1.7 — `vsignal` — Signal processing
+### L1.7 — `vsignal` — Signal processing [SHIPPED #121]
+
+**Status (2026-11-10):** shipped under `vyne/modules/external/vsignal` with
+`Types`, `Constructors`, `Kernels`, `Iir`, `Fir`, `Windows`, `Resample`,
+`Spectral`, facade, README, test, and benchmark. The design below is retained
+as the original brief; `vcontrol` ships alongside it. The remaining DSP work is
+`vfft`'s `rfft` path and MCU linkage, not the library skeleton.
 
 **Why next.** It builds directly on `vfft` and turns the DSP story into a real
 library: windows, convolution, filters, spectra, and allocation-free block
@@ -562,14 +602,17 @@ of `vdecomp`/`vsparse` so those stay portable.
 
 ## Tier 4 — defer until Papers 2 and 3
 
-Nothing here is doable with today's feature set.
+Nothing here is fully doable with today's feature set. The compiler now has
+`@differentiable` / `grad`, but the tensor/shape/linear-type layer these
+libraries need does not exist.
 
 - `vtensor` — autodiff tensors. Needs linear types and shape types.
 - `vode` / `vpde` — differential-equation solvers at scale. Needs shape types.
 - `vsim` — 3-D physics at scale. Needs shape and linear types.
 - `v3d` — `Vec3`/`Vec4`/`Mat4` as distinct shape types.
 - `vautodiff` — reverse-mode AD over `vtensor`; needs the tensor and effect
-  work.
+  work. The compiler-level `@differentiable` / `grad` surface exists, but a
+  tensor library with shape/linear-type guarantees does not.
 
 ---
 
@@ -585,30 +628,28 @@ Nothing here is doable with today's feature set.
 ## Ordering
 
 ```
-Done:  vstat, vtermplot, vcomplex, vinterp, vcsv
-  ↓
-voptim      (1 week)     ← training loops, Adam/AdamW, schedules
-  ↓
-vsignal     (2 weeks)    ← windows, convolution, filters, spectra
-  ↓
-vsparse     (1 week)     ← CSR/CSC, SpMV/SpMM, CG
-  ↓
-vdecomp     (2–3 weeks)  ← LU/QR/Cholesky/eigen/SVD
-  ↓
-vnum        (2 weeks)    ← roots, quadrature, ODE, fitting
-  ↓
+Done:  vstat, vtermplot, vcomplex, vinterp, vcsv,
+       vsignal, vcontrol, vimage, vconv
+  |
+voptim      (1 week)     - training loops, Adam/AdamW, schedules
+  |
+vsparse     (1 week)     - CSR/CSC, SpMV/SpMM, CG
+  |
+vdecomp     (2-3 weeks)  - LU/QR/Cholesky/eigen/SVD
+  |
+vnum        (2 weeks)    - roots, quadrature, ODE, fitting
+  |
 Tier 2 in the order the next project needs
-  ↓
+  |
 Tier 3 and native bindings, one at a time
 ```
 
-Reasoning: `voptim` is the shortest measurable ML win. `vsignal` turns the FFT
-into a DSP story and absorbs `vfilter`. `vsparse`, `vdecomp`, and `vnum`
+Reasoning: `voptim` is the shortest measurable ML win. `vsignal`/`vcontrol`
+already turn the FFT into a DSP/control story. `vsparse`, `vdecomp`, and `vnum`
 complete the scientific stack in dependency order. `vdecomp` comes before
 `vnum` because fitting and ODE work reuse the solvers.
 
 ---
-
 ## What each library contributes to the story
 
 | Library | State | Audience | Claim |
@@ -625,7 +666,8 @@ complete the scientific stack in dependency order. `vdecomp` comes before
 | `vinterp` | Done | Scientific | "Sampled data becomes a function" |
 | `vcsv` | Done | Data | "Real data gets in without a scripting layer" |
 | `voptim` | Next | ML | "Training loops get faster, and allocations stay flat" |
-| `vsignal` | Next | DSP/audio | "Allocation-free block processing, provably" |
+| `vsignal` | Done | DSP/audio | "Allocation-free block processing, provably" |
+| `vcontrol` | Done | Robotics/control | "PID, Kalman, and state-space without a runtime" |
 | `vsparse` | Next | Scientific | "Sparse systems with a per-call peak bound" |
 | `vdecomp` | Next | Scientific | "LAPACK-shaped solves in pure Vyne" |
 | `vnum` | Next | Scientific | "Roots, integrals, and ODEs belong here" |
@@ -695,8 +737,12 @@ guarantees from _interesting_ into _useful_.
   - #107 `vcomplex`
   - #108 `vinterp`
   - #109 `vcsv` + `examples/test/libraries_integration_test.vy`
-- Tests: `examples/test/{vstat,vtermplot,vcomplex,vinterp,vcsv}_test.vy`,
+  - #112 `vimage` + `vconv` (ESPCN slice)
+  - #121 `vsignal` + `vcontrol`
+- Tests: `examples/libs/{vsignal,vcontrol}_{test,bench}.vy`,
+  `examples/test/{vstat,vtermplot,vcomplex,vinterp,vcsv}_test.vy`,
   `examples/test/libraries_integration_test.vy`.
-- Benchmarks: `examples/benchmark/{vstat,vtermplot,vcomplex,vinterp,vcsv}_bench.vy`.
+- Benchmarks: `examples/benchmark/{vstat,vtermplot,vcomplex,vinterp,vcsv}_bench.vy`,
+  `examples/benchmark/{vsignal,vcontrol}_bench.vy` (where present).
 - Paper/feature roadmaps: `todo.md`, `todo_2.md`, `todo_optimization.md`,
   `todo_rulesets.md`, `todo_drug_discovery.md`, and `milestone.md`.

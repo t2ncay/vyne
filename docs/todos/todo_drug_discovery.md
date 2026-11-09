@@ -1,21 +1,26 @@
 # TODO — Chemistry and drug discovery
 
+**Last updated:** 2026-11-10
+
 Draft. Companion to `todo.md` (Paper 1 pipeline), `todo_2.md` (feature
-axes), `todo_optimization.md` (codegen speed), and `todo.md` (standard
-library). This file tracks the compiler prerequisites and the library
-build-out for the drug discovery direction under `vchem/`.
+axes), `todo_optimization.md` (codegen speed), `todo_libraries.md`
+(standard library), and `todo_expansion.md` (domain strategy). This file tracks
+the compiler prerequisites and the library build-out for the drug discovery
+direction under `vchem/`.
 
-**Status.** Nothing in `vchem/` ships today. `vbio` exists and is
-adjacent but is not part of `vchem/`. Every library entry below is
-gated on the compiler prerequisites landing first — those are now
-substantially complete; see "Recently landed" below for what changed.
+**Status (2026-11-10).** `vchem/` is no longer empty: `vchem_common`
+(Elements, Constants) and `vgraph` (Types, BFS, DFS, Dijkstra) ship. The rest
+of the pipeline (`vmol`, `vsmiles`, `vsmarts`, `vdesc`, `vfp`, `vforce`,
+`vconf`, `vdock`, `vcluster`, `vscaffold`, `vpdbfix`) is still absent. The two
+general-purpose dependencies this file called blocking, `vcsv` and `vstat`,
+have since shipped. Compiler prerequisites C0–C5 are all landed or
+substantially landed; C2 retains the non-flattenable struct-ABI residual.
 
-**Do not start any library work until Paper 1 is submitted.** The
-compiler prerequisites below are codegen changes and can proceed
-without touching Paper 1's frozen benchmark surface; they are being
-done ahead of time on purpose. The _libraries_ are not. The sequencing
-matters more here than in any other todo file, because chemistry hits
-every corner of the emitter that machine learning does not.
+**The original "do not start until Paper 1" gate is historical.** Compiler
+prerequisites and the first two `vchem` modules landed while the paper was in
+progress. The sequencing advice still applies to downstream libraries: they hit
+every corner of the emitter that machine learning does not, so land them in
+dependency order.
 
 The through-line: **a chemistry library lives or dies on the cost of
 reading a molecule**. A parser that allocates per character, a struct
@@ -28,12 +33,12 @@ possible.
 
 ## Recently landed
 
-This section exists because the compiler prerequisites have moved
-faster than the rest of the document. It records what actually shipped
-and is verified by a real `Molecule { atoms :: Array<Atom>, name :: String,
-props :: Map }` end-to-end test. Nothing in the library sections below
-has changed state — but the compiler-side blockers on most of them are
-gone.
+This section exists because the compiler prerequisites moved faster than the
+rest of the document. It records what actually shipped and is verified by a real
+`Molecule { atoms :: Array<Atom>, name :: String, props :: Map }` end-to-end
+test. Since this list was written, `vchem_common` and `vgraph` have also
+shipped; the rest of the library stages are still future work, but the
+compiler-side blockers on most of them are gone.
 
 | Fix                                                                   | Location                                                    | What it unblocks                                                                                                                                                                                                              |
 | --------------------------------------------------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -88,29 +93,32 @@ or fewer → don't.
 
 ## What ships today
 
-Nothing in `vchem/`. What exists that is adjacent:
+`vchem_common` and `vgraph` ship. What exists that is adjacent:
 
 | Library | State           | Relation to `vchem`                                                                                |
 | ------- | --------------- | -------------------------------------------------------------------------------------------------- |
+| `vchem_common` | **Done** | Periodic table, radii, masses, constants. |
+| `vgraph` | **Done** | CSR graph types, BFS, DFS, Dijkstra. Subgraph isomorphism / MCS still absent. |
 | `vbio`  | **Done**        | Biology, not chemistry. Shares `String` representation.                                            |
 | `vjson` | **Done**        | Used by `vmol` for SDF data block parsing and by `vchem` for JSON config.                          |
 | `vlin`  | **Done**        | Used by `vforce`, `vconf`, and `vdock` for coordinate math.                                        |
 | `vfft`  | **Done**        | Used by `vsignal` (vibration analysis) and by spectra handling.                                    |
-| `vcsv`  | **Not started** | Required for ChEMBL and ZINC ingestion. Not chemistry-specific but blocking.                       |
-| `vstat` | **Not started** | Required for descriptor statistics and clustering validation. Not chemistry-specific but blocking. |
+| `vcsv`  | **Done**        | Required for ChEMBL and ZINC ingestion. Shipped in #109.                                           |
+| `vstat` | **Done**        | Required for descriptor statistics and clustering validation. Shipped in #104.                     |
+| `vsparse`, `vdecomp`, `vnum` | **Not started** | Required for `vforce`, `vconf`, and solvers. Also tracked in `todo_libraries.md`. |
 
-Two of these (`vcsv`, `vstat`) are general-purpose and belong in
-`modules/external/`, not under `vchem/`. They are listed here because
-they are on the critical path.
+`vcsv`, `vstat`, `vsparse`, `vdecomp`, and `vnum` are general-purpose and
+belong in `modules/external/`, not under `vchem/`. They are listed here because
+they are on the critical path. The first two are now satisfied.
 
 ---
 
 ## Compiler prerequisites — Phase 0
 
-**Do not start any library work until all six of these land.** Each one
-unblocks a class of chemistry code that cannot be written any other way.
-Status as of this draft: five of six are complete; the sixth (C2) is
-substantially complete with a non-blocking ABI extension outstanding.
+**These were the gate on library work.** All six are now landed or
+substantially landed; the section is retained as a record of what each fix
+unblocked. Current state (2026-11-10): five of six complete; C2 is substantially
+complete with a non-blocking ABI extension outstanding.
 
 ### ~~C0. Fix the empty-array literal bug~~ [ DONE ]
 
@@ -358,9 +366,10 @@ modules/external/
 └── ...
 ```
 
-**The top-level `vchem.vy` facade ships with only the four foundational
-sub-modules on day one**: `vchem_common`, `vmol`, `vgraph`, `vsmiles`.
-Everything else is added as it stabilizes. A facade that re-exports a
+**The current top-level `vchem.vy` facade exposes only what actually exists:**
+`vchem_common` and `vgraph`. The target day-one facade is still the four
+foundational sub-modules (`vchem_common`, `vmol`, `vgraph`, `vsmiles`); add
+`vmol` and `vsmiles` as they land, not before. A facade that re-exports a
 half-finished `vdock` produces confusing errors.
 
 ---
@@ -780,7 +789,7 @@ Ordered. Each is a checkpoint that validates the phase before it.
 with atoms, bonds, and data block. Verify against RDKit.
 
 Requires: C0, C1, C2, C4, C5 — **all satisfied** — plus `vchem_common`
-and `vmol`.
+(**shipped**) and `vmol` (**not started**). M1 is the next real milestone.
 
 **M2 — Parse a SMILES string.** Read a SMILES, produce a `Molecule`
 with the same graph (atom count, bond count, connectivity) as the RDKit
@@ -858,8 +867,9 @@ Same exclusions as the parent `todo.md`:
   fast path add a branch and a hoisted evaluation to `MemberAssignmentNode::compile`;
   the emitted C for existing tests is unchanged except for the shapes
   that previously produced a throwaway copy.
-- **`todo.md`** (standard library) — Tier 2 (`vcsv`, `vstat`) are
-  on the critical path for chemistry and are already scheduled there.
+- **`todo_libraries.md`** (standard library) — `vcsv` and `vstat` are on the
+  critical path for chemistry and have shipped; `vsparse`, `vdecomp`, and
+  `vnum` are still queued there.
 
 ---
 

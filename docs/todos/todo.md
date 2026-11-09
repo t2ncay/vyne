@@ -1,6 +1,23 @@
 # The full TODO list
 
+**Last updated:** 2026-11-10
+
 Everything we discussed, ordered. Phases are sequential; items inside a phase can be interleaved.
+
+> **Status snapshot (2026-11-10).** This document was written while the
+> compiler was frozen behind Paper 1. It is no longer the frontier: the
+> code-side work in Phases 0–2.5 is complete, and the compiler has since
+> shipped well past the paper. Landed after this plan: `@pool`, `@slab`,
+> `@ring`, `@streamed`, `@persistent`, `@speculative`, `@device`, `@bounded`,
+> `@zeroed`, `@deterministic`, `@realtime`, `@layout<soa>`; early `drop()` and
+> zero-copy `region.move()`; thread-local arenas; first-class `Float32` and the
+> CUDA `@device` backend; `@differentiable` / `@backward` / `grad`; executable
+> contracts (`requires` / `ensures` / `@invariant`); `vsignal`, `vcontrol`,
+> `vcsv`, `vstat`, `vcomplex`, `vinterp`, `vtermplot`; I2C/SPI. The Paper 1
+> source is not in this repository, so the three prose edits below remain
+> unverified externally rather than actively open in the tree. Treat Phases
+> 4–5 as historical deferrals; forward planning now lives in `todo_2.md`,
+> `todo_expansion.md`, and `todo_libraries.md`.
 
 ---
 
@@ -213,6 +230,9 @@ types for Paper 3.**
 
 ## Remaining work, in order
 
+The Paper 1 draft lives outside this repository, so these items cannot be
+checked from the tree. They are retained as the last known external checklist.
+
 1. **§1 reframing** — replace the "opposite directions" sentence with the
    layered framing. Two to three sentences. Ten minutes.
 2. **§7 stack-array paragraph** — contrast scratch with `std::array`,
@@ -224,19 +244,23 @@ types for Paper 3.**
    Note in §6.6 as a natural extension if you want.
 5. **Decide on NumPy reference.** Recommendation: drop for this paper.
 
-Steps 1–3 are the only edits standing between the current draft and a
-submittable state. Steps 4–5 are scope decisions.
+Steps 1–3 were the only edits standing between the draft and a
+submittable state. Steps 4–5 are scope decisions. If the paper has since
+shipped, close this document and track new work in the companion files.
 
 ---
 
 ## Commit boundary
 
-- Phase 0: `Fix parser, emitter, and runtime bugs; add native-target flag` ← **READY**
-- Phase 1: `Add scratch bounds checking and syntactic region escape checks` ← **READY**
-- Phase 2 (partial): `Add hoisted baseline; measure four-config matmul` ← **READY**
-- Phase 2 (complete): `Complete benchmark suite; measure ITERS=100; add recursion capability demo`
-- Phase 3 (partial): `Fill §5.6; add §6.6 conflation; add §6.7 hoisting-gaps; renumber §5.8/§6.7` ← **READY**
-- Phase 3 (final): `Reframe §1; expand §7 Related Work`
+Historical — every "READY" item below has long since landed. Kept only so the
+old commit plan is still legible against `git log`.
+
+- Phase 0: `Fix parser, emitter, and runtime bugs; add native-target flag` — landed
+- Phase 1: `Add scratch bounds checking and syntactic region escape checks` — landed
+- Phase 2 (partial): `Add hoisted baseline; measure four-config matmul` — landed
+- Phase 2 (complete): `Complete benchmark suite; measure ITERS=100; add recursion capability demo` — landed
+- Phase 3 (partial): `Fill §5.6; add §6.6 conflation; add §6.7 hoisting-gaps; renumber §5.8/§6.7` — landed
+- Phase 3 (final): `Reframe §1; expand §7 Related Work` — external to the repo
 
 ---
 
@@ -246,9 +270,10 @@ submittable state. Steps 4–5 are scope decisions.
 classifier at three configurations, safety suite at 10 tests, recursion
 capability demo at 1/8 vs 8/8, hand-written C at 0.3% peak-RSS parity.
 
-**Phase 3: 90% complete.** Two prose edits open (§1, §7). One typo.
+**Phase 3: externally gated.** Two prose edits (§1, §7) and one typo were the
+last known open items; the paper source is not in this tree.
 
-**Phases 4–5: correctly deferred.**
-
-**Paper is submittable after §1, §7, and the typo. Estimated effort:
-25 minutes.**
+**Phases 4–5: correctly deferred, and partly overtaken.** Several "next paper"
+features have already shipped in the compiler (region policies, `@device`,
+autodiff, `@realtime`, `@layout<soa>`), so this file is a record of the Paper 1
+pipeline rather than an accurate map of the current language.

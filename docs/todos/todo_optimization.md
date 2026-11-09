@@ -1,8 +1,22 @@
 # TODO — Optimization
 
-Draft. Companion to `todo.md` (Paper 1 pipeline) and `todo_2.md` (feature axes).
-This file is about making Vyne **fast** — closing the gap to hand-written C
-and, where possible, going past it. Ordered by ROI, not by ambition.
+**Last updated:** 2026-11-10
+
+Draft, partially executed. Companion to `todo.md` (Paper 1 pipeline) and
+`todo_2.md` (feature axes). This file is about making Vyne **fast** — closing
+the gap to hand-written C and, where possible, going past it. Ordered by ROI,
+not by ambition.
+
+> **Status snapshot (2026-11-10).** Done: Tier 0 (`O0.1`, `O0.2`), identity
+> folding and literal-divisor elision (`O1.1`, `O1.2`), 32-byte typed-array
+> alignment (`O2.1`), and the native array ABI (`O3.2`). Loop-invariant field
+> loads are hoisted (`loops.cpp`), which covers the spirit of `O1.6` for
+> struct-heavy loops but not the row-pointer form. Still open: `O1.3` temp +
+> assignment fusion, `O1.4` single-use temp inlining, `O1.5` loop-bound
+> inlining, `O2.2` `place_all` fast path, `O2.3` `vyne_binop_slow` branch
+> reorder, `O2.4` unchecked push, `O3.1` range-typed induction variables,
+> `O3.3` uniqueness/linear types, `O3.4` unified `Tensor` CType. `O2.5` remains
+> an explicit do-not-do.
 
 Context: on the §5.7 1024×1024 matmul at ITERS=100, hand-written C runs
 ~3.9% faster than Vyne config 2 on clean runs (13.36 s vs 13.90 s means,
@@ -17,7 +31,7 @@ Tier 1 and Tier 2 is about that gap. Tiers 3 and 4 are structural.
 Two things in the current tree cost cycles silently. Fix before anything
 else; if Tier 1 is measured against unfixed Tier 0, the numbers are wrong.
 
-### O0.1 — Delete the duplicate emit in `IndexAssignmentNode::compile`
+### O0.1 — Delete the duplicate emit in `IndexAssignmentNode::compile` [ DONE ]
 
 **File:** `codegen/collections.cpp` [ DONE ]
 
@@ -81,7 +95,7 @@ compile to a bare C loop.
 Small changes to the emit path. Each removes temps, redundant checks, or
 literal arithmetic from the emitted C. The cumulative effect is the 3.9%.
 
-### O1.1 — Constant folding for `+ 0`, `- 0`, `* 1`, `/ 1`
+### O1.1 — Constant folding for `+ 0`, `- 0`, `* 1`, `/ 1` [ DONE ]
 
 **File:** `codegen/operators.cpp`, in `BinOpNode::getCExpr`
 
@@ -105,7 +119,7 @@ redundant instructions per inner iteration × 256 iterations × 1M cells.
 **Effort:** 1 hour. **Expected gain:** measurable; removes one add per
 unrolled lane.
 
-### O1.2 — Drop the zero-check when the divisor is a literal
+### O1.2 — Drop the zero-check when the divisor is a literal [ DONE ]
 
 **File:** `codegen/operators.cpp`, `Int64 op Int64` and `Float64 op Float64` paths
 
@@ -241,7 +255,7 @@ address-mode selection. Zero risk, ~10 minutes.
 Changes to `runtime/detail/arena.h`, `typed_arrays.h`, `arrays.h`,
 `operators.h`.
 
-### O2.1 — 32-byte alignment for typed arrays
+### O2.1 — 32-byte alignment for typed arrays [ DONE ]
 
 **File:** `runtime/detail/arena.h`
 
@@ -321,7 +335,7 @@ These are what make Vyne architecturally faster, not just matching C. Each
 is a paper-worthy feature on its own; cross-reference `todo_2.md` for the
 full design.
 
-### O3.1 — Range-typed induction variables (F1 from `todo_2.md`)
+### O3.1 — Range-typed induction variables (F6 from `todo_2.md`)
 
 `k4 :: 0..<N/4` gives `k4` the type `Int64<0..N/4-1>`. Any expression built
 from `k4` by `+`, `-`, `*` has a computed range. When that range is used as
@@ -337,7 +351,7 @@ positive-framing win.
 **Effort:** 2–3 weeks. **Expected gain:** eliminates the entire bounds-check
 cost on well-typed code; strictly a correctness-preserving optimization.
 
-### O3.2 — Native array ABI (§6.2)
+### O3.2 — Native array ABI (§6.2) [ DONE ]
 
 **File:** `codegen/function_calls.cpp`, `codegen/functions.cpp`
 
@@ -358,7 +372,7 @@ BLAS integration (see the last `todo_2.md` entry).
 copy for every tensor operation; large in ML code where tensor ops
 dominate.
 
-### O3.3 — In-place ops via linear types (F2 from `todo_2.md`)
+### O3.3 — In-place ops via linear types (F7 from `todo_2.md`)
 
 `fn relu_inplace(x :: unique [N])` — the compiler proves the callee has the
 only reference. Mutation happens in place with no alias check, no defensive
@@ -443,37 +457,32 @@ Note for Paper 2 or 3 if the workload scales up.
 
 ## Implementation order
 
-Not by tier; by ROI.
+Already landed: `O0.1`, `O0.2`, `O1.1`, `O1.2`, `O2.1`, `O3.2`, plus
+loop-invariant field-load hoisting in `loops.cpp`.
+
+Remaining, by ROI:
 
 ```
-1.  O0.1   delete duplicate emit                      5 min
-2.  O0.2   fix exprNativeType in shape-add path       5 min
-    ——— rebuild, re-measure ITERS=100, expect ~1–2% ———
-3.  O1.1   constant folding                           1 h
-4.  O1.2   drop literal-divisor zero check            30 min
-5.  O1.5   inline single-use loop bounds              1 h
-    ——— rebuild, re-measure, expect ~2–3% total ———
-6.  O1.3   fuse binop temp + assignment               1.5 h
-7.  O1.4   inline single-use temps (careful)          3–4 h
-    ——— rebuild, re-measure, expect to close the gap to C ———
-8.  O1.6   hoist row pointers (easy form)             10 min
-9.  O2.1   32-byte alignment for typed arrays         1 h
-10. O2.3   reorder branches in vyne_binop_slow        15 min
-    ——— rebuild, final §5.7 measurement ———
+1.  O1.5   inline single-use loop bounds              1 h
+2.  O1.3   fuse binop temp + assignment               1.5 h
+3.  O1.4   inline single-use temps (careful)          3-4 h
+4.  O1.6   hoist row pointers (easy form)             10 min
+5.  O2.3   reorder branches in vyne_binop_slow        15 min
+6.  O2.2   place_all fast path                        30 min
+7.  O2.4   unchecked push                             1 h
+    --- rebuild, re-measure, expect to close the gap to C ---
 ```
 
 The last measurement is what goes in the paper. If Vyne's clean-run wall
 clock matches hand-written C's clean-run wall clock to within noise, the
-§5.7 paragraph strengthens from "indistinguishable wall clock" (defensible
-but soft) to "wall clock identical within measurement resolution" (defensible
-and precise).
+section strengthens from "indistinguishable wall clock" (defensible but soft)
+to "wall clock identical within measurement resolution" (defensible and
+precise).
 
-Items 1–8 are ~1 day of work total. Do them in a single sitting, measure
-before and after, commit as one "optimization pass" commit with the emitted
-`.vy.c` diff in the message.
+Items 1-7 are roughly one day of work total. Measure before and after, and
+commit with the emitted `.vy.c` diff in the message.
 
 ---
-
 ## What this does to the paper
 
 **§5.7** gains one sentence after the C comparison paragraph:

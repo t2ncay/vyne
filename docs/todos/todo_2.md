@@ -1,12 +1,49 @@
 # TODO 2 — Post-Paper-1 feature axes
 
-Draft, saved for after Paper 1 ships. **Do not start any of this until TODO.md is fully checked.** This document exists so the direction is written down while it's fresh; it is not a work plan yet.
+**Last updated:** 2026-11-10
+
+Originally drafted to start after Paper 1. Several axes have since landed, so
+this is now a status ledger plus a plan for what remains — not a queued "do not
+start" document.
 
 The through-line: regions gave us **lifetime** as a compile-time fact. Every item below is a _different axis_ the compiler can see. Each is orthogonal to regions, each composes with regions, and each is a decision that a numeric language can move from runtime to compile time but that mainstream languages cannot.
 
 **The design tenet for everything below: regions are the interface to the allocator, and there are two allocators — host and device. The region says which one. Nothing else changes.**
 
 If a feature does not fit that tenet, it is not part of the paper.
+
+---
+
+## Status snapshot (2026-11-10)
+
+Checked against the current tree (`vyne/compiler`, `vyne/runtime`,
+`vyne/modules/external`, `examples/`, `README.md`).
+
+| Item | State | What is actually in the tree |
+| --- | --- | --- |
+| F0 native array ABI | **Done** | Primitive + typed-array native variants; struct ABI in v0.4.0. |
+| F1 OpenBLAS dispatch | **Done** | `--blas`, `cblas_dgemm`, runtime `blas_bridge.h`. |
+| F2 device arena | **Done, redesigned** | `runtime/modules/vdevice.h`; dynamically loaded CUDA driver with CPU fallback. |
+| F3 device regions | **Done, redesigned** | `@device<cuda\|auto\|cpu> region`; `device_alloc` / `upload` / `download` / `sync` intrinsics. |
+| F4 explicit transfers | **Partial** | Explicit `device_upload` / `device_download` intrinsics, not typed `to_device` / `from_device` and not residency-aware assignment checking. |
+| F5 cuBLAS dispatch | **Not done** | GPU ops use the in-tree PTX kernels; no `cublasDgemm` path. |
+| F6 refinement / range types | **Not done** | Bounds checks are still runtime VNE-072 unless disabled. |
+| F7 uniqueness / linear types | **Not done** | Boxed/copy semantics unchanged; `vlin` has explicit in-place helpers. |
+| F8 shape types | **Not done** | Shapes remain runtime values; scratch carries shapes internally. |
+| F9 effect typing | **Not done** | No `!alloc` lattice. |
+| F10 units of measure | **Not done** | `vconvert` is a scalar conversion helper only. |
+| F11 layout types | **Partial** | `@layout<soa>` applies to struct `scratch`; layout is not a general type property. |
+| F12 mutability as a type | **Not done** | No `const` / read-only parameter type. |
+| F13 precision types | **Partial** | `Float32` shipped with the CUDA backend (`0.0f`, `Array<Float32>`); `BFloat16` / `Float16` absent outside the deferred `@mixed` metadata. |
+| F14 explicit value semantics | **Not done** | No copy-vs-share type property. |
+| F15 bitwise operators | **Done** | Parsed and lowered with the intended precedence. |
+| F16 scientific notation | **Done** | `1.5e-3`, `_` digit separators. |
+| Region policies (`@pool`, `@ring`, `@scratch`, `@persistent`, `@speculative`, `@device`, `@streamed`) | **Mostly done** | `@pool<T,N>`, `@ring<T,N,MAX>`, `@persistent`, `@speculative`, `@device`, `@streamed` ship. `@scratch` is still a per-declaration keyword, not a region-wide policy. Extra policies landed: `@slab`, `@bounded`, `@zeroed`, `@deterministic`, `@realtime`, `@layout<soa>`. |
+| AD (new axis, not in the original list) | **Partial** | `@differentiable`, `@backward`, `grad`; straight-line `Float64` and `Array<Float64>` reduction VJPs. Loops, branches, matmul VJPs, array locals, `@recompute`, `@mixed`, and implicit differentiation remain open. |
+
+**Related landings not captured by the original axes:** early `drop()` reclamation
+and zero-copy `region.move()`, thread-local arenas, executable contracts
+(`requires` / `ensures` / `@invariant`), and `@realtime<ms>` deadline telemetry.
 
 ---
 
@@ -99,19 +136,27 @@ Incompatible pairs are compile errors (VNE-110 or the next free number).
 
 ### Summary
 
-| Policy         | Strategy                 | Lifetime                      | Where it lives |
-| -------------- | ------------------------ | ----------------------------- | -------------- |
-| `@pool<size>`  | Fixed-slot free list     | Explicit free, or scope close | Any arena      |
-| `@ring<N>`     | N-slot rotation          | Bounded by N steps            | Any arena      |
-| `@scratch`     | C stack                  | Scope close                   | Host only      |
-| `@persistent`  | Commit arena by default  | Whole program                 | Any arena      |
-| `@speculative` | Fork / rollback / commit | Predicate-dependent           | Any arena      |
-| `@device`      | Device arena             | Scope close, deferred rewind  | Device only    |
-| `@streamed`    | Pinned host memory       | Scope close                   | Both           |
+| Policy         | Strategy                 | Lifetime                      | Where it lives | State in tree |
+| -------------- | ------------------------ | ----------------------------- | -------------- | ------------- |
+| `@pool<T, N>`  | Fixed-slot free list     | Explicit free, or scope close | Any arena      | **Shipped** (`pool_alloc` / `pool_free`) |
+| `@slab<T, MAX[, CAP]>` | Power-of-two size classes | Explicit free, or scope close | Any arena | **Shipped** (added after this draft) |
+| `@ring<T, N, MAX>` | N-slot rotation      | Bounded by N steps            | Any arena      | **Shipped** (`ring_alloc`, no free) |
+| `@scratch`     | C stack                  | Scope close                   | Host only      | **Not a region policy**; `scratch` remains a declaration keyword |
+| `@persistent`  | Commit arena by default  | Whole program                 | Any arena      | **Shipped** |
+| `@speculative` | Fork / rollback / commit | Predicate-dependent           | Any arena      | **Shipped** (`region.commit_if`) |
+| `@device<backend>` | Device arena         | Scope close, deferred rewind  | Device only    | **Shipped** (`cuda` / `auto` / `cpu`; CPU fallback) |
+| `@streamed<T, MAX>` | Pinned host memory  | Scope close                   | Both           | **Shipped** (desktop only) |
+| `@bounded<N>`  | Runtime byte ceiling     | Scope close                   | Any arena      | **Shipped** (added after this draft) |
+| `@zeroed`      | Zero-fill allocations    | Scope close                   | Any arena      | **Shipped** (added after this draft) |
+| `@deterministic` | Zeroed + nondeterminism scan | Scope close              | Any arena      | **Shipped** (added after this draft) |
+| `@realtime<ms>` | Deadline watchdog       | Scope close + early returns   | Any arena      | **Shipped** (added after this draft) |
+| `@layout<soa>` | Field-split scratch layout | Composition attribute       | Host           | **Shipped** (added after this draft) |
 
-Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are generalizations of things Paper 1 already has as keywords: `@scratch` generalizes the `scratch` declaration into a region-wide policy; `@persistent` generalizes `region.commit` into the default for the whole region. `@device` is F3 below — it appears here so the design space is complete.
+Six of the original seven policies landed (`@pool`, `@ring`, `@persistent`, `@speculative`, `@streamed`, plus `@device`), and `@slab` was added along the way, with the actual argument syntax `@pool<T, N>`, `@ring<T, N, MAX>`, `@streamed<T, MAX>`, and `@slab<T, MAX[, CAP]>`. `@scratch` as a _region-wide_ policy is the one item here that did not ship; the per-declaration `scratch` keyword remains. Verification and layout attributes (`@bounded`, `@zeroed`, `@deterministic`, `@realtime`, `@layout<soa>`) also landed and compose with the allocation policies. `@recompute` and `@mixed` are parsed as metadata but not lowered.
 
 ### `@pool<size>`
+
+**Status: shipped** as `@pool<T, N>` with `pool_alloc()` / `pool_free(x)`.
 
 ```vyne
 @pool<Float64[64]> region attention_step {
@@ -131,6 +176,8 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 
 ### `@ring<N>`
 
+**Status: shipped** as `@ring<T, N, MAX>` with `ring_alloc(n)`; there is no free intrinsic, by design.
+
 ```vyne
 @ring<4> region sliding_window {
     # Every allocation overwrites the oldest of the 4 slots.
@@ -149,6 +196,9 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 
 ### `@scratch`
 
+**Status: not shipped as a region policy.** `scratch` remains a per-declaration
+keyword. The region-wide check described below is still an open design.
+
 ```vyne
 @scratch region forward_pass {
     # Every allocation inside must have compile-time-known shape.
@@ -165,6 +215,8 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 **Cost.** Dynamic shapes disqualify the region. Deep recursion blows the stack. The stack-size budget has to be checked statically — a small analysis on top of the existing scratch code, but a real one.
 
 ### `@persistent`
+
+**Status: shipped.** Commit-arena lifetime for the whole region; desktop only for now.
 
 ```vyne
 @persistent region weights {
@@ -184,6 +236,8 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 
 ### `@speculative`
 
+**Status: shipped** with `region.commit_if(pred)`.
+
 ```vyne
 @speculative region autotune {
     cfg = pick_config();
@@ -202,6 +256,13 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 
 ### `@device`
 
+**Status: shipped, with a different surface.** The implemented form is
+`@device<cuda|auto|cpu> region` plus explicit `device_alloc`, `device_upload`,
+`device_download`, `device_sync`, and per-op intrinsics (`device_add`,
+`device_matmul`, ...). There is no residency bit on `CType` and no
+`to_device` / `from_device` pair; the device arena is dynamically backed by the
+CUDA driver with a CPU fallback.
+
 ```vyne
 @device region gpu_train {
     A = vlin.multiply(x_gpu, w_gpu);
@@ -209,15 +270,22 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 };
 ```
 
-**Mechanism.** Allocations go to the device arena instead of the host arena. Host code cannot dereference pointers into this region. Crossings happen only at `region.commit` (followed by `from_device`) or at the `to_device` / `from_device` boundary.
+**Mechanism.** The region opens a device frame. Device memory is obtained with
+`device_alloc`, filled with `device_upload`, read back with `device_download`,
+and freed by the frame close before the host arena rewinds. Host code cannot
+dereference device handles directly. (The original `region.commit` +
+`from_device` / `to_device` design was superseded by these explicit intrinsics.)
 
-**Use case.** GPU training and inference. This is F3 below, presented here so the policy design space is complete.
+**Use case.** GPU training and inference. Shipped; see `examples/device/` and
+`examples/test/device_test.vy`.
 
 **Why it's interesting.** This is the whole point of the two-arena design. Same source, same region semantics, different backend.
 
 **Cost.** Asynchronous rewind (deferred until the last event fires). Host/device boundary crossings are explicit and expensive, which is the correct semantic — you want the programmer to see them.
 
 ### `@streamed`
+
+**Status: shipped** as `@streamed<T, MAX>` with `streamed_alloc(n)`; desktop only.
 
 ```vyne
 @streamed region input_pipeline {
@@ -236,24 +304,25 @@ Four of these are new (`@pool`, `@ring`, `@speculative`, `@streamed`). Two are g
 
 ### Composition rules
 
-Not all pairs compose. The rules:
+**What shipped instead of the original pair matrix.** A region takes **at most
+one** allocation, lifetime, or verification policy. A second one is a compile
+error; two policies mean two regions. `@layout<soa>` is the one attribute that
+composes with any policy, because it changes layout rather than choosing an
+allocator. `@backward`, `@recompute`, and `@mixed` are metadata/composition
+attributes, and `@recompute` / `@mixed` lowering is deferred.
 
-**Compatible:**
+Consequences for the pairs below:
 
-- `@device @pool<size>` — device KV-cache. The actual shape of transformer inference.
-- `@persistent @device` — device-resident weights that survive every epoch.
-- `@persistent @pool<size>` — a persistent pool of reuse-tagged slots.
-- `@scratch @speculative` — stack-only autotuning.
-- `@ring<N> @streamed` — double-buffered input pipeline with provable cyclic lifetime.
+- `@device @pool` and `@persistent @device` are **not** currently expressible as
+  one region; use nested regions (outer location, inner allocator) if the need
+  appears.
+- `@ring @streamed`, `@ring @persistent`, `@pool @scratch`, and
+  `@scratch @device` are rejected today by the single-policy rule.
+- `@scratch @speculative` is not expressible because `@scratch` is not a region
+  policy.
 
-**Incompatible, and why:**
-
-- `@scratch @device` — C stack and device memory are different address spaces. Rejected at parse time.
-- `@device @streamed` — device-local and pinned-host are different memories. Express "sometimes host, sometimes device" as two regions with a `to_device` between them.
-- `@ring<N> @persistent` — cyclic reuse and whole-program lifetime are opposites. Rejected.
-- `@pool<size> @scratch` — pool allocation is arena-based; scratch is stack-based. Rejected.
-
-The composition table is finite and small. Every reject is a compile error with a specific message.
+The original matrix is retained above as design intent, not as implemented
+behaviour.
 
 ### Composition with the axes
 
@@ -317,7 +386,7 @@ double fn_scale_add_native(double* a, double* b, int64_t n);
 
 ---
 
-#### F1. OpenBLAS dispatch
+#### F1. OpenBLAS dispatch [ DONE ]
 
 **What.** When `vlinalg.multiply(A, B)` has statically-known `Float64` operands, lower to `cblas_dgemm` instead of the emitted C loop. Same result to the last digit, different code.
 
@@ -342,7 +411,7 @@ double fn_scale_add_native(double* a, double* b, int64_t n);
 
 ---
 
-#### F2. Device arena
+#### F2. Device arena [ DONE — redesigned ]
 
 **What.** A second arena, structurally identical to the host arena, backed by `cudaMalloc` / `cudaFree`. Same block-chain, same checkpoint/rewind, same accounting.
 
@@ -362,7 +431,7 @@ double fn_scale_add_native(double* a, double* b, int64_t n);
 
 ---
 
-#### F3. Device regions
+#### F3. Device regions [ DONE — redesigned ]
 
 **What.** A region modifier that selects the device arena as the allocator for the region's body. This is the concrete implementation of the `@device` policy above.
 
@@ -393,7 +462,7 @@ double fn_scale_add_native(double* a, double* b, int64_t n);
 
 ---
 
-#### F4. Explicit transfers at region boundaries
+#### F4. Explicit transfers at region boundaries [ PARTIAL ]
 
 **What.** Two built-ins: `to_device(x)` and `from_device(x)`. Both emit a `cudaMemcpy`. Both are legal only at region boundaries or at the top level.
 
@@ -437,7 +506,7 @@ region update {                    # host
 
 ---
 
-#### F5. cuBLAS dispatch
+#### F5. cuBLAS dispatch [ NOT DONE ]
 
 **What.** Same rule as F1, but when the operands' residency bit is `device`, emit `cublasDgemm` instead of `cblas_dgemm`. The dispatch is three-way now: host loop / `cblas_dgemm` / `cublasDgemm`.
 
@@ -587,7 +656,7 @@ fn process_block(x :: Float64[512]) -> Float64[512] !alloc {
 
 ---
 
-#### F11. Layout types
+#### F11. Layout types [ PARTIAL — `@layout<soa>` only ]
 
 `Float64[N]` stored `AsAoS` vs. stored `AsSoA`. Compile-time layout choice; same source-level operations. Big cache-performance win. **Effort.** 3 weeks. **Paper.** Maybe. Depends on F8 for the interesting version.
 
@@ -599,7 +668,7 @@ fn process_block(x :: Float64[512]) -> Float64[512] !alloc {
 
 ---
 
-#### F13. Precision types
+#### F13. Precision types [ PARTIAL — `Float32` shipped, `BFloat16` not ]
 
 `Float32`, `Float64`, `BFloat16` as first-class types, with automatic promotion rules. **Effort.** 2 weeks for the types; 6+ weeks for the interesting version (precision-error tracking). **Paper.** Maybe.
 
@@ -628,7 +697,7 @@ From lowest to highest binding (top binds loosest, bottom binds tightest):
 
 ---
 
-#### F16. Add scientific notation for numbers in lexer
+#### F16. Add scientific notation for numbers in lexer [ DONE ]
 
 ## How they compose
 
@@ -654,50 +723,57 @@ Region policies stack on top of all of these:
 ## Paper sequence
 
 ```
-Paper 1 (in progress):  Regions + scratch + compile-time peak bounds
-Paper 2:                Array ABI + OpenBLAS + in-place ops (needs F7)
-Paper 3:                Device arena + device regions + residency + cuBLAS
-Paper 4:                Region policies (pool, ring, scratch, persistent,
-                        speculative, streamed)
-Paper 5:                Shape types + range refinement + static bounds
-Paper 6:                Uniqueness + linear tensors
-Paper 7+:               Effects, units, layout, precision — the long tail
+Paper 1:  Regions + scratch + compile-time peak bounds
+Paper 2:  Array ABI + OpenBLAS + in-place ops (F7 still open)
+Paper 3:  Device arena + device regions + residency + cuBLAS
+          (arena + @device shipped with explicit intrinsics; cuBLAS still open)
+Paper 4:  Region policies (pool, slab, ring, persistent, speculative,
+          streamed)
+          (all but the @scratch region policy shipped)
+Paper 5:  Shape types + range refinement + static bounds
+Paper 6:  Uniqueness + linear tensors
+Paper 7+: Effects, units, layout, precision - the long tail
 ```
 
 Each paper is independent of the ones after it. Each is a legitimate contribution on its own.
 
-**The device story belongs in Paper 3, not later.** The user's supervisor is right that GPU capability is what makes a language credible for ML. But the prerequisites are strict:
+**The device story (Paper 3) has already started, with a different design.**
+F0–F3 landed; transfers are explicit intrinsics rather than typed residency,
+and F5 (cuBLAS) is the main remaining piece. The original estimate was six
+weeks from array ABI to a working GPU demo; the tree now has a CUDA backend
+with a CPU fallback, `@device` regions, FP32/F64 element-wise and matmul
+kernels, and tests under `examples/device/` and `examples/test/device_test.vy`.
+What remains before that paper is complete: cuBLAS dispatch, a residency-checked
+transfer model (F4), and the write-up.
 
-- Array ABI (F0) — 1 week
-- OpenBLAS (F1) — 1 week
-- Device arena (F2) — 3 days
-- Device regions (F3) — 1 week
-- Transfers (F4) — 1 week
-- cuBLAS (F5) — 1 week
-
-**Six weeks from array ABI to a working GPU demo.** All additive. Nothing rewrites the transpiler. The host path is preserved throughout; a program without `@device region` compiles to exactly the same C it does today.
-
-**Region policies belong in Paper 4, right after the device story lands.** Paper 3 establishes the two-arena model and the `@device` policy. Paper 4 argues the region construct is _general_: the same lexical discipline accommodates seven lifetime strategies, and the compiler checks them all. It's smaller than Paper 3 — three weeks of implementation plus two weeks of writing — but it's a distinct claim.
+**Region policies (Paper 4) mostly shipped as implementation, not yet as a
+paper.** `@pool`, `@slab`, `@ring`, `@persistent`, `@speculative`, `@streamed`,
+and the verification/layout attributes are in the tree. `@scratch` as a
+region-wide policy is the one design item still open.
 
 ---
 
-## What to pick for the next year
+## What to pick next
 
-**Bet 1 — The GPU axis (F0 → F1 → F2 → F3 → F4 → F5)**
+F0/F1/F2/F3 are done. The highest-value open items now are:
 
-Because it's the ask, it's the direction, and it's six weeks of bounded additions. First deliverable: a training loop that runs the forward pass on device and the weight update on host, with the same checksum as the pure-host version, and the same region-based lifetime discipline throughout.
+**Bet 1 - Range refinement (F6) and shape types (F8).** F6 still has the
+cleanest demo: it removes the measured bounds-check tax statically instead of
+asking users to pass `--no-scratch-bounds`. F8 is the natural companion for
+`vlin`/`vdecomp` and for proving scratch shapes.
 
-The paper writes itself: _"the same region construct that scopes memory lifetime in Paper 1 now scopes memory location. `@device region` is one modifier. The compiler knows where every transfer happens, and it refuses to compile a value crossing a residency boundary without an explicit `to_device` / `from_device`."_
+**Bet 2 - Finish the device story (F4 then F5).** Add a residency-aware
+transfer surface and cuBLAS dispatch so `vlin.multiply` can select host loop /
+`cblas_dgemm` / `cublasDgemm` from operand location. The arena and region
+mechanism already exist.
 
-**Bet 2 — Range refinement (F6)**
+**Bet 3 - The numerical libraries the axis work needs.** `voptim`, `vsparse`,
+`vdecomp`, and `vnum` are still absent (see `todo_libraries.md`). F6/F7/F8 are
+easier to validate once those consumers exist.
 
-Because it kills the 45% check overhead you measured, and it's the feature with the cleanest demo. Do it in parallel with the GPU work if you have the cycles; do it after if you don't.
-
-**Bet 3 — Region policies (`@pool`, `@ring`, `@speculative`, `@streamed`)**
-
-After Paper 3 ships, Paper 4 is the natural next step. It's small — the allocator mechanisms are each a few hundred lines — and it's the paper that argues the region construct is _general_, not just _useful for one thing_. Land `@pool` and `@ring` first; those two are the ones that change what training and inference code looks like. `@speculative` and `@streamed` are the ones that make the design space complete.
-
-**Why these three.** They are the axes that (a) don't need each other first, (b) have demos you can write in a week, and (c) compose with everything else. Land them, and Papers 2, 3, and 4 are already half-written.
+**Why these three.** They are the remaining axes with (a) real user-visible
+demos, (b) existing infrastructure to build on, and (c) composition with the
+region model.
 
 ---
 
@@ -705,11 +781,11 @@ After Paper 3 ships, Paper 4 is the natural next step. It's small — the alloca
 
 - **Multi-stage programming.** Orthogonal to the pitch. Staging is about generating code at compile time; the pitch is about proving properties. They compose but don't reinforce each other.
 - **A general-purpose language.** The pitch is numeric code with compile-time proofs. Don't chase Python or Go.
-- **GPU codegen (writing CUDA kernels).** The supervisor's ask is interop, not codegen. Reading A is what PyTorch, JAX, and every framework does. Reading B is Triton. Do not do Reading B on the way to a paper.
-- **Arbitrary mid-region switching.** A device tensor and a host tensor in the same expression forces implicit-transfer insertion and invalidates the three residency rules. Region-boundary switching gives the user the same capability with a tractable semantics. Enforce this.
-- **Raw `cudaMalloc` instead of a device arena.** Loses the region checkpoint/rewind, which is the whole reason the device story composes with Paper 1.
+- **GPU codegen as the main path.** The tree now carries a small hand-written PTX kernel set for the shipped element-wise/matmul ops, but the strategic ask is still interop. Do not grow that into a general Triton-style kernel compiler. Prefer cuBLAS (F5) for dense linear algebra.
+- **Arbitrary mid-region switching.** A device tensor and a host tensor in the same expression forces implicit-transfer insertion and makes residency intractable. The shipped design sidesteps this with explicit `device_upload` / `device_download` intrinsics; keep transfers explicit.
+- **Raw `cudaMalloc` instead of a device arena.** The shipped `vdevice.h` keeps a tracked device arena and frees by frame; do not regress to untracked allocations.
 - **All of Tier 2 and Tier 3 at once.** Pick two. Land them. Then pick two more.
-- **Shipping all seven region policies at once.** `@scratch` and `@persistent` are already in Paper 1 as keywords. `@device` ships with Paper 3. `@pool` and `@ring` are the two new ones worth building for Paper 4. `@speculative` and `@streamed` come after — either in Paper 4 or in a later paper, depending on whether the whole design space fits in one contribution.
+- **Shipping every remaining policy for symmetry.** Most policies already shipped. `@scratch` as a region policy is intentionally still open; it needs the region-wide stack-budget analysis to be useful.
 - **Policy inference.** Do not try to infer the policy from the region body. The programmer knows the workload's shape; the compiler doesn't. Policies are declared.
 - **Mid-region policy switching.** A region opens with one policy and closes with the same one. Two policies means two regions. This preserves the symmetry between checkpoint and rewind, and keeps the compiler's residency inference tractable.
 - **Policies that aren't backed by a real allocator.** A policy should map to an actual allocator in `detail/arena.h`, not to a codegen pattern. `@scratch` maps to the C stack; `@pool` maps to a free list; `@device` maps to `cudaMalloc`. If the policy doesn't have a concrete allocator behind it, it's not a policy, it's a wish.
@@ -718,25 +794,26 @@ After Paper 3 ships, Paper 4 is the natural next step. It's small — the alloca
 
 ## Sequencing note
 
-TODO.md (Paper 1) is the priority. Nothing here starts until:
+The original Paper 1 gate has been overtaken by events: F0-F3 and most region
+policies shipped while the paper was still in progress. Read the list below as
+history.
 
-- The C comparison is done.
-- §5.6 numbers are filled in.
-- §6.7 (hoisting gaps) is written.
-- §1 is reframed (layered, not parallel).
-- Paper 1 is submitted.
+What is actually still open, in rough order:
 
-Then, and only then:
+1. F4 (residency-checked transfers) - the explicit intrinsics exist; the typed
+   `to_device` / `from_device` model does not.
+2. F5 (cuBLAS) - the main missing piece of the device story.
+3. F6 (range refinement) - removes the bounds-check tax statically.
+4. F8 (shape types) - validates scratch shapes and enables `vdecomp`/tensor
+   APIs.
+5. F7/F9 (uniqueness/effects) - the remaining axes that change what library
+   implementations can prove.
+6. `@scratch` as a region-wide policy - only after the stack-budget analysis.
+7. Everything else (units, const, precision beyond `Float32`, value semantics)
+   - after the above.
 
-1. F0 (array ABI) — first, because everything else depends on it.
-2. F1 (OpenBLAS) — second, because it validates the dispatch pipeline.
-3. F2 (device arena) — third.
-4. F3 (device regions) — fourth.
-5. F4 (transfers) — fifth.
-6. F5 (cuBLAS) — sixth.
-7. F6 (range refinement) — in parallel or after.
-8. Region policies (`@pool`, `@ring`, `@speculative`, `@streamed`) — after Paper 3 ships, as the basis of Paper 4.
-9. Everything else — after Paper 4 ships.
+`voptim`, `vsparse`, `vdecomp`, and `vnum` remain absent and are tracked in
+`todo_libraries.md`; they are prerequisites for validating several axes.
 
 ---
 

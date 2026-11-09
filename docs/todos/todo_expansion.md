@@ -1,10 +1,36 @@
 # TODO — Domain Expansion & Technical Milestones
 
-**Last updated:** 2026-11-09
-**Status:** Draft strategy. This file records decisions and milestones only; it does
-not authorise code changes.
-**Baseline:** v0.6.0 (regions + policies, `Float32`/CUDA `@device`, scientific
-libraries, Arduino AVR backend, `vynec init`).
+**Last updated:** 2026-11-10
+**Status:** Draft strategy plus a status ledger. Several capability items (C1–C5,
+C9, C10, C13) have partially or fully landed since the first draft; see the
+snapshot below before reading the original plans.
+**Baseline:** current `master` (regions + policies, `Float32`/CUDA `@device`,
+reverse-mode AD, `@realtime` + contracts, I2C/SPI, scientific libraries,
+Arduino AVR backend, `vynec init`).
+
+> **Status snapshot (2026-11-10).**
+>
+> | Item | State | Notes |
+> | --- | --- | --- |
+> | C1 I2C/SPI | **Code shipped** | `vi2c` / `vspi`, Arduino bindings; hardware confirmation still outstanding. |
+> | C2 `@realtime` | **Runtime MVP shipped** | Deadline watchdog + desktop/AVR telemetry; static WCET still out of scope. |
+> | C3 contracts | **Shipped** | `requires` / `ensures` / `@invariant`, `contracts = check\|evidence\|off`. |
+> | C4 `vsignal` | **Shipped (desktop)** | MCU linkage still blocked on interfaces in the AVR runtime. |
+> | C5 `vcontrol` | **Shipped (desktop)** | Same MCU blocker; physical rig still a follow-up. |
+> | C6 `vaudio` | **Not started** | `examples/dsp/` exists, but there is no `vaudio` module. |
+> | C7 WASM | **Not started** | No `--target wasm`. |
+> | C8 `Fixed64` | **Not started** | No fixed-point type. |
+> | C9 concurrency | **Partial** | Thread-local arenas landed; sync primitives / queues / `vnet` not. |
+> | C10 autodiff | **Partial** | `@differentiable`, `@backward`, `grad`; scalar + array-reduction VJPs. Implicit diff, loops/branches, matmul VJPs, `@recompute`/`@mixed` still open. |
+> | C11 certification | **Not started** | No `vynec certify` / evidence bundle. |
+> | C12 ARM backend | **Not started** | AVR/Uno is still the only MCU target. |
+> | C13 tooling | **Partial** | Region and realtime telemetry exist; no unified `vcore.telemetry`, trace, or `vynec prof`. |
+>
+> The original "recommended order" below (sensing → control → audio → WASM →
+> autodiff) is now historical: sensing/control/AD infrastructure landed first.
+> The practical remaining order is the numerical libraries (`voptim`, `vsparse`,
+> `vdecomp`, `vnum`), then audio/WASM, with ARM/Fixed64/certification gated on a
+> concrete user.
 
 Companion documents:
 
@@ -25,7 +51,7 @@ Vyne should not become a general-purpose language. It should become the best
 language for **where math, memory, and hardware meet**: deterministic numerical
 code that runs unchanged on a laptop GPU, a browser, and a microcontroller.
 
-The v0.6.0 moat is four things and only four things:
+The moat is four things and only four things:
 
 1. **Deterministic memory** — regions, compile-time peak bounds (`@bounded`),
    no GC, no hidden allocation.
@@ -41,11 +67,10 @@ If a domain could be served just as well by Python, Go, or JavaScript, it is
 out of scope. If it needs a GUI toolkit, a web framework, or a text-processing
 stack, it is out of scope.
 
-**The recommended order is: sensing → control/robotics → audio → WASM →
-autodiff → SciML → (deferred) Tier 3.** The first three phases reuse almost
-everything that already exists; autodiff is the one genuinely new compiler
-feature, and it should land only after the library ecosystem and demos make it
-worth the cost.
+**Historical recommended order:** sensing → control/robotics → audio → WASM →
+autodiff → SciML → (deferred) Tier 3. In practice sensing/control and the AD
+compiler surface landed first; the remaining order is the numerical libraries,
+then audio/WASM, with SciML gated on `voptim` and the solver libraries.
 
 ---
 
@@ -96,12 +121,13 @@ Legend: `[ ]` not started, `[~]` in progress, `[x]` shipped.
 
 ### C1 — MCU peripheral-bus bindings (I2C / SPI / Wire) `[~]`
 
-**Status (2026-11-09):** implemented on branch `feat/arduino-i2c-spi`.
+**Status (2026-11-10):** shipped on `master` (`feat/arduino-i2c-spi`, #118).
 Bundled-library build integration, `mcu_i2c.h` / `mcu_spi.h`, 14
 `ARDUINO_MAP` entries, opt-in `VYNE_USE_I2C` / `VYNE_USE_SPI` guards, and
-typed `vi2c` / `vspi` wrappers with validation ship. Firmware compiles
-and links; hardware confirmation on a real IMU and SPI loopback is the
-remaining exit-criteria item.
+typed `vi2c` / `vspi` wrappers with validation ship, alongside
+`vyne/modules/external/vi2c` and `vspi`. Firmware compiles and links;
+hardware confirmation on a real IMU and SPI loopback remains the
+exit-criteria item.
 
 **Why.** Every real sensor, IMU, motor driver, display, and audio codec talks
 I2C or SPI. The AVR runtime deliberately binds neither today: those Arduino
@@ -132,15 +158,16 @@ AVR build.
 
 ### C2 — `@realtime<deadline_ms>` policy `[~]`
 
-**Status (2026-11-09):** runtime policy, early-return checks, and desktop +
-AVR telemetry implemented. Tests: `examples/test/realtime_test.vy` (positive,
-early return, nesting, reset), `examples/test/realtime_overrun_expected.vy`
-(VNE-109), and `examples/test/realtime_contract_avr.vy` (AVR build). Static
-WCET analysis remains out of scope for this slice. Two carried-forward
-limitations: a return expression's own evaluation is outside the measured
-window (the check fires before the return value is evaluated), and a
-`break`/`continue` nested inside a region inherits the pre-existing region-
-unwind bug documented in the v0.6.0 notes.
+**Status (2026-11-10):** runtime MVP shipped (#120). Deadline checks,
+early-return checks, and desktop + AVR telemetry are in. Tests:
+`examples/test/realtime_test.vy` (positive, early return, nesting, reset),
+`examples/test/realtime_overrun_expected.vy` (VNE-109), and
+`examples/test/realtime_contract_avr.vy` (AVR build). Static WCET analysis
+remains out of scope. Two carried-forward limitations: a return expression's
+own evaluation is outside the measured window (the check fires before the
+return value is evaluated), and a `break`/`continue` nested inside a region
+inherits the region-unwind limitation. The policy is a watchdog, not a
+proof.
 
 **Why.** Robotics and audio need a guarantee, not a measurement: the control
 loop or audio callback must finish before its deadline or the system degrades
@@ -178,11 +205,12 @@ a watchdog today, a WCET obligation later.
 
 ---
 
-### C3 — `@invariant` / contracts `[~]`
+### C3 — `@invariant` / contracts `[x]`
 
-**Status (2026-11-09):** `requires(...)`, `ensures(...)` (with `result`),
-loop `@invariant(...)`, and `ruleset { contracts = "check" | "evidence" | "off" }`
-implemented on desktop and AVR. Evidence mode writes CSV. Tests:
+**Status (2026-11-10):** shipped as part of #120. `requires(...)`,
+`ensures(...)` (with `result`), loop `@invariant(...)`, and
+`ruleset { contracts = "check" | "evidence" | "off" }` work on desktop and AVR.
+Evidence mode writes CSV. Tests:
 `examples/test/contract_test.vy`, `contract_violation_expected.vy`,
 `contract_ensures_violation_expected.vy`, `contract_off_test.vy`,
 `contract_evidence_test.vy`, and `realtime_contract_avr.vy`. Loop invariants
@@ -205,14 +233,14 @@ disable them for release; evidence mode writes a machine-readable contract log.
 
 ---
 
-### C4 — `vsignal` DSP library `[~]`
+### C4 — `vsignal` DSP library `[x] (desktop)`
 
-**Status (2026-11-09):** shipped `Types`, `Constructors`, `Kernels`, `Iir`,
-`Fir`, `Windows`, `Resample`, `Spectral`, facade, and README under
+**Status (2026-11-10):** shipped (#121): `Types`, `Constructors`, `Kernels`,
+`Iir`, `Fir`, `Windows`, `Resample`, `Spectral`, facade, and README under
 `vyne/modules/external/vsignal`. Tests and benchmark live in
 `examples/libs/vsignal_test.vy` and `examples/libs/vsignal_bench.vy`
 (1 M-sample moving average / exponential / FIR / biquad timing). Desktop
-coverage is complete. MCU linkage is blocked on the AVR struct runtime:
+coverage is complete. MCU linkage is still blocked on the AVR struct runtime:
 the public surface uses interfaces, which the MCU runtime does not implement
 yet. The kernels themselves are plain array loops.
 
@@ -238,9 +266,9 @@ biquad demos run on both desktop and MCU.
 
 ---
 
-### C5 — `vcontrol` control-systems library `[~]`
+### C5 — `vcontrol` control-systems library `[x] (desktop)`
 
-**Status (2026-11-09):** shipped `Types`, `Pid`, `Filters`, `Kalman`,
+**Status (2026-11-10):** shipped (#121): `Types`, `Pid`, `Filters`, `Kalman`,
 `StateSpace`, facade, and README under `vyne/modules/external/vcontrol`.
 Tests and benchmark live in `examples/libs/vcontrol_test.vy` and
 `examples/libs/vcontrol_bench.vy`. Covers PID (anti-windup, derivative
@@ -336,7 +364,12 @@ precisely).
 
 ---
 
-### C9 — Concurrency: thread-local arenas, sync primitives, `vnet` `[ ]`
+### C9 — Concurrency: thread-local arenas, sync primitives, `vnet` `[~]`
+
+**Status (2026-11-10):** the main arena and checkpoint state are now
+thread-local (`VYNE_THREAD_LOCAL`, #124), so local allocation needs no locks.
+Sync primitives, bounded queues, `vnet`, and hugepage-backed region arenas are
+still absent.
 
 **Why.** HFT needs predictable multi-core latency; some robotics/audio pipelines
 want a producer/consumer split. This is a large, deliberately deferred
@@ -355,7 +388,17 @@ has a concrete user.
 
 ---
 
-### C10 — Autodiff: `@adjoint`, `@differentiable`, `@differentiable_implicit` `[ ]`
+### C10 — Autodiff: `@adjoint`, `@differentiable`, `@differentiable_implicit` `[~]`
+
+**Status (2026-11-10):** the B+A surface shipped (#122). `@differentiable`
+emits a `fn_<name>_grad` companion; `@backward` scopes the reverse sweep to a
+region; `grad(f, x)` is expression-level sugar. Supported today: straight-line
+`Float64` functions over `+ - * / **`, `sin cos exp log sqrt tanh abs relu`, and
+`pow`; plus `Array<Float64>` VJPs for `mse`/`mae`/`dot`/`sum`/`mean`/`norm_sq`/
+`abs_sum` through the `vstat`/`vlin` kernels. Out of scope today and rejected
+with VNE-120..VNE-126 rather than miscompiled: loops, branches, array locals,
+element-wise intermediates, matmul VJPs, `backward(...)` on array parameters,
+`@recompute`/`@mixed` lowering, and implicit differentiation.
 
 **Why.** This is the one genuinely new compiler feature and the gate to Tier 2
 (differentiable simulation, SciML). It is also the single largest strategic bet
@@ -377,20 +420,24 @@ in this document.
 
 **Milestones.**
 
-1. Scalar reverse-mode tape for a fixed op set (`+ - * / exp log sin cos pow
-   matmul`), testable against finite differences.
-2. `@differentiable` functions and a `grad` entry point.
-3. Region-backed tape with a compile-time peak bound and checkpointing.
-4. `@differentiable_implicit` for one solver (Newton root-find; then RK4).
-5. `voptim` integration (Adam/SGD) and a training loop that fits in a region.
+1. [x] Scalar reverse-mode tape for a fixed op set (no `matmul` VJP yet),
+   testable against finite differences.
+2. [x] `@differentiable` functions and a `grad` entry point.
+3. [~] Tape lives in ordinary C locals inside the region, so it dies at rewind
+   and `@bounded` accounts for it; an explicit arena-backed tape with
+   checkpointing is still open (`@recompute` is parsed but not lowered).
+4. [ ] `@differentiable_implicit` for one solver (Newton root-find; then RK4).
+5. [ ] `voptim` integration (Adam/SGD) and a training loop that fits in a
+   region. `voptim` does not exist yet.
 
 **Exit criteria.** A 2-layer network trains to the same loss as the `vml` path
 within tolerance; gradient checks pass; tape peak memory is bounded and
 reported; an ODE-adjoint example matches finite differences for a small Lorenz
 integration.
 
-**Effort.** 10–16 ew. **Risk.** High. **Do not start before C4/C5 and a stable
-`voptim` exist.**
+**Effort.** 10–16 ew. **Risk.** High. C4/C5 have shipped; the remaining gate is
+a stable `voptim` and at least one solver library before AD-based demos are
+worth building.
 
 ---
 
@@ -440,7 +487,12 @@ Uno and STM32 with only a `--board` change.
 
 ---
 
-### C13 — Tooling: telemetry, profiler, trace `[ ]`
+### C13 — Tooling: telemetry, profiler, trace `[~]`
+
+**Status (2026-11-10):** partial. `vmem` exposes arena/peak/live/stream state;
+`@realtime` exposes worst-observed time and overrun counters on desktop and AVR;
+`vdevice` exposes device bytes/peak. There is still no unified
+`vcore.telemetry` API, trace emitter, or `vynec prof`.
 
 **Why.** Determinism is only credible if observable. We need a consistent,
 low-overhead telemetry surface across targets.
@@ -658,6 +710,12 @@ do not accidentally build for them.
 
 ## 6. Release sequencing (proposed, not committed)
 
+**Reality check (2026-11-10):** the tree is still on v0.4.0 in `main.cpp`, but
+has accumulated most of the v0.7 sensing/control capabilities (C1–C5) and part
+of v0.9 autodiff (C10) ahead of schedule. Treat the table as a capability
+grouping, not a release guarantee; `voptim`/`vsparse`/`vdecomp`/`vnum` are still
+the gap between the current tree and the scientific stack.
+
 | Release | Theme | Capabilities | Domains | Exit gate |
 | --- | --- | --- | --- | --- |
 | **v0.7.0** | Sensing & Control | C1, C2 (MVP), C3, C4, C5, C13 (telemetry) | D1 (I0–I4), D2 (R0–R3) | Sensor demo + PID on Uno; `vsignal`/`vcontrol` shipped |
@@ -666,13 +724,22 @@ do not accidentally build for them.
 | **v1.0.0** | SciML & Evidence | C10 (steps 4–5), C11, `vsparse`/`vdecomp`/`vnum` | D5 (S0–S3), D6 (P0–P2) | Neural ODE + PINN + certification bundle |
 | **post-1.0** | Tier 3 evaluation | C8, C9, C12 (as needed) | HFT/contracts/lockstep | Only with a concrete partner/user |
 
-The one dependency that cannot be reordered: **C10 (autodiff) must not start
-before `vsignal`, `vcontrol`, `voptim`, and at least one solver library exist.**
-AD without a numerical ecosystem is a feature nobody can use.
+The one dependency that was supposed to be reordered: **C10 (autodiff) was
+gated on `vsignal`, `vcontrol`, `voptim`, and at least one solver library.**
+In practice the reverse sweep landed early (#122) while `voptim` and the solver
+libraries are still absent. That makes the compiler surface real but not yet
+usable from a full numerical ecosystem; prioritize `voptim` and a solver
+library before building demos that depend on AD.
 
 ---
 
-## 7. The next move (this week) — milestone I0
+## 7. The next move — milestone I0
+
+**Status (2026-11-10):** the `embedded` template and `vynec init` shipped (#113,
+#114), so step 1 below is done. `examples/arduino/sensor_stream.vy` and real
+hardware verification are still the missing pieces. This remains the cheapest
+proof of the thesis, but it is no longer the only near-term item: the numerical
+libraries in `todo_libraries.md` and the WASM/audio work are equally concrete.
 
 This is the cheapest possible proof of the entire thesis. Do it before any of
 the larger work.

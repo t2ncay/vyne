@@ -1,12 +1,23 @@
 # TODO — Per-File Safety Rulesets
 
-Draft. Companion to `todo.md`, `todo_2.md`, `todo_optimization.md`, and
-`todo_libraries.md`.
+**Last updated:** 2026-11-10
 
-**Do not start this until Paper 1 is submitted.** The changes touch the
-parser, the linker, and the driver. Every one of those could shift the
-emitted C in a way that invalidates §5.7, §5.9, or the safety suite. The
-paper's measurements are frozen; the compiler is frozen with them.
+Draft. Companion to `todo.md`, `todo_2.md`, `todo_optimization.md`, `todo_libraries.md`,
+and `todo_expansion.md`.
+
+> **Status snapshot (2026-11-10).** **Not implemented.** The parser has no
+> `safety { }` block, there is no `RulesetFlags` on `ProgramNode` / `CompileUnit`,
+> and there is no per-file `scratch_bounds` / `region_escape` override. The
+> ruleset system does now support executable contracts
+> (`ruleset { contracts = "check" | "evidence" | "off" }`), plus the existing
+> `type_check`, `memory_limit`, warning, and profiling categories. Those are the
+> precedent this document should follow for syntax and reporting.
+>
+> The original "wait for Paper 1" gate no longer reflects the tree: the
+> compiler has continued to evolve well past the region paper. Land this when it
+> is prioritized; the design below still matches the current emitter/CLI
+> structure, with the caveat that `setScratchBoundsEnabled` and the
+> `--no-scratch-bounds` path should be re-checked before starting.
 
 The feature this file specifies: **per-file safety rulesets.** A `.vy`
 file can waive its own bounds checks or escape checks, and the compiler
@@ -583,10 +594,10 @@ shippable.
   compatibility matters more than strictness here.
 - **Don't print the safety report unconditionally.** Respect
   `isQuietMode()`, matching the diagnostic system.
-- **Don't ship this before Paper 1.** The compiler is frozen. Every
-  phase touches code that either emits or gates the checks that §5.7
-  and §5.9 measure. Land it after submission, measure, and use it as
-  evidence in Paper 2 or a revision.
+- **Don't land this without re-measuring the safety suite and the benchmark.**
+  Every phase touches code that either emits or gates the checks the paper and
+  `examples/safety/` exercise. The Paper 1 freeze is historical; the current
+  requirement is a before/after safety-suite run and a benchmark comparison.
 
 ---
 
