@@ -77,6 +77,7 @@ Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 | `device_relu(out, a, n)` | `out = max(a, 0)`, dtype-dispatched |
 | `device_fill(h, v, n)` | fill with `v`, dtype-dispatched |
 | `device_matmul(out, a, b, m, n, k)` | `C[m,n] = A[m,k] * B[k,n]`, row-major, dtype-dispatched |
+| `device_conv2d(out, x, w, b, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad, has_bias)` | HWC conv2d, OIHW weights, square kernel, zero padding, dtype-dispatched |
 | `device_sync()` | wait for outstanding device work |
 | `device_bytes()` | live device-arena bytes |
 | `device_peak_bytes()` | peak device-arena bytes |

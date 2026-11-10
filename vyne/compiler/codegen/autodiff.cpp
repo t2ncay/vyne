@@ -1978,6 +1978,26 @@ std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {
             std::to_string(call.lineNumber) + ")."
         );
     }
+    // Custom `<fn>_vjp` adjoint: call it with the original boxed arguments.
+    // The custom function owns its gradient storage (for example a global
+    // Grads object filled by vconv backward kernels).
+    if (info->custom) {
+        std::vector<std::string> vals;
+        vals.reserve(rec->args.size());
+        for (const ASTNode* a : rec->args)
+            vals.push_back(e.boxAny(a->getCExpr(e)));
+        std::string arr = e.newTemp("vjp_args");
+        e.emit(
+            "VyneValue " + arr + "[" + std::to_string(vals.size()) + "];"
+        );
+        for (size_t i = 0; i < vals.size(); ++i)
+            e.emit(arr + "[" + std::to_string(i) + "] = " + vals[i] + ";");
+        e.emit(
+            info->adjointName + "(" + std::to_string(vals.size()) + ", " +
+            arr + ");"
+        );
+        return "vyne_null()";
+    }
     for (VType t : info->paramTypes) {
         if (t == VType::Array) {
             throw std::runtime_error(

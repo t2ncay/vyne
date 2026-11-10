@@ -228,6 +228,10 @@ static const NativeMapEntry VIMAGE_MAP[] = {
 // CPU forward convolution primitives for the SR inference path.
 static const NativeMapEntry VCONV_MAP[] = {
     {"conv2d_fwd", "vconv_conv2d_fwd", false},
+    {"conv2d_backward_input", "vconv_conv2d_backward_input", false},
+    {"conv2d_backward_weight", "vconv_conv2d_backward_weight", false},
+    {"conv2d_backward_bias", "vconv_conv2d_backward_bias", false},
+    {"relu_backward", "vconv_relu_backward", false},
     {"relu_fwd", "vconv_relu_fwd", false},
     {"leaky_relu_fwd", "vconv_leaky_relu_fwd", false},
     {"tanh_fwd", "vconv_tanh_fwd", false},

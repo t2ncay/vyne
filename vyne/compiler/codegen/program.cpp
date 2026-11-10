@@ -185,6 +185,32 @@ void ProgramNode::compile(C_Emitter& e) const {
         }
     }
 
+    // Custom adjoint convention: a function named `<fn>_vjp` supplies the
+    // reverse pass for `<fn>`. Register all of them before the differentiable
+    // pre-pass so a @differentiable function can use its custom VJP even
+    // when the pair is declared later in the file.
+    for (const auto& stmt : statements) {
+        if (!stmt || stmt->type() != NodeType::FUNCTION)
+            continue;
+        auto* fn = static_cast<const FunctionNode*>(stmt.get());
+        const std::string& rawName = fn->getOriginalName();
+        const std::string suffix = "_vjp";
+        if (rawName.size() <= suffix.size() ||
+            rawName.compare(rawName.size() - suffix.size(), suffix.size(), suffix) != 0)
+            continue;
+        std::string base = rawName.substr(0, rawName.size() - suffix.size());
+        std::string mangled = rawName;
+        std::replace(mangled.begin(), mangled.end(), '.', '_');
+        if (!fn->getTargetModule().empty())
+            mangled = fn->getTargetModule() + "_" + mangled;
+        std::string cName = "fn_" + mangled;
+        e.registerCustomVJP(base, cName);
+        if (!fn->getTargetModule().empty())
+            e.registerCustomVJP(fn->getTargetModule() + "." + base, cName);
+        e.emitGlobalDecl(
+            "VyneValue " + cName + "(int arg_count, VyneValue* args);"
+        );
+    }
     // Pre-register every function and interface under its module, before
     // any call site is lowered. Without this, a call to a same-module
     // function that is defined *later* in the file resolves to the bare
@@ -210,41 +236,62 @@ void ProgramNode::compile(C_Emitter& e) const {
             // is lowered. This makes `grad(f, x)` legal even when `f` is
             // declared later in the file.
             if (fn->isDifferentiable()) {
-                std::string why;
-                if (!vyne_ad::validate(*fn, &why)) {
-                    throw std::runtime_error(
-                        "Compile Error (VNE-120): @differentiable function '" +
-                        fn->getOriginalName() +
-                        "' is outside the supported AD slice: " + why +
-                        " (line " + std::to_string(fn->lineNumber) + ")."
-                    );
-                }
                 std::string mangled = fn->getOriginalName();
                 std::replace(mangled.begin(), mangled.end(), '.', '_');
                 if (!fn->getTargetModule().empty())
                     mangled = fn->getTargetModule() + "_" + mangled;
 
-                std::string adj = vyne_ad::adjointCName(mangled);
                 size_t arity = fn->getParameters().size();
                 std::vector<VType> paramTypes;
                 paramTypes.reserve(arity);
                 for (const auto& p : fn->getParameters())
                     paramTypes.push_back(p.type);
-                e.registerDifferentiable(
-                    fn->getOriginalName(), adj, arity, paramTypes
-                );
-                e.registerDifferentiable(mangled, adj, arity, paramTypes);
-                if (!fn->getTargetModule().empty()) {
+
+                const std::string* custom =
+                    e.lookupCustomVJP(fn->getOriginalName());
+                if (custom) {
                     e.registerDifferentiable(
-                        fn->getTargetModule() + "." + fn->getOriginalName(),
-                        adj,
-                        arity,
-                        paramTypes
+                        fn->getOriginalName(), *custom, arity, paramTypes, true
+                    );
+                    e.registerDifferentiable(
+                        mangled, *custom, arity, paramTypes, true
+                    );
+                    if (!fn->getTargetModule().empty()) {
+                        e.registerDifferentiable(
+                            fn->getTargetModule() + "." + fn->getOriginalName(),
+                            *custom,
+                            arity,
+                            paramTypes,
+                            true
+                        );
+                    }
+                } else {
+                    std::string why;
+                    if (!vyne_ad::validate(*fn, &why)) {
+                        throw std::runtime_error(
+                            "Compile Error (VNE-120): @differentiable function '" +
+                            fn->getOriginalName() +
+                            "' is outside the supported AD slice: " + why +
+                            " (line " + std::to_string(fn->lineNumber) + ")."
+                        );
+                    }
+                    std::string adj = vyne_ad::adjointCName(mangled);
+                    e.registerDifferentiable(
+                        fn->getOriginalName(), adj, arity, paramTypes
+                    );
+                    e.registerDifferentiable(mangled, adj, arity, paramTypes);
+                    if (!fn->getTargetModule().empty()) {
+                        e.registerDifferentiable(
+                            fn->getTargetModule() + "." + fn->getOriginalName(),
+                            adj,
+                            arity,
+                            paramTypes
+                        );
+                    }
+                    e.emitGlobalDecl(
+                        vyne_ad::adjointPrototype(*fn, mangled) + ";"
                     );
                 }
-                e.emitGlobalDecl(
-                    vyne_ad::adjointPrototype(*fn, mangled) + ";"
-                );
             }
         } else if (stmt->type() == NodeType::INTERFACE) {
             auto* iface = static_cast<const InterfaceNode*>(stmt.get());
