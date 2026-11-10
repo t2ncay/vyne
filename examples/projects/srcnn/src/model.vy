@@ -5,14 +5,23 @@
 # can only learn a correction. Training uses L2 loss for stable PSNR
 # convergence on the small scratch model; pure L1 was evaluated but stalled.
 #
-# Training uses the explicit vconv backward kernels. The compiler's
-# @differentiable path does not yet carry convolution VJPs or array locals,
-# so the backward pass is written out here.
+# Training uses the compiler's @backward region. `sr_loss_vjp` is registered
+# by the `<fn>_vjp` convention and calls the explicit vconv backward kernels;
+# full tensor AD for convolution is still deferred.
 
 use native vmath;
 use native vcore;
 use native vfs;
 use external "vconv/vconv.vy";
+
+# Gradient storage for the compiler-registered `sr_loss_vjp` custom adjoint.
+grad_w1 :: Array<Float64> := [];
+grad_b1 :: Array<Float64> := [];
+grad_w2 :: Array<Float64> := [];
+grad_b2 :: Array<Float64> := [];
+grad_w3 :: Array<Float64> := [];
+grad_b3 :: Array<Float64> := [];
+grad_loss :: Float64 := 0.0;
 
 ruleset { dynamic_casting };
 
@@ -141,6 +150,34 @@ fn append_tensor(sb :: Int64, name :: String, data :: Array<Float64>,
         vcore.sb_append(sb, " ");
     };
     vcore.sb_append(sb, "\n");
+}
+
+@differentiable
+fn sr_loss(x :: vconv.Tensor, y :: vconv.Tensor, model :: SRCNN) -> Float64 {
+    pred :: vconv.Tensor := forward(model, x);
+    n :: Int64 := pred.data.size();
+    s :: Float64 := 0.0;
+    through i :: 0..n-1 -> loop {
+        d :: Float64 := pred.data[i] - y.data[i];
+        s = s + d * d;
+    };
+    return s / float64(n);
+}
+
+# Registered by convention as the reverse pass for sr_loss.
+fn sr_loss_vjp(x :: vconv.Tensor, y :: vconv.Tensor, model :: SRCNN) {
+    g :: Grads := loss_and_grads(model, x, y);
+    grad_w1 = g.w1;
+    grad_b1 = g.b1;
+    grad_w2 = g.w2;
+    grad_b2 = g.b2;
+    grad_w3 = g.w3;
+    grad_b3 = g.b3;
+    grad_loss = g.loss;
+}
+
+fn last_grads() -> Grads {
+    return Grads(grad_w1, grad_b1, grad_w2, grad_b2, grad_w3, grad_b3, grad_loss);
 }
 
 fn save_model(path :: String, model :: SRCNN) {

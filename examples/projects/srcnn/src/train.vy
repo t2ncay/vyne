@@ -3,9 +3,9 @@
 #   vynec --compile src/train.vy && ./src/train
 #
 # The forward pass uses vconv's native convolution kernels. The backward
-# pass uses the explicit vconv backward kernels and voptim Adam. This is
-# the honest path today: @differentiable has no convolution VJP and no
-# array-local support, and @device exposes matmul/elementwise, not conv.
+# pass runs through the compiler's @backward region: sr_loss_vjp is the
+# registered custom adjoint and calls the explicit vconv backward kernels.
+# General tensor AD for convolution is still deferred.
 
 use native vcore;
 use native vmath;
@@ -54,27 +54,31 @@ opt_b3 :: voptim.AdamState := voptim.AdamState(model.b3, z_b3, v_b3, 0.9, 0.999,
 initial :: vconv.Tensor := forward(model, x);
 initial_img :: vimage.Image := vimage.Image(initial.width, initial.height, initial.channels, initial.data);
 out("initial PSNR (bilinear): " + string(psnr(initial_img, hr_img)) + " dB");
-initial_loss :: Grads := loss_and_grads(model, x, y);
-out("initial L2             : " + string(initial_loss.loss));
+initial_loss :: Float64 := sr_loss(x, y, model);
+out("initial L2             : " + string(initial_loss));
 
 EPOCHS :: Int64 := 300;
 BASE_LR :: Float64 := 0.002;
 
 t0 :: Int64 := vcore.now_ns();
 through epoch :: 1..EPOCHS -> loop {
-    g :: Grads := loss_and_grads(model, x, y);
-    lr :: Float64 := voptim.cosine(epoch, BASE_LR, EPOCHS);
+    @backward region step {
+        loss :: Float64 := sr_loss(x, y, model);
+        backward(loss);
+        g :: Grads := last_grads();
+        lr :: Float64 := voptim.cosine(epoch, BASE_LR, EPOCHS);
 
-    voptim.adam_step(opt_w1, voptim.Series(g.w1, 8 * 3 * 5 * 5), lr);
-    voptim.adam_step(opt_b1, voptim.Series(g.b1, 8), lr);
-    voptim.adam_step(opt_w2, voptim.Series(g.w2, 4 * 8), lr);
-    voptim.adam_step(opt_b2, voptim.Series(g.b2, 4), lr);
-    voptim.adam_step(opt_w3, voptim.Series(g.w3, 3 * 4 * 5 * 5), lr);
-    voptim.adam_step(opt_b3, voptim.Series(g.b3, 3), lr);
+        voptim.adam_step(opt_w1, voptim.Series(g.w1, 8 * 3 * 5 * 5), lr);
+        voptim.adam_step(opt_b1, voptim.Series(g.b1, 8), lr);
+        voptim.adam_step(opt_w2, voptim.Series(g.w2, 4 * 8), lr);
+        voptim.adam_step(opt_b2, voptim.Series(g.b2, 4), lr);
+        voptim.adam_step(opt_w3, voptim.Series(g.w3, 3 * 4 * 5 * 5), lr);
+        voptim.adam_step(opt_b3, voptim.Series(g.b3, 3), lr);
 
-    if (epoch % 5 == 0) || (epoch == 1) {
-        out("epoch " + string(epoch) + " | lr " + string(lr) + " | L2 " + string(g.loss));
-    }
+        if (epoch % 5 == 0) || (epoch == 1) {
+            out("epoch " + string(epoch) + " | lr " + string(lr) + " | L2 " + string(g.loss));
+        }
+    };
 };
 t1 :: Int64 := vcore.now_ns();
 

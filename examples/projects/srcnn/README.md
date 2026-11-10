@@ -55,9 +55,10 @@ default, Float64 opt-in) alongside matmul and the elementwise kernels. If CUDA
 is unavailable, the same device calls fall back to the CPU backend and the
 output is unchanged.
 
-Training is still CPU-side: it uses the explicit `vconv` backward kernels and
-`voptim` Adam, because the compiler AD path does not yet carry convolution
-VJPs or tensor locals. The forward inference path is fully GPU-capable.
+Training is still CPU-side. It now uses the compiler's `@backward` region with
+a registered custom adjoint (`sr_loss_vjp`), which calls the `vconv` backward
+kernels and fills a global `Grads` object. The forward inference path is fully
+GPU-capable; GPU training needs device backward kernels.
 
 ## Training path
 
@@ -68,10 +69,19 @@ VJPs or tensor locals. The forward inference path is fully GPU-capable.
 - `conv2d_backward_bias`
 - `relu_backward`
 
-The training script uses those explicit kernels and `voptim` Adam. The
-compiler's `@differentiable` path is not used for convolution: it has no conv
-VJP and does not support array locals. This is documented in
-`src/model.vy`.
+The compiler's general tensor AD is still scalar/array-reduction only, so the
+project registers a custom adjoint by convention instead:
+
+- `sr_loss` is marked `@differentiable`.
+- `sr_loss_vjp` (the `<fn>_vjp` convention) is the reverse pass. It calls
+  `loss_and_grads` and publishes the weight gradients through `last_grads()`.
+- `train.vy` writes `@backward region step { loss := sr_loss(...);
+  backward(loss); ... }`; the optimizer steps run inside the region because
+  the gradient buffers are arena-scoped.
+
+This removes the explicit backprop loop from the training script. Full
+automatic differentiation of `vconv.conv2d` calls is still the next AD step;
+the custom adjoint is the bridge.
 
 ## Layout
 
@@ -127,6 +137,7 @@ Outputs:
 - **FSR baseline is a style implementation**, not bit-exact AMD FSR 1.0.
 - **GPU conv training is not implemented.** Inference is fully on-device;
   training uses CPU backward kernels because compiler conv VJPs are not landed.
-- **No `@differentiable` conv yet.** Training uses explicit backward kernels.
+- **Conv VJP is a custom adjoint, not automatic tensor AD.** `sr_loss_vjp`
+  uses the vconv backward kernels; automatic conv VJPs remain a follow-up.
 - The bundled `data/espcn_x2.vwy` is the template's passthrough model; it is
   not used by this project's SRCNN path.
