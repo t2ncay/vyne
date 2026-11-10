@@ -23,6 +23,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "../vyne/compiler/ast/ast.h"
 #include "../vyne/compiler/ast/value.h"
@@ -65,6 +66,42 @@ enum class RunMode {
     ArduinoRun      // + avr-objcopy -> .hex, ready for avrdude
 };
 
+// ---------------------------------------------------------------------------
+// Project configuration (project.toml)
+// ---------------------------------------------------------------------------
+// Parsed by cli/project.cpp. Only the schema the build driver needs is
+// represented here; unknown sections and keys are ignored by the parser so
+// project.toml can grow without breaking older compilers.
+//
+// Field names mirror the TOML keys:
+//
+//   [project]          name, version
+//   [dependencies]     vlin = "0.4", vml = "0.4", ...
+//   [targets]          default = "desktop"
+//   [targets.desktop]  backend = "c", device = "cuda", board = "..."
+//   [build]            deterministic = true
+//   [device.cuda]      sm_version = "86"
+// ---------------------------------------------------------------------------
+struct ProjectConfig {
+    std::string name;
+    std::string version;
+    std::string default_target;
+    std::string backend;
+    std::string device; // "cuda", "coral", ...
+    std::string board;  // "arduino:avr:uno"
+    std::vector<std::string> dependencies;
+    bool deterministic = false;
+    int cuda_sm = 0;
+
+    // Discovery metadata. `root_dir` is the directory containing
+    // project.toml; `toml_path` is the file itself. `dependency_paths` is
+    // parallel to `dependencies` — an empty entry means the dependency was
+    // not found in any known module root.
+    std::string root_dir;
+    std::string toml_path;
+    std::vector<std::string> dependency_paths;
+};
+
 struct BuildOptions {
     RunMode mode = RunMode::Interpret;
     bool nativeIsa = false;
@@ -83,6 +120,13 @@ struct BuildOptions {
     bool arduinoUpload = false;  // --flash: arduino-cli upload <hex>
     bool arduinoMonitor = false; // --monitor: arduino-cli monitor
     int baudRate = 115200;       // --baud: must match vyne_arduino.h
+
+    // Present when the driver was launched through `vynec build` / `vynec
+    // run` and a project.toml was discovered. The flag-based CLI leaves
+    // this clear, so the project box is never printed for plain
+    // `vynec --run foo.vy`.
+    ProjectConfig project;
+    bool hasProject = false;
 };
 
 int runFile(

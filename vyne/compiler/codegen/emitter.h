@@ -317,6 +317,14 @@ class C_Emitter {
 
     bool scratchBoundsEnabled = true;
     bool blasEnabled = false;
+
+    // Project-level build policy from project.toml. Emitted as
+    // VYNE_DETERMINISTIC_BUILD / VYNE_CUDA_SM_VERSION defines so the
+    // runtime and generated code can specialize without the C emitter
+    // knowing about the TOML schema.
+    bool deterministicBuild_ = false;
+    int cudaSmVersion_ = 0;
+
     bool poolRuntimeEmitted = false;
     bool slabRuntimeEmitted = false;
     bool ringRuntimeEmitted = false;
@@ -969,6 +977,13 @@ class C_Emitter {
     }
     bool isBlasEnabled() const {
         return blasEnabled;
+    }
+
+    void setDeterministicBuild(bool v) {
+        deterministicBuild_ = v;
+    }
+    void setCudaSmVersion(int v) {
+        cudaSmVersion_ = v;
     }
 
     // --- M4-C1B: interface field typing ---------------------------------
@@ -1784,6 +1799,14 @@ class C_Emitter {
     std::string finalize(const std::string& runtimeHeader = "vyne_runtime.h") {
         std::stringstream out;
 
+        // Project build policy (empty for plain flag-based invocations).
+        if (deterministicBuild_)
+            out << "#define VYNE_DETERMINISTIC_BUILD 1\n";
+        if (cudaSmVersion_ > 0)
+            out << "#define VYNE_CUDA_SM_VERSION " << cudaSmVersion_ << "\n";
+        if (deterministicBuild_ || cudaSmVersion_ > 0)
+            out << "\n";
+
         if (arduinoTarget_) {
             out << "#include <Arduino.h>\n";
             // Peripheral headers are opt-in: a sketch that never calls
@@ -1906,6 +1929,8 @@ class C_Emitter {
         ringRuntimeEmitted = false;
         scratchBoundsEnabled = true;
         blasEnabled = false;
+        deterministicBuild_ = false;
+        cudaSmVersion_ = 0;
         zeroModeDepth = 0;
         boundedStack.clear();
         currentReturnVar.clear();
