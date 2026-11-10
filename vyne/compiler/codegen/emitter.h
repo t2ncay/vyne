@@ -439,19 +439,37 @@ class C_Emitter {
         std::string adjointName; // C name of `fn_<mangled>_grad`
         size_t arity = 0;
         std::vector<VType> paramTypes;
+        bool custom = false; // registered by the `<fn>_vjp` convention
     };
     void registerDifferentiable(
         const std::string& name,
         std::string adjointName,
         size_t arity,
-        std::vector<VType> paramTypes = {}
+        std::vector<VType> paramTypes = {},
+        bool custom = false
     ) {
-        differentiable_[name] =
-            ADInfo{std::move(adjointName), arity, std::move(paramTypes)};
+        differentiable_[name] = ADInfo{
+            std::move(adjointName),
+            arity,
+            std::move(paramTypes),
+            custom
+        };
     }
     const ADInfo* lookupDifferentiable(const std::string& name) const {
         auto it = differentiable_.find(name);
         return it == differentiable_.end() ? nullptr : &it->second;
+    }
+
+    // A function named `<fn>_vjp` registers itself as the custom adjoint
+    // for `<fn>` by convention. This lets a function with tensor/array
+    // locals opt out of the scalar AD subset and supply its own reverse
+    // pass (for example a conv-net loss using vconv backward kernels).
+    void registerCustomVJP(const std::string& base, std::string cName) {
+        customVJPs_[base] = std::move(cName);
+    }
+    const std::string* lookupCustomVJP(const std::string& base) const {
+        auto it = customVJPs_.find(base);
+        return it == customVJPs_.end() ? nullptr : &it->second;
     }
 
     // --- Phase B (AD): `@backward` region scope ------------------------
@@ -510,6 +528,7 @@ class C_Emitter {
     // Phase B (AD) state. `differentiable_` is program-global (survives
     // function boundaries); the other two are per-function.
     std::unordered_map<std::string, ADInfo> differentiable_;
+    std::unordered_map<std::string, std::string> customVJPs_;
     std::vector<BackwardRegion> backwardRegions_;
     std::unordered_map<std::string, std::string> gradientAccess_;
 
@@ -1901,6 +1920,7 @@ class C_Emitter {
         functionReturnTypes.clear();
         nativeVariants.clear();
         differentiable_.clear();
+        customVJPs_.clear();
         backwardRegions_.clear();
         gradientAccess_.clear();
         nativeReturnType = CType{};

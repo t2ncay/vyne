@@ -45,7 +45,10 @@ class FunctionCallNode;
 //     sin/cos/exp/log/sqrt/tanh/abs/relu, plus pow(a, b).
 //
 // Anything outside the subset is rejected with VNE-120..VNE-126 so a user
-// never silently gets a wrong gradient.
+// never silently gets a wrong gradient, unless the function registers a
+// custom `<fn>_vjp` adjoint. The custom adjoint receives the original boxed
+// arguments and owns its gradient storage; the compiler only routes
+// `backward(loss)` to it.
 // ---------------------------------------------------------------------------
 namespace vyne_ad {
 

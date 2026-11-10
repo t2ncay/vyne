@@ -108,6 +108,51 @@ Array arguments must be plain variables (parameters or read-only globals). The
 gradient is returned in a fresh `VyneArray_f64`; when the call sits inside a
 region, that container is region-scoped like every other value.
 
+## Custom adjoints (`<fn>_vjp`)
+
+A function named `<fn>_vjp` registers itself as the reverse pass for `<fn>`.
+This is the escape hatch for functions outside the scalar/array-reduction
+subset - for example a conv-net loss that carries `Tensor` locals and calls
+`vconv.conv2d`.
+
+The custom adjoint receives the original call's arguments as boxed values and
+owns its gradient storage. It runs when `backward(loss)` consumes the recorded
+`@differentiable` call:
+
+```vyne
+g :: Array<Float64> := [0.0];
+
+fn square_vjp(x :: Float64) {
+    g[0] = 2.0 * x;
+}
+
+@differentiable
+fn square(x :: Float64) -> Float64 {
+    return x * x;
+}
+
+@backward region step {
+    loss :: Float64 := square(3.0);
+    backward(loss);
+};
+# g[0] == 6.0
+```
+
+Rules:
+
+- The name must be exactly `<primal>_vjp` (module-qualified names are supported).
+- The adjoint's parameters must match the primal's parameter list.
+- There is no `d_out` parameter: a scalar `backward(loss)` seeds with `1.0`.
+- The compiler does not validate the primal body when a custom adjoint exists;
+  the custom function is responsible for the reverse computation.
+- Gradient storage lives wherever the adjoint puts it (globals, a `Grads`
+  object, caller-provided state). `w.grad` scalar slots are not extended to
+  array/Tensor parameters yet.
+
+The `srcnn` project uses this convention: `sr_loss` is `@differentiable` and
+`sr_loss_vjp` fills a global `Grads` using the explicit `vconv` backward
+kernels. The training loop then writes `backward(loss)` and reads
+`last_grads()`; the explicit backprop loop is gone.
 ## What the compiler emits
 
 For
