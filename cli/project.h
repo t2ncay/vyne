@@ -43,6 +43,19 @@ bool findProjectToml(const std::string& startDir, std::string& outPath);
 // Returns true and sets `outEntry` to the absolute entry-point path.
 bool findProjectEntry(const std::string& projectDir, std::string& outEntry);
 
+// Result of a full project lookup: discovery + parsing + dependency
+// resolution. `found == false` means no project.toml was walked up to;
+// `ok == false` means one was found but failed to parse.
+struct ProjectLoadResult {
+    bool found = false;
+    bool ok = false;
+    ProjectConfig config;
+    std::string error;
+};
+
+// Discover project.toml from `startDir`, parse it, and resolve dependencies.
+ProjectLoadResult loadProject(const std::string& startDir);
+
 // Parse a project.toml file. On failure returns false and, when `error` is
 // non-null, fills it with a `path:line: message` diagnostic.
 bool readProjectToml(

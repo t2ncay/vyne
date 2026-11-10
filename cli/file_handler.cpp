@@ -81,6 +81,8 @@ std::string humanSize(uintmax_t bytes) {
     return std::to_string(bytes / (1024 * 1024)) + " MB";
 }
 
+} // namespace
+
 void sectionOpen(const char* label) {
     std::cout << "\n";
     std::cout << CYAN << "  >> " << label << RESET << "\n";
@@ -99,7 +101,7 @@ void sectionClose() {
 // One row inside the `>> project` box: colored label, aligned value.
 // Padding is computed from `label.size()` (visible length), so ANSI escapes
 // do not disturb the column.
-void projectRow(
+static void projectRow(
     const std::string& label,
     const std::string& value,
     const char* valueColor
@@ -139,8 +141,6 @@ void printProjectBox(const ProjectConfig& cfg) {
 
     sectionClose();
 }
-
-} // namespace
 
 // ---------------------------------------------------------------------------
 // Arduino AVR Build Helper
@@ -486,8 +486,10 @@ static int runTranspile(
     int tokenCount = (int)tokens_for_count.size();
     int lineCount = (int)std::count(content.begin(), content.end(), '\n') + 1;
 
-    std::cout << "\n";
-    std::cout << BOLD << "  Compiling " << RESET << filename << "\n\n";
+    if (!opts.quiet) {
+        std::cout << "\n";
+        std::cout << BOLD << "  Compiling " << RESET << filename << "\n\n";
+    }
 
     // ---------------- Phase 1: Vyne source -> C source ----------------
     auto start_transpile = std::chrono::high_resolution_clock::now();
@@ -553,9 +555,11 @@ static int runTranspile(
     std::chrono::duration<double, std::milli> transpile_ms =
         end_transpile - start_transpile;
 
-    std::cout << GREEN << "  transpile" << RESET << "  " << lineCount
-              << " lines  " << tokenCount << " tokens  " << std::fixed
-              << std::setprecision(2) << transpile_ms.count() << "ms\n";
+    if (!opts.quiet) {
+        std::cout << GREEN << "  transpile" << RESET << "  " << lineCount
+                  << " lines  " << tokenCount << " tokens  " << std::fixed
+                  << std::setprecision(2) << transpile_ms.count() << "ms\n";
+    }
 
     // ---------------- Phase 2a: stop here for --emit-c ----------------
     if (opts.mode == RunMode::EmitC) {
@@ -802,9 +806,12 @@ static int runTranspile(
                               ? humanSize(std::filesystem::file_size(exeName))
                               : "?";
 
-    std::cout << GREEN << "  compile  " << RESET << "  gcc -O3"
-              << (opts.nativeIsa ? " -march=native" : "") << "  " << std::fixed
-              << std::setprecision(2) << compile_ms.count() << "ms\n";
+    if (!opts.quiet) {
+        std::cout << GREEN << "  compile  " << RESET << "  gcc -O3"
+                  << (opts.nativeIsa ? " -march=native" : "") << "  "
+                  << std::fixed << std::setprecision(2) << compile_ms.count()
+                  << "ms\n";
+    }
 
     // ---------------- Phase 3: run for --run (default) ----------------
     if (opts.mode == RunMode::CompileRun) {
@@ -866,23 +873,31 @@ static int runTranspile(
     }
 
     // ---------------- --compile: stop after the .exe is built ----------------
-    double total_ms = transpile_ms.count() + compile_ms.count();
-    vprintln("\n{}{}{}  >> summary {}", BOLD, YELLOW, "", RESET);
-    vprintln(
-        "{} {} binary     {} ({}) {}",
-        YELLOW,
-        "  -",
-        GREEN,
-        exeName,
-        CYAN,
-        sizeStr,
-        RESET
-    );
-    vprintln("     {}transpile {:.2f}ms", GREEN, transpile_ms.count());
-    vprintln("     {}compile   {:.2f}ms", GREEN, compile_ms.count());
-    vprintln("{} {} {}total      {:.2f}ms", YELLOW, "  -", BOLD, total_ms);
+    if (!opts.quiet) {
+        double total_ms = transpile_ms.count() + compile_ms.count();
+        vprintln("\n{}{}{}  >> summary {}", BOLD, YELLOW, "", RESET);
+        vprintln(
+            "{} {} binary     {} ({}) {}",
+            YELLOW,
+            "  -",
+            GREEN,
+            exeName,
+            CYAN,
+            sizeStr,
+            RESET
+        );
+        vprintln("     {}transpile {:.2f}ms", GREEN, transpile_ms.count());
+        vprintln("     {}compile   {:.2f}ms", GREEN, compile_ms.count());
+        vprintln(
+            "{} {} {}total      {:.2f}ms",
+            YELLOW,
+            "  -",
+            BOLD,
+            total_ms
+        );
 
-    Vyne::DiagnosticEngine::printSummary();
+        Vyne::DiagnosticEngine::printSummary();
+    }
     return 0;
 }
 
@@ -944,8 +959,9 @@ int runFile(
 
     // Project banner is part of the compilation phase, before any source
     // is read or parsed. It is only present for `vynec build` / `vynec run`
-    // with a discovered project.toml.
-    if (opts.hasProject)
+    // with a discovered project.toml. The benchmark driver prints its own
+    // banner and compiles quietly.
+    if (opts.hasProject && !opts.quiet)
         printProjectBox(opts.project);
 
     std::ifstream file(filename);
