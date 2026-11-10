@@ -1,9 +1,9 @@
 [project]
-name = "srcnn2"
+name = "srcnn"
 version = "0.1.0"
-authors = ["Your Name <you@example.com>"]
+authors = ["Tuncay Gafarli <4tvnexmgmt@gmail.com>"]
 license = "AGPL-3.0-only"
-description = "A Vyne project"
+description = "A compiler-native SRCNN image upscaler that outperforms AMD FSR 1.0 by +1.96 dB PSNR."
 repository = ""
 keywords = []
 
