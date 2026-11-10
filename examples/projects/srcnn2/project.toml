@@ -1,0 +1,53 @@
+[project]
+name = "srcnn2"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+license = "AGPL-3.0-only"
+description = "A Vyne project"
+repository = ""
+keywords = []
+
+[toolchain]
+vyne = "0.4.0"
+ggml = "0.9.4"
+
+[dependencies]
+vlin = "0.4"
+vml = "0.4"
+vstat = "0.2"
+vtermplot = "0.4"
+vfft = "0.4"
+vcomplex = "0.4"
+vcsv = "0.4"
+vimage = "0.4"
+vconv = "0.4"
+
+[targets]
+default = "desktop"
+
+[targets.desktop]
+backend = "c"
+
+[targets.coral]
+backend = "c"
+device = "coral"
+quantize = "int8"
+
+[build]
+default_targets = ["desktop", "coral"]
+deterministic = true
+
+[test]
+discovery = "tests/*.vy"
+snapshot_format = "json"
+
+[bench]
+warmup = 10
+iterations = 100
+report = "build/bench.json"
+
+[data]
+iris = { url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data", sha256 = "6f608b71a7317216319b4d27b4d9bc84e6abd734eda7872b71a458569e2656c0" }
+
+[device.cuda]
+sm_version = "86"
