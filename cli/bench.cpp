@@ -179,6 +179,28 @@ std::string relativeDisplay(const fs::path& path, const fs::path& base) {
     return text.empty() ? path.filename().string() : text;
 }
 
+// True when `path` is a descendant of `root`. `fs::relative` is used
+// instead of a string prefix check so `C:\project` never matches
+// `C:\project-old`, and different Windows drives fail cleanly.
+bool isInsideDirectory(const fs::path& path, const fs::path& root) {
+    std::error_code ec;
+    fs::path relative = fs::relative(path, root, ec);
+    if (ec || relative.empty())
+        return false;
+
+    auto first = relative.begin();
+    return first == relative.end() || *first != "..";
+}
+
+// Standard-library imports live under the compiler installation's
+// modules/external or modules/common trees. Those files are read-only
+// dependencies and must never be benchmark targets.
+bool isStandardLibraryPath(const fs::path& path) {
+    std::string normalized = path.lexically_normal().generic_string();
+    return normalized.find("/modules/external/") != std::string::npos ||
+           normalized.find("/modules/common/") != std::string::npos;
+}
+
 BenchStats computeStats(std::vector<double> times) {
     BenchStats stats;
     if (times.empty())
@@ -412,16 +434,26 @@ std::vector<BenchTarget> collectProjectTargets(
         return {};
     }
 
-    std::vector<BenchTarget> local;
-    std::vector<BenchTarget> external;
+    std::vector<BenchTarget> projectFiles;
     std::set<std::string> seen;
 
     seen.insert(entryCanonical.string());
 
     for (const auto& unit : units) {
+        // `unit.isExtern` is the parser's own classification; the path
+        // checks below additionally catch relative imports that happen to
+        // point into a standard-library tree.
+        if (unit.isExtern)
+            continue;
+
         fs::path path = fs::weakly_canonical(fs::path(unit.canonicalPath), ec);
         if (ec)
             path = fs::path(unit.canonicalPath);
+
+        if (!isInsideDirectory(path, config.root_dir))
+            continue;
+        if (isStandardLibraryPath(path))
+            continue;
 
         std::string identity = path.string();
         if (!seen.insert(identity).second)
@@ -431,21 +463,15 @@ std::vector<BenchTarget> collectProjectTargets(
         if (extension != ".vy" && extension != ".vyne")
             continue;
 
-        BenchTarget target{path, relativeDisplay(path, config.root_dir)};
-        if (unit.isExtern)
-            external.push_back(std::move(target));
-        else
-            local.push_back(std::move(target));
+        projectFiles.push_back({path, relativeDisplay(path, config.root_dir)});
     }
 
     auto byKey = [](const BenchTarget& a, const BenchTarget& b) {
         return a.key < b.key;
     };
-    std::sort(local.begin(), local.end(), byKey);
-    std::sort(external.begin(), external.end(), byKey);
+    std::sort(projectFiles.begin(), projectFiles.end(), byKey);
 
-    targets.insert(targets.end(), local.begin(), local.end());
-    targets.insert(targets.end(), external.begin(), external.end());
+    targets.insert(targets.end(), projectFiles.begin(), projectFiles.end());
     return targets;
 }
 
