@@ -931,3 +931,304 @@ Raylib, X11/OpenGL dev packages, and their link flags are gone from CI. This mat
 See `git log v0.5.0..HEAD` for the raw list. The 40 commits this release covers span `7ac3925` (2026-10-29) through `47795fd` (2026-11-09).
 
 **Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.5.0...v0.6.0>
+
+---
+
+# Vyne v0.7.0 - differentiable implicit regions, project-aware tooling, and the numerical stack
+
+**Released 2026-11-11**
+
+This release makes Vyne's automatic-differentiation stack cover implicit equations, not just explicit code: `@implicit` regions solve `F(x, z) = 0` and differentiate the residual at the root with the Implicit Function Theorem, without unrolling the solver. It also lands the source-to-source AD surface (`@differentiable`, `@backward`, `grad`), custom `<fn>_vjp` adjoints, the `voptim` / `vsparse` / `vdecomp` and `vsignal` / `vcontrol` numerical libraries, project-aware `vynec build` / `run` / `bench` commands with JSON reports, thread-local arenas and `@layout<soa>` struct scratch, early `drop()` and zero-copy `region.move()`, `@realtime` deadlines with executable contracts, Arduino I2C/SPI bindings, and a full-device SRCNN showcase. The documentation site was rebuilt around the current language and library surface, and the planning documents were reconciled with the shipped tree.
+
+---
+
+## Highlights
+
+- **Differentiable implicit regions.** `@implicit` composes with the region policies, enables `newton_solve(F, x..., z0)` / `implicit_solve`, and lowers `backward(root[, seed])` to a one-shot residual adjoint using `dz/dx_i = -(dF/dx_i)/(dF/dz)`. Solver iterations are never stored or replayed. Adds `VNE-127` / `VNE-128` and a self-checking `implicit_test.vy`. Commit `6cd2870` (#132).
+
+- **Source-to-source AD surface.** `@differentiable fn`, `@backward region`, and `grad(f, x)` generate a primal plus a `fn_<name>_grad` companion for straight-line `Float64` bodies and `Array<Float64>` reduction VJPs. A `<fn>_vjp` convention supplies custom reverse passes for tensor-shaped losses. Commits `be018e0` (#122), `c595bdd` (#128).
+
+- **Scientific library stack.** `voptim` ships SGD/momentum/Nesterov/Adam/AdamW/RMSProp/Adagrad plus learning-rate schedules; `vsparse` ships CSR, SpMV, residuals, and conjugate gradient; `vdecomp` ships LU, QR, Cholesky, Jacobi eigen, and singular values. `vsignal` adds DSP filters and `vcontrol` adds PID, complementary and Kalman filters plus state-space models. Commits `05d8f50` (#127), `6d75b19` (#121).
+
+- **Project-aware CLI.** `vynec build` and `vynec run` discover `project.toml`, resolve the conventional entry point, load dependencies, and map targets; `vynec bench` adds warmup/measured runs, mean/median/min/max/p95/p99/stddev, and deterministic JSON reports. The existing flag-based CLI is unchanged. Commits `867a638` (#129), `a890577` (#130).
+
+- **Region and runtime upgrades.** Arenas are thread-local while the commit arena is a shared, spinlock-protected hand-off point; `@layout<soa>` lowers struct scratch to one packed array per field. `drop()` reclaims a typed-array tail early and `region.move()` transfers large allocations into the commit arena without a copy. `@realtime<ms>` adds deadline telemetry and executable `requires` / `ensures` / `@invariant` contracts. Commits `e64ed24` (#124), `a3c8d27` (#123), `e8b9dfa` (#120).
+
+- **Arduino I2C/SPI.** The AVR backend gains 8 Wire bindings and 6 SPI bindings, typed `vi2c` / `vspi` surfaces with range validation, and demand-driven bundled-library builds that keep unused peripherals out of the firmware. Commits `748c6fa` (#118).
+
+- **Full-device SRCNN and convolution adjoints.** `vconv` gains CPU backward kernels, the device backend gains FP32/FP64 `conv2d`, and the SRCNN project runs all convolutions, ReLUs, residual add, and download inside one `@device<cuda>` frame while training through `@backward` and a custom `sr_loss_vjp`. Commit `c595bdd` (#128).
+
+- **Documentation rebuild.** The GitHub Pages site is regenerated from `docs/src` with full pages for AD, CUDA/`@device`, the AVR target, all 20+ libraries, the CLI, performance, keywords, operators, and error codes; the README region-policy matrix and external-library section are refreshed. Commits `6fdda0d` (#131), `a0fef12`, `206b127`, `3c72cc5`, `8bfa634`.
+
+---
+
+## New features
+
+### Differentiable implicit regions
+
+`@implicit` marks a region whose body solves an implicit equation. The compiler emits a Newton primal over the residual's native Float64 variant and records the converged root plus the captured parameter values as ordinary C locals. The reverse pass differentiates the residual once at that fixed point and applies the Implicit Function Theorem:
+
+```
+dz/dx_i = -(dF/dx_i) / (dF/dz)
+```
+
+```vyne
+@differentiable
+fn residual(x :: Float64, z :: Float64) -> Float64 {
+    return z * z * z + x - 1.0;
+}
+
+x :: Float64 := 0.0;
+
+@implicit
+@bounded<64_000_000>
+region solve {
+    z :: Float64 := newton_solve(residual, x, 0.0);
+    backward(z);              # x.grad = -1/3
+};
+```
+
+- `newton_solve(F, x..., z0)` and `implicit_solve` are intercepted only inside an `@implicit` region; outside it, the names resolve as ordinary functions.
+- The residual must be a compiler-generated `@differentiable` scalar `Float64` function whose last parameter is the state. Custom `<fn>_vjp` adjoints are rejected because they cannot expose `dF/dz`.
+- Parameter arguments must be plain variables, and the root must be a fresh `:=` declaration directly assigned from the solver so `.grad` can be published.
+- Newton uses a `1e-12` tolerance, a default 64-iteration ceiling, and an optional `@implicit<N>` override.
+- `backward(root)` seeds `dL/dz = 1.0`; `backward(root, seed)` chains an explicit upstream sensitivity and publishes both parameter and root `.grad` slots.
+- `VNE-127` reports malformed implicit calls or residuals outside the scalar subset. `VNE-128` reports runtime non-convergence or a singular `dF/dz` through `vyne_panic_implicit`.
+- `@implicit` is desktop-only in this release; it is rejected on AVR. Vector residuals, Jacobian assembly, and linear solves are deferred.
+- `examples/autodiff/implicit_test.vy` covers a scalar cubic root, seeded and unseeded adjoints, a two-parameter residual, `@implicit<48>`, and `@bounded` composition. Commit `6cd2870` (#132).
+
+### Source-to-source automatic differentiation
+
+`@differentiable` marks a function whose adjoint the compiler generates. `@backward` scopes the reverse sweep to a region, and `grad(f, x)` is expression-level sugar. The generated companion recomputes the primal intermediates, seeds the returned expression, walks assignments in reverse, and publishes input gradients through out-parameters. There is no runtime tape interpreter and no per-operation dispatch.
+
+- Supported scalar expressions: `+ - * / **`, `sin cos exp log sqrt tanh abs relu`, and `pow(a, b)`, in plain-call and method form.
+- `Array<Float64>` gradients lower the VJPs for `mse` / `k_mse_sum`, `mae` / `k_mae_sum`, `dot` / `k_dot`, `sum`, `mean`, `norm_sq` / `sum_sq`, and `abs_sum` to loops over native array storage.
+- `grad(f, w)` returns a fresh `Array<Float64>` for unary array functions; `backward(...)` on array parameters is deferred.
+- Region attributes compose (`@backward @bounded<...>`), and numeric literals accept `_` digit separators.
+- Anything outside the subset is rejected with `VNE-120`..`VNE-128` instead of silently miscompiling.
+- A function named `<fn>_vjp` registers itself as the custom reverse pass for `<fn>`. It receives the original boxed arguments and owns its gradient storage, which is how conv-net losses and other tensor-shaped workloads opt out of the scalar/array subset.
+- Examples: `scalar_grad.vy`, `backward_region.vy`, `array_grad.vy`, `autodiff_test.vy`, `custom_vjp_test.vy`, and `implicit_test.vy` under `examples/autodiff/` and `examples/test/`. Commits `be018e0` (#122), `c595bdd` (#128), `6cd2870` (#132).
+
+### Numerical libraries
+
+#### `voptim`
+
+Optimizer states, native update kernels, and learning-rate schedules for flat `Array<Float64>` buffers. The surface covers SGD, momentum, Nesterov, Adam, AdamW, RMSProp, and Adagrad plus constant, step, exponential, cosine, and warmup-cosine schedules. State is built once; step wrappers validate shape and update parameters and moment buffers in place. Direct interface construction supports zero-copy setup from `vlin.Matrix.data`. `voptim_test` covers every schedule and optimizer on a quadratic, AdamW decay, and bias correction; the benchmark runs 100k parameters for 100 steps. Commit `05d8f50` (#127).
+
+#### `vsparse`
+
+CSR construction (`zeros`, `identity`, `diagonal`, `from_dense`), conversion (`to_dense`, `transpose`, `copy`), native-ABI SpMV, residual/Frobenius/dot helpers, and conjugate gradient. CG validates shape, allocates `x`/`r`/`p` plus one reusable `Ap` buffer, and keeps peak memory at O(rows) independent of iteration count. Tests cover non-symmetric SpMV and transpose, identity/diagonal/zeros, Frobenius, and an SPD solve to `1e-8`. CSC, SpMM, preconditioners, and graph-Laplacian helpers are deferred. Commit `05d8f50` (#127).
+
+#### `vdecomp`
+
+Partial-pivot LU with determinant metadata and triangular solves, Householder QR and least squares, Cholesky with SPD solve, symmetric cyclic-Jacobi eigen, and singular values. Raw routines take flat row-major arrays plus dimensions; `Ops` wrappers accept `Matrix` / `Series` structs and provide `determinant`, `solve`, `inverse`, `solve_spd`, `qr_matrix`, `least_squares_matrix`, `eigen_matrix`, and `svd_values`. Singular values currently form `A^T A`, so the condition number is squared; one-sided Jacobi is the documented follow-up. Commit `05d8f50` (#127).
+
+#### `vsignal` and `vcontrol`
+
+`vsignal` adds moving average, exponential, FIR, median, biquad IIR (RBJ low/high/band/notch), windows, resampling, and optional FFT magnitude helpers. `vcontrol` adds PID with anti-windup, derivative filtering and bumpless transfer, a complementary filter, scalar and constant-velocity Kalman filters, and a two-state state-space model. Streaming state lives in `Array<Float64>` fields so mutations propagate through the boxed call path; whole-buffer work uses native kernels. Both ship tests and benchmarks under `examples/libs`. MCU linkage is blocked on the MCU struct runtime. Commit `6d75b19` (#121).
+
+### Project-aware CLI
+
+`vynec build [path]` and `vynec run [path]` walk up to `project.toml`, resolve `src/main.vy` before `main.vy`, load `[project]`, `[dependencies]`, `[targets]`, `[build]`, and `[device.cuda]`, and map board/CUDA targets. The existing flag-based CLI remains untouched, and explicit flags stay authoritative over project defaults. Commit `867a638` (#129).
+
+`vynec bench` and `vynec bench <file>` add warmup plus measured execution using `high_resolution_clock`, silent child execution, mean/median/min/max/p95/p99/population-stddev statistics, and a deterministic JSON report containing project, target, timestamp, configuration, and results. Project discovery, `[bench]` warmup/iterations, CLI overrides, and CUDA native compilation are supported. Indirect VyneLinker units are filtered to user-owned files, so external modules do not inflate benchmarks. Commit `a890577` (#130).
+
+### Regions and runtime
+
+#### Thread-local arenas
+
+`g_arena`, the bump pointers, the zero-mode counter, and the fresh-page flag are thread-local, so local allocation has no lock contention. The commit arena remains process-global and is protected by a recursive spinlock with a thread-local nesting depth, allowing `@persistent` to hold it for a whole region without self-deadlocking. `arena_free_thread()` and `vmem_runtime_thread_cleanup()` free only a worker's own blocks; process teardown still frees the shared commit arena. `tls_arena.c` stresses eight threads with independent allocation cycles and shared commit publishing. Commit `e64ed24` (#124).
+
+#### `@layout<soa>` struct scratch
+
+`@layout<soa>` composes with any memory policy and lowers struct `scratch` to one packed C array per primitive field for both static and runtime (VLA) dimensions. `particles[i].field` and multi-index `particles[r, c].field` rewrite directly to the field array through the existing flat-index and bounds-check helper. `@layout<aos>` is the explicit default, `@layout<struct_of_arrays>` is an alias, struct scratch without `soa` is `VNE-062`, and whole-element access is `VNE-063`. Commit `e64ed24` (#124).
+
+#### `drop()` and zero-copy `region.move()`
+
+`drop(x)` reclaims a typed-array payload when it is the live arena tail and empties the container; a non-tail drop is a no-op and a double drop is harmless. `region.move(x)` is the expression-valued sibling of `region.commit(x)`: it splices a dedicated tail block into the commit arena when possible and falls back to a commit-arena copy for small or shared blocks. Primitive values, stack scratch arrays, and allocations that predate the current region are rejected. Commit `a3c8d27` (#123).
+
+#### `@realtime` and executable contracts
+
+`@realtime<ms>` records a monotonic timestamp on entry and checks the deadline at normal close and on early returns. Overruns halt with `VNE-109`, and worst observed time / overrun counts are exposed through `vcore.realtime_*` or `arduino.realtime_*`. `requires`, `ensures`, and `@invariant` are executable contracts with desktop and AVR runtimes, evidence logging, and dedicated positive/negative tests. Commit `e8b9dfa` (#120).
+
+### Arduino I2C/SPI
+
+- Eight I2C bindings over `<Wire.h>`: `begin`/`end`, clock selection, single-byte read/write, register read/write with repeated start, and `available`.
+- Six SPI bindings over `<SPI.h>`: `begin`/`end`, `SPISettings` clock/mode, transaction end, 8-bit transfer, and 16-bit transfer16.
+- `vyne_arduino.h` includes the new headers only under `VYNE_USE_I2C` / `VYNE_USE_SPI`, and the AVR build integration scans bundled library `src/` trees, compiles them recursively, and links only the peripherals the generated translation unit actually uses.
+- Typed `vi2c` and `vspi` surfaces validate 7-bit addresses, registers, values, clocks, and data modes, returning documented status codes instead of truncating silently.
+- `i2c_imu.vy` reads the MPU-6050 `WHO_AM_I` register and `spi_loopback.vy` checks a five-byte MOSI-to-MISO pattern. Blink firmware size is unchanged, proving unused peripherals stay out of the build. Commit `748c6fa` (#118).
+
+### Device convolution and SRCNN
+
+- `vconv` gains CPU `conv_backward_input`, `conv_backward_weight`, `conv_backward_bias`, and `relu_backward`, registered in `VCONV_MAP` and wrapped in `vconv/Ops.vy`, with finite-difference tests.
+- The CUDA backend gains FP32 and FP64 `conv2d` kernels (HWC input, OIHW weight, square kernel, stride, zero padding, optional bias) and exposes `device_conv2d`; the host dispatcher validates handles and dtype and provides a CPU-backend fallback.
+- The SRCNN project runs all three convolutions, both ReLUs, the residual add, and the final download inside one `@device<cuda>` frame. The full-GPU output matches the CPU model; training uses `@backward` with the custom `sr_loss_vjp` and `voptim` Adam.
+- Measured on the generated 128x128 -> 256x256 pair: bilinear 29.8139 dB PSNR / 0.985724 SSIM, FSR-style baseline 31.5510 dB / 0.990767, Vyne SR 33.5100 dB / 0.994912. The README records that this is a single-image demo and that the FSR baseline is a style implementation, not bit-exact AMD EASU/RCAS. Commit `c595bdd` (#128).
+
+### Documentation, examples, and project maintenance
+
+- **Language manual rewrite.** The GitHub Pages site is rebuilt around the current surface with pages for AD, CUDA/`@device`, the AVR target, all 20+ libraries, the CLI, performance, keywords, operators, and error codes. The source pipeline (`docs/src`, `sync-docs.mjs`), Markdown tables/images, Vyne highlighting, search index, and generated content/pages are included. Commit `6fdda0d` (#131).
+- **README region-policy matrix.** The memory-model section now documents all sixteen modifiers with allocator/lifetime behavior, intrinsics, target support, diagnostics, composition rules, and fixed-size buffer restrictions. Commit `a0fef12`.
+- **External library system.** The README section is rewritten for the current facade convention, library groups, kernel/wrapper pattern, state-array convention, test/benchmark locations, and 110-function AVR surface. Commit `206b127`.
+- **Planning docs reconciled.** The seven `docs/todos` documents carry dated status snapshots and correct stale checklists; a domain-expansion strategy document is added. Commits `3c72cc5`, `8bfa634`.
+- **Project maintenance.** Stale `rv_soc` and `rv_spc` example projects are removed, `srcnn` project metadata is corrected, and the generated-init project templates are committed. Commits `9a5e37c`, `c23c093`, `d2d1e36`, `ff665be`.
+- **New tests and demos.** `implicit_test.vy`, `custom_vjp_test.vy`, `device_conv_test.vy`, `vconv_backward_test.vy`, `region_layout_soa.vy`, `region_drop.vy`, `region_move.vy`, `tls_arena.c`, `perf_hotpaths_test.vy`, and the `voptim` / `vsparse` / `vdecomp` / `vsignal` / `vcontrol` tests and benchmarks.
+
+---
+
+## Bug fixes
+
+### Hot-path performance series (#125, #126)
+
+The two performance commits close defects across lexer, parser, codegen, and runtime without changing observable behavior.
+
+- Map probes reuse the interned key hash instead of hashing every key twice.
+- String transforms (`uppercase`, `lowercase`, `trim`), slices, interpolation, and array/struct stringification hand arena-owned buffers directly to `vyne_string_own`, removing duplicate allocation and copy passes.
+- Interpolated values and array/struct elements are rendered once instead of twice.
+- Map reads no longer intern missing keys, removing unbounded intern-table growth on miss-heavy workloads.
+- String equality checks pointer equality before falling back to `strcmp`, and two null-string values now compare equal instead of dereferencing NULL.
+- Typed-array growth uses `arena_alloc_aligned` on every boxed push and `place_all` path, preserving the 32-byte SIMD alignment after reallocation.
+- The lexer reserves token capacity, stops copying plain string literals, bulk-scans string bodies, and casts every `ctype` argument to `unsigned char`.
+- The parser binds lookahead tokens by reference and borrows interpolated-string parts instead of copying them.
+- Codegen appends directly to plain `std::string` buffers instead of building indentation strings and routing every line through `std::stringstream`.
+- Literal `through` bounds stay inline in the C `for` header; variable bounds are still captured at entry so mutating the bound does not change the trip count.
+- Measured: 200k unique-key map misses 44.07 -> 29.49 ms median; 1M hit/miss lookups 27.20 -> 21.14 ms; large-string benchmark 37.71 -> 22.82 ms; 20k-statement `--emit-c` 29.4 -> 28.7 ms; 500k get/set map loop 15.2 -> 15.0 ms; 200k trim+uppercase+lowercase 26.6 -> 25.9 ms. Commits `3cbf49e` (#125), `1950047` (#126).
+
+### Compiler and runtime corrections
+
+- `@layout<soa>` reuses the scratch flat-index/bounds-check helper and teaches `resolveRHSKind` that field reads are primitives, preventing false `VNE-070` escapes when reducing a field into an outer scalar. Commit `e64ed24` (#124).
+- `region.move` accepts the expression form on an outer assignment and marks the moved value committed, so the escape checker does not reject a valid transfer. Commit `a3c8d27` (#123).
+- The custom-VJP path uses the original boxed arguments rather than assuming the scalar adjoint signature, and the registry is populated before the differentiable pre-pass so declaration order does not matter. Commit `c595bdd` (#128).
+- AVR bundled-library builds are demand-driven, avoiding the ~1.4 KB flash penalty that an unconditional `Wire` global constructor added to a blink sketch. Commit `748c6fa` (#118).
+- `@persistent` commit helpers serialize through the recursive commit spinlock, and worker threads free only their own arena blocks. Commit `e64ed24` (#124).
+- Stale example projects and metadata are removed or corrected. Commits `9a5e37c`, `c23c093`.
+
+---
+
+## Runtime and memory
+
+### Desktop arena
+
+- Thread-local `g_arena`, bump pointers, zero-mode counter, and fresh-page flag; zero lock contention for local allocation. Commit `e64ed24` (#124).
+- Shared commit arena protected by a recursive spinlock with thread-local nesting depth; `@persistent` holds it for the region body. Commit `e64ed24` (#124).
+- `arena_free_thread()` / `vmem_runtime_thread_cleanup()` for worker exits; `arena_free_all()` remains process teardown. Commit `e64ed24` (#124).
+- `drop()` LIFO tail reclamation and `region.move()` zero-copy block splice with commit-copy fallback. Commit `a3c8d27` (#123).
+- `@realtime` timestamp/overrun telemetry and `vyne_panic_deadline`; contract checks and evidence logging. Commit `e8b9dfa` (#120).
+- `vyne_panic_implicit` for `VNE-128` solver failures. Commit `6cd2870` (#132).
+
+### Struct-of-arrays scratch
+
+Under `@layout<soa>`, struct scratch lowers to one contiguous array per primitive field with static or runtime dimensions. Member reads and writes address the field arrays directly; multi-index access flattens row-major. The payload stays on the C stack for the region lifetime and is packed for SIMD and future coalesced device upload. Commit `e64ed24` (#124).
+
+### Device arena and convolution
+
+The device arena gains FP32/FP64 convolution kernels and a host dispatcher with a CPU fallback. The PTX is embedded and JIT-compiled by the driver, so generated C needs no CUDA headers or link flags. Commit `c595bdd` (#128).
+
+### Arduino runtime and build integration
+
+The MCU runtime gains Wire/SPI bindings behind `VYNE_USE_I2C` / `VYNE_USE_SPI`, a no-op `vyne_deploy_module`, and demand-driven compilation of bundled library sources. `@realtime` and contracts lower on AVR. Commit `748c6fa` (#118), `e8b9dfa` (#120).
+
+### CLI and project configuration
+
+Project loading parses `project.toml`, resolves dependencies against the source-tree and installed-prefix module roots, and forwards deterministic/CUDA metadata to the emitter. Benchmark configuration adds `[bench]` warmup/iterations and report generation. Commits `867a638` (#129), `a890577` (#130).
+
+---
+
+## Documentation
+
+- **New documentation site.** Full language, library, showcase, CLI, performance, error-code, keyword, and operator pages generated from `docs/src` with a maintainable sync pipeline. Commit `6fdda0d` (#131).
+- **Automatic differentiation reference.** Documents `@differentiable`, `@backward`, `grad`, array reduction VJPs, custom `<fn>_vjp` adjoints, the generated C shape, diagnostics, and the deferred subset. Commit `be018e0` (#122), `c595bdd` (#128).
+- **Implicit regions reference.** Documents `@implicit`, `newton_solve` / `implicit_solve`, `@implicit<N>`, `backward(root[, seed])`, the IFT formula, the scalar/desktop scope, and `VNE-127` / `VNE-128`. Commit `6cd2870` (#132).
+- **Regions reference.** Documents thread-local arenas, `@layout<soa>`, `drop()`, `region.move()`, `@realtime`, and executable contracts. Commits `e64ed24` (#124), `a3c8d27` (#123), `e8b9dfa` (#120).
+- **README refresh.** Region-policy matrix, external-library system, scientific library surface, CLI commands, and project layout. Commits `a0fef12`, `206b127`.
+- **Planning docs.** Dated status snapshots for the seven `docs/todos` documents and a new domain-expansion strategy. Commits `3c72cc5`, `8bfa634`.
+- **Library and project manuals.** READMEs for `voptim`, `vsparse`, `vdecomp`, `vsignal`, `vcontrol`, `vi2c`, `vspi`, `vconv`, and the SRCNN project, including API scope, benchmarks, and limitations. Commits `05d8f50` (#127), `6d75b19` (#121), `c595bdd` (#128), `748c6fa` (#118).
+
+---
+
+## Internal changes
+
+### Compiler and codegen
+
+- Source-to-source AD generator (`codegen/autodiff.{h,cpp}`): scalar straight-line reverse mode, array reduction VJPs, custom-VJP routing, `grad()` and `backward()` lowering, and the differentiable-function registry. Commits `be018e0` (#122), `c595bdd` (#128).
+- `@implicit` region scope, solver lowering, captured root/parameter temps, IFT adjoint, and `VNE-127` / `VNE-128` diagnostics. Commit `6cd2870` (#132).
+- Thread-local arena/runtime support, layout stack, SoA scratch registry, and field-array rewriting. Commit `e64ed24` (#124).
+- `drop` builtin and `region.move` AST/codegen paths. Commit `a3c8d27` (#123).
+- `@realtime` and contract parsing/lowering in the region and function paths. Commit `e8b9dfa` (#120).
+- Device convolution dispatch, CUDA kernel loading, and PTX regeneration. Commit `c595bdd` (#128).
+- Arduino I2C/SPI maps, bundled-use flags, and demand-driven build integration. Commit `748c6fa` (#118).
+- Lexer/parser/codegen hot-path changes: token reservation, borrowed lookahead, direct buffer appends, inline literal loop bounds, map-hash reuse, and aligned array growth. Commits `3cbf49e` (#125), `1950047` (#126).
+
+### CLI and tooling
+
+- `cli/project.{h,cpp}`, `cli/file_handler.{h,cpp}`, and `main.cpp` add project discovery, configuration, dependency resolution, `build`/`run`, and shared project banners. Commit `867a638` (#129).
+- `cli/bench.{h,cpp}` adds warmup/measured execution, statistics, JSON reports, and user-owned-file filtering. Commit `a890577` (#130).
+
+### Tests
+
+- AD: `scalar_grad.vy`, `backward_region.vy`, `array_grad.vy`, `autodiff_test.vy`, `custom_vjp_test.vy`, `implicit_test.vy`.
+- Regions/runtime: `region_layout_soa.vy`, `region_drop.vy`, `region_move.vy`, `tls_arena.c`, `realtime_test.vy`, contract positive/negative tests, `perf_hotpaths_test.vy`.
+- Libraries: `voptim_test` / `voptim_bench`, `vsparse_test` / `vsparse_bench`, `vdecomp_test` / `vdecomp_bench`, `vsignal_test` / `vsignal_bench`, `vcontrol_test` / `vcontrol_bench`.
+- Device: `device_conv_test.vy`, `vconv_backward_test.vy`.
+- Arduino: `i2c_imu.vy`, `spi_loopback.vy`.
+
+### Docs pipeline
+
+- `docs/src` sources, `sync-docs.mjs`, generated content/pages, search index, Markdown tables/images, and Vyne syntax highlighting. Commit `6fdda0d` (#131).
+
+---
+
+## Breaking changes
+
+No intentional source-language breaking change is introduced in this window. The following behavior and surface changes are worth checking:
+
+- **`@implicit` is desktop-only.** AVR rejects it with `VNE-080`; keep implicit solves on the desktop backend until the vector/MCU work lands.
+- **`@layout<soa>` has layout boundaries.** Struct scratch requires `@layout<soa>` (`VNE-062`), and whole-element reads/writes are rejected in favor of per-field access (`VNE-063`).
+- **`region.move()` restrictions.** It accepts only arena-backed values owned by the current region; primitives, stack scratch, and allocations predating the region are rejected.
+- **Thread-local arenas.** Native C code that assumed a single process-global `g_arena` across threads must move shared publishing through the commit arena and call `vmem_runtime_thread_cleanup()` on worker exit.
+- **Stale example projects removed.** `examples/projects/rv_soc` and `rv_spc` are gone; use the current `vynec init` templates or the SRCNN project.
+- **CLI additions are additive.** `vynec build` / `run` / `bench` are new entry points; `vynec file.vy`, `--compile`, `--run`, and the existing flags keep their behavior.
+
+---
+
+## Upgrade guide
+
+1. **Try the project-aware CLI.** Run `vynec build` or `vynec run` from a project directory, and use `vynec bench` for reproducible JSON reports. Existing flag-based invocations remain valid.
+2. **Adopt the AD surface.** Use `@differentiable` + `@backward` + `grad` for explicit models, and `@implicit` + `newton_solve` for equations. Keep residual signatures `(x..., z) -> Float64` and bind the root with a fresh `:=`.
+3. **Re-check region layouts.** If you use struct `scratch` for SIMD-style kernels, add `@layout<soa>` and access fields individually. Use `drop()` for LIFO tail release and `region.move()` for zero-copy persistent transfer.
+4. **Audit thread assumptions.** Custom C or host workers should rely on thread-local local allocation and publish shared results through the commit arena; call the thread cleanup hook before a worker exits.
+5. **Rebuild AVR firmware.** I2C/SPI sources are now demand-driven; regenerate and reflash sketches to pick up the new include/link behavior.
+6. **Run the library tests and benchmarks** for `voptim`, `vsparse`, `vdecomp`, `vsignal`, and `vcontrol` after pulling; the library READMEs record the supported surface and deferred items.
+7. **Regenerate the documentation site** with `npm run sync` in `docs/` if you maintain a local copy; generated content, pages, nav, and search index are updated from `docs/src`.
+8. **Bump the version constants.** `main.cpp` and `cli/init.cpp` still carry `VYNE_VERSION = "0.4.0"`; update both to `0.7.0` before publishing.
+
+---
+
+## Known limitations
+
+- **`@implicit` is scalar and desktop-only.** Vector residuals, Jacobian assembly, linear solves, array states, and AVR lowering are deferred. Custom `<fn>_vjp` adjoints cannot supply `dF/dz` and are rejected.
+- **AD subset is deliberately small.** Scalar bodies are straight-line `Float64` with a final return; array support covers the reduction VJPs listed above. Array locals, element-wise array intermediates, matmul VJPs, loops, branches, `backward()` on array parameters, and `@recompute` / `@mixed` lowering are deferred. Custom adjoints own their gradient storage.
+- **`voptim` wrappers pay a boxing boundary.** Native `k_*` kernels allocate nothing, but the wrapper costs the current call frame at the boundary. Optimizer state must be built once and kept in typed arrays.
+- **`vsparse` scope.** CSC, SpMM, preconditioners, and graph-Laplacian helpers are not shipped; CG is the only iterative solver.
+- **`vdecomp` singular values use `A^T A`,** so the condition number is squared. One-sided Jacobi is the follow-up for ill-conditioned matrices.
+- **`vsignal` / `vcontrol` are desktop-only.** Their interface types are not implemented by the MCU struct runtime yet, so AVR linkage is blocked even though the kernels are array loops.
+- **SRCNN is a single-image demo.** The FSR baseline is a style implementation rather than bit-exact AMD EASU/RCAS, convolution training remains CPU-side, and the device convolution supports square kernels with the documented stride/pad cases.
+- **Benchmarks cover user-owned files only.** Project mode filters external modules and units outside the `project.toml` directory; explicit single-file benchmarks remain unfiltered.
+- **`@realtime` is a watchdog, not a WCET proof.** Contracts and deadlines are runtime-checked and report violations; they do not statically prove timing or functional correctness.
+- **Arduino I2C/SPI are single-byte / 16-bit transfers.** Block transfers need a buffer ABI, SoftwareSerial is not bound, and the target remains the Uno R3.
+- **Thread-local arenas prepare for `@parallel`, which is still a separate language feature.** The arena layer is ready; the parallel region surface is not shipped.
+- **`@layout<soa>` covers struct scratch, not arbitrary region values.** Whole-element access is rejected; per-field access is the contract.
+- **Project templates changed.** The removed `rv_soc` / `rv_spc` examples are not maintained; use the shipped init templates or the SRCNN project.
+
+---
+
+## Contributors
+
+- **Tuncay Gafarli** - all commits in this release.
+
+## Full commit list
+
+See `git log v0.6.0..HEAD` for the raw list. The 22 commits this release covers span `8bfa634` (2026-11-09) through `6cd2870` (2026-11-11).
+
+**Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.6.0...v0.7.0>
