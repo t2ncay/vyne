@@ -7,13 +7,12 @@ draft, which predated the native array ABI, the region-policy work, and the
 first batch of external libraries. It records what ships, what was learned,
 what the next libraries are, and the long tail.
 
-> **Status snapshot (2026-11-10).** The table below was written before
-> `vsignal`/`vcontrol` landed. Current states: `vstat`, `vtermplot`, `vcomplex`,
-> `vinterp`, `vcsv`, `vsignal`, `vcontrol`, `vimage`, `vconv` are shipped;
-> `voptim`, `vsparse`, `vdecomp`, `vnum` are still absent. `vchem` is partial
-> (`vchem_common` + `vgraph`). `vi2c` and `vspi` also exist. The "remaining
-> top-10 libraries" section should therefore be read as "next four: `voptim`,
-> `vsparse`, `vdecomp`, `vnum`".
+> **Status snapshot (2026-11-10).** The top-10 numerical set is now complete
+> except `vnum`: `vstat`, `vtermplot`, `vcomplex`, `vinterp`, `vcsv`,
+> `vsignal`, `vcontrol`, `voptim`, `vsparse`, and `vdecomp` ship. `vimage`,
+> `vconv`, `vi2c`, and `vspi` also exist. `vchem` is partial
+> (`vchem_common` + `vgraph`). The "remaining top-10 library" section is now
+> just `vnum`.
 
 Companion documents:
 
@@ -37,9 +36,10 @@ language, not a use of it.
 The compiler is no longer frozen behind Paper 1 for library work. The native
 array ABI, native struct ABI, region policies, autodiff, and the library
 batches have landed. The standard library now has a broad external surface in
-the tree: the top-10 items except `voptim`/`vsparse`/`vdecomp`/`vnum`, plus
-`vsignal` and `vcontrol` from the DSP/control push and `vimage`/`vconv` from
-the SR work.
+the tree: every top-10 item except `vnum`, plus `vsignal`, `vcontrol`,
+`vimage`, `vconv`, `vi2c`, and `vspi`. The three libraries added in this
+revision - `voptim`, `vsparse`, and `vdecomp` - are the numerical stack's
+killing features; see the section below.
 
 The top-10 scientific/numerical set was defined as:
 
@@ -50,16 +50,73 @@ The top-10 scientific/numerical set was defined as:
 | 3 | `vcomplex` — complex numbers | **Shipped** | #107 |
 | 4 | `vinterp` — 1-D/2-D interpolation | **Shipped** | #108 |
 | 5 | `vcsv` — CSV/TSV tables | **Shipped** | #109 |
-| 6 | `voptim` — optimizers | **Next** | — |
+| 6 | `voptim` — optimizers | **Shipped** | this PR |
 | 7 | `vsignal` — signal processing | **Shipped** | #121 |
-| 8 | `vsparse` — sparse matrices | **Next** | — |
-| 9 | `vdecomp` — decompositions/solvers | **Next** | — |
+| 8 | `vsparse` — sparse matrices | **Shipped** | this PR |
+| 9 | `vdecomp` — decompositions/solvers | **Shipped** | this PR |
 | 10 | `vnum` — numerical methods | **Next** | — |
 
 `vcontrol` (PID, complementary filter, Kalman1D/Kalman2, state-space) shipped
 alongside `vsignal` as the first control-systems library (#121). `vimage` and
-`vconv` also shipped (#112). That leaves `voptim`, `vsparse`, `vdecomp`, and
-`vnum` as the only top-10 items still missing.
+`vconv` also shipped (#112). `voptim`, `vsparse`, and `vdecomp` now ship as
+well, leaving `vnum` as the only top-10 item still missing.
+
+## Top 3 killing-feature libraries
+
+These are the three libraries that turn the numerical stack from "useful
+primitives" into a reason to choose the language. Each ships in
+`vyne/modules/external/` with the standard layout (`Types`, leaf modules,
+facade, `README.md`), a compiled test under `examples/libs/`, and a benchmark.
+
+### 1. `voptim` - optimizers that make training loops real
+
+**Why it kills.** A numerical language is judged by whether a training loop
+can run without falling back to another runtime. `voptim` provides SGD,
+momentum/nesterov, Adam, AdamW, RMSProp, and Adagrad over flat typed buffers,
+plus constant/step/exponential/cosine/warmup-cosine schedules. State is built
+once and every update is in place; the update kernels are native-ABI leaves.
+
+**Status:** core MVP shipped. Files: `Types.vy`, `Kernels.vy`, `Schedules.vy`,
+`Ops.vy`, facade, README. Test: `examples/libs/voptim_test.vy`. Benchmark:
+`examples/libs/voptim_bench.vy` (100k parameters).
+
+**Deferred:** optimizer protocol polymorphism, weight-decay variants beyond
+AdamW, and integration examples against a full `vlin` training loop.
+
+### 2. `vsparse` - sparse systems with a bounded working set
+
+**Why it kills.** Sparse matrices are where PDEs, graphs, force fields, and
+graph Laplacians live. `vsparse` ships CSR construction (`zeros`, `identity`,
+`diagonal`, `from_dense`, `to_dense`, `transpose`, `copy`), native-ABI SpMV,
+residual/Frobenius/dot helpers, and conjugate gradient. CG reuses one `Ap`
+buffer and keeps peak memory at O(rows) independent of iteration count.
+
+**Status:** core MVP shipped. Files: `Types.vy`, `Kernels.vy`,
+`Constructors.vy`, `Ops.vy`, facade, README. Test:
+`examples/libs/vsparse_test.vy`. Benchmark: `examples/libs/vsparse_bench.vy`
+(10k tridiagonal SpMV, 1k CG).
+
+**Deferred:** CSC, SpMM, ILU/preconditioners, and graph-Laplacian helpers.
+
+### 3. `vdecomp` - LAPACK-shaped solves in pure Vyne
+
+**Why it kills.** A scientific language needs factorizations, not just
+matvecs. `vdecomp` ships partial-pivot LU (`solve_lu`, `determinant`,
+`solve`, `inverse`), Householder QR (`qr`, `least_squares`), Cholesky
+(`cholesky`, `solve_cholesky`, `solve_spd`), symmetric Jacobi eigen
+(`eigen_symmetric`, `eigen_matrix`), and singular values via A^T A.
+
+**Status:** core MVP shipped. Files: `Types.vy`, `Util.vy`, `LU.vy`, `QR.vy`,
+`Cholesky.vy`, `Eigen.vy`, `Ops.vy`, facade, README. Test:
+`examples/libs/vdecomp_test.vy`. Benchmark: `examples/libs/vdecomp_bench.vy`
+(64x64 and 128x128 factorizations).
+
+**Tradeoff:** the SVD surface is `singular_values` via A^T A, which squares the
+condition number. It is documented as such; one-sided Jacobi is the follow-up
+for ill-conditioned inputs. There is no LAPACK dependency, so the library stays
+portable and runs under the same region/peak-bound rules as the rest of Vyne.
+
+---
 
 Two codegen/runtime fixes came out of this batch and are now load-bearing for
 library work:
@@ -181,6 +238,9 @@ These are pulled in with `use native`, not `use external`.
 | `vcsv` | **Done** | `vcsv/README.md` | RFC 4180 CSV/TSV parser, writer, typed columns. |
 | `vsignal` | **Done** | `vsignal/README.md` | Windows, FIR/IIR, resampling, spectral helpers, DSP kernels. |
 | `vcontrol` | **Done** | `vcontrol/README.md` | PID, complementary filters, Kalman1D/2, state-space helpers. |
+| `voptim` | **Done** | `voptim/README.md` | SGD, momentum/nesterov, Adam/AdamW, RMSProp, Adagrad, schedules. |
+| `vsparse` | **Done** | `vsparse/README.md` | CSR, SpMV, residual, Frobenius, conjugate gradient. |
+| `vdecomp` | **Done** | `vdecomp/README.md` | LU, QR/least squares, Cholesky, Jacobi eigen, singular values. |
 | `vi2c`, `vspi` | **Done** | header comments | Typed MCU I2C/SPI wrappers over the Arduino bindings. |
 | `vimage` | **Done** | `vimage/README.md` | PNG/JPEG/BMP/TGA decode and encode over vendored stb. |
 | `vconv` | **Done** | `vconv/README.md` | Forward conv2d, activations, pixel shuffle, weight bundles. |
@@ -213,8 +273,9 @@ unboxes the field into `VyneArray_f64` at every read. Changing it to plain
 
 A thin composition layer over `vlin`: `Dense`, `Sequential`, `SGD`, forward
 pass, activation derivatives, one SGD step. Backward pass is manual. Native
-`vml` bindings also carry Adam-family optimizers; the planned `voptim` library
-will promote the optimizer surface to a first-class `vlin`/`voptim` API.
+`vml` bindings also carry Adam-family optimizers; `voptim` now provides the
+first-class optimizer surface (SGD, momentum, Adam/AdamW, RMSProp, Adagrad,
+schedules) over flat typed buffers.
 
 ### `vfft`
 
@@ -317,13 +378,18 @@ the `vcore` string builder; file I/O via `vfs`. The parser scans with
 
 ---
 
-## The remaining top-10 libraries
+## The remaining top-10 library
 
-`vsignal` has shipped, so the queue is now **`voptim` → `vsparse` → `vdecomp` →
-`vnum`**. Each gets its own PR, README, `examples/test/<lib>_test.vy`, and
-`examples/benchmark/<lib>_bench.vy`.
+`voptim`, `vsparse`, and `vdecomp` have shipped, so the queue is now just
+**`vnum`**. The earlier briefs below are retained for context; the first three
+are marked with their shipped status.
 
-### L1.6 — `voptim` — Optimizers for training loops
+### L1.6 — `voptim` — Optimizers for training loops [SHIPPED]
+
+**Status (2026-11-10):** shipped under `vyne/modules/external/voptim` with
+`Types.vy`, `Kernels.vy`, `Schedules.vy`, `Ops.vy`, facade, README, test, and
+benchmark. The brief below is the original design; the implemented surface
+covers the update rules and schedules.
 
 **Why next.** It is the shortest path to a measurable ML improvement: the
 classifier and `vml` training loops get Adam/AdamW and schedules, and per-step
@@ -408,7 +474,13 @@ chirp; an allocation-free block callback.
 
 ---
 
-### L1.8 — `vsparse` — Sparse matrices and iterative solvers
+### L1.8 — `vsparse` — Sparse matrices and iterative solvers [SHIPPED]
+
+**Status (2026-11-10):** shipped under
+`vyne/modules/external/vsparse` with `Types.vy`, `Kernels.vy`,
+`Constructors.vy`, `Ops.vy`, facade, README, test, and benchmark. CG lives in
+`Ops.vy` rather than a separate `Solvers.vy`. CSC/SpMM/preconditioners remain
+follow-ups.
 
 **Why next.** Sparse matvec is a natural Vyne kernel: typed index/value arrays,
 a per-call peak bound, and no boxing. It unlocks force-field Hessians, graph
@@ -442,7 +514,13 @@ conjugate gradient against a dense SPD solve; graph Laplacian sanity checks.
 
 ---
 
-### L1.9 — `vdecomp` — Matrix decompositions and direct solvers
+### L1.9 — `vdecomp` — Matrix decompositions and direct solvers [SHIPPED]
+
+**Status (2026-11-10):** shipped under
+`vyne/modules/external/vdecomp` with `Types.vy`, `Util.vy`, `LU.vy`,
+`QR.vy`, `Cholesky.vy`, `Eigen.vy`, `Ops.vy`, facade, README, test, and
+benchmark. SVD is exposed as `singular_values` via A^T A; one-sided Jacobi is
+still a follow-up.
 
 **Why next.** It is the LAPACK-shaped layer the scientific stack lacks: LU, QR,
 Cholesky, eigen, SVD, and the solves built on them. It is also the natural
@@ -629,13 +707,8 @@ libraries need does not exist.
 
 ```
 Done:  vstat, vtermplot, vcomplex, vinterp, vcsv,
-       vsignal, vcontrol, vimage, vconv
-  |
-voptim      (1 week)     - training loops, Adam/AdamW, schedules
-  |
-vsparse     (1 week)     - CSR/CSC, SpMV/SpMM, CG
-  |
-vdecomp     (2-3 weeks)  - LU/QR/Cholesky/eigen/SVD
+       vsignal, vcontrol, vimage, vconv,
+       voptim, vsparse, vdecomp
   |
 vnum        (2 weeks)    - roots, quadrature, ODE, fitting
   |
@@ -644,10 +717,10 @@ Tier 2 in the order the next project needs
 Tier 3 and native bindings, one at a time
 ```
 
-Reasoning: `voptim` is the shortest measurable ML win. `vsignal`/`vcontrol`
-already turn the FFT into a DSP/control story. `vsparse`, `vdecomp`, and `vnum`
-complete the scientific stack in dependency order. `vdecomp` comes before
-`vnum` because fitting and ODE work reuse the solvers.
+Reasoning: `voptim`, `vsparse`, and `vdecomp` now complete the core numerical
+stack: training, sparse systems, and dense factorizations. `vnum` is the last
+top-10 item and the natural next step because fitting and ODE work reuse the
+solvers above.
 
 ---
 ## What each library contributes to the story
@@ -665,11 +738,11 @@ complete the scientific stack in dependency order. `vdecomp` comes before
 | `vcomplex` | Done | Numeric/signals | "Complex math over split arrays" |
 | `vinterp` | Done | Scientific | "Sampled data becomes a function" |
 | `vcsv` | Done | Data | "Real data gets in without a scripting layer" |
-| `voptim` | Next | ML | "Training loops get faster, and allocations stay flat" |
+| `voptim` | Done | ML | "Training loops get faster, and allocations stay flat" |
 | `vsignal` | Done | DSP/audio | "Allocation-free block processing, provably" |
 | `vcontrol` | Done | Robotics/control | "PID, Kalman, and state-space without a runtime" |
-| `vsparse` | Next | Scientific | "Sparse systems with a per-call peak bound" |
-| `vdecomp` | Next | Scientific | "LAPACK-shaped solves in pure Vyne" |
+| `vsparse` | Done | Scientific | "Sparse systems with a per-call peak bound" |
+| `vdecomp` | Done | Scientific | "LAPACK-shaped solves in pure Vyne" |
 | `vnum` | Next | Scientific | "Roots, integrals, and ODEs belong here" |
 | `vtensor` | Tier 4 | ML | "Autodiff as a first-class primitive" |
 
@@ -739,7 +812,8 @@ guarantees from _interesting_ into _useful_.
   - #109 `vcsv` + `examples/test/libraries_integration_test.vy`
   - #112 `vimage` + `vconv` (ESPCN slice)
   - #121 `vsignal` + `vcontrol`
-- Tests: `examples/libs/{vsignal,vcontrol}_{test,bench}.vy`,
+  - this PR `voptim`, `vsparse`, `vdecomp`
+- Tests: `examples/libs/{vsignal,vcontrol,voptim,vsparse,vdecomp}_{test,bench}.vy`,
   `examples/test/{vstat,vtermplot,vcomplex,vinterp,vcsv}_test.vy`,
   `examples/test/libraries_integration_test.vy`.
 - Benchmarks: `examples/benchmark/{vstat,vtermplot,vcomplex,vinterp,vcsv}_bench.vy`,
