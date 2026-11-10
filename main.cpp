@@ -18,11 +18,13 @@
 #include "cli/file_handler.h"
 #include "cli/init.h"
 #include "cli/packager.h"
+#include "cli/project.h"
 #include "cli/repl.h"
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include "vyne/utils/file_utils.h"
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <string>
 
 #ifdef _WIN32
@@ -135,6 +137,8 @@ static void printHelp() {
     header("USAGE");
     row("vynec <script.vy> [flags]", GREEN, C(CYAN, "compile and run"), W);
     row("vynec <mode> <script.vy> [flags]", GREEN, C(CYAN, "explicit mode"), W);
+    row("vynec build [path]", GREEN, C(CYAN, "build the current project"), W);
+    row("vynec run [path]", GREEN, C(CYAN, "build and run the project"), W);
     row("vynec init [path]", GREEN, C(CYAN, "scaffold a new project"), W);
 
     header("MODES");
@@ -193,6 +197,14 @@ static void printHelp() {
         W);
 
     header("PROJECTS");
+    row("build [path]",
+        MAGENTA,
+        "Compile the project.toml target",
+        W);
+    row("run [path]",
+        MAGENTA,
+        "Compile and run the project.toml target",
+        W);
     row("init [path]", MAGENTA, "Scaffold with the interactive questionnaire", W);
     std::cout << "      " << C(CYAN, "templates: ")
               << C(GREEN, "blank, ml, embedded, scientific, sr")
@@ -269,15 +281,64 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    // --- Project subcommands -----------------------------------------
+    // `vynec build` / `vynec run` are cargo-style entry points. They are
+    // intercepted before the generic flag scan so the bare word `run` is
+    // never mistaken for a source path, and so a discovered project.toml
+    // can seed the options before explicit flags override it.
+    const bool projectCommand =
+        argc >= 2 &&
+        (strcmp(argv[1], "build") == 0 || strcmp(argv[1], "run") == 0);
+
+    BuildOptions opts;
+    bool haveMode = false;
+    std::string filename;
+    int firstArg = 1;
+
+    if (projectCommand) {
+        const bool isRun = strcmp(argv[1], "run") == 0;
+        opts.mode = isRun ? RunMode::CompileRun : RunMode::CompileOnly;
+        haveMode = true;
+        firstArg = 2;
+
+        // project.toml discovery walks up from the CWD. When a path is
+        // supplied explicitly below, a missing project.toml is not fatal;
+        // it only becomes an error if no entry point can be derived.
+        std::string tomlPath;
+        if (findProjectToml(".", tomlPath)) {
+            ProjectConfig config;
+            std::string error;
+            if (!readProjectToml(tomlPath, config, &error)) {
+                std::cerr << RED << "  error" << RESET << "  " << error
+                          << "\n";
+                return 1;
+            }
+
+            config.toml_path = tomlPath;
+            config.root_dir =
+                std::filesystem::path(tomlPath).parent_path().string();
+            resolveProjectDependencies(config);
+
+            for (size_t i = 0; i < config.dependencies.size(); ++i) {
+                if (!config.dependency_paths[i].empty())
+                    continue;
+                std::cerr
+                    << YELLOW << "  warning" << RESET << "  dependency `"
+                    << config.dependencies[i]
+                    << "` not found under share/vyne/modules/external\n";
+            }
+
+            applyProjectConfig(config, opts);
+            opts.project = config;
+            opts.hasProject = true;
+        }
+    }
+
     // --- Flag scan ---------------------------------------------------
     // Modes are mutually exclusive; the last one wins. `-o name` overrides
     // the derived output base. Unknown flags are ignored so external build
     // tools can pass their own through unharmed.
-    BuildOptions opts;
-    bool haveMode = false;
-    std::string filename;
-
-    for (int i = 1; i < argc; ++i) {
+    for (int i = firstArg; i < argc; ++i) {
         std::string arg = argv[i];
         auto setMode = [&](RunMode m) {
             opts.mode = m;
@@ -359,9 +420,25 @@ int main(int argc, char* argv[]) {
     }
 
     if (filename.empty()) {
-        std::string input;
-        init_REPL(input, env);
-        return 0;
+        if (projectCommand) {
+            if (!opts.hasProject) {
+                std::cerr << RED << "  error" << RESET
+                          << "  could not find `project.toml`\n";
+                return 1;
+            }
+
+            std::string entry;
+            if (!findProjectEntry(opts.project.root_dir, entry)) {
+                std::cerr << RED << "  error" << RESET
+                          << "  could not find `src/main.vy` or `main.vy`\n";
+                return 1;
+            }
+            filename = entry;
+        } else {
+            std::string input;
+            init_REPL(input, env);
+            return 0;
+        }
     }
 
     if (!haveMode)

@@ -85,10 +85,59 @@ void sectionOpen(const char* label) {
     std::cout << "\n";
     std::cout << CYAN << "  >> " << label << RESET << "\n";
     std::cout << CYAN << "  " << std::string(42, '-') << RESET << "\n\n";
+    // Flush before a child process writes directly to the same console.
+    // Without this, a piped/captured run can interleave the child's output
+    // ahead of the section header.
+    std::cout.flush();
 }
 void sectionClose() {
     std::cout << "\n";
     std::cout << CYAN << "  " << std::string(42, '-') << RESET << "\n\n";
+    std::cout.flush();
+}
+
+// One row inside the `>> project` box: colored label, aligned value.
+// Padding is computed from `label.size()` (visible length), so ANSI escapes
+// do not disturb the column.
+void projectRow(
+    const std::string& label,
+    const std::string& value,
+    const char* valueColor
+) {
+    constexpr int LABEL_WIDTH = 13;
+    std::cout << "    " << CYAN << label << RESET;
+    int pad = LABEL_WIDTH - static_cast<int>(label.size());
+    if (pad < 0)
+        pad = 0;
+    std::cout << std::string(pad, ' ') << valueColor << value << RESET << "\n";
+}
+
+// Project metadata banner shown before the compilation phase for
+// `vynec build` / `vynec run`. Mirrors the visual language of `>> summary`
+// and `>> output` via sectionOpen()/sectionClose().
+void printProjectBox(const ProjectConfig& cfg) {
+    sectionOpen("project");
+
+    projectRow("name", cfg.name.empty() ? "-" : cfg.name, BOLD GREEN);
+    projectRow("version", cfg.version.empty() ? "-" : cfg.version, GREEN);
+
+    std::string target =
+        cfg.default_target.empty() ? "-" : cfg.default_target;
+    if (!cfg.backend.empty())
+        target += " (" + cfg.backend + ")";
+    projectRow("target", target, YELLOW);
+
+    std::string deps;
+    for (size_t i = 0; i < cfg.dependencies.size(); ++i) {
+        if (i)
+            deps += ", ";
+        deps += cfg.dependencies[i];
+    }
+    if (deps.empty())
+        deps = "(none)";
+    projectRow("deps", deps, GREEN);
+
+    sectionClose();
 }
 
 } // namespace
@@ -452,6 +501,14 @@ static int runTranspile(
     emitter.setArduinoTarget(
         opts.mode == RunMode::ArduinoCompile || opts.mode == RunMode::ArduinoRun
     );
+
+    // Project-level build policy. These become defines in the emitted
+    // translation unit; they do not change AST lowering, only the metadata
+    // available to the runtime header.
+    if (opts.hasProject) {
+        emitter.setDeterministicBuild(opts.project.deterministic);
+        emitter.setCudaSmVersion(opts.project.cuda_sm);
+    }
 
     if (opts.blasEnabled) {
         emitter.setBlasEnabled(true);
@@ -884,6 +941,12 @@ int runFile(
                   << "\n";
         return 1;
     }
+
+    // Project banner is part of the compilation phase, before any source
+    // is read or parsed. It is only present for `vynec build` / `vynec run`
+    // with a discovered project.toml.
+    if (opts.hasProject)
+        printProjectBox(opts.project);
 
     std::ifstream file(filename);
     if (!file.is_open()) {
