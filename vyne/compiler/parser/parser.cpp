@@ -3375,6 +3375,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     // a later phase.
     std::vector<std::pair<std::string, std::vector<std::string>>> attributes;
     bool sawBackward = false;
+    bool sawImplicit = false;
     std::string layoutMode = "aos";
 
     while (peekToken().type == VTokenType::At) {
@@ -3389,6 +3390,13 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
 
         if (attrTok.name == "backward") {
             sawBackward = true;
+            continue;
+        }
+        if (attrTok.name == "implicit") {
+            // `@implicit` is a predicate like @backward, not a memory
+            // policy. It implies a backward tape scope for the region and
+            // enables the `newton_solve(...)` intrinsic.
+            sawImplicit = true;
             continue;
         }
         if (attrTok.name == "recompute" || attrTok.name == "mixed") {
@@ -3425,8 +3433,9 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
                     "' and '@" + attrTok.name + "')",
                 line,
                 "VNE-080",
-                {"A region has at most one memory policy; @backward, "
-                 "@recompute, and @mixed compose with it"}
+                {"A region has at most one memory policy; @layout, "
+                 "@backward, @implicit, @recompute, and @mixed compose "
+                 "with it"}
             );
         }
         policy = attrTok.name;
@@ -3509,6 +3518,7 @@ std::unique_ptr<ASTNode> Parser::parseRegionStatement() {
     for (auto& a : attributes)
         node->addAttribute(a.first, std::move(a.second));
     node->setBackward(sawBackward);
+    node->setImplicit(sawImplicit);
     node->setLayout(layoutMode);
     return node;
 }

@@ -642,3 +642,28 @@ static inline void vyne_panic_region_bound(
     );
     exit(1);
 }
+
+// ============================================================================
+// IMPLICIT-SOLVE PANIC
+// ----------------------------------------------------------------------------
+// Called by `@implicit` regions when Newton's method fails to converge or
+// when the residual's state derivative is zero at the root, so the Implicit
+// Function Theorem cannot form the adjoint. Names the region and points at
+// the source line like the other runtime panics.
+// ============================================================================
+static inline void vyne_panic_implicit(
+    const char* region_name,
+    int line,
+    const char* reason
+) {
+    fprintf(
+        stderr,
+        "Runtime error (VNE-128): @implicit region '%s' %s (line %d)\n"
+        "  Check the initial guess and residual scaling, or use a custom "
+        "adjoint.\n",
+        region_name,
+        reason,
+        line
+    );
+    exit(1);
+}

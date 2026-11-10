@@ -1934,8 +1934,7 @@ std::string emitGradCall(C_Emitter& e, const FunctionCallNode& call) {
     return tmp;
 }
 
-std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {
-    const auto& args = call.getArguments();
+std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {    const auto& args = call.getArguments();
     if (args.size() != 1) {
         throw std::runtime_error(
             "Compile Error (VNE-126): backward(seed) takes exactly 1 "
@@ -2047,6 +2046,355 @@ std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {
 
     for (size_t i = 0; i < argVars.size(); ++i)
         e.registerGradientAccess(argVars[i], grads[i]);
+
+    return "vyne_null()";
+}
+
+// ---------------------------------------------------------------------------
+// `@implicit` region lowering
+// ---------------------------------------------------------------------------
+
+namespace {
+
+std::string joinComma(const std::vector<std::string>& items) {
+    std::string out;
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (i)
+            out += ", ";
+        out += items[i];
+    }
+    return out;
+}
+
+std::string implicitDoubleExpr(C_Emitter& e, const ASTNode* node) {
+    if (!node)
+        return "0.0";
+    if (node->type() == NodeType::NUMBER)
+        return static_cast<const NumberNode*>(node)->nativeLiteral();
+    std::string raw = node->getCExpr(e);
+    return e.nativeRead(raw, VType::Float64);
+}
+
+std::string residualNameFromCall(const FunctionCallNode& call) {
+    const auto& args = call.getArguments();
+    if (args.empty() || !args[0])
+        return {};
+    if (args[0]->type() == NodeType::VARIABLE)
+        return static_cast<const VariableNode*>(args[0].get())
+            ->getOriginalName();
+    if (args[0]->type() == NodeType::MEMBER_ACCESS)
+        return static_cast<const MemberAccessNode*>(args[0].get())
+            ->getFullPath();
+    return {};
+}
+
+std::string mangleFromAdjoint(const std::string& adjointName) {
+    const std::string prefix = "fn_";
+    const std::string suffix = "_grad";
+    if (adjointName.size() <= prefix.size() + suffix.size())
+        return {};
+    if (adjointName.compare(0, prefix.size(), prefix) != 0)
+        return {};
+    if (adjointName.compare(
+            adjointName.size() - suffix.size(),
+            suffix.size(),
+            suffix
+        ) != 0)
+        return {};
+    return adjointName.substr(
+        prefix.size(),
+        adjointName.size() - prefix.size() - suffix.size()
+    );
+}
+
+} // namespace
+
+bool isImplicitSolveName(const std::string& name) {
+    return name == "newton_solve" || name == "implicit_solve";
+}
+
+std::string emitImplicitSolveCall(C_Emitter& e, const FunctionCallNode& call) {
+    const auto& args = call.getArguments();
+    const int line = call.lineNumber;
+
+    if (args.size() < 2) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): newton_solve(F, x..., z0) needs at "
+            "least a residual and an initial guess (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    std::string residualName = residualNameFromCall(call);
+    if (residualName.empty()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): the first argument of newton_solve() "
+            "must name a @differentiable residual function (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    C_Emitter::ImplicitSolve* rec = e.findImplicitSolveByNode(&call);
+    if (!rec) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): newton_solve() must be the direct "
+            "right-hand side of a fresh ':=' declaration inside an "
+            "@implicit region (line " +
+            std::to_string(line) + ").\n"
+            "  Example: z :: Float64 := newton_solve(F, x, z0);"
+        );
+    }
+    if (rec->filled)
+        return rec->stateCName;
+
+    const C_Emitter::ADInfo* info = e.lookupDifferentiable(residualName);
+    if (!info) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): newton_solve() residual '" +
+            residualName +
+            "' is not @differentiable or has not been seen yet (line " +
+            std::to_string(line) + ")."
+        );
+    }
+    if (info->custom) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): newton_solve() needs the compiler "
+            "adjoint of '" +
+            residualName +
+            "'; a custom <fn>_vjp cannot expose dF/dz for the implicit "
+            "backward pass (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    const size_t residualArity = args.size() - 1;
+    if (info->arity != residualArity) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): newton_solve() passes " +
+            std::to_string(residualArity) + " values to residual '" +
+            residualName + "', but the residual takes " +
+            std::to_string(info->arity) +
+            " parameters (x..., z) (line " + std::to_string(line) + ")."
+        );
+    }
+    for (VType t : info->paramTypes) {
+        if (t != VType::Float64) {
+            throw std::runtime_error(
+                "Compile Error (VNE-127): this @implicit slice supports "
+                "scalar Float64 residues only; residual '" +
+                residualName + "' has a non-Float64 parameter (line " +
+                std::to_string(line) + ")."
+            );
+        }
+    }
+
+    // The parameter arguments come before z0. They must be plain variables
+    // so `.grad` can be published on the source names.
+    const size_t paramCount = args.size() - 2;
+    std::vector<std::string> paramVars;
+    paramVars.reserve(paramCount);
+    for (size_t i = 0; i < paramCount; ++i) {
+        const ASTNode* a = args[1 + i].get();
+        if (!a || a->type() != NodeType::VARIABLE) {
+            throw std::runtime_error(
+                "Compile Error (VNE-127): newton_solve() parameter " +
+                std::to_string(i) +
+                " must be a plain variable so its .grad slot can be "
+                "published (line " +
+                std::to_string(line) + ")."
+            );
+        }
+        paramVars.push_back(
+            static_cast<const VariableNode*>(a)->getOriginalName()
+        );
+    }
+
+    const std::string mangle = mangleFromAdjoint(info->adjointName);
+    const std::string* native =
+        mangle.empty() ? nullptr : e.lookupNativeVariant(mangle);
+    if (!native || native->empty()) {
+        throw std::runtime_error(
+            "Compile Error (VNE-127): residual '" + residualName +
+            "' has no native Float64 variant, so newton_solve() cannot "
+            "evaluate it without a boxed tape (line " +
+            std::to_string(line) +
+            ").\n"
+            "  Keep the residual signature Float64 -> Float64 and avoid "
+            "defer/try in its body."
+        );
+    }
+
+    e.emit(
+        "// --- @implicit solve: " + rec->binding + " := newton_solve(" +
+        residualName + ", ...) ---"
+    );
+
+    std::vector<std::string> paramTemps;
+    paramTemps.reserve(paramCount);
+    for (size_t i = 0; i < paramCount; ++i) {
+        std::string val = implicitDoubleExpr(e, args[1 + i].get());
+        std::string t = e.newTemp("imp_x" + std::to_string(i));
+        e.emit("double " + t + " = " + val + ";");
+        e.declareLocal(t, CType::fromVType(VType::Float64));
+        paramTemps.push_back(t);
+    }
+
+    std::string z0 = implicitDoubleExpr(e, args.back().get());
+    std::string state = e.newTemp("imp_z");
+    e.emit("double " + state + " = " + z0 + ";");
+    e.declareLocal(state, CType::fromVType(VType::Float64));
+
+    std::string res = e.newTemp("imp_res");
+    std::string ok = e.newTemp("imp_ok");
+    std::string it = e.newTemp("imp_it");
+    e.emit("double " + res + " = 0.0;");
+    e.emit("int " + ok + " = 0;");
+
+    std::vector<std::string> fwdArgs = paramTemps;
+    fwdArgs.push_back(state);
+
+    const int maxIters = e.currentImplicitMaxIters();
+    const std::string nativeFn = "fn_" + *native;
+    e.emit(
+        "for (int " + it + " = 0; " + it + " < " + std::to_string(maxIters) +
+        "; ++" + it + ") {"
+    );
+    e.emit(
+        "    " + res + " = " + nativeFn + "(" + joinComma(fwdArgs) + ");"
+    );
+    e.emit(
+        "    if (fabs(" + res + ") <= 1e-12) { " + ok + " = 1; break; }"
+    );
+
+    std::vector<std::string> dTemps;
+    dTemps.reserve(residualArity);
+    for (size_t i = 0; i < residualArity; ++i) {
+        std::string d = (i + 1 == residualArity)
+                            ? e.newTemp("imp_dz")
+                            : e.newTemp("imp_d" + std::to_string(i));
+        e.emit("    double " + d + " = 0.0;");
+        dTemps.push_back(d);
+    }
+    const std::string& dz = dTemps.back();
+
+    std::vector<std::string> adjArgs = fwdArgs;
+    adjArgs.push_back("1.0");
+    for (const auto& d : dTemps)
+        adjArgs.push_back("&" + d);
+    e.emit("    " + info->adjointName + "(" + joinComma(adjArgs) + ");");
+    e.emit(
+        "    if (fabs(" + dz + ") < 1e-14) { " + ok + " = -1; break; }"
+    );
+    e.emit("    " + state + " -= " + res + " / " + dz + ";");
+    e.emit("}");
+
+    const std::string regionName = e.currentImplicitRegionName();
+    e.emit(
+        "if (" + ok + " == 0) { vyne_panic_implicit(\"" + regionName + "\", " +
+        std::to_string(line) + ", \"did not converge in " +
+        std::to_string(maxIters) + " Newton iterations\"); }"
+    );
+    e.emit(
+        "if (" + ok + " < 0) { vyne_panic_implicit(\"" + regionName + "\", " +
+        std::to_string(line) +
+        ", \"has a singular residual Jacobian (dF/dz == 0)\"); }"
+    );
+
+    rec->residualName = std::move(residualName);
+    rec->adjointName = info->adjointName;
+    rec->nativeName = nativeFn;
+    rec->stateCName = state;
+    rec->paramVars = std::move(paramVars);
+    rec->paramCNames = std::move(paramTemps);
+    rec->line = line;
+    rec->filled = true;
+
+    return state;
+}
+
+std::string
+emitImplicitBackwardCall(C_Emitter& e, const FunctionCallNode& call) {
+    const auto& args = call.getArguments();
+    const int line = call.lineNumber;
+
+    if (args.empty() || args.size() > 2) {
+        throw std::runtime_error(
+            "Compile Error (VNE-128): backward(root[, seed]) takes one or "
+            "two arguments inside an @implicit region (line " +
+            std::to_string(line) + ")."
+        );
+    }
+    if (args[0]->type() != NodeType::VARIABLE) {
+        throw std::runtime_error(
+            "Compile Error (VNE-128): backward() expects the variable that "
+            "received a newton_solve() root (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    auto* var = static_cast<const VariableNode*>(args[0].get());
+    const C_Emitter::ImplicitSolve* rec =
+        e.lookupImplicitSolve(var->getOriginalName());
+    if (!rec || !rec->filled) {
+        throw std::runtime_error(
+            "Compile Error (VNE-128): '" + var->getOriginalName() +
+            "' was not bound to a newton_solve() call inside this "
+            "@implicit region (line " +
+            std::to_string(line) + ")."
+        );
+    }
+
+    std::string seed = e.newTemp("imp_seed");
+    e.emit(
+        "double " + seed + " = " +
+        (args.size() == 2 ? implicitDoubleExpr(e, args[1].get()) : "1.0") +
+        ";"
+    );
+    e.declareLocal(seed, CType::fromVType(VType::Float64));
+
+    const size_t residualArity = rec->paramCNames.size() + 1;
+    std::vector<std::string> dTemps;
+    dTemps.reserve(residualArity);
+    for (size_t i = 0; i < residualArity; ++i) {
+        std::string d = (i + 1 == residualArity)
+                            ? e.newTemp("imp_bwd_dz")
+                            : e.newTemp("imp_bwd_d" + std::to_string(i));
+        e.emit("double " + d + " = 0.0;");
+        e.declareLocal(d, CType::fromVType(VType::Float64));
+        dTemps.push_back(d);
+    }
+    const std::string& dz = dTemps.back();
+
+    std::vector<std::string> fwdArgs = rec->paramCNames;
+    fwdArgs.push_back(rec->stateCName);
+    std::vector<std::string> adjArgs = fwdArgs;
+    adjArgs.push_back("1.0");
+    for (const auto& d : dTemps)
+        adjArgs.push_back("&" + d);
+    e.emit(
+        "// --- @implicit IFT backward: " + rec->binding + " -> parameters ---"
+    );
+    e.emit(rec->adjointName + "(" + joinComma(adjArgs) + ");");
+    e.emit(
+        "if (fabs(" + dz + ") < 1e-14) { vyne_panic_implicit(\"" +
+        e.currentImplicitRegionName() + "\", " + std::to_string(line) +
+        ", \"has a singular residual Jacobian (dF/dz == 0)\"); }"
+    );
+
+    for (size_t i = 0; i < rec->paramVars.size(); ++i) {
+        std::string g = e.newTemp(
+            "imp_grad_" + sanitizeName(rec->paramVars[i])
+        );
+        e.emit(
+            "double " + g + " = -(" + seed + " * " + dTemps[i] + ") / " + dz +
+            ";"
+        );
+        e.declareLocal(g, CType::fromVType(VType::Float64));
+        e.registerGradientAccess(rec->paramVars[i], g);
+    }
+
+    // A downstream chain can read the seed as the root's own gradient.
+    e.registerGradientAccess(rec->binding, seed);
 
     return "vyne_null()";
 }

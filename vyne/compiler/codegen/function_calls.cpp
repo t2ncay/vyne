@@ -47,6 +47,21 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return vyne_ad::emitBackwardCall(e, *this);
     }
 
+    // `@implicit` intrinsics. `newton_solve` is hijacked only while an
+    // implicit region is open, so a user function of the same name still
+    // resolves normally elsewhere. `backward(root[, seed])` on a solved
+    // root consumes the Implicit Function Theorem record instead of the
+    // ordinary @differentiable-call record.
+    if (e.inImplicitRegion() && vyne_ad::isImplicitSolveName(originalName))
+        return vyne_ad::emitImplicitSolveCall(e, *this);
+    if (originalName == "backward" &&
+        (arguments.size() == 1 || arguments.size() == 2) &&
+        arguments[0]->type() == NodeType::VARIABLE) {
+        auto* v = static_cast<const VariableNode*>(arguments[0].get());
+        if (e.lookupImplicitSolve(v->getOriginalName()))
+            return vyne_ad::emitImplicitBackwardCall(e, *this);
+    }
+
     // ----------------------------------------------------------------
     // Pool intrinsics. `pool_alloc` and `pool_free` are intercepted by
     // name *only when a pool context is active*; outside a @pool region

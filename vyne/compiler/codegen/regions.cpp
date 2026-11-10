@@ -1094,10 +1094,62 @@ static void compileRealtimeRegion(C_Emitter& e, const RegionNode& r) {
 }
 
 void RegionNode::compile(C_Emitter& e) const {
-    // Phase B (AD): `@backward` is a scope marker, not an allocator
-    // policy. Push the tape scope around whichever memory policy is
-    // selected below; `backward(...)` inside consumes the recorded calls.
-    if (isBackward()) {
+    // Phase B (AD): `@implicit` and `@backward` are scope markers, not
+    // allocator policies. `@implicit` implies a backward tape scope because
+    // `backward(root)` consumes the solver record emitted by the body.
+    const bool implicit = isImplicit();
+    int implicitIters = 64;
+    if (implicit) {
+        if (e.isArduinoTarget()) {
+            throw std::runtime_error(
+                "Compile Error (VNE-080): @implicit is not supported on the "
+                "AVR target in this release (line " +
+                std::to_string(lineNumber) + ").\n"
+                "  The implicit adjoint links the desktop AD companion and "
+                "the Newton runtime; use the desktop backend."
+            );
+        }
+        for (const auto& a : getAttributes()) {
+            if (a.name != "implicit")
+                continue;
+            if (a.args.size() > 1) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-080): @implicit takes at most one "
+                    "argument (max Newton iterations), got " +
+                    std::to_string(a.args.size()) + " (line " +
+                    std::to_string(lineNumber) + ")."
+                );
+            }
+            if (a.args.size() == 1) {
+                try {
+                    implicitIters = std::stoi(a.args[0]);
+                } catch (...) {
+                    throw std::runtime_error(
+                        "Compile Error (VNE-080): @implicit max iterations "
+                        "must be an integer, got '" +
+                        a.args[0] + "' (line " + std::to_string(lineNumber) +
+                        ")."
+                    );
+                }
+                if (implicitIters <= 0) {
+                    throw std::runtime_error(
+                        "Compile Error (VNE-080): @implicit max iterations "
+                        "must be positive (line " +
+                        std::to_string(lineNumber) + ")."
+                    );
+                }
+            }
+        }
+        e.pushImplicitRegion(getRegionName(), implicitIters);
+        e.emit(
+            "// --- @implicit region: " + getRegionName() +
+            " (IFT backward, Newton max_iters=" +
+            std::to_string(implicitIters) + ") ---"
+        );
+    }
+
+    const bool backwardScope = isBackward() || implicit;
+    if (backwardScope) {
         e.pushBackwardRegion();
         e.emit(
             "// --- @backward tape scope: " + getRegionName() + " ---"
@@ -1189,8 +1241,10 @@ void RegionNode::compile(C_Emitter& e) const {
 
     e.popLayout();
 
-    if (isBackward())
+    if (backwardScope)
         e.popBackwardRegion();
+    if (implicit)
+        e.popImplicitRegion();
 }
 
 std::string RegionNode::getCExpr(C_Emitter& e) const {

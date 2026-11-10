@@ -519,6 +519,81 @@ class C_Emitter {
                                                           : &it->second;
     }
 
+    // --- Phase B (AD): `@implicit` region scope -------------------------
+    // A `newton_solve(F, x..., z0)` call inside an `@implicit` region is
+    // recorded here. `backward(z)` reads the record and emits the
+    // Implicit Function Theorem adjoint instead of unrolling the solver.
+    // The C temps hold the parameter values and the converged root, so the
+    // reverse pass differentiates at the fixed point even if the source
+    // variables changed after the solve.
+    struct ImplicitSolve {
+        const ASTNode* node = nullptr;
+        std::string binding;
+        std::string residualName;
+        std::string adjointName;
+        std::string nativeName;
+        std::string stateCName;
+        std::vector<std::string> paramVars;
+        std::vector<std::string> paramCNames;
+        int line = 0;
+        bool filled = false;
+    };
+    struct ImplicitRegion {
+        std::string name;
+        int maxIters = 64;
+        std::unordered_map<std::string, ImplicitSolve> solves;
+    };
+    void pushImplicitRegion(std::string name, int maxIters = 64) {
+        ImplicitRegion r;
+        r.name = std::move(name);
+        r.maxIters = maxIters;
+        implicitRegions_.push_back(std::move(r));
+    }
+    void popImplicitRegion() {
+        if (!implicitRegions_.empty())
+            implicitRegions_.pop_back();
+    }
+    bool inImplicitRegion() const {
+        return !implicitRegions_.empty();
+    }
+    int currentImplicitMaxIters() const {
+        return implicitRegions_.empty() ? 64
+                                        : implicitRegions_.back().maxIters;
+    }
+    const std::string& currentImplicitRegionName() const {
+        static const std::string kEmpty;
+        return implicitRegions_.empty() ? kEmpty
+                                        : implicitRegions_.back().name;
+    }
+    void beginImplicitSolve(
+        const std::string& binding,
+        const ASTNode* node
+    ) {
+        if (implicitRegions_.empty())
+            return;
+        auto& rec = implicitRegions_.back().solves[binding];
+        rec = ImplicitSolve{};
+        rec.node = node;
+        rec.binding = binding;
+    }
+    ImplicitSolve* findImplicitSolveByNode(const ASTNode* node) {
+        if (implicitRegions_.empty())
+            return nullptr;
+        for (auto& [key, rec] : implicitRegions_.back().solves) {
+            (void)key;
+            if (rec.node == node)
+                return &rec;
+        }
+        return nullptr;
+    }
+    const ImplicitSolve* lookupImplicitSolve(const std::string& binding) const {
+        if (implicitRegions_.empty())
+            return nullptr;
+        auto it = implicitRegions_.back().solves.find(binding);
+        return it == implicitRegions_.back().solves.end() ? nullptr
+                                                          : &it->second;
+    }
+
     // `w.grad` reads the gradient slot that `backward(...)` populated.
     // Keyed by the source-level variable name, scoped per function
     // context (cleared by push/popFunctionContext).
@@ -539,6 +614,7 @@ class C_Emitter {
     std::unordered_map<std::string, std::string> customVJPs_;
     std::vector<BackwardRegion> backwardRegions_;
     std::unordered_map<std::string, std::string> gradientAccess_;
+    std::vector<ImplicitRegion> implicitRegions_;
 
     // --- Context management ---------------------------------------------
     bool isAlreadyImported(const std::string& path) const {
@@ -906,6 +982,7 @@ class C_Emitter {
         scratchRuntimeDims.clear();
         backwardRegions_.clear();
         gradientAccess_.clear();
+        implicitRegions_.clear();
     }
     void popFunctionContext() {
         if (!contextStack.empty())
@@ -921,6 +998,7 @@ class C_Emitter {
         boundedStack.clear();
         backwardRegions_.clear();
         gradientAccess_.clear();
+        implicitRegions_.clear();
         indentLevel = 1;
     }
     void setFunctionContext(bool inside) {
@@ -1948,6 +2026,7 @@ class C_Emitter {
         customVJPs_.clear();
         backwardRegions_.clear();
         gradientAccess_.clear();
+        implicitRegions_.clear();
         nativeReturnType = CType{};
         currentFunctionReturnType_ = CType{};
         structReturnOutParams.clear();
