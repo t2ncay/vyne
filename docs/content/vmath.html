@@ -1,172 +1,31 @@
-            <div class="page-eyebrow">Standard Library</div>
-            <h1>VMath</h1>
-            <p class="lede">
-              Numeric primitives: trigonometry, logarithms, ML activation
-              functions, and a PCG32 random generator.
-            </p>
+<div class="page-eyebrow">Standard Library</div>
+<h1>VMath</h1>
+<p class="lede">Scalar math, rounding, activations, clamping, PCG32 random, and constants.</p>
+<p><code class="inline">vmath</code> is the scalar math module. Import it with <code class="inline">use native vmath;</code>. Trigonometry uses radians.</p>
+<h2 id="constants">Constants</h2>
+<div class="table-wrap"><table><thead><tr><th>Property</th><th>Value</th></tr></thead><tbody><tr><td><code class="inline">vmath.pi</code></td><td>3.141592653589793</td></tr><tr><td><code class="inline">vmath.e</code></td><td>2.718281828459045</td></tr><tr><td><code class="inline">vmath.tau</code></td><td>6.283185307179586</td></tr><tr><td><code class="inline">vmath.phi</code></td><td>1.618033988749895</td></tr><tr><td><code class="inline">vmath.sqrt2</code></td><td>1.4142135623730951</td></tr><tr><td><code class="inline">vmath.inf</code></td><td>positive infinity</td></tr><tr><td><code class="inline">vmath.nan</code></td><td>NaN</td></tr></tbody></table></div>
+<h2 id="one-argument-functions">One-argument functions</h2>
+<p><code class="inline">sqrt</code>, <code class="inline">abs</code>, <code class="inline">sin</code>, <code class="inline">cos</code>, <code class="inline">tan</code>, <code class="inline">asin</code>, <code class="inline">acos</code>, <code class="inline">atan</code>, <code class="inline">sinh</code>, <code class="inline">cosh</code>, <code class="inline">tanh</code>, <code class="inline">log</code>, <code class="inline">log10</code>, <code class="inline">exp</code>, <code class="inline">floor</code>, <code class="inline">ceil</code>, <code class="inline">round</code>, <code class="inline">erf</code>, <code class="inline">erfc</code>, <code class="inline">tgamma</code>, <code class="inline">lgamma</code>, <code class="inline">sigmoid</code>, <code class="inline">relu</code>, <code class="inline">degrees</code>, <code class="inline">radians</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">import</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">module</span> vmath;</div>
-            </div>
-
-            <h2 id="vmath-constants">Constants</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>vmath.pi</td>
-                    <td>3.141592653589793</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.e</td>
-                    <td>2.718281828459045</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.tau</td>
-                    <td>6.283185307179586</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.phi</td>
-                    <td>1.618033988749895</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.sqrt2</td>
-                    <td>1.4142135623730951</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.inf</td>
-                    <td>IEEE infinity</td>
-                  </tr>
-                  <tr>
-                    <td>vmath.nan</td>
-                    <td>IEEE NaN</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 id="vmath-functions">Functions</h2>
-            <div class="api-block">
-              <div class="api-block-head">
-                <div class="api-block-title">
-                  <i class="fas fa-square-root-variable"></i>Numeric
-                </div>
-                <div class="api-block-count">30+ functions</div>
-              </div>
-              <div class="api-block-body">
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.sqrt</span>(x)
-                    <span class="x">→</span> <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Square root. Also: <code class="inline">abs</code>,
-                    <code class="inline">floor</code>,
-                    <code class="inline">ceil</code>,
-                    <code class="inline">round</code>,
-                    <code class="inline">exp</code>,
-                    <code class="inline">log</code>,
-                    <code class="inline">log10</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.sin</span>(x),
-                    <span class="n">cos</span>(x), <span class="n">tan</span>(x)
-                    <span class="x">→</span> <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Trigonometric functions. Inverse forms:
-                    <code class="inline">asin</code>,
-                    <code class="inline">acos</code>,
-                    <code class="inline">atan</code>. Hyperbolic:
-                    <code class="inline">sinh</code>,
-                    <code class="inline">cosh</code>,
-                    <code class="inline">tanh</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.pow</span>(base, exp),
-                    <span class="n">hypot</span>(a, b),
-                    <span class="n">atan2</span>(y, x) <span class="x">→</span>
-                    <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">Two-argument math functions.</div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.min</span>(a, b),
-                    <span class="n">max</span>(a, b),
-                    <span class="n">clamp</span>(v, lo, hi)
-                    <span class="x">→</span> <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Bounds helpers. <code class="inline">clamp</code> silently
-                    swaps arguments if <code class="inline">lo &gt; hi</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.sigmoid</span>(x),
-                    <span class="n">relu</span>(x) <span class="x">→</span>
-                    <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Machine-learning activation functions.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.degrees</span>(rad),
-                    <span class="n">radians</span>(deg) <span class="x">→</span>
-                    <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">Angle unit conversion.</div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.random</span>(lo, hi)
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Uniform random integer in
-                    <code class="inline">[lo, hi]</code> inclusive. Uses PCG32
-                    seeded from <code class="inline">time()</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmath.random_float</span>(lo, hi)
-                    <span class="x">→</span> <span class="r">Float64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Uniform random float in
-                    <code class="inline">[lo, hi)</code>. Shares the RNG state
-                    with <code class="inline">random</code>.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">Random seeding</div>
-                The generator is seeded once on first call with a mix of
-                <code class="inline">time()</code> and the address of the state
-                variable. Two processes started in the same second will produce
-                decorrelated output, but two runs in the same process always
-                produce different sequences.
-              </div>
-            </div>
+<span class="c-fn">out</span>(vmath.<span class="c-fn">sqrt</span>(<span class="c-num">9.0</span>));       <span class="c-com"># 3</span>
+<span class="c-fn">out</span>(vmath.<span class="c-fn">sin</span>(vmath.pi <span class="c-op">/</span> <span class="c-num">2.0</span>));
+<span class="c-fn">out</span>(vmath.<span class="c-fn">exp</span>(<span class="c-num">0.0</span>));        <span class="c-com"># 1</span>
+<span class="c-fn">out</span>(vmath.<span class="c-fn">sigmoid</span>(<span class="c-num">0.0</span>));    <span class="c-com"># 0.5</span>
+<span class="c-fn">out</span>(vmath.<span class="c-fn">relu</span>(<span class="c-op">-</span><span class="c-num">3.0</span>));      <span class="c-com"># 0</span>
+<span class="c-fn">out</span>(vmath.<span class="c-fn">degrees</span>(vmath.pi));  <span class="c-com"># 180</span></div></div>
+<h2 id="two-and-three-argument-functions">Two- and three-argument functions</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmath.pow(base, exp)</code></td><td><code class="inline">base ** exp</code></td></tr><tr><td><code class="inline">vmath.hypot(a, b)</code></td><td><code class="inline">sqrt(a² + b²)</code></td></tr><tr><td><code class="inline">vmath.atan2(y, x)</code></td><td>quadrant-aware arctangent</td></tr><tr><td><code class="inline">vmath.fmod(a, b)</code></td><td>floating remainder; <code class="inline">b == 0</code> yields <code class="inline">0</code></td></tr><tr><td><code class="inline">vmath.min(a, b)</code> / <code class="inline">vmath.max(a, b)</code></td><td>numeric min/max</td></tr><tr><td><code class="inline">vmath.clamp(v, lo, hi)</code></td><td>clamp; silently swaps <code class="inline">lo</code>/<code class="inline">hi</code> if reversed</td></tr></tbody></table></div>
+<h2 id="random">Random</h2>
+<p><code class="inline">vmath</code> exposes one process-global PCG32 stream shared by <code class="inline">random</code> and <code class="inline">random_float</code>.</p>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmath.random(lo, hi)</code></td><td><code class="inline">Int64</code> in <code class="inline">[lo, hi]</code></td></tr><tr><td><code class="inline">vmath.random_float(lo, hi)</code></td><td><code class="inline">Float64</code> in <code class="inline">[lo, hi)</code></td></tr><tr><td><code class="inline">vmath.seed(n)</code></td><td>Reset the stream state</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vmath.<span class="c-fn">seed</span>(<span class="c-num">42</span>);
+dice <span class="c-op">:=</span> vmath.<span class="c-fn">random</span>(<span class="c-num">1</span>, <span class="c-num">6</span>);
+x <span class="c-op">:=</span> vmath.<span class="c-fn">random_float</span>(<span class="c-op">-</span><span class="c-num">1.0</span>, <span class="c-num">1.0</span>);</div></div>
+<p>The state is process-global. Two independent streams require explicit state that has not landed yet. For reproducible simulations, call <code class="inline">vmath.seed</code> once at startup. On AVR, <code class="inline">arduino.random</code> / <code class="inline">arduino.random_seed</code> are separate bindings; the TinyML demo implements its own LCG in Vyne source for cross-boot reproducibility.</p>
+<h2 id="unboxed-variants">Unboxed variants</h2>
+<p>Every hot scalar function has a <code class="inline">_f64</code> variant used by the emitter when every argument is provably <code class="inline">Float64</code>. The source spelling does not change: <code class="inline">vmath.sqrt(x)</code> lowers to <code class="inline">vmath_sqrt</code> or <code class="inline">vmath_sqrt_f64</code> depending on the inferred type. Library kernels are written to keep the unboxed path.</p>
+<h2 id="avr-surface">AVR surface</h2>
+<p>The same names are available through <code class="inline">arduino.*</code> on the Uno target, with <code class="inline">_f64</code> variants for the provable-native path. AVR <code class="inline">double</code> is 32-bit, so expect single-precision behavior.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="types">Values &amp; Types</a></li><li><a data-page="vrand">vrand</a></li><li><a data-page="arduino">Arduino &amp; AVR</a></li></ul>

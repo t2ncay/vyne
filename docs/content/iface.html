@@ -1,113 +1,85 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Interfaces (Structs)</h1>
-            <p class="lede">
-              Vyne's only user-defined composite type. Doubles as a positional
-              constructor.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Interfaces</h1>
+<p class="lede">Structured values with typed fields and methods, constructors, generics, and the native struct ABI.</p>
+<p>An <code class="inline">interface</code> declares a structured type: a set of typed fields plus methods that close over them. The interface name is also the constructor.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Circle</span> {
+    r <span class="c-op">::</span> <span class="c-ty">Float64</span>;
 
-            <h2 id="declaration">Declaration</h2>
-            <p>
-              An <code class="inline">interface</code> block declares named
-              fields and, optionally, methods. The block itself becomes a
-              constructor callable with positional arguments.
-            </p>
+    <span class="c-fn">area</span>() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+        <span class="c-kw">return</span> <span class="c-kw">self</span>.r <span class="c-op">*</span> <span class="c-kw">self</span>.r <span class="c-op">*</span> <span class="c-num">3.141592653589793</span>;
+    }
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">shapes.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">interface</span> Circle { r <span class="c-op">::</span> <span class="c-ty">Float64</span>;
-  area() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
-    <span class="c-kw">return</span> r <span class="c-op">*</span> r <span class="c-op">*</span> <span class="c-num">3.14159</span>;
-  }; circumference() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
-    <span class="c-kw">return</span> <span class="c-num">2.0</span> <span class="c-op">*</span> <span class="c-num">3.14159</span> <span class="c-op">*</span> r; }; }; c <span class="c-op">::</span> Circle <span class="c-op">=</span> <span class="c-fn">Circle</span>(<span class="c-num">4.0</span
-                >); <span class="c-fn">out</span>(c.area());
-<span class="c-com">// → 50.26544</span>
-<span class="c-fn">out</span>(c.circumference());
-<span class="c-com">// → 25.13272</span></div>
-            </div>
+    <span class="c-fn">scaled</span>(k <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Circle</span> {
+        <span class="c-kw">return</span> <span class="c-fn">Circle</span>(<span class="c-kw">self</span>.r <span class="c-op">*</span> k);
+    }
+}
 
-            <h2 id="this-pointer">self</h2>
-            <p>
-              Inside a method, <code class="inline">self</code> refers to the
-              receiver. Field access is implicit — you can read
-              <code class="inline">r</code> directly — but the compiler will
-              also accept <code class="inline">self.r</code> for clarity.
-            </p>
+c <span class="c-op">::</span> <span class="c-ty">Circle</span> <span class="c-op">:=</span> <span class="c-fn">Circle</span>(<span class="c-num">4.0</span>);
+<span class="c-fn">out</span>(c.<span class="c-fn">area</span>());          <span class="c-com"># 50.265...</span>
+<span class="c-fn">out</span>(c.<span class="c-fn">scaled</span>(<span class="c-num">0.5</span>).r);   <span class="c-com"># 2.0</span></div></div>
+<p>Fields are written in declaration order. The constructor takes one argument per field, in that order. Semicolons and commas both separate fields; the manuals use both styles.</p>
+<h2 id="methods-and-self">Methods and <code class="inline">self</code></h2>
+<p>Methods are declared inside the interface body without a <code class="inline">fn</code> keyword. <code class="inline">self</code> refers to the receiver.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Counter</span> {
+    value <span class="c-op">::</span> <span class="c-ty">Int64</span>;
 
-            <h2 id="field-access">Field access and mutation</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">mutate.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">c <span class="c-op">::</span> Circle <span class="c-op">=</span> <span class="c-fn">Circle</span>(<span class="c-num">1.0</span
-                >); <span class="c-fn">out</span>(c.r);
-<span class="c-com">// → 1.0</span>
-c.r <span class="c-op">=</span> <span class="c-num">5.0</span>;
-<span class="c-com">// field assignment</span>
-<span class="c-fn">out</span>(c.area());
-<span class="c-com">// → 78.53975</span></div>
-            </div>
+    <span class="c-fn">bump</span>() {
+        <span class="c-kw">self</span>.value <span class="c-op">=</span> <span class="c-kw">self</span>.value <span class="c-op">+</span> <span class="c-num">1</span>;
+    }
 
-            <h2 id="module-binding">Module binding</h2>
-            <p>
-              An interface declared inside a
-              <code class="inline">group</code> or with an explicit
-              <code class="inline">:: Module</code> suffix becomes part of that
-              namespace.
-            </p>
+    <span class="c-fn">get</span>() <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
+        <span class="c-kw">return</span> <span class="c-kw">self</span>.value;
+    }
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">grouped.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">group</span> Shapes {
-  <span class="c-kw">interface</span> Point { x <span class="c-op">::</span> <span class="c-ty">Float64</span>;
-    y <span class="c-op">::</span> <span class="c-ty">Float64</span>; }; }; p <span class="c-op">::</span> Shapes.Point <span class="c-op">=</span> <span class="c-fn">Shapes.Point</span>(<span class="c-num"
-                  >1.0</span
-                >, <span class="c-num">2.0</span>);</div>
-            </div>
+c <span class="c-op">:=</span> <span class="c-fn">Counter</span>(<span class="c-num">0</span>);
+c.<span class="c-fn">bump</span>();
+c.<span class="c-fn">bump</span>();
+<span class="c-fn">out</span>(c.<span class="c-fn">get</span>());   <span class="c-com"># 2</span></div></div>
+<p>Methods may call free functions, group functions, and external libraries. They may return a new instance of the same interface.</p>
+<h2 id="field-access-and-assignment">Field access and assignment</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">point <span class="c-op">:=</span> <span class="c-fn">Point</span>(<span class="c-num">1.0</span>, <span class="c-num">2.0</span>);
+<span class="c-fn">out</span>(point.x);
+point.x <span class="c-op">=</span> <span class="c-num">3.0</span>;
+<span class="c-fn">out</span>(point.x);        <span class="c-com"># 3.0</span>
 
-            <h2 id="introspection">Introspection</h2>
-            <p>
-              <code class="inline">obj.fields()</code> returns an array of field
-              names as strings. Useful for debugging and generic serialisation.
-            </p>
+matrix.data[i] <span class="c-op">=</span> <span class="c-num">0.0</span>;</div></div>
+<p>Field assignment is a normal assignment target. When the interface is represented as a native C struct, field writes lower directly to the corresponding C member; otherwise they take the boxed member path.</p>
+<h2 id="constructors">Constructors</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">Person</span>(<span class="c-str">&quot;Ada&quot;</span>, <span class="c-num">36</span>);
+<span class="c-ty">Pair</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span>, <span class="c-ty">String</span><span class="c-op">&gt;</span>(<span class="c-num">7</span>, <span class="c-str">&quot;seven&quot;</span>);
+<span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>(<span class="c-num">3.5</span>);</div></div>
+<p>The constructor name may be qualified by a group. External libraries use this heavily: <code class="inline">vlin.Types.Matrix(...)</code>, <code class="inline">vstat.Series(data, n)</code>, <code class="inline">vchem.Graph(...)</code>.</p>
+<h2 id="generic-interfaces">Generic interfaces</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">T</span><span class="c-op">&gt;</span> {
+    value <span class="c-op">::</span> <span class="c-ty">T</span>;
+}
 
-            <h2 id="typed-array-fields">Typed array fields</h2>
-            <p>
-              Fields can be declared as
-              <code class="inline">Array&lt;T&gt;</code> for unboxed storage:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">typed-fields.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">interface</span> Matrix { data <span class="c-op">::</span> <span class="c-ty">Array&lt;Float64&gt;</span>; rows <span class="c-op">::</span> <span class="c-ty">Int64</span>;
-  cols <span class="c-op">::</span> <span class="c-ty">Int64</span>; };</div>
-            </div>
+<span class="c-kw">interface</span> <span class="c-ty">Pair</span><span class="c-op">&lt;</span><span class="c-ty">A</span>, <span class="c-ty">B</span><span class="c-op">&gt;</span> {
+    first  <span class="c-op">::</span> <span class="c-ty">A</span>;
+    second <span class="c-op">::</span> <span class="c-ty">B</span>;
+}
 
-            <h2 id="value-semantics">Value semantics</h2>
-            <p>
-              Structs behave as values: assigning one struct to another copies
-              its fields. Methods are shared — the method table is not
-              duplicated.
-            </p>
+b <span class="c-op">::</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>(<span class="c-num">42</span>);
+p <span class="c-op">::</span> <span class="c-ty">Pair</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span>, <span class="c-ty">String</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-ty">Pair</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span>, <span class="c-ty">String</span><span class="c-op">&gt;</span>(<span class="c-num">7</span>, <span class="c-str">&quot;seven&quot;</span>);</div></div>
+<p>Type parameters are monomorphized like generic functions. Nested generic annotations such as <code class="inline">Nested&lt;Int64&gt;</code> are accepted.</p>
+<h2 id="native-struct-abi">Native struct ABI</h2>
+<p>Struct-typed values participate in the native boundary:</p>
+<ul><li>a struct parameter expands into one C argument per field, in declaration order;</li><li>a struct return uses an out-parameter;</li><li>a registered field layout makes field access constant-time (<code class="inline">last_field_idx</code>);</li><li>arrays of native structs are supported, with boxed fallbacks where needed.</li></ul>
+<p>This is what lets a library pass <code class="inline">Matrix { row, col, data }</code> across the native boundary without boxing every field. On AVR it is what keeps a four-field struct on registers instead of forcing an arena round-trip.</p>
+<p>An interface is eligible for native C representation when every field has a C-compatible type and the layout is registered. Libraries that need a native surface keep their hot types in this shape (<code class="inline">vlin.Types.Matrix</code>, <code class="inline">vfft.Plan</code>, <code class="inline">vml.Types.Dense</code>).</p>
+<h2 id="arrays-of-structs">Arrays of structs</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Particle</span> {
+    x <span class="c-op">::</span> <span class="c-ty">Float64</span>;
+    y <span class="c-op">::</span> <span class="c-ty">Float64</span>;
+    z <span class="c-op">::</span> <span class="c-ty">Float64</span>;
+    mass <span class="c-op">::</span> <span class="c-ty">Float64</span>;
+}
 
-            <div class="admonition adm-warn">
-              <i class="fas fa-triangle-exclamation"></i>
-              <div class="adm-body">
-                <div class="adm-title">Deep copy on assignment</div>
-                Struct assignment deep-copies any nested arrays or maps. This
-                can be expensive for large structs. If you need shared mutation,
-                wrap the struct in a container or use
-                <code class="inline">Array</code>/<code class="inline"
-                  >Map</code
-                >
-                fields, which follow normal array/map reference semantics.
-              </div>
-            </div>
+particles <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Particle</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [];
+particles.<span class="c-fn">push</span>(<span class="c-fn">Particle</span>(<span class="c-num">0.0</span>, <span class="c-num">0.0</span>, <span class="c-num">0.0</span>, <span class="c-num">1.0</span>));</div></div>
+<p>For performance-sensitive arrays, <code class="inline">@layout&lt;soa&gt;</code> lowers struct <code class="inline">scratch</code> to one packed array per field. See <a data-page="regions">Memory &amp; Regions</a>.</p>
+<h2 id="lifetimes">Lifetimes</h2>
+<p>A struct allocated inside a region is invalid after the rewind unless it was committed or moved. Region escape analysis catches direct assignments, but a pointer stored inside a struct field can still outlive its region. Do not rely on the checker to see through every field.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="types">Values &amp; Types</a></li><li><a data-page="fn">Functions</a></li><li><a data-page="mods">Groups &amp; Modules</a></li><li><a data-page="regions">Memory &amp; Regions</a></li></ul>

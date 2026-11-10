@@ -1,137 +1,46 @@
-            <div class="page-eyebrow">Standard Library</div>
-            <h1>VCore</h1>
-            <p class="lede">System, time, platform, and process utilities.</p>
+<div class="page-eyebrow">Standard Library</div>
+<h1>VCore</h1>
+<p class="lede">Time, sleep, platform, input, string building, process information, and realtime telemetry.</p>
+<p><code class="inline">vcore</code> is the environment and utility module. Import it with <code class="inline">use native vcore;</code>.</p>
+<h2 id="time-and-sleep">Time and sleep</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vcore.now()</code></td><td><code class="inline">String</code></td><td>Local time formatted <code class="inline">YYYY-MM-DD HH:MM:SS</code>.</td></tr><tr><td><code class="inline">vcore.now_ns()</code></td><td><code class="inline">Int64</code></td><td>Monotonic nanoseconds. Origin is arbitrary; use differences for durations.</td></tr><tr><td><code class="inline">vcore.sleep(ms)</code></td><td><code class="inline">Int64</code></td><td>Blocks for <code class="inline">ms</code> milliseconds; returns <code class="inline">1</code>.</td></tr></tbody></table></div>
+<p><code class="inline">now_ns</code> is the timing substrate for <code class="inline">vynec bench</code> and the library benchmarks.</p>
+<h2 id="environment">Environment</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vcore.platform()</code></td><td><code class="inline">String</code></td><td><code class="inline">&quot;Windows x64&quot;</code>, <code class="inline">&quot;Linux&quot;</code>, <code class="inline">&quot;Mac OSX&quot;</code>, ...</td></tr><tr><td><code class="inline">vcore.input(prompt?)</code></td><td><code class="inline">String</code> / <code class="inline">null</code></td><td>Reads one line from stdin, optionally printing a prompt.</td></tr><tr><td><code class="inline">vcore.version</code></td><td><code class="inline">String</code></td><td>Compiler/runtime version.</td></tr><tr><td><code class="inline">vcore.engine</code></td><td><code class="inline">String</code></td><td>Engine identifier.</td></tr><tr><td><code class="inline">vcore.build</code></td><td><code class="inline">String</code></td><td>Build descriptor.</td></tr><tr><td><code class="inline">vcore.processor_count</code></td><td><code class="inline">Int64</code></td><td>Logical processor count.</td></tr><tr><td><code class="inline">vcore.pid</code></td><td><code class="inline">Int64</code></td><td>Process id.</td></tr><tr><td><code class="inline">vcore.memory_usage</code></td><td><code class="inline">Int64</code></td><td>Process memory usage in bytes (platform-dependent).</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vcore;
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">import</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">module</span> vcore;</div>
-            </div>
+<span class="c-fn">out</span>(<span class="c-str">&quot;platform: &quot;</span> <span class="c-op">+</span> vcore.<span class="c-fn">platform</span>());
+<span class="c-fn">out</span>(<span class="c-str">&quot;now: &quot;</span> <span class="c-op">+</span> vcore.<span class="c-fn">now</span>());
 
-            <h2 id="vcore-functions">Functions</h2>
-            <div class="api-block">
-              <div class="api-block-head">
-                <div class="api-block-title">
-                  <i class="fas fa-terminal"></i>Runtime
-                </div>
-                <div class="api-block-count">5 functions</div>
-              </div>
-              <div class="api-block-body">
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.now</span>() <span class="x">→</span>
-                    <span class="r">String</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Current local time as a formatted string
-                    <code class="inline">"YYYY-MM-DD HH:MM:SS"</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.sleep</span>(ms
-                    <span class="x">::</span> <span class="p">Int64</span>)
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Blocks the calling thread for
-                    <code class="inline">ms</code> milliseconds. Returns 1.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.platform</span>()
-                    <span class="x">→</span> <span class="r">String</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Compile-time platform string, e.g.
-                    <code class="inline">"Linux"</code>,
-                    <code class="inline">"Windows x64"</code>,
-                    <code class="inline">"Mac OSX"</code>.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.input</span>([prompt])
-                    <span class="x">→</span> <span class="r">String</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Reads one line from stdin, optionally printing a prompt
-                    first. Returns <code class="inline">null</code> at EOF.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.parse_array</span>(s
-                    <span class="x">::</span> <span class="p">String</span>)
-                    <span class="x">→</span> <span class="r">Array</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Parses a bracketed literal
-                    <code class="inline">"[1, 2, [3, 4]]"</code> into an Array.
-                    Supports nesting.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vcore.hex_to_int64</span>(s
-                    <span class="x">::</span> <span class="p">String</span>)
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Parses <code class="inline">"0xFF2D809A"</code> to Int64.
-                    Accepts optional <code class="inline">0x</code> prefix.
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <h2 id="vcore-properties">Properties</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>vcore.version</td>
-                    <td>String</td>
-                    <td>
-                      Compiler version, e.g.
-                      <code class="inline">"v0.0.4-alpha"</code>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>vcore.engine</td>
-                    <td>String</td>
-                    <td><code class="inline">"Vyne Native"</code></td>
-                  </tr>
-                  <tr>
-                    <td>vcore.build</td>
-                    <td>String</td>
-                    <td>Build timestamp</td>
-                  </tr>
-                  <tr>
-                    <td>vcore.processor_count</td>
-                    <td>Int64</td>
-                    <td>Number of logical CPUs</td>
-                  </tr>
-                  <tr>
-                    <td>vcore.pid</td>
-                    <td>Float64</td>
-                    <td>Process ID (Float64 for interpreter parity)</td>
-                  </tr>
-                  <tr>
-                    <td>vcore.memory_usage</td>
-                    <td>Float64</td>
-                    <td>Resident set size in bytes</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+t0 <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vcore.<span class="c-fn">now_ns</span>();
+<span class="c-fn">heavy_work</span>();
+<span class="c-fn">out</span>(<span class="c-str">&quot;ms: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(<span class="c-fn">float64</span>(vcore.<span class="c-fn">now_ns</span>() <span class="c-op">-</span> t0) <span class="c-op">/</span> <span class="c-num">1_000_000.0</span>));</div></div>
+<h2 id="parsing-helpers">Parsing helpers</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vcore.parse_array(text)</code></td><td><code class="inline">Array</code></td><td>Parses a nested bracket/number representation such as <code class="inline">&quot;[1, 2, [3, 4]]&quot;</code>.</td></tr><tr><td><code class="inline">vcore.hex_to_int64(text)</code></td><td><code class="inline">Int64</code></td><td>Parses a hexadecimal string, with or without the <code class="inline">0x</code> prefix.</td></tr><tr><td><code class="inline">vcore.chr(code)</code></td><td><code class="inline">String</code></td><td>One-byte string from a code point masked to <code class="inline">0..255</code>.</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">arr <span class="c-op">:=</span> vcore.<span class="c-fn">parse_array</span>(<span class="c-str">&quot;[1, 2, [3, 4]]&quot;</span>);
+mask <span class="c-op">:=</span> vcore.<span class="c-fn">hex_to_int64</span>(<span class="c-str">&quot;0xFF2D809A&quot;</span>);
+letter <span class="c-op">:=</span> vcore.<span class="c-fn">chr</span>(<span class="c-num">65</span>);        <span class="c-com"># &quot;A&quot;</span></div></div>
+<p><code class="inline">chr</code> is intended for assembling multi-byte UTF-8 sequences from computed bytes.</p>
+<h2 id="string-builder">String builder</h2>
+<p>The string builder avoids repeated reallocation on append-heavy output.</p>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vcore.sb_create()</code></td><td><code class="inline">Int64</code></td><td>Creates a builder and returns its handle.</td></tr><tr><td><code class="inline">vcore.sb_append(handle, value)</code></td><td><code class="inline">null</code></td><td>Appends any value, stringified.</td></tr><tr><td><code class="inline">vcore.sb_append_char(handle, code)</code></td><td><code class="inline">null</code></td><td>Appends one byte without allocating a one-character string.</td></tr><tr><td><code class="inline">vcore.sb_build(handle)</code></td><td><code class="inline">String</code></td><td>Returns an independent copy of the contents.</td></tr><tr><td><code class="inline">vcore.sb_reset(handle)</code></td><td><code class="inline">null</code></td><td>Rewinds size to 0, keeps capacity.</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">sb <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vcore.<span class="c-fn">sb_create</span>();
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    vcore.<span class="c-fn">sb_append</span>(sb, i);
+    vcore.<span class="c-fn">sb_append_char</span>(sb, <span class="c-num">44</span>);    <span class="c-com"># ','</span>
+};
+<span class="c-fn">out</span>(vcore.<span class="c-fn">sb_build</span>(sb));</div></div>
+<p><code class="inline">sb_append_char</code> is the substrate for byte-oriented parsers such as <code class="inline">vcsv</code>.</p>
+<h2 id="realtime-telemetry">Realtime telemetry</h2>
+<p><code class="inline">@realtime&lt;ms&gt;</code> regions maintain a small stats table. Read it with:</p>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vcore.realtime_worst_ms()</code></td><td>Worst observed elapsed milliseconds across all realtime regions.</td></tr><tr><td><code class="inline">vcore.realtime_overruns()</code></td><td>Total overrun count.</td></tr><tr><td><code class="inline">vcore.realtime_reset()</code></td><td>Clear the aggregate counters.</td></tr><tr><td><code class="inline">vcore.realtime_worst_ms_named(name)</code></td><td>Worst observed time for one named region.</td></tr><tr><td><code class="inline">vcore.realtime_overruns_named(name)</code></td><td>Overrun count for one named region.</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@realtime<span class="c-op">&lt;</span><span class="c-num">5</span><span class="c-op">&gt;</span> <span class="c-kw">region</span> control_tick {
+    controller.<span class="c-fn">step</span>(reading);
+};
+<span class="c-fn">out</span>(<span class="c-str">&quot;worst: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vcore.<span class="c-fn">realtime_worst_ms</span>()));
+<span class="c-fn">out</span>(<span class="c-str">&quot;overruns: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vcore.<span class="c-fn">realtime_overruns</span>()));</div></div>
+<p>The AVR runtime exposes the same five calls through <code class="inline">arduino.realtime_*</code>.</p>
+<h2 id="avr-note">AVR note</h2>
+<p>On the Arduino target only time and sleep are meaningful. <code class="inline">now</code>, <code class="inline">now_ns</code>, and <code class="inline">sleep</code> are registered; filesystem, process, and input APIs are desktop-only.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="vmem">VMem</a></li><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="builtins">Built-ins</a></li></ul>

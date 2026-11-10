@@ -1,106 +1,54 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Rulesets</h1>
-            <p class="lede">
-              Compile-time and program-wide configuration. Three flags are
-              currently implemented.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Rulesets</h1>
+<p class="lede">Compile-time and runtime policy for type checking, warnings, memory, contracts, and diagnostics.</p>
+<p>A <code class="inline">ruleset</code> declares policy from the point it appears. It can be a single flag or a block of settings:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+<span class="c-kw">ruleset</span> { <span class="c-kw">warnings</span> };
 
-            <h2 id="syntax">Syntax</h2>
-            <p>
-              A ruleset is written at the top of a file, before any executable
-              code:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">ruleset.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">ruleset</span> { dynamic_casting };
-<span class="c-kw">ruleset</span> { warnings };
+<span class="c-kw">ruleset</span> {
+    <span class="c-kw">type_check</span>       <span class="c-op">=</span> <span class="c-str">&quot;strict&quot;</span>,
+    <span class="c-kw">memory_limit</span>     <span class="c-op">=</span> <span class="c-num">256</span> <span class="c-op">*</span> <span class="c-num">1024</span> <span class="c-op">*</span> <span class="c-num">1024</span>,
+    <span class="c-kw">warnings</span>         <span class="c-op">=</span> <span class="c-str">&quot;all&quot;</span>,
+    <span class="c-kw">warnings_ignore</span>  <span class="c-op">=</span> [<span class="c-str">&quot;unused_variable&quot;</span>, <span class="c-str">&quot;shadow_variable&quot;</span>],
+    <span class="c-kw">contracts</span>        <span class="c-op">=</span> <span class="c-str">&quot;check&quot;</span>,
+};</div></div>
+<p>Settings are applied in order. A ruleset can appear at any scope; its effect applies forward from that point.</p>
+<h2 id="available-settings">Available settings</h2>
+<div class="table-wrap"><table><thead><tr><th>Setting</th><th>Form</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">dynamic_casting</code></td><td>flag</td><td>Relax type checking; declarations may omit <code class="inline">:: Type</code> and implicit conversions are allowed.</td></tr><tr><td><code class="inline">type_check</code></td><td><code class="inline">&quot;strict&quot; | &quot;hybrid&quot; | &quot;dynamic&quot;</code></td><td>Select the type-checking mode. <code class="inline">strict</code> requires explicit annotations.</td></tr><tr><td><code class="inline">implicit_casting</code></td><td><code class="inline">&quot;warn&quot; | &quot;allow&quot; | &quot;deny&quot;</code></td><td>Policy for implicit numeric/string conversions.</td></tr><tr><td><code class="inline">warnings</code></td><td>flag or <code class="inline">&quot;all&quot; | &quot;none&quot; | &quot;error_only&quot;</code></td><td>Enable or filter warnings.</td></tr><tr><td><code class="inline">warnings_ignore</code></td><td>string array</td><td>Suppress named warning categories, for example <code class="inline">unused_variable</code>.</td></tr><tr><td><code class="inline">strict</code></td><td>flag</td><td>Treat warnings as errors.</td></tr><tr><td><code class="inline">pedantic</code></td><td>flag</td><td>Enable style and performance hints.</td></tr><tr><td><code class="inline">verbose</code></td><td>flag</td><td>Show notes as well as warnings and errors.</td></tr><tr><td><code class="inline">memory_limit</code></td><td>flag or integer bytes</td><td>Enable memory-usage tracking. The current hook reports; it is not a hard runtime ceiling.</td></tr><tr><td><code class="inline">contracts</code></td><td>flag or <code class="inline">&quot;check&quot; | &quot;evidence&quot; | &quot;off&quot;</code></td><td>Control <code class="inline">requires</code> / <code class="inline">ensures</code> / <code class="inline">@invariant</code> lowering.</td></tr><tr><td><code class="inline">profiling</code></td><td>flag or <code class="inline">&quot;on&quot;</code></td><td>Enable profiling notes.</td></tr><tr><td><code class="inline">debug</code></td><td>flag or <code class="inline">&quot;on&quot;</code></td><td>Enable debug notes.</td></tr><tr><td><code class="inline">trace</code></td><td>flag or <code class="inline">&quot;on&quot;</code></td><td>Enable trace notes.</td></tr><tr><td><code class="inline">max_iterations</code></td><td>integer</td><td>Set the diagnostic iteration budget.</td></tr></tbody></table></div>
+<h2 id="type-checking">Type checking</h2>
+<p>The default mode is a hybrid: explicit annotations are checked, untyped declarations are allowed with a warning. <code class="inline">dynamic_casting</code> relaxes the checker:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
 
-<span class="c-com">// ... your program ...</span></div>
-            </div>
+x <span class="c-op">=</span> <span class="c-num">42</span>;          <span class="c-com"># accepted; boxed dynamic binding</span>
+y <span class="c-op">=</span> <span class="c-str">&quot;hello&quot;</span>;</div></div>
+<p><code class="inline">type_check = &quot;strict&quot;</code> requires every declaration to carry a type:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">type_check</span> <span class="c-op">=</span> <span class="c-str">&quot;strict&quot;</span> };
 
-            <p>Or with a value:</p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">ruleset-value.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">ruleset</span> { memory_limit = <span class="c-num">268435456</span> };
-<span class="c-com">// 256 MB</span></div>
-            </div>
+n <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">42</span>;
+name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">:=</span> <span class="c-str">&quot;vyne&quot;</span>;</div></div>
+<p><code class="inline">dynamic_casting</code> is appropriate for scripts and library facades that intentionally use untyped locals. It is not recommended for application code.</p>
+<h2 id="warnings">Warnings</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">warnings</span> };
 
-            <h2 id="available-flags">Available flags</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Flag</th>
-                    <th>Form</th>
-                    <th>Effect</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>warnings</td>
-                    <td>
-                      flag or
-                      <code class="inline"
-                        >warnings = "all" \| "none" \| "error_only"</code
-                      >
-                    </td>
-                    <td>
-                      Enables diagnostic output. Without this, warnings are
-                      suppressed and only errors surface.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>dynamic_casting</td>
-                    <td>flag</td>
-                    <td>
-                      Relaxes type checking. Type annotations on variables
-                      become optional and implicit conversions are permitted. Do
-                      not use in production.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>memory_limit</td>
-                    <td>
-                      flag or
-                      <code class="inline">memory_limit = &lt;bytes&gt;</code>
-                    </td>
-                    <td>
-                      Enables the memory-usage check hook. Currently reports but
-                      does not enforce. Reserved for a future runtime check.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+<span class="c-kw">ruleset</span> {
+    <span class="c-kw">warnings</span>        <span class="c-op">=</span> <span class="c-str">&quot;all&quot;</span>,
+    <span class="c-kw">warnings_ignore</span> <span class="c-op">=</span> [<span class="c-str">&quot;unused_variable&quot;</span>],
+};</div></div>
+<p>Warnings cover unused variables, shadowed variables, and a few style patterns. <code class="inline">strict</code> upgrades warnings to errors; <code class="inline">pedantic</code> adds extra hints. <code class="inline">warnings_ignore</code> takes an array of category names.</p>
+<h2 id="contracts">Contracts</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;check&quot;</span> };</div></div>
+<div class="table-wrap"><table><thead><tr><th>Value</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">&quot;check&quot;</code> (default when the flag is present)</td><td>Emit assertions; a violation halts with <code class="inline">VNE-111</code>.</td></tr><tr><td><code class="inline">&quot;evidence&quot;</code></td><td>Assert and append a CSV pass/fail row to <code class="inline">vyne_contracts.log</code> or <code class="inline">$VYNE_CONTRACT_LOG</code>.</td></tr><tr><td><code class="inline">&quot;off&quot;</code> / <code class="inline">&quot;none&quot;</code> / <code class="inline">&quot;release&quot;</code></td><td>Emit nothing.</td></tr></tbody></table></div>
+<p><code class="inline">evidence</code> is useful in CI: it records which contract was exercised, not just whether the program survived.</p>
+<h2 id="memory-limit">Memory limit</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">memory_limit</span> <span class="c-op">=</span> <span class="c-num">268_435_456</span> };   <span class="c-com"># 256 MB</span></div></div>
+<p>The flag form enables tracking with a default limit. The value form sets the threshold. Today this feeds the tracking hook; region policies (<code class="inline">@bounded</code>) are the enforceable per-region mechanism.</p>
+<h2 id="ruleset-scope">Ruleset scope</h2>
+<p>Because settings apply forward from the declaration, a common pattern is:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span>, <span class="c-kw">warnings</span> };   <span class="c-com"># facade-level convenience</span>
 
-            <h2 id="strict-mode">Strict mode</h2>
-            <p>
-              By default, Vyne operates in <strong>strict mode</strong>: every
-              variable must have an explicit
-              <code class="inline">:: Type</code> annotation, and every
-              assignment is type-checked against the declared type. The
-              <code class="inline">dynamic_casting</code> flag is the only way
-              to relax this, and it is intended for scripts and one-offs.
-            </p>
-
-            <h2 id="warning-control">Warning control</h2>
-            <p>
-              When <code class="inline">warnings</code> is enabled, the compiler
-              reports unused variables, shadowed variables, and a few other
-              patterns. The granular ignore list form is:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">ignore.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">ruleset</span> { warnings <span class="c-op">=</span> <span class="c-str">"all"</span>, warnings_ignore <span class="c-op">=</span> [<span class="c-str"
-                  >"unused_variable"</span
-                >, <span class="c-str">"shadow_variable"</span>] };</div>
-            </div>
+<span class="c-kw">fn</span> <span class="c-fn">public_api</span>(x <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    <span class="c-kw">return</span> x <span class="c-op">*</span> <span class="c-num">2.0</span>;
+}</div></div>
+<p>Keep rulesets at the top of a file unless you deliberately want to change policy mid-file. A ruleset is not a runtime flag alone: some settings affect parsing and type resolution, so ordering matters.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="errcodes">Error Codes</a></li><li><a data-page="fn">Functions</a></li><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="errors">Error Handling</a></li></ul>

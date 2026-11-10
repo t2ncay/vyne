@@ -1,0 +1,328 @@
+<div class="page-eyebrow">Numerical Libraries</div>
+<h1>vml</h1>
+<p class="lede">Dense neural-network primitives: Dense layers, Sequential containers, activations, losses, and SGD.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vml</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vml/vml.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vlin</code>, <code class="inline">vmath</code></td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vml/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p>Minimal dense-neural-network primitives for Vyne.</p>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong>On the name.</strong> The three letters stand for <em>Vyne machine learning</em>. The source has always used <code class="inline">vml</code> — in the <code class="inline">module vml;</code> declaration, in the mangled names, and in the <code class="inline">use external</code> path. This manual uses <code class="inline">vml</code> exclusively. If you have call sites that write <code class="inline">vmlx.foo(...)</code> or <code class="inline">vynn.foo(...)</code>, they will not resolve.</p></div></div>
+<hr>
+<h2 id="contents">Contents</h2>
+<ol><li><a href="#overview">Overview</a></li><li><a href="#quick-start">Quick start</a></li><li><a href="#importing">Importing</a></li><li><a href="#module-layout">Module layout</a></li><li><a href="#the-dense-sequential-and-sgd-types">The <code class="inline">Dense</code>, <code class="inline">Sequential</code>, and <code class="inline">SGD</code> types</a></li><li><a href="#reference-semantics-and-the-memory-model">Reference semantics and the memory model</a></li><li><a href="#api-reference">API reference</a></li><li><a href="#worked-example">Worked example</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#design-notes">Design notes</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="#version-history">Version history</a></li></ol>
+<hr>
+<h2 id="overview">Overview</h2>
+<p><code class="inline">vml</code> is a pure-Vyne neural-network library. It provides the primitives you need to assemble and train a fully-connected network — dense layers with a small set of activations, a sequential container that composes them, stochastic gradient descent, and the two scalar losses that cover almost every binary classification and regression task.</p>
+<p>The library deliberately omits the features that make PyTorch and JAX convenient — autograd, GPU kernels, convolutional layers, optimizers beyond vanilla SGD, learning-rate schedules. It does one thing well: it represents a network as a list of <code class="inline">Dense</code> layers and gives you the forward pass, the four activation derivatives you need for a manual backward pass, and the weight-update kernel that closes the loop.</p>
+<p><code class="inline">vml</code> is a thin layer. Every numeric operation is delegated to <code class="inline">vlin</code>. A <code class="inline">Dense</code> layer holds a <code class="inline">vlin.Types.Matrix</code> for weights and a plain <code class="inline">Array&lt;Float64&gt;</code> for biases; the forward pass is a single call to <code class="inline">vlin.multiply</code> followed by <code class="inline">vlin.add_bias</code>. The SGD update is a single call to <code class="inline">vlin.sgd_update_inplace</code>. <code class="inline">vml</code> is the composition logic — the part that decides <em>which</em> vlin call to make and in <em>what order</em> — not a second numerical library.</p>
+<p>Because <code class="inline">vlin</code> is unboxed at the boundary and every operation in <code class="inline">vml</code> is expressed in terms of <code class="inline">vlin</code> calls, a well-typed <code class="inline">vml</code> program compiles to code where the inner loops of the forward and backward passes are bare <code class="inline">double</code> arithmetic. The network's data path from input matrix to loss is a chain of typed arrays with no boxing boundary in between.</p>
+<hr>
+<h2 id="quick-start">Quick start</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vml/vml.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vlin/vlin.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+<span class="c-com"># Build a 4 -&gt; 3 -&gt; 1 MLP.</span>
+<span class="c-ty">L1</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> vml.<span class="c-fn">dense</span>(<span class="c-num">4</span>, <span class="c-num">3</span>, <span class="c-str">&quot;tanh&quot;</span>);
+<span class="c-ty">L2</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> vml.<span class="c-fn">dense</span>(<span class="c-num">3</span>, <span class="c-num">1</span>, <span class="c-str">&quot;sigmoid&quot;</span>);
+model <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Sequential</span> <span class="c-op">=</span> vml.<span class="c-fn">sequential</span>([<span class="c-ty">L1</span>, <span class="c-ty">L2</span>]);
+
+<span class="c-com"># Some input data.</span>
+<span class="c-ty">X</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">from_flat</span>(<span class="c-num">2</span>, <span class="c-num">4</span>, [
+    <span class="c-num">0.5</span>, <span class="c-op">-</span><span class="c-num">0.2</span>, <span class="c-num">0.1</span>, <span class="c-num">0.3</span>,
+    <span class="c-num">0.0</span>,  <span class="c-num">0.7</span>, <span class="c-op">-</span><span class="c-num">0.5</span>, <span class="c-num">0.2</span>
+]);
+
+<span class="c-com"># Forward pass.</span>
+y_hat <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> model.<span class="c-fn">forward</span>(<span class="c-ty">X</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;y_hat[0,0] = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(y_hat.<span class="c-fn">get</span>(<span class="c-num">0</span>, <span class="c-num">0</span>)));</div></div>
+<p>That is the entire training-ready core: one constructor call per layer, one container, one forward pass. The backward pass is written by the user in terms of <code class="inline">vlin</code> operations; see the <strong>Worked example</strong> below for what that looks like.</p>
+<hr>
+<h2 id="importing">Importing</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vml/vml.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vlin/vlin.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;</div></div>
+<p><code class="inline">vml.vy</code> is a facade. It pulls in the leaf modules and transitively brings in <code class="inline">vlin</code>:</p>
+<div class="table-wrap"><table><thead><tr><th>Module</th><th>Contents</th></tr></thead><tbody><tr><td><code class="inline">Types.vy</code></td><td><code class="inline">Dense</code>, <code class="inline">Sequential</code>, <code class="inline">SGD</code> interfaces, group <code class="inline">Types :: vml</code></td></tr><tr><td><code class="inline">Kernels.vy</code></td><td><code class="inline">k_bias_grad</code> — the one ML-specific loop</td></tr><tr><td><code class="inline">Constructors.vy</code></td><td><code class="inline">dense</code>, <code class="inline">dense_scaled</code>, <code class="inline">sequential</code>, <code class="inline">sgd</code></td></tr><tr><td><code class="inline">Ops.vy</code></td><td>Activation dispatch, forward pass, in-place SGD step</td></tr><tr><td><code class="inline">Reductions.vy</code></td><td><code class="inline">cross_entropy</code>, <code class="inline">mse</code>, <code class="inline">accuracy</code></td></tr></tbody></table></div>
+<p>You may import individual leaf modules if you want to avoid pulling in the full surface, but the facade is the recommended entry point.</p>
+<p>Because <code class="inline">vml</code> re-exports <code class="inline">vlin</code>'s <code class="inline">Matrix</code> type through its method signatures, both <code class="inline">use</code> lines are typically present in user code. If you only need the network surface and not the raw matrix operations, the <code class="inline">vml</code> import alone is sufficient — the types resolve through it.</p>
+<hr>
+<h2 id="module-layout">Module layout</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vml/
+├── vml.vy            # facade: use + deploy
+├── Types.vy          # Dense, Sequential, SGD interfaces
+├── Kernels.vy        # k_bias_grad
+├── Constructors.vy   # dense, dense_scaled, sequential, sgd
+├── Ops.vy            # apply_activation, forward, forward_all, sgd_step
+└── Reductions.vy     # cross_entropy, mse, accuracy</div></div>
+<h3 id="layering">Layering</h3>
+<p><code class="inline">vml</code> sits on top of <code class="inline">vlin</code> in a two-tier arrangement:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vml/                          ← composition logic, activation dispatch,
+                                 loss functions, optimizer wrapper
+───────────────────────────
+vlin/                         ← matrix arithmetic, matrix products,
+                                 elementwise ops, scalar reductions
+───────────────────────────
+Array&lt;Float64&gt; primitives     ← everything else</div></div>
+<p>The boundary between tiers is a <code class="inline">vlin.Types.Matrix</code> value: a struct containing two <code class="inline">Int64</code> dimensions and an <code class="inline">Array&lt;Float64&gt;</code>. <code class="inline">vml</code> never looks inside that array directly except in the two places where it has to — <code class="inline">k_bias_grad</code> (which reads <code class="inline">delta.data</code> row-by-row to accumulate bias gradients) and the user's own backward pass.</p>
+<hr>
+<h2 id="the-dense-sequential-and-sgd-types">The <code class="inline">Dense</code>, <code class="inline">Sequential</code>, and <code class="inline">SGD</code> types</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">group</span> <span class="c-ty">Types</span> <span class="c-op">::</span> vml {
+
+    <span class="c-kw">interface</span> <span class="c-ty">Dense</span> {
+        <span class="c-ty">W</span>          <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+        b          <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+        activation <span class="c-op">::</span> <span class="c-ty">String</span>,
+        <span class="c-com"># ... methods ...</span>
+    }
+
+    <span class="c-kw">interface</span> <span class="c-ty">Sequential</span> {
+        layers <span class="c-op">::</span> <span class="c-ty">Array</span>,
+        <span class="c-com"># ... methods ...</span>
+    }
+
+    <span class="c-kw">interface</span> <span class="c-ty">SGD</span> {
+        lr <span class="c-op">::</span> <span class="c-ty">Float64</span>,
+        <span class="c-com"># ... methods ...</span>
+    }
+}</div></div>
+<p>All three live in the <code class="inline">Types</code> group under <code class="inline">vml</code>, mirroring the <code class="inline">Types :: vlin</code> convention. Users write <code class="inline">vml.Types.Dense</code>, not <code class="inline">vml.Dense</code>, which makes it obvious at a call site that a name refers to a type, not an operation.</p>
+<h3 id="dense"><code class="inline">Dense</code></h3>
+<p>A single fully-connected layer with a weight matrix, a bias vector, and the name of its activation function.</p>
+<div class="table-wrap"><table><thead><tr><th>Field</th><th>Type</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">W</code></td><td><code class="inline">vlin.Types.Matrix</code></td><td>Weight matrix, shape <code class="inline">(in_features, out_features)</code>.</td></tr><tr><td><code class="inline">b</code></td><td><code class="inline">Array&lt;Float64&gt;</code></td><td>Bias vector, length <code class="inline">out_features</code>.</td></tr><tr><td><code class="inline">activation</code></td><td><code class="inline">String</code></td><td>One of <code class="inline">&quot;tanh&quot;</code>, <code class="inline">&quot;sigmoid&quot;</code>, <code class="inline">&quot;relu&quot;</code>, <code class="inline">&quot;linear&quot;</code>.</td></tr></tbody></table></div>
+<p>The forward pass computes:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">z = x @ W + b
+a = activation(z)</div></div>
+<p>Note that <code class="inline">W</code> has shape <code class="inline">(in, out)</code>, not <code class="inline">(out, in)</code>. This is the &quot;transposed&quot; convention — a forward pass is <code class="inline">x @ W</code>, not <code class="inline">x @ W.T</code>. <code class="inline">vlin.xavier_init(in, out)</code> returns a matrix of shape <code class="inline">(in, out)</code>, so <code class="inline">vml.dense(4, 3, ...)</code> produces a <code class="inline">W</code> of shape <code class="inline">(4, 3)</code>, and a forward pass with <code class="inline">x</code> of shape <code class="inline">(batch, 4)</code> produces <code class="inline">z</code> of shape <code class="inline">(batch, 3)</code>.</p>
+<h3 id="sequential"><code class="inline">Sequential</code></h3>
+<p>A container holding an <code class="inline">Array</code> of layers. Layers are applied in order. The forward pass threads the input through every layer and returns the final output.</p>
+<p><code class="inline">Sequential.layers</code> is a plain <code class="inline">Array</code>, not a <code class="inline">Array&lt;Dense&gt;</code>. Its elements are expected to be <code class="inline">Dense</code> values (or values with a <code class="inline">forward(Matrix) -&gt; Matrix</code> method), but the container does not enforce this. Pushing a non-layer into a <code class="inline">Sequential</code> produces a runtime error on the first forward pass, not at construction time.</p>
+<h3 id="sgd"><code class="inline">SGD</code></h3>
+<p>A learning-rate holder.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">SGD</span> {
+    lr <span class="c-op">::</span> <span class="c-ty">Float64</span>,
+    <span class="c-fn">lr_value</span>() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> { <span class="c-kw">return</span> <span class="c-kw">self</span>.lr; }
+}</div></div>
+<p>The <code class="inline">SGD</code> interface is deliberately minimal. There is no momentum buffer, no adaptive learning rate, no per-parameter state. It carries one number and offers one accessor.</p>
+<p><strong>Note:</strong> the optimizer object is not consumed by <code class="inline">vml.sgd_step</code>. That function takes the learning rate as a plain <code class="inline">Float64</code> argument. The <code class="inline">SGD</code> interface exists for API symmetry and for future extension; if you want to use the object rather than a bare <code class="inline">Float64</code>, pass <code class="inline">opt.lr_value()</code>. See <strong>Roadmap</strong> for the plan to unify the two.</p>
+<hr>
+<h2 id="reference-semantics-and-the-memory-model">Reference semantics and the memory model</h2>
+<h3 id="layers-hold-references-not-values">Layers hold references, not values</h3>
+<p>A <code class="inline">Dense</code> layer stores its weight matrix by reference. Assigning a <code class="inline">Dense</code> to another variable aliases the underlying data:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-ty">L1</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> vml.<span class="c-fn">dense</span>(<span class="c-num">4</span>, <span class="c-num">3</span>, <span class="c-str">&quot;tanh&quot;</span>);
+<span class="c-ty">L1_alias</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> <span class="c-ty">L1</span>;
+
+<span class="c-com"># Modifying L1.W's backing buffer is visible through L1_alias.</span>
+<span class="c-ty">L1</span>.<span class="c-ty">W</span>.data[<span class="c-num">0</span>] <span class="c-op">=</span> <span class="c-num">999.0</span>;</div></div>
+<p>Same semantics as <code class="inline">vlin</code> matrices and Python objects. To obtain an independent copy, use <code class="inline">vlin</code>'s <code class="inline">m.copy()</code> on the weight matrix and rebuild the layer.</p>
+<h3 id="weight-matrices-are-the-only-mutable-state">Weight matrices are the only mutable state</h3>
+<p>The forward pass reads from <code class="inline">W</code> and <code class="inline">b</code> and allocates a fresh output matrix per call. The backward pass, as written in user code, reads from <code class="inline">W</code> and writes into a caller-provided gradient matrix. The only mutation a training loop performs is the SGD step, which writes back into <code class="inline">W</code>'s backing buffer in place:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vlin.<span class="c-fn">sgd_update_inplace</span>(<span class="c-ty">W</span>, <span class="c-kw">grad</span>, lr);</div></div>
+<p>Because <code class="inline">W</code>'s backing buffer is not reallocated, <code class="inline">W</code>'s address is stable across training iterations. This matters under <code class="inline">vmem</code> checkpointing: as long as the weight matrix was allocated <em>before</em> the first checkpoint, every SGD step mutates that same buffer regardless of how many regions have rewound underneath it.</p>
+<h3 id="every-forward-pass-allocates">Every forward pass allocates</h3>
+<p>Each call to <code class="inline">model.forward(x)</code> allocates:</p>
+<ul><li>One output matrix per layer.</li><li>Additional scratch matrices for <code class="inline">vlin.multiply</code>, <code class="inline">vlin.add_bias</code>, and the activation, depending on which <code class="inline">vlin</code> primitives that layer uses.</li></ul>
+<p>For a two-layer MLP at batch size 240, roughly 1.5 MB per forward pass under the default arena model. A training loop that does forward + backward + step, <code class="inline">K</code> times, allocates <code class="inline">O(K)</code> matrix buffers. Without checkpointing, memory grows monotonically.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-ty">N</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    cp <span class="c-op">=</span> vmem.<span class="c-fn">checkpoint</span>();
+
+    <span class="c-com"># Every vml and vlin operation in here allocates. All of it</span>
+    <span class="c-com"># is dropped at the rewind.</span>
+
+    vmem.<span class="c-fn">rewind</span>(cp);
+};</div></div>
+<p>Same caveat as <code class="inline">vlin</code>: values that outlive the iteration — weights, optimizer state, running metrics — must be allocated <em>outside</em> the region. See <code class="inline">vlin</code>'s <strong>Reference semantics</strong> section for the general rule and <code class="inline">vfft</code>'s for a case study of what happens when you get it wrong.</p>
+<hr>
+<h2 id="api-reference">API reference</h2>
+<h3 id="constructors">Constructors</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">dense</span>(in_features <span class="c-op">::</span> <span class="c-ty">Int64</span>, out_features <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+          activation <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span></div></div>
+<p>Builds a dense layer. Weight matrix initialized with <code class="inline">vlin.xavier_init</code>, bias vector initialized to zeros. <code class="inline">activation</code> is stored verbatim; the valid strings are <code class="inline">&quot;tanh&quot;</code>, <code class="inline">&quot;sigmoid&quot;</code>, <code class="inline">&quot;relu&quot;</code>, and <code class="inline">&quot;linear&quot;</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">dense_scaled</span>(in_features <span class="c-op">::</span> <span class="c-ty">Int64</span>, out_features <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+                 activation <span class="c-op">::</span> <span class="c-ty">String</span>, scale <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span></div></div>
+<p>Same as <code class="inline">dense</code>, but the weight matrix is post-multiplied by <code class="inline">scale</code>. Useful for shrinking the effective learning rate of a specific layer without changing the global optimizer setting. <code class="inline">scale</code> multiplies the weights, not the outputs; <code class="inline">dense_scaled(i, o, a, 0.1)</code> produces weights that are 10× smaller than <code class="inline">dense(i, o, a)</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">sequential</span>(layers <span class="c-op">::</span> <span class="c-ty">Array</span>) <span class="c-op">-&gt;</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Sequential</span></div></div>
+<p>Wraps an array of layers in a <code class="inline">Sequential</code> container. Layers are applied in the order they appear in the array.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">sgd</span>(lr <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">SGD</span></div></div>
+<p>Builds an <code class="inline">SGD</code> holder with the given learning rate. See the note under <a href="#the-dense-sequential-and-sgd-types">The <code class="inline">Dense</code>, <code class="inline">Sequential</code>, and <code class="inline">SGD</code> types</a> about how the holder interacts with <code class="inline">sgd_step</code>.</p>
+<h3 id="activation-dispatch">Activation dispatch</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">apply_activation</span>(m <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>, kind <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>
+vml.<span class="c-fn">apply_activation_prime</span>(a <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>, kind <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span></div></div>
+<p>Dispatch on the activation name. <code class="inline">apply_activation</code> selects the forward function; <code class="inline">apply_activation_prime</code> selects its derivative, evaluated at the post-activation output <code class="inline">a</code>.</p>
+<div class="table-wrap"><table><thead><tr><th><code class="inline">kind</code></th><th>Forward</th><th>Prime</th></tr></thead><tbody><tr><td><code class="inline">&quot;tanh&quot;</code></td><td><code class="inline">vlin.apply_tanh</code></td><td><code class="inline">vlin.tanh_prime</code></td></tr><tr><td><code class="inline">&quot;sigmoid&quot;</code></td><td><code class="inline">vlin.apply_sigmoid</code></td><td><code class="inline">vlin.sigmoid_prime</code></td></tr><tr><td><code class="inline">&quot;relu&quot;</code></td><td><code class="inline">vlin.apply_relu</code></td><td><code class="inline">vlin.relu_prime</code></td></tr><tr><td><code class="inline">&quot;linear&quot;</code></td><td>identity</td><td>matrix of ones</td></tr></tbody></table></div>
+<p>Unknown strings fall through to <code class="inline">&quot;linear&quot;</code> behaviour: the forward pass returns <code class="inline">m</code> unchanged, and the prime returns a matrix of ones. This is a deliberate lenient default, not a validation error — a network with a misspelled activation will train, but as a linear network.</p>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong><code class="inline">relu_prime</code> is broken in <code class="inline">vlin</code> 0.1.0.</strong> See <code class="inline">vlin</code>'s <strong>Roadmap</strong> for the codegen issue. Until it is fixed, do not use <code class="inline">&quot;relu&quot;</code> as the activation of a hidden layer in a network whose backward pass calls <code class="inline">vlin.relu_prime</code>. <code class="inline">&quot;tanh&quot;</code> and <code class="inline">&quot;sigmoid&quot;</code> both work correctly.</p></div></div>
+<h3 id="forward-pass">Forward pass</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">forward</span>(model <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Sequential</span>, x <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>) <span class="c-op">-&gt;</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span></div></div>
+<p>Equivalent to <code class="inline">model.forward(x)</code>. Provided so that the forward pass can be called as a free function when you want to treat the model as data.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">forward_all</span>(model <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Sequential</span>, x <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Array</span></div></div>
+<p>Returns every intermediate activation as an array. <code class="inline">h[0]</code> is the first layer's output, <code class="inline">h[1]</code> the second's, and so on. <code class="inline">h[depth-1]</code> is the final output.</p>
+<p>This is the function a manual backward pass uses. The gradient of a dense layer's input depends on the layer's own output, so threading the intermediates through forward and backward in one object is what makes a hand-written backprop tractable.</p>
+<p>The return type is <code class="inline">Array</code>, not <code class="inline">Array&lt;Matrix&gt;</code>. Elements are boxed matrix values. Indexing with <code class="inline">h[i]</code> yields a boxed <code class="inline">VyneValue</code> that dereferences to a struct on use. See the design note about why the empty-literal case had to be worked around.</p>
+<h3 id="optimizer-step">Optimizer step</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">sgd_step</span>(<span class="c-ty">W</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>, <span class="c-kw">grad</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+             lr <span class="c-op">::</span> <span class="c-ty">Float64</span>)</div></div>
+<p>Applies <code class="inline">W = W - lr * grad</code> in place. Delegates to <code class="inline">vlin.sgd_update_inplace</code>. <code class="inline">W</code> and <code class="inline">grad</code> must have matching shapes; the function does not check.</p>
+<p><code class="inline">W</code>'s backing buffer is mutated. Any other reference to the same matrix sees the update. <code class="inline">grad</code> is not modified.</p>
+<h3 id="losses-and-metrics">Losses and metrics</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">cross_entropy</span>(pred <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+                  target <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span></div></div>
+<p>Binary cross-entropy, averaged over the number of rows in <code class="inline">pred</code>. <code class="inline">pred</code> is clamped to <code class="inline">[1e-9, 1 - 1e-9]</code> before the logarithm, so exact 0 or 1 predictions do not produce infinities.</p>
+<p>The averaging divisor is <code class="inline">pred.row</code>, not <code class="inline">pred.row * pred.col</code>. For a <code class="inline">(N, 1)</code> prediction matrix — the canonical shape for binary classification — these are the same. For a wider prediction matrix the loss is per-row, not per-element. See <strong>Limitations</strong>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">mse</span>(pred <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+        target <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span></div></div>
+<p>Mean squared error, averaged over every element. Empty input returns <code class="inline">0.0</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">accuracy</span>(pred <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+             target <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span>,
+             n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span></div></div>
+<p>Fraction of the first <code class="inline">n</code> elements where <code class="inline">pred[i] &gt; 0.5</code> matches <code class="inline">target[i] &gt; 0.5</code>. The <code class="inline">n</code> argument is caller-supplied and is not checked against <code class="inline">pred.row * pred.col</code>; passing <code class="inline">n &gt; size</code> reads past the end of the backing buffer. Passing <code class="inline">n</code> less than the full size evaluates on a prefix.</p>
+<h3 id="internal-kernel">Internal kernel</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vml.<span class="c-fn">k_bias_grad</span>(output <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>, delta <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+                rows <span class="c-op">::</span> <span class="c-ty">Int64</span>, cols <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p>For a <code class="inline">delta</code> matrix of shape <code class="inline">(rows, cols)</code>, computes the column-wise sum into <code class="inline">output</code>: <code class="inline">output[c] = sum over r of delta[r * cols + c]</code>. This is the operation needed to compute the bias gradient from the upstream delta.</p>
+<p>Public only because the parser resolves the name. Most programs should not call it directly — the loss modules and user code that compute a bias gradient tend to inline the loop rather than dispatch to this kernel.</p>
+<hr>
+<h2 id="worked-example">Worked example</h2>
+<p>A complete training loop for a two-layer classifier, using only the current surface. Compare with <code class="inline">vlin</code>'s worked example, which stops at the forward pass.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vml/vml.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vlin/vlin.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vcolors/vcolors.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmem;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+vmath.<span class="c-fn">seed</span>(<span class="c-num">42</span>);
+
+<span class="c-com"># ---- Configuration ----</span>
+<span class="c-ty">N_SAMPLES</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">240</span>;
+<span class="c-ty">N_FEATURES</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">64</span>;
+<span class="c-ty">HIDDEN</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">16</span>;
+<span class="c-ty">EPOCHS</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">100</span>;
+<span class="c-ty">LR</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">0.5</span>;
+
+<span class="c-com"># ---- Data ----</span>
+<span class="c-com"># For the example, generate X and Y directly. Real code would load</span>
+<span class="c-com"># or synthesize them.</span>
+<span class="c-ty">X</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">random_uniform</span>(<span class="c-ty">N_SAMPLES</span>, <span class="c-ty">N_FEATURES</span>, <span class="c-op">-</span><span class="c-num">1.0</span>, <span class="c-num">1.0</span>);
+<span class="c-ty">Y</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">from_flat</span>(<span class="c-ty">N_SAMPLES</span>, <span class="c-num">1</span>, [<span class="c-op">..</span>.]);
+
+<span class="c-com"># ---- Model ----</span>
+<span class="c-ty">L1</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> vml.<span class="c-fn">dense</span>(<span class="c-ty">N_FEATURES</span>, <span class="c-ty">HIDDEN</span>, <span class="c-str">&quot;tanh&quot;</span>);
+<span class="c-ty">L2</span> <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Dense</span> <span class="c-op">=</span> vml.<span class="c-fn">dense</span>(<span class="c-ty">HIDDEN</span>, <span class="c-num">1</span>, <span class="c-str">&quot;sigmoid&quot;</span>);
+model <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">Sequential</span> <span class="c-op">=</span> vml.<span class="c-fn">sequential</span>([<span class="c-ty">L1</span>, <span class="c-ty">L2</span>]);
+
+<span class="c-com"># Reach into the model to grab the weight matrices for the backward pass.</span>
+<span class="c-ty">W1</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> model.layers[<span class="c-num">0</span>].<span class="c-ty">W</span>;
+<span class="c-ty">W2</span> <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> model.layers[<span class="c-num">1</span>].<span class="c-ty">W</span>;
+
+<span class="c-com"># Per-sample learning rate, since gradients are accumulated over the batch.</span>
+scale <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-ty">LR</span> <span class="c-op">/</span> <span class="c-fn">float64</span>(<span class="c-ty">N_SAMPLES</span>);
+
+<span class="c-com"># ---- Warm the plan-shaped state before the region loop ----</span>
+<span class="c-com"># See &quot;Reference semantics&quot; — anything that survives a rewind must be</span>
+<span class="c-com"># allocated above every checkpoint. For vml this means the model itself.</span>
+<span class="c-com"># (The model is constructed above, so nothing else is required here.)</span>
+
+<span class="c-com"># ---- Training ----</span>
+<span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-ty">EPOCHS</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> step {
+        <span class="c-com"># Forward, capturing intermediates.</span>
+        h <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> vml.<span class="c-fn">forward_all</span>(model, <span class="c-ty">X</span>);
+        <span class="c-ty">A1</span> <span class="c-op">=</span> h[<span class="c-num">0</span>];
+        <span class="c-ty">A2</span> <span class="c-op">=</span> h[<span class="c-num">1</span>];
+
+        <span class="c-com"># Backward (manual).</span>
+        delta2 <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">subtract</span>(<span class="c-ty">A2</span>, <span class="c-ty">Y</span>);
+        dW2 <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">multiply</span>(vlin.<span class="c-fn">transpose</span>(<span class="c-ty">A1</span>), delta2);
+
+        delta1 <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">hadamard</span>(
+            vlin.<span class="c-fn">multiply</span>(delta2, vlin.<span class="c-fn">transpose</span>(<span class="c-ty">W2</span>)),
+            vlin.<span class="c-fn">tanh_prime</span>(<span class="c-ty">A1</span>));
+        dW1 <span class="c-op">::</span> vlin.<span class="c-ty">Types</span>.<span class="c-ty">Matrix</span> <span class="c-op">=</span> vlin.<span class="c-fn">multiply</span>(vlin.<span class="c-fn">transpose</span>(<span class="c-ty">X</span>), delta1);
+
+        <span class="c-com"># Weight updates.</span>
+        vml.<span class="c-fn">sgd_step</span>(<span class="c-ty">W1</span>, dW1, scale);
+        vml.<span class="c-fn">sgd_step</span>(<span class="c-ty">W2</span>, dW2, scale);
+    };
+
+    <span class="c-kw">if</span> epoch <span class="c-op">%</span> <span class="c-num">10</span> <span class="c-op">==</span> <span class="c-num">0</span> {
+        h_final <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> vml.<span class="c-fn">forward_all</span>(model, <span class="c-ty">X</span>);
+        <span class="c-ty">A_final</span> <span class="c-op">=</span> h_final[<span class="c-num">1</span>];
+        loss <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> vml.<span class="c-fn">cross_entropy</span>(<span class="c-ty">A_final</span>, <span class="c-ty">Y</span>);
+        acc  <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> vml.<span class="c-fn">accuracy</span>(<span class="c-ty">A_final</span>, <span class="c-ty">Y</span>, <span class="c-ty">N_SAMPLES</span>);
+        <span class="c-fn">out</span>(<span class="c-str">&quot;epoch &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(epoch) <span class="c-op">+</span> <span class="c-str">&quot;  loss &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(loss) <span class="c-op">+</span>
+            <span class="c-str">&quot;  acc &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(acc));
+    };
+};
+
+<span class="c-fn">out</span>(vcolors.<span class="c-fn">green</span>(<span class="c-str">&quot;done.&quot;</span>));</div></div>
+<p>The <code class="inline">region step</code> block bounds memory per iteration. <code class="inline">W1</code> and <code class="inline">W2</code> are allocated above the loop — outside every checkpoint — and the in-place SGD updates mutate them without reallocating, so the weights survive every rewind.</p>
+<p>For a fully working example that only uses present functions, see the <code class="inline">ml_seq.vy</code> file in <code class="inline">examples/training/</code>.</p>
+<hr>
+<h2 id="limitations">Limitations</h2>
+<h3 id="no-autograd">No autograd</h3>
+<p><code class="inline">vml</code> provides forward primitives and the four activation derivatives. It does not provide reverse-mode differentiation. The backward pass in the worked example above is written by hand: the user computes <code class="inline">delta2</code>, <code class="inline">dW2</code>, <code class="inline">delta1</code>, and <code class="inline">dW1</code> explicitly, using <code class="inline">vlin</code> operations. This is the intended usage for 0.1.0. An autograd engine is planned for a future release but is not present.</p>
+<h3 id="no-optimizers-beyond-sgd">No optimizers beyond SGD</h3>
+<p>There is no Adam, RMSprop, AdaGrad, or momentum. <code class="inline">vml.sgd_step</code> is the only weight-update function. If you need an adaptive optimizer, implement it in user code using <code class="inline">vlin</code> element-wise primitives and mutable state arrays.</p>
+<h3 id="no-convolutional-or-recurrent-layers">No convolutional or recurrent layers</h3>
+<p>Only fully-connected layers (<code class="inline">Dense</code>) are provided. Sequential is a list of <code class="inline">Dense</code>-shaped objects. There is no conv2d, no LSTM, no attention.</p>
+<h3 id="the-sgd-type-is-not-wired-to-sgd-step">The <code class="inline">SGD</code> type is not wired to <code class="inline">sgd_step</code></h3>
+<p><code class="inline">vml.sgd(lr)</code> returns an <code class="inline">SGD</code> value. <code class="inline">vml.sgd_step</code> takes a bare <code class="inline">Float64</code> learning rate, not an <code class="inline">SGD</code>. The two are not connected. If you want to use the object, pass <code class="inline">opt.lr_value()</code> explicitly:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">opt <span class="c-op">::</span> vml.<span class="c-ty">Types</span>.<span class="c-ty">SGD</span> <span class="c-op">=</span> vml.<span class="c-fn">sgd</span>(<span class="c-num">0.01</span>);
+vml.<span class="c-fn">sgd_step</span>(<span class="c-ty">W</span>, <span class="c-kw">grad</span>, opt.<span class="c-fn">lr_value</span>());</div></div>
+<p>The <code class="inline">SGD</code> interface exists for API symmetry with the future optimizer family. See <strong>Roadmap</strong>.</p>
+<h3 id="cross-entropy-averages-per-row-not-per-element"><code class="inline">cross_entropy</code> averages per row, not per element</h3>
+<p><code class="inline">vml.cross_entropy</code> divides the total loss by <code class="inline">pred.row</code>. For a <code class="inline">(N, 1)</code> prediction matrix — the shape <code class="inline">vml.dense(..., 1, &quot;sigmoid&quot;)</code> produces — this is correct. For a <code class="inline">(N, K)</code> prediction matrix with <code class="inline">K &gt; 1</code>, the loss is the sum over all <code class="inline">N * K</code> elements divided by <code class="inline">N</code>, which is <code class="inline">K</code> times larger than the conventional mean. Multi-class classification is not supported in 0.1.0.</p>
+<h3 id="the-array-return-of-forward-all-is-boxed">The <code class="inline">Array</code> return of <code class="inline">forward_all</code> is boxed</h3>
+<p><code class="inline">forward_all</code> returns a plain <code class="inline">Array</code>, not an <code class="inline">Array&lt;Matrix&gt;</code>. Each element is a boxed <code class="inline">VyneValue</code> that dereferences to a matrix struct on use. This is a deliberate workaround for a codegen limitation; see <strong>Design notes</strong>. The cost is one box-unbox per intermediate, which is negligible for a network of three to five layers but visible in a very deep network with many tiny layers.</p>
+<h3 id="accuracy-trusts-the-caller-s-n"><code class="inline">accuracy</code> trusts the caller's <code class="inline">n</code></h3>
+<p>The <code class="inline">n</code> argument to <code class="inline">vml.accuracy</code> is the number of samples to evaluate. Passing <code class="inline">n &gt; pred.row * pred.col</code> reads past the end of the backing buffer; passing <code class="inline">n &lt; pred.row * pred.col</code> evaluates on a prefix. The function does not check, because checking on every call would cost more than the caller-facing convenience is worth. Pass <code class="inline">pred.row</code> if you want to evaluate the whole matrix.</p>
+<h3 id="rng-quality">RNG quality</h3>
+<p><code class="inline">vml.dense</code> calls <code class="inline">vlin.xavier_init</code>, which calls <code class="inline">vmath.random_float</code>. The same LCG caveat from <code class="inline">vlin</code>'s manual applies: adequate for weight initialization, not adequate for statistical work.</p>
+<h3 id="no-gpu-no-multithreading">No GPU, no multithreading</h3>
+<p>Every operation is a scalar loop over <code class="inline">double</code>. Same caveat as <code class="inline">vlin</code>.</p>
+<hr>
+<h2 id="design-notes">Design notes</h2>
+<h3 id="why-vml-is-a-layer-over-vlin-instead-of-a-single-library">Why <code class="inline">vml</code> is a layer over <code class="inline">vlin</code> instead of a single library</h3>
+<p>The split exists because the two libraries have different update cadences. <code class="inline">vlin</code>'s public surface is stable and its numerical choices (row-major layout, <code class="inline">Array&lt;Float64&gt;</code> storage, transposed weight convention) are baked into the ABI. <code class="inline">vml</code>'s surface is expected to change as the ML ecosystem matures — new optimizers, new layers, new loss functions, autograd.</p>
+<p>Keeping the numerical core in <code class="inline">vlin</code> and the composition logic in <code class="inline">vml</code> means a change to <code class="inline">vml</code>'s API does not invalidate <code class="inline">vlin</code>'s, and a performance fix in <code class="inline">vlin</code>'s kernels immediately benefits every <code class="inline">vml</code> program. This is why <code class="inline">vml</code> re-exports <code class="inline">vlin</code>'s <code class="inline">Matrix</code> type rather than defining its own: there is exactly one matrix type in the ecosystem, and every layer above <code class="inline">Array&lt;Float64&gt;</code> uses it.</p>
+<h3 id="why-dense-stores-w-as-in-out-rather-than-out-in">Why <code class="inline">Dense</code> stores <code class="inline">W</code> as <code class="inline">(in, out)</code> rather than <code class="inline">(out, in)</code></h3>
+<p>The conventional PyTorch shape for a dense layer is <code class="inline">(out, in)</code>, following the <code class="inline">y = W @ x + b</code> formulation. <code class="inline">vml</code> uses <code class="inline">(in, out)</code>, following <code class="inline">y = x @ W + b</code>.</p>
+<p>Two reasons. First, it matches <code class="inline">vlin</code>'s <code class="inline">xavier_init(rows, cols)</code> argument order and the row-major layout of the flat buffer: <code class="inline">W[r, c]</code> for <code class="inline">r</code> in the input dimension and <code class="inline">c</code> in the output dimension, laid out contiguously in <code class="inline">W.data[r * out + c]</code>. The forward-pass matmul <code class="inline">x @ W</code> uses the standard <code class="inline">k_matmul</code> kernel with no transpose.</p>
+<p>Second, <code class="inline">vml</code>'s forward pass computes <code class="inline">x @ W</code> and not <code class="inline">x @ W.T</code>. If <code class="inline">W</code> were stored <code class="inline">(out, in)</code>, the forward pass would need <code class="inline">vlin.multiply_trans_b</code>, which allocates a transposed copy of <code class="inline">W</code> on every call. The current convention avoids that allocation.</p>
+<p>The cost is a small mental-model shift: when you see <code class="inline">vml.dense(4, 3)</code> you read the arguments as <code class="inline">(in, out)</code>, not <code class="inline">(out, in)</code>. The <code class="inline">Dense.in_features()</code> and <code class="inline">Dense.out_features()</code> methods report <code class="inline">W.row</code> and <code class="inline">W.col</code> respectively, which is what you want if you never think about the storage order.</p>
+<h3 id="why-forward-all-returns-a-boxed-array">Why <code class="inline">forward_all</code> returns a boxed <code class="inline">Array</code></h3>
+<p>A <code class="inline">Array&lt;Matrix&gt;</code> return type would be the natural choice. In practice, the current emitter's empty-array fast path defaults the element type of <code class="inline">[]</code> to <code class="inline">Float64</code>, and a subsequent <code class="inline">.push</code> of a <code class="inline">Dense</code> value coerces the struct through <code class="inline">.as.i64</code>, producing a garbage <code class="inline">double</code> rather than a boxed struct. The workaround is to start the accumulator with a one-element literal <code class="inline">[first]</code>; the element-type inference then bails (<code class="inline">Unknown</code>) and the array stays boxed.</p>
+<p>The user-visible consequence is that <code class="inline">forward_all</code> returns a <code class="inline">VyneValue</code>-array, and <code class="inline">h[i]</code> yields a boxed value that dereferences on use. For a network with <code class="inline">d</code> layers, that is <code class="inline">d</code> box/unbox round trips per forward pass, each costing a few nanoseconds. Negligible for typical depth; visible only in deep networks with many tiny layers.</p>
+<p>This is a codegen issue and will be fixed at the emitter level, at which point <code class="inline">forward_all</code>'s signature will tighten to <code class="inline">Array&lt;Matrix&gt;</code>. The user-visible change will be source-compatible for callers that already treat <code class="inline">h[i]</code> as an opaque handle.</p>
+<h3 id="why-apply-activation-uses-string-dispatch">Why <code class="inline">apply_activation</code> uses string dispatch</h3>
+<p>A tagged union or an enum would be type-safe and marginally faster. Neither is available in Vyne 0.1.0. The language has no enums with methods, no sum types, and no function-pointer type. String dispatch is the only mechanism that lets a <code class="inline">Dense</code> layer carry its activation choice as data rather than as a compile-time constant.</p>
+<p>The cost is one string comparison per activation application, which is negligible next to the <code class="inline">vlin</code> matmul that precedes it. If activation dispatch ever shows up in a profile — it will not for typical networks — the fix is to resolve the string once at layer-construction time and store a small integer tag alongside it.</p>
+<h3 id="why-sgd-is-separate-from-sgd-step">Why <code class="inline">SGD</code> is separate from <code class="inline">sgd_step</code></h3>
+<p>The design intent is that optimizers will eventually be first-class objects with their own state — momentum buffers, per-parameter accumulators, learning-rate schedules. <code class="inline">SGD</code> is the smallest such object: it carries one number and offers one accessor.</p>
+<p><code class="inline">sgd_step</code> was written before the optimizer abstraction settled, and takes the learning rate as a bare <code class="inline">Float64</code>. Unifying the two — making <code class="inline">sgd_step</code> a method on <code class="inline">SGD</code> — is a small change once the optimizer family has two or more members. The current split is an honest representation of where the API is: the object exists, but the call sites do not yet consume it.</p>
+<h3 id="why-no-autograd">Why no autograd</h3>
+<p>Autograd is a large subsystem: a tape, a reverse-mode traversal, node types for every differentiable primitive, and a coherent story for control flow and in-place mutation. Building it correctly is a language-level project, not a library-level one. <code class="inline">vml</code> 0.1.0 provides the primitives that a manual backward pass needs — forward activation outputs, activation derivatives, matrix products — and leaves the backward pass to user code. This is the same division of labour that early versions of every ML framework started with.</p>
+<p>An autograd engine, if and when it lands, will live above <code class="inline">vml</code>, not inside it, and will consume <code class="inline">vml</code>'s forward primitives as its building blocks.</p>
+<hr>
+<h2 id="roadmap">Roadmap</h2>
+<p>The following are planned or in progress.</p>
+<h3 id="autograd">Autograd</h3>
+<p>A reverse-mode automatic differentiation engine. Every <code class="inline">vml</code> forward primitive gains a backward counterpart, and <code class="inline">Sequential.backward(loss)</code> becomes a single call. The tape will be arena-allocated, which means a training loop with <code class="inline">vmem</code> checkpointing will reclaim the tape per iteration.</p>
+<p>This is the single largest planned addition to <code class="inline">vml</code> and is expected to land in a 0.2 release, not 0.1.x.</p>
+<h3 id="optimizer-family">Optimizer family</h3>
+<p>Beyond <code class="inline">SGD</code>: <code class="inline">Adam</code>, <code class="inline">RMSprop</code>, <code class="inline">AdaGrad</code>, and momentum variants. Each carries its own per-parameter state, which means <code class="inline">SGD</code>-style holder objects with mutable arrays inside. The <code class="inline">sgd_step</code> free function will be generalized to <code class="inline">opt.step(W, grad)</code> for all optimizers.</p>
+<h3 id="multi-class-classification">Multi-class classification</h3>
+<p>A <code class="inline">softmax</code> activation and a categorical <code class="inline">cross_entropy</code> that averages per element rather than per row. This is a small addition once the average-vs-sum semantics of <code class="inline">cross_entropy</code> are made explicit — likely by renaming the current function to <code class="inline">binary_cross_entropy</code> and adding <code class="inline">categorical_cross_entropy</code> alongside it.</p>
+<h3 id="dropout-and-normalization">Dropout and normalization</h3>
+<p>Element-wise stochastic masking (<code class="inline">Dropout</code>) and per-batch normalization (<code class="inline">BatchNorm</code>, <code class="inline">LayerNorm</code>). Both are straightforward under the current design — they are element-wise operations that fit the existing forward/backward split — but neither is present in 0.1.0.</p>
+<h3 id="weight-initialization-variants">Weight initialization variants</h3>
+<p><code class="inline">vml.dense</code> uses <code class="inline">xavier_init</code> unconditionally. He initialization, orthogonal initialization, and constant initialization are all one-liner variants of the same constructor and will be added alongside the current <code class="inline">dense</code> and <code class="inline">dense_scaled</code>.</p>
+<h3 id="dense-forward-in-the-native-abi"><code class="inline">Dense.forward</code> in the native ABI</h3>
+<p>The <code class="inline">Dense.forward</code> method currently boxes its <code class="inline">x</code> argument and returns a boxed matrix, because the method is called through the interface dispatch machinery. A specialized path for the case where the caller's matrix is a proven <code class="inline">VyneArray_f64</code> would keep the entire forward pass unboxed. Blocked on the same emitter issue that limits <code class="inline">vfft</code>'s out-of-place variants.</p>
+<h3 id="relu-prime-fix"><code class="inline">relu_prime</code> fix</h3>
+<p><code class="inline">vlin.relu_prime</code> produces a matrix of nulls rather than the correct derivative, due to a codegen issue in <code class="inline">ForNode::getCExpr</code>. Until it is fixed, <code class="inline">vml.dense(..., &quot;relu&quot;)</code> is usable forward-only. The fix is in <code class="inline">vlin</code>'s scope; <code class="inline">vml</code> will simply unblock when <code class="inline">vlin</code> does.</p>
+<hr>
+<h2 id="version-history">Version history</h2>
+<p><strong>0.1.0</strong> — initial release. <code class="inline">Types</code> (<code class="inline">Dense</code>, <code class="inline">Sequential</code>, <code class="inline">SGD</code>), <code class="inline">Constructors</code> (<code class="inline">dense</code>, <code class="inline">dense_scaled</code>, <code class="inline">sequential</code>, <code class="inline">sgd</code>), <code class="inline">Ops</code> (<code class="inline">apply_activation</code>, <code class="inline">apply_activation_prime</code>, <code class="inline">forward</code>, <code class="inline">forward_all</code>, <code class="inline">sgd_step</code>), <code class="inline">Reductions</code> (<code class="inline">cross_entropy</code>, <code class="inline">mse</code>, <code class="inline">accuracy</code>), <code class="inline">Kernels</code> (<code class="inline">k_bias_grad</code>). Manual backward pass; no autograd. SGD only; no adaptive optimizers.</p>

@@ -1,95 +1,22 @@
-            <div class="page-eyebrow">Reference</div>
-            <h1>Keywords</h1>
-            <p class="lede">
-              Reserved words. None of these may be used as identifiers.
-            </p>
-
-            <div class="kw-group">
-              <h4>Declarations &amp; structure</h4>
-              <div class="kw-chips">
-                <span class="kw-chip">fn</span>
-                <span class="kw-chip">interface</span>
-                <span class="kw-chip">group</span>
-                <span class="kw-chip">module</span>
-                <span class="kw-chip">enum</span>
-                <span class="kw-chip">const</span>
-                <span class="kw-chip">region</span>
-                <span class="kw-chip">use</span>
-                <span class="kw-chip">deploy</span>
-                <span class="kw-chip">dismiss</span>
-                <span class="kw-chip">lib</span>
-                <span class="kw-chip">as</span>
-                <span class="kw-chip">ruleset</span>
-              </div>
-            </div>
-
-            <div class="kw-group">
-              <h4>Control flow</h4>
-              <div class="kw-chips">
-                <span class="kw-chip kw-ctrl">if</span>
-                <span class="kw-chip kw-ctrl">else</span>
-                <span class="kw-chip kw-ctrl">while</span>
-                <span class="kw-chip kw-ctrl">through</span>
-                <span class="kw-chip kw-ctrl">loop</span>
-                <span class="kw-chip kw-ctrl">collect</span>
-                <span class="kw-chip kw-ctrl">filter</span>
-                <span class="kw-chip kw-ctrl">every</span>
-                <span class="kw-chip kw-ctrl">unique</span>
-                <span class="kw-chip kw-ctrl">break</span>
-                <span class="kw-chip kw-ctrl">continue</span>
-                <span class="kw-chip kw-ctrl">return</span>
-                <span class="kw-chip kw-ctrl">in</span>
-              </div>
-            </div>
-
-            <div class="kw-group">
-              <h4>Error handling</h4>
-              <div class="kw-chips">
-                <span class="kw-chip kw-err">try</span>
-                <span class="kw-chip kw-err">catch</span>
-                <span class="kw-chip kw-err">finally</span>
-                <span class="kw-chip kw-err">throw</span>
-                <span class="kw-chip kw-err">defer</span>
-              </div>
-            </div>
-
-            <div class="kw-group">
-              <h4>Ruleset flags</h4>
-              <div class="kw-chips">
-                <span class="kw-chip kw-mod">warnings</span>
-                <span class="kw-chip kw-mod">dynamic_casting</span>
-                <span class="kw-chip kw-mod">memory_limit</span>
-              </div>
-            </div>
-
-            <div class="kw-group">
-              <h4>Literals</h4>
-              <div class="kw-chips">
-                <span class="kw-chip">true</span>
-                <span class="kw-chip">false</span>
-                <span class="kw-chip">null</span>
-              </div>
-            </div>
-
-            <div class="kw-group">
-              <h4>Built-in function names</h4>
-              <div class="kw-chips">
-                <span class="kw-chip">out</span>
-                <span class="kw-chip">string</span>
-                <span class="kw-chip">int64</span>
-                <span class="kw-chip">float64</span>
-                <span class="kw-chip">type</span>
-                <span class="kw-chip">sizeof</span>
-                <span class="kw-chip">sequence</span>
-                <span class="kw-chip">map</span>
-                <span class="kw-chip">exit</span>
-                <span class="kw-chip">free</span>
-              </div>
-            </div>
-
-            <p style="margin-top: 2rem">
-              The three reserved word forms <code class="inline">self</code>,
-              <code class="inline">_err</code>, and
-              <code class="inline">_</code> are treated specially by the parser
-              but are not keywords.
-            </p>
+<div class="page-eyebrow">Reference</div>
+<h1>Keywords</h1>
+<p class="lede">Reserved words, built-in names, and contextual identifiers.</p>
+<p>Reserved words are recognized by the lexer and cannot be used as ordinary identifiers. Built-in names (<code class="inline">out</code>, <code class="inline">string</code>, <code class="inline">drop</code>, ...) are reserved too.</p>
+<h2 id="values-and-declarations">Values and declarations</h2>
+<p><code class="inline">true</code>, <code class="inline">false</code>, <code class="inline">null</code>, <code class="inline">const</code>, <code class="inline">fn</code>, <code class="inline">interface</code>, <code class="inline">group</code>, <code class="inline">module</code>, <code class="inline">enum</code>, <code class="inline">ruleset</code>, <code class="inline">use</code>, <code class="inline">native</code>, <code class="inline">external</code>, <code class="inline">lib</code>, <code class="inline">as</code>, <code class="inline">deploy</code>, <code class="inline">dismiss</code>.</p>
+<h2 id="control-flow">Control flow</h2>
+<p><code class="inline">if</code>, <code class="inline">else</code>, <code class="inline">while</code>, <code class="inline">through</code>, <code class="inline">loop</code>, <code class="inline">collect</code>, <code class="inline">filter</code>, <code class="inline">every</code>, <code class="inline">unique</code>, <code class="inline">break</code>, <code class="inline">continue</code>, <code class="inline">return</code>, <code class="inline">in</code>.</p>
+<h2 id="memory-and-lifetime">Memory and lifetime</h2>
+<p><code class="inline">region</code>, <code class="inline">scratch</code>.</p>
+<h2 id="errors">Errors</h2>
+<p><code class="inline">try</code>, <code class="inline">catch</code>, <code class="inline">finally</code>, <code class="inline">throw</code>.</p>
+<h2 id="built-ins">Built-ins</h2>
+<p><code class="inline">out</code>, <code class="inline">sizeof</code>, <code class="inline">type</code>, <code class="inline">string</code>, <code class="inline">int64</code>, <code class="inline">float64</code>, <code class="inline">float32</code>, <code class="inline">sequence</code>, <code class="inline">exit</code>, <code class="inline">free</code>, <code class="inline">drop</code>, <code class="inline">map</code>.</p>
+<h2 id="contextual-names">Contextual names</h2>
+<p>These are parsed contextually rather than reserved globally:</p>
+<ul><li><code class="inline">requires</code>, <code class="inline">ensures</code>, <code class="inline">result</code> — contracts;</li><li><code class="inline">contracts</code>, <code class="inline">type_check</code>, <code class="inline">implicit_casting</code>, <code class="inline">warnings_ignore</code>, <code class="inline">strict</code>, <code class="inline">pedantic</code>, <code class="inline">verbose</code>, <code class="inline">profiling</code>, <code class="inline">debug</code>, <code class="inline">trace</code>, <code class="inline">max_iterations</code> — ruleset keys;</li><li><code class="inline">warnings</code>, <code class="inline">dynamic_casting</code>, <code class="inline">memory_limit</code> — both ruleset keys and lexer keywords;</li><li>region policy names (<code class="inline">bounded</code>, <code class="inline">zeroed</code>, <code class="inline">deterministic</code>, <code class="inline">realtime</code>, <code class="inline">pool</code>, <code class="inline">slab</code>, <code class="inline">ring</code>, <code class="inline">streamed</code>, <code class="inline">persistent</code>, <code class="inline">speculative</code>, <code class="inline">device</code>, <code class="inline">layout</code>, <code class="inline">backward</code>, <code class="inline">recompute</code>, <code class="inline">mixed</code>) — valid only after <code class="inline">@</code>;</li><li><code class="inline">bump</code>, <code class="inline">soa</code>, <code class="inline">aos</code>, <code class="inline">struct_of_arrays</code> — policy arguments;</li><li><code class="inline">backward</code>, <code class="inline">grad</code> — AD intrinsics.</li></ul>
+<p><code class="inline">self</code> is an ordinary identifier bound inside interface methods. <code class="inline">native</code> and <code class="inline">external</code> are reserved because they select import kinds.</p>
+<h2 id="not-keywords">Not keywords</h2>
+<p><code class="inline">for</code>, <code class="inline">foreach</code>, <code class="inline">switch</code>, <code class="inline">case</code>, <code class="inline">class</code>, <code class="inline">struct</code>, <code class="inline">let</code>, <code class="inline">var</code>, and <code class="inline">lambda</code> are not Vyne syntax. Use <code class="inline">through</code> for iteration, <code class="inline">interface</code> for structured values, and <code class="inline">:=</code> for declarations.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="operators">Operators</a></li><li><a data-page="tour">Grammar-style tour</a></li><li><a data-page="rulesets">Rulesets</a></li></ul>

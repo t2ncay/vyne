@@ -1,0 +1,91 @@
+<div class="page-eyebrow">Getting Started</div>
+<h1>Projects &amp; Tooling</h1>
+<p class="lede">Scaffold with vynec init, declare targets in project.toml, then build, run, and benchmark.</p>
+<p>A Vyne project is a directory with a <code class="inline">project.toml</code> and an entry point. <code class="inline">vynec build</code> and <code class="inline">vynec run</code> discover that file, apply its target and device configuration, and then use the normal compile pipeline.</p>
+<h2 id="scaffold-a-project">Scaffold a project</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec init</div></div>
+<p>On a terminal this opens an FTXUI questionnaire. In scripts and CI it is fully non-interactive:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec init --name demo --kind ml --no-git
+cd demo
+vynec run src/main.vy</div></div>
+<p>The TUI asks up to five questions:</p>
+<ol><li><strong>Project kind</strong> — ML training, Embedded, Scientific, Image / Video, or Mixed.</li><li><strong>Targets</strong> — Desktop, Arduino Uno R3, Coral Edge TPU, Jetson Nano.</li><li><strong>Libraries</strong> — <code class="inline">vlin</code>, <code class="inline">vml</code>, <code class="inline">vstat</code>, <code class="inline">vtermplot</code>, <code class="inline">vfft</code>, <code class="inline">vcomplex</code>, <code class="inline">vcsv</code>, <code class="inline">vimage</code>, <code class="inline">vconv</code>.</li><li><strong>CUDA</strong> — only when Desktop is selected and the project is not Embedded. It detects <code class="inline">nvcc</code> and warns without blocking.</li><li><strong>License</strong> — AGPL-3.0-only, MIT, or Proprietary.</li></ol>
+<div class="table-wrap"><table><thead><tr><th>Kind</th><th>What the template demonstrates</th></tr></thead><tbody><tr><td><code class="inline">blank</code></td><td><code class="inline">@bounded</code> and <code class="inline">@deterministic</code> regions</td></tr><tr><td><code class="inline">ml</code></td><td>Iris MLP, manual backprop, Adam, <code class="inline">vtermplot</code> loss curve</td></tr><tr><td><code class="inline">embedded</code></td><td>Arduino Uno blinky and serial over <code class="inline">@bounded</code></td></tr><tr><td><code class="inline">scientific</code></td><td>Lorenz RK4 integration, Lyapunov estimate, phase portrait</td></tr><tr><td><code class="inline">sr</code></td><td>ESPCN-style 2x upscaling with <code class="inline">vimage</code> + <code class="inline">vconv</code></td></tr></tbody></table></div>
+<p><code class="inline">mixed</code> uses the ML template with every library selected.</p>
+<h3 id="vynec-init-flags"><code class="inline">vynec init</code> flags</h3>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">--name &lt;name&gt;</code></td><td>project name; also suppresses the TUI</td></tr><tr><td><code class="inline">--kind &lt;kind&gt;</code></td><td><code class="inline">blank</code>, <code class="inline">ml</code>, <code class="inline">embedded</code>, <code class="inline">scientific</code>, <code class="inline">sr</code>, <code class="inline">mixed</code></td></tr><tr><td><code class="inline">--targets &lt;list&gt;</code></td><td><code class="inline">desktop</code>, <code class="inline">arduino-uno</code>, <code class="inline">coral</code>, <code class="inline">jetson</code></td></tr><tr><td><code class="inline">--libraries &lt;list&gt;</code></td><td>comma-separated library names</td></tr><tr><td><code class="inline">--cuda yes|no</code></td><td>add <code class="inline">[device.cuda]</code></td></tr><tr><td><code class="inline">--license &lt;id&gt;</code></td><td><code class="inline">AGPL-3.0-only</code>, <code class="inline">MIT</code>, <code class="inline">proprietary</code></td></tr><tr><td><code class="inline">--yes</code></td><td>accept defaults without prompting</td></tr><tr><td><code class="inline">--no-tui</code></td><td>force non-interactive</td></tr><tr><td><code class="inline">--no-git</code></td><td>skip <code class="inline">git init</code> and the initial commit</td></tr></tbody></table></div>
+<p>Exit codes: <code class="inline">0</code> success, <code class="inline">1</code> cancel, <code class="inline">2</code> non-interactive without a name or a terminal smaller than 80x24, <code class="inline">3</code> <code class="inline">project.toml</code> already exists, <code class="inline">4</code> generation or configuration error.</p>
+<h2 id="project-toml">project.toml</h2>
+<p>The scaffolder writes a complete manifest. The driver reads the subset shown here; unknown sections are ignored for forward compatibility.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;project.toml</span><span class="code-lang">toml</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="toml">[project]
+name = &quot;srcnn&quot;
+version = &quot;0.1.0&quot;
+authors = [&quot;Tuncay Gafarli&quot;]
+license = &quot;AGPL-3.0-only&quot;
+description = &quot;A comprehensive SRCNN trainer &amp; inferrer&quot;
+
+[toolchain]
+vyne = &quot;0.6.0&quot;
+
+[dependencies]
+vlin = &quot;0.4&quot;
+vml = &quot;0.4&quot;
+vstat = &quot;0.2&quot;
+voptim = &quot;0.4&quot;
+vimage = &quot;0.4&quot;
+vconv = &quot;0.4&quot;
+
+[targets]
+default = &quot;desktop&quot;
+
+[targets.desktop]
+backend = &quot;c&quot;
+
+[targets.uno]
+backend = &quot;c&quot;
+board = &quot;arduino:avr:uno&quot;
+
+[build]
+deterministic = true
+
+[bench]
+warmup = 10
+iterations = 100
+report = &quot;build/bench.json&quot;
+
+[device.cuda]
+sm_version = &quot;86&quot;</div></div>
+<p>Target keys are intentionally small: <code class="inline">backend</code>, <code class="inline">device</code>, and <code class="inline">board</code>. A <code class="inline">board</code> value routes the build through the Arduino pipeline; <code class="inline">device = &quot;cuda&quot;</code> or a <code class="inline">[device.cuda]</code> section implies host-native code generation.</p>
+<h2 id="build-and-run">Build and run</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec build              <span class="c-com"># discover project.toml, build the default target</span>
+vynec run                <span class="c-com"># build, then run the project entry point</span>
+vynec build examples/projects/srcnn
+vynec run examples/projects/srcnn</div></div>
+<p>Without an argument the driver walks up from the current directory until it finds <code class="inline">project.toml</code>. The entry point is <code class="inline">src/main.vy</code>, then <code class="inline">main.vy</code>. Explicit CLI flags are applied after the project configuration, so <code class="inline">--native</code>, <code class="inline">--blas</code>, and <code class="inline">--arduino</code> still win.</p>
+<h2 id="benchmark">Benchmark</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec bench
+vynec bench src/main.vy --warmup 5 --iterations 200
+vynec bench --report build/bench.json</div></div>
+<p><code class="inline">vynec bench</code> compiles every native <code class="inline">.vy</code> target in the project, runs the configured warm-up count, measures the requested iterations, and writes a JSON report. Board targets are skipped. A single-file invocation writes <code class="inline">&lt;stem&gt;_bench.json</code> next to the source unless <code class="inline">--report</code> is given.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;build/bench.json</span><span class="code-lang">json</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="json">{
+  &quot;project&quot;: &quot;srcnn&quot;,
+  &quot;target&quot;: &quot;desktop&quot;,
+  &quot;timestamp&quot;: &quot;2026-11-10T13:40:28Z&quot;,
+  &quot;config&quot;: { &quot;warmup&quot;: 10, &quot;iterations&quot;: 100 },
+  &quot;results&quot;: {
+    &quot;src/main.vy&quot;: {
+      &quot;mean_ms&quot;: 378.31,
+      &quot;median_ms&quot;: 378.25,
+      &quot;min_ms&quot;: 372.03,
+      &quot;max_ms&quot;: 386.10,
+      &quot;p95_ms&quot;: 384.06,
+      &quot;p99_ms&quot;: 386.10,
+      &quot;stddev_ms&quot;: 3.08
+    }
+  }
+}</div></div>
+<h2 id="compiler-flags">Compiler flags</h2>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><em>(none)</em></td><td>Compile and run</td></tr><tr><td><code class="inline">--ast</code></td><td>Interpret directly; no C emitted</td></tr><tr><td><code class="inline">--verify</code></td><td>Hash-check source, then interpret</td></tr><tr><td><code class="inline">--compile</code></td><td>Emit C and compile a binary; stop</td></tr><tr><td><code class="inline">--run</code></td><td>Compile and run</td></tr><tr><td><code class="inline">--emit-c</code></td><td>Write <code class="inline">.vy.c</code>; do not invoke the host compiler</td></tr><tr><td><code class="inline">--emit-asm</code></td><td>Write <code class="inline">.vy.s</code> via the host compiler</td></tr><tr><td><code class="inline">--out &lt;name&gt;</code> / <code class="inline">-o &lt;name&gt;</code></td><td>Set the output binary name</td></tr><tr><td><code class="inline">--native</code></td><td>Add <code class="inline">-march=native</code> to the host compile</td></tr><tr><td><code class="inline">--blas</code></td><td>Lower matched matrix calls to BLAS (desktop only)</td></tr><tr><td><code class="inline">--no-scratch-bounds</code></td><td>Elide generated scratch bounds checks</td></tr><tr><td><code class="inline">--quiet</code></td><td>Suppress notes and warnings</td></tr><tr><td><code class="inline">--strict</code></td><td>Enable strict type checking</td></tr><tr><td><code class="inline">--arduino &lt;board&gt;</code></td><td>Target Arduino; currently <code class="inline">uno</code></td></tr><tr><td><code class="inline">--arduino-flash</code> / <code class="inline">--flash</code></td><td>Upload the built <code class="inline">.hex</code> with <code class="inline">arduino-cli</code></td></tr><tr><td><code class="inline">--monitor</code></td><td>Open <code class="inline">arduino-cli monitor</code> after flashing</td></tr><tr><td><code class="inline">--port &lt;device&gt;</code></td><td>Serial port, for example <code class="inline">COM3</code></td></tr><tr><td><code class="inline">--baud &lt;rate&gt;</code></td><td>Monitor baud rate; default <code class="inline">115200</code></td></tr><tr><td><code class="inline">--fqbn &lt;string&gt;</code></td><td>Override the board identifier</td></tr></tbody></table></div>
+<p>Diagnostics go to stderr. Exit codes are <code class="inline">0</code> success, <code class="inline">1</code> compilation or runtime error, <code class="inline">2</code> CLI misuse.</p>
+<h2 id="where-next">Where next</h2>
+<ul><li><a data-page="cli">CLI Reference</a> for the complete flag list.</li><li><a data-page="srcnn">SRCNN Showcase</a> for a project that uses the full stack.</li><li><a data-page="libs">Library Overview</a> before adding dependencies.</li></ul>

@@ -1,0 +1,30 @@
+<div class="page-eyebrow">Reference</div>
+<h1>Performance</h1>
+<p class="lede">Measured interpreter, transpiler, BLAS, CUDA, and Arduino numbers — with the caveats.</p>
+<p>All numbers below are from the repository's benchmarks and release notes. Re-run them on your own hardware; the point is the shape of the result, not a universal claim.</p>
+<h2 id="recursive-fibonacci-n-30">Recursive Fibonacci (n = 30)</h2>
+<p>Wall time of the <code class="inline">fib(30)</code> call, measured in-process. Process startup and codegen are excluded.</p>
+<div class="table-wrap"><table><thead><tr><th>Backend</th><th>Time</th><th>Relative</th></tr></thead><tbody><tr><td>Interpreter</td><td>54.52 ms</td><td>1.00×</td></tr><tr><td>C transpiler</td><td>19.87 ms</td><td>2.74× faster</td></tr></tbody></table></div>
+<p>Measured on an i7-14700, Windows 11. Transpiler build: <code class="inline">--blas --native</code>, GCC <code class="inline">-O3 -march=native</code>. Source is untyped recursion <code class="inline">fn fib(n)</code>; adding <code class="inline">:: Int64</code> does not change the transpiler result (the native path is already taken) but roughly halves interpreter time.</p>
+<h2 id="dense-matmul-1024-1024-100-iterations">Dense matmul (1024×1024, 100 iterations)</h2>
+<p>The same Vyne source is compiled three ways:</p>
+<div class="table-wrap"><table><thead><tr><th>Build</th><th>Kernel</th></tr></thead><tbody><tr><td><code class="inline">vynec --compile</code></td><td>emitted C triple loop</td></tr><tr><td><code class="inline">vynec --compile --blas</code></td><td><code class="inline">cblas_dgemm</code></td></tr><tr><td><code class="inline">vynec --compile --blas --native</code></td><td><code class="inline">cblas_dgemm</code> + host <code class="inline">-march=native</code></td></tr></tbody></table></div>
+<p>See <code class="inline">examples/benchmark/matmul_1024_vlin.vy</code>. The source is byte-identical across modes; only the lowering of <code class="inline">vlin.multiply</code> changes.</p>
+<h2 id="end-to-end-ml-workload">End-to-end ML workload</h2>
+<p><code class="inline">examples/training/ml_seq.vy</code> trains a 64→16→12→1 classifier on 240 RNA sequences for 1000 epochs. With regions scoping per-iteration allocations, peak RSS stays flat regardless of epoch count.</p>
+<h2 id="cuda-matmul">CUDA matmul</h2>
+<p>Measured on an RTX 5060 (CUDA 13.4) and an i7-14700 with OpenBLAS. Float32 is the default device dtype.</p>
+<div class="table-wrap"><table><thead><tr><th>Workload</th><th>GPU kernel</th><th>GPU download</th><th>GPU end-to-end</th><th>OpenBLAS sgemm</th><th>Naive Vyne f32 loop</th></tr></thead><tbody><tr><td>512×512</td><td>167 µs (1607 GFLOP/s)</td><td>155 µs</td><td>322 µs</td><td>626 µs (429 GFLOP/s)</td><td>60.7 ms (4.42 GFLOP/s)</td></tr><tr><td>1024×1024</td><td>1409 µs (1524 GFLOP/s)</td><td>420 µs</td><td>1829 µs</td><td>2615 µs (821 GFLOP/s)</td><td>2263 ms (0.95 GFLOP/s)</td></tr></tbody></table></div>
+<p>At 512² the FP32 GPU is ~1.9× faster than OpenBLAS <code class="inline">sgemm</code> end-to-end and ~3.8× faster kernel-only. At 1024² it is ~1.4× faster end-to-end and ~1.9× faster kernel-only. The GPU kernel is ~1.5 TFLOP/s, far below the consumer FP32 peak; the current kernel is a simple 16×16 tile. Keeping tensors device-resident across many kernels amortizes the 0.16–0.42 ms download cost.</p>
+<p>Float64 is opt-in via <code class="inline">device_alloc_f64</code>. On consumer Blackwell it is roughly at parity with OpenBLAS <code class="inline">dgemm</code>: ~1.8× faster at 512² and ~8% slower at 1024².</p>
+<h2 id="tinyml-xor-on-an-uno-r3">TinyML XOR on an Uno R3</h2>
+<p><code class="inline">examples/arduino/tinyml_xor.vy</code> trains a 2→3→1 MLP for 30,000 online SGD steps on an ATmega328P at 16 MHz.</p>
+<div class="table-wrap"><table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Training time (30,000 steps)</td><td>~18–25 s</td></tr><tr><td>Arena peak during training</td><td>0 B</td></tr><tr><td>Stack peak during training</td><td>&lt; 200 B</td></tr><tr><td>Final XOR accuracy (10 held-out)</td><td>91%</td></tr><tr><td>Serial output per 1,000 steps</td><td>1 line (~40 bytes)</td></tr></tbody></table></div>
+<p>All arithmetic is 32-bit <code class="inline">double</code> (AVR's <code class="inline">double</code> is a 32-bit float; the mantissa is 24 bits, and beyond ~4096 averaging iterations further accumulation stops helping). The 91% plateau is a ReLU dead-unit artifact, not a runtime issue — see the demo header and the <a data-page="arduino">Arduino &amp; AVR</a> page.</p>
+<p>The important numbers are the ones that stay flat: <code class="inline">arena_used</code> is 0 B at every reporting step across 30,000 iterations, and <code class="inline">drift</code> is 0 B after the probe region. Model state, PRNG, and serial output all fit in the C stack.</p>
+<h2 id="benchmarking-your-own-code">Benchmarking your own code</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec bench
+vynec bench src/main.vy --warmup 10 --iterations 100</div></div>
+<p><code class="inline">vcore.now_ns()</code> is the monotonic clock used by the harness. <code class="inline">vmem.peak_allocated()</code> and <code class="inline">vcore.memory_usage</code> are the memory counters. For region-level checks, compare <code class="inline">vmem.total_allocated()</code> before and after the region.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="cli">CLI Reference</a></li><li><a data-page="device">CUDA &amp; Devices</a></li><li><a data-page="srcnn">SRCNN Showcase</a></li></ul>

@@ -1,158 +1,65 @@
-            <div class="page-eyebrow">Reference</div>
-            <h1>Operators</h1>
-            <p class="lede">
-              Complete list, grouped by purpose, with precedence.
-            </p>
+<div class="page-eyebrow">Reference</div>
+<h1>Operators</h1>
+<p class="lede">Operator families, precedence, associativity, and special assignment forms.</p>
+<h2 id="precedence">Precedence</h2>
+<p>Level 1 binds loosest; level 17 binds tightest. Parenthesize mixed expressions when the intent is not obvious; the table reflects the current recursive-descent parser, not a promise that precedence will never change.</p>
+<div class="table-wrap"><table><thead><tr><th>Level</th><th>Operators</th><th>Assoc.</th><th>Meaning</th></tr></thead><tbody><tr><td>1</td><td><code class="inline">?:</code></td><td>right</td><td>ternary conditional</td></tr><tr><td>2</td><td><code class="inline">??</code></td><td>left</td><td>null coalesce</td></tr><tr><td>3</td><td><code class="inline">|&gt;</code></td><td>left</td><td>pipeline</td></tr><tr><td>4</td><td><code class="inline">..</code></td><td>left</td><td>inclusive range</td></tr><tr><td>5</td><td><code class="inline">||</code></td><td>left</td><td>logical or (short-circuit)</td></tr><tr><td>6</td><td><code class="inline">&amp;&amp;</code></td><td>left</td><td>logical and (short-circuit)</td></tr><tr><td>7</td><td><code class="inline">|</code></td><td>left</td><td>bitwise or</td></tr><tr><td>8</td><td><code class="inline">^</code></td><td>left</td><td>bitwise xor</td></tr><tr><td>9</td><td><code class="inline">&amp;</code></td><td>left</td><td>bitwise and</td></tr><tr><td>10</td><td><code class="inline">== !=</code></td><td>left</td><td>equality (deep for composites)</td></tr><tr><td>11</td><td><code class="inline">in</code></td><td>left</td><td>membership</td></tr><tr><td>12</td><td><code class="inline">&lt; &lt;= &gt; &gt;=</code></td><td>left</td><td>comparison</td></tr><tr><td>13</td><td><code class="inline">&lt;&lt; &gt;&gt;</code></td><td>left</td><td>shifts</td></tr><tr><td>14</td><td><code class="inline">+ - // %</code></td><td>left</td><td>additive, floor divide, modulo</td></tr><tr><td>15</td><td><code class="inline">* / **</code></td><td>left</td><td>multiplicative and power</td></tr><tr><td>16</td><td><code class="inline">! - $ ~</code></td><td>prefix</td><td>logical not, negation, address-of, bitwise not</td></tr><tr><td>17</td><td><code class="inline">++ --</code></td><td>postfix</td><td>increment / decrement</td></tr></tbody></table></div>
+<p><code class="inline">:=</code> and <code class="inline">=</code> are statement forms, not expressions. <code class="inline">??=</code> is a statement-form conditional assignment.</p>
+<h2 id="arithmetic">Arithmetic</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">a <span class="c-op">:=</span> <span class="c-num">2</span> <span class="c-op">+</span> <span class="c-num">3</span> <span class="c-op">*</span> <span class="c-num">4</span>;       <span class="c-com"># 14</span>
+b <span class="c-op">:=</span> <span class="c-num">7</span> <span class="c-com">// 2;          # 3, floor division</span>
+c <span class="c-op">:=</span> <span class="c-num">7</span> <span class="c-op">%</span> <span class="c-num">2</span>;           <span class="c-com"># 1</span>
+d <span class="c-op">:=</span> <span class="c-num">2</span> <span class="c-op">**</span> <span class="c-num">10</span>;         <span class="c-com"># 1024.0 (always Float64)</span></div></div>
+<p><code class="inline">Int64</code> arithmetic wraps. Division and modulo by a literal zero are compile-time errors; a runtime zero divisor is a runtime error. <code class="inline">**</code> always produces <code class="inline">Float64</code>.</p>
+<h2 id="comparison-and-equality">Comparison and equality</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">a <span class="c-op">==</span> b;
+a <span class="c-op">!=</span> b;
+a <span class="c-op">&lt;</span> b;
+a <span class="c-op">&lt;=</span> b;
+a <span class="c-op">&gt;</span> b;
+a <span class="c-op">&gt;=</span> b;</div></div>
+<p><code class="inline">==</code> is deep for arrays, maps, and structs.</p>
+<h2 id="logical">Logical</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">ready <span class="c-op">&amp;&amp;</span> loaded;
+failed <span class="c-op">||</span> retry;
+<span class="c-op">!</span>done;</div></div>
+<p><code class="inline">&amp;&amp;</code> and <code class="inline">||</code> short-circuit. Any truthy value satisfies <code class="inline">||</code> and continues <code class="inline">&amp;&amp;</code>.</p>
+<h2 id="bitwise">Bitwise</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">flags <span class="c-op">:=</span> <span class="c-num">0</span>;
+flags <span class="c-op">=</span> flags <span class="c-op">|</span> <span class="c-num">0x80</span>;
+flags <span class="c-op">=</span> flags <span class="c-op">&amp;</span> <span class="c-num">0xFF</span>;
+flags <span class="c-op">=</span> flags <span class="c-op">^</span> <span class="c-num">0x0F</span>;
+flags <span class="c-op">=</span> <span class="c-op">~</span>flags;
+flags <span class="c-op">=</span> flags <span class="c-op">&lt;&lt;</span> <span class="c-num">1</span>;
+flags <span class="c-op">=</span> flags <span class="c-op">&gt;&gt;</span> <span class="c-num">2</span>;</div></div>
+<p>Bitwise operators are supported on both the desktop and AVR backends. <code class="inline">~</code> is a prefix operator.</p>
+<h2 id="membership-and-range">Membership and range</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">if</span> <span class="c-num">3</span> <span class="c-kw">in</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>] {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;present&quot;</span>);
+}
 
-            <h2 id="op-precedence">Precedence table</h2>
-            <p>
-              Level 1 binds loosest; level 13 binds tightest. Left/right
-              indicates associativity.
-            </p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Level</th>
-                    <th>Operators</th>
-                    <th>Assoc.</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>1</td>
-                    <td><code class="inline">?:</code></td>
-                    <td>right</td>
-                    <td>Ternary conditional</td>
-                  </tr>
-                  <tr>
-                    <td>2</td>
-                    <td><code class="inline">??</code></td>
-                    <td>right</td>
-                    <td>Null coalesce</td>
-                  </tr>
-                  <tr>
-                    <td>3</td>
-                    <td><code class="inline">|&gt;</code></td>
-                    <td>left</td>
-                    <td>Pipeline</td>
-                  </tr>
-                  <tr>
-                    <td>4</td>
-                    <td><code class="inline">||</code></td>
-                    <td>left</td>
-                    <td>Logical or (short-circuit)</td>
-                  </tr>
-                  <tr>
-                    <td>5</td>
-                    <td><code class="inline">&amp;&amp;</code></td>
-                    <td>left</td>
-                    <td>Logical and (short-circuit)</td>
-                  </tr>
-                  <tr>
-                    <td>6</td>
-                    <td><code class="inline">== !=</code></td>
-                    <td>left</td>
-                    <td>Equality (deep for composites)</td>
-                  </tr>
-                  <tr>
-                    <td>7</td>
-                    <td><code class="inline">in</code></td>
-                    <td>left</td>
-                    <td>Membership</td>
-                  </tr>
-                  <tr>
-                    <td>8</td>
-                    <td><code class="inline">&lt; &lt;= &gt; &gt;=</code></td>
-                    <td>left</td>
-                    <td>Comparison</td>
-                  </tr>
-                  <tr>
-                    <td>9</td>
-                    <td><code class="inline">..</code></td>
-                    <td>left</td>
-                    <td>Range</td>
-                  </tr>
-                  <tr>
-                    <td>10</td>
-                    <td><code class="inline">+ - // %</code></td>
-                    <td>left</td>
-                    <td>Additive, floor divide, modulo</td>
-                  </tr>
-                  <tr>
-                    <td>11</td>
-                    <td><code class="inline">* / **</code></td>
-                    <td>left</td>
-                    <td>Multiplicative, power</td>
-                  </tr>
-                  <tr>
-                    <td>12</td>
-                    <td><code class="inline">! - $</code></td>
-                    <td>prefix</td>
-                    <td>Not, negation, address-of</td>
-                  </tr>
-                  <tr>
-                    <td>13</td>
-                    <td><code class="inline">++ --</code></td>
-                    <td>postfix</td>
-                    <td>Increment / decrement</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-fn">out</span>(i);
+};</div></div>
+<p>Ranges are inclusive. Membership semantics depend on the collection type.</p>
+<h2 id="null-handling">Null handling</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">name <span class="c-op">:=</span> maybe_name <span class="c-op">??</span> <span class="c-str">&quot;anonymous&quot;</span>;
+cfg.mode <span class="c-op">??=</span> <span class="c-str">&quot;default&quot;</span>;</div></div>
+<p><code class="inline">??</code> evaluates the right side only when the left is <code class="inline">null</code>. <code class="inline">??=</code> assigns only when the current value is <code class="inline">null</code>.</p>
+<h2 id="pipeline-and-ternary">Pipeline and ternary</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">value <span class="c-op">:=</span> <span class="c-num">5</span> <span class="c-op">|&gt;</span> double <span class="c-op">|&gt;</span> double;
+text <span class="c-op">:=</span> ready <span class="c-op">?</span> <span class="c-str">&quot;go&quot;</span> : <span class="c-str">&quot;wait&quot;</span>;</div></div>
+<p>The pipeline inserts the left value as the first argument. <code class="inline">10 |&gt; add(3)</code> is <code class="inline">add(10, 3)</code>; <code class="inline">4 |&gt; square()</code> is <code class="inline">square(4)</code>.</p>
+<h2 id="reference-operators">Reference operators</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">bump</span>(v <span class="c-op">::</span> <span class="c-ty">Int64</span><span class="c-op">^^</span>) {
+    v <span class="c-op">=</span> v <span class="c-op">+</span> <span class="c-num">1</span>;
+}
 
-            <h2 id="op-arithmetic">Arithmetic</h2>
-            <p>
-              All arithmetic follows IEEE-754 for Float64 and two's-complement
-              wraparound for Int64. Division and modulo by zero are runtime
-              errors that terminate the program with a message.
-            </p>
-            <p>
-              <code class="inline">**</code> always produces a Float64 result,
-              even for two Int64 operands. This matches the underlying
-              <code class="inline">pow()</code> semantics and avoids the
-              awkwardness of integer exponentiation overflow.
-            </p>
-
-            <h2 id="op-logical">Logical</h2>
-            <p>
-              Short-circuit. The right-hand side is not evaluated if the result
-              is already determined by the left. Any truthy value short-circuits
-              <code class="inline">||</code>; any falsy value short-circuits
-              <code class="inline">&amp;&amp;</code>.
-            </p>
-
-            <h2 id="op-assignment-forms">Special assignment forms</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Operator</th>
-                    <th>Meaning</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code class="inline">??=</code></td>
-                    <td>Assign if current value is null</td>
-                  </tr>
-                  <tr>
-                    <td>
-                      <code class="inline">++</code> /
-                      <code class="inline">--</code>
-                    </td>
-                    <td>Postfix increment / decrement on numeric lvalues</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 id="op-reference">Reference operators</h2>
-            <p>
-              <code class="inline">&amp;</code> and
-              <code class="inline">$</code> are related to pass-by-reference
-              parameters. See the <em>Functions</em> chapter for usage; the
-              parser recognises them but the C backend currently rejects
-              reference variables at compile time.
-            </p>
+addr <span class="c-op">:=</span> <span class="c-op">$</span>counter;</div></div>
+<p><code class="inline">^^</code> marks a reference parameter. <code class="inline">$</code> returns an address as <code class="inline">Int64</code>; it is interpreter-only, and the compiled backend rejects address-of.</p>
+<h2 id="increment-and-decrement">Increment and decrement</h2>
+<p><code class="inline">++</code> and <code class="inline">--</code> are postfix operators on numeric lvalues. Prefer <code class="inline">x = x + 1</code> in library code for readability; the postfix form is available where a compact update reads better.</p>
+<h2 id="assignment-forms">Assignment forms</h2>
+<div class="table-wrap"><table><thead><tr><th>Form</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">x := expr</code></td><td>Declare a new binding</td></tr><tr><td><code class="inline">x = expr</code></td><td>Reassign an existing binding</td></tr><tr><td><code class="inline">x ??= expr</code></td><td>Assign only if <code class="inline">x</code> is <code class="inline">null</code></td></tr><tr><td><code class="inline">a[i] = expr</code></td><td>Index assignment</td></tr><tr><td><code class="inline">a.field = expr</code></td><td>Member assignment</td></tr></tbody></table></div>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="expr">Literals &amp; Expressions</a></li><li><a data-page="vars">Variables &amp; Assignment</a></li><li><a data-page="flow">Control Flow</a></li></ul>

@@ -1,0 +1,24 @@
+<div class="page-eyebrow">Embedded Buses</div>
+<h1>vspi</h1>
+<p class="lede">Typed, range-checked SPI master helpers for the Arduino Uno target.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vspi</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vspi/vspi.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">arduino</code> (AVR target)</td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vspi/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p><code class="inline">vspi</code> is the typed wrapper over the AVR <code class="inline">SPI</code> bindings. It validates the clock, data mode, and byte/word ranges before the native call, so a bad constant produces a status code instead of a silently truncated transfer.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> arduino;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vspi/vspi.vy&quot;</span>;
+
+vspi.<span class="c-fn">begin</span>();
+vspi.<span class="c-fn">set</span>(<span class="c-num">1000000</span>, <span class="c-num">0</span>);              <span class="c-com"># 1 MHz, mode 0</span>
+id <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vspi.<span class="c-fn">transfer</span>(<span class="c-num">0x9F</span>); <span class="c-com"># e.g. JEDEC ID on a flash chip</span>
+vspi.<span class="c-fn">end_transaction</span>();
+vspi.<span class="c-fn">end</span>();</div></div>
+<h2 id="requirements">Requirements</h2>
+<ul><li>Target: Arduino Uno R3 (<code class="inline">vynec --arduino uno ...</code>). Desktop builds do not define <code class="inline">arduino_spi_*</code>.</li><li>The AVR build integration compiles the bundled <code class="inline">SPI</code> library and adds <code class="inline">vendor/arduino/libraries/SPI/src</code> to the include path automatically.</li><li>Uno pinout: MOSI = D11, MISO = D12, SCK = D13, SS = D10 (drive SS manually for the device you are talking to).</li></ul>
+<h2 id="return-codes">Return codes</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">0</code></td><td>Success</td></tr><tr><td><code class="inline">-1</code></td><td>Transfer failed (reserved; the AVR path does not fail)</td></tr><tr><td><code class="inline">-2</code></td><td>Invalid clock (must be &gt; 0)</td></tr><tr><td><code class="inline">-3</code></td><td>Invalid mode (0..3), byte (0..255), or word (0..65535)</td></tr></tbody></table></div>
+<h2 id="api">API</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Returns</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">begin()</code></td><td><code class="inline">Int64</code></td><td>Powers the peripheral</td></tr><tr><td><code class="inline">end()</code></td><td><code class="inline">Int64</code></td><td>Releases it</td></tr><tr><td><code class="inline">set(clock_hz, mode)</code></td><td><code class="inline">Int64</code></td><td>Begins a transaction (MSB first)</td></tr><tr><td><code class="inline">end_transaction()</code></td><td><code class="inline">Int64</code></td><td>Ends the transaction</td></tr><tr><td><code class="inline">transfer(value)</code></td><td><code class="inline">Int64</code></td><td>8-bit full-duplex</td></tr><tr><td><code class="inline">transfer16(value)</code></td><td><code class="inline">Int64</code></td><td>16-bit full-duplex</td></tr></tbody></table></div>
+<h2 id="loopback-test">Loopback test</h2>
+<p><code class="inline">examples/arduino/spi_loopback.vy</code> sends a pattern and compares the received byte. Jumper <strong>D11 (MOSI) to D12 (MISO)</strong>, flash, and open the serial monitor at 115200. With the jumper removed the received bytes are not a reliable echo, which is expected.</p>
+<h2 id="scope">Scope</h2>
+<p>This first slice exposes byte and word transfers. Multi-byte block transfers (<code class="inline">transfer_bytes</code>) need a buffer ABI on the MCU runtime and are a follow-up.</p>

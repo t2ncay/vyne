@@ -1,0 +1,263 @@
+<div class="page-eyebrow">Numerical Libraries</div>
+<h1>vfft</h1>
+<p class="lede">Iterative radix-2 FFT with cached twiddle factors, inverse transforms, and magnitude/phase helpers.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vfft</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vfft/vfft.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vmath</code></td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vfft/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p>Iterative radix-2 FFT for Vyne.</p>
+<hr>
+<h2 id="contents">Contents</h2>
+<ol><li><a href="#overview">Overview</a></li><li><a href="#quick-start">Quick start</a></li><li><a href="#importing">Importing</a></li><li><a href="#module-layout">Module layout</a></li><li><a href="#the-plan-type">The <code class="inline">Plan</code> type</a></li><li><a href="#reference-semantics-and-the-memory-model">Reference semantics and the memory model</a></li><li><a href="#api-reference">API reference</a></li><li><a href="#worked-example">Worked example</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#design-notes">Design notes</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="#version-history">Version history</a></li></ol>
+<hr>
+<h2 id="overview">Overview</h2>
+<p><code class="inline">vfft</code> is a pure-Vyne Fast Fourier Transform library. It computes the forward and inverse discrete Fourier transform of a complex sequence represented as two parallel <code class="inline">Array&lt;Float64&gt;</code> buffers — one for the real parts, one for the imaginary parts.</p>
+<p>The implementation is a classic iterative radix-2 Cooley-Tukey decimation-in-time FFT. It is deliberately minimal: no multi-dimensional transforms, no real-input specialization, no strided or batched variants, no FFTW-style codelet generation. It does one thing well — transform a power-of-two-length complex sequence in place — and it does so with a precomputed twiddle table and bit-reversal index that are amortized across calls.</p>
+<p>That last point is what distinguishes <code class="inline">vfft</code> from a naïve textbook implementation. The expensive parts of an FFT are not the butterflies — those are <code class="inline">O(N log N)</code> arithmetic — they are the trigonometric setup and the bit-reversal permutation, both of which are <code class="inline">O(N)</code> or worse but constant across repeated transforms of the same length. <code class="inline">vfft</code> computes them once, stores them in a <code class="inline">Plan</code>, and reuses that plan on every subsequent call with the same <code class="inline">N</code>.</p>
+<p>The library compiles to code where the inner butterfly loop runs over bare <code class="inline">double*</code> arguments with no boxing, no tag checks, and no arena traffic. A well-typed <code class="inline">vfft</code> program produces the same machine code shape as a hand-written C FFT of the same algorithm.</p>
+<hr>
+<h2 id="quick-start">Quick start</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vfft/vfft.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+<span class="c-ty">N</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">1024</span>;
+
+<span class="c-com"># Build a real-valued test signal.</span>
+vmath.<span class="c-fn">seed</span>(<span class="c-num">42</span>);
+re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    re.<span class="c-fn">push</span>(vmath.<span class="c-fn">random_float</span>(<span class="c-op">-</span><span class="c-num">1.0</span>, <span class="c-num">1.0</span>));
+    im.<span class="c-fn">push</span>(<span class="c-num">0.0</span>);
+};
+
+<span class="c-com"># Forward transform, then inverse. Round-trip is the identity</span>
+<span class="c-com"># (up to floating-point rounding).</span>
+vfft.<span class="c-fn">forward</span>(re, im);
+vfft.<span class="c-fn">inverse</span>(re, im);
+
+<span class="c-fn">out</span>(<span class="c-str">&quot;re[0] = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(re[<span class="c-num">0</span>]));</div></div>
+<p>Both functions transform their arguments <strong>in place</strong>. There is no return value beyond a status code.</p>
+<p>If you are not sure your length is a power of two, use <code class="inline">vfft.next_pow2(n)</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">n_orig <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">1000</span>;
+n_fft  <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> vfft.<span class="c-fn">next_pow2</span>(n_orig);   <span class="c-com"># 1024</span>
+<span class="c-com"># Zero-pad your signal to n_fft before transforming.</span></div></div>
+<hr>
+<h2 id="importing">Importing</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vfft/vfft.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;</div></div>
+<p><code class="inline">vfft.vy</code> is a facade. It pulls in the two implementation modules:</p>
+<div class="table-wrap"><table><thead><tr><th>Module</th><th>Contents</th></tr></thead><tbody><tr><td><code class="inline">Kernels.vy</code></td><td>Arithmetic primitives (<code class="inline">pow2</code>, <code class="inline">log2_exact</code>, <code class="inline">bit_reverse</code>) and the butterfly kernel (<code class="inline">fft_kernel</code>)</td></tr><tr><td><code class="inline">Ops.vy</code></td><td>Plan management (<code class="inline">make_plan</code>, <code class="inline">ensure_plan</code>) and the user-facing wrappers (<code class="inline">forward</code>, <code class="inline">inverse</code>)</td></tr></tbody></table></div>
+<p>You may import the leaf modules directly if you want to reuse the kernels in a larger numerical routine, but the facade is the recommended entry point.</p>
+<hr>
+<h2 id="module-layout">Module layout</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vfft/
+├── vfft.vy            # facade: use + deploy
+├── Kernels.vy         # pow2, log2_exact, bit_reverse, fft_kernel
+└── Ops.vy             # Plan interface, make_plan, ensure_plan, forward, inverse</div></div>
+<h3 id="two-layer-design">Two-layer design</h3>
+<p>Every user-visible call is a two-layer composition:</p>
+<ol><li><strong>Kernels</strong> (<code class="inline">Kernels.vy</code>): loops over raw <code class="inline">Array&lt;Float64&gt;</code> and <code class="inline">Array&lt;Int64&gt;</code>. Every function takes typed-array parameters and returns either <code class="inline">Int64</code> (a status code, always 0) or <code class="inline">Float64</code>. This shape makes the call site eligible for the native array ABI — the emitter passes <code class="inline">.data</code> directly and the body compiles to a bare C loop over <code class="inline">double*</code>.</li></ol>
+<ol><li><strong>Ops</strong> (<code class="inline">Ops.vy</code>): the <code class="inline">Plan</code> interface, the plan cache, and the two transforms that a user actually calls.</li></ol>
+<p>The split exists for the same reason it does in <code class="inline">vlin</code>: a function whose parameters are all <code class="inline">Array&lt;Float64&gt;</code> and whose return type is <code class="inline">Int64</code> loses the native ABI the moment a <code class="inline">Matrix</code>-like value enters its signature. Keeping the plan management in <code class="inline">Ops.vy</code> and the numeric loop in <code class="inline">Kernels.vy</code> is what allows the inner loop to run unboxed.</p>
+<h3 id="the-butterfly-kernel-is-a-leaf">The butterfly kernel is a leaf</h3>
+<p><code class="inline">fft_kernel</code> calls nothing that takes an array parameter. This is deliberate: the current Vyne codegen does not support native-to-native calls with array arguments (the emitter's <code class="inline">tryEmitNativeCall</code> rejects <code class="inline">RawArrayPtr</code> parameters on the callee side). A kernel that called another array-taking kernel would fall back to the boxed ABI and lose the entire benefit of the native surface. Keeping <code class="inline">fft_kernel</code> a leaf is what keeps it fast.</p>
+<hr>
+<h2 id="the-plan-type">The <code class="inline">Plan</code> type</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Plan</span> {
+    n      <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+    bits   <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+    tw_re  <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+    tw_im  <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+    bitrev <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>,
+}</div></div>
+<p>A <code class="inline">Plan</code> holds everything that depends on the transform length but not on the data:</p>
+<div class="table-wrap"><table><thead><tr><th>Field</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">n</code></td><td>Transform length. Must be a power of two.</td></tr><tr><td><code class="inline">bits</code></td><td><code class="inline">log2(n)</code>. Precomputed so the kernel does not recompute it.</td></tr><tr><td><code class="inline">tw_re</code></td><td><code class="inline">n/2</code> cosine twiddles: <code class="inline">cos(-2πk/n)</code> for <code class="inline">k = 0 … n/2 - 1</code>.</td></tr><tr><td><code class="inline">tw_im</code></td><td><code class="inline">n/2</code> sine twiddles: <code class="inline">sin(-2πk/n)</code> for <code class="inline">k = 0 … n/2 - 1</code>.</td></tr><tr><td><code class="inline">bitrev</code></td><td><code class="inline">n</code> bit-reversal indices. <code class="inline">bitrev[i]</code> is <code class="inline">i</code> with its low <code class="inline">bits</code> reversed.</td></tr></tbody></table></div>
+<p>You almost never construct a <code class="inline">Plan</code> directly. <code class="inline">vfft.forward</code> and <code class="inline">vfft.inverse</code> call <code class="inline">vfft.ensure_plan(n)</code> internally, which builds a plan on first use and returns it unchanged on subsequent calls with the same <code class="inline">n</code>.</p>
+<h3 id="the-plan-cache">The plan cache</h3>
+<p><code class="inline">Ops.vy</code> maintains two module-global variables:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">_plan   <span class="c-op">::</span> vfft.<span class="c-ty">Plan</span> <span class="c-op">=</span> <span class="c-kw">null</span>;
+_plan_n <span class="c-op">::</span> <span class="c-ty">Int64</span>     <span class="c-op">=</span> <span class="c-num">0</span>;</div></div>
+<p><code class="inline">ensure_plan(n)</code> checks <code class="inline">_plan_n == n</code>; if so, it returns immediately. Otherwise it calls <code class="inline">make_plan(n)</code> and stores the result.</p>
+<p>The cache holds exactly <strong>one</strong> plan at a time. Calling <code class="inline">forward</code> with <code class="inline">n = 1024</code>, then <code class="inline">n = 2048</code>, then <code class="inline">n = 1024</code> again will rebuild the plan twice. In a workload that alternates transform lengths, that cost dominates. In a workload that uses one length — the common case — the plan is built once and reused for the lifetime of the process.</p>
+<h3 id="using-the-plan-directly">Using the plan directly</h3>
+<p><code class="inline">make_plan</code> and the <code class="inline">Plan</code> interface are public because they are the only way to inspect or serialize the precomputed tables. Most programs should not need them.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">plan <span class="c-op">::</span> vfft.<span class="c-ty">Plan</span> <span class="c-op">=</span> vfft.<span class="c-fn">make_plan</span>(<span class="c-num">1024</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;n        = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(plan.n));
+<span class="c-fn">out</span>(<span class="c-str">&quot;bits     = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(plan.bits));
+<span class="c-fn">out</span>(<span class="c-str">&quot;bitrev[3]= &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(plan.bitrev[<span class="c-num">3</span>]));   <span class="c-com"># 768 for n=1024</span></div></div>
+<hr>
+<h2 id="reference-semantics-and-the-memory-model">Reference semantics and the memory model</h2>
+<h3 id="arrays-are-passed-by-reference-and-modified-in-place">Arrays are passed by reference, and modified in place</h3>
+<p><code class="inline">vfft.forward</code> and <code class="inline">vfft.inverse</code> write their results back into the arrays you pass. They do not allocate a new buffer.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [<span class="c-op">..</span>.];
+im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [<span class="c-op">..</span>.];
+
+vfft.<span class="c-fn">forward</span>(re, im);   <span class="c-com"># re and im now hold the frequency-domain data</span></div></div>
+<p>If you need the original signal preserved, copy it first:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">re_copy <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>n<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { re_copy.<span class="c-fn">push</span>(re[i]); };</div></div>
+<h3 id="the-plan-is-arena-allocated-and-the-arena-is-vmem-managed">The plan is arena-allocated, and the arena is <code class="inline">vmem</code>-managed</h3>
+<p>This is the one thing that will bite you if you use <code class="inline">vfft</code> inside a <code class="inline">region</code> block. Read it carefully.</p>
+<p>The plan's backing storage — the <code class="inline">Plan</code> struct, the twiddle arrays, the bit-reversal table — is allocated on the arena. <code class="inline">vmem.rewind</code> frees everything allocated after a checkpoint, including the plan if the plan was built after the checkpoint.</p>
+<p>The plan cache's invalidation sentinel, <code class="inline">_plan_n</code>, is a plain <code class="inline">Int64</code> global. It is <strong>not</strong> arena-allocated. It survives every rewind.</p>
+<p>This means: if the plan is first built inside a region, the region's rewind frees the plan but leaves <code class="inline">_plan_n</code> set to the requested length. The next call to <code class="inline">ensure_plan</code> sees a matching sentinel, returns early, and the kernel dereferences freed memory.</p>
+<p><strong>The fix is to warm the plan at top-level scope, before any region loop:</strong></p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-com"># Warm the plan at top-level scope. This allocates the plan below</span>
+<span class="c-com"># every region checkpoint, so no rewind can free it.</span>
+vfft.<span class="c-fn">forward</span>(re, im);
+vfft.<span class="c-fn">inverse</span>(re, im);
+
+<span class="c-kw">through</span> iter <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">ITERS</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> step {
+        vfft.<span class="c-fn">forward</span>(re, im);
+        vfft.<span class="c-fn">inverse</span>(re, im);
+    };
+};</div></div>
+<p>After the warmup, every in-loop <code class="inline">ensure_plan</code> hits the sentinel and returns without allocating. The plan survives every rewind.</p>
+<p>The same rule applies if you build the plan explicitly with <code class="inline">vfft.make_plan(...)</code> — allocate it outside any region whose body will call <code class="inline">forward</code> or <code class="inline">inverse</code>.</p>
+<p>See <strong>Limitations</strong> for the general statement of this trap. It is not specific to <code class="inline">vfft</code>; any lazily-cached, arena-allocated structure has the same failure mode.</p>
+<h3 id="every-call-allocates-scratch">Every call allocates scratch</h3>
+<p><code class="inline">forward</code> and <code class="inline">inverse</code> each allocate two temporary <code class="inline">Array&lt;Float64&gt;</code> buffers of length <code class="inline">n</code> per call:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">re_n <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+im_n <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];</div></div>
+<p>These hold the caller's data while the kernel works, and are copied back into the caller's arrays on the way out. The copy is not strictly necessary — <code class="inline">fft_kernel</code> could operate directly on the caller's buffers — but the current kernel signature takes <code class="inline">Array&lt;Float64&gt;</code> parameters and the current emitter cannot prove at the call site that the caller's arrays have the element type the kernel expects. The scratch buffers exist to keep the native ABI.</p>
+<p>Under the default memory model (arena lives until process exit), a loop that calls <code class="inline">forward</code> and <code class="inline">inverse</code> <code class="inline">K</code> times allocates <code class="inline">4·K</code> temporary buffers. Use a <code class="inline">region</code> block or <code class="inline">vmem.checkpoint</code> to reclaim them, with the caveat above about warming the plan first.</p>
+<hr>
+<h2 id="api-reference">API reference</h2>
+<h3 id="user-facing-transforms">User-facing transforms</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vfft.<span class="c-fn">forward</span>(re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>, im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vfft.<span class="c-fn">inverse</span>(re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>, im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p><strong><code class="inline">forward</code></strong> transforms the sequence in place. On return, <code class="inline">re[k]</code> and <code class="inline">im[k]</code> hold the real and imaginary parts of the <code class="inline">k</code>-th frequency component. The result is <strong>unscaled</strong> — it is the raw DFT sum, not normalized by <code class="inline">N</code>.</p>
+<p><strong><code class="inline">inverse</code></strong> performs the inverse transform. It is defined as:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">inverse(x) = conj(forward(conj(x))) / N</div></div>
+<p>On return, <code class="inline">re[i]</code> and <code class="inline">im[i]</code> hold the time-domain samples. <code class="inline">forward(inverse(x))</code> and <code class="inline">inverse(forward(x))</code> are both the identity up to floating-point rounding.</p>
+<p>Both functions return <code class="inline">0</code> on success. They return without transforming if <code class="inline">n &lt;= 1</code>.</p>
+<p>Both functions call <code class="inline">ensure_plan(n)</code> internally, where <code class="inline">n</code> is <code class="inline">re.size()</code>. The size of <code class="inline">im</code> is not checked. If <code class="inline">re.size() != im.size()</code> the behavior is undefined.</p>
+<h3 id="length-utilities">Length utilities</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vfft.<span class="c-fn">next_pow2</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vfft.<span class="c-fn">log2_exact</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vfft.<span class="c-fn">pow2</span>(e <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p><strong><code class="inline">next_pow2</code></strong> returns the smallest power of two greater than or equal to <code class="inline">n</code>. Returns <code class="inline">1</code> for <code class="inline">n &lt;= 1</code>.</p>
+<p><strong><code class="inline">log2_exact</code></strong> returns <code class="inline">log2(n)</code> if <code class="inline">n</code> is a power of two, and <code class="inline">-1</code> otherwise. Use this to validate an input length before transforming.</p>
+<p><strong><code class="inline">pow2</code></strong> returns <code class="inline">2^e</code>. Returns <code class="inline">1</code> for any <code class="inline">e &lt;= 0</code>, matching the historical arithmetic-loop behaviour for out-of-range inputs. For <code class="inline">e &gt;= 1</code> it is a single left shift.</p>
+<h3 id="plan-management">Plan management</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vfft.<span class="c-fn">make_plan</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> vfft.<span class="c-ty">Plan</span>
+vfft.<span class="c-fn">ensure_plan</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p><strong><code class="inline">make_plan</code></strong> builds a fresh plan. Does not consult or update the cache. Returns a <code class="inline">Plan</code> with <code class="inline">n</code>, <code class="inline">bits</code>, <code class="inline">tw_re</code>, <code class="inline">tw_im</code>, and <code class="inline">bitrev</code> populated. <code class="inline">n</code> must be a power of two; the function does not validate this and will produce a plan whose <code class="inline">bits</code> field is <code class="inline">-1</code> if <code class="inline">n</code> is not.</p>
+<p><strong><code class="inline">ensure_plan</code></strong> is what <code class="inline">forward</code> and <code class="inline">inverse</code> call. If the cached plan's length matches <code class="inline">n</code>, it is a no-op. Otherwise it rebuilds the cache. Returns <code class="inline">0</code> unconditionally.</p>
+<h3 id="low-level-kernel">Low-level kernel</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vfft.<span class="c-fn">fft_kernel</span>(re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>, im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+                n <span class="c-op">::</span> <span class="c-ty">Int64</span>, bits <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+                tw_re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+                tw_im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+                bitrev <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p>The radix-2 Cooley-Tukey butterfly. Transforms <code class="inline">re</code> and <code class="inline">im</code> in place using the tables in the last three parameters. <code class="inline">n</code> must equal <code class="inline">re.size()</code>, <code class="inline">bits</code> must equal <code class="inline">log2(n)</code>, and the twiddle arrays must have length <code class="inline">n/2</code>.</p>
+<p>This is part of the public surface only because the parser resolves the name. Normal programs should call <code class="inline">forward</code> and <code class="inline">inverse</code>. <code class="inline">fft_kernel</code> does no validation; passing a mismatched <code class="inline">bits</code> or a short twiddle table produces a silent buffer overrun.</p>
+<h3 id="bit-reversal-permutation">Bit-reversal permutation</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vfft.<span class="c-fn">bit_reverse</span>(i <span class="c-op">::</span> <span class="c-ty">Int64</span>, k <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p>Returns <code class="inline">i</code> with its low <code class="inline">k</code> bits reversed. Used by <code class="inline">make_plan</code> to build the <code class="inline">bitrev</code> table. Not normally called directly.</p>
+<p>Since 0.2.0 the implementation is a shift/mask loop — one <code class="inline">&gt;&gt;</code>, one <code class="inline">&amp;</code>, one <code class="inline">&lt;&lt;</code>, one <code class="inline">|</code> per bit — instead of the arithmetic form that predated bitwise operator support.</p>
+<hr>
+<h2 id="worked-example">Worked example</h2>
+<p>A pure tone at bin 7, reconstructed exactly.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vfft/vfft.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+<span class="c-ty">N</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">256</span>;
+<span class="c-ty">TWO_PI</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">6.283185307179586</span>;
+<span class="c-ty">BIN</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">7</span>;
+
+<span class="c-com"># Build a sine wave at frequency BIN/N.</span>
+re <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+im <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    angle <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-ty">TWO_PI</span> <span class="c-op">*</span> <span class="c-fn">float64</span>(<span class="c-ty">BIN</span>) <span class="c-op">*</span> <span class="c-fn">float64</span>(i) <span class="c-op">/</span> <span class="c-fn">float64</span>(<span class="c-ty">N</span>);
+    re.<span class="c-fn">push</span>(vmath.<span class="c-fn">sin</span>(angle));
+    im.<span class="c-fn">push</span>(<span class="c-num">0.0</span>);
+};
+
+<span class="c-com"># Forward transform.</span>
+vfft.<span class="c-fn">forward</span>(re, im);
+
+<span class="c-com"># A real sine wave has two spectral peaks: +BIN and -BIN.</span>
+<span class="c-com"># The magnitudes at k=BIN and k=N-BIN should be N/2; everything</span>
+<span class="c-com"># else should be ~0.</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;|X[7]|  = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vmath.<span class="c-fn">sqrt</span>(re[<span class="c-num">7</span>]<span class="c-op">*</span>re[<span class="c-num">7</span>] <span class="c-op">+</span> im[<span class="c-num">7</span>]<span class="c-op">*</span>im[<span class="c-num">7</span>])));
+<span class="c-fn">out</span>(<span class="c-str">&quot;|X[249]|= &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vmath.<span class="c-fn">sqrt</span>(re[<span class="c-num">249</span>]<span class="c-op">*</span>re[<span class="c-num">249</span>] <span class="c-op">+</span> im[<span class="c-num">249</span>]<span class="c-op">*</span>im[<span class="c-num">249</span>])));
+<span class="c-fn">out</span>(<span class="c-str">&quot;|X[1]|  = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vmath.<span class="c-fn">sqrt</span>(re[<span class="c-num">1</span>]<span class="c-op">*</span>re[<span class="c-num">1</span>] <span class="c-op">+</span> im[<span class="c-num">1</span>]<span class="c-op">*</span>im[<span class="c-num">1</span>])));
+
+<span class="c-com"># Inverse transform. Should recover the original sine wave.</span>
+vfft.<span class="c-fn">inverse</span>(re, im);
+<span class="c-fn">out</span>(<span class="c-str">&quot;re[0] after round-trip = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(re[<span class="c-num">0</span>]));   <span class="c-com"># ~0</span></div></div>
+<p>Expected output:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">|X[7]|   = 128.0     (N/2)
+|X[249]| = 128.0     (N/2)
+|X[1]|   = 0.0       (~0, rounding)
+re[0] after round-trip = 0.0</div></div>
+<p>The <code class="inline">-BIN</code> peak appears at index <code class="inline">N - BIN = 249</code> because of the standard DFT symmetry for real inputs: <code class="inline">X[N-k] = conj(X[k])</code>.</p>
+<hr>
+<h2 id="limitations">Limitations</h2>
+<h3 id="power-of-two-lengths-only">Power-of-two lengths only</h3>
+<p><code class="inline">vfft</code> implements radix-2 Cooley-Tukey. The transform length must be a power of two. There is no mixed-radix path, no Bluestein's algorithm for arbitrary lengths, no zero-padding logic. Use <code class="inline">vfft.next_pow2</code> and pad your input manually if you have a non-power-of-two signal.</p>
+<h3 id="complex-input-only">Complex input only</h3>
+<p>The transform takes separate real and imaginary buffers. A real-valued signal must supply an imaginary buffer of zeros, and the transform spends half its work computing values that are Hermitian-symmetric with the other half. A real-input fast path (<code class="inline">rfft</code>) is not yet implemented; see <strong>Roadmap</strong>.</p>
+<h3 id="single-plan-cache-slot">Single plan cache slot</h3>
+<p>The plan cache holds one plan. Alternating transform lengths thrashes it. If your workload alternates between two lengths, build two plans with <code class="inline">make_plan</code> and call <code class="inline">fft_kernel</code> directly, or accept the <code class="inline">O(N)</code> rebuild cost on every switch.</p>
+<h3 id="the-plan-is-not-safe-across-region-rewinds">The plan is not safe across <code class="inline">region</code> rewinds</h3>
+<p>Detailed in <strong>Reference semantics</strong> above, but restating because it is the single most common way to break a <code class="inline">vfft</code> program:</p>
+<p><strong>Do not build the plan inside a region whose rewind will free it. Warm it at top-level scope first.</strong></p>
+<p>The compiler does not detect this. There is no compile-time error, no runtime check, no diagnostic. The plan looks valid — the sentinel says so — and the kernel dereferences freed memory. Symptoms range from silent corruption to an access violation minutes into a run.</p>
+<p>The same rule applies to <code class="inline">vlin</code> matrices built lazily inside library functions and to any other structure whose &quot;valid&quot; flag and &quot;backing storage&quot; have different lifetimes. It is a language-level hazard, not a <code class="inline">vfft</code>-specific one.</p>
+<h3 id="floating-point-accuracy">Floating-point accuracy</h3>
+<p>The FFT is implemented in <code class="inline">double</code> with no compensated summation, no split-radix trick, no extended precision. For a 1024-point transform round-tripped a thousand times, the result drifts by a few ULP. For longer transforms and larger iteration counts the drift accumulates. If you need bit-exact reproducibility across runs, be aware that the summation order is fixed by the algorithm and the twiddle table, so the drift is deterministic — but it is not zero.</p>
+<h3 id="no-simd-or-threading">No SIMD or threading</h3>
+<p>The kernel compiles to scalar <code class="inline">double</code> arithmetic. The C compiler may auto-vectorize the inner loops if the flags allow it, but <code class="inline">vfft</code> makes no effort to guarantee this: no <code class="inline">restrict</code>, no aligned allocation, no explicit AVX2/NEON intrinsics. For a single 1024-point transform, scalar is fine. For a workload that transforms millions of signals per second, a tuned library (FFTW, Intel MKL, PocketFFT) will be significantly faster.</p>
+<h3 id="same-weak-rng-as-the-rest-of-the-ecosystem">Same weak RNG as the rest of the ecosystem</h3>
+<p>The example code in this manual uses <code class="inline">vmath.random_float</code> to seed its test signals. The generator is a small LCG with correlated low bits. Adequate for building a plausible-looking input; not adequate if you want a signal with spectral properties that are actually uniform. For a flat spectrum, build the frequency-domain data directly and call <code class="inline">vfft.inverse</code>.</p>
+<hr>
+<h2 id="design-notes">Design notes</h2>
+<h3 id="why-a-plan-object">Why a plan object</h3>
+<p>A naïve FFT computes its twiddle factors and bit-reversal permutation on every call. Both are <code class="inline">O(N)</code> — the same order as a single butterfly stage — so their cost is not asymptotically dominant, but the constant factor is large: <code class="inline">N/2</code> calls to <code class="inline">cos</code> and <code class="inline">sin</code>, plus <code class="inline">N</code> iterations of a bit-reversal routine that extracts and places one bit per step.</p>
+<p>Moving that setup into a plan that is built once and reused reduces per-call cost by a factor of roughly 3 for a single transform and by much more for a loop. The <code class="inline">Plan</code> concept is borrowed directly from FFTW, which introduced it precisely for this reason.</p>
+<h3 id="why-a-kernel-wrapper-split">Why a kernel/wrapper split</h3>
+<p>Same rationale as in <code class="inline">vlin</code>: a function whose parameters are all <code class="inline">Array&lt;Float64&gt;</code> and whose return type is <code class="inline">Int64</code> compiles to a C function taking <code class="inline">double*</code> and returning <code class="inline">int64_t</code>. No boxing, no tag checks, no arena traffic inside the loop.</p>
+<p><code class="inline">fft_kernel</code> takes exactly that shape. The two wrapper functions in <code class="inline">Ops.vy</code> take <code class="inline">Array</code> (untyped) parameters, because they need to accept whatever the caller passes — a typed or untyped array, a boxed value from an interface field, etc. — and normalize it into the typed scratch buffers the kernel expects.</p>
+<p>If the shape check lived inside the kernel, the kernel would need to take <code class="inline">Plan</code> values and check the plan length on every call, and it would lose the ABI. Splitting validation into the wrapper and iteration into the kernel is what makes the fast path available.</p>
+<h3 id="why-conjugate-based-inverse">Why conjugate-based inverse</h3>
+<p>The inverse DFT is <code class="inline">(1/N) · conj(DFT(conj(x)))</code>. Instead of writing a second kernel with negated twiddles, <code class="inline">inverse</code> conjugates its input on the way into the scratch buffers, calls the same <code class="inline">fft_kernel</code>, and conjugates and scales on the way out.</p>
+<p>Two reasons. First, it halves the surface area of the kernel — one routine to read, one routine to debug, one routine to optimize. Second, the twiddle table is shared: <code class="inline">forward</code> and <code class="inline">inverse</code> use the same <code class="inline">tw_re</code> and <code class="inline">tw_im</code> arrays, so a program that calls both does not pay for a second plan.</p>
+<p>The cost is four extra scalar operations per element per call — the two conjugations and the division. For an <code class="inline">N log N</code> algorithm, that is noise.</p>
+<h3 id="why-bit-reversal-uses-shifts">Why bit-reversal uses shifts</h3>
+<p>Until 0.2.0, <code class="inline">bit_reverse</code> was written arithmetically because Vyne's parser did not propagate declared types onto plain variable reads, and the bitwise guard in <code class="inline">UnaryNode::getCExpr</code> therefore rejected any expression like <code class="inline">~x</code> where <code class="inline">x</code> had only been declared, never re-annotated. The workaround extracted each bit with <code class="inline">(i / 2^b) % 2</code> and placed it with a multiplication.</p>
+<p>That parser gap is closed. The canonical C form is now expressible:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">bit <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> (i <span class="c-op">&gt;&gt;</span> b) <span class="c-op">&amp;</span> <span class="c-num">1</span>;
+<span class="c-kw">result</span> <span class="c-op">=</span> <span class="c-kw">result</span> <span class="c-op">|</span> (bit <span class="c-op">&lt;&lt;</span> (k <span class="c-op">-</span> <span class="c-num">1</span> <span class="c-op">-</span> b));</div></div>
+<p>This is <code class="inline">O(k)</code> per call and makes no function calls. The <code class="inline">O(k²)</code> arithmetic version was never the bottleneck — plan construction happens once per length — but the shift form is shorter, faster, and matches what a reader familiar with FFT code will expect.</p>
+<p><code class="inline">pow2</code> and <code class="inline">log2_exact</code> use <code class="inline">&lt;&lt;</code> as well. Their asymptotics are unchanged; the code is just cleaner.</p>
+<h3 id="why-the-plan-cache-is-a-module-global">Why the plan cache is a module global</h3>
+<p>The cache must persist across calls to <code class="inline">forward</code> and <code class="inline">inverse</code>. Those functions are stateless by design — they take only the two arrays they transform — so the cache cannot live in their scope. A module global is the only place left.</p>
+<p>The consequence is that the cache is per-process, not per-call-site. Two independent subsystems that use different transform lengths will thrash each other's plan. This is acceptable for the library's target use case (one program, one FFT length) and unacceptable for libraries layered on top of <code class="inline">vfft</code>. If you are building such a library, use <code class="inline">make_plan</code> and call <code class="inline">fft_kernel</code> directly; you own the cache.</p>
+<hr>
+<h2 id="roadmap">Roadmap</h2>
+<p>The following are planned or in progress.</p>
+<h3 id="real-input-fast-path-rfft">Real-input fast path (<code class="inline">rfft</code>)</h3>
+<p>A specialized transform for real-valued inputs. A real signal of length <code class="inline">N</code> has a Hermitian-symmetric spectrum: <code class="inline">X[N-k] = conj(X[k])</code>. Only <code class="inline">N/2 + 1</code> output values are unique. An <code class="inline">rfft</code> would exploit this by packing the real input into a complex transform of length <code class="inline">N/2</code> and unpacking on the way out. Roughly 2× speedup for real inputs.</p>
+<h3 id="out-of-place-variants">Out-of-place variants</h3>
+<p><code class="inline">forward</code> and <code class="inline">inverse</code> currently copy the caller's data into scratch buffers, transform the scratch, and copy back. An out-of-place variant that transforms the caller's buffers directly would eliminate the copy, at the cost of requiring the caller to own the buffers and guarantee their element type.</p>
+<p>Blocked on the emitter's ability to prove at the call site that the caller's <code class="inline">Array</code> value is in fact a typed <code class="inline">VyneArray_f64</code>. The <code class="inline">Array&lt;Float64&gt;</code> parameter annotation on a wrapper is not enough — the native-ABI dispatch rejects <code class="inline">Array</code>-typed arguments that have not been proven to be typed arrays. Fixing this is a codegen change.</p>
+<h3 id="multi-dimensional-transforms">Multi-dimensional transforms</h3>
+<p>A 2-D FFT is a sequence of 1-D FFTs along each axis. The plan structure extends naturally: a 2-D plan holds row transforms, column transforms, and a transpose. Not implemented.</p>
+<h3 id="batched-transforms">Batched transforms</h3>
+<p>Transform <code class="inline">M</code> signals of length <code class="inline">N</code> with one call, sharing the plan. The cache currently holds one plan; a batch API would accept a batch of arrays and loop internally, avoiding per-call plan lookups and per-call scratch allocation. Common in signal processing workloads.</p>
+<h3 id="region-aware-plan-invalidation">Region-aware plan invalidation</h3>
+<p>The plan cache should know when a region rewind has freed its backing storage, so the next call rebuilds automatically rather than dereferencing freed memory. This requires the runtime to expose a generation counter that the arena bumps on every rewind, and the plan cache to store that counter alongside <code class="inline">_plan_n</code>. Planned for a future runtime release.</p>
+<p>Until then, the user-facing rule stands: warm the plan outside any region.</p>
+<h3 id="simd-kernels">SIMD kernels</h3>
+<p>Explicit vectorization of the butterfly loop, using AVX2 intrinsics on x86-64 and NEON on ARM. Blocked on the emitter's ability to emit platform-specific intrinsics; currently the C compiler must auto-vectorize, which it does inconsistently.</p>
+<hr>
+<h2 id="version-history">Version history</h2>
+<p><strong>0.2.0</strong> — internal rewrite of <code class="inline">Kernels</code> to use bitwise operators now that the parser propagates types onto plain variable reads. <code class="inline">bit_reverse</code> drops from <code class="inline">O(k²)</code> to <code class="inline">O(k)</code>; <code class="inline">pow2</code> and <code class="inline">log2_exact</code> use shifts in place of multiplication. Public API, <code class="inline">Plan</code> layout, <code class="inline">fft_kernel</code> butterfly, and the plan cache are all unchanged — this release is behaviour-preserving.</p>
+<p><strong>0.1.0</strong> — initial release. <code class="inline">Kernels</code> (<code class="inline">pow2</code>, <code class="inline">log2_exact</code>, <code class="inline">bit_reverse</code>, <code class="inline">fft_kernel</code>) and <code class="inline">Ops</code> (<code class="inline">Plan</code>, <code class="inline">make_plan</code>, <code class="inline">ensure_plan</code>, <code class="inline">forward</code>, <code class="inline">inverse</code>, <code class="inline">next_pow2</code>). Cached plan per length. Iterative radix-2 Cooley-Tukey. Conjugate-based inverse.</p>

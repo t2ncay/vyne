@@ -1,0 +1,213 @@
+---
+id: intro
+title: Introduction
+group: Getting Started
+icon: fa-house
+order: 1
+description: A C-flavored scientific language with deterministic regions, native C output, CUDA frames, and an Arduino backend.
+header: false
+---
+            <div class="hero">
+              <div class="hero-inner">
+                <div class="page-eyebrow">
+                  <i class="fas fa-circle" style="font-size: 0.5rem; vertical-align: middle"></i>
+                  Active development · v0.6.0 + main
+                </div>
+                <h1>The <span class="grad">Vyne</span> language</h1>
+                <p class="lede">
+                  A C-flavored scientific numerical language with
+                  <strong>deterministic region memory</strong>,
+                  <strong>native C output</strong>, an
+                  <strong>AST interpreter</strong> for fast iteration, a
+                  <strong>CUDA device backend</strong>, and a native
+                  <strong>Arduino Uno</strong> target. No garbage collector. No
+                  hidden allocation pauses. One source, three execution models.
+                </p>
+                <div class="hero-stats">
+                  <div class="hero-stat"><b>0</b><span>GC pauses</span></div>
+                  <div class="hero-stat"><b>3</b><span>execution backends</span></div>
+                  <div class="hero-stat"><b>20+</b><span>numerical libraries</span></div>
+                  <div class="hero-stat"><b>110</b><span>Arduino bindings</span></div>
+                </div>
+              </div>
+            </div>
+
+            <h2 id="what-is-vyne">What Vyne is</h2>
+            <p>
+              Vyne is a statically analyzable numerical programming language built
+              around one idea:
+              <strong>memory lifetime belongs in the source code, not in a garbage collector</strong>.
+              Values live in a bump arena. A <code class="inline">region</code>
+              block confines scratch allocations to a lexical scope, and the arena
+              rewinds at the closing brace. That contract is identical on a desktop
+              and on a 2 KB microcontroller.
+            </p>
+            <p>
+              The surface syntax is deliberately C-shaped: braces, semicolons,
+              <code class="inline">fn</code> declarations, <code class="inline">if</code> /
+              <code class="inline">while</code> / <code class="inline">through</code>
+              control flow, and <code class="inline">::</code> type annotations. On top
+              of that it adds first-class functions, generics by monomorphization,
+              interfaces, pipeline and null-coalescing operators, string
+              interpolation, <code class="inline">:=</code> declarations, bitwise
+              operators, <code class="inline">Float32</code>, executable contracts, and
+              source-to-source reverse-mode automatic differentiation.
+            </p>
+
+            <div class="code-block">
+              <div class="code-header">
+                <span class="code-filename"><i class="far fa-file-code"></i>&nbsp;train_step.vy</span>
+                <span class="code-lang">vyne</span>
+                <button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button>
+              </div>
+              <div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">"voptim/voptim.vy"</span>;
+
+params <span class="c-op">::</span> <span class="c-ty">Array</span>&lt;<span class="c-ty">Float64</span>&gt; <span class="c-op">:=</span> [<span class="c-num">0.5</span>, <span class="c-op">-</span><span class="c-num">0.2</span>, <span class="c-num">0.1</span>];
+opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <span class="c-op">:=</span> voptim.<span class="c-fn">adam_new</span>(params, <span class="c-num">0.9</span>, <span class="c-num">0.999</span>, <span class="c-num">1e-8</span>);
+
+<span class="c-kw">@bounded</span>&lt;<span class="c-num">1_048_576</span>&gt;
+<span class="c-kw">region</span> step {
+    <span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">999</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+        <span class="c-com"># every allocation inside this region is reclaimed at `};`</span>
+        grads <span class="c-op">::</span> voptim.<span class="c-ty">Series</span> <span class="c-op">:=</span> voptim.<span class="c-fn">Series</span>([<span class="c-num">0.01</span>, <span class="c-op">-</span><span class="c-num">0.02</span>, <span class="c-num">0.03</span>], <span class="c-num">3</span>);
+        lr <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> voptim.<span class="c-fn">cosine</span>(epoch, <span class="c-num">0.05</span>, <span class="c-num">1000</span>);
+        voptim.<span class="c-fn">adam_step</span>(opt, grads, lr);
+    };
+};</div>
+            </div>
+
+            <h2 id="three-backends">Three execution models, one AST</h2>
+            <div class="grid-3">
+              <div class="card">
+                <div class="card-title"><i class="fas fa-bolt"></i>Interpreter</div>
+                <div class="card-desc">
+                  <code class="inline">vynec script.vy</code> runs directly for fast
+                  iteration and REPL use. The AST interpreter is the reference
+                  semantics for the language.
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="fas fa-microchip"></i>C transpiler</div>
+                <div class="card-desc">
+                  <code class="inline">vynec --compile</code> lowers the same AST to
+                  one self-contained C translation unit and hands it to the host C
+                  compiler for native binaries.
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="fas fa-memory"></i>AVR transpiler</div>
+                <div class="card-desc">
+                  <code class="inline">vynec --arduino uno</code> emits firmware for
+                  the ATmega328P. The arena shrinks to 1 KB, but checkpoint and
+                  rewind semantics do not change.
+                </div>
+              </div>
+            </div>
+
+            <h2 id="why-vyne">Why Vyne</h2>
+            <div class="grid-2">
+              <div class="card">
+                <div class="card-title"><i class="fas fa-gauge-high"></i>Predictable memory</div>
+                <div class="card-desc">
+                  Regions reclaim scratch memory in one pointer rewind. Peak memory
+                  stays flat across millions of iterations on desktop and on an Uno.
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="fas fa-feather"></i>Small, readable surface</div>
+                <div class="card-desc">
+                  One file format, one type system, no macros and no metaprogramming.
+                  The whole language fits in a weekend; the library stack grows as you need it.
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="fas fa-rocket"></i>Native where it matters</div>
+                <div class="card-desc">
+                  Typed arrays and struct layouts cross the native ABI unboxed. The
+                  numerical kernels lower to plain C loops with no per-element dispatch.
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-title"><i class="fas fa-cubes"></i>A real numerical stack</div>
+                <div class="card-desc">
+                  Linear algebra, neural networks, FFT, statistics, optimization,
+                  sparse and dense solvers, DSP, control, images, CSV/JSON, plotting,
+                  and domain libraries — all written in Vyne.
+                </div>
+              </div>
+            </div>
+
+            <h2 id="whats-new">What is new in this generation</h2>
+            <ul>
+              <li>
+                <a data-page="regions"><strong>The region policy suite</strong></a>
+                — <code class="inline">@bounded</code>,
+                <code class="inline">@zeroed</code>,
+                <code class="inline">@deterministic</code>,
+                <code class="inline">@realtime</code>,
+                <code class="inline">@pool</code>,
+                <code class="inline">@slab</code>,
+                <code class="inline">@ring</code>,
+                <code class="inline">@streamed</code>,
+                <code class="inline">@persistent</code>,
+                <code class="inline">@speculative</code>,
+                <code class="inline">@device</code>,
+                <code class="inline">@layout&lt;soa&gt;</code>, and the AD
+                composition attributes, with <code class="inline">region.commit</code>,
+                <code class="inline">region.move</code>, and
+                <code class="inline">drop</code>.
+              </li>
+              <li>
+                <a data-page="autodiff"><strong>Source-to-source AD</strong></a>
+                — <code class="inline">@differentiable</code>,
+                <code class="inline">@backward</code>, <code class="inline">grad</code>,
+                array-reduction VJPs, and custom
+                <code class="inline">&lt;fn&gt;_vjp</code> adjoints.
+              </li>
+              <li>
+                <a data-page="device"><strong>A CUDA device backend</strong></a>
+                — <code class="inline">@device&lt;cuda&gt;</code>, Float32 by
+                default, matmul and conv2d kernels, with a CPU fallback.
+              </li>
+              <li>
+                <a data-page="arduino"><strong>An Arduino Uno target</strong></a>
+                — a 1 KB arena, 16 checkpoints, 110 bindings, and the same
+                region semantics as desktop.
+              </li>
+              <li>
+                <a data-page="libs"><strong>A full numerical library stack</strong></a>
+                — linear algebra, ML, FFT, statistics, optimization, sparse and
+                dense solvers, DSP, control, CSV/JSON, plotting, imaging, buses,
+                and domain libraries.
+              </li>
+              <li>
+                <a data-page="srcnn"><strong>A real project</strong></a> — the
+                SRCNN image upscaler with dataset generation, training, CUDA
+                inference, and PSNR/SSIM benchmarks.
+              </li>
+            </ul>
+
+            <h2 id="start-here">Start here</h2>
+            <p>
+              If you want to run code immediately, read
+              <a data-page="install">Installation</a> and
+              <a data-page="hello">Hello, World</a>. If you want the whole language in
+              one pass, take the <a data-page="tour">Language Tour</a>. If you want to
+              understand the memory model first, jump to
+              <a data-page="regions">Memory &amp; Regions</a>. The
+              <a data-page="srcnn">SRCNN showcase</a> shows a complete project end to
+              end: dataset generation, training, CUDA inference, and image-quality
+              benchmarking.
+            </p>
+
+            <div class="admonition adm-note">
+              <i class="fas fa-circle-info"></i>
+              <div class="adm-body">
+                <div class="adm-title">Documentation scope</div>
+                This site is a language and library manual, not a compiler tour. It
+                documents what you can write and call. For internals, read the source
+                tree; for the full release history, read
+                <code class="inline">CHANGELOG.md</code>.
+              </div>
+            </div>

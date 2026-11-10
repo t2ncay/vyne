@@ -61,6 +61,10 @@ function inline(text) {
 
   let html = escapeHtml(text);
 
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+    return `<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" loading="lazy">`;
+  });
+
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
     if (/^page:/.test(href)) {
       return `<a data-page="${escapeAttr(href.slice(5))}">${label}</a>`;
@@ -137,9 +141,31 @@ function isTableSeparator(line) {
   return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line);
 }
 function splitRow(line) {
-  let s = line.trim();
-  s = s.replace(/^\|/, "").replace(/\|$/, "");
-  return s.split("|").map((c) => c.trim());
+  const s = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells = [];
+  let current = "";
+  let inCode = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (ch === "\\" && s[i + 1] === "|") {
+      current += "|";
+      i++;
+      continue;
+    }
+    if (ch === "`") {
+      inCode = !inCode;
+      current += ch;
+      continue;
+    }
+    if (ch === "|" && !inCode) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  cells.push(current.trim());
+  return cells;
 }
 function isTableStart(lines, i) {
   return (
