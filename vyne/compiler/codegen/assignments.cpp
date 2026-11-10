@@ -17,6 +17,7 @@
 
 #include "ctype.h"
 #include "detail/codegen_helpers.h"
+#include "autodiff.h"
 
 // Variable reads and assignments, including typed native initialization and
 // boxing boundaries. Keep expressions that emit statements in evaluation order;
@@ -455,6 +456,17 @@ void AssignmentNode::compile(C_Emitter& e) const {
             "(line " +
             std::to_string(lineNumber) + "). Use the interpreter instead."
         );
+    }
+
+    // Phase B (AD): inside an `@implicit` region, the fresh declaration
+    // that receives `newton_solve(...)` owns the root record that
+    // `backward(root)` later consumes. Register the binding before the RHS
+    // is lowered so the intrinsic can fill in the captured C temps.
+    if (e.inImplicitRegion() && isFreshDeclaration() && rhs &&
+        rhs->type() == NodeType::FUNCTION_CALL) {
+        auto* call = static_cast<FunctionCallNode*>(rhs.get());
+        if (vyne_ad::isImplicitSolveName(call->getOriginalName()))
+            e.beginImplicitSolve(originalName, rhs.get());
     }
 
     // Phase B (AD): inside an `@backward` region, an assignment whose RHS

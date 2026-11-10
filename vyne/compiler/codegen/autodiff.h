@@ -75,4 +75,21 @@ void emitAdjoint(
 std::string emitGradCall(C_Emitter& e, const FunctionCallNode& call);
 std::string emitBackwardCall(C_Emitter& e, const FunctionCallNode& call);
 
+// `@implicit` region lowering.
+//
+// `newton_solve(F, x..., z0)` is intercepted only while an `@implicit`
+// region is active. It emits a Newton solver over the scalar residual
+// `F(x..., z) -> Float64` and records the fixed point plus the captured
+// parameter values in the emitter's implicit scope. `backward(z)` then
+// differentiates the residual at that fixed point and applies the
+// Implicit Function Theorem:
+//
+//     dz/dx_i = -(dF/dx_i) / (dF/dz)
+//
+// so no solver iterations are stored or replayed.
+bool isImplicitSolveName(const std::string& name);
+std::string emitImplicitSolveCall(C_Emitter& e, const FunctionCallNode& call);
+std::string
+emitImplicitBackwardCall(C_Emitter& e, const FunctionCallNode& call);
+
 } // namespace vyne_ad

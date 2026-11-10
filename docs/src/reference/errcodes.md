@@ -104,6 +104,8 @@ Diagnostics are emitted with a stable `VNE-*` code, a severity, a source locatio
 | `VNE-121` | Unsupported statement or mutation inside `@differentiable` |
 | `VNE-122`–`VNE-125` | Unsupported expression or `grad()` misuse |
 | `VNE-126` | `backward()` could not resolve the recorded differentiable call |
+| `VNE-127` | Malformed `newton_solve()` call or residual outside the implicit scalar subset |
+| `VNE-128` | Runtime implicit solve failure (non-convergence or singular `dF/dz`) |
 
 ## Reading a diagnostic
 

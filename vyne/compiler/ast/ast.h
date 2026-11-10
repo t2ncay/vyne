@@ -2026,6 +2026,12 @@ class RegionNode : public ASTNode {
     std::vector<Attribute> attributes_;
     bool backward_ = false;
 
+    // `@implicit` composes with the memory policy and with `@backward`.
+    // It tells the solver lowering that `newton_solve(...)` calls in this
+    // body denote implicit roots, and that `backward(root)` must use the
+    // Implicit Function Theorem instead of unrolling the solver.
+    bool implicit_ = false;
+
     // Layout policy for scratch storage inside this region. "aos" (the
     // default) keeps array-of-structs; "soa" lowers struct scratch to one
     // array per field. Composes with any memory policy.
@@ -2083,6 +2089,12 @@ class RegionNode : public ASTNode {
     }
     bool isBackward() const {
         return backward_;
+    }
+    void setImplicit(bool v) {
+        implicit_ = v;
+    }
+    bool isImplicit() const {
+        return implicit_;
     }
     void setLayout(std::string mode) {
         layoutMode_ = std::move(mode);

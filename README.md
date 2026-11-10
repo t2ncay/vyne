@@ -476,8 +476,33 @@ of ordinary C locals inside the region block, so it dies at rewind and
 `Float64` reverse mode plus `Array<Float64>` gradients through the
 `vstat`/`vlin` reduction kernels (`grad(f, w)` returns an array). Array
 locals, loops, branches, `@recompute`, and `@mixed` lowering are deferred
-and rejected rather than miscompiled. See
-`docs/tutorials/reference/autodiff.md` and `examples/autodiff/`.
+and rejected rather than miscompiled.
+
+`@implicit` extends the same machinery to equations. A region body calls
+`newton_solve(F, x..., z0)` to find a root of the scalar residual
+`F(x..., z) = 0`; `backward(z)` then differentiates `F` at that root and
+applies the Implicit Function Theorem (`dz/dx_i = -(dF/dx_i)/(dF/dz)`), so
+the reverse pass never replays the solver:
+
+```vyne
+@differentiable
+fn residual(x :: Float64, z :: Float64) -> Float64 {
+    return z * z * z + x - 1.0;
+}
+
+@implicit
+@bounded<64_000_000>
+region solve {
+    z :: Float64 := newton_solve(residual, x, 0.0);
+    backward(z);            # x.grad = -1/(3 z^2)
+};
+```
+
+`@implicit` implies `@backward`, composes with the memory policies, and is
+rejected on AVR in this release. Scalar `Float64` residuals are supported;
+vector residuals, Jacobian assembly, and linear solves are deferred. See
+`docs/tutorials/reference/autodiff.md`, `docs/src/language/autodiff.md`, and
+`examples/autodiff/`.
 
 ---
 
@@ -525,7 +550,7 @@ targets.
 ### Region policies
 
 A region selects **at most one** allocation, lifetime, or verification policy.
-`@layout`, `@backward`, `@recompute`, and `@mixed` are composition attributes:
+`@layout`, `@backward`, `@implicit`, `@recompute`, and `@mixed` are composition attributes:
 they stack on top of that policy without choosing a second allocator. The
 language currently defines sixteen region modifiers.
 
@@ -545,6 +570,7 @@ language currently defines sixteen region modifiers.
 | `@realtime<ms>` | Verification | Records a monotonic timestamp on entry and checks the deadline at normal close and on every early return. Overrun halts with `VNE-109`; worst observed time and overruns are exposed as `vcore.realtime_*` (desktop) or `arduino.realtime_*` (AVR). A watchdog, not a worst-case-execution-time proof. |
 | `@layout<soa>` | Layout (composition) | Lowers struct `scratch` to one packed array per field instead of an array of structs. `particles[i].field` reads/writes address the field arrays directly; multi-index and runtime-length scratch flatten row-major. `@layout<aos>` is the explicit default; `@layout<struct_of_arrays>` is an alias. Struct scratch without `soa` is `VNE-062`; whole-element access is `VNE-063`. |
 | `@backward` | AD (composition) | Scopes the reverse sweep/tape to the region body. Calls to `@differentiable` functions are recorded; `backward(seed)` consumes them. It composes with a memory policy, as in `@backward @bounded<...> region`. |
+| `@implicit` | AD (composition) | Implies `@backward`, enables `newton_solve(F, x..., z0)`, and lowers `backward(root)` to an Implicit Function Theorem adjoint instead of unrolling the solver. Composes with a memory policy; desktop only in this release. |
 | `@recompute<...>` | AD metadata (deferred) | Parsed and recorded as checkpoint/recompute metadata for the autodiff planner. Lowering is deferred; the compiler currently emits a metadata comment and does not change allocation behavior. |
 | `@mixed<...>` | Precision metadata (deferred) | Parsed and recorded as mixed-precision intent (for example compute/accumulate types). Lowering is deferred; the compiler currently emits a metadata comment. |
 
@@ -1036,6 +1062,8 @@ Selected codes:
 | `VNE-090` | `analog_write_resolution` > 8        |
 | `VNE-091` | Pin has no external interrupt        |
 | `VNE-100` | Method table overflow                |
+| `VNE-127` | Malformed `newton_solve` / implicit residual mismatch |
+| `VNE-128` | Runtime implicit solve failure       |
 
 The full list is in `docs/content/errcodes.html`. On AVR, `VNE-072`
 (scratch index out of bounds) lowers to `vyne_panic_bounds` instead of
