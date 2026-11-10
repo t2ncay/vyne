@@ -100,6 +100,69 @@ fn :: vconv conv2d(
     return vconv.Tensor(dst, out_h, out_w, out_channels);
 }
 
+# Gradient of conv2d w.r.t. the input, for a square kernel.
+# `weight` is boxed so this wrapper is not itself a native-variant.
+fn :: vconv conv_backward_input(
+    grad :: vconv.Tensor,
+    weight :: Array,
+    in_h :: Int64,
+    in_w :: Int64,
+    in_c :: Int64,
+    kernel :: Int64,
+    stride :: Int64,
+    pad :: Int64
+) -> Array<Float64> {
+    return vconv.conv2d_backward_input(
+        grad.data,
+        weight,
+        grad.height,
+        grad.width,
+        grad.channels,
+        in_h,
+        in_w,
+        in_c,
+        kernel,
+        kernel,
+        stride,
+        pad
+    );
+}
+
+# Gradient of conv2d w.r.t. the OIHW weight.
+fn :: vconv conv_backward_weight(
+    input :: vconv.Tensor,
+    grad :: vconv.Tensor,
+    kernel :: Int64,
+    stride :: Int64,
+    pad :: Int64
+) -> Array<Float64> {
+    return vconv.conv2d_backward_weight(
+        input.data,
+        grad.data,
+        input.height,
+        input.width,
+        input.channels,
+        grad.height,
+        grad.width,
+        grad.channels,
+        kernel,
+        kernel,
+        stride,
+        pad
+    );
+}
+
+# Gradient of conv2d w.r.t. the bias.
+fn :: vconv conv_backward_bias(grad :: vconv.Tensor) -> Array<Float64> {
+    return vconv.conv2d_backward_bias(
+        grad.data,
+        grad.height,
+        grad.width,
+        grad.channels
+    );
+}
+
+
 fn :: vconv relu(input :: vconv.Tensor) -> vconv.Tensor {
     data :: Array<Float64> := input.data;
     dst :: Array<Float64> := vconv.relu_fwd(data);

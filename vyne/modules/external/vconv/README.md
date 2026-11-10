@@ -1,9 +1,9 @@
-# vconv - forward convolution for Vyne
+# vconv - convolution for Vyne
 
 `vconv` is the numerical core of the image-super-resolution path. It is a
-forward-only CPU implementation today: square-kernel convolution with
-stride and zero padding, the common activations, ESPCN pixel shuffle, and
-a weight-bundle loader. The loops live in
+CPU implementation of square-kernel convolution with stride and zero
+padding, the common activations, ESPCN pixel shuffle, a weight-bundle
+loader, and explicit backward kernels for training. The loops live in
 `vyne/runtime/modules/vconv.h`; this library is the typed wrapper.
 
 ```vyne
@@ -63,7 +63,16 @@ out_w = (in_w + 2*pad - kernel) / stride + 1
 `input[y][x][c*scale^2 + i*scale + j]` to
 `output[y*scale + i][x*scale + j][c]`.
 
-### Weight bundles
+### Backward (training)
+| Function | Result |
+| :--- | :--- |
+| `conv_backward_input(grad, weight, in_h, in_w, in_c, k, stride, pad)` | gradient w.r.t. the input |
+| `conv_backward_weight(input, grad, k, stride, pad)` | gradient w.r.t. the OIHW weight |
+| `conv_backward_bias(grad)` | gradient w.r.t. the bias |
+| `relu_backward(grad, pre_activation)` | ReLU mask applied to an upstream gradient |
+`weight` in `conv_backward_input` is passed as an `Array` so the wrapper
+stays outside the native-array ABI.
+
 
 `vconv.load_model(path)` reads a bundle into a `Map` of
 `name -> Array<Float64>`. Two formats are accepted:
@@ -101,9 +110,10 @@ so the wrapper is the only place a caller needs to reason about.
 
 ## Limits
 
-- CPU only. `@device<backend: cuda>` integration is a follow-up; the
-  kernel signatures are stable enough to swap the body later.
-- Forward only. Training needs a backward pass (tracked separately).
+- CPU convolution. The device backend has matmul/elementwise kernels but
+  no conv primitive; the SR project runs its 1x1 layer through `@device`
+  matmul and keeps the 5x5 layers on the CPU.
+- Backward is CPU-only and covers the square-kernel stride/pad cases above.
 - No dilation or groups yet.
 - Naive direct convolution. It is fast enough for the ESPCN demo on
   modest images, not for real-time 1080p->4K.

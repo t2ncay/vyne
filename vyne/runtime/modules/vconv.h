@@ -165,6 +165,187 @@ static inline VyneValue vconv_conv2d_fwd(
 }
 
 /* ---------------------------------------------------------------- */
+/* Conv2d backward (CPU)                                            */
+/* ---------------------------------------------------------------- */
+
+/* Gradient w.r.t. the input. `grad_out` is HWC [out_h][out_w][out_c],
+ * `weight` is OIHW. The result is zero-filled and has the input shape. */
+static inline VyneValue vconv_conv2d_backward_input(
+    VyneValue grad_out_val,
+    VyneValue weight_val,
+    VyneValue out_h_val,
+    VyneValue out_w_val,
+    VyneValue out_c_val,
+    VyneValue in_h_val,
+    VyneValue in_w_val,
+    VyneValue in_c_val,
+    VyneValue kh_val,
+    VyneValue kw_val,
+    VyneValue stride_val,
+    VyneValue pad_val
+) {
+    VyneArray_f64 grad_out = _vconv_array(grad_out_val);
+    VyneArray_f64 wgt = _vconv_array(weight_val);
+
+    int64_t out_h = _vconv_int(out_h_val, "conv2d_backward_input", "out_h");
+    int64_t out_w = _vconv_int(out_w_val, "conv2d_backward_input", "out_w");
+    int64_t out_c = _vconv_int(out_c_val, "conv2d_backward_input", "out_c");
+    int64_t in_h = _vconv_int(in_h_val, "conv2d_backward_input", "in_h");
+    int64_t in_w = _vconv_int(in_w_val, "conv2d_backward_input", "in_w");
+    int64_t in_c = _vconv_int(in_c_val, "conv2d_backward_input", "in_c");
+    int64_t kh = _vconv_int(kh_val, "conv2d_backward_input", "kh");
+    int64_t kw = _vconv_int(kw_val, "conv2d_backward_input", "kw");
+    int64_t stride = _vconv_int(stride_val, "conv2d_backward_input", "stride");
+    int64_t pad = _vconv_int(pad_val, "conv2d_backward_input", "pad");
+
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 ||
+        kh <= 0 || kw <= 0) {
+        return _vconv_empty();
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+    if (grad_out.size < out_h * out_w * out_c) return _vconv_empty();
+    if (wgt.size < out_c * in_c * kh * kw) return _vconv_empty();
+
+    VyneArray_f64 grad_in = vyne_array_f64_create(in_h * in_w * in_c);
+
+    for (int64_t oy = 0; oy < out_h; ++oy) {
+        for (int64_t ox = 0; ox < out_w; ++ox) {
+            int64_t out_base = (oy * out_w + ox) * out_c;
+            for (int64_t oc = 0; oc < out_c; ++oc) {
+                double g = grad_out.data[out_base + oc];
+                if (g == 0.0) continue;
+                int64_t w_base = (oc * in_c) * kh * kw;
+                for (int64_t ic = 0; ic < in_c; ++ic) {
+                    int64_t w_ci = w_base + ic * kh * kw;
+                    for (int64_t ky = 0; ky < kh; ++ky) {
+                        int64_t iy = oy * stride - pad + ky;
+                        if (iy < 0 || iy >= in_h) continue;
+                        for (int64_t kx = 0; kx < kw; ++kx) {
+                            int64_t ix = ox * stride - pad + kx;
+                            if (ix < 0 || ix >= in_w) continue;
+                            grad_in.data[((iy * in_w) + ix) * in_c + ic] +=
+                                g * wgt.data[w_ci + ky * kw + kx];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return vyne_array_f64_to_value(&grad_in);
+}
+
+/* Gradient w.r.t. the OIHW weight. */
+static inline VyneValue vconv_conv2d_backward_weight(
+    VyneValue input_val,
+    VyneValue grad_out_val,
+    VyneValue in_h_val,
+    VyneValue in_w_val,
+    VyneValue in_c_val,
+    VyneValue out_h_val,
+    VyneValue out_w_val,
+    VyneValue out_c_val,
+    VyneValue kh_val,
+    VyneValue kw_val,
+    VyneValue stride_val,
+    VyneValue pad_val
+) {
+    VyneArray_f64 in = _vconv_array(input_val);
+    VyneArray_f64 grad_out = _vconv_array(grad_out_val);
+
+    int64_t in_h = _vconv_int(in_h_val, "conv2d_backward_weight", "in_h");
+    int64_t in_w = _vconv_int(in_w_val, "conv2d_backward_weight", "in_w");
+    int64_t in_c = _vconv_int(in_c_val, "conv2d_backward_weight", "in_c");
+    int64_t out_h = _vconv_int(out_h_val, "conv2d_backward_weight", "out_h");
+    int64_t out_w = _vconv_int(out_w_val, "conv2d_backward_weight", "out_w");
+    int64_t out_c = _vconv_int(out_c_val, "conv2d_backward_weight", "out_c");
+    int64_t kh = _vconv_int(kh_val, "conv2d_backward_weight", "kh");
+    int64_t kw = _vconv_int(kw_val, "conv2d_backward_weight", "kw");
+    int64_t stride = _vconv_int(stride_val, "conv2d_backward_weight", "stride");
+    int64_t pad = _vconv_int(pad_val, "conv2d_backward_weight", "pad");
+
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 ||
+        kh <= 0 || kw <= 0) {
+        return _vconv_empty();
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+    if (in.size < in_h * in_w * in_c) return _vconv_empty();
+    if (grad_out.size < out_h * out_w * out_c) return _vconv_empty();
+
+    VyneArray_f64 grad_w = vyne_array_f64_create(out_c * in_c * kh * kw);
+
+    for (int64_t oy = 0; oy < out_h; ++oy) {
+        for (int64_t ox = 0; ox < out_w; ++ox) {
+            int64_t out_base = (oy * out_w + ox) * out_c;
+            for (int64_t oc = 0; oc < out_c; ++oc) {
+                double g = grad_out.data[out_base + oc];
+                if (g == 0.0) continue;
+                int64_t w_base = (oc * in_c) * kh * kw;
+                for (int64_t ic = 0; ic < in_c; ++ic) {
+                    int64_t w_ci = w_base + ic * kh * kw;
+                    for (int64_t ky = 0; ky < kh; ++ky) {
+                        int64_t iy = oy * stride - pad + ky;
+                        if (iy < 0 || iy >= in_h) continue;
+                        for (int64_t kx = 0; kx < kw; ++kx) {
+                            int64_t ix = ox * stride - pad + kx;
+                            if (ix < 0 || ix >= in_w) continue;
+                            grad_w.data[w_ci + ky * kw + kx] +=
+                                g * in.data[((iy * in_w) + ix) * in_c + ic];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return vyne_array_f64_to_value(&grad_w);
+}
+
+/* Gradient w.r.t. the bias: sum grad_out over spatial positions. */
+static inline VyneValue vconv_conv2d_backward_bias(
+    VyneValue grad_out_val,
+    VyneValue out_h_val,
+    VyneValue out_w_val,
+    VyneValue out_c_val
+) {
+    VyneArray_f64 grad_out = _vconv_array(grad_out_val);
+    int64_t out_h = _vconv_int(out_h_val, "conv2d_backward_bias", "out_h");
+    int64_t out_w = _vconv_int(out_w_val, "conv2d_backward_bias", "out_w");
+    int64_t out_c = _vconv_int(out_c_val, "conv2d_backward_bias", "out_c");
+    if (out_h <= 0 || out_w <= 0 || out_c <= 0) return _vconv_empty();
+    if (grad_out.size < out_h * out_w * out_c) return _vconv_empty();
+
+    VyneArray_f64 grad_b = vyne_array_f64_create(out_c);
+    for (int64_t i = 0; i < out_h * out_w; ++i) {
+        int64_t base = i * out_c;
+        for (int64_t oc = 0; oc < out_c; ++oc) {
+            grad_b.data[oc] += grad_out.data[base + oc];
+        }
+    }
+    return vyne_array_f64_to_value(&grad_b);
+}
+
+/* ReLU backward. `input` is the pre-activation tensor from the forward
+ * pass; positive positions pass the upstream gradient, others zero. */
+static inline VyneValue vconv_relu_backward(
+    VyneValue grad_out_val,
+    VyneValue input_val
+) {
+    VyneArray_f64 grad_out = _vconv_array(grad_out_val);
+    VyneArray_f64 input = _vconv_array(input_val);
+    int64_t n = grad_out.size < input.size ? grad_out.size : input.size;
+    VyneArray_f64 out = vyne_array_f64_create(n);
+    for (int64_t i = 0; i < n; ++i) {
+        out.data[i] = input.data[i] > 0.0 ? grad_out.data[i] : 0.0;
+    }
+    return vyne_array_f64_to_value(&out);
+}
+
+/* ---------------------------------------------------------------- */
 /* Elementwise activations                                          */
 /* ---------------------------------------------------------------- */
 
