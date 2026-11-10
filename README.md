@@ -137,7 +137,9 @@ network primitives), `vfft` (radix-2 FFT with plan caching), `vrand`
 (distributions), `vstat` (statistics plus PSNR/SSIM), `vtermplot`
 (terminal plots), `vcsv`, `vcomplex`, `vinterp` (interpolation), `vimage`
 (PNG/JPEG I/O), `vconv` (forward convolution), `vsignal` (filters and DSP),
-`vcontrol` (PID / Kalman / state-space), and `vbio` (nucleotide / protein
+`vcontrol` (PID / Kalman / state-space), `voptim` (SGD/Adam/AdamW and
+schedules), `vsparse` (CSR, SpMV, conjugate gradient), `vdecomp` (LU, QR,
+Cholesky, eigen, singular values), and `vbio` (nucleotide / protein
 sequences) are written in Vyne itself, in the same kernel/wrapper pattern,
 and the major libraries ship with a full manual each. On AVR, the same
 numerical idioms run
@@ -796,6 +798,8 @@ is designed to be paired with `vsignal` for sensor pre-filtering, while the
 | :--- | :--- |
 | Linear algebra and ML | `vlin`, `vml`, `vfft`, `vrand` |
 | Statistics and numerics | `vstat`, `vcomplex`, `vinterp` |
+| Optimization | `voptim` |
+| Sparse and dense solvers | `vsparse`, `vdecomp` |
 | DSP and control | `vsignal`, `vcontrol` |
 | Data and plotting | `vcsv`, `vjson`, `vtermplot` |
 | Image and vision | `vimage`, `vconv` |
@@ -806,7 +810,7 @@ is designed to be paired with `vsignal` for sensor pre-filtering, while the
 Every library directory ships a `README.md` describing its user-visible
 surface, conventions, and limitations. The most complete references are
 `vlin/README.md`, `vml/README.md`, `vstat/README.md`, `vsignal/README.md`,
-and `vcontrol/README.md`.
+`vcontrol/README.md`, `voptim/README.md`, `vsparse/README.md`, and `vdecomp/README.md`.
 
 ### Kernel/wrapper pattern
 
@@ -831,6 +835,13 @@ allocation, and dispatch.
   struct.
 - `vimage`/`vconv` pair a typed `Image`/`Tensor` surface with native HWC
   buffers.
+- `voptim` keeps parameters and moments in typed arrays and exposes native
+  update kernels plus pure learning-rate schedules.
+- `vsparse` stores CSR values/indices/row pointers in typed arrays; `cg` reuses
+  one `Ap` buffer so peak memory is O(rows) independent of iteration count.
+- `vdecomp` takes flat row-major arrays plus dimensions in the raw routines
+  and adds `Matrix`/`Series` wrappers for `solve`, `inverse`, `solve_spd`, and
+  the factorisation entry points.
 
 Each library ships tests and at least one benchmark:
 
@@ -1276,6 +1287,9 @@ vyne/
 │       ├── vinterp/               # 1-D / 2-D interpolation
 │       ├── vsignal/               # filters, windows, resampling, spectra
 │       ├── vcontrol/              # PID, complementary/Kalman filters, state space
+│       ├── voptim/                # SGD, Adam/AdamW, schedules
+│       ├── vsparse/               # CSR, SpMV, conjugate gradient
+│       ├── vdecomp/               # LU, QR, Cholesky, eigen, singular values
 │       ├── vcsv/                  # CSV/TSV tables
 │       ├── vjson/                 # JSON parser and serializer
 │       ├── vtermplot/             # terminal plotting
@@ -1295,7 +1309,7 @@ vyne/
 ├── examples/                      # language and library examples
 │   ├── arduino/                   # AVR firmware examples (tinyml_xor.vy, ...)
 │   ├── benchmark/                 # matmul, recursion, ML training
-│   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, vfft)
+│   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, voptim, vsparse, vdecomp, vfft)
 │   ├── network/                   # vnet (archival, no longer maintained)
 │   ├── safety/                    # region escape negative tests
 │   ├── training/                  # vlin/vml training scripts
