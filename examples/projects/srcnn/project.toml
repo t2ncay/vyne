@@ -21,6 +21,7 @@ vcomplex = "0.4"
 vcsv = "0.4"
 vimage = "0.4"
 vconv = "0.4"
+voptim = "0.4"
 
 [targets]
 default = "desktop"
