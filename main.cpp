@@ -15,6 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
+#include "cli/bench.h"
 #include "cli/file_handler.h"
 #include "cli/init.h"
 #include "cli/packager.h"
@@ -24,7 +25,6 @@
 #include "vyne/utils/file_utils.h"
 #include <cstdlib>
 #include <cstring>
-#include <filesystem>
 #include <string>
 
 #ifdef _WIN32
@@ -139,6 +139,7 @@ static void printHelp() {
     row("vynec <mode> <script.vy> [flags]", GREEN, C(CYAN, "explicit mode"), W);
     row("vynec build [path]", GREEN, C(CYAN, "build the current project"), W);
     row("vynec run [path]", GREEN, C(CYAN, "build and run the project"), W);
+    row("vynec bench [file]", GREEN, C(CYAN, "benchmark project targets"), W);
     row("vynec init [path]", GREEN, C(CYAN, "scaffold a new project"), W);
 
     header("MODES");
@@ -204,6 +205,10 @@ static void printHelp() {
     row("run [path]",
         MAGENTA,
         "Compile and run the project.toml target",
+        W);
+    row("bench [file]",
+        MAGENTA,
+        "Benchmark targets and write a JSON report",
         W);
     row("init [path]", MAGENTA, "Scaffold with the interactive questionnaire", W);
     std::cout << "      " << C(CYAN, "templates: ")
@@ -275,6 +280,11 @@ int main(int argc, char* argv[]) {
     if (argc >= 2 && strcmp(argv[1], "init") == 0)
         return runInit(argc, argv);
 
+    // Benchmark driver owns its own option namespace (warmup / iterations /
+    // report), so it is intercepted before the generic flag scan too.
+    if (argc >= 2 && strcmp(argv[1], "bench") == 0)
+        return runBench(argc, argv);
+
     if (argc == 3 && strcmp(argv[1], "--build-game") == 0) {
         VynePackager packager(argv[2]);
         packager.build();
@@ -304,32 +314,25 @@ int main(int argc, char* argv[]) {
         // project.toml discovery walks up from the CWD. When a path is
         // supplied explicitly below, a missing project.toml is not fatal;
         // it only becomes an error if no entry point can be derived.
-        std::string tomlPath;
-        if (findProjectToml(".", tomlPath)) {
-            ProjectConfig config;
-            std::string error;
-            if (!readProjectToml(tomlPath, config, &error)) {
-                std::cerr << RED << "  error" << RESET << "  " << error
+        ProjectLoadResult loaded = loadProject(".");
+        if (loaded.found) {
+            if (!loaded.ok) {
+                std::cerr << RED << "  error" << RESET << "  " << loaded.error
                           << "\n";
                 return 1;
             }
 
-            config.toml_path = tomlPath;
-            config.root_dir =
-                std::filesystem::path(tomlPath).parent_path().string();
-            resolveProjectDependencies(config);
-
-            for (size_t i = 0; i < config.dependencies.size(); ++i) {
-                if (!config.dependency_paths[i].empty())
+            for (size_t i = 0; i < loaded.config.dependencies.size(); ++i) {
+                if (!loaded.config.dependency_paths[i].empty())
                     continue;
                 std::cerr
                     << YELLOW << "  warning" << RESET << "  dependency `"
-                    << config.dependencies[i]
+                    << loaded.config.dependencies[i]
                     << "` not found under share/vyne/modules/external\n";
             }
 
-            applyProjectConfig(config, opts);
-            opts.project = config;
+            applyProjectConfig(loaded.config, opts);
+            opts.project = loaded.config;
             opts.hasProject = true;
         }
     }

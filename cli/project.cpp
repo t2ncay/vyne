@@ -352,6 +352,21 @@ bool readProjectToml(
         } else if (section == "build") {
             if (key == "deterministic")
                 out.deterministic = parseBool(value);
+        } else if (section == "bench") {
+            if (key == "warmup" || key == "iterations") {
+                std::string number = parseScalar(value);
+                try {
+                    int parsed = std::stoi(number);
+                    if (key == "warmup")
+                        out.bench_warmup = parsed;
+                    else
+                        out.bench_iterations = parsed;
+                } catch (...) {
+                    return fail("`" + key + "` must be an integer");
+                }
+            } else if (key == "report") {
+                out.bench_report = parseScalar(value);
+            }
         } else if (section == "device.cuda") {
             if (key == "sm_version") {
                 std::string version = parseScalar(value);
@@ -385,6 +400,28 @@ bool readProjectToml(
     }
 
     return true;
+}
+
+ProjectLoadResult loadProject(const std::string& startDir) {
+    ProjectLoadResult result;
+
+    std::string tomlPath;
+    if (!findProjectToml(startDir, tomlPath))
+        return result;
+
+    result.found = true;
+    std::string error;
+    if (!readProjectToml(tomlPath, result.config, &error)) {
+        result.error = error;
+        return result;
+    }
+
+    result.config.toml_path = tomlPath;
+    result.config.root_dir =
+        std::filesystem::path(tomlPath).parent_path().string();
+    resolveProjectDependencies(result.config);
+    result.ok = true;
+    return result;
 }
 
 // ---------------------------------------------------------------------------

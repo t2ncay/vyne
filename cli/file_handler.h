@@ -93,6 +93,11 @@ struct ProjectConfig {
     bool deterministic = false;
     int cuda_sm = 0;
 
+    // [bench] section. Defaults match the scaffold written by `vynec init`.
+    int bench_warmup = 10;
+    int bench_iterations = 100;
+    std::string bench_report = "build/bench.json";
+
     // Discovery metadata. `root_dir` is the directory containing
     // project.toml; `toml_path` is the file itself. `dependency_paths` is
     // parallel to `dependencies` — an empty entry means the dependency was
@@ -127,6 +132,19 @@ struct BuildOptions {
     // `vynec --run foo.vy`.
     ProjectConfig project;
     bool hasProject = false;
+
+    // Internal compile-only mode used by the benchmark driver. It keeps
+    // diagnostics and errors but suppresses the normal build/run UI.
+    bool quiet = false;
+};
+
+// ---------------------------------------------------------------------------
+// Benchmark options
+// ---------------------------------------------------------------------------
+struct BenchOptions {
+    int warmup = 10;
+    int iterations = 100;
+    std::string reportPath; // resolved output path
 };
 
 int runFile(
@@ -134,6 +152,12 @@ int runFile(
     SymbolContainer& env,
     const BuildOptions& opts
 );
+
+// Shared section UI, exposed so `vynec bench` can render the same
+// `>> project` and sectioned boxes as `vynec build` / `vynec run`.
+void sectionOpen(const char* label);
+void sectionClose();
+void printProjectBox(const ProjectConfig& cfg);
 
 template <typename... Args>
 static inline void vprint(std::string_view fmt, Args&&... args) {
