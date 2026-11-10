@@ -72,7 +72,7 @@ license = "AGPL-3.0-only"
 description = "A comprehensive SRCNN trainer & inferrer"
 
 [toolchain]
-vyne = "0.6.0"
+vyne = "0.7.0"
 
 [dependencies]
 vlin = "0.4"

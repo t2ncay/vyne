@@ -166,7 +166,7 @@ scripts/lib/               markdown, highlighter, layout, normalizer
 
 The original single-file `index.html` was split losslessly when the site was
 first generated. The current site is a rewritten manual: the language surface,
-region policy matrix, library set, CLI, and showcase track the v0.6.0 tree and
+region policy matrix, library set, CLI, and showcase track the v0.7.0 tree and
 the unreleased `main` features (autodiff, `@realtime`, `@layout<soa>`,
 `voptim`/`vsparse`/`vdecomp`, CUDA conv, and the SRCNN project).
 

@@ -1,4 +1,4 @@
-FROM ghcr.io/vyne-lang/base:0.4.0
+FROM ghcr.io/vyne-lang/base:0.7.0
 
 WORKDIR /workspace
 COPY . .

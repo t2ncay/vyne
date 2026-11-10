@@ -8,7 +8,7 @@ import { escapeHtml, escapeAttr, stripHtml } from "./slug.mjs";
 export const SITE = {
   name: "Vyne",
   tagline: "Language Reference",
-  version: "v0.6.0",
+  version: "v0.7.0",
 };
 
 // Inline brand mark: a gradient tile with a layered chevron "V" (the layers

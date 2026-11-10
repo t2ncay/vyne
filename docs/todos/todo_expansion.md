@@ -710,7 +710,7 @@ do not accidentally build for them.
 
 ## 6. Release sequencing (proposed, not committed)
 
-**Reality check (2026-11-10):** the tree is still on v0.4.0 in `main.cpp`, but
+**Reality check (2026-11-10):** the tree is on v0.7.0 in `main.cpp`, but
 has accumulated most of the v0.7 sensing/control capabilities (C1–C5) and part
 of v0.9 autodiff (C10) ahead of schedule. Treat the table as a capability
 grouping, not a release guarantee; `voptim`/`vsparse`/`vdecomp`/`vnum` are still

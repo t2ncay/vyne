@@ -12,6 +12,6 @@ jobs:
       - name: Run the Iris demo
         run: |
           # The Vyne toolchain image is not published yet. Until it is,
-          # install vynec 0.4.0 and make it available on PATH.
+          # install vynec 0.7.0 and make it available on PATH.
           command -v vynec
           vynec run src/main.vy

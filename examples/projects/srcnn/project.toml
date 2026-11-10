@@ -8,7 +8,7 @@ repository = ""
 keywords = []
 
 [toolchain]
-vyne = "0.4.0"
+vyne = "0.7.0"
 ggml = "0.9.4"
 
 [dependencies]
