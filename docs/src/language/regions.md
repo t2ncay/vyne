@@ -35,7 +35,7 @@ Peak memory stays flat regardless of iteration count. The same contract holds on
 
 ## Region policies
 
-A region may carry **at most one memory policy**. `@layout`, `@backward`, `@recompute`, and `@mixed` are composition attributes and stack on top of that policy. A second memory policy is `VNE-080`.
+A region may carry **at most one memory policy**. `@layout`, `@backward`, `@implicit`, `@recompute`, and `@mixed` are composition attributes and stack on top of that policy. A second memory policy is `VNE-080`.
 
 | Modifier | Category | Behaviour |
 | :--- | :--- | :--- |
@@ -53,6 +53,7 @@ A region may carry **at most one memory policy**. `@layout`, `@backward`, `@reco
 | `@realtime<ms>` | Verification | Records a monotonic timestamp on entry and checks the deadline at normal close and on every early return. Overrun halts with `VNE-109`; telemetry is exposed through `vcore.realtime_*` (desktop) or `arduino.realtime_*` (AVR). |
 | `@layout<soa>` | Layout (composition) | Lowers struct `scratch` to one packed array per field instead of an array of structs. `@layout<aos>` is the explicit default; `@layout<struct_of_arrays>` is an alias. |
 | `@backward` | AD (composition) | Scopes the reverse sweep and tape to the region body. Calls to `@differentiable` functions are recorded; `backward(seed)` consumes them. |
+| `@implicit` | AD (composition) | Implies `@backward` and enables `newton_solve(F, x..., z0)`. `backward(root)` emits the Implicit Function Theorem adjoint instead of unrolling the solver. Desktop only in this release. |
 | `@recompute<...>` | AD metadata (deferred) | Parsed and recorded as checkpoint/recompute metadata. Lowering is deferred; the compiler emits a metadata comment. |
 | `@mixed<...>` | Precision metadata (deferred) | Parsed and recorded as mixed-precision intent. Lowering is deferred; the compiler emits a metadata comment. |
 
@@ -62,6 +63,7 @@ A region may carry **at most one memory policy**. `@layout`, `@backward`, `@reco
 
 - `@layout` composes with any policy.
 - `@backward` composes with a memory policy: `@backward @bounded<...> region`.
+- `@implicit` implies `@backward` and composes with a memory policy: `@implicit @bounded<...> region`. It is desktop-only in this release.
 - `@recompute` and `@mixed` parse and compose with a policy, but only record metadata today.
 - `@streamed`, `@device`, and `@persistent` are desktop-only and rejected on AVR.
 - `@bounded`, `@zeroed`, `@deterministic`, and `@realtime` lower on the MCU runtime. `@pool`, `@slab`, `@ring`, and `@speculative` are desktop-backed in this release.
@@ -263,6 +265,7 @@ The diagnostic names the variable, both region depths, the line, and three fixes
 | `@layout<soa>` | yes | scratch only |
 | `@streamed`, `@persistent`, `@device` | yes | rejected |
 | `@backward` | yes | desktop-oriented AD |
+| `@implicit` | yes | rejected |
 | `@recompute`, `@mixed` | parsed, metadata only | parsed, metadata only |
 
 ## Observability

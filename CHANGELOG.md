@@ -10,6 +10,15 @@ This change lands the B + A AD surface recommended for Vyne:
 - `@backward` on a region creates the tape scope. It is a predicate that
   composes with `@bounded`, `@recompute`, and `@mixed`; the memory policy is
   still dispatched by `RegionNode::compile`.
+- `@implicit` composes with `@backward` and the memory policies. Inside it,
+  `newton_solve(F, x..., z0)` solves the scalar residual `F(x..., z) = 0`,
+  and `backward(root)` applies the Implicit Function Theorem
+  (`dz/dx_i = -(dF/dx_i)/(dF/dz)`) at the converged root. The reverse pass
+  never stores or replays solver iterations; `backward(root, seed)` chains an
+  explicit upstream sensitivity. The residual must be a scalar
+  `@differentiable` function whose last parameter is the state. Desktop only
+  in this release; vector residuals and Jacobian solves are deferred with
+  `VNE-127` / `VNE-128`.
 - `backward(loss)` seeds the adjoint sweep and populates `w.grad` for the
   recorded arguments. The gradient slots are ordinary C locals inside the
   region block, so they die at region rewind and are covered by `@bounded`.
@@ -20,7 +29,7 @@ The reverse-mode generator (`codegen/autodiff.cpp`) recomputes the primal
 intermediates, seeds the returned expression, walks assignments in reverse, and
 publishes input gradients through out-parameters. It supports `+ - * / **`,
 `sin cos exp log sqrt tanh abs relu`, and `pow` over straight-line `Float64`
-bodies. Everything outside the subset is rejected with `VNE-120`..`VNE-126`
+bodies. Everything outside the subset is rejected with `VNE-120`..`VNE-128`
 instead of silently miscompiling.
 
 Array gradients are supported for `Float64 -> Float64` functions that reduce
@@ -39,7 +48,8 @@ Also included:
 - region attributes may now compose (`@backward @bounded<...>`), with
   `@recompute` / `@mixed` parsed and recorded for a later phase;
 - numeric literals accept `_` digit separators (`64_000_000`);
-- examples under `examples/autodiff/` (including `array_grad.vy`) and a
+- examples under `examples/autodiff/` (including `array_grad.vy` and
+  `implicit_test.vy`) and a
   reference page at `docs/tutorials/reference/autodiff.md`.
 
 ---

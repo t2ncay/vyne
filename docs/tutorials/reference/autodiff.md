@@ -2,13 +2,14 @@
 
 Vyne ships the **surface** for automatic differentiation (AD) and a working
 **source-to-source reverse-mode** implementation for straight-line `Float64`
-functions and `Array<Float64>` reductions. The design composes two annotations
-and one intrinsic:
+functions and `Array<Float64>` reductions. The design composes function and
+region annotations with a small set of intrinsics:
 
 | Form | Surface | Lowers to |
 | :--- | :--- | :--- |
 | Function | `@differentiable fn f(x :: Float64) -> Float64 { ... }` | primal `fn_f` plus adjoint `fn_f_grad` |
 | Region | `@backward region step { ... backward(l); ... }` | a tape scope inside the region; `.grad` reads |
+| Region | `@implicit region solve { z := newton_solve(F, x, z0); backward(z); }` | Newton primal plus an Implicit Function Theorem adjoint |
 | Expression | `grad(f, x)` | a seeded call to `fn_f_grad` |
 
 `@backward` is a **predicate**, not a memory policy. It composes with the
@@ -65,6 +66,46 @@ region train_step {
     out("dL/db = " + string(b.grad));
 };
 ```
+
+## Example: implicit region
+
+`@implicit` differentiates an equation instead of a solver trace. The body
+calls `newton_solve(F, x..., z0)` to find a root `z` of `F(x..., z) = 0`, and
+`backward(z)` applies the Implicit Function Theorem at the converged root:
+
+```
+dz/dx_i = -(dF/dx_i) / (dF/dz)
+```
+
+```vyne
+use native vmath;
+
+# F(x, z) = z^3 + x - 1 = 0.
+@differentiable
+fn cubic_residual(x :: Float64, z :: Float64) -> Float64 {
+    return z * z * z + x - 1.0;
+}
+
+x :: Float64 := 0.0;
+
+@implicit
+@bounded<64_000_000>
+region solve_cubic {
+    z :: Float64 := newton_solve(cubic_residual, x, 0.5);
+
+    backward(z);                    # dz/dx = -1/3 at z = 1
+    out("dz/dx = " + string(x.grad));
+};
+```
+
+The residual is a scalar `@differentiable` function whose last parameter is
+the state. `@implicit` implies the `@backward` tape scope and composes with the
+memory policies. `backward(root, seed)` chains an explicit upstream
+sensitivity. Newton uses a `1e-12` tolerance, fails after the iteration ceiling
+(64 by default, or `@implicit<N>`), and rejects a singular `dF/dz` with
+`VNE-128`. Custom `<fn>_vjp` adjoints cannot supply `dF/dz` and are rejected.
+Vector residuals and the AVR target are deferred; `newton_solve` and
+`implicit_solve` resolve as ordinary functions outside an `@implicit` region.
 
 ## Example: array gradients
 
@@ -223,6 +264,8 @@ wrong gradient:
 | `VNE-121` | unsupported statement / mutation inside `@differentiable` |
 | `VNE-122`–`VNE-125` | unsupported expression or `grad()` misuse |
 | `VNE-126` | `backward()` could not resolve the recorded differentiable call |
+| `VNE-127` | malformed `newton_solve()` call or residual outside the implicit scalar subset |
+| `VNE-128` | runtime implicit solve failure (non-convergence or singular `dF/dz`) |
 
 ## Deferred
 
@@ -231,6 +274,8 @@ The following are deliberately not claimed yet:
 - array locals, element-wise array intermediates, and matrix/matmul VJPs;
 - `backward(...)` on array parameters (use `grad(f, x)`);
 - branches, `through`/`while` loops, and loop-carried state;
+- vector-valued implicit roots, dense Jacobian assembly, and linear solves;
+- the AVR target for `@implicit`;
 - `@recompute` checkpointing and `@mixed` precision policies;
 - interpreter execution of `grad` / `backward` (use the compiled backend);
 - cross-module adjoint discovery beyond the defining translation unit.
