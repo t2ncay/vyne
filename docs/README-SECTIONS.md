@@ -7,11 +7,14 @@ contents, search and pager are all applied automatically.
 ## Quick start
 
 ```bash
-# add a new section from a Markdown file
-npm run add -- --file docs/guide/threads.md --title "Threads" --group "Language Reference"
+# regenerate content/ and nav.json from src/ + library manuals, then build
+npm run sync
 
-# rebuild everything (e.g. after editing nav.json)
+# build only (after editing content/*.html or nav.json by hand)
 npm run build
+
+# add one Markdown page through the single-section helper
+npm run add -- --file docs/guide/threads.md --title "Threads" --group "Language Reference"
 
 # preview locally (needs any static server; file:// also works)
 npm run serve        # http://localhost:8000
@@ -22,6 +25,29 @@ Positional shorthand is also accepted:
 ```bash
 node scripts/add-section.mjs docs/guide/threads.md "Threads" "Language Reference"
 ```
+
+## Source layout
+
+The maintained sources live under `docs/src/`. Each file carries a small
+front-matter block:
+
+```markdown
+---
+id: regions
+title: Memory & Regions
+group: Language Reference
+icon: fa-layer-group
+order: 9
+description: One-line lede.
+---
+```
+
+`.md` files are rendered with the site Markdown pipeline. `.html` files are
+inserted verbatim and are used for the introduction hero and image-rich pages.
+Library reference pages are generated from
+`vyne/modules/external/<lib>/README.md`, so they never drift from the library
+manuals. `npm run sync` writes `content/*.html`, updates `nav.json`, deletes
+retired fragments, and rebuilds every page.
 
 ## What the `add` command does
 
@@ -109,33 +135,40 @@ Your content…
 ```
 index.html                 Introduction (generated)
 pages/<id>.html            one generated page per section
-content/<id>.html          the source fragment for each section
+content/<id>.html          generated fragment for each section
+src/                       maintained Markdown/HTML sources
 assets/styles.css          the entire design system
 assets/app.js              progress bar, drawer, TOC, copy, ⌘K search
 assets/search-index.js     generated search data
-nav.json                   the sidebar/group/order manifest
+assets/srcnn/              showcase images
+nav.json                   the sidebar/group/order manifest (generated)
+scripts/sync-docs.mjs      src/ + library manuals -> content/ + nav.json
 scripts/build.mjs          rebuild all pages + search index
-scripts/add-section.mjs    the Markdown -> section CLI
+scripts/add-section.mjs    the one-page Markdown -> section CLI
 scripts/extract-legacy.mjs one-time importer (already used)
-scripts/lib/                markdown, highlighter, layout, normalizer
-docs/                      put your Markdown files here
+scripts/lib/               markdown, highlighter, layout, normalizer
 ```
 
 ## How to edit things
 
-- **Sidebar order / icons / groups:** edit `nav.json`, then `npm run build`.
-- **An existing page's text:** edit `content/<id>.html`, then `npm run build`.
-- **A page you wrote:** edit your `.md`, then re-run `npm run add` (or `build`).
+- **An existing page:** edit `src/<group>/<id>.md` (or `.html`), then
+  `npm run sync`. Do not edit `content/` by hand; it is regenerated.
+- **Sidebar order / icons / groups:** edit the front matter (`group`, `order`,
+  `icon`) or the `LIBRARIES` manifest in `scripts/sync-docs.mjs`, then
+  `npm run sync`.
+- **A library reference:** edit the library's
+  `vyne/modules/external/<lib>/README.md`, then `npm run sync`.
+- **A quick one-off page:** `npm run add -- --file ...` still works, but the
+  next `sync` will not know about it unless it is moved under `src/`.
 - **Look & feel:** edit `assets/styles.css` (`:root` holds the design tokens).
 
 ## Notes on the original content
 
-The original single-file `index.html` was split losslessly: every section's
-visible text and code are unchanged. The only adjustments were:
-
-- code blocks that the old formatter had re-wrapped are re-flowed into readable
-  lines (whitespace only — not a single code character changed), and
-- every code block gained a copy button.
+The original single-file `index.html` was split losslessly when the site was
+first generated. The current site is a rewritten manual: the language surface,
+region policy matrix, library set, CLI, and showcase track the v0.6.0 tree and
+the unreleased `main` features (autodiff, `@realtime`, `@layout<soa>`,
+`voptim`/`vsparse`/`vdecomp`, CUDA conv, and the SRCNN project).
 
 ## Troubleshooting
 

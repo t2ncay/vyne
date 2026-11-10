@@ -1,205 +1,203 @@
-            <div class="page-eyebrow">Getting Started</div>
-            <h1>Language Tour</h1>
-            <p class="lede">
-              One page, every construct. Read this end-to-end and you will
-              recognise any Vyne file you meet.
-            </p>
+<div class="page-eyebrow">Getting Started</div>
+<h1>Language Tour</h1>
+<p class="lede">A single pass over every construct you will meet in real Vyne code.</p>
+<p>This is the fast path through the language. Each section links to the full reference page.</p>
+<h2 id="declarations-and-types">Declarations and types</h2>
+<p><code class="inline">:=</code> introduces a binding. <code class="inline">=</code> reassigns an existing one. Types are written after <code class="inline">::</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">x <span class="c-op">:=</span> <span class="c-num">42</span>;                       <span class="c-com"># inferred</span>
+y <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">42</span>;              <span class="c-com"># explicit</span>
+<span class="c-kw">const</span> <span class="c-ty">PI</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">3.141592653589793</span>;
+z <span class="c-op">::</span> <span class="c-ty">Float64</span>;
 
-            <h2 id="tour-values">Values</h2>
-            <p>
-              Vyne has four primitive types — <code class="inline">Int64</code>,
-              <code class="inline">Float64</code>,
-              <code class="inline">Bool</code>,
-              <code class="inline">Null</code> — and four composite ones:
-              <code class="inline">String</code>,
-              <code class="inline">Array</code>,
-              <code class="inline">Map</code>, and
-              <code class="inline">Struct</code> (declared with the
-              <code class="inline">interface</code> keyword).
-            </p>
+x <span class="c-op">=</span> x <span class="c-op">+</span> <span class="c-num">1</span>;                     <span class="c-com"># reassignment, not a new binding</span></div></div>
+<div class="table-wrap"><table><thead><tr><th>Type</th><th>Example</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">Int64</code></td><td><code class="inline">42</code>, <code class="inline">0x7FFF_FFFF</code></td><td>64-bit signed; hex and <code class="inline">_</code> separators</td></tr><tr><td><code class="inline">Float64</code></td><td><code class="inline">3.14</code>, <code class="inline">1.0e3</code></td><td>IEEE-754 double</td></tr><tr><td><code class="inline">Float32</code></td><td><code class="inline">1.0f</code>, <code class="inline">2f</code>, <code class="inline">float32(x)</code></td><td>first-class single precision</td></tr><tr><td><code class="inline">String</code></td><td><code class="inline">&quot;hello&quot;</code></td><td>UTF-8, immutable</td></tr><tr><td><code class="inline">Bool</code></td><td><code class="inline">true</code>, <code class="inline">false</code></td><td></td></tr><tr><td><code class="inline">Null</code></td><td><code class="inline">null</code></td><td></td></tr><tr><td><code class="inline">Array</code></td><td><code class="inline">[1, &quot;two&quot;, 3.0]</code></td><td>heterogeneous, boxed</td></tr><tr><td><code class="inline">Array&lt;T&gt;</code></td><td><code class="inline">Array&lt;Float64&gt;</code></td><td>typed, native ABI on the C backend</td></tr><tr><td><code class="inline">Map</code></td><td><code class="inline">{&quot;key&quot;: 42}</code></td><td>string keys</td></tr></tbody></table></div>
+<p><code class="inline">Float32</code> is sticky: <code class="inline">Float32</code> op <code class="inline">Float32</code> stays <code class="inline">Float32</code>; mixing with <code class="inline">Float64</code> or <code class="inline">Int64</code> promotes to <code class="inline">Float64</code>. Typed arrays use 32-byte aligned payloads by default.</p>
+<h2 id="operators">Operators</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">a <span class="c-op">:=</span> <span class="c-num">2</span> <span class="c-op">**</span> <span class="c-num">10</span>;          <span class="c-com"># power</span>
+b <span class="c-op">:=</span> <span class="c-num">7</span> <span class="c-com">// 2;           # floor division</span>
+c <span class="c-op">:=</span> flags <span class="c-op">&amp;</span> <span class="c-num">0xFF</span>;     <span class="c-com"># bitwise AND</span>
+d <span class="c-op">:=</span> flags <span class="c-op">|</span> <span class="c-num">0x80</span>;     <span class="c-com"># bitwise OR</span>
+e <span class="c-op">:=</span> a <span class="c-op">^</span> b;            <span class="c-com"># bitwise XOR</span>
+f <span class="c-op">:=</span> <span class="c-op">~</span>a;               <span class="c-com"># bitwise NOT</span>
+g <span class="c-op">:=</span> <span class="c-num">1</span> <span class="c-op">&lt;&lt;</span> <span class="c-num">8</span>;           <span class="c-com"># shift left</span>
+h <span class="c-op">:=</span> g <span class="c-op">&gt;&gt;</span> <span class="c-num">2</span>;           <span class="c-com"># shift right</span>
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — values</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">count <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">42</span>; ratio <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">3.14</span>;
-ready <span class="c-op">::</span> <span class="c-ty">Bool</span> <span class="c-op">=</span> <span class="c-kw">true</span>; nothing <span class="c-op">::</span> <span class="c-ty">Null</span> <span class="c-op">=</span> <span class="c-kw">null</span>; name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"vyne"</span>;
-items <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>];
-pair <span class="c-op">::</span> <span class="c-ty">Map</span> <span class="c-op">=</span> { <span class="c-str">"x"</span>: <span class="c-num">1</span>, <span class="c-str">"y"</span>: <span class="c-num">2</span> };</div>
-            </div>
+name <span class="c-op">??</span> <span class="c-str">&quot;anonymous&quot;</span>;    <span class="c-com"># null coalesce</span>
+cfg.mode <span class="c-op">??=</span> <span class="c-str">&quot;default&quot;</span>; <span class="c-com"># null coalesce assignment</span>
+data <span class="c-op">|&gt;</span> normalize;      <span class="c-com"># pipeline</span>
+ready <span class="c-op">?</span> <span class="c-str">&quot;go&quot;</span> : <span class="c-str">&quot;wait&quot;</span>;  <span class="c-com"># ternary</span></div></div>
+<p>Ranges are inclusive. <code class="inline">through</code> is the canonical iteration construct:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">squares <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">10</span> <span class="c-op">-&gt;</span> <span class="c-kw">collect</span> { i <span class="c-op">*</span> i };
+evens   <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">100</span> <span class="c-op">-&gt;</span> <span class="c-kw">filter</span> { i <span class="c-op">%</span> <span class="c-num">2</span> <span class="c-op">==</span> <span class="c-num">0</span> };
+allPos  <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> list <span class="c-op">-&gt;</span> <span class="c-kw">every</span> { i <span class="c-op">&gt;</span> <span class="c-num">0</span> };
+uniq    <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> list <span class="c-op">-&gt;</span> <span class="c-kw">unique</span> { i };
 
-            <h2 id="tour-control">Control flow</h2>
-            <p>
-              Familiar <code class="inline">if</code> and
-              <code class="inline">while</code>, plus a distinctive iteration
-              construct called <code class="inline">through</code>. There are
-              five modes: <code class="inline">loop</code> (side effects),
-              <code class="inline">collect</code> (map),
-              <code class="inline">filter</code>,
-              <code class="inline">every</code> (all), and
-              <code class="inline">unique</code> (dedupe).
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — control</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">if</span> (count <span class="c-op">&gt;</span> <span class="c-num">10</span>) {
-  <span class="c-fn">out</span>(<span class="c-str">"big"</span>);
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-fn">out</span>(i);
+};</div></div>
+<p>The five modes are <code class="inline">loop</code> (side effects only), <code class="inline">collect</code>, <code class="inline">filter</code>, <code class="inline">every</code>, and <code class="inline">unique</code>. <code class="inline">break</code> and <code class="inline">continue</code> work in <code class="inline">loop</code> bodies.</p>
+<h2 id="control-flow">Control flow</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">if</span> x <span class="c-op">&gt;</span> <span class="c-num">0</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;positive&quot;</span>);
+} <span class="c-kw">else</span> <span class="c-kw">if</span> x <span class="c-op">&lt;</span> <span class="c-num">0</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;negative&quot;</span>);
 } <span class="c-kw">else</span> {
-  <span class="c-fn">out</span>(<span class="c-str">"small"</span
-                >); };
+    <span class="c-fn">out</span>(<span class="c-str">&quot;zero&quot;</span>);
+};
 
-<span class="c-com"
-                  >// Loop over a range, side effects only</span
-                >
-<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span
-                ><span class="c-num">5</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
-  <span class="c-fn">out</span>(i); };
+<span class="c-kw">while</span> running {
+    <span class="c-fn">step</span>();
+};
 
-<span class="c-com">// Map: multiply every element by 2</span>
-doubled <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> <span class="c-kw">through</span> x <span class="c-op">::</span> [<span class="c-num">1</span>,<span
-                  class="c-num"
-                  >2</span
-                >,<span class="c-num">3</span>] <span class="c-op">-&gt;</span> <span class="c-kw">collect</span> { x <span class="c-op">*</span> <span class="c-num">2</span> };
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>n<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">if</span> i <span class="c-op">==</span> <span class="c-num">3</span> { <span class="c-kw">continue</span>; }
+    <span class="c-kw">if</span> i <span class="c-op">&gt;</span> <span class="c-num">8</span> { <span class="c-kw">break</span>; }
+};</div></div>
+<p>Loops and functions can carry executable contracts:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@<span class="c-fn">invariant</span>(total <span class="c-op">&gt;=</span> <span class="c-num">0</span>)
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>n<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    total <span class="c-op">=</span> total <span class="c-op">+</span> i;
+};
 
-<span class="c-com">// Filter: keep only even numbers</span>
-evens <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> <span class="c-kw">through</span> n <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span
-                ><span class="c-num">10</span> <span class="c-op">-&gt;</span> <span class="c-kw">filter</span> { n <span class="c-op">%</span> <span class="c-num">2</span> <span class="c-op">==</span> <span class="c-num">0</span> };</div>
-            </div>
+<span class="c-kw">fn</span> <span class="c-fn">positive</span>(x <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+<span class="c-kw">requires</span>(x <span class="c-op">&gt;</span> <span class="c-num">0</span>)
+<span class="c-kw">ensures</span>(<span class="c-kw">result</span> <span class="c-op">&gt;</span> <span class="c-num">0</span>)
+{
+    <span class="c-kw">return</span> x <span class="c-op">*</span> <span class="c-num">2</span>;
+}</div></div>
+<p><code class="inline">ruleset { contracts = &quot;check&quot; | &quot;evidence&quot; | &quot;off&quot; };</code> controls assertion lowering. A violation halts with <code class="inline">VNE-111</code>.</p>
+<h2 id="functions-and-generics">Functions and generics</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">add</span>(a <span class="c-op">::</span> <span class="c-ty">Int64</span>, b <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
+    <span class="c-kw">return</span> a <span class="c-op">+</span> b;
+}
 
-            <h2 id="tour-functions">Functions</h2>
-            <p>
-              Declared with <code class="inline">fn</code>. Parameters can be
-              typed with <code class="inline">::</code>; return type after
-              <code class="inline">-&gt;</code>.
-            </p>
+<span class="c-kw">fn</span> max_of<span class="c-op">&lt;</span><span class="c-ty">T</span><span class="c-op">&gt;</span>(a <span class="c-op">::</span> <span class="c-ty">T</span>, b <span class="c-op">::</span> <span class="c-ty">T</span>) <span class="c-op">-&gt;</span> <span class="c-ty">T</span> {
+    <span class="c-kw">if</span> a <span class="c-op">&gt;</span> b { <span class="c-kw">return</span> a; }
+    <span class="c-kw">return</span> b;
+}</div></div>
+<p>Generic parameters are monomorphized: <code class="inline">max_of&lt;Int64&gt;(3, 5)</code> and <code class="inline">max_of&lt;Float64&gt;(3.0, 5.0)</code> produce two native C functions. Functions with primitive, typed-array, or registered-struct signatures also get an unboxed native variant.</p>
+<h2 id="interfaces">Interfaces</h2>
+<p>An <code class="inline">interface</code> is both a struct declaration and its constructor. Methods close over the fields.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Circle</span> {
+    r <span class="c-op">::</span> <span class="c-ty">Float64</span>;
+    <span class="c-fn">area</span>() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+        <span class="c-kw">return</span> r <span class="c-op">*</span> r <span class="c-op">*</span> <span class="c-num">3.141592653589793</span>;
+    }
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — functions</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">fn</span> <span class="c-fn">add</span>(a <span class="c-op">::</span> <span class="c-ty">Int64</span>, b <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
-  <span class="c-kw">return</span> a <span class="c-op">+</span> b; };
+c <span class="c-op">::</span> <span class="c-ty">Circle</span> <span class="c-op">:=</span> <span class="c-fn">Circle</span>(<span class="c-num">4.0</span>);
+<span class="c-fn">out</span>(c.<span class="c-fn">area</span>());     <span class="c-com"># 50.265...</span></div></div>
+<p>Struct-typed values participate in the native ABI: the caller and callee agree on a flat field layout, so a struct parameter expands to one C argument per field.</p>
+<h2 id="groups-and-modules">Groups and modules</h2>
+<p><code class="inline">group</code> namespaces functions and constants without creating a type. <code class="inline">module</code> makes a built-in module available. <code class="inline">use</code> imports source files or external libraries.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">group</span> <span class="c-ty">Geometry</span> {
+    <span class="c-kw">const</span> <span class="c-ty">TAU</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">6.283185307179586</span>;
+    <span class="c-kw">fn</span> <span class="c-fn">area_of_circle</span>(r <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+        <span class="c-kw">return</span> r <span class="c-op">*</span> r <span class="c-op">*</span> <span class="c-ty">Geometry</span>.<span class="c-ty">TAU</span> <span class="c-op">/</span> <span class="c-num">2.0</span>;
+    }
+}
 
-<span class="c-com"
-                  >// Return type and param types are optional in dynamic mode</span
-                >
-<span class="c-kw">fn</span> <span class="c-fn">double</span>(x) { x <span class="c-op">*</span> <span class="c-num">2</span> };
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vfs;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vlin/vlin.vy&quot;</span>;
 
-<span class="c-fn">out</span>(<span class="c-fn">add</span
-                >(<span class="c-num">2</span>, <span class="c-num">3</span>));
-<span class="c-com">// → 5</span>
-<span class="c-fn">out</span>(<span class="c-fn">double</span
-                >(<span class="c-num">7</span>));
-<span class="c-com">// → 14</span></div>
-            </div>
+<span class="c-fn">out</span>(<span class="c-ty">Geometry</span>.<span class="c-fn">area_of_circle</span>(<span class="c-num">2.0</span>));
+<span class="c-fn">out</span>(vmath.<span class="c-fn">sqrt</span>(<span class="c-num">9.0</span>));</div></div>
+<p><code class="inline">use native</code> selects a compiler-provided module. <code class="inline">use external &quot;path&quot;</code> resolves a library under <code class="inline">vyne/modules/external/</code>. Plain <code class="inline">use &quot;file.vy&quot;</code> imports a sibling source file.</p>
+<h2 id="enums">Enums</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">enum</span> <span class="c-ty">Color</span> {
+    <span class="c-ty">RED</span> <span class="c-op">=</span> <span class="c-num">0</span>,
+    <span class="c-ty">GREEN</span>,
+    <span class="c-ty">BLUE</span>,
+}
 
-            <h2 id="tour-structs">
-              Structs via <code class="inline">interface</code>
-            </h2>
-            <p>
-              Vyne has no separate <code class="inline">struct</code> or
-              <code class="inline">class</code> keyword. An
-              <code class="inline">interface</code> block declares fields and
-              methods together, and doubles as a positional constructor.
-            </p>
+<span class="c-fn">out</span>(<span class="c-ty">Color</span>.<span class="c-ty">GREEN</span>);   <span class="c-com"># 1</span></div></div>
+<h2 id="error-handling">Error handling</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-fn">parse</span>(input);
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;failed: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(err));
+} <span class="c-kw">finally</span> {
+    <span class="c-fn">cleanup</span>();
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — interface</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">interface</span> Circle { r <span class="c-op">::</span> <span class="c-ty">Float64</span>;
-  area() <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
-    <span class="c-kw">return</span> r <span class="c-op">*</span> r <span class="c-op">*</span> <span class="c-num">3.14159</span>;
-  }; }; c <span class="c-op">::</span> Circle <span class="c-op">=</span> <span class="c-fn">Circle</span>(<span class="c-num">4.0</span
-                >); <span class="c-fn">out</span>(c.area());
-<span class="c-com">// → 50.26544</span></div>
-            </div>
+<span class="c-kw">throw</span> <span class="c-str">&quot;something went wrong&quot;</span>;</div></div>
+<p>Exceptions are <code class="inline">longjmp</code>-based on the compiled backend and stack-unwound in the interpreter. The compiled runtime keeps a bounded frame stack (<code class="inline">VYNE_MAX_EXC_FRAMES</code> = 64).</p>
+<h2 id="rulesets">Rulesets</h2>
+<p>A <code class="inline">ruleset</code> configures compile-time and runtime policy from the point it appears:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> {
+    <span class="c-kw">type_check</span>      <span class="c-op">=</span> <span class="c-str">&quot;strict&quot;</span>,
+    <span class="c-kw">memory_limit</span>    <span class="c-op">=</span> <span class="c-num">256</span> <span class="c-op">*</span> <span class="c-num">1024</span> <span class="c-op">*</span> <span class="c-num">1024</span>,
+    <span class="c-kw">warnings</span>        <span class="c-op">=</span> <span class="c-str">&quot;all&quot;</span>,
+    <span class="c-kw">warnings_ignore</span> <span class="c-op">=</span> [<span class="c-str">&quot;unused_variable&quot;</span>],
+};
 
-            <h2 id="tour-regions">Memory and regions</h2>
-            <p>
-              Regions are the reason Vyne exists. A
-              <code class="inline">region</code> block marks a lexical scope
-              whose scratch allocations are released on exit. Values you need to
-              keep past the region boundary are marked with
-              <code class="inline">region.commit</code>.
-            </p>
+<span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;evidence&quot;</span> };</div></div>
+<h2 id="regions">Regions</h2>
+<p>A <code class="inline">region</code> scopes arena lifetime lexically:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-ty">N</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> train_step {
+        <span class="c-kw">scratch</span> <span class="c-kw">grad</span> <span class="c-op">::</span> <span class="c-ty">Float64</span>[<span class="c-num">64</span>, <span class="c-num">16</span>];
+        <span class="c-com"># allocations are reclaimed at the closing brace</span>
+    };
+};</div></div>
+<p><code class="inline">region</code> carries at most one allocation, lifetime, or verification policy. Policies include <code class="inline">@bounded&lt;N&gt;</code>, <code class="inline">@zeroed</code>, <code class="inline">@deterministic</code>, <code class="inline">@realtime&lt;ms&gt;</code>, <code class="inline">@pool&lt;T, N&gt;</code>, <code class="inline">@slab&lt;T, MAX[, CAP]&gt;</code>, <code class="inline">@ring&lt;T, N, MAX&gt;</code>, <code class="inline">@streamed&lt;T, MAX&gt;</code>, <code class="inline">@persistent</code>, <code class="inline">@speculative</code>, and <code class="inline">@device&lt;backend&gt;</code>. Composition attributes include <code class="inline">@layout&lt;soa&gt;</code>, <code class="inline">@backward</code>, <code class="inline">@recompute</code>, and <code class="inline">@mixed</code>.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@bounded<span class="c-op">&lt;</span><span class="c-num">16_777_216</span><span class="c-op">&gt;</span>
+@deterministic
+@layout<span class="c-op">&lt;</span>soa<span class="c-op">&gt;</span>
+<span class="c-kw">region</span> physics {
+    <span class="c-kw">scratch</span> particles <span class="c-op">::</span> <span class="c-ty">Particle</span>[<span class="c-num">10_000</span>];
+};</div></div>
+<p><code class="inline">scratch</code> lowers to a raw C array on the stack, not the arena. <code class="inline">region.commit(x)</code> deep-clones a value into the commit arena; <code class="inline">region.move(x)</code> relocates a large typed-array block in O(1); <code class="inline">drop(x)</code> releases an arena-tail payload early.</p>
+<h2 id="automatic-differentiation">Automatic differentiation</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">loss</span>(w <span class="c-op">::</span> <span class="c-ty">Float64</span>, b <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    z <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> w <span class="c-op">*</span> <span class="c-num">1.0</span> <span class="c-op">+</span> b;
+    p <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">1.0</span> <span class="c-op">/</span> (<span class="c-num">1.0</span> <span class="c-op">+</span> vmath.<span class="c-fn">exp</span>(<span class="c-op">-</span>z));
+    <span class="c-kw">return</span> (p <span class="c-op">-</span> <span class="c-num">0.0</span>) <span class="c-op">*</span> (p <span class="c-op">-</span> <span class="c-num">0.0</span>);
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — regions</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span
-                ><span class="c-op">..</span><span class="c-num">1000</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
-  <span class="c-kw">region</span> scratch { xs <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [epoch, epoch <span class="c-op">+</span> <span class="c-num">1</span>, epoch <span class="c-op">+</span> <span class="c-num">2</span>]; msg <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"epoch:"</span> <span class="c-op">+</span> <span class="c-fn">string</span>(epoch);
+@<span class="c-kw">backward</span>
+@bounded<span class="c-op">&lt;</span><span class="c-num">64_000_000</span><span class="c-op">&gt;</span>
+<span class="c-kw">region</span> train_step {
+    l <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-fn">loss</span>(w, b);
+    <span class="c-kw">backward</span>(l);
+    <span class="c-fn">out</span>(<span class="c-str">&quot;dL/dw = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(w.<span class="c-kw">grad</span>));
+};</div></div>
+<p><code class="inline">grad(f, x)</code> is the expression form. Scalar straight-line bodies and <code class="inline">Array&lt;Float64&gt;</code> reductions through the <code class="inline">vstat</code>/<code class="inline">vlin</code> kernels are supported; everything else is rejected with a stable <code class="inline">VNE-12x</code> diagnostic rather than being miscompiled. A custom adjoint can be registered as <code class="inline">&lt;fn&gt;_vjp</code>.</p>
+<h2 id="devices">Devices</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@device<span class="c-op">&lt;</span>cuda<span class="c-op">&gt;</span> <span class="c-kw">region</span> gpu {
+    n <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">1024</span>;
+    a <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float32</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [];
+    b <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float32</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [];
+    <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>n<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { a.<span class="c-fn">push</span>(<span class="c-fn">float32</span>(i)); };
 
-    <span class="c-com"
-                  >// msg survives the region; xs does not.</span
-                >
-    <span class="c-kw">region.commit</span>(msg); };
-  <span class="c-fn">out</span>(msg); };</div>
-            </div>
-            <p>
-              On every iteration, everything allocated inside
-              <code class="inline">scratch</code> is reclaimed at the closing
-              brace — except <code class="inline">msg</code>, which was
-              committed. Total memory usage stays flat regardless of iteration
-              count.
-            </p>
+    da <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-fn">device_alloc</span>(n);       <span class="c-com"># Float32 by default</span>
+    db <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-fn">device_alloc</span>(n);
+    <span class="c-fn">device_upload</span>(da, a, n);
+    <span class="c-fn">device_upload</span>(db, b, n);
+    <span class="c-fn">device_add</span>(da, da, db, n);
+    <span class="c-fn">device_sync</span>();
+};</div></div>
+<p><code class="inline">@device</code> opens a device frame, runs the body, then releases device allocations before the host rewind. The CUDA driver backend JIT-compiles embedded PTX and falls back to CPU when CUDA is unavailable. <code class="inline">device_alloc_f64</code> opts into double precision.</p>
+<h2 id="arduino">Arduino</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> arduino;
 
-            <h2 id="tour-errors">Error handling</h2>
-            <p>
-              <code class="inline">try</code> /
-              <code class="inline">catch</code> /
-              <code class="inline">finally</code> work the way you expect, with
-              a jump-buffer implementation.
-            </p>
+arduino.<span class="c-fn">serial_begin</span>(<span class="c-num">115200</span>);
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — errors</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">try</span> { risky();
-  <span class="c-kw">throw</span> <span class="c-str">"boom"</span>; }
-<span class="c-kw">catch</span> (err) {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"caught: "</span
-                > <span class="c-op">+</span> err); }
-<span class="c-kw">finally</span> {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"cleanup"</span
-                >); };</div>
-            </div>
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    arduino.<span class="c-fn">digital_write</span>(<span class="c-num">13</span>, <span class="c-num">1</span>);
+    arduino.<span class="c-fn">delay</span>(<span class="c-num">100</span>);
+    arduino.<span class="c-fn">digital_write</span>(<span class="c-num">13</span>, <span class="c-num">0</span>);
+    arduino.<span class="c-fn">delay</span>(<span class="c-num">100</span>);
+};
 
-            <h2 id="tour-modules">Modules</h2>
-            <p>
-              The <code class="inline">module</code> keyword pulls a built-in
-              library into scope. <code class="inline">group</code> organises
-              your own code into namespaces.
-              <code class="inline">use</code> imports another file.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">tour.vy — modules</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">module</span> vmath;
-<span class="c-kw">module</span> vcore; r <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> vmath.sqrt(<span class="c-num"
-                  >16.0</span
-                >); <span class="c-fn">out</span>(r);
-<span class="c-com">// → 4.0</span></div>
-            </div>
-
-            <p>
-              That is the whole language in a page. The remaining chapters in
-              <em>Language Reference</em> expand each section with edge cases
-              and formal rules.
-            </p>
+@bounded<span class="c-op">&lt;</span><span class="c-num">512</span><span class="c-op">&gt;</span>
+<span class="c-kw">region</span> probe {
+    <span class="c-kw">scratch</span> buf <span class="c-op">::</span> <span class="c-ty">Float64</span>[<span class="c-num">16</span>];
+    <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">15</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { buf[i] <span class="c-op">=</span> arduino.<span class="c-fn">sin</span>(<span class="c-num">0.1</span> <span class="c-op">*</span> i); };
+    arduino.<span class="c-fn">serial_print</span>(buf.<span class="c-fn">mean</span>());
+};</div></div>
+<p>The same <code class="inline">region</code> and <code class="inline">scratch</code> rules apply. On AVR the arena is 1 KB, checkpoints nest 16 deep, and <code class="inline">out()</code> is unavailable — use <code class="inline">arduino.serial_print</code>.</p>
+<h2 id="where-to-go-next">Where to go next</h2>
+<ul><li><a data-page="types">Values &amp; Types</a></li><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="autodiff">Automatic Differentiation</a></li><li><a data-page="libs">Library Overview</a></li><li><a data-page="srcnn">SRCNN Showcase</a></li></ul>

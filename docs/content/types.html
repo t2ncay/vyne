@@ -1,237 +1,46 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Values &amp; Types</h1>
-            <p class="lede">
-              Vyne has eight value kinds. Four are primitives stored inline;
-              four are composites stored behind a reference.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Values &amp; Types</h1>
+<p class="lede">The value model, primitive types, typed arrays, maps, and Float32 promotion rules.</p>
+<p>Vyne is statically analyzable but not statically typed everywhere. A binding with an explicit <code class="inline">:: Type</code> is checked against that type; a binding without one is boxed and resolved dynamically. <code class="inline">ruleset { type_check = &quot;strict&quot; }</code> makes explicit types mandatory.</p>
+<h2 id="primitive-types">Primitive types</h2>
+<div class="table-wrap"><table><thead><tr><th>Type</th><th>Literals</th><th>Runtime representation</th></tr></thead><tbody><tr><td><code class="inline">Int64</code></td><td><code class="inline">42</code>, <code class="inline">-7</code>, <code class="inline">0x7FFF_FFFF</code></td><td>64-bit signed integer; hex and <code class="inline">_</code> digit separators</td></tr><tr><td><code class="inline">Float64</code></td><td><code class="inline">3.14</code>, <code class="inline">1.0e3</code>, <code class="inline">inf</code>, <code class="inline">nan</code></td><td>IEEE-754 double</td></tr><tr><td><code class="inline">Float32</code></td><td><code class="inline">1.0f</code>, <code class="inline">2f</code>, <code class="inline">1e3f</code></td><td>IEEE-754 single precision; default device dtype</td></tr><tr><td><code class="inline">String</code></td><td><code class="inline">&quot;hello&quot;</code>, <code class="inline">&quot;x = &quot; + string(x)</code></td><td>UTF-8, immutable, interned</td></tr><tr><td><code class="inline">Bool</code></td><td><code class="inline">true</code>, <code class="inline">false</code></td><td>logical value</td></tr><tr><td><code class="inline">Null</code></td><td><code class="inline">null</code></td><td>absence of a value</td></tr><tr><td><code class="inline">Array</code></td><td><code class="inline">[1, &quot;two&quot;, 3.0]</code></td><td>boxed heterogeneous sequence</td></tr><tr><td><code class="inline">Array&lt;T&gt;</code></td><td><code class="inline">Array&lt;Float64&gt;</code>, <code class="inline">Array&lt;Int64&gt;</code>, <code class="inline">Array&lt;Float32&gt;</code></td><td>typed, native-ABI sequence</td></tr><tr><td><code class="inline">Map</code></td><td><code class="inline">{&quot;key&quot;: 42}</code></td><td>string-keyed association</td></tr><tr><td>interface name</td><td><code class="inline">Circle(4.0)</code></td><td>structured value with fields and methods</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">count  <span class="c-op">::</span> <span class="c-ty">Int64</span>   <span class="c-op">:=</span> <span class="c-num">12</span>;
+ratio  <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">0.75</span>;
+single <span class="c-op">::</span> <span class="c-ty">Float32</span> <span class="c-op">:=</span> <span class="c-num">0.5f</span>;
+name   <span class="c-op">::</span> <span class="c-ty">String</span>  <span class="c-op">:=</span> <span class="c-str">&quot;Vyne&quot;</span>;
+flag   <span class="c-op">::</span> <span class="c-ty">Bool</span>    <span class="c-op">:=</span> <span class="c-kw">true</span>;
+none             <span class="c-op">:=</span> <span class="c-kw">null</span>;
 
-            <h2 id="primitive-types">Primitive types</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Storage</th>
-                    <th>Range / notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Int64</td>
-                    <td>8 bytes, signed</td>
-                    <td>−2⁶³ to 2⁶³ − 1</td>
-                  </tr>
-                  <tr>
-                    <td>Float64</td>
-                    <td>8 bytes, IEEE 754</td>
-                    <td>Double precision</td>
-                  </tr>
-                  <tr>
-                    <td>Bool</td>
-                    <td>1 byte</td>
-                    <td>
-                      <code class="inline">true</code> /
-                      <code class="inline">false</code>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Null</td>
-                    <td>0 bytes of payload</td>
-                    <td>The absence of a value</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p>
-              Primitives are copied by value at every assignment, return, and
-              parameter pass. There is no boxing overhead for primitives used in
-              their native type — the compiler emits
-              <code class="inline">int64_t</code>,
-              <code class="inline">double</code>, or
-              <code class="inline">bool</code> directly.
-            </p>
-
-            <h2 id="composite-types">Composite types</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>String</td>
-                    <td>
-                      UTF-8, immutable. Stored as a pointer to a NUL-terminated
-                      byte sequence.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Array</td>
-                    <td>
-                      Heterogeneous, growable. Elements are 16-byte tagged
-                      values.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Array&lt;T&gt;</td>
-                    <td>
-                      Typed, unboxed.
-                      <code class="inline">Array&lt;Int64&gt;</code> and
-                      <code class="inline">Array&lt;Float64&gt;</code> store
-                      elements as raw <code class="inline">int64_t</code>/<code
-                        class="inline"
-                        >double</code
-                      >. Significantly faster and smaller than the generic
-                      <code class="inline">Array</code>.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Map</td>
-                    <td>
-                      String keys only. Open-addressed hash table with
-                      tombstones. Iteration order is
-                      <strong>unspecified</strong>.
-                    </td>
-                  </tr>
-                  <tr>
-                    <td>Struct</td>
-                    <td>
-                      Declared via <code class="inline">interface</code>.
-                      Contains named fields and method bindings.
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 id="typed-vs-untyped-arrays">Typed vs. untyped arrays</h2>
-            <p>
-              This is the single most consequential typing decision you will
-              make.
-            </p>
-            <div class="grid-2">
-              <div class="card">
-                <div class="card-title">
-                  <i class="fas fa-cube"></i>Array (boxed)
-                </div>
-                <div class="card-desc">
-                  Each element is a 16-byte tagged union. Any value of any type
-                  can live alongside any other. Convenient, slower, larger.
-                </div>
-              </div>
-              <div class="card">
-                <div class="card-title">
-                  <i class="fas fa-bolt"></i>Array&lt;T&gt; (typed)
-                </div>
-                <div class="card-desc">
-                  Elements stored contiguously in native layout.
-                  <code class="inline">Array&lt;Float64&gt;</code> of length N
-                  occupies exactly 8N bytes. Ideal for numerics.
-                </div>
-              </div>
-            </div>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">arrays.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-com">// Boxed — mixed types allowed</span>
-mixed <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [<span class="c-num">1</span>, <span class="c-str">"two"</span>, <span class="c-num">3.0</span>];
-
-<span class="c-com"
-                  >// Typed — all elements same type, unboxed</span
-                >
-xs <span class="c-op">::</span> <span class="c-ty">Array&lt;Int64&gt;</span> <span class="c-op">=</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>, <span class="c-num">4</span>]; ys <span class="c-op">::</span> <span class="c-ty">Array&lt;Float64&gt;</span> <span class="c-op">=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];
-
-<span class="c-com"
-                  >// Both share the same indexing syntax</span
-                >
-<span class="c-fn">out</span>(xs[<span class="c-num">0</span>]);
-<span class="c-com">// → 1</span></div>
-            </div>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">How to decide</div>
-                If every element has the same numeric type, always prefer
-                <code class="inline">Array&lt;T&gt;</code>. Fall back to plain
-                <code class="inline">Array</code> only when you genuinely need
-                heterogeneous elements (or a dynamic type the compiler cannot
-                prove).
-              </div>
-            </div>
-
-            <h2 id="strings">Strings</h2>
-            <p>
-              Strings are immutable. Every operation that "modifies" a string
-              returns a new one. The compiler picks one of two storage
-              strategies:
-            </p>
-            <ul>
-              <li>
-                <strong>Static strings</strong> — literals like
-                <code class="inline">"hello"</code> are emitted into read-only
-                memory. Free, no allocation, no lifetime concern.
-              </li>
-              <li>
-                <strong>Arena strings</strong> — the result of concatenation,
-                substring, formatting, and so on, lives in the current arena.
-                Its lifetime is bounded by the enclosing region.
-              </li>
-            </ul>
-            <p>
-              From Vyne source, this distinction is <em>not observable</em>.
-              <code class="inline">"hello"</code> and
-              <code class="inline">"hel" + "lo"</code> produce values that
-              compare equal and behave identically. But the latter allocates,
-              and if you are inside a hot loop, that matters.
-            </p>
-
-            <h2 id="null-and-absence">Null and absence</h2>
-            <p>
-              <code class="inline">null</code> is a first-class value. Reading
-              an out-of-bounds array index yields
-              <code class="inline">null</code>, as does reading a missing map
-              key. The null-coalescing operator
-              <code class="inline">??</code> and its assignment form
-              <code class="inline">??=</code> exist to make handling this
-              ergonomic:
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">null.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> lookup(<span class="c-str"
-                  >"missing"</span
-                >) <span class="c-op">??</span> <span class="c-str">"anonymous"</span>; cfg.mode <span class="c-op">??=</span> <span class="c-str">"default"</span>;
-<span class="c-com">// assign only if currently null</span></div>
-            </div>
-
-            <h2 id="type-inference">Type inference</h2>
-            <p>
-              The compiler infers a variable's type from its initializer when
-              you write <code class="inline">=</code> alone. The
-              <code class="inline">::</code> operator asserts a type explicitly.
-              Under strict mode (the default), you must use
-              <code class="inline">::</code>; dynamic mode relaxes this.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">inference.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">x <span class="c-op">=</span> <span class="c-num">42</span>;
-<span class="c-com">// x : Int64, inferred</span>
-y <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">42</span>;
-<span class="c-com"
-                  >// y : Float64, explicit (implicit int → float widening)</span
-                ></div>
-            </div>
+xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];
+boxed <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">:=</span> [<span class="c-num">1</span>, <span class="c-str">&quot;two&quot;</span>, <span class="c-num">3.0</span>];
+cfg <span class="c-op">::</span> <span class="c-ty">Map</span> <span class="c-op">:=</span> {<span class="c-str">&quot;mode&quot;</span>: <span class="c-str">&quot;fast&quot;</span>, <span class="c-str">&quot;retries&quot;</span>: <span class="c-num">3</span>};</div></div>
+<h2 id="typed-arrays">Typed arrays</h2>
+<p><code class="inline">Array&lt;Float64&gt;</code>, <code class="inline">Array&lt;Int64&gt;</code>, and <code class="inline">Array&lt;Float32&gt;</code> are distinct runtime containers (<code class="inline">VyneArray_f64</code>, <code class="inline">VyneArray_i64</code>, <code class="inline">VyneArray_f32</code>). Boxing one into a generic value is O(1): the runtime wraps the pointer, it does not copy elements. Unboxing is also O(1). This is what makes <code class="inline">A.data[i]</code> a direct load and what lets numerical kernels stay unboxed at the native boundary.</p>
+<p>Typed-array payloads are aligned to <code class="inline">VYNE_TYPED_ARRAY_ALIGN</code> (32 bytes by default). Override at build time with <code class="inline">-DVYNE_TYPED_ARRAY_ALIGN=64</code>.</p>
+<p>A generic <code class="inline">Array</code> is boxed. Use it when the element type is genuinely mixed or unknown; use a typed array when the data is numeric.</p>
+<h2 id="float32-promotion">Float32 promotion</h2>
+<p><code class="inline">Float32</code> is a first-class type across the lexer, parser, interpreter, tagged values, typed arrays, native ABI, and codegen.</p>
+<ul><li><code class="inline">Float32</code> op <code class="inline">Float32</code> stays <code class="inline">Float32</code>.</li><li>Mixing <code class="inline">Float32</code> with <code class="inline">Float64</code> or <code class="inline">Int64</code> promotes to <code class="inline">Float64</code>.</li><li><code class="inline">float32(x)</code> converts explicitly.</li><li><code class="inline">Array&lt;Float32&gt;</code> crosses the native ABI as <code class="inline">float*</code> / <code class="inline">VyneArray_f32</code>.</li><li>Device handles default to <code class="inline">Float32</code>; <code class="inline">device_alloc_f64(n)</code> opts into doubles.</li></ul>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">a <span class="c-op">::</span> <span class="c-ty">Float32</span> <span class="c-op">:=</span> <span class="c-num">1.0f</span>;
+b <span class="c-op">::</span> <span class="c-ty">Float32</span> <span class="c-op">:=</span> <span class="c-num">2.0f</span>;
+c <span class="c-op">:=</span> a <span class="c-op">*</span> b;              <span class="c-com"># Float32</span>
+d <span class="c-op">:=</span> a <span class="c-op">*</span> <span class="c-num">2.0</span>;            <span class="c-com"># Float64 (mixed with Float64 literal)</span>
+e <span class="c-op">:=</span> <span class="c-fn">float32</span>(d);         <span class="c-com"># back to Float32</span></div></div>
+<h2 id="null-and-coalescing">Null and coalescing</h2>
+<p><code class="inline">null</code> is a value, not a type error. Null coalescing and null-coalescing assignment make optional configuration ergonomic:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">name <span class="c-op">:=</span> maybe_name <span class="c-op">??</span> <span class="c-str">&quot;anonymous&quot;</span>;
+cfg.mode <span class="c-op">??=</span> <span class="c-str">&quot;default&quot;</span>;</div></div>
+<h2 id="maps">Maps</h2>
+<p>Maps have string keys and an unspecified traversal order.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">cfg <span class="c-op">::</span> <span class="c-ty">Map</span> <span class="c-op">:=</span> {<span class="c-str">&quot;mode&quot;</span>: <span class="c-str">&quot;fast&quot;</span>};
+cfg[<span class="c-str">&quot;retries&quot;</span>] <span class="c-op">=</span> <span class="c-num">3</span>;
+<span class="c-kw">if</span> cfg.<span class="c-fn">has</span>(<span class="c-str">&quot;retries&quot;</span>) {
+    <span class="c-fn">out</span>(cfg[<span class="c-str">&quot;retries&quot;</span>]);
+}</div></div>
+<p>Use <code class="inline">Map</code> for configuration, JSON-shaped data, and sparse string-keyed lookups. For numeric data, typed arrays are the right tool.</p>
+<h2 id="defaults">Defaults</h2>
+<p>A declaration without an initializer receives a default: numeric zero, <code class="inline">false</code>, empty string, empty array, or <code class="inline">null</code> for a structured value. Do not rely on a non-null structured default; check explicitly when the distinction matters.</p>
+<h2 id="lifetimes">Lifetimes</h2>
+<p>A value allocated inside a region is invalid after the region rewinds unless it was committed or moved. The compiler's region escape analysis (VNE-070) catches the common direct-assignment case, but it is deliberately syntactic: a pointer hidden inside a struct field can still escape. See <a data-page="regions">Memory &amp; Regions</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="expr">Literals &amp; Expressions</a></li><li><a data-page="vars">Variables &amp; Assignment</a></li><li><a data-page="builtins">Collections &amp; Built-ins</a></li><li><a data-page="iface">Interfaces</a></li></ul>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vtermplot · Vyne Language Reference</title>
+    <meta name="description" content="Data &amp; Plotting vtermplot Terminal line, scatter, bar, histogram, heatmap, and sparkline plots with UTF-8 or ASCII output. Quick fact Value Module vtermplot Import use external &quot;vt" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body data-page="vtermplot" data-root="../">
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="progress" id="progressBar" aria-hidden="true"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
+    <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-head">
+        <a class="brand" href="../index.html">
+          <span class="brand-badge"><svg class="logo-mark" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="vyneMark" x1="0" y1="0" x2="0.45" y2="1">
+              <stop offset="0" stop-color="#4df0de" />
+              <stop offset="0.5" stop-color="#6cb6ff" />
+              <stop offset="1" stop-color="#b48cff" />
+            </linearGradient>
+          </defs>
+          <rect x="0.5" y="0.5" width="35" height="35" rx="10.5" fill="url(#vyneMark)" />
+          <path d="M9.5 11 L18 24.5 L26.5 11" fill="none" stroke="#080a10" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M13 11 L18 18.8 L23 11" fill="none" stroke="#080a10" stroke-opacity="0.38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span>
+          <span class="brand-text">vyne</span>
+          <span class="brand-version">v0.6.0</span>
+        </a>
+        <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Close navigation">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link" href="../pages/hello.html"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li><li><a class="nav-link" href="../pages/projects.html"><i class="fas fa-folder-tree"></i><span>Projects &amp; Tooling</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions, Generics &amp; Contracts</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/autodiff.html"><i class="fas fa-infinity"></i><span>Automatic Differentiation</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins &amp; Collections</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders"></i><span>Rulesets</span></a></li><li><a class="nav-link" href="../pages/device.html"><i class="fas fa-microchip"></i><span>CUDA &amp; Devices</span></a></li><li><a class="nav-link" href="../pages/arduino.html"><i class="fas fa-microchip"></i><span>Arduino &amp; AVR</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/libs.html"><i class="fas fa-cubes"></i><span>Library Overview</span></a></li><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link" href="../pages/vmem.html"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vfs.html"><i class="fas fa-folder-open"></i><span>VFS</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Numerical Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vlin.html"><i class="fas fa-table-cells-large"></i><span>vlin</span></a></li><li><a class="nav-link" href="../pages/vml.html"><i class="fas fa-network-wired"></i><span>vml</span></a></li><li><a class="nav-link" href="../pages/vfft.html"><i class="fas fa-wave-square"></i><span>vfft</span></a></li><li><a class="nav-link" href="../pages/vrand.html"><i class="fas fa-dice"></i><span>vrand</span></a></li><li><a class="nav-link" href="../pages/vstat.html"><i class="fas fa-chart-simple"></i><span>vstat</span></a></li><li><a class="nav-link" href="../pages/vcomplex.html"><i class="fas fa-infinity"></i><span>vcomplex</span></a></li><li><a class="nav-link" href="../pages/vinterp.html"><i class="fas fa-bezier-curve"></i><span>vinterp</span></a></li><li><a class="nav-link" href="../pages/voptim.html"><i class="fas fa-arrow-trend-down"></i><span>voptim</span></a></li><li><a class="nav-link" href="../pages/vsparse.html"><i class="fas fa-braille"></i><span>vsparse</span></a></li><li><a class="nav-link" href="../pages/vdecomp.html"><i class="fas fa-divide"></i><span>vdecomp</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">DSP &amp; Control</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vsignal.html"><i class="fas fa-signal"></i><span>vsignal</span></a></li><li><a class="nav-link" href="../pages/vcontrol.html"><i class="fas fa-sliders"></i><span>vcontrol</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Data &amp; Plotting</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcsv.html"><i class="fas fa-file-csv"></i><span>vcsv</span></a></li><li><a class="nav-link" href="../pages/vjson.html"><i class="fas fa-code"></i><span>vjson</span></a></li><li><a class="nav-link active" href="../pages/vtermplot.html" aria-current="page"><i class="fas fa-chart-area"></i><span>vtermplot</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Image &amp; Vision</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vimage.html"><i class="fas fa-image"></i><span>vimage</span></a></li><li><a class="nav-link" href="../pages/vconv.html"><i class="fas fa-border-all"></i><span>vconv</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Embedded Buses</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vi2c.html"><i class="fas fa-circle-nodes"></i><span>vi2c</span></a></li><li><a class="nav-link" href="../pages/vspi.html"><i class="fas fa-diagram-project"></i><span>vspi</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Domain Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vbio.html"><i class="fas fa-dna"></i><span>vbio</span></a></li><li><a class="nav-link" href="../pages/vchem.html"><i class="fas fa-flask"></i><span>vchem</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Helpers</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vhelpers.html"><i class="fas fa-toolbox"></i><span>Single-file Helpers</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Showcase</div><ul class="nav-list"><li><a class="nav-link" href="../pages/srcnn.html"><i class="fas fa-trophy"></i><span>SRCNN Image Upscaler</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/cli.html"><i class="fas fa-terminal"></i><span>CLI Reference</span></a></li><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li><li><a class="nav-link" href="../pages/performance.html"><i class="fas fa-gauge-high"></i><span>Performance</span></a></li></ul></div></nav>
+      <div class="sidebar-foot">
+        <span class="dot"></span> Active development
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-toggle" id="menuToggle" aria-label="Open navigation" aria-controls="sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Vyne</a>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-group">Data &amp; Plotting</span>
+            <span class="crumb-sep">/</span>
+            <b>vtermplot</b>
+          </nav>
+        </div>
+        <div class="topbar-right">
+          <button class="search-trigger" id="searchTrigger" type="button">
+            <i class="fas fa-magnifying-glass"></i>
+            <span class="search-trigger-text">Search docs…</span>
+            <kbd class="kbd">⌘K</kbd>
+          </button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <main class="content" id="content">
+          <article class="page active">
+            <div class="page-eyebrow">Data &amp; Plotting</div>
+<h1>vtermplot</h1>
+<p class="lede">Terminal line, scatter, bar, histogram, heatmap, and sparkline plots with UTF-8 or ASCII output.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vtermplot</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vtermplot/vtermplot.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vcore</code> (string builder)</td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vtermplot/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p><code class="inline">vtermplot</code> is a matplotlib-flavoured plotting layer that renders into the terminal. It supports line, scatter, bar, histogram, heatmap, and sparkline visualisations with Unicode glyphs (ASCII fallback), optional ANSI colour, axes, labels, and file export.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vtermplot/vtermplot.vy&quot;</span>;
+
+xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">0.0</span>, <span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>, <span class="c-num">4.0</span>, <span class="c-num">5.0</span>];
+ys <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">0.0</span>, <span class="c-num">1.0</span>, <span class="c-num">4.0</span>, <span class="c-num">9.0</span>, <span class="c-num">16.0</span>, <span class="c-num">25.0</span>];
+
+vtermplot.<span class="c-fn">show</span>(vtermplot.<span class="c-fn">plot_line</span>(xs, ys, <span class="c-num">60</span>, <span class="c-num">18</span>, <span class="c-str">&quot;y = x^2&quot;</span>));</div></div>
+<p>The renderer is intentionally dependency-free: it draws with <code class="inline">out</code> and strings, uses <code class="inline">vcolors</code> for optional ANSI styling, and uses <code class="inline">vfs</code> only for <code class="inline">save</code>.</p>
+<h2 id="concepts">Concepts</h2>
+<p>A <code class="inline">Plot</code> owns a flat <code class="inline">width × height</code> grid of small integer codes:</p>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td>0</td><td>empty</td></tr><tr><td>1</td><td>scatter point</td></tr><tr><td>2</td><td>line</td></tr><tr><td>3</td><td>bar</td></tr><tr><td>5..13</td><td>heatmap level</td></tr></tbody></table></div>
+<p><code class="inline">SeriesData</code> carries a copied <code class="inline">Array&lt;Float64&gt;</code> pair plus a label and marker code. You can build a plot imperatively (create, draw several series, render) or use a one-call convenience function.</p>
+<h2 id="api">API</h2>
+<h3 id="canvas">Canvas</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">new_plot(width, height, title, x_label, y_label)</code></td><td>empty <code class="inline">Plot</code></td></tr><tr><td><code class="inline">set_unicode(plot, on)</code></td><td>toggle Unicode/ASCII glyphs</td></tr><tr><td><code class="inline">set_color(plot, on)</code></td><td>toggle ANSI colour in <code class="inline">show</code></td></tr><tr><td><code class="inline">set_grid(plot, on)</code></td><td>toggle axes/border</td></tr><tr><td><code class="inline">render(plot)</code></td><td><code class="inline">String</code> containing the whole plot</td></tr><tr><td><code class="inline">show(plot)</code></td><td>print the plot (applies colour when enabled)</td></tr><tr><td><code class="inline">save(plot, path)</code></td><td>write <code class="inline">render(plot)</code> to a file via <code class="inline">vfs</code></td></tr><tr><td><code class="inline">series(xs, ys, label, marker)</code></td><td>copy two boxed arrays into <code class="inline">SeriesData</code></td></tr></tbody></table></div>
+<h3 id="line-and-scatter">Line and scatter</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">line(plot, xs, ys, marker)</code></td><td>draw a polyline</td></tr><tr><td><code class="inline">line_series(plot, series)</code></td><td>draw a <code class="inline">SeriesData</code> polyline</td></tr><tr><td><code class="inline">scatter(plot, xs, ys, marker)</code></td><td>draw points</td></tr><tr><td><code class="inline">scatter_series(plot, series)</code></td><td>draw <code class="inline">SeriesData</code> points</td></tr><tr><td><code class="inline">plot_line(xs, ys, width, height, title)</code></td><td>create, draw, render a line plot</td></tr><tr><td><code class="inline">plot_scatter(xs, ys, width, height, title)</code></td><td>create, draw, render a scatter plot</td></tr><tr><td><code class="inline">plot_line_series(series, width, height, title)</code></td><td>one-call line plot from a series</td></tr></tbody></table></div>
+<h3 id="bars-and-histograms">Bars and histograms</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">bars(plot, ys, marker)</code></td><td>vertical bars from <code class="inline">y=0</code>, x = 0..n-1</td></tr><tr><td><code class="inline">bars_series(plot, series)</code></td><td>draw <code class="inline">SeriesData</code> bars</td></tr><tr><td><code class="inline">hist(plot, xs, bins, marker)</code></td><td>equal-width histogram</td></tr><tr><td><code class="inline">plot_bars(ys, width, height, title)</code></td><td>one-call bar chart</td></tr><tr><td><code class="inline">plot_hist(xs, bins, width, height, title)</code></td><td>one-call histogram</td></tr><tr><td><code class="inline">bars_series_plot(series, width, height, title)</code></td><td>one-call bar chart from a series</td></tr></tbody></table></div>
+<h3 id="heatmaps">Heatmaps</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">heatmap(plot, data, rows, cols)</code></td><td>map a row-major matrix to 9 luminance levels</td></tr><tr><td><code class="inline">plot_heatmap(data, rows, cols, width, height, title)</code></td><td>one-call heatmap</td></tr></tbody></table></div>
+<p>The matrix is resampled to the plot's <code class="inline">width × height</code>; the minimum maps to the emptiest level and the maximum to a full block.</p>
+<h3 id="sparklines">Sparklines</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">sparkline(xs)</code></td><td>Unicode one-line chart (<code class="inline">▁▂▃▄▅▆▇█</code>)</td></tr><tr><td><code class="inline">sparkline_ascii(xs)</code></td><td>ASCII one-line chart (<code class="inline">_.-=+*#@</code>)</td></tr><tr><td><code class="inline">sparkline_series(series, unicode)</code></td><td>sparkline from a <code class="inline">SeriesData</code></td></tr></tbody></table></div>
+<h2 id="examples">Examples</h2>
+<h3 id="multiple-series-on-one-canvas">Multiple series on one canvas</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">p <span class="c-op">::</span> vtermplot.<span class="c-ty">Plot</span> <span class="c-op">:=</span> vtermplot.<span class="c-fn">new_plot</span>(<span class="c-num">70</span>, <span class="c-num">20</span>, <span class="c-str">&quot;signals&quot;</span>, <span class="c-str">&quot;t&quot;</span>, <span class="c-str">&quot;amplitude&quot;</span>);
+a <span class="c-op">::</span> vtermplot.<span class="c-ty">SeriesData</span> <span class="c-op">:=</span> vtermplot.<span class="c-fn">series</span>(t, sin_t, <span class="c-str">&quot;sin&quot;</span>, <span class="c-num">2</span>);
+b <span class="c-op">::</span> vtermplot.<span class="c-ty">SeriesData</span> <span class="c-op">:=</span> vtermplot.<span class="c-fn">series</span>(t, cos_t, <span class="c-str">&quot;cos&quot;</span>, <span class="c-num">2</span>);
+vtermplot.<span class="c-fn">line_series</span>(p, a);
+vtermplot.<span class="c-fn">line_series</span>(p, b);
+vtermplot.<span class="c-fn">show</span>(p);</div></div>
+<h3 id="histogram">Histogram</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vtermplot.<span class="c-fn">show</span>(vtermplot.<span class="c-fn">plot_hist</span>(samples, <span class="c-num">24</span>, <span class="c-num">60</span>, <span class="c-num">16</span>, <span class="c-str">&quot;sample distribution&quot;</span>));</div></div>
+<h3 id="heatmap-and-sparkline">Heatmap and sparkline</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vtermplot.<span class="c-fn">show</span>(vtermplot.<span class="c-fn">plot_heatmap</span>(corr, <span class="c-num">16</span>, <span class="c-num">16</span>, <span class="c-num">32</span>, <span class="c-num">16</span>, <span class="c-str">&quot;correlation&quot;</span>));
+<span class="c-fn">out</span>(<span class="c-str">&quot;trend: &quot;</span> <span class="c-op">+</span> vtermplot.<span class="c-fn">sparkline</span>(series_values));</div></div>
+<h3 id="ascii-colour-file">ASCII / colour / file</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">p <span class="c-op">::</span> vtermplot.<span class="c-ty">Plot</span> <span class="c-op">:=</span> vtermplot.<span class="c-fn">new_plot</span>(<span class="c-num">50</span>, <span class="c-num">14</span>, <span class="c-str">&quot;portable&quot;</span>, <span class="c-str">&quot;&quot;</span>, <span class="c-str">&quot;&quot;</span>);
+vtermplot.<span class="c-fn">set_unicode</span>(p, <span class="c-kw">false</span>);
+vtermplot.<span class="c-fn">set_color</span>(p, <span class="c-kw">true</span>);
+vtermplot.<span class="c-fn">line</span>(p, xs, ys, <span class="c-num">2</span>);
+vtermplot.<span class="c-fn">save</span>(p, <span class="c-str">&quot;plot.txt&quot;</span>);
+vtermplot.<span class="c-fn">show</span>(p);</div></div>
+<h2 id="notes">Notes</h2>
+<ul><li>Coordinates are padded to the plot bounds; equal min/max spans collapse to the centre line.</li><li><code class="inline">line</code> and <code class="inline">scatter</code> update the plot's shared bounds, so several series share one coordinate frame.</li><li><code class="inline">bars</code>/<code class="inline">hist</code> always include <code class="inline">y=0</code> in their bounds so the baseline is visible.</li><li>Unicode glyphs are wide characters in some terminals; if alignment matters, call <code class="inline">set_unicode(p, false)</code> for the ASCII theme.</li><li><code class="inline">save</code> writes the uncoloured rendering (ANSI codes are only applied by <code class="inline">show</code>).</li><li>AVR is not a target: terminal plotting depends on desktop <code class="inline">out</code> and <code class="inline">vfs</code>.</li></ul>
+<h2 id="tests-and-benchmark">Tests and benchmark</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;bash snippet</span><span class="code-lang">bash</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="bash">./vynec --compile examples/test/vtermplot_test.vy
+./examples/test/vtermplot_test
+
+./vynec --compile examples/benchmark/vtermplot_bench.vy
+./examples/benchmark/vtermplot_bench</div></div>
+
+          </article>
+          <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/vjson.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">vjson</span></a><a class="pager-link next" href="../pages/vimage.html"><span class="pager-label"> Next</span><span class="pager-title">vimage <i class="fas fa-arrow-right"></i></span></a></nav>
+          <footer class="page-footer">
+            <span>Vyne v0.6.0 — Language Reference</span>
+            <a href="../index.html">Back to top</a>
+          </footer>
+        </main>
+
+        <aside class="toc" id="toc" aria-label="On this page">
+          <div class="toc-inner">
+            <div class="toc-title">On this page</div>
+            <ul class="toc-list" id="tocList"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="palette" id="palette" hidden>
+      <div class="palette-backdrop" data-close></div>
+      <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search documentation">
+        <div class="palette-input-wrap">
+          <i class="fas fa-magnifying-glass"></i>
+          <input id="paletteInput" type="text" placeholder="Search the docs…" autocomplete="off" spellcheck="false" />
+          <kbd class="kbd">esc</kbd>
+        </div>
+        <ul class="palette-results" id="paletteResults"></ul>
+        <div class="palette-foot">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> open</span>
+          <span><kbd>esc</kbd> close</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top">
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/app.js"></script>
+  </body>
+</html>

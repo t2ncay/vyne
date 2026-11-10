@@ -1,142 +1,68 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Error Handling</h1>
-            <p class="lede">try, catch, finally, throw, and defer.</p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Error Handling</h1>
+<p class="lede">Try, catch, finally, and throw across the interpreter and compiled backends.</p>
+<p>Vyne uses exceptions for recoverable failure. The compiled backend implements them with a bounded <code class="inline">longjmp</code> frame stack; the AST interpreter unwinds the evaluation stack.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-fn">parse</span>(input);
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;failed: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(err));
+} <span class="c-kw">finally</span> {
+    <span class="c-fn">cleanup</span>();
+};</div></div>
+<p>A <code class="inline">try</code> must be followed by <code class="inline">catch</code>, <code class="inline">finally</code>, or both. The catch variable is optional:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-fn">risky</span>();
+} <span class="c-kw">catch</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;failed&quot;</span>);
+};</div></div>
+<h2 id="throwing">Throwing</h2>
+<p><code class="inline">throw</code> accepts any value. There is no dedicated exception type; strings are the common case, but numbers, maps, and structs work too.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">checked_div</span>(a <span class="c-op">::</span> <span class="c-ty">Float64</span>, b <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    <span class="c-kw">if</span> b <span class="c-op">==</span> <span class="c-num">0.0</span> {
+        <span class="c-kw">throw</span> <span class="c-str">&quot;division by zero&quot;</span>;
+    }
+    <span class="c-kw">return</span> a <span class="c-op">/</span> b;
+}
 
-            <h2 id="try-catch">try / catch</h2>
-            <p>
-              <code class="inline">try</code> must be followed by
-              <code class="inline">catch</code>,
-              <code class="inline">finally</code>, or both. The catch variable
-              is bound in a scope visible only inside the catch block.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">try.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">try</span> { risky(); }
-<span class="c-kw">catch</span> (err) {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"caught: "</span
-                > <span class="c-op">+</span> err); };</div>
-            </div>
-
-            <p>
-              If you do not name the error variable, it defaults to
-              <code class="inline">_err</code>:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">try-implicit.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">try</span> { risky(); }
-<span class="c-kw">catch</span> {
-  <span class="c-fn">out</span>(_err); };</div>
-            </div>
-
-            <h2 id="finally">finally</h2>
-            <p>
-              <code class="inline">finally</code> always runs — whether the try
-              succeeded, was caught, or is propagating a new error. Use it for
-              cleanup that must happen unconditionally.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">finally.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">try</span> { open_connection(); do_work(); }
-<span class="c-kw">catch</span> (err) {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"error: "</span
-                > <span class="c-op">+</span> err); }
-<span class="c-kw">finally</span> { close_connection(); };</div>
-            </div>
-
-            <h2 id="throw">throw</h2>
-            <p>
-              <code class="inline">throw</code> accepts an optional expression.
-              Throwing with no argument passes
-              <code class="inline">null</code> to the catch block.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">throw.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">if</span> (x <span class="c-op">&lt;</span> <span class="c-num">0</span>) { <span class="c-kw">throw</span> <span class="c-str">"negative value not allowed"</span>; };
-
-<span class="c-com">// Bare throw — passes null</span>
-<span class="c-kw">throw</span>;</div>
-            </div>
-
-            <h2 id="defer">defer</h2>
-            <p>
-              <code class="inline">defer stmt;</code> queues a single statement
-              to run when the enclosing function exits. Defers run in reverse
-              order of declaration.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">defer.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">fn</span> <span class="c-fn">process</span>() { <span class="c-kw">defer</span> cleanup();
-  <span class="c-kw">defer</span> log(<span class="c-str"
-                  >"done"</span
-                >);
-
-  <span class="c-com">// ... work happens here ...</span>
-  <span class="c-com"
-                  >// on exit: log("done"), then cleanup()</span
-                >
-};</div>
-            </div>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">defer placement</div>
-                <code class="inline">defer</code> is only supported at the top
-                level of a function body. Nesting it inside an
-                <code class="inline">if</code>, loop, or region is a compile
-                error.
-              </div>
-            </div>
-
-            <h2 id="interaction-with-regions">Interaction with regions</h2>
-            <p>
-              When a function returns from inside a
-              <code class="inline">region</code>, the region is unwound before
-              the caller sees the return value. If the return value is
-              non-primitive, the region is popped without rewinding — see
-              <a data-page="regions">Memory &amp; Regions</a> for the full rule.
-            </p>
-            <p>
-              When a function returns from inside a
-              <code class="inline">try</code> block, the finally clause runs
-              first.
-            </p>
-
-            <h2 id="current-limitations">Current limitations</h2>
-            <ul>
-              <li>
-                <code class="inline">break</code> and
-                <code class="inline">continue</code> cannot exit a
-                <code class="inline">try</code> block.
-              </li>
-              <li>
-                There is no way to re-throw the current exception with a fresh
-                stack — <code class="inline">throw err;</code> works, but the
-                stack context of the original throw is not preserved.
-              </li>
-              <li>
-                Exceptions are values, not types. Any VyneValue can be thrown;
-                there is no exception class hierarchy.
-              </li>
-            </ul>
+<span class="c-kw">try</span> {
+    <span class="c-fn">out</span>(<span class="c-fn">checked_div</span>(<span class="c-num">1.0</span>, <span class="c-num">0.0</span>));
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;caught: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(err));
+};</div></div>
+<p>An uncaught throw terminates the compiled program with a message. The runtime keeps <code class="inline">VYNE_MAX_EXC_FRAMES</code> = 64 nested exception frames; exceeding that is a fatal error.</p>
+<h2 id="finally">Finally</h2>
+<p><code class="inline">finally</code> runs on both the normal path and the throwing path, after the matching <code class="inline">catch</code> body:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;work&quot;</span>);
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;recovered&quot;</span>);
+} <span class="c-kw">finally</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;cleanup&quot;</span>);
+};</div></div>
+<p>Use <code class="inline">finally</code> for state that must be restored regardless of outcome. It also runs when a <code class="inline">return</code> leaves the <code class="inline">try</code> block.</p>
+<h2 id="interaction-with-regions">Interaction with regions</h2>
+<p>A region unwind is emitted for every open region when an exception crosses a region boundary. Values allocated inside the region are reclaimed before control reaches the handler. If you need a value to survive the exception, commit or move it before throwing.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-kw">region</span> work {
+        <span class="c-kw">result</span> <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-fn">compute</span>();
+        <span class="c-kw">region</span>.<span class="c-fn">commit</span>(<span class="c-kw">result</span>);
+        <span class="c-fn">maybe_throw</span>(<span class="c-kw">result</span>);
+    };
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;work failed&quot;</span>);
+};</div></div>
+<h2 id="error-values">Error values</h2>
+<p><code class="inline">catch</code> binds the thrown value without a type annotation. Convert it for display with <code class="inline">string(err)</code>, or test it if you throw structured values:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">try</span> {
+    <span class="c-fn">load_config</span>();
+} <span class="c-kw">catch</span> (err) {
+    <span class="c-kw">if</span> <span class="c-fn">type</span>(err) <span class="c-op">==</span> <span class="c-str">&quot;String&quot;</span> {
+        <span class="c-fn">out</span>(<span class="c-str">&quot;config error: &quot;</span> <span class="c-op">+</span> err);
+    } <span class="c-kw">else</span> {
+        <span class="c-fn">out</span>(<span class="c-str">&quot;unexpected error&quot;</span>);
+    };
+};</div></div>
+<h2 id="compile-time-diagnostics">Compile-time diagnostics</h2>
+<p>Exceptions are a runtime mechanism. Compile errors use the <code class="inline">VNE-*</code> diagnostic system with source excerpts and suggestions. See <a data-page="errcodes">Error Codes</a> for the code index and <a data-page="rulesets">Rulesets</a> for <code class="inline">contracts</code> mode.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="flow">Control Flow</a></li><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="errcodes">Error Codes</a></li></ul>

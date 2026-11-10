@@ -1,77 +1,40 @@
-            <div class="page-eyebrow">Standard Library</div>
-            <h1>VMem</h1>
-            <p class="lede">
-              Arena introspection. Use the total_allocated hook to verify your
-              regions are flat.
-            </p>
+<div class="page-eyebrow">Standard Library</div>
+<h1>VMem</h1>
+<p class="lede">Arena checkpoints, peak and live accounting, commit/stream statistics, and diagnostics.</p>
+<p><code class="inline">vmem</code> exposes the arena. Import it with <code class="inline">use native vmem;</code>. Most code uses <code class="inline">region</code> syntax instead of raw checkpoints; <code class="inline">vmem</code> is for instrumentation and for code that needs manual lifetime control.</p>
+<h2 id="checkpoints">Checkpoints</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vmem.checkpoint()</code></td><td><code class="inline">Int64</code></td><td>Records <code class="inline">(block, offset)</code> and returns a handle.</td></tr><tr><td><code class="inline">vmem.rewind(handle)</code></td><td><code class="inline">Int64</code></td><td>Frees blocks created after the checkpoint and resets the bump pointer.</td></tr><tr><td><code class="inline">vmem.pop()</code></td><td><code class="inline">Int64</code></td><td>Pop the innermost checkpoint without rewinding.</td></tr><tr><td><code class="inline">vmem.pop_n(n)</code></td><td><code class="inline">Int64</code></td><td>Pop <code class="inline">n</code> checkpoints.</td></tr><tr><td><code class="inline">vmem.rewind_freed(handle)</code></td><td><code class="inline">Int64</code></td><td>Rewind and report the bytes freed.</td></tr><tr><td><code class="inline">vmem.verify_checkpoint(handle)</code></td><td><code class="inline">Bool</code></td><td>Check that a handle still names a live slot.</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">before <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vmem.<span class="c-fn">checkpoint</span>();
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">import</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">module</span> vmem;</div>
-            </div>
+xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-fn">make_scratch</span>();
+<span class="c-kw">use</span>(xs);
 
-            <h2 id="vmem-functions">Functions</h2>
-            <div class="api-block">
-              <div class="api-block-head">
-                <div class="api-block-title">
-                  <i class="fas fa-memory"></i>Inspection
-                </div>
-                <div class="api-block-count">4 functions</div>
-              </div>
-              <div class="api-block-body">
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.total_allocated</span>()
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Total bytes handed out by the arena since program start,
-                    minus any reclaims. Drops back when a region rewinds.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.checkpoint</span>()
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Pushes an arena checkpoint and returns its handle. The
-                    <code class="inline">region</code> keyword uses this
-                    internally; you rarely need it directly.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.rewind</span>(handle
-                    <span class="x">::</span> <span class="p">Int64</span>)
-                    <span class="x">→</span> <span class="r">Null</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Rewinds the arena to a previously captured checkpoint.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.reset</span>() <span class="x">→</span>
-                    <span class="r">Null</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Drops the entire arena. Only safe at top level when no live
-                    value refers to arena memory. Intended for tests.
-                  </div>
-                </div>
-              </div>
-            </div>
+vmem.<span class="c-fn">rewind</span>(before);    <span class="c-com"># xs is invalid now</span></div></div>
+<p>Nested checkpoints form a stack. Rewinding to slot <code class="inline">k</code> invalidates slots <code class="inline">k..top</code>. The desktop stack is variable-length; AVR has 16 fixed slots.</p>
+<h2 id="accounting">Accounting</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vmem.total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes handed out by the main arena.</td></tr><tr><td><code class="inline">vmem.peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>High-water mark of the main arena.</td></tr><tr><td><code class="inline">vmem.peak_reset()</code></td><td><code class="inline">Int64</code></td><td>Reset the high-water mark.</td></tr><tr><td><code class="inline">vmem.commit_total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes in the commit arena.</td></tr><tr><td><code class="inline">vmem.commit_peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>Commit-arena high-water mark.</td></tr><tr><td><code class="inline">vmem.stream_total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes in the <code class="inline">@streamed</code> pinned arena.</td></tr><tr><td><code class="inline">vmem.stream_peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>Pinned-arena high-water mark.</td></tr><tr><td><code class="inline">vmem.stream_is_pinned()</code></td><td><code class="inline">Bool</code></td><td>Whether the platform actually page-locked the streamed arena.</td></tr><tr><td><code class="inline">vmem.stream_block_count()</code></td><td><code class="inline">Int64</code></td><td>Backing blocks in the pinned arena.</td></tr></tbody></table></div>
+<h2 id="live-state">Live state</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmem.checkpoint_depth()</code></td><td>Current checkpoint depth.</td></tr><tr><td><code class="inline">vmem.checkpoint_capacity()</code></td><td>Maximum depth.</td></tr><tr><td><code class="inline">vmem.checkpoint_remaining()</code></td><td>Free slots.</td></tr><tr><td><code class="inline">vmem.block_count()</code></td><td>Number of arena blocks.</td></tr><tr><td><code class="inline">vmem.current_block_used()</code></td><td>Bytes used in the current block.</td></tr><tr><td><code class="inline">vmem.current_block_capacity()</code></td><td>Capacity of the current block.</td></tr><tr><td><code class="inline">vmem.is_balanced()</code></td><td>Whether the checkpoint stack is balanced.</td></tr><tr><td><code class="inline">vmem.assert_balanced()</code></td><td>Panic if the checkpoint stack is unbalanced.</td></tr></tbody></table></div>
+<h2 id="diagnostics">Diagnostics</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmem.dump()</code></td><td>Print a human-readable arena summary.</td></tr><tr><td><code class="inline">vmem.stats()</code></td><td>Print counters and block state.</td></tr><tr><td><code class="inline">vmem.reset()</code></td><td>Drop all arena storage. Development use only.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong>Caution:</strong> <code class="inline">reset()</code> invalidates every arena-backed value. <code class="inline">total_allocated()</code> is not process RSS; it is arena bookkeeping.</p></div></div>
+<h2 id="verify-a-region-is-flat">Verify a region is flat</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmem;
 
-            <div class="admonition adm-danger">
-              <i class="fas fa-skull-crossbones"></i>
-              <div class="adm-body">
-                <div class="adm-title">reset() is destructive</div>
-                <code class="inline">vmem.reset()</code> frees every arena
-                block. Any VyneValue still pointing into the arena becomes a
-                dangling reference. Do not call it in normal code.
-              </div>
-            </div>
+before <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vmem.<span class="c-fn">total_allocated</span>();
+
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">1000</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> r {
+        xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>, <span class="c-num">4.0</span>];
+    };
+};
+
+<span class="c-fn">out</span>(<span class="c-str">&quot;drift = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vmem.<span class="c-fn">total_allocated</span>() <span class="c-op">-</span> before));</div></div>
+<p>The result is <code class="inline">0</code> when the region rewinds correctly.</p>
+<h2 id="related-language-operations">Related language operations</h2>
+<p>These are not <code class="inline">vmem</code> methods:</p>
+<ul><li><code class="inline">region.commit(x)</code> / <code class="inline">&lt;region&gt;.commit(x)</code> — deep-clone into the commit arena.</li><li><code class="inline">region.move(x)</code> — zero-copy move for large typed-array payloads.</li><li><code class="inline">drop(x)</code> — early release when the value is the arena tail.</li><li><code class="inline">vmem_runtime_*</code> — internal symbols emitted by codegen; do not call them from Vyne.</li></ul>
+<h2 id="avr">AVR</h2>
+<p>The MCU runtime aliases the same checkpoint/rewind entry points to its single 1 KB arena. <code class="inline">total_allocated</code>, <code class="inline">arena_used</code>, and the bounded counter are available; the richer diagnostics are desktop-oriented.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="vcore">VCore</a></li><li><a data-page="builtins">Built-ins</a></li></ul>

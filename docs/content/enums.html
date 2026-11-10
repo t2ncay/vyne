@@ -1,64 +1,30 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Enums</h1>
-            <p class="lede">
-              Named Int64 constants. Auto-numbering with explicit overrides.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Enums</h1>
+<p class="lede">Named integer constants with explicit or automatic values.</p>
+<p>An <code class="inline">enum</code> gives names to related integer values. Enum members are <code class="inline">Int64</code> constants; the enum itself is a namespace.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">enum</span> <span class="c-ty">Color</span> {
+    <span class="c-ty">RED</span> <span class="c-op">=</span> <span class="c-num">0</span>,
+    <span class="c-ty">GREEN</span>,
+    <span class="c-ty">BLUE</span>,
+}
 
-            <h2 id="enum-syntax">Syntax</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">enums.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">enum</span> Direction { North,
-  <span class="c-com">// 0</span>
-  East,
-  <span class="c-com">// 1</span>
-  South <span class="c-op">=</span> <span class="c-num">10</span>,
-  <span class="c-com">// 10 (resets counter)</span>
-  West
-  <span class="c-com">// 11</span>
-};
+<span class="c-fn">out</span>(<span class="c-ty">Color</span>.<span class="c-ty">RED</span>);     <span class="c-com"># 0</span>
+<span class="c-fn">out</span>(<span class="c-ty">Color</span>.<span class="c-ty">GREEN</span>);   <span class="c-com"># 1</span>
+<span class="c-fn">out</span>(<span class="c-ty">Color</span>.<span class="c-ty">BLUE</span>);    <span class="c-com"># 2</span></div></div>
+<p>An explicit value sets the counter; the following members auto-increment from it.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">enum</span> <span class="c-ty">Status</span> {
+    <span class="c-ty">OK</span> <span class="c-op">=</span> <span class="c-num">200</span>,
+    <span class="c-ty">CREATED</span>,
+    <span class="c-ty">ACCEPTED</span>,
+    <span class="c-ty">BAD_REQUEST</span> <span class="c-op">=</span> <span class="c-num">400</span>,
+    <span class="c-ty">UNAUTHORIZED</span>,
+}</div></div>
+<p>A trailing comma is allowed. Members can be used anywhere an <code class="inline">Int64</code> is expected:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">code <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-ty">Status</span>.<span class="c-ty">CREATED</span>;
 
-<span class="c-fn">out</span>(Direction.South);
-<span class="c-com">// → 10</span></div>
-            </div>
-
-            <h2 id="enum-semantics">Semantics</h2>
-            <ul>
-              <li>
-                The backing type is always <code class="inline">Int64</code>.
-              </li>
-              <li>
-                Members are <code class="inline">const</code> — reassignment is
-                a compile error.
-              </li>
-              <li>
-                An explicit <code class="inline">= N</code> resets the
-                auto-increment counter from that point.
-              </li>
-              <li>
-                Enums are global. There is no namespacing beyond the enum name
-                itself.
-              </li>
-            </ul>
-
-            <h2 id="using-enums">Using an enum</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">use-enum.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">heading <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> Direction.North;
-
-<span class="c-kw">if</span> (heading <span class="c-op">==</span> Direction.North) {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"heading north"</span
-                >); };</div>
-            </div>
-
-            <p>
-              Because enum members are plain Int64, you can store them in typed
-              arrays, compare them with integers, and pass them anywhere an
-              Int64 is expected.
-            </p>
+<span class="c-kw">if</span> code <span class="c-op">==</span> <span class="c-ty">Status</span>.<span class="c-ty">OK</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;success&quot;</span>);
+}</div></div>
+<p>Enums are a naming convenience, not a distinct runtime type. Store them in <code class="inline">Int64</code> fields and compare them as integers. For a closed set of values that also carries data, use an interface plus a discriminant field instead.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="types">Values &amp; Types</a></li><li><a data-page="iface">Interfaces</a></li><li><a data-page="expr">Expressions</a></li></ul>

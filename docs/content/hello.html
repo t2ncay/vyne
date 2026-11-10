@@ -1,84 +1,43 @@
-            <div class="page-eyebrow">Getting Started</div>
-            <h1>Hello, World</h1>
-            <p class="lede">The smallest Vyne program is one line.</p>
+<div class="page-eyebrow">Getting Started</div>
+<h1>Hello, World</h1>
+<p class="lede">Your first Vyne program, the execution modes, and a first look at regions.</p>
+<p>Create <code class="inline">hello.vy</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;hello.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">out</span>(<span class="c-str">&quot;hello, vyne&quot;</span>);</div></div>
+<p>Run it:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec hello.vy</div></div>
+<p>A bare invocation compiles the source and runs the resulting program. <code class="inline">out</code> appends a newline; use <code class="inline">vcore</code> or <code class="inline">arduino.serial_print</code> when you need byte-level control.</p>
+<h2 id="the-same-file-in-three-modes">The same file in three modes</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec --ast hello.vy        <span class="c-com"># AST interpreter, no C emitted</span>
+./vynec --compile hello.vy    <span class="c-com"># emit C, compile a binary, stop</span>
+./vynec --run hello.vy        <span class="c-com"># compile and run</span>
+./vynec --emit-c hello.vy     <span class="c-com"># write hello.vy.c and stop</span></div></div>
+<p>The interpreter is the quickest feedback loop. <code class="inline">--compile</code> is the path to a standalone binary. Both consume the same parsed tree.</p>
+<h2 id="values-and-interpolation">Values and interpolation</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;values.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">:=</span> <span class="c-str">&quot;Vyne&quot;</span>;
+version <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">0.6</span>;
+count <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">3</span>;
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="far fa-file-code"></i>&nbsp;hello.vy</span
-                >
-                <span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-fn">out</span>(<span class="c-str"
-                  >"hello, world"</span
-                >);</div>
-            </div>
+<span class="c-fn">out</span>(<span class="c-str">&quot;hello, &quot;</span> <span class="c-op">+</span> name);
+<span class="c-fn">out</span>(<span class="c-str">&quot;version &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(version));
+<span class="c-fn">out</span>(<span class="c-str">&quot;count = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(count));</div></div>
+<p>Vyne has explicit types when you want them:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;types.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">x <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">42</span>;
+pi <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">3.141592653589793</span>;
+flag <span class="c-op">::</span> <span class="c-ty">Bool</span> <span class="c-op">:=</span> <span class="c-kw">true</span>;
+items <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];</div></div>
+<p><code class="inline">:=</code> introduces a new binding; <code class="inline">=</code> reassigns an existing one. The distinction is enforced by the parser and is the single most important syntax change from older Vyne code.</p>
+<h2 id="a-first-region">A first region</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;region.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">5</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> <span class="c-kw">scratch</span> {
+        xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];
+        <span class="c-fn">out</span>(<span class="c-str">&quot;epoch &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(epoch) <span class="c-op">+</span> <span class="c-str">&quot; sum &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(xs.<span class="c-fn">sum</span>()));
+    };
+};</div></div>
+<p>Everything allocated inside <code class="inline">region scratch</code> is reclaimed at the closing brace. The loop can run five times or five million times; the arena returns to its entry offset on every iteration. That is the core memory model, and the rest of the language is designed to make it visible rather than implicit.</p>
+<h2 id="comments">Comments</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-com"># line comment</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;still code&quot;</span>);   <span class="c-com"># trailing comment</span>
 
-            <p>Save it as <code class="inline">hello.vy</code>, then:</p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="fas fa-terminal"></i>&nbsp;shell</span
-                >
-                <button class="copy-btn">
-                  <i class="far fa-copy"></i> copy
-                </button>
-              </div>
-              <div class="code-body">vynec hello.vy ./hello
-<span class="c-com"># → hello, world</span></div>
-            </div>
-
-            <h2 id="reading-it">Reading it line by line</h2>
-            <p>
-              <code class="inline">out</code> is a built-in function. It takes
-              any value, converts it to its display form, and writes it to
-              standard output followed by a newline. It is not a keyword — it is
-              defined by the runtime — but it is globally available and never
-              needs to be declared.
-            </p>
-            <p>
-              <code class="inline">"hello, world"</code> is a string literal.
-              Strings in Vyne are immutable and UTF-8.
-            </p>
-            <p>
-              The trailing <code class="inline">;</code> is a statement
-              terminator. Vyne does not have automatic semicolon insertion, so
-              you always write it.
-            </p>
-
-            <h2 id="with-a-variable">With a variable</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="far fa-file-code"></i>&nbsp;hello2.vy</span
-                >
-                <span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-com"
-                  >// `::` declares the type; the value infers the rest.</span
-                >
-greeting <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"hello"</span>; name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"world"</span>;
-
-<span class="c-fn">out</span>(greeting <span class="c-op">+</span> <span class="c-str">", "</span> <span class="c-op">+</span> name <span class="c-op">+</span> <span class="c-str">"!"</span>);</div>
-            </div>
-            <p>
-              <code class="inline">::</code> is Vyne's type-annotation operator.
-              It reads naturally: "greeting is a String". Once a variable has a
-              type, its storage layout is fixed for its lifetime — reassigning a
-              <code class="inline">String</code> to an
-              <code class="inline">Int64</code> will be a compile error.
-            </p>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">String concatenation</div>
-                The <code class="inline">+</code> operator concatenates when at
-                least one side is a <code class="inline">String</code>. This is
-                the only implicit coercion Vyne performs; everything else
-                requires an explicit conversion with
-                <code class="inline">string()</code>,
-                <code class="inline">int64()</code>, or
-                <code class="inline">float64()</code>.
-              </div>
-            </div>
+<span class="c-op">/</span><span class="c-op">*</span> block comments are also accepted <span class="c-op">*</span><span class="c-op">/</span></div></div>
+<h2 id="next">Next</h2>
+<ul><li><a data-page="tour">Language Tour</a> — every construct in one pass.</li><li><a data-page="regions">Memory &amp; Regions</a> — the full policy matrix.</li><li><a data-page="projects">Projects &amp; Tooling</a> — scaffold, build, run, and benchmark a real project.</li></ul>

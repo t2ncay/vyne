@@ -1581,3 +1581,12 @@ body.drawer-open {
     margin: 0;
   }
 }
+
+/* Figures used by the showcase pages. */
+.content img {
+  display: block;
+  margin: 20px auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}

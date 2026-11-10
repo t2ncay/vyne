@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VMem · Vyne Language Reference</title>
-    <meta name="description" content="Standard Library VMem Arena introspection. Use the total_allocated hook to verify your regions are flat. import vyne copy module vmem; Functions Inspection 4 functions vmem.total_a" />
+    <meta name="description" content="Standard Library VMem Arena checkpoints, peak and live accounting, commit/stream statistics, and diagnostics. vmem exposes the arena. Import it with use native vmem; . Most code us" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,13 +40,13 @@
           <path d="M13 11 L18 18.8 L23 11" fill="none" stroke="#080a10" stroke-opacity="0.38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg></span>
           <span class="brand-text">vyne</span>
-          <span class="brand-version">v0.0.4</span>
+          <span class="brand-version">v0.6.0</span>
         </a>
         <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Close navigation">
           <i class="fas fa-xmark"></i>
         </button>
       </div>
-      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link" href="../pages/hello.html"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders-h"></i><span>Rulesets</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link active" href="../pages/vmem.html" aria-current="page"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vglib.html"><i class="fas fa-gamepad"></i><span>VGLib</span></a></li><li><a class="nav-link" href="../pages/vaudio.html"><i class="fas fa-music"></i><span>VAudio</span></a></li><li><a class="nav-link" href="../pages/vserv.html"><i class="fas fa-globe"></i><span>VServ</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li></ul></div></nav>
+      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link" href="../pages/hello.html"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li><li><a class="nav-link" href="../pages/projects.html"><i class="fas fa-folder-tree"></i><span>Projects &amp; Tooling</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions, Generics &amp; Contracts</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/autodiff.html"><i class="fas fa-infinity"></i><span>Automatic Differentiation</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins &amp; Collections</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders"></i><span>Rulesets</span></a></li><li><a class="nav-link" href="../pages/device.html"><i class="fas fa-microchip"></i><span>CUDA &amp; Devices</span></a></li><li><a class="nav-link" href="../pages/arduino.html"><i class="fas fa-microchip"></i><span>Arduino &amp; AVR</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/libs.html"><i class="fas fa-cubes"></i><span>Library Overview</span></a></li><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link active" href="../pages/vmem.html" aria-current="page"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vfs.html"><i class="fas fa-folder-open"></i><span>VFS</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Numerical Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vlin.html"><i class="fas fa-table-cells-large"></i><span>vlin</span></a></li><li><a class="nav-link" href="../pages/vml.html"><i class="fas fa-network-wired"></i><span>vml</span></a></li><li><a class="nav-link" href="../pages/vfft.html"><i class="fas fa-wave-square"></i><span>vfft</span></a></li><li><a class="nav-link" href="../pages/vrand.html"><i class="fas fa-dice"></i><span>vrand</span></a></li><li><a class="nav-link" href="../pages/vstat.html"><i class="fas fa-chart-simple"></i><span>vstat</span></a></li><li><a class="nav-link" href="../pages/vcomplex.html"><i class="fas fa-infinity"></i><span>vcomplex</span></a></li><li><a class="nav-link" href="../pages/vinterp.html"><i class="fas fa-bezier-curve"></i><span>vinterp</span></a></li><li><a class="nav-link" href="../pages/voptim.html"><i class="fas fa-arrow-trend-down"></i><span>voptim</span></a></li><li><a class="nav-link" href="../pages/vsparse.html"><i class="fas fa-braille"></i><span>vsparse</span></a></li><li><a class="nav-link" href="../pages/vdecomp.html"><i class="fas fa-divide"></i><span>vdecomp</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">DSP &amp; Control</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vsignal.html"><i class="fas fa-signal"></i><span>vsignal</span></a></li><li><a class="nav-link" href="../pages/vcontrol.html"><i class="fas fa-sliders"></i><span>vcontrol</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Data &amp; Plotting</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcsv.html"><i class="fas fa-file-csv"></i><span>vcsv</span></a></li><li><a class="nav-link" href="../pages/vjson.html"><i class="fas fa-code"></i><span>vjson</span></a></li><li><a class="nav-link" href="../pages/vtermplot.html"><i class="fas fa-chart-area"></i><span>vtermplot</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Image &amp; Vision</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vimage.html"><i class="fas fa-image"></i><span>vimage</span></a></li><li><a class="nav-link" href="../pages/vconv.html"><i class="fas fa-border-all"></i><span>vconv</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Embedded Buses</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vi2c.html"><i class="fas fa-circle-nodes"></i><span>vi2c</span></a></li><li><a class="nav-link" href="../pages/vspi.html"><i class="fas fa-diagram-project"></i><span>vspi</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Domain Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vbio.html"><i class="fas fa-dna"></i><span>vbio</span></a></li><li><a class="nav-link" href="../pages/vchem.html"><i class="fas fa-flask"></i><span>vchem</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Helpers</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vhelpers.html"><i class="fas fa-toolbox"></i><span>Single-file Helpers</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Showcase</div><ul class="nav-list"><li><a class="nav-link" href="../pages/srcnn.html"><i class="fas fa-trophy"></i><span>SRCNN Image Upscaler</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/cli.html"><i class="fas fa-terminal"></i><span>CLI Reference</span></a></li><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li><li><a class="nav-link" href="../pages/performance.html"><i class="fas fa-gauge-high"></i><span>Performance</span></a></li></ul></div></nav>
       <div class="sidebar-foot">
         <span class="dot"></span> Active development
       </div>
@@ -78,88 +78,51 @@
       <div class="content-wrap">
         <main class="content" id="content">
           <article class="page active">
-                        <div class="page-eyebrow">Standard Library</div>
-            <h1>VMem</h1>
-            <p class="lede">
-              Arena introspection. Use the total_allocated hook to verify your
-              regions are flat.
-            </p>
+            <div class="page-eyebrow">Standard Library</div>
+<h1>VMem</h1>
+<p class="lede">Arena checkpoints, peak and live accounting, commit/stream statistics, and diagnostics.</p>
+<p><code class="inline">vmem</code> exposes the arena. Import it with <code class="inline">use native vmem;</code>. Most code uses <code class="inline">region</code> syntax instead of raw checkpoints; <code class="inline">vmem</code> is for instrumentation and for code that needs manual lifetime control.</p>
+<h2 id="checkpoints">Checkpoints</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vmem.checkpoint()</code></td><td><code class="inline">Int64</code></td><td>Records <code class="inline">(block, offset)</code> and returns a handle.</td></tr><tr><td><code class="inline">vmem.rewind(handle)</code></td><td><code class="inline">Int64</code></td><td>Frees blocks created after the checkpoint and resets the bump pointer.</td></tr><tr><td><code class="inline">vmem.pop()</code></td><td><code class="inline">Int64</code></td><td>Pop the innermost checkpoint without rewinding.</td></tr><tr><td><code class="inline">vmem.pop_n(n)</code></td><td><code class="inline">Int64</code></td><td>Pop <code class="inline">n</code> checkpoints.</td></tr><tr><td><code class="inline">vmem.rewind_freed(handle)</code></td><td><code class="inline">Int64</code></td><td>Rewind and report the bytes freed.</td></tr><tr><td><code class="inline">vmem.verify_checkpoint(handle)</code></td><td><code class="inline">Bool</code></td><td>Check that a handle still names a live slot.</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">before <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vmem.<span class="c-fn">checkpoint</span>();
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">import</span
-                ><span class="code-lang">vyne</span>
-              <button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div>
-              <div class="code-body"><span class="c-kw">module</span> vmem;</div>
-            </div>
+xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-fn">make_scratch</span>();
+<span class="c-kw">use</span>(xs);
 
-            <h2 id="vmem-functions">Functions</h2>
-            <div class="api-block">
-              <div class="api-block-head">
-                <div class="api-block-title">
-                  <i class="fas fa-memory"></i>Inspection
-                </div>
-                <div class="api-block-count">4 functions</div>
-              </div>
-              <div class="api-block-body">
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.total_allocated</span>()
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Total bytes handed out by the arena since program start,
-                    minus any reclaims. Drops back when a region rewinds.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.checkpoint</span>()
-                    <span class="x">→</span> <span class="r">Int64</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Pushes an arena checkpoint and returns its handle. The
-                    <code class="inline">region</code> keyword uses this
-                    internally; you rarely need it directly.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.rewind</span>(handle
-                    <span class="x">::</span> <span class="p">Int64</span>)
-                    <span class="x">→</span> <span class="r">Null</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Rewinds the arena to a previously captured checkpoint.
-                  </div>
-                </div>
-                <div class="api-fn">
-                  <div class="api-sig">
-                    <span class="n">vmem.reset</span>() <span class="x">→</span>
-                    <span class="r">Null</span>
-                  </div>
-                  <div class="api-desc-text">
-                    Drops the entire arena. Only safe at top level when no live
-                    value refers to arena memory. Intended for tests.
-                  </div>
-                </div>
-              </div>
-            </div>
+vmem.<span class="c-fn">rewind</span>(before);    <span class="c-com"># xs is invalid now</span></div></div>
+<p>Nested checkpoints form a stack. Rewinding to slot <code class="inline">k</code> invalidates slots <code class="inline">k..top</code>. The desktop stack is variable-length; AVR has 16 fixed slots.</p>
+<h2 id="accounting">Accounting</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">vmem.total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes handed out by the main arena.</td></tr><tr><td><code class="inline">vmem.peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>High-water mark of the main arena.</td></tr><tr><td><code class="inline">vmem.peak_reset()</code></td><td><code class="inline">Int64</code></td><td>Reset the high-water mark.</td></tr><tr><td><code class="inline">vmem.commit_total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes in the commit arena.</td></tr><tr><td><code class="inline">vmem.commit_peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>Commit-arena high-water mark.</td></tr><tr><td><code class="inline">vmem.stream_total_allocated()</code></td><td><code class="inline">Int64</code></td><td>Bytes in the <code class="inline">@streamed</code> pinned arena.</td></tr><tr><td><code class="inline">vmem.stream_peak_allocated()</code></td><td><code class="inline">Int64</code></td><td>Pinned-arena high-water mark.</td></tr><tr><td><code class="inline">vmem.stream_is_pinned()</code></td><td><code class="inline">Bool</code></td><td>Whether the platform actually page-locked the streamed arena.</td></tr><tr><td><code class="inline">vmem.stream_block_count()</code></td><td><code class="inline">Int64</code></td><td>Backing blocks in the pinned arena.</td></tr></tbody></table></div>
+<h2 id="live-state">Live state</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmem.checkpoint_depth()</code></td><td>Current checkpoint depth.</td></tr><tr><td><code class="inline">vmem.checkpoint_capacity()</code></td><td>Maximum depth.</td></tr><tr><td><code class="inline">vmem.checkpoint_remaining()</code></td><td>Free slots.</td></tr><tr><td><code class="inline">vmem.block_count()</code></td><td>Number of arena blocks.</td></tr><tr><td><code class="inline">vmem.current_block_used()</code></td><td>Bytes used in the current block.</td></tr><tr><td><code class="inline">vmem.current_block_capacity()</code></td><td>Capacity of the current block.</td></tr><tr><td><code class="inline">vmem.is_balanced()</code></td><td>Whether the checkpoint stack is balanced.</td></tr><tr><td><code class="inline">vmem.assert_balanced()</code></td><td>Panic if the checkpoint stack is unbalanced.</td></tr></tbody></table></div>
+<h2 id="diagnostics">Diagnostics</h2>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vmem.dump()</code></td><td>Print a human-readable arena summary.</td></tr><tr><td><code class="inline">vmem.stats()</code></td><td>Print counters and block state.</td></tr><tr><td><code class="inline">vmem.reset()</code></td><td>Drop all arena storage. Development use only.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong>Caution:</strong> <code class="inline">reset()</code> invalidates every arena-backed value. <code class="inline">total_allocated()</code> is not process RSS; it is arena bookkeeping.</p></div></div>
+<h2 id="verify-a-region-is-flat">Verify a region is flat</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmem;
 
-            <div class="admonition adm-danger">
-              <i class="fas fa-skull-crossbones"></i>
-              <div class="adm-body">
-                <div class="adm-title">reset() is destructive</div>
-                <code class="inline">vmem.reset()</code> frees every arena
-                block. Any VyneValue still pointing into the arena becomes a
-                dangling reference. Do not call it in normal code.
-              </div>
-            </div>
+before <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> vmem.<span class="c-fn">total_allocated</span>();
+
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">1000</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> r {
+        xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>, <span class="c-num">4.0</span>];
+    };
+};
+
+<span class="c-fn">out</span>(<span class="c-str">&quot;drift = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vmem.<span class="c-fn">total_allocated</span>() <span class="c-op">-</span> before));</div></div>
+<p>The result is <code class="inline">0</code> when the region rewinds correctly.</p>
+<h2 id="related-language-operations">Related language operations</h2>
+<p>These are not <code class="inline">vmem</code> methods:</p>
+<ul><li><code class="inline">region.commit(x)</code> / <code class="inline">&lt;region&gt;.commit(x)</code> — deep-clone into the commit arena.</li><li><code class="inline">region.move(x)</code> — zero-copy move for large typed-array payloads.</li><li><code class="inline">drop(x)</code> — early release when the value is the arena tail.</li><li><code class="inline">vmem_runtime_*</code> — internal symbols emitted by codegen; do not call them from Vyne.</li></ul>
+<h2 id="avr">AVR</h2>
+<p>The MCU runtime aliases the same checkpoint/rewind entry points to its single 1 KB arena. <code class="inline">total_allocated</code>, <code class="inline">arena_used</code>, and the bounded counter are available; the richer diagnostics are desktop-oriented.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a href="../pages/regions.html">Memory &amp; Regions</a></li><li><a href="../pages/vcore.html">VCore</a></li><li><a href="../pages/builtins.html">Built-ins</a></li></ul>
 
           </article>
-          <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/vmath.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">VMath</span></a><a class="pager-link next" href="../pages/vglib.html"><span class="pager-label"> Next</span><span class="pager-title">VGLib <i class="fas fa-arrow-right"></i></span></a></nav>
+          <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/vmath.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">VMath</span></a><a class="pager-link next" href="../pages/vfs.html"><span class="pager-label"> Next</span><span class="pager-title">VFS <i class="fas fa-arrow-right"></i></span></a></nav>
           <footer class="page-footer">
-            <span>Vyne v0.0.4 — Language Reference</span>
+            <span>Vyne v0.6.0 — Language Reference</span>
             <a href="../index.html">Back to top</a>
           </footer>
         </main>

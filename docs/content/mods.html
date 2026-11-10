@@ -1,119 +1,68 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Groups &amp; Modules</h1>
-            <p class="lede">
-              Namespacing, imports, and the built-in module system.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Groups &amp; Modules</h1>
+<p class="lede">Namespacing with groups, importing native and external modules, and how the linker resolves source files.</p>
+<h2 id="groups">Groups</h2>
+<p><code class="inline">group</code> namespaces functions and constants without introducing a new type.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">group</span> <span class="c-ty">Geometry</span> {
+    <span class="c-kw">const</span> <span class="c-ty">TAU</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">6.283185307179586</span>;
 
-            <h2 id="module-declaration">module — pull in a built-in</h2>
-            <p>
-              Every built-in library must be declared before use. A
-              <code class="inline">module</code> statement brings its names into
-              scope.
-            </p>
+    <span class="c-kw">fn</span> <span class="c-fn">area_of_circle</span>(r <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+        <span class="c-kw">return</span> r <span class="c-op">*</span> r <span class="c-op">*</span> <span class="c-ty">Geometry</span>.<span class="c-ty">TAU</span> <span class="c-op">/</span> <span class="c-num">2.0</span>;
+    }
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">modules.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">module</span> vcore;
-<span class="c-kw">module</span> vmath;
+<span class="c-fn">out</span>(<span class="c-ty">Geometry</span>.<span class="c-fn">area_of_circle</span>(<span class="c-num">2.0</span>));</div></div>
+<p>Groups may be nested inside interfaces and modules. A group can also bind to a module namespace, which is how libraries organize <code class="inline">Types</code>, <code class="inline">Kernels</code>, and <code class="inline">Ops</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">group</span> <span class="c-op">::</span> vlin <span class="c-ty">Types</span> {
+    <span class="c-kw">interface</span> <span class="c-ty">Matrix</span> {
+        row  <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+        col  <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+        data <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>,
+    }
+}</div></div>
+<h2 id="modules">Modules</h2>
+<p>A <code class="inline">module</code> declaration makes a named module available in the current file. The current spelling for compiler-provided modules is <code class="inline">use native</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vcore;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vfs;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmem;
+<span class="c-kw">use</span> <span class="c-kw">native</span> arduino;   <span class="c-com"># AVR target only</span></div></div>
+<p>The older form is still accepted:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">module</span> vmath;
+<span class="c-kw">module</span> vmem;</div></div>
+<p>Use one form consistently. <code class="inline">use native</code> is what the current examples use.</p>
+<h2 id="importing-source-files">Importing source files</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-str">&quot;helpers.vy&quot;</span>;              <span class="c-com"># sibling source file</span>
+<span class="c-kw">use</span> <span class="c-str">&quot;subdir/util.vy&quot;</span>;          <span class="c-com"># relative path</span></div></div>
+<p>A facade library pulls in its leaf modules in dependency order and ends with <code class="inline">deploy</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne/modules/external/vsignal/vsignal.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-str">&quot;Types.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Constructors.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Kernels.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Iir.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Fir.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Windows.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-str">&quot;Resample.vy&quot;</span>;
 
-<span class="c-fn">out</span>(vmath.sqrt(<span class="c-num"
-                  >16.0</span
-                >));</div>
-            </div>
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+<span class="c-kw">module</span> vsignal;
 
-            <h2 id="group-declaration">group — user namespaces</h2>
-            <p>Groups organise related declarations. They can nest.</p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">groups.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">group</span> Physics { gravity <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">9.81</span>;
-
-  <span class="c-kw">group</span> Constants { lightSpeed <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">299792458.0</span>; }; };
-
-<span class="c-fn">out</span>(Physics.gravity);
-<span class="c-fn">out</span>(Physics.Constants.lightSpeed);</div>
-            </div>
-
-            <h2 id="use-import">use — import another file</h2>
-            <p>
-              <code class="inline">use</code> reads a
-              <code class="inline">.vy</code> file and executes it in a fresh
-              module scope. Its top-level bindings become members of a namespace
-              named after the file stem.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">main.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">use</span> <span class="c-str">"./math_utils.vy"</span>;
-
-<span class="c-fn">out</span>(math_utils.double(<span
-                  class="c-num"
-                  >7</span
-                >));</div>
-            </div>
-
-            <p>Or bind under an alias:</p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">main.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">use</span> <span class="c-str">"./math_utils.vy"</span> <span class="c-kw">as</span> m;
-<span class="c-fn">out</span>(m.double(<span class="c-num"
-                  >7</span
-                >));</div>
-            </div>
-
-            <h2 id="use-lib">use lib — external modules</h2>
-            <p>
-              <code class="inline">use lib "..."</code> loads an external module
-              from the install directory. Paths are resolved relative to the
-              <code class="inline">vyne/modules/external/</code> folder in your
-              Vyne installation.
-            </p>
-
-            <h2 id="deploy-dismiss">deploy and dismiss</h2>
-            <p>For lifecycle control of loaded modules:</p>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Statement</th>
-                    <th>Effect</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><code class="inline">deploy name;</code></td>
-                    <td>Marks a module as used; makes its members visible.</td>
-                  </tr>
-                  <tr>
-                    <td><code class="inline">dismiss name;</code></td>
-                    <td>Removes a module from the current scope.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">In practice</div>
-                The compiler resolves all imports at build time.
-                <code class="inline">deploy</code> and
-                <code class="inline">dismiss</code> are mostly relevant when
-                writing tools that load Vyne modules dynamically; for typical
-                programs, <code class="inline">module</code> and
-                <code class="inline">use</code> are all you need.
-              </div>
-            </div>
+<span class="c-kw">deploy</span> vsignal;</div></div>
+<p><code class="inline">deploy &lt;module&gt;;</code> publishes the module surface to consumers. <code class="inline">dismiss</code> removes a binding from the current scope; it is rarely used in application code.</p>
+<h2 id="importing-external-libraries">Importing external libraries</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vlin/vlin.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vstat/vstat.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;voptim/voptim.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;srcnn/model.vy&quot;</span>;   <span class="c-com"># a project-local path is a plain use</span></div></div>
+<p>The <code class="inline">external</code> path is resolved against <code class="inline">vyne/modules/external/</code>. Leaf modules inside a facade are imported relative to that facade. A library may depend on another external library by importing its facade.</p>
+<p>Project dependencies declared in <code class="inline">project.toml</code> are resolved against the same module roots:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;toml snippet</span><span class="code-lang">toml</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="toml">[dependencies]
+vlin = &quot;0.4&quot;
+vstat = &quot;0.2&quot;
+voptim = &quot;0.4&quot;</div></div>
+<h2 id="resolution-order">Resolution order</h2>
+<p>The linker walks the import graph depth-first, resolves each path, and emits modules in topological order. Cycles between source files are detected and reported instead of recursing forever.</p>
+<div class="table-wrap"><table><thead><tr><th>Form</th><th>Resolves against</th></tr></thead><tbody><tr><td><code class="inline">use native &lt;name&gt;</code></td><td>compiler-provided module registry</td></tr><tr><td><code class="inline">use external &quot;lib/facade.vy&quot;</code></td><td><code class="inline">vyne/modules/external/</code></td></tr><tr><td><code class="inline">use &quot;file.vy&quot;</code></td><td>directory of the importing file</td></tr><tr><td><code class="inline">use &quot;dir/file.vy&quot;</code></td><td>relative to the importing file</td></tr></tbody></table></div>
+<h2 id="best-practices">Best practices</h2>
+<ul><li>Import the facade (<code class="inline">vlin/vlin.vy</code>), not individual leaves, unless you are deliberately trimming the compile unit. <code class="inline">vsignal/Spectral.vy</code> is a documented exception: it pulls in <code class="inline">vfft</code> only when you ask for it.</li><li>Keep <code class="inline">ruleset { dynamic_casting };</code> at the top of facades that use untyped declarations. Application code should prefer explicit types.</li><li>Use <code class="inline">group</code> to keep the public surface tidy; use <code class="inline">deploy</code> only in facades.</li></ul>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="libs">Library Overview</a></li><li><a data-page="projects">Projects &amp; Tooling</a></li><li><a data-page="iface">Interfaces</a></li></ul>

@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vrand · Vyne Language Reference</title>
+    <meta name="description" content="Numerical Libraries vrand Continuous and discrete distributions, sampling utilities, and explicit RNG state access. Quick fact Value Module vrand Import use external &quot;vrand/vrand.v" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body data-page="vrand" data-root="../">
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="progress" id="progressBar" aria-hidden="true"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
+    <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-head">
+        <a class="brand" href="../index.html">
+          <span class="brand-badge"><svg class="logo-mark" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="vyneMark" x1="0" y1="0" x2="0.45" y2="1">
+              <stop offset="0" stop-color="#4df0de" />
+              <stop offset="0.5" stop-color="#6cb6ff" />
+              <stop offset="1" stop-color="#b48cff" />
+            </linearGradient>
+          </defs>
+          <rect x="0.5" y="0.5" width="35" height="35" rx="10.5" fill="url(#vyneMark)" />
+          <path d="M9.5 11 L18 24.5 L26.5 11" fill="none" stroke="#080a10" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M13 11 L18 18.8 L23 11" fill="none" stroke="#080a10" stroke-opacity="0.38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span>
+          <span class="brand-text">vyne</span>
+          <span class="brand-version">v0.6.0</span>
+        </a>
+        <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Close navigation">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link" href="../pages/hello.html"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li><li><a class="nav-link" href="../pages/projects.html"><i class="fas fa-folder-tree"></i><span>Projects &amp; Tooling</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions, Generics &amp; Contracts</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/autodiff.html"><i class="fas fa-infinity"></i><span>Automatic Differentiation</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins &amp; Collections</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders"></i><span>Rulesets</span></a></li><li><a class="nav-link" href="../pages/device.html"><i class="fas fa-microchip"></i><span>CUDA &amp; Devices</span></a></li><li><a class="nav-link" href="../pages/arduino.html"><i class="fas fa-microchip"></i><span>Arduino &amp; AVR</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/libs.html"><i class="fas fa-cubes"></i><span>Library Overview</span></a></li><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link" href="../pages/vmem.html"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vfs.html"><i class="fas fa-folder-open"></i><span>VFS</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Numerical Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vlin.html"><i class="fas fa-table-cells-large"></i><span>vlin</span></a></li><li><a class="nav-link" href="../pages/vml.html"><i class="fas fa-network-wired"></i><span>vml</span></a></li><li><a class="nav-link" href="../pages/vfft.html"><i class="fas fa-wave-square"></i><span>vfft</span></a></li><li><a class="nav-link active" href="../pages/vrand.html" aria-current="page"><i class="fas fa-dice"></i><span>vrand</span></a></li><li><a class="nav-link" href="../pages/vstat.html"><i class="fas fa-chart-simple"></i><span>vstat</span></a></li><li><a class="nav-link" href="../pages/vcomplex.html"><i class="fas fa-infinity"></i><span>vcomplex</span></a></li><li><a class="nav-link" href="../pages/vinterp.html"><i class="fas fa-bezier-curve"></i><span>vinterp</span></a></li><li><a class="nav-link" href="../pages/voptim.html"><i class="fas fa-arrow-trend-down"></i><span>voptim</span></a></li><li><a class="nav-link" href="../pages/vsparse.html"><i class="fas fa-braille"></i><span>vsparse</span></a></li><li><a class="nav-link" href="../pages/vdecomp.html"><i class="fas fa-divide"></i><span>vdecomp</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">DSP &amp; Control</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vsignal.html"><i class="fas fa-signal"></i><span>vsignal</span></a></li><li><a class="nav-link" href="../pages/vcontrol.html"><i class="fas fa-sliders"></i><span>vcontrol</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Data &amp; Plotting</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcsv.html"><i class="fas fa-file-csv"></i><span>vcsv</span></a></li><li><a class="nav-link" href="../pages/vjson.html"><i class="fas fa-code"></i><span>vjson</span></a></li><li><a class="nav-link" href="../pages/vtermplot.html"><i class="fas fa-chart-area"></i><span>vtermplot</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Image &amp; Vision</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vimage.html"><i class="fas fa-image"></i><span>vimage</span></a></li><li><a class="nav-link" href="../pages/vconv.html"><i class="fas fa-border-all"></i><span>vconv</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Embedded Buses</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vi2c.html"><i class="fas fa-circle-nodes"></i><span>vi2c</span></a></li><li><a class="nav-link" href="../pages/vspi.html"><i class="fas fa-diagram-project"></i><span>vspi</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Domain Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vbio.html"><i class="fas fa-dna"></i><span>vbio</span></a></li><li><a class="nav-link" href="../pages/vchem.html"><i class="fas fa-flask"></i><span>vchem</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Helpers</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vhelpers.html"><i class="fas fa-toolbox"></i><span>Single-file Helpers</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Showcase</div><ul class="nav-list"><li><a class="nav-link" href="../pages/srcnn.html"><i class="fas fa-trophy"></i><span>SRCNN Image Upscaler</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/cli.html"><i class="fas fa-terminal"></i><span>CLI Reference</span></a></li><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li><li><a class="nav-link" href="../pages/performance.html"><i class="fas fa-gauge-high"></i><span>Performance</span></a></li></ul></div></nav>
+      <div class="sidebar-foot">
+        <span class="dot"></span> Active development
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-toggle" id="menuToggle" aria-label="Open navigation" aria-controls="sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Vyne</a>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-group">Numerical Libraries</span>
+            <span class="crumb-sep">/</span>
+            <b>vrand</b>
+          </nav>
+        </div>
+        <div class="topbar-right">
+          <button class="search-trigger" id="searchTrigger" type="button">
+            <i class="fas fa-magnifying-glass"></i>
+            <span class="search-trigger-text">Search docs…</span>
+            <kbd class="kbd">⌘K</kbd>
+          </button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <main class="content" id="content">
+          <article class="page active">
+            <div class="page-eyebrow">Numerical Libraries</div>
+<h1>vrand</h1>
+<p class="lede">Continuous and discrete distributions, sampling utilities, and explicit RNG state access.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vrand</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vrand/vrand.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vmath</code></td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vrand/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p>Random distributions for Vyne.</p>
+<hr>
+<h2 id="overview">Overview</h2>
+<p><code class="inline">vrand</code> is a pure-Vyne random-variates library. It provides the distributions that numeric, statistical, and machine-learning code reach for first — Gaussian, exponential, gamma, beta, Poisson, binomial, geometric, categorical — plus the sampling utilities (shuffle, reservoir, sample-without-replacement) that pair with them.</p>
+<p>Every function is a <strong>pure function over <code class="inline">vmath</code>'s global PCG32 stream</strong>. There is no per-distribution state, no per-call RNG object, no caching. <code class="inline">vrand.seed(s)</code> and <code class="inline">vmath.seed(s)</code> are the same operation. If you need two independent streams, seed between the phases that should be decorrelated, or pull fresh seeds from <code class="inline">vcore.now_ns()</code>.</p>
+<p>The library is deliberately small. It does not provide multivariate distributions, mixture models, copulas, Markov chains, or any of the other machinery that a statistics library would eventually need. Each of those is its own project. What <code class="inline">vrand</code> provides is the layer underneath: the individual univariate distributions that everything else is built on, written to be read and extended rather than called blindly.</p>
+<hr>
+<h2 id="quick-start">Quick start</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vrand/vrand.vy&quot;</span>;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+vrand.<span class="c-fn">seed</span>(<span class="c-num">42</span>);
+
+<span class="c-com"># Direct sampling.</span>
+x <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> vrand.<span class="c-fn">normal</span>(<span class="c-num">0.0</span>, <span class="c-num">1.0</span>);
+y <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> vrand.<span class="c-fn">exponential</span>(<span class="c-num">2.5</span>);
+k <span class="c-op">::</span> <span class="c-ty">Int64</span>   <span class="c-op">=</span> vrand.<span class="c-fn">poisson</span>(<span class="c-num">3.5</span>);
+b <span class="c-op">::</span> <span class="c-ty">Bool</span>    <span class="c-op">=</span> vrand.<span class="c-fn">bernoulli</span>(<span class="c-num">0.7</span>);
+i <span class="c-op">::</span> <span class="c-ty">Int64</span>   <span class="c-op">=</span> vrand.<span class="c-fn">categorical</span>([<span class="c-num">0.1</span>, <span class="c-num">0.2</span>, <span class="c-num">0.3</span>, <span class="c-num">0.4</span>]);
+
+<span class="c-com"># Bulk sampling into a typed array.</span>
+samples <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">999</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    samples.<span class="c-fn">push</span>(vrand.<span class="c-fn">normal</span>(<span class="c-num">0.0</span>, <span class="c-num">1.0</span>));
+};
+
+<span class="c-com"># Sampling utilities.</span>
+cards <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>, <span class="c-num">4</span>, <span class="c-num">5</span>];
+vrand.<span class="c-fn">shuffle</span>(cards);
+picked <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> vrand.<span class="c-fn">reservoir</span>(cards, <span class="c-num">3</span>);</div></div>
+<p>Nothing in this library mutates its input except the three <code class="inline">shuffle*</code> functions.</p>
+<hr>
+<h2 id="importing">Importing</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vrand/vrand.vy&quot;</span>;</div></div>
+<p><code class="inline">vrand.vy</code> is a facade over four leaf modules:</p>
+<div class="table-wrap"><table><thead><tr><th>Module</th><th>Contents</th></tr></thead><tbody><tr><td><code class="inline">Primitives.vy</code></td><td><code class="inline">seed</code>, <code class="inline">_u</code>, <code class="inline">_u_avoid_zero</code>, <code class="inline">_rand_int</code> — the RNG access layer</td></tr><tr><td><code class="inline">Continuous.vy</code></td><td>Uniform, normal, exponential, lognormal, gamma, beta</td></tr><tr><td><code class="inline">Discrete.vy</code></td><td>Bernoulli, binomial, geometric, Poisson, categorical, discrete uniform</td></tr><tr><td><code class="inline">Sampling.vy</code></td><td>Shuffle, reservoir, sample-without-replacement</td></tr></tbody></table></div>
+<p>You can import the leaf modules directly if you want a subset, but the facade is the recommended entry point. <strong>Do not reorder the <code class="inline">use</code> statements in the facade</strong> — <code class="inline">Primitives.vy</code> must be imported first so its definitions are in the module registry before the others reference them.</p>
+<hr>
+<h2 id="module-layout">Module layout</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vrand/
+├── vrand.vy          # facade: use + deploy
+├── Primitives.vy     # seed, _u, _u_avoid_zero, _rand_int
+├── Continuous.vy     # uniform, normal, exponential, lognormal, gamma, beta
+├── Discrete.vy       # bernoulli, binomial, geometric, poisson, categorical
+└── Sampling.vy       # shuffle, reservoir, sample_without_replacement</div></div>
+<h3 id="layering">Layering</h3>
+<p><code class="inline">vrand</code> sits directly on top of <code class="inline">vmath</code> in a two-tier arrangement:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vrand/                      ← distribution transforms, sampling
+───────────────────────────
+vmath/                      ← PCG32 state, unit-uniform primitives
+───────────────────────────
+Int64 / Float64 arithmetic  ← everything else</div></div>
+<p>The boundary between tiers is one function: <code class="inline">vmath.random_float(0.0, 1.0)</code>, which draws a <code class="inline">Float64</code> uniformly from <code class="inline">[0, 1)</code>. Every distribution in this library is a deterministic transform of a sequence of such draws. <code class="inline">vrand</code> never calls the RNG any other way.</p>
+<hr>
+<h2 id="the-rng">The RNG</h2>
+<p><code class="inline">vmath</code> provides a PCG32 generator, seeded through <code class="inline">vmath.seed(s)</code>. <code class="inline">vrand.seed(s)</code> forwards to it. The generator has one global state shared by every caller in the process, including the interpreter and any other library that draws from <code class="inline">vmath</code>.</p>
+<p><strong>Implication:</strong> there is no way to have two independent streams within a single process. If your program has one phase that should be reproducible (weight initialization) and another that should not (dropout masking), seed before each phase with a different constant, and accept that they advance the same stream.</p>
+<p>A future version will expose a <code class="inline">Rand</code> struct that carries its own state, once the runtime provides native bitwise operations (needed to reimplement PCG32 in Vyne). See <strong>Roadmap</strong>.</p>
+<hr>
+<h2 id="reference-semantics-and-the-memory-model">Reference semantics and the memory model</h2>
+<h3 id="every-function-is-a-pure-function-over-the-rng">Every function is a pure function over the RNG</h3>
+<p>No distribution carries state. <code class="inline">vrand.normal(mu, sigma)</code> reads from the global stream, computes a value, and returns it. Two calls with the same arguments produce different values because the stream advances between them.</p>
+<h3 id="seeding-is-process-global">Seeding is process-global</h3>
+<p><code class="inline">vrand.seed(s)</code> and <code class="inline">vmath.seed(s)</code> both write to the same global. Seeding from one place in the program affects every subsequent draw from every other place. If you want a phase to be reproducible, seed immediately before the phase and do not draw from the RNG between the seed and the phase.</p>
+<h3 id="what-allocates">What allocates</h3>
+<p>Only three functions allocate on the arena:</p>
+<ul><li><code class="inline">vrand.normal_pair</code> returns an <code class="inline">Array&lt;Float64&gt;</code> of length 2.</li><li><code class="inline">vrand.reservoir</code> returns an <code class="inline">Array</code> of length <code class="inline">k</code>.</li><li><code class="inline">vrand.sample_without_replacement</code> returns an <code class="inline">Array</code> of length <code class="inline">k</code>.</li></ul>
+<p>Every other function returns a scalar (<code class="inline">Float64</code>, <code class="inline">Int64</code>, <code class="inline">Bool</code>) or mutates its array argument in place. The <code class="inline">shuffle*</code> functions use the input array's own storage and allocate nothing.</p>
+<p>Inside a training or sampling loop, wrap the body in a <code class="inline">vmem</code> region to bound the memory used by the three allocating functions. The scalar distributions need no checkpointing — they allocate nothing.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">module</span> vmem;
+
+<span class="c-kw">through</span> iter <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    cp <span class="c-op">=</span> vmem.<span class="c-fn">checkpoint</span>();
+    xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+    <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">999</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+        xs.<span class="c-fn">push</span>(vrand.<span class="c-fn">normal</span>(<span class="c-num">0.0</span>, <span class="c-num">1.0</span>));
+    };
+    vmem.<span class="c-fn">rewind</span>(cp);
+};</div></div>
+<hr>
+<h2 id="api-reference">API reference</h2>
+<h3 id="seeding">Seeding</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vrand.<span class="c-fn">seed</span>(s <span class="c-op">::</span> <span class="c-ty">Int64</span>)</div></div>
+<p>Seeds the global PCG32 stream. Same operation as <code class="inline">vmath.seed(s)</code>. Returns null.</p>
+<h3 id="continuous-distributions">Continuous distributions</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vrand.<span class="c-fn">uniform</span>(lo <span class="c-op">::</span> <span class="c-ty">Float64</span>, hi <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span>
+vrand.<span class="c-fn">normal</span>(mu <span class="c-op">::</span> <span class="c-ty">Float64</span>, sigma <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span>
+vrand.<span class="c-fn">normal_pair</span>(mu <span class="c-op">::</span> <span class="c-ty">Float64</span>, sigma <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>
+vrand.<span class="c-fn">exponential</span>(rate <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span>
+vrand.<span class="c-fn">lognormal</span>(mu <span class="c-op">::</span> <span class="c-ty">Float64</span>, sigma <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span>
+vrand.<span class="c-fn">gamma</span>(shape <span class="c-op">::</span> <span class="c-ty">Float64</span>, scale <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span>
+vrand.<span class="c-fn">beta</span>(alpha <span class="c-op">::</span> <span class="c-ty">Float64</span>, beta_param <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span></div></div>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Mean</th><th>Variance</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">uniform</code></td><td><code class="inline">(lo+hi)/2</code></td><td><code class="inline">(hi-lo)²/12</code></td><td>Returns <code class="inline">lo</code> when <code class="inline">hi &lt;= lo</code>.</td></tr><tr><td><code class="inline">normal</code></td><td><code class="inline">mu</code></td><td><code class="inline">sigma²</code></td><td>Box-Muller; discards second sample.</td></tr><tr><td><code class="inline">normal_pair</code></td><td><code class="inline">mu</code></td><td><code class="inline">sigma²</code></td><td>Returns both samples as a 2-element array.</td></tr><tr><td><code class="inline">exponential</code></td><td><code class="inline">1/rate</code></td><td><code class="inline">1/rate²</code></td><td>Returns <code class="inline">0</code> for <code class="inline">rate &lt;= 0</code>.</td></tr><tr><td><code class="inline">lognormal</code></td><td>(see notes)</td><td>(see notes)</td><td>Parameters are those of the underlying normal.</td></tr><tr><td><code class="inline">gamma</code></td><td><code class="inline">shape*scale</code></td><td><code class="inline">shape*scale²</code></td><td>Marsaglia-Tsang. Returns <code class="inline">0</code> for non-positive parameters.</td></tr><tr><td><code class="inline">beta</code></td><td><code class="inline">α/(α+β)</code></td><td>(see standard ref)</td><td>Ratio of two gammas.</td></tr></tbody></table></div>
+<p>Lognormal mean is <code class="inline">exp(mu + sigma²/2)</code>, variance is <code class="inline">(exp(sigma²) - 1) * exp(2*mu + sigma²)</code>.</p>
+<h3 id="discrete-distributions">Discrete distributions</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vrand.<span class="c-fn">bernoulli</span>(p <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vrand.<span class="c-fn">binomial</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>, p <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vrand.<span class="c-fn">geometric</span>(p <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vrand.<span class="c-fn">poisson</span>(rate <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vrand.<span class="c-fn">categorical</span>(probs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vrand.<span class="c-fn">discrete_uniform</span>(lo <span class="c-op">::</span> <span class="c-ty">Int64</span>, hi <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Support</th><th>Mean</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">bernoulli</code></td><td><code class="inline">{false, true}</code></td><td><code class="inline">p</code> (as 0/1)</td><td><code class="inline">p</code> clamped to <code class="inline">[0, 1]</code>.</td></tr><tr><td><code class="inline">binomial</code></td><td><code class="inline">0..n</code></td><td><code class="inline">n*p</code></td><td>Sum of <code class="inline">n</code> Bernoullis; O(n).</td></tr><tr><td><code class="inline">geometric</code></td><td><code class="inline">1, 2, 3, ...</code></td><td><code class="inline">1/p</code></td><td>Trials until first success, inclusive.</td></tr><tr><td><code class="inline">poisson</code></td><td><code class="inline">0, 1, 2, ...</code></td><td><code class="inline">rate</code></td><td>Knuth for <code class="inline">rate ≤ 30</code>; normal approximation above.</td></tr><tr><td><code class="inline">categorical</code></td><td><code class="inline">0..k-1</code></td><td>(from probs)</td><td>Linear scan; O(k).</td></tr><tr><td><code class="inline">discrete_uniform</code></td><td><code class="inline">[lo, hi]</code></td><td><code class="inline">(lo+hi)/2</code></td><td>Inclusive on both ends.</td></tr></tbody></table></div>
+<h3 id="sampling-utilities">Sampling utilities</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vrand.<span class="c-fn">shuffle</span>(arr <span class="c-op">::</span> <span class="c-ty">Array</span>)
+vrand.<span class="c-fn">shuffle_f64</span>(arr <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>)
+vrand.<span class="c-fn">shuffle_i64</span>(arr <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>)
+vrand.<span class="c-fn">reservoir</span>(stream <span class="c-op">::</span> <span class="c-ty">Array</span>, k <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Array</span>
+vrand.<span class="c-fn">sample_without_replacement</span>(arr <span class="c-op">::</span> <span class="c-ty">Array</span>, k <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Array</span></div></div>
+<p><code class="inline">shuffle*</code> mutate their argument in place. <code class="inline">reservoir</code> and <code class="inline">sample_without_replacement</code> allocate a new array of length <code class="inline">k</code> and leave their input untouched.</p>
+<p><code class="inline">shuffle</code> works on any element type because it swaps whole <code class="inline">VyneValue</code>s. <code class="inline">shuffle_f64</code> and <code class="inline">shuffle_i64</code> take typed arrays and use the native element path, so the swaps are direct <code class="inline">double</code> or <code class="inline">int64_t</code> loads with no boxing.</p>
+<hr>
+<h2 id="worked-example">Worked example</h2>
+<p>Estimate the mean of each distribution empirically and confirm that the sampler is unbiased.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vrand/vrand.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+vrand.<span class="c-fn">seed</span>(<span class="c-num">42</span>);
+
+<span class="c-ty">N</span> <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">10000</span>;
+
+<span class="c-com"># ---- Normal(5, 2) ----</span>
+xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { xs.<span class="c-fn">push</span>(vrand.<span class="c-fn">normal</span>(<span class="c-num">5.0</span>, <span class="c-num">2.0</span>)); };
+
+sum <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">0.0</span>;
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { sum <span class="c-op">=</span> sum <span class="c-op">+</span> xs[i]; };
+mean <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> sum <span class="c-op">/</span> <span class="c-fn">float64</span>(<span class="c-ty">N</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;Normal(5, 2) empirical mean  = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(mean));
+<span class="c-fn">out</span>(<span class="c-str">&quot;              expected        = 5.0&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+
+<span class="c-com"># ---- Exponential(2) ----</span>
+ys <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">=</span> [];
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { ys.<span class="c-fn">push</span>(vrand.<span class="c-fn">exponential</span>(<span class="c-num">2.0</span>)); };
+
+sum <span class="c-op">=</span> <span class="c-num">0.0</span>;
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { sum <span class="c-op">=</span> sum <span class="c-op">+</span> ys[i]; };
+<span class="c-fn">out</span>(<span class="c-str">&quot;Exp(2) empirical mean        = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(sum <span class="c-op">/</span> <span class="c-fn">float64</span>(<span class="c-ty">N</span>)));
+<span class="c-fn">out</span>(<span class="c-str">&quot;       expected              = 0.5&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+
+<span class="c-com"># ---- Poisson(3.5) ----</span>
+total <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">0</span>;
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> { total <span class="c-op">=</span> total <span class="c-op">+</span> vrand.<span class="c-fn">poisson</span>(<span class="c-num">3.5</span>); };
+<span class="c-fn">out</span>(<span class="c-str">&quot;Poisson(3.5) empirical mean  = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(<span class="c-fn">float64</span>(total) <span class="c-op">/</span> <span class="c-fn">float64</span>(<span class="c-ty">N</span>)));
+<span class="c-fn">out</span>(<span class="c-str">&quot;             expected        = 3.5&quot;</span>);</div></div>
+<p>The same program also works with any distribution in the table. Compare the &quot;empirical&quot; and &quot;expected&quot; columns to check that a new distribution is correct.</p>
+<hr>
+<h2 id="limitations">Limitations</h2>
+<h3 id="power-of-two-restrictions-do-not-apply">Power-of-two restrictions do not apply</h3>
+<p><code class="inline">vrand</code> does not have any power-of-two restrictions. Every function works for arbitrary parameter values. <code class="inline">normal</code>, <code class="inline">exponential</code>, <code class="inline">gamma</code>, <code class="inline">beta</code> all accept real-valued parameters.</p>
+<h3 id="single-global-rng-stream">Single global RNG stream</h3>
+<p>Documented above under <strong>The RNG</strong>. Two independent streams require a runtime change (native bitwise ops and a state-carrying RNG type) that is not present in 0.1.0.</p>
+<h3 id="binomial-is-o-n"><code class="inline">binomial</code> is O(n)</h3>
+<p>The sum-of-Bernoullis implementation is fine for <code class="inline">n</code> up to a few hundred. For <code class="inline">n</code> in the thousands, use <code class="inline">normal(n*p, sqrt(n*p*(1-p)))</code> directly and round. The library does not switch automatically because the normal approximation has a subtle tail behaviour that the caller should opt into rather than receive silently.</p>
+<h3 id="poisson-uses-a-coarse-normal-approximation-above-rate-30"><code class="inline">poisson</code> uses a coarse normal approximation above <code class="inline">rate = 30</code></h3>
+<p>Same caveat as <code class="inline">binomial</code>. The Knuth algorithm is used below the threshold and produces exact Poisson variates. Above it, the sampler uses the normal approximation with a continuity correction. If you need exact Poisson variates for large <code class="inline">rate</code>, use the PTRS or transformed-rejection algorithm from your own code; those are ten lines each and outside the scope of a first-pass library.</p>
+<h3 id="categorical-is-o-k-per-draw"><code class="inline">categorical</code> is O(k) per draw</h3>
+<p>Linear scan over the probability vector. For <code class="inline">k</code> in the hundreds and draws in the millions, build an alias table. Not built in because the common case — a handful of categories — does not justify the extra surface.</p>
+<h3 id="no-multivariate-distributions">No multivariate distributions</h3>
+<p>No bivariate normal, no Dirichlet, no multinomial, no Wishart. Each requires shape tracking and a per-distribution state; none of them belongs in a first-pass univariate library.</p>
+<h3 id="no-distribution-objects">No distribution objects</h3>
+<p>There is no <code class="inline">Normal(mu, sigma)</code> object. Every call passes parameters explicitly. This is a deliberate choice: it keeps the surface flat, avoids a <code class="inline">Types</code> group with one-member interfaces, and matches the style of every other library in the ecosystem.</p>
+<h3 id="the-underlying-rng-is-pcg32">The underlying RNG is PCG32</h3>
+<p>Adequate for Monte Carlo, weight initialization, and simulation. Not adequate for cryptographic use. Do not use <code class="inline">vrand.seed</code> to derive keys or tokens.</p>
+<hr>
+<h2 id="design-notes">Design notes</h2>
+<h3 id="why-vrand-is-stateless">Why <code class="inline">vrand</code> is stateless</h3>
+<p>Every distribution is a pure function over the global stream. This is the same pattern <code class="inline">vjson</code>'s parser uses — a <code class="inline">Parser</code> value passed explicitly through every helper — with one twist: the RNG state is global rather than explicit, because <code class="inline">vmath</code> cannot expose it as an opaque handle. If <code class="inline">vmath</code> ever gains a state-carrying type, <code class="inline">vrand</code> will grow optional <code class="inline">state</code> parameters on each distribution and keep the current form as sugar for the default stream.</p>
+<p>The stateless design has one clear benefit: the source reads top to bottom with no hidden state to track. A call to <code class="inline">vrand.normal(0, 1)</code> has no side effects beyond advancing the global stream.</p>
+<h3 id="why-box-muller-and-not-ziggurat">Why Box-Muller and not Ziggurat</h3>
+<p>Box-Muller requires one <code class="inline">log</code>, one <code class="inline">sqrt</code>, and one <code class="inline">cos</code>/<code class="inline">sin</code> per sample. Ziggurat requires a precomputed table and a rejection loop, and is roughly 2× faster in C. Neither the table nor the loop is currently easy to express in Vyne — the table is an <code class="inline">Array&lt;Float64&gt;</code> that would need to be built at program start, and the rejection loop is fine but the extra state does not pay for itself at the sample counts <code class="inline">vrand</code> targets.</p>
+<p>If you are generating billions of normal variates, replace <code class="inline">vrand.normal</code> with a Ziggurat in user code. The correctness test — <code class="inline">forward -&gt; sample -&gt; histogram -&gt; check</code> — is the same.</p>
+<h3 id="why-gamma-and-beta-are-grouped-with-continuous">Why <code class="inline">gamma</code> and <code class="inline">beta</code> are grouped with continuous</h3>
+<p>They are not natural companions of <code class="inline">normal</code> in any mathematical sense, but they are all called with <code class="inline">Float64</code> parameters, they all return <code class="inline">Float64</code>, and they all share the same helper (<code class="inline">normal</code> for the envelope, <code class="inline">_u_avoid_zero</code> for the clamps). Keeping them in <code class="inline">Continuous.vy</code> puts the arithmetic in one file.</p>
+<h3 id="why-no-distribution-objects">Why no distribution objects</h3>
+<p>An object-shaped API — <code class="inline">n = vrand.Normal(0, 1); x = n.sample();</code> — would be idiomatic in Python and expected in a stats library. In Vyne 0.1.0 it would require an interface with a state field, a per-instance storage allocation, and a method dispatch through <code class="inline">vyne_struct_call</code> on every draw. That is three times the cost per sample for zero functional benefit.</p>
+<p>The library gives you distribution <em>functions</em>. If you want object shape, wrap them in your own interface.</p>
+<h3 id="why-the-codegen-uses-float64-even-for-functions-that-return-vynevalue">Why the codegen uses <code class="inline">-&gt; Float64</code> even for functions that return <code class="inline">VyneValue</code></h3>
+<p><code class="inline">vrand</code> declares <code class="inline">-&gt; Float64</code> on every continuous distribution. This is a type annotation for the compiler, not a C ABI constraint. The generated C function still returns <code class="inline">VyneValue</code>; the annotation only tells the emitter what the returned value's type is, so that a subsequent operation on the result can take the fast path.</p>
+<h3 id="why-u-is-a-function-even-though-it-is-one-line">Why <code class="inline">_u()</code> is a function even though it is one line</h3>
+<p>The helper exists so the transform from <code class="inline">vmath.random_float(0, 1)</code> to <code class="inline">Float64</code> is written once. Without it, every distribution would write <code class="inline">float64(vmath.random_float(0.0, 1.0))</code> inline, and any change to the underlying primitive would touch every call site. The extra function call is a few nanoseconds; the maintainability is worth it.</p>
+<hr>
+<h2 id="roadmap">Roadmap</h2>
+<h3 id="rand-state-type"><code class="inline">Rand</code> state type</h3>
+<p>A <code class="inline">Rand</code> interface carrying its own PCG32 state, with <code class="inline">rand.seed(s)</code> and per-distribution methods that draw from that state rather than the global stream. Blocked on a runtime change: the state needs to be stored as an opaque handle or as two <code class="inline">Int64</code>s with bitwise primitives available in the language. Once the runtime exposes either, this becomes a two-file addition.</p>
+<h3 id="additional-distributions">Additional distributions</h3>
+<p>Gamma variants (inverse-gamma, chi-squared), Dirichlet, multinomial, Student-t, Fisher-F, Weibull, Pareto, von Mises. Each is a small addition once a caller needs it. Not built speculatively.</p>
+<h3 id="bulk-sample-api">Bulk sample API</h3>
+<p><code class="inline">vrand.sample_into(distribution_id, params, output_array)</code> for generating large batches without the per-call boxing overhead of returning a <code class="inline">VyneValue</code>. Would require a <code class="inline">Switch</code> or dispatch table in Vyne, which does not currently exist. Blocked on a language feature.</p>
+<h3 id="alias-table-for-categorical">Alias table for <code class="inline">categorical</code></h3>
+<p>For <code class="inline">k &gt; 64</code> and hot calls. Standard Vose's algorithm, ~30 lines. Deferred until a caller needs it.</p>
+<h3 id="ziggurat-for-normal">Ziggurat for <code class="inline">normal</code></h3>
+<p>For callers generating millions of normals per second. Requires a precomputed table built at first use. Deferred.</p>
+<h3 id="vrand-binomial-normal-approximation-switch"><code class="inline">vrand.binomial</code> normal approximation switch</h3>
+<p>Automatically switch to the normal approximation above <code class="inline">n*p &gt; 30</code>. Currently the caller decides. Adding the threshold would require a heuristic that is not obvious, and the current explicit design is documented.</p>
+<hr>
+<h2 id="version-history">Version history</h2>
+<p><strong>0.1.0</strong> — initial release. <code class="inline">Primitives</code> (<code class="inline">seed</code>, <code class="inline">_u</code>, <code class="inline">_u_avoid_zero</code>, <code class="inline">_rand_int</code>), <code class="inline">Continuous</code> (uniform, normal, normal_pair, exponential, lognormal, gamma, beta), <code class="inline">Discrete</code> (bernoulli, binomial, geometric, poisson, categorical, discrete_uniform), <code class="inline">Sampling</code> (shuffle, shuffle_f64, shuffle_i64, reservoir, sample_without_replacement). Single global RNG stream. No state-carrying RNG type.</p>
+
+          </article>
+          <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/vfft.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">vfft</span></a><a class="pager-link next" href="../pages/vstat.html"><span class="pager-label"> Next</span><span class="pager-title">vstat <i class="fas fa-arrow-right"></i></span></a></nav>
+          <footer class="page-footer">
+            <span>Vyne v0.6.0 — Language Reference</span>
+            <a href="../index.html">Back to top</a>
+          </footer>
+        </main>
+
+        <aside class="toc" id="toc" aria-label="On this page">
+          <div class="toc-inner">
+            <div class="toc-title">On this page</div>
+            <ul class="toc-list" id="tocList"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="palette" id="palette" hidden>
+      <div class="palette-backdrop" data-close></div>
+      <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search documentation">
+        <div class="palette-input-wrap">
+          <i class="fas fa-magnifying-glass"></i>
+          <input id="paletteInput" type="text" placeholder="Search the docs…" autocomplete="off" spellcheck="false" />
+          <kbd class="kbd">esc</kbd>
+        </div>
+        <ul class="palette-results" id="paletteResults"></ul>
+        <div class="palette-foot">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> open</span>
+          <span><kbd>esc</kbd> close</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top">
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/app.js"></script>
+  </body>
+</html>

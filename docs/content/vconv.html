@@ -1,0 +1,53 @@
+<div class="page-eyebrow">Image &amp; Vision</div>
+<h1>vconv</h1>
+<p class="lede">CPU square-kernel convolution, activations, pixel shuffle, backward kernels, and weight bundles.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vconv</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vconv/vconv.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vimage</code> for the SR pipeline</td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vconv/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p><code class="inline">vconv</code> is the numerical core of the image-super-resolution path. It is a CPU implementation of square-kernel convolution with stride and zero padding, the common activations, ESPCN pixel shuffle, a weight-bundle loader, and explicit backward kernels for training. The loops live in <code class="inline">vyne/runtime/modules/vconv.h</code>; this library is the typed wrapper.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vconv/vconv.vy&quot;</span>;
+
+x <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span> <span class="c-op">:=</span> vconv.<span class="c-fn">tensor</span>(pixels, height, width, channels);
+y <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span> <span class="c-op">:=</span> vconv.<span class="c-fn">conv2d</span>(x, weights, bias, <span class="c-num">64</span>, <span class="c-num">5</span>, <span class="c-num">1</span>, <span class="c-num">2</span>);
+y <span class="c-op">=</span> vconv.<span class="c-fn">tanh</span>(y);
+y <span class="c-op">=</span> vconv.<span class="c-fn">pixel_shuffle</span>(y, <span class="c-num">2</span>);</div></div>
+<h2 id="layout">Layout</h2>
+<p>Tensors are <strong>HWC</strong>, the same layout as <code class="inline">vimage.Image</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">index = (y * width + x) * channels + c</div></div>
+<p>Conv weights use PyTorch's <strong>OIHW</strong> order:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">index = (((oc * in_c) + ic) * kernel + ky) * kernel + kx</div></div>
+<p>That means a <code class="inline">torch.nn.Conv2d</code> state dict exports without a transpose. Bias is a length-<code class="inline">out_channels</code> vector.</p>
+<h2 id="api">API</h2>
+<h3 id="construction">Construction</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vconv.tensor(data, h, w, c)</code></td><td>wrap an HWC buffer (no copy)</td></tr><tr><td><code class="inline">vconv.zeros(h, w, c)</code></td><td>zero-filled tensor</td></tr></tbody></table></div>
+<h3 id="layers">Layers</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">vconv.conv2d(input, weight, bias, out_c, kernel, stride, pad)</code></td><td>conv2d, optional bias</td></tr><tr><td><code class="inline">vconv.relu(input)</code></td><td><code class="inline">max(0, x)</code></td></tr><tr><td><code class="inline">vconv.leaky_relu(input, alpha)</code></td><td>leaky ReLU</td></tr><tr><td><code class="inline">vconv.tanh(input)</code></td><td>tanh</td></tr><tr><td><code class="inline">vconv.sigmoid(input)</code></td><td>logistic</td></tr><tr><td><code class="inline">vconv.pixel_shuffle(input, scale)</code></td><td>ESPCN depth-to-space</td></tr></tbody></table></div>
+<p>Output shape for convolution:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">out_h = (in_h + 2*pad - kernel) / stride + 1
+out_w = (in_w + 2*pad - kernel) / stride + 1</div></div>
+<p><code class="inline">pixel_shuffle</code> requires <code class="inline">channels % scale^2 == 0</code> and maps <code class="inline">input[y][x][c*scale^2 + i*scale + j]</code> to <code class="inline">output[y*scale + i][x*scale + j][c]</code>.</p>
+<h3 id="backward-training">Backward (training)</h3>
+<div class="table-wrap"><table><thead><tr><th>Function</th><th>Result</th></tr></thead><tbody><tr><td><code class="inline">conv_backward_input(grad, weight, in_h, in_w, in_c, k, stride, pad)</code></td><td>gradient w.r.t. the input</td></tr><tr><td><code class="inline">conv_backward_weight(input, grad, k, stride, pad)</code></td><td>gradient w.r.t. the OIHW weight</td></tr><tr><td><code class="inline">conv_backward_bias(grad)</code></td><td>gradient w.r.t. the bias</td></tr><tr><td><code class="inline">relu_backward(grad, pre_activation)</code></td><td>ReLU mask applied to an upstream gradient</td></tr></tbody></table></div>
+<p><code class="inline">weight</code> in <code class="inline">conv_backward_input</code> is passed as an <code class="inline">Array</code> so the wrapper stays outside the native-array ABI.</p>
+<p><code class="inline">vconv.load_model(path)</code> reads a bundle into a <code class="inline">Map</code> of <code class="inline">name -&gt; Array&lt;Float64&gt;</code>. Two formats are accepted:</p>
+<p><strong>Binary <code class="inline">.vwy</code></strong> (preferred):</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">&quot;VYW1&quot;
+u32 tensor_count
+repeat:
+  u32 name_length, u8[] name
+  u32 ndim, u32[] dims
+  f32[] values</div></div>
+<p><strong>Text <code class="inline">.vwt</code></strong> (fixtures and hand editing):</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">VYWT1
+&lt;tensor_count&gt;
+&lt;name&gt; &lt;ndim&gt; &lt;d0&gt; &lt;d1&gt; ... &lt;values...&gt;</div></div>
+<p><code class="inline">vconv.get_tensor(model, name)</code> throws when a tensor is absent or empty. <code class="inline">scripts/export_espcn_weights.py</code> converts a PyTorch ESPCN checkpoint to <code class="inline">.vwy</code> and also writes the deterministic passthrough model used by the example.</p>
+<h2 id="shape-validation">Shape validation</h2>
+<p><code class="inline">conv2d</code>, <code class="inline">tensor</code>, <code class="inline">pixel_shuffle</code>, and the activation wrappers check shapes before touching the kernel and throw a Vyne error on a mismatch. The native functions themselves return an empty array on invalid input, so the wrapper is the only place a caller needs to reason about.</p>
+<h2 id="limits">Limits</h2>
+<ul><li><code class="inline">vconv.conv2d</code> is CPU. The <code class="inline">@device</code> backend now has <code class="inline">device_conv2d</code>; the SR project uses it for full-device inference, while <code class="inline">vconv</code> itself does not auto-dispatch. Training uses the CPU backward kernels.</li><li>Backward is CPU-only and covers the square-kernel stride/pad cases above.</li><li>No dilation or groups yet.</li><li>Naive direct convolution. It is fast enough for the ESPCN demo on modest images, not for real-time 1080p-&gt;4K.</li></ul>
+<h2 id="tests">Tests</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;bash snippet</span><span class="code-lang">bash</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="bash">./vynec --compile examples/test/vconv_test.vy
+./examples/test/vconv_test</div></div>
+<p>The test covers single- and multi-channel convolution, padding, stride, pixel shuffle, activations, text weight loading, and shape validation.</p>
+<h2 id="backend-support">Backend support</h2>
+<p><code class="inline">vconv</code> is a native runtime module. Use the compiled backend (<code class="inline">vynec --compile</code>). The AST interpreter does not bind the convolution kernels yet; that is tracked with the other native-module interpreter gaps.</p>

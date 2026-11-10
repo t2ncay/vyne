@@ -1,0 +1,52 @@
+<div class="page-eyebrow">Reference</div>
+<h1>CLI Reference</h1>
+<p class="lede">Every vynec command and flag, project discovery, Arduino upload, and benchmark reports.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;text snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="text">vynec &lt;script.vy&gt; [flags]          compile and run
+vynec &lt;mode&gt; &lt;script.vy&gt; [flags]   explicit mode
+vynec build [path]                 build the current project
+vynec run [path]                   build and run the project
+vynec bench [file]                 benchmark project targets
+vynec init [path]                  scaffold a new project</div></div>
+<h2 id="execution-modes">Execution modes</h2>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><em>(none)</em></td><td>Compile and run</td></tr><tr><td><code class="inline">--run</code></td><td>Compile and run</td></tr><tr><td><code class="inline">--ast</code></td><td>Interpret directly; no C emitted</td></tr><tr><td><code class="inline">--verify</code></td><td>Hash-check source, then interpret</td></tr><tr><td><code class="inline">--compile</code></td><td>Emit C and compile a binary; stop</td></tr><tr><td><code class="inline">--emit-c</code></td><td>Write <code class="inline">.vy.c</code>; do not invoke the host compiler</td></tr><tr><td><code class="inline">--emit-asm</code></td><td>Write <code class="inline">.vy.s</code> via the host compiler</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec --ast script.vy
+vynec --compile script.vy
+vynec --emit-c script.vy
+vynec --emit-asm --native script.vy</div></div>
+<h2 id="output-and-codegen">Output and codegen</h2>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">-o &lt;name&gt;</code> / <code class="inline">--out &lt;name&gt;</code></td><td>Set the output binary name</td></tr><tr><td><code class="inline">--native</code></td><td>Add <code class="inline">-march=native</code> to the host compile</td></tr><tr><td><code class="inline">--blas</code></td><td>Lower matched matrix calls to BLAS (desktop only)</td></tr><tr><td><code class="inline">--no-scratch-bounds</code></td><td>Elide generated scratch bounds checks</td></tr><tr><td><code class="inline">--quiet</code></td><td>Suppress notes and warnings</td></tr><tr><td><code class="inline">--strict</code></td><td>Enable strict type checking</td></tr><tr><td><code class="inline">-h</code>, <code class="inline">--help</code></td><td>Show help</td></tr><tr><td><code class="inline">-V</code>, <code class="inline">--version</code></td><td>Show version</td></tr></tbody></table></div>
+<h2 id="arduino">Arduino</h2>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">--arduino &lt;board&gt;</code></td><td>Target Arduino; currently <code class="inline">uno</code></td></tr><tr><td><code class="inline">--arduino-flash</code> / <code class="inline">--flash</code></td><td>Upload the built <code class="inline">.hex</code> with <code class="inline">arduino-cli</code></td></tr><tr><td><code class="inline">--monitor</code></td><td>Open <code class="inline">arduino-cli monitor</code> after flashing</td></tr><tr><td><code class="inline">--port &lt;device&gt;</code> / <code class="inline">--device-port &lt;device&gt;</code></td><td>Serial port, for example <code class="inline">COM3</code></td></tr><tr><td><code class="inline">--baud &lt;rate&gt;</code></td><td>Monitor baud rate; default <code class="inline">115200</code></td></tr><tr><td><code class="inline">--fqbn &lt;string&gt;</code></td><td>Override the board identifier</td></tr></tbody></table></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec --arduino uno sketch.vy
+vynec --arduino uno --flash --monitor --port COM3 sketch.vy</div></div>
+<p><code class="inline">--arduino uno</code> alone produces <code class="inline">.elf</code> and <code class="inline">.hex</code>. <code class="inline">--flash</code> and <code class="inline">--monitor</code> are post-build actions.</p>
+<h2 id="projects">Projects</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec build
+vynec run
+vynec build examples/projects/srcnn
+vynec run examples/projects/srcnn</div></div>
+<p>Without a path, the driver walks up from the current directory until it finds <code class="inline">project.toml</code>, then uses <code class="inline">src/main.vy</code>, then <code class="inline">main.vy</code>. Project configuration is applied before explicit CLI flags, so flags still win.</p>
+<p>See <a data-page="projects">Projects &amp; Tooling</a> for the manifest schema and templates.</p>
+<h2 id="benchmark">Benchmark</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec bench
+vynec bench src/main.vy --warmup 5 --iterations 200
+vynec bench --report build/bench.json</div></div>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">--warmup &lt;n&gt;</code></td><td>Warm-up runs before measuring</td></tr><tr><td><code class="inline">--iterations &lt;n&gt;</code></td><td>Measured runs</td></tr><tr><td><code class="inline">--report &lt;path&gt;</code></td><td>Override the JSON report path</td></tr></tbody></table></div>
+<p>Project benchmarks use <code class="inline">[bench]</code> from <code class="inline">project.toml</code>. Board targets are skipped. Single-file mode writes <code class="inline">&lt;stem&gt;_bench.json</code> next to the source unless <code class="inline">--report</code> is given.</p>
+<h2 id="init">Init</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec init
+vynec init --name demo --kind ml --no-git
+vynec init --help</div></div>
+<div class="table-wrap"><table><thead><tr><th>Flag</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">--name &lt;name&gt;</code></td><td>Project name; suppresses the TUI</td></tr><tr><td><code class="inline">--kind &lt;kind&gt;</code></td><td><code class="inline">blank</code>, <code class="inline">ml</code>, <code class="inline">embedded</code>, <code class="inline">scientific</code>, <code class="inline">sr</code>, <code class="inline">mixed</code></td></tr><tr><td><code class="inline">--targets &lt;list&gt;</code></td><td><code class="inline">desktop</code>, <code class="inline">arduino-uno</code>, <code class="inline">coral</code>, <code class="inline">jetson</code></td></tr><tr><td><code class="inline">--libraries &lt;list&gt;</code></td><td>Comma-separated library names</td></tr><tr><td><code class="inline">--cuda yes|no</code></td><td>Write <code class="inline">[device.cuda]</code></td></tr><tr><td><code class="inline">--license &lt;id&gt;</code></td><td><code class="inline">AGPL-3.0-only</code>, <code class="inline">MIT</code>, <code class="inline">proprietary</code></td></tr><tr><td><code class="inline">--yes</code></td><td>Accept defaults</td></tr><tr><td><code class="inline">--no-tui</code></td><td>Force non-interactive</td></tr><tr><td><code class="inline">--no-git</code></td><td>Skip <code class="inline">git init</code> and the initial commit</td></tr></tbody></table></div>
+<p>Exit codes: <code class="inline">0</code> success, <code class="inline">1</code> cancel, <code class="inline">2</code> non-interactive without a name or a terminal smaller than 80×24, <code class="inline">3</code> <code class="inline">project.toml</code> already exists, <code class="inline">4</code> generation or configuration error.</p>
+<h2 id="exit-codes">Exit codes</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">0</code></td><td>Success</td></tr><tr><td><code class="inline">1</code></td><td>Compilation or runtime error</td></tr><tr><td><code class="inline">2</code></td><td>CLI misuse</td></tr></tbody></table></div>
+<p>Diagnostics go to stderr. Color is enabled only when stdout is a terminal and <code class="inline">NO_COLOR</code> is unset.</p>
+<h2 id="examples">Examples</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec examples/hello.vy
+vynec --compile -o ml examples/training/ml_seq.vy
+vynec --blas --native -o matmul_blas examples/benchmark/matmul_1024_vlin.vy
+vynec --emit-asm --native examples/benchmark/matmul_1024.vy
+vynec --arduino uno --flash --port COM3 examples/arduino/blink.vy</div></div>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="install">Installation</a></li><li><a data-page="projects">Projects &amp; Tooling</a></li><li><a data-page="errcodes">Error Codes</a></li></ul>

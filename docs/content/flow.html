@@ -1,206 +1,74 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Control Flow</h1>
-            <p class="lede">
-              Conditionals, loops, and Vyne's distinctive
-              <code class="inline">through</code> iteration.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Control Flow</h1>
+<p class="lede">Conditionals, while loops, through modes, break/continue, and loop invariants.</p>
+<h2 id="conditionals">Conditionals</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">if</span> x <span class="c-op">&gt;</span> <span class="c-num">0</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;positive&quot;</span>);
+} <span class="c-kw">else</span> <span class="c-kw">if</span> x <span class="c-op">&lt;</span> <span class="c-num">0</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;negative&quot;</span>);
+} <span class="c-kw">else</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;zero&quot;</span>);
+};</div></div>
+<p>Parentheses around the condition are optional. A block always uses braces; there is no single-statement form.</p>
+<h2 id="while-loops">While loops</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">i <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">0</span>;
+<span class="c-kw">while</span> i <span class="c-op">&lt;</span> <span class="c-num">10</span> {
+    <span class="c-fn">out</span>(i);
+    i <span class="c-op">=</span> i <span class="c-op">+</span> <span class="c-num">1</span>;
+};</div></div>
+<p><code class="inline">while (condition) { ... }</code> is also accepted. The condition is evaluated before each iteration; any truthy value continues the loop.</p>
+<h2 id="through-loops"><code class="inline">through</code> loops</h2>
+<p><code class="inline">through</code> is the canonical iteration construct. It takes an optional iterator name, an iterable, an optional arrow, and one of five modes.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-fn">out</span>(i);
+};
 
-            <h2 id="if-statements">if / else</h2>
-            <p>
-              Conditions must be parenthesised. Braces are required for both
-              branches; there is no single-statement form.
-            </p>
+squares <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">10</span> <span class="c-op">-&gt;</span> <span class="c-kw">collect</span> { i <span class="c-op">*</span> i };
+evens   <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">100</span> <span class="c-op">-&gt;</span> <span class="c-kw">filter</span> { i <span class="c-op">%</span> <span class="c-num">2</span> <span class="c-op">==</span> <span class="c-num">0</span> };
+allPos  <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> values <span class="c-op">-&gt;</span> <span class="c-kw">every</span> { i <span class="c-op">&gt;</span> <span class="c-num">0</span> };
+uniq    <span class="c-op">:=</span> <span class="c-kw">through</span> i <span class="c-op">::</span> values <span class="c-op">-&gt;</span> <span class="c-kw">unique</span> { i };</div></div>
+<div class="table-wrap"><table><thead><tr><th>Mode</th><th>Result</th><th>Use</th></tr></thead><tbody><tr><td><code class="inline">loop</code></td><td>none</td><td>side effects only</td></tr><tr><td><code class="inline">collect</code></td><td>array</td><td>map each element to a new value</td></tr><tr><td><code class="inline">filter</code></td><td>array</td><td>keep elements for which the body is true</td></tr><tr><td><code class="inline">every</code></td><td><code class="inline">Bool</code></td><td>true when the body is true for all elements</td></tr><tr><td><code class="inline">unique</code></td><td>array</td><td>keep the first occurrence of each value</td></tr></tbody></table></div>
+<p>A range (<code class="inline">0..9</code>) is inclusive on both ends. Iterating an <code class="inline">Array</code> or <code class="inline">Map</code> walks its elements; map order is unspecified.</p>
+<h2 id="simd-friendly-loops">SIMD-friendly loops</h2>
+<p><code class="inline">through</code> loops are eligible for SIMD lowering when the body is a simple typed-array kernel. The emitter adds <code class="inline">__restrict__</code> pointer annotations, hoists invariant field loads, and checks a relaxed shape-safety condition. You do not write intrinsics; use typed arrays and straightforward indexing:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">scale_in_place</span>(xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>, k <span class="c-op">::</span> <span class="c-ty">Float64</span>) {
+    n <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> xs.<span class="c-fn">size</span>();
+    <span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>n<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+        xs[i] <span class="c-op">=</span> xs[i] <span class="c-op">*</span> k;
+    };
+}</div></div>
+<p>The vectorizer is a performance path, not a semantic change. Keep aliasing out of the loop body if you want the compiler to take it.</p>
+<h2 id="break-and-continue">Break and continue</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">100</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">if</span> i <span class="c-op">==</span> <span class="c-num">3</span> { <span class="c-kw">continue</span>; }
+    <span class="c-kw">if</span> i <span class="c-op">&gt;</span> <span class="c-num">8</span> { <span class="c-kw">break</span>; }
+    <span class="c-fn">out</span>(i);
+};</div></div>
+<p><code class="inline">break</code> leaves the innermost loop; <code class="inline">continue</code> advances to the next iteration. Inside <code class="inline">collect</code> / <code class="inline">filter</code>, <code class="inline">continue</code> skips the current result and <code class="inline">break</code> terminates the derivation early.</p>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong>Loop + region caveat.</strong> A <code class="inline">break</code> or <code class="inline">continue</code> from a loop nested inside a region triggers region-unwind emission for every open region. Keep loops outside regions when the loop can exit early, or use a <code class="inline">while</code> loop with explicit state, until the unwind path is tightened.</p></div></div>
+<h2 id="loop-invariants">Loop invariants</h2>
+<p><code class="inline">@invariant(expr)</code> prefixes a <code class="inline">while</code> or <code class="inline">through ... -&gt; loop</code> body. The expression is checked after every normal iteration, following the &quot;invariant holds after each step&quot; form.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">total <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">0</span>;
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">if.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">if</span> (score <span class="c-op">&gt;=</span> <span class="c-num">90</span>) {
-  <span class="c-fn">out</span>(<span class="c-str">"A"</span>); }
-<span class="c-kw">else if</span> (score <span class="c-op">&gt;=</span> <span class="c-num">80</span>) {
-  <span class="c-fn">out</span>(<span class="c-str">"B"</span>); }
-<span class="c-kw">else</span> {
-  <span class="c-fn">out</span>(<span class="c-str">"C"</span>);
-};</div>
-            </div>
-
-            <h2 id="while-loops">while</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">while.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">i <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">0</span>;
-<span class="c-kw">while</span> (i <span class="c-op">&lt;</span> <span class="c-num">10</span>) {
-  <span class="c-fn">out</span>(i); i<span class="c-op">++</span>;
-};</div>
-            </div>
-
-            <h2 id="through-loops">through — the iteration construct</h2>
-            <p>
-              Vyne's <code class="inline">through</code> is a general iteration
-              primitive that bundles looping with collection production. The
-              syntactic shape is:
-            </p>
-            <pre
-              style="
-                background: var(--bg-code);
-                padding: 1rem;
-                border-radius: 8px;
-                font-family: var(--font-mono);
-                font-size: 0.8rem;
-                color: var(--text-secondary);
-                margin: 1rem 0;
-                overflow-x: auto;
-              "
-            >
-through <em>name</em> :: <em>iterable</em> -&gt; <em>mode</em> { <em>body</em> };</pre
-            >
-            <p>The five modes have distinct semantics:</p>
-
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Mode</th>
-                    <th>Body result used for</th>
-                    <th>Returns</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>loop</td>
-                    <td>—</td>
-                    <td>last body value (rarely used)</td>
-                  </tr>
-                  <tr>
-                    <td>collect</td>
-                    <td>new array element</td>
-                    <td>Array of body results</td>
-                  </tr>
-                  <tr>
-                    <td>filter</td>
-                    <td>keep/discard predicate</td>
-                    <td>Array of kept source elements</td>
-                  </tr>
-                  <tr>
-                    <td>every</td>
-                    <td>predicate, short-circuits on first false</td>
-                    <td>Bool</td>
-                  </tr>
-                  <tr>
-                    <td>unique</td>
-                    <td>—</td>
-                    <td>Array of deduplicated source elements</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h3 id="through-loop">loop</h3>
-            <p>
-              Side effects only. Most common when you want to do something N
-              times.
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">loop.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span
-                ><span class="c-num">5</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
-  <span class="c-fn">out</span>(<span class="c-str"
-                  >"iteration "</span
-                > <span class="c-op">+</span> <span class="c-fn">string</span>(i)); };</div>
-            </div>
-
-            <h3 id="through-collect">collect</h3>
-            <p>
-              Transform each element. The body's value becomes the corresponding
-              output element.
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">collect.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">squares <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> <span class="c-kw">through</span> x <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span
-                ><span class="c-num">5</span> <span class="c-op">-&gt;</span> <span class="c-kw">collect</span> { x <span class="c-op">*</span> x };
-<span class="c-com">// → [1, 4, 9, 16, 25]</span></div>
-            </div>
-
-            <h3 id="through-filter">filter</h3>
-            <p>Keep source elements for which the body is truthy.</p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">filter.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">evens <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> <span class="c-kw">through</span> n <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span
-                ><span class="c-num">10</span> <span class="c-op">-&gt;</span> <span class="c-kw">filter</span> { n <span class="c-op">%</span> <span class="c-num">2</span> <span class="c-op">==</span> <span class="c-num">0</span> };
-<span class="c-com">// → [0, 2, 4, 6, 8, 10]</span></div>
-            </div>
-
-            <h3 id="through-every">every</h3>
-            <p>
-              Does every element satisfy the predicate? Short-circuits at the
-              first false.
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">every.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">allPositive <span class="c-op">::</span> <span class="c-ty">Bool</span> <span class="c-op">=</span> <span class="c-kw">through</span> x <span class="c-op">::</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>] <span class="c-op">-&gt;</span> <span class="c-kw">every</span> { x <span class="c-op">&gt;</span> <span class="c-num">0</span> };
-<span class="c-com">// → true</span></div>
-            </div>
-
-            <h3 id="through-unique">unique</h3>
-            <p>Deduplicate preserving first-seen order.</p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">unique.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">distinct <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> <span class="c-kw">through</span> x <span class="c-op">::</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">1</span>, <span class="c-num">3</span>, <span class="c-num">2</span>] <span class="c-op">-&gt;</span> <span class="c-kw">unique</span> { };
-<span class="c-com">// → [1, 2, 3]</span></div>
-            </div>
-
-            <h2 id="break-continue">break and continue</h2>
-            <p>
-              Both work inside any loop. Both must unwind any live regions on
-              the way out — that happens automatically:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">break.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span
-                ><span class="c-num">100</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
-  <span class="c-kw">region</span> scratch { xs <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [<span class="c-num">1</span>,<span
-                  class="c-num"
-                  >2</span
-                >,<span class="c-num">3</span>]; <span class="c-kw">if</span> (i <span class="c-op">==</span> <span class="c-num">5</span>) {
-      <span class="c-kw">break</span>; }; }; };</div>
-            </div>
-            <div class="admonition adm-danger">
-              <i class="fas fa-ban"></i>
-              <div class="adm-body">
-                <div class="adm-title">
-                  break / continue inside try — not supported
-                </div>
-                You cannot use <code class="inline">break</code> or
-                <code class="inline">continue</code> to exit a
-                <code class="inline">try</code> block. The compiler rejects this
-                with a clear error. Use a flag variable and check it after the
-                try/catch/finally has run.
-              </div>
-            </div>
-
-            <h2 id="ternary">Ternary expression</h2>
-            <p>
-              <code class="inline">cond ? a : b</code> is an expression, not a
-              statement — usable anywhere a value is expected.
-            </p>
+@<span class="c-fn">invariant</span>(total <span class="c-op">&gt;=</span> <span class="c-num">0</span>)
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-num">9</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    total <span class="c-op">=</span> total <span class="c-op">+</span> i;
+};</div></div>
+<p>The same <code class="inline">ruleset { contracts = ... }</code> mode that controls <code class="inline">requires</code> / <code class="inline">ensures</code> controls invariants:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;check&quot;</span> };   <span class="c-com"># assert</span>
+<span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;evidence&quot;</span> }; <span class="c-com"># assert + CSV evidence log</span>
+<span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;off&quot;</span> };     <span class="c-com"># emit nothing</span></div></div>
+<p>A violation halts with <code class="inline">VNE-111</code>. <code class="inline">continue</code> currently jumps to the next iteration before the check runs; restructure the body if that path matters.</p>
+<h2 id="nesting-and-early-exits">Nesting and early exits</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> row <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>rows<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">through</span> col <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span>cols<span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+        <span class="c-kw">if</span> grid[row, col] <span class="c-op">==</span> target {
+            found <span class="c-op">=</span> <span class="c-kw">true</span>;
+            <span class="c-kw">break</span>;
+        };
+    };
+    <span class="c-kw">if</span> found { <span class="c-kw">break</span>; };
+};</div></div>
+<p>There are no labeled loops. To exit multiple levels, carry a flag or move the search into a function and <code class="inline">return</code>.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="expr">Literals &amp; Expressions</a></li><li><a data-page="fn">Functions</a></li><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="errors">Error Handling</a></li></ul>

@@ -1,0 +1,115 @@
+<div class="page-eyebrow">Language Reference</div>
+<h1>Automatic Differentiation</h1>
+<p class="lede">Compiler-generated adjoints with @differentiable, @backward, grad, and custom VJPs.</p>
+<p>Vyne ships a source-to-source reverse-mode AD surface with a working implementation for straight-line <code class="inline">Float64</code> functions and <code class="inline">Array&lt;Float64&gt;</code> reductions. There is no runtime tape interpreter and no per-operation dispatch: the compiler emits a primal function and a companion adjoint.</p>
+<div class="table-wrap"><table><thead><tr><th>Form</th><th>Surface</th><th>Lowers to</th></tr></thead><tbody><tr><td>Function</td><td><code class="inline">@differentiable fn f(x :: Float64) -&gt; Float64 { ... }</code></td><td>primal <code class="inline">fn_f</code> plus <code class="inline">fn_f_grad</code></td></tr><tr><td>Region</td><td><code class="inline">@backward region step { ... backward(l); ... }</code></td><td>a tape scope inside the region; <code class="inline">.grad</code> reads</td></tr><tr><td>Expression</td><td><code class="inline">grad(f, x)</code></td><td>a seeded call to <code class="inline">fn_f_grad</code></td></tr></tbody></table></div>
+<p><code class="inline">@backward</code> is a predicate, not a memory policy. It composes with <code class="inline">@bounded</code>, <code class="inline">@recompute</code>, and <code class="inline">@mixed</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@<span class="c-kw">backward</span>
+@bounded<span class="c-op">&lt;</span><span class="c-num">64_000_000</span><span class="c-op">&gt;</span>
+<span class="c-kw">region</span> train_step {
+    l <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-fn">loss</span>(w, b);
+    <span class="c-kw">backward</span>(l);
+    <span class="c-fn">out</span>(<span class="c-str">&quot;dL/dw = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(w.<span class="c-kw">grad</span>));
+};</div></div>
+<h2 id="expression-form">Expression form</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">native</span> vmath;
+
+@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">f</span>(x <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    a <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> x <span class="c-op">*</span> x;
+    b <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">3.0</span> <span class="c-op">*</span> x;
+    c <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> vmath.<span class="c-fn">sin</span>(x);
+    <span class="c-kw">return</span> a <span class="c-op">+</span> b <span class="c-op">+</span> c;
+}
+
+g <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-kw">grad</span>(f, <span class="c-num">2.0</span>);   <span class="c-com"># 2*2 + 3 + cos(2) ~= 6.583853</span></div></div>
+<p><code class="inline">grad</code> is compiled-backend functionality. The AST interpreter does not evaluate <code class="inline">grad</code> / <code class="inline">backward</code>.</p>
+<h2 id="region-form">Region form</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">loss</span>(w <span class="c-op">::</span> <span class="c-ty">Float64</span>, b <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    z <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> w <span class="c-op">*</span> <span class="c-num">1.0</span> <span class="c-op">+</span> b;
+    p <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">1.0</span> <span class="c-op">/</span> (<span class="c-num">1.0</span> <span class="c-op">+</span> vmath.<span class="c-fn">exp</span>(<span class="c-op">-</span>z));
+    <span class="c-kw">return</span> (p <span class="c-op">-</span> <span class="c-num">0.0</span>) <span class="c-op">*</span> (p <span class="c-op">-</span> <span class="c-num">0.0</span>);
+}
+
+@<span class="c-kw">backward</span>
+@bounded<span class="c-op">&lt;</span><span class="c-num">64_000_000</span><span class="c-op">&gt;</span>
+<span class="c-kw">region</span> train_step {
+    l <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-fn">loss</span>(w, b);
+    <span class="c-kw">backward</span>(l);
+
+    <span class="c-fn">out</span>(<span class="c-str">&quot;dL/dw = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(w.<span class="c-kw">grad</span>));
+    <span class="c-fn">out</span>(<span class="c-str">&quot;dL/db = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(b.<span class="c-kw">grad</span>));
+};</div></div>
+<p>The tape is a set of ordinary C locals inside the region block. It dies at the region rewind, and <code class="inline">@bounded</code> accounts for it like any other region memory.</p>
+<h2 id="array-gradients">Array gradients</h2>
+<p><code class="inline">grad(f, w)</code> returns a fresh <code class="inline">Array&lt;Float64&gt;</code> when <code class="inline">w</code> is an <code class="inline">Array&lt;Float64&gt;</code> parameter. The adjoint lowers each reduction VJP to a loop over the native array storage.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vstat/vstat.vy&quot;</span>;
+
+target <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];
+
+@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">loss</span>(w <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    n <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> w.<span class="c-fn">size</span>();
+    <span class="c-kw">return</span> vstat.<span class="c-fn">k_mse_sum</span>(w, target, n) <span class="c-op">/</span> <span class="c-fn">float64</span>(n);
+}
+
+w <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">1.0</span>, <span class="c-num">1.0</span>];
+gw <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-kw">grad</span>(loss, w);
+<span class="c-com"># gw = [0.0, -0.666667, -1.33333]</span></div></div>
+<p>Recognized reductions and their VJPs (<code class="inline">d</code> is the incoming scalar gradient, <code class="inline">n</code> the array length):</p>
+<div class="table-wrap"><table><thead><tr><th>Primitive</th><th>Result</th><th>VJP</th></tr></thead><tbody><tr><td><code class="inline">mse(a,b)</code> / <code class="inline">k_mse_sum(a,b,n)</code></td><td>mean / sum of squared error</td><td><code class="inline">d_a += 2(a-b)/n * d</code>, <code class="inline">d_b -= ...</code></td></tr><tr><td><code class="inline">mae(a,b)</code> / <code class="inline">k_mae_sum(a,b,n)</code></td><td>mean / sum absolute error</td><td><code class="inline">d_a += sign(a-b)*d/n</code>, <code class="inline">d_b -= ...</code></td></tr><tr><td><code class="inline">dot(a,b)</code> / <code class="inline">k_dot(a,b,n)</code></td><td>dot product</td><td><code class="inline">d_a += b*d</code>, <code class="inline">d_b += a*d</code></td></tr><tr><td><code class="inline">sum(a,n)</code> / <code class="inline">mean(a,n)</code></td><td>sum / mean</td><td><code class="inline">d_a += d</code> / <code class="inline">d_a += d/n</code></td></tr><tr><td><code class="inline">norm_sq(a,n)</code> / <code class="inline">sum_sq(a,n)</code></td><td>squared norm / sum of squares</td><td><code class="inline">d_a += 2a*d</code></td></tr><tr><td><code class="inline">abs_sum(a,n)</code></td><td>sum of absolute values</td><td><code class="inline">d_a += sign(a)*d</code></td></tr></tbody></table></div>
+<p>Array arguments must be plain variables (parameters or read-only globals). Array locals and element-wise array intermediates are deferred. <code class="inline">backward(...)</code> on array parameters is deferred; use <code class="inline">grad(f, x)</code>.</p>
+<h2 id="custom-adjoints">Custom adjoints</h2>
+<p>A function named <code class="inline">&lt;fn&gt;_vjp</code> registers itself as the reverse pass for <code class="inline">&lt;fn&gt;</code>. This is the escape hatch for functions outside the scalar/reduction subset, such as a convolution loss that carries tensor locals.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">g <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">0.0</span>];
+
+<span class="c-kw">fn</span> <span class="c-fn">square_vjp</span>(x <span class="c-op">::</span> <span class="c-ty">Float64</span>) {
+    g[<span class="c-num">0</span>] <span class="c-op">=</span> <span class="c-num">2.0</span> <span class="c-op">*</span> x;
+}
+
+@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">square</span>(x <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    <span class="c-kw">return</span> x <span class="c-op">*</span> x;
+}
+
+@<span class="c-kw">backward</span> <span class="c-kw">region</span> step {
+    loss <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-fn">square</span>(<span class="c-num">3.0</span>);
+    <span class="c-kw">backward</span>(loss);
+};
+
+<span class="c-com"># g[0] == 6.0</span></div></div>
+<p>Rules:</p>
+<ul><li>The name must be exactly <code class="inline">&lt;primal&gt;_vjp</code>; module-qualified names are supported.</li><li>The adjoint's parameters must match the primal's parameter list.</li><li>There is no <code class="inline">d_out</code> parameter: <code class="inline">backward(loss)</code> seeds with <code class="inline">1.0</code>.</li><li>The compiler does not validate the primal body when a custom adjoint exists.</li><li>Gradient storage lives wherever the adjoint puts it (globals, a <code class="inline">Grads</code> object, caller state). <code class="inline">w.grad</code> scalar slots are not extended to array/tensor parameters.</li></ul>
+<p>The <a data-page="srcnn">SRCNN showcase</a> uses this convention: <code class="inline">sr_loss</code> is <code class="inline">@differentiable</code>, and <code class="inline">sr_loss_vjp</code> fills a global <code class="inline">Grads</code> using the explicit <code class="inline">vconv</code> backward kernels.</p>
+<h2 id="what-the-compiler-emits">What the compiler emits</h2>
+<p>For:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">f</span>(x <span class="c-op">::</span> <span class="c-ty">Float64</span>, y <span class="c-op">::</span> <span class="c-ty">Float64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    a <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> x <span class="c-op">*</span> x;
+    b <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> vmath.<span class="c-fn">sin</span>(y);
+    <span class="c-kw">return</span> a <span class="c-op">+</span> b;
+}</div></div>
+<p>the backend emits the primal unchanged and a companion of the form:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;c snippet</span><span class="code-lang">c</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="c">void fn_f_grad(double x, double y, double d_out, double* d_x, double* d_y) {
+    double a = x * x;
+    double b = sin(y);
+
+    double d_x = 0.0, d_y = 0.0, d_a = 0.0, d_b = 0.0;
+    d_a += 1.0 * d_out;
+    d_b += 1.0 * d_out;
+    d_y += cos(y) * d_b;
+    d_x += (1.0 * x + x * 1.0) * d_a;
+
+    *d_x = d_x;
+    *d_y = d_y;
+}</div></div>
+<p>The transformation recomputes primal intermediates, seeds the returned expression, walks assignments in reverse, and publishes input gradients through out-parameters.</p>
+<h2 id="supported-subset">Supported subset</h2>
+<ul><li>Parameters are <code class="inline">Float64</code> scalars or <code class="inline">Array&lt;Float64&gt;</code>. The return type is <code class="inline">Float64</code>.</li><li>The body is a sequence of fresh scalar declarations (<code class="inline">:=</code>) followed by one <code class="inline">return &lt;expr&gt;;</code>.</li><li>Scalar expressions use <code class="inline">+ - * / **</code> and <code class="inline">sin cos exp log sqrt tanh abs relu pow</code>.</li><li>Array values participate through the reduction primitives above.</li><li>Scalar bodies must close over their parameters. Reading a scalar global inside a scalar <code class="inline">@differentiable</code> body is rejected because it is not part of the adjoint signature. Array reductions may read read-only array globals.</li></ul>
+<p>Everything else is rejected with a stable diagnostic instead of producing a wrong gradient:</p>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-120</code></td><td>function outside the supported differentiable subset</td></tr><tr><td><code class="inline">VNE-121</code></td><td>unsupported statement or mutation inside <code class="inline">@differentiable</code></td></tr><tr><td><code class="inline">VNE-122</code>–<code class="inline">VNE-125</code></td><td>unsupported expression or <code class="inline">grad()</code> misuse</td></tr><tr><td><code class="inline">VNE-126</code></td><td><code class="inline">backward()</code> could not resolve the recorded differentiable call</td></tr></tbody></table></div>
+<h2 id="deferred">Deferred</h2>
+<ul><li>Array locals, element-wise array intermediates, matrix/matmul VJPs;</li><li><code class="inline">backward(...)</code> on array parameters (use <code class="inline">grad(f, x)</code>);</li><li>branches, <code class="inline">through</code> / <code class="inline">while</code> loops, loop-carried state;</li><li><code class="inline">@recompute</code> checkpointing and <code class="inline">@mixed</code> precision lowering;</li><li>interpreter execution of <code class="inline">grad</code> / <code class="inline">backward</code>;</li><li>cross-module adjoint discovery beyond the defining translation unit.</li></ul>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="regions">Memory &amp; Regions</a></li><li><a data-page="fn">Functions</a></li><li><a data-page="srcnn">SRCNN Showcase</a></li><li><a data-page="voptim">voptim</a></li></ul>

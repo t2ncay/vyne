@@ -5,26 +5,29 @@
 
 const KEYWORDS = new Set([
   "fn", "interface", "group", "module", "enum", "const", "region", "use",
-  "deploy", "dismiss", "lib", "as", "ruleset",
+  "deploy", "dismiss", "lib", "as", "ruleset", "scratch", "native", "external",
   "if", "else", "while", "through", "loop", "collect", "filter", "every",
   "unique", "break", "continue", "return", "in",
-  "try", "catch", "finally", "throw", "defer",
-  "warnings", "dynamic_casting", "memory_limit",
+  "try", "catch", "finally", "throw", "defer", "drop",
+  "requires", "ensures", "result", "backward", "grad",
+  "warnings", "dynamic_casting", "memory_limit", "type_check",
+  "implicit_casting", "warnings_ignore", "strict", "pedantic", "verbose",
+  "profiling", "debug", "trace", "contracts",
   "true", "false", "null",
   "self", "_err", "_",
 ]);
 
 const OPERATORS = [
   "??=", "|>", "??", "++", "--", ">=", "<=", "==", "!=", "&&", "||",
-  "::", "->", "..", "=>",
-  "+", "-", "*", "/", "%", "=", "<", ">", "?", "!",
+  "::", ":=", "->", "..", "=>", "**", "//", "<<", ">>", "^^",
+  "+", "-", "*", "/", "%", "=", "<", ">", "?", "!", "&", "|", "^", "~", "$",
 ].sort((a, b) => b.length - a.length);
 
 const TOKEN_RE = new RegExp(
   [
-    "(\\/\\/[^\\n]*)", // 1 comment
+    "(\\/\\/[^\\n]*|#[^\\n]*)", // 1 comment
     '("(?:[^"\\\\]|\\\\.)*")', // 2 string
-    "(\\b\\d+(?:\\.\\d+)?\\b)", // 3 number
+    "(\\b0[xX][0-9A-Fa-f_]+\\b|\\b\\d[\\d_]*(?:\\.\\d[\\d_]*)?(?:[eE][+-]?\\d+)?[fF]?\\b)", // 3 number
     "([A-Za-z_][A-Za-z0-9_]*)", // 4 identifier
     `(${OPERATORS.map((o) => o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, // 5 operator
     "(\\s+)", // 6 whitespace

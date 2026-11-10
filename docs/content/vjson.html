@@ -1,0 +1,391 @@
+<div class="page-eyebrow">Data &amp; Plotting</div>
+<h1>vjson</h1>
+<p class="lede">JSON parsing, serialization, validation, and path access.</p>
+<div class="table-wrap"><table><thead><tr><th>Quick fact</th><th>Value</th></tr></thead><tbody><tr><td>Module</td><td><code class="inline">vjson</code></td></tr><tr><td>Import</td><td><code class="inline">use external &quot;vjson/vjson.vy&quot;;</code></td></tr><tr><td>Depends on</td><td><code class="inline">vcore</code></td></tr><tr><td>Status</td><td>Unstable — the public surface may change between releases.</td></tr></tbody></table></div>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Generated reference</div><p>This page is generated from the library's in-repo manual (<code class="inline">vyne/modules/external/vjson/README.md</code>) so signatures and behaviour stay aligned with the source tree. Examples assume a desktop target unless the text says otherwise.</p></div></div>
+<p>JSON parsing and serialization for Vyne.</p>
+<div class="admonition adm-note"><i class="fas fa-circle-info"></i><div class="adm-body"><div class="adm-title">Note</div><p><strong>On the name.</strong> The module is <code class="inline">vjson</code> — four letters, no dot, no other spelling. Earlier drafts of this document referred to the parser entry point as <code class="inline">json.parse</code>, mirroring the Python module of the same name. The source has always used <code class="inline">vjson.parse</code> and the mangled names reflect it. This manual uses <code class="inline">vjson</code> exclusively.</p></div></div>
+<hr>
+<h2 id="contents">Contents</h2>
+<ol><li><a href="#overview">Overview</a></li><li><a href="#quick-start">Quick start</a></li><li><a href="#importing">Importing</a></li><li><a href="#module-layout">Module layout</a></li><li><a href="#the-jsonvalue-convention">The <code class="inline">JsonValue</code> convention</a></li><li><a href="#the-parser-type">The <code class="inline">Parser</code> type</a></li><li><a href="#reference-semantics-and-the-memory-model">Reference semantics and the memory model</a></li><li><a href="#api-reference">API reference</a></li><li><a href="#worked-example">Worked example</a></li><li><a href="#limitations">Limitations</a></li><li><a href="#design-notes">Design notes</a></li><li><a href="#roadmap">Roadmap</a></li><li><a href="#version-history">Version history</a></li></ol>
+<hr>
+<h2 id="overview">Overview</h2>
+<p><code class="inline">vjson</code> is a pure-Vyne JSON parser and serializer. It parses the standard grammar — objects, arrays, strings, numbers, booleans, null — into plain Vyne values, and serializes those values back to text.</p>
+<p>The library is deliberately minimal. It does not support JSON5, JSONC, JSON Lines, or the <code class="inline">BigInt</code> and <code class="inline">OrderedMap</code> extensions that some ecosystems add. It does not preserve key order on round-trip. It does not stream. It does one thing well: it reads a well-formed JSON document into a value tree, and it writes a value tree back out as text that any conforming parser on the planet will accept.</p>
+<p>The serializer is built on <code class="inline">vcore</code>'s string builder rather than the <code class="inline">+</code> operator. Building an N-byte JSON payload by incrementally concatenating strings is O(N²) because every <code class="inline">+</code> allocates a fresh buffer and copies both operands; the string builder amortizes the cost to O(N). The library was the first real consumer of the string builder, and it is the reference case for when a string builder matters.</p>
+<p>The parser is a hand-written recursive descent, one function per grammar production. The <code class="inline">Parser</code> interface carries the input string and a byte cursor; every helper advances the cursor and returns a value. Errors are raised with <code class="inline">throw</code> and carry a message plus the byte offset — the first position the parser could not accept.</p>
+<hr>
+<h2 id="quick-start">Quick start</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vjson/vjson.vy&quot;</span>;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+src <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">&quot;[\{\&quot;name\&quot;:\&quot;vyne\&quot;,\&quot;version\&quot;:1,\&quot;ok\&quot;:true\}]&quot;</span>;
+
+v <span class="c-op">=</span> vjson.<span class="c-fn">parse</span>(src);
+
+<span class="c-fn">out</span>(<span class="c-str">&quot;kind     = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(<span class="c-fn">type</span>(v)));         <span class="c-com"># Array</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;size     = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v.<span class="c-fn">size</span>()));        <span class="c-com"># 1</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;first    = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v[<span class="c-num">0</span>][<span class="c-str">&quot;name&quot;</span>]));    <span class="c-com"># vyne</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;depth    = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">depth</span>(v)));  <span class="c-com"># 3</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;valid    = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">validate</span>(v))); <span class="c-com"># true</span>
+
+round <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> vjson.<span class="c-fn">serialize</span>(v);
+<span class="c-fn">out</span>(round);</div></div>
+<p>Two things are worth flagging in that snippet.</p>
+<p><strong>The <code class="inline">\{</code> escapes.</strong> The Vyne lexer treats any unescaped <code class="inline">{</code> inside a string literal as the start of an interpolation. A JSON payload written directly in source needs every opening brace escaped as <code class="inline">\{</code>, and any embedded <code class="inline">}</code> that would otherwise close an interpolation needs <code class="inline">\}</code>. This is a language-level sharp edge, not a <code class="inline">vjson</code> one; see <a href="#limitations">Limitations</a>. Payloads read from disk with <code class="inline">vfs.read</code> do not need the escaping, and that is the shape real code should take.</p>
+<p><strong>The value is untyped.</strong> <code class="inline">vjson.parse</code> returns a boxed <code class="inline">VyneValue</code>. Its tag is one of the seven JSON-compatible tags — <code class="inline">V_NULL</code>, <code class="inline">V_BOOL</code>, <code class="inline">V_INT64</code>, <code class="inline">V_FLOAT64</code>, <code class="inline">V_STRING</code>, <code class="inline">V_ARRAY</code>, or <code class="inline">V_MAP</code>. There is no <code class="inline">JsonValue</code> struct; the convention is the tag itself. See <a href="#the-jsonvalue-convention">The <code class="inline">JsonValue</code> convention</a>.</p>
+<hr>
+<h2 id="importing">Importing</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vjson/vjson.vy&quot;</span>;</div></div>
+<p><code class="inline">vjson.vy</code> is a facade. It pulls in the leaf modules:</p>
+<div class="table-wrap"><table><thead><tr><th>Module</th><th>Contents</th></tr></thead><tbody><tr><td><code class="inline">Types.vy</code></td><td><code class="inline">Parser</code> interface, type predicates, the JsonValue convention</td></tr><tr><td><code class="inline">Kernels.vy</code></td><td>Character classification, hex decoding, whitespace</td></tr><tr><td><code class="inline">Parse.vy</code></td><td>Recursive-descent parser, error paths</td></tr><tr><td><code class="inline">Serialize.vy</code></td><td>String-builder serializer</td></tr><tr><td><code class="inline">Reductions.vy</code></td><td><code class="inline">validate</code>, <code class="inline">depth</code></td></tr></tbody></table></div>
+<p>You may import individual leaf modules if you want to avoid pulling in the full surface, but the facade is the recommended entry point.</p>
+<hr>
+<h2 id="module-layout">Module layout</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vjson/
+├── vjson.vy           # facade: use + deploy
+├── Types.vy           # Parser interface, type predicates
+├── Kernels.vy         # is_digit, is_hex, is_ws, hex_digit
+├── Parse.vy           # parse, _parse_value, _parse_string, ...
+├── Serialize.vy       # serialize, _serialize_into, _append_*
+└── Reductions.vy      # validate, depth</div></div>
+<h3 id="two-layer-design">Two-layer design</h3>
+<p>Every parse and every serialize is a two-layer composition:</p>
+<ol><li><strong>Kernels</strong> (<code class="inline">Kernels.vy</code>): character-level predicates over single-character strings. <code class="inline">is_digit(c)</code>, <code class="inline">is_hex(c)</code>, <code class="inline">is_ws(c)</code>, <code class="inline">hex_digit(c)</code>. These have no state and no allocation.</li></ol>
+<ol><li><strong>Parse / Serialize</strong>: the grammar productions. <code class="inline">parse</code> is the public entry point; <code class="inline">_parse_value</code> dispatches on the leading character; <code class="inline">_parse_object</code>, <code class="inline">_parse_array</code>, <code class="inline">_parse_string</code>, and <code class="inline">_parse_number</code> handle the four composite forms.</li></ol>
+<p>The split is not for performance — unlike <code class="inline">vlin</code>'s kernel/wrapper split, nothing in the parser is eligible for the native array ABI, because every function takes a <code class="inline">Parser</code> or a <code class="inline">String</code> and the native ABI does not carry either. The split exists because the character predicates are conceptually independent of the parser and are useful in their own right.</p>
+<hr>
+<h2 id="the-jsonvalue-convention">The <code class="inline">JsonValue</code> convention</h2>
+<p>A JSON value is a boxed <code class="inline">VyneValue</code> whose tag is one of:</p>
+<div class="table-wrap"><table><thead><tr><th>Tag</th><th>JSON type</th><th>Notes</th></tr></thead><tbody><tr><td><code class="inline">V_NULL</code></td><td><code class="inline">null</code></td><td></td></tr><tr><td><code class="inline">V_BOOL</code></td><td><code class="inline">true</code> / <code class="inline">false</code></td><td>Stored in <code class="inline">.as.i64</code> as 0 or 1</td></tr><tr><td><code class="inline">V_INT64</code></td><td>number</td><td>Integers that fit in <code class="inline">int64_t</code></td></tr><tr><td><code class="inline">V_FLOAT64</code></td><td>number</td><td>Anything with <code class="inline">.</code>, <code class="inline">e</code>, or <code class="inline">E</code></td></tr><tr><td><code class="inline">V_STRING</code></td><td>string</td><td>UTF-8 bytes, no embedded nulls</td></tr><tr><td><code class="inline">V_ARRAY</code></td><td>array</td><td>Elements are boxed <code class="inline">VyneValue</code>s</td></tr><tr><td><code class="inline">V_MAP</code></td><td>object</td><td>Keys are <code class="inline">String</code>, values are boxed <code class="inline">VyneValue</code>s</td></tr></tbody></table></div>
+<p>Anything else — <code class="inline">V_STRUCT</code>, <code class="inline">V_FUNCTION</code>, <code class="inline">V_MODULE</code>, <code class="inline">V_REFERENCE</code>, <code class="inline">V_F64_ARRAY</code>, <code class="inline">V_I64_ARRAY</code> — is not a valid JSON value. <code class="inline">vjson.serialize</code> rejects it with a <code class="inline">throw</code>; <code class="inline">vjson.validate</code> returns <code class="inline">false</code>.</p>
+<p>There is no dedicated <code class="inline">JsonValue</code> type. The convention is entirely about the runtime tag, and every predicate in <code class="inline">Types.vy</code> is a wrapper around <code class="inline">type(v)</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-op">::</span> vjson <span class="c-fn">is_int</span>(v) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span> { <span class="c-kw">return</span> <span class="c-fn">type</span>(v) <span class="c-op">==</span> <span class="c-str">&quot;Int64&quot;</span>; }</div></div>
+<p>That is not a design compromise; it is the design. A <code class="inline">JsonValue</code> that boxed a <code class="inline">VyneValue</code> inside a struct would add a struct allocation to every parse node for the sole benefit of a nominal type name, and the <code class="inline">type(v)</code> predicate already gives you the same discrimination at the call site.</p>
+<h3 id="integers-versus-floats">Integers versus floats</h3>
+<p>JSON does not distinguish integer and real numbers in its grammar. The parser does, because Vyne does: a number literal with no <code class="inline">.</code>, no <code class="inline">e</code>, and no <code class="inline">E</code> becomes <code class="inline">V_INT64</code>; anything else becomes <code class="inline">V_FLOAT64</code>. This is the same rule the Vyne lexer uses for source literals, and it means a JSON payload that says <code class="inline">1</code> round-trips through <code class="inline">vjson</code> as an <code class="inline">Int64</code>, not as <code class="inline">1.0</code>.</p>
+<p>The distinction is lossy in one direction. <code class="inline">1.0</code> on the wire becomes <code class="inline">V_FLOAT64</code> and serializes back as <code class="inline">1.0</code>, not as <code class="inline">1</code>. That is the correct behavior — the decimal point was on the wire, and re-emitting it preserves the original's intent.</p>
+<p>The <code class="inline">_parse_number</code> function is where this dispatch happens:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">text <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> p.src.<span class="c-fn">substr</span>(start, p.pos <span class="c-op">-</span> start);
+<span class="c-kw">if</span> is_float { <span class="c-kw">return</span> <span class="c-fn">float64</span>(text); }
+<span class="c-kw">return</span> <span class="c-fn">int64</span>(text);</div></div>
+<p><code class="inline">is_float</code> is set when the parser sees <code class="inline">.</code>, <code class="inline">e</code>, or <code class="inline">E</code> during the scan. It is not set by the numeric value — <code class="inline">1e0</code> is a float even though it equals <code class="inline">1</code>.</p>
+<h3 id="strings-and-utf-8">Strings and UTF-8</h3>
+<p>JSON strings are byte sequences. <code class="inline">vjson</code> treats them as such: the parser accumulates bytes into a Vyne <code class="inline">String</code> and does not validate UTF-8, and the serializer emits whatever bytes it is given, escaping only the seven characters that JSON requires (<code class="inline">&quot;</code>, <code class="inline">\</code>, <code class="inline">\n</code>, <code class="inline">\r</code>, <code class="inline">\t</code>, <code class="inline">\b</code>, <code class="inline">\f</code>).</p>
+<p><code class="inline">\uXXXX</code> escapes are handled by <code class="inline">_parse_u_escape</code>, which decodes the four hex digits into a code point and UTF-8 encodes the result via <code class="inline">_utf8_encode</code>. Surrogate pairs — a high surrogate <code class="inline">\uD800..\uDBFF</code> immediately followed by a low surrogate <code class="inline">\uDC00..\uDFFF</code> — are combined into a single code point before encoding. Lone surrogates raise an error rather than emitting an invalid UTF-8 sequence.</p>
+<p>The encoder handles four widths:</p>
+<div class="table-wrap"><table><thead><tr><th>Code point range</th><th>Bytes</th><th>Encoder branch</th></tr></thead><tbody><tr><td><code class="inline">0x00..0x7F</code></td><td>1</td><td><code class="inline">vcore.chr(cp)</code></td></tr><tr><td><code class="inline">0x80..0x7FF</code></td><td>2</td><td><code class="inline">192 + (cp / 64)</code>, then <code class="inline">128 + cp%64</code></td></tr><tr><td><code class="inline">0x800..0xFFFF</code></td><td>3</td><td>Three-byte sequence</td></tr><tr><td><code class="inline">0x10000..0x10FFFF</code></td><td>4</td><td>Four-byte sequence</td></tr></tbody></table></div>
+<p>Characters above <code class="inline">0x7F</code> in the input are passed through unchanged, so a document that already contains UTF-8 literals round-trips byte-for-byte. Mixed sources — some characters escaped, some literal — also work, because the parser assembles the output from both paths into the same accumulator.</p>
+<hr>
+<h2 id="the-parser-type">The <code class="inline">Parser</code> type</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Parser</span> {
+    src <span class="c-op">::</span> <span class="c-ty">String</span>,
+    pos <span class="c-op">::</span> <span class="c-ty">Int64</span>,
+}</div></div>
+<p>The parser is a two-field interface: the source string and a byte cursor. Every helper takes a <code class="inline">Parser</code> and, where it produces a value, returns a boxed <code class="inline">VyneValue</code> or a scalar.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-op">::</span> vjson <span class="c-fn">_peek</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>) <span class="c-op">-&gt;</span> <span class="c-ty">String</span> {
+    <span class="c-kw">if</span> p.pos <span class="c-op">&gt;=</span> p.src.<span class="c-fn">size</span>() { <span class="c-kw">return</span> <span class="c-str">&quot;&quot;</span>; }
+    <span class="c-kw">return</span> p.src[p.pos];
+}</div></div>
+<p><code class="inline">_peek</code> returns the character at the cursor, or <code class="inline">&quot;&quot;</code> at end of input. Callers check for <code class="inline">&quot;&quot;</code> explicitly — it is the sentinel for &quot;no more input&quot; and it is the same value the parser returns for a valid empty string, so the check has to be by position, not by content. That is a deliberate design choice: a nullable <code class="inline">String</code> would have required an extra tag on every return, and the <code class="inline">pos</code> check is one comparison.</p>
+<h3 id="mutation-through-the-interface">Mutation through the interface</h3>
+<p><code class="inline">Parser</code> fields are mutated in place:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-op">::</span> vjson <span class="c-fn">_advance</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>) {
+    p.pos <span class="c-op">=</span> p.pos <span class="c-op">+</span> <span class="c-num">1</span>;
+    <span class="c-kw">return</span>;
+}</div></div>
+<p>This works because Vyne interface values are references to a shared struct. A <code class="inline">p.pos = new_pos</code> inside a helper is visible to the caller. That is the same reference semantics <code class="inline">vlin</code> documents for <code class="inline">Matrix</code>, and it is what makes a hand-written parser expressible without threading the cursor back through every return value.</p>
+<h3 id="why-a-struct-not-two-parameters">Why a struct, not two parameters</h3>
+<p>A version that passed <code class="inline">(src, pos)</code> as two arguments would have to return the new position alongside every value, which Vyne has no tuple for. The <code class="inline">Parser</code> interface is the workaround for the absence of tuples, and it is a good one — the field-based access reads as naturally as a mutable local in a language that has them.</p>
+<hr>
+<h2 id="reference-semantics-and-the-memory-model">Reference semantics and the memory model</h2>
+<h3 id="every-parse-allocates">Every parse allocates</h3>
+<p>Parsing an N-byte document allocates:</p>
+<ul><li>One <code class="inline">VyneArray</code> per array, plus the element buffer.</li><li>One <code class="inline">VyneMap</code> per object, plus the entry buffer.</li><li>One <code class="inline">String</code> per string literal, plus the accumulator garbage (<code class="inline">acc = acc + c</code> in <code class="inline">_parse_string</code> allocates a fresh buffer per character; see <a href="#limitations">Limitations</a>).</li><li>One <code class="inline">Int64</code> or <code class="inline">Float64</code> box per number.</li></ul>
+<p>For a 1 KB JSON document with a typical structure, that is a few hundred allocations and a few KB of arena traffic. For a 1 MB document, the same shape scaled up.</p>
+<p>The entire parse is a natural <code class="inline">region</code> scope. Wrap it:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">module</span> vmem;
+
+<span class="c-kw">region</span> doc {
+    v <span class="c-op">=</span> vjson.<span class="c-fn">parse</span>(src);
+    <span class="c-com"># ... use v ...</span>
+};
+<span class="c-com"># v is invalid after this point — its storage was reclaimed.</span></div></div>
+<p>The catch is the same as every other region-scoped value: anything that must outlive the parse has to be either committed via <code class="inline">region.commit</code> or extracted out of <code class="inline">v</code> before the region closes.</p>
+<h3 id="the-serializer-allocates-once">The serializer allocates once</h3>
+<p><code class="inline">vjson.serialize</code> calls <code class="inline">vcore.sb_create</code>, threads the builder through every <code class="inline">sb_append</code>, and calls <code class="inline">vcore.sb_build</code> once at the end to produce the final string. The builder's internal buffer grows by doubling; the final <code class="inline">sb_build</code> allocates one buffer of exactly the right size and copies the contents.</p>
+<p>Total allocations for an N-byte output: <code class="inline">log₂(N/64) + 1</code>. For a 1 MB output that is about twenty intermediate buffers of geometric size plus one final buffer, versus the ~10⁹ byte-copies that the <code class="inline">+</code> operator would have made. This is the reason the string builder exists.</p>
+<h3 id="the-intermediate-buffers-are-arena-garbage">The intermediate buffers are arena garbage</h3>
+<p>Every intermediate buffer grown by <code class="inline">_vyne_sb_grow</code> stays in the arena until the enclosing region rewinds or the process exits. For a single serialize call outside any region, the geometric growth means a few KB of dead intermediates for a few KB of output. Inside a region, they are reclaimed at the rewind like everything else.</p>
+<p>If a program serializes repeatedly in a hot loop, the region scope is not optional. <code class="inline">vcore.sb_reset</code> reuses the same builder's buffer across calls:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">sb <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> vcore.<span class="c-fn">sb_create</span>();
+<span class="c-kw">through</span> i <span class="c-op">::</span> <span class="c-num">0</span><span class="c-op">..</span><span class="c-ty">N</span><span class="c-op">-</span><span class="c-num">1</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    vcore.<span class="c-fn">sb_reset</span>(sb);
+    <span class="c-com"># ... _serialize_into(sb, ...) ...</span>
+    <span class="c-kw">result</span> <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> vcore.<span class="c-fn">sb_build</span>(sb);
+    <span class="c-com"># use result ...</span>
+};</div></div>
+<p>That keeps the peak flat across iterations. <code class="inline">vjson.serialize</code> creates a fresh builder each call and does not expose the reset path; if serialization is on a hot path, drop to <code class="inline">vcore.sb_*</code> directly.</p>
+<hr>
+<h2 id="api-reference">API reference</h2>
+<h3 id="parsing">Parsing</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vjson.<span class="c-fn">parse</span>(src <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span></div></div>
+<p>Parses a complete JSON document. Skips leading and trailing whitespace. If any characters remain after the top-level value, raises an error rather than returning a partial parse.</p>
+<p>On success, returns a boxed <code class="inline">VyneValue</code> whose tag is one of the seven JSON-compatible tags.</p>
+<p>On failure, throws a <code class="inline">String</code> whose content is a human-readable diagnostic and whose last word is a byte offset:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vjson: unexpected character ']' at position 7
+vjson: unterminated string at position 18
+vjson: expected ',' or '}' at position 22</div></div>
+<p>Wrap the call in <code class="inline">try / catch</code> to recover. The <code class="inline">catch</code> variable is a boxed <code class="inline">VyneValue</code>; <code class="inline">string(e)</code> recovers the message.</p>
+<h3 id="serializing">Serializing</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vjson.<span class="c-fn">serialize</span>(v <span class="c-op">::</span> <span class="c-ty">VyneValue</span>) <span class="c-op">-&gt;</span> <span class="c-ty">String</span></div></div>
+<p>Serializes a boxed <code class="inline">VyneValue</code> to a JSON string. Uses the <code class="inline">vcore</code> string builder; see <a href="#reference-semantics-and-the-memory-model">Reference semantics</a>.</p>
+<p>Rejects any tag outside the seven JSON-compatible ones with a <code class="inline">throw</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">vjson: cannot serialize value of type 'Struct'</div></div>
+<p>NaN and infinity are serialized as <code class="inline">null</code>, matching <code class="inline">JSON.stringify</code>'s behavior in JavaScript. The check is in <code class="inline">_append_float</code> and consults <code class="inline">vmath.inf()</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-op">::</span> vjson <span class="c-fn">_append_float</span>(sb <span class="c-op">::</span> <span class="c-ty">Int64</span>, v <span class="c-op">::</span> <span class="c-ty">Float64</span>) {
+    <span class="c-kw">if</span> v <span class="c-op">!=</span> v { vcore.<span class="c-fn">sb_append</span>(sb, <span class="c-str">&quot;null&quot;</span>); <span class="c-kw">return</span>; }
+    <span class="c-kw">if</span> v <span class="c-op">==</span> vmath.<span class="c-fn">inf</span>()  { vcore.<span class="c-fn">sb_append</span>(sb, <span class="c-str">&quot;null&quot;</span>); <span class="c-kw">return</span>; }
+    <span class="c-kw">if</span> v <span class="c-op">==</span> <span class="c-op">-</span>vmath.<span class="c-fn">inf</span>() { vcore.<span class="c-fn">sb_append</span>(sb, <span class="c-str">&quot;null&quot;</span>); <span class="c-kw">return</span>; }
+    vcore.<span class="c-fn">sb_append</span>(sb, v);
+    <span class="c-kw">return</span>;
+}</div></div>
+<h3 id="structural-queries">Structural queries</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vjson.<span class="c-fn">validate</span>(v <span class="c-op">::</span> <span class="c-ty">VyneValue</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">depth</span>(v <span class="c-op">::</span> <span class="c-ty">VyneValue</span>)    <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p><code class="inline">validate</code> walks the tree and returns <code class="inline">true</code> if every node's tag is in the JSON-compatible set. <code class="inline">false</code> on the first <code class="inline">V_STRUCT</code>, <code class="inline">V_FUNCTION</code>, or other non-JSON tag it encounters.</p>
+<p><code class="inline">depth</code> returns the deepest object or array nesting. Scalars have depth 0, <code class="inline">{}</code> and <code class="inline">[]</code> have depth 1, <code class="inline">{&quot;a&quot;:[]}</code> has depth 2. <code class="inline">depth</code> is defined for any value, valid or not; it returns 0 for a scalar regardless of its tag.</p>
+<h3 id="type-predicates">Type predicates</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vjson.<span class="c-fn">is_null</span>(v)   <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_bool</span>(v)   <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_int</span>(v)    <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_float</span>(v)  <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_string</span>(v) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_array</span>(v)  <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_object</span>(v) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_number</span>(v) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span></div></div>
+<p>Thin wrappers around <code class="inline">type(v) == &quot;...&quot;</code>. <code class="inline">is_number</code> is the union of <code class="inline">is_int</code> and <code class="inline">is_float</code>. All are pure, no allocation, no side effects.</p>
+<h3 id="character-predicates">Character predicates</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">vjson.<span class="c-fn">is_digit</span>(c <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_hex</span>(c <span class="c-op">::</span> <span class="c-ty">String</span>)   <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">is_ws</span>(c <span class="c-op">::</span> <span class="c-ty">String</span>)    <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span>
+vjson.<span class="c-fn">hex_digit</span>(c <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span></div></div>
+<p>Public because the parser exposes them and because they are useful in their own right. Each takes a single-character <code class="inline">String</code> and returns a <code class="inline">Bool</code> (or, for <code class="inline">hex_digit</code>, an <code class="inline">Int64</code> in <code class="inline">0..15</code> or <code class="inline">-1</code> for a non-hex character).</p>
+<p>The predicates check <code class="inline">c.size() == 1</code> before doing their lookup so that <code class="inline">&quot;&quot;</code> does not match <code class="inline">&quot;0123456789&quot;.find(&quot;&quot;) == 0</code>. That guard is what makes the parser's end-of-input detection correct.</p>
+<h3 id="internal-helpers">Internal helpers</h3>
+<p>The following are part of the public surface only because the parser resolves the names. Most programs should not call them directly.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-com"># Parser primitives</span>
+vjson.<span class="c-fn">_peek</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>)               <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+vjson.<span class="c-fn">_peek_at</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>, off)       <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+vjson.<span class="c-fn">_advance</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>)
+vjson.<span class="c-fn">_skip_ws</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>)
+vjson.<span class="c-fn">_expect</span>(p <span class="c-op">::</span> <span class="c-ty">Parser</span>, ch)
+
+<span class="c-com"># Grammar productions</span>
+vjson.<span class="c-fn">_parse_value</span>(p)                  <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span>
+vjson.<span class="c-fn">_parse_object</span>(p)                 <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span>
+vjson.<span class="c-fn">_parse_array</span>(p)                  <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span>
+vjson.<span class="c-fn">_parse_string</span>(p)                 <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+vjson.<span class="c-fn">_parse_number</span>(p)                 <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span>
+vjson.<span class="c-fn">_parse_literal</span>(p, lit, value)    <span class="c-op">-&gt;</span> <span class="c-ty">VyneValue</span>
+vjson.<span class="c-fn">_parse_escape</span>(p)                 <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+vjson.<span class="c-fn">_parse_u_escape</span>(p)               <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+vjson.<span class="c-fn">_read_hex4</span>(p)                    <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+vjson.<span class="c-fn">_utf8_encode</span>(cp <span class="c-op">::</span> <span class="c-ty">Int64</span>)        <span class="c-op">-&gt;</span> <span class="c-ty">String</span>
+
+<span class="c-com"># Serializer internals</span>
+vjson.<span class="c-fn">_serialize_into</span>(sb <span class="c-op">::</span> <span class="c-ty">Int64</span>, v)
+vjson.<span class="c-fn">_append_float</span>(sb, v <span class="c-op">::</span> <span class="c-ty">Float64</span>)
+vjson.<span class="c-fn">_append_string</span>(sb, s <span class="c-op">::</span> <span class="c-ty">String</span>)
+vjson.<span class="c-fn">_append_array</span>(sb, arr <span class="c-op">::</span> <span class="c-ty">Array</span>)
+vjson.<span class="c-fn">_append_object</span>(sb, m <span class="c-op">::</span> <span class="c-ty">Map</span>)</div></div>
+<hr>
+<h2 id="worked-example">Worked example</h2>
+<p>Round-trip a document and inspect it.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vjson/vjson.vy&quot;</span>;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vfs;
+<span class="c-kw">use</span> <span class="c-kw">native</span> vcore;
+
+<span class="c-kw">ruleset</span> { <span class="c-kw">dynamic_casting</span> };
+
+<span class="c-com"># --- Read from disk. ---</span>
+<span class="c-com"># Source-level JSON literals would need every '{' escaped as '\{'</span>
+<span class="c-com"># and every '}' that appears inside an interpolation-related position</span>
+<span class="c-com"># escaped as '\}'. Reading from disk skips the whole problem.</span>
+<span class="c-ty">PATH</span> <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">&quot;examples/external/data.json&quot;</span>;
+src <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> vfs.<span class="c-fn">read</span>(<span class="c-ty">PATH</span>);
+
+<span class="c-kw">if</span> src.<span class="c-fn">size</span>() <span class="c-op">==</span> <span class="c-num">0</span> {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;fatal: could not read &quot;</span> <span class="c-op">+</span> <span class="c-ty">PATH</span>);
+    <span class="c-fn">exit</span>(<span class="c-num">1</span>);
+}
+
+<span class="c-com"># --- Parse. ---</span>
+v <span class="c-op">=</span> vjson.<span class="c-fn">parse</span>(src);
+
+<span class="c-fn">out</span>(<span class="c-str">&quot;parsed ok&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;  depth: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">depth</span>(v)));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  valid: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">validate</span>(v)));
+
+<span class="c-com"># --- Field access. ---</span>
+<span class="c-com"># `v[&quot;name&quot;]` on a Map returns a boxed VyneValue. Nested Maps compose</span>
+<span class="c-com"># the same way.</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;  name:    &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v[<span class="c-str">&quot;name&quot;</span>]));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  version: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v[<span class="c-str">&quot;version&quot;</span>]));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  pi:      &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v[<span class="c-str">&quot;nested&quot;</span>][<span class="c-str">&quot;pi&quot;</span>]));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  mixed[1]: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v[<span class="c-str">&quot;mixed&quot;</span>][<span class="c-num">1</span>]));
+
+<span class="c-com"># --- Serialize. ---</span>
+round <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> vjson.<span class="c-fn">serialize</span>(v);
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;re-emit (&quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(round.<span class="c-fn">size</span>()) <span class="c-op">+</span> <span class="c-str">&quot; bytes):&quot;</span>);
+<span class="c-fn">out</span>(round);
+
+<span class="c-com"># --- Round-trip. ---</span>
+v2 <span class="c-op">=</span> vjson.<span class="c-fn">parse</span>(round);
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;round-trip:&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;  depth: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">depth</span>(v2)));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  valid: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(vjson.<span class="c-fn">validate</span>(v2)));
+<span class="c-fn">out</span>(<span class="c-str">&quot;  name matches: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(v2[<span class="c-str">&quot;name&quot;</span>] <span class="c-op">==</span> v[<span class="c-str">&quot;name&quot;</span>]));
+
+<span class="c-com"># --- Error paths. ---</span>
+<span class="c-com"># Every string below is brace-free, so the lexer treats it as an</span>
+<span class="c-com"># ordinary literal. If any &quot;BUG:&quot; line prints, the parser accepted</span>
+<span class="c-com"># input it should have rejected.</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;error paths:&quot;</span>);
+
+<span class="c-kw">try</span> { vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;[1, 2, ]&quot;</span>);    <span class="c-fn">out</span>(<span class="c-str">&quot;  BUG: accepted trailing comma&quot;</span>); }
+<span class="c-kw">catch</span> (e) { <span class="c-fn">out</span>(<span class="c-str">&quot;  &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(e)); }
+
+<span class="c-kw">try</span> { vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;[1, 2, 3&quot;</span>);    <span class="c-fn">out</span>(<span class="c-str">&quot;  BUG: accepted unterminated array&quot;</span>); }
+<span class="c-kw">catch</span> (e) { <span class="c-fn">out</span>(<span class="c-str">&quot;  &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(e)); }
+
+<span class="c-kw">try</span> { vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;nope&quot;</span>);        <span class="c-fn">out</span>(<span class="c-str">&quot;  BUG: accepted invalid literal&quot;</span>); }
+<span class="c-kw">catch</span> (e) { <span class="c-fn">out</span>(<span class="c-str">&quot;  &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(e)); }
+
+<span class="c-kw">try</span> { vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;&quot;</span>);            <span class="c-fn">out</span>(<span class="c-str">&quot;  BUG: accepted empty input&quot;</span>); }
+<span class="c-kw">catch</span> (e) { <span class="c-fn">out</span>(<span class="c-str">&quot;  &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(e)); }
+
+<span class="c-kw">try</span> { vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;123abc&quot;</span>);      <span class="c-fn">out</span>(<span class="c-str">&quot;  BUG: accepted trailing garbage&quot;</span>); }
+<span class="c-kw">catch</span> (e) { <span class="c-fn">out</span>(<span class="c-str">&quot;  &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(e)); }
+
+<span class="c-com"># --- Unicode. ---</span>
+<span class="c-com"># The literal below contains only backslash and quote escapes; the</span>
+<span class="c-com"># '\u' sequences are ordinary characters from the Vyne lexer's</span>
+<span class="c-com"># perspective. The JSON parser is what interprets them.</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;&quot;</span>);
+u <span class="c-op">=</span> vjson.<span class="c-fn">parse</span>(<span class="c-str">&quot;\&quot;\\u0041\\u00E9\\uD83D\\uDE00\&quot;&quot;</span>);
+<span class="c-fn">out</span>(<span class="c-str">&quot;unicode: &quot;</span> <span class="c-op">+</span> u);
+<span class="c-fn">out</span>(<span class="c-str">&quot;  length: &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(u.<span class="c-fn">size</span>()) <span class="c-op">+</span> <span class="c-str">&quot; bytes&quot;</span>);</div></div>
+<p>Expected output (abbreviated):</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">parsed ok
+  depth: 5
+  valid: true
+  name:    vyne
+  version: 1
+  pi:      3.14159
+  mixed[1]: two
+
+re-emit (190 bytes):
+{&quot;mixed&quot;:[1,&quot;two&quot;,3.0,...],&quot;features&quot;:[...],&quot;nested&quot;:{...},&quot;name&quot;:&quot;vyne&quot;,&quot;version&quot;:1}
+
+round-trip:
+  depth: 5
+  valid: true
+  name matches: true
+
+error paths:
+  vjson: unexpected character ']' at position 7
+  vjson: unexpected end of input at position 7
+  vjson: unexpected character 'o' at position 1
+  vjson: unexpected end of input at position 0
+  vjson: trailing characters at position 3
+
+unicode: Aé😀
+  length: 8 bytes</div></div>
+<p>The <code class="inline">re-emit</code> line shows keys in hash order, not insertion order. JSON does not require any particular key order, and every parser in the world accepts this. See <a href="#limitations">Limitations</a> for what would need to change to preserve insertion order.</p>
+<p>The <code class="inline">length: 8 bytes</code> is correct: <code class="inline">A</code> is 1 byte, <code class="inline">é</code> is 2 bytes in UTF-8, <code class="inline">😀</code> is 4 bytes. The <code class="inline">size()</code> method on a <code class="inline">String</code> returns the byte count.</p>
+<hr>
+<h2 id="limitations">Limitations</h2>
+<h3 id="source-level-json-literals-need-brace-escaping">Source-level JSON literals need brace escaping</h3>
+<p>The Vyne lexer treats any unescaped <code class="inline">{</code> inside a string literal as the start of an interpolation. A JSON document written directly in Vyne source needs every opening brace escaped as <code class="inline">\{</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-com"># This parses as an interpolated string, not as the literal '{&quot;a&quot;:1}'</span>
+bad <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">&quot;{\&quot;a\&quot;:1}&quot;</span>;
+
+<span class="c-com"># This is the correct source-level form</span>
+good <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">&quot;\{\&quot;a\&quot;:1}&quot;</span>;</div></div>
+<p>The trailing <code class="inline">}</code> at the end of the object does not need escaping, because by that point the lexer is not inside an interpolation. But any <code class="inline">}</code> that appears while an interpolation is open terminates it, so a <code class="inline">}</code> inside a nested object in a source-level literal does need <code class="inline">\}</code> if the enclosing <code class="inline">{</code> was not escaped.</p>
+<p>The rule is: escape every <code class="inline">{</code>, and escape <code class="inline">}</code> only if the corresponding <code class="inline">{</code> was not escaped. In practice, escape both. Payloads read from disk with <code class="inline">vfs.read</code> are not affected.</p>
+<p>This is a language-level issue, not a <code class="inline">vjson</code> one. It will be fixed when the lexer stops treating <code class="inline">{</code> as interpolation when the next character is <code class="inline">&quot;</code> or <code class="inline">}</code> — see <a href="#roadmap">Roadmap</a>.</p>
+<h3 id="key-order-is-not-preserved">Key order is not preserved</h3>
+<p>The parser builds a <code class="inline">VyneMap</code>, and <code class="inline">VyneMap</code> does not preserve insertion order. The serializer iterates via <code class="inline">m.keys()</code>, which walks the hash table in whatever order the hash function places the keys.</p>
+<p>A document <code class="inline">{&quot;a&quot;:1,&quot;b&quot;:2,&quot;c&quot;:3}</code> round-trips to a document with the same three key/value pairs in an arbitrary order — a valid JSON document, semantically equal to the input, but not byte-identical.</p>
+<p>If a program needs byte-identical round-trips, it needs an ordered map. That is a variant of the map, not a fix to this one. See <a href="#roadmap">Roadmap</a>.</p>
+<h3 id="no-depth-limit">No depth limit</h3>
+<p>Recursive-descent parsing consumes C stack proportional to the document's nesting depth. A payload like <code class="inline">[[[[[...]]]]]</code> nested one million deep will exhaust the stack before it exhausts memory. The parser does not currently count depth, so it cannot reject a pathological payload before descending.</p>
+<p>For trusted input — a config file, a build manifest, a payload from a service you control — this does not matter. For untrusted input from the network, it is a real hazard. A depth counter threaded through <code class="inline">_parse_value</code> and a hard limit (say 256 or 1024) would close it. See <a href="#roadmap">Roadmap</a>.</p>
+<h3 id="no-streaming">No streaming</h3>
+<p>The parser requires the whole document in a <code class="inline">String</code> before parsing. There is no <code class="inline">parse_stream(chunk)</code> API, and no <code class="inline">parse_into(builder)</code> for building values incrementally. Documents are parsed as complete units.</p>
+<p>For the config-file and API-payload workloads this library is designed for, that is fine. For a streaming telemetry pipeline, it is not; the workaround is to split the input and call <code class="inline">parse</code> per record.</p>
+<h3 id="numbers-are-double-or-int64">Numbers are <code class="inline">double</code> or <code class="inline">int64</code></h3>
+<p>JSON does not specify precision. <code class="inline">vjson</code> maps integers to <code class="inline">int64_t</code> and everything else to <code class="inline">double</code>, which is the same choice the Vyne runtime makes elsewhere. A JSON document that contains <code class="inline">9007199254740993</code> (larger than <code class="inline">2⁵³</code>) will lose precision if it is parsed as a float, and a document that contains <code class="inline">10³⁰⁰</code> will lose precision if it is parsed as an integer that overflows <code class="inline">int64_t</code>.</p>
+<p>The parser dispatches by syntax, not by magnitude: any number with a decimal point or exponent becomes <code class="inline">V_FLOAT64</code>, and any number without becomes <code class="inline">V_INT64</code>. If the magnitude does not fit, <code class="inline">int64(text)</code> saturates silently. That is a runtime-level behavior, not a <code class="inline">vjson</code> one, but callers should be aware of it.</p>
+<h3 id="string-concatenation-in-parse-string-is-o-n2">String concatenation in <code class="inline">_parse_string</code> is O(n²)</h3>
+<p>The parser builds the string accumulator by <code class="inline">acc = acc + c</code>, which allocates a fresh buffer and copies both operands on each character. For a JSON string literal of length N, the total cost is O(N²) in both time and arena traffic.</p>
+<p>For typical JSON documents — where strings are a few tens of characters — this is below the noise floor. For a document with a single 1 MB string literal, it is fatal. The fix is to route the accumulator through <code class="inline">vcore.sb_*</code> the same way the serializer does. The reason it was not done in 0.1.0 is that the O(N²) path is simpler to read, and no benchmark has shown it dominating. See <a href="#roadmap">Roadmap</a>.</p>
+<h3 id="no-json5-jsonc-or-json-lines">No JSON5, JSONC, or JSON Lines</h3>
+<p>The grammar implemented is <code class="inline">RFC 8259</code>, unmodified. No trailing commas, no comments, no unquoted keys, no single-quoted strings, no <code class="inline">NaN</code>/<code class="inline">Infinity</code> literals, no <code class="inline">undefined</code>. A document that uses any of these extensions is rejected. The parser is the standard grammar; the extensions are a different library.</p>
+<h3 id="errors-are-strings">Errors are strings</h3>
+<p><code class="inline">throw</code> in Vyne carries a <code class="inline">VyneValue</code>, and <code class="inline">vjson</code> throws a <code class="inline">String</code>. There is no <code class="inline">JsonError</code> type with a <code class="inline">position</code> field and an <code class="inline">error_code</code> field. A caller that wants structured error data has to parse the message string, which is fragile.</p>
+<p>Structured errors are a small change once the language has sum types or interfaces with multiple fields. Until then, the message format is stable and documented above. See <a href="#roadmap">Roadmap</a>.</p>
+<hr>
+<h2 id="design-notes">Design notes</h2>
+<h3 id="why-recursive-descent-not-a-generated-parser">Why recursive descent, not a generated parser</h3>
+<p>A parser generator would produce a table-driven parser that is marginally faster and significantly harder to read. The recursive descent in <code class="inline">Parse.vy</code> is 200 lines of Vyne source, and every helper corresponds to a production in the grammar. A reader who knows JSON can read the parser top to bottom and see the grammar reflected in the code. That is the point.</p>
+<p>The cost is stack depth, which is the same limitation any recursive descent parser has, and which is addressed under <a href="#limitations">Limitations</a> by a depth counter when it matters.</p>
+<h3 id="why-a-single-accumulator-in-parse-string">Why a single accumulator in <code class="inline">_parse_string</code></h3>
+<p>The <code class="inline">acc = acc + c</code> loop is the O(N²) path flagged in <a href="#limitations">Limitations</a>. The reason it is not the string builder is that the string builder requires the caller to thread an <code class="inline">Int64</code> handle through every string parse, and strings are parsed in the middle of a hot recursive descent where the extra parameter would propagate through <code class="inline">_parse_object</code>, <code class="inline">_parse_array</code>, and every helper that calls one of them.</p>
+<p>Threading an <code class="inline">Int64</code> handle through the whole parser to speed up the 0.1% case where a JSON string is larger than a few hundred bytes is not a tradeoff the library makes. The string builder is the right tool when a string is being built and the builder is the natural interface; the parser's strings are accumulated inside a recursive function whose signature should stay as simple as possible.</p>
+<p>If a benchmark shows this mattering, the fix is to allocate one builder per <code class="inline">_parse_string</code> call and use <code class="inline">sb_reset</code> to reuse it. That is a small change; it just was not the one 0.1.0 shipped.</p>
+<h3 id="why-peek-returns-at-end-of-input">Why <code class="inline">_peek</code> returns <code class="inline">&quot;&quot;</code> at end of input</h3>
+<p>The alternative is to return <code class="inline">null</code>. <code class="inline">null</code> is a valid Vyne value, and the check would be <code class="inline">if c.type == V_NULL</code>. Empty string is what <code class="inline">p.src[p.pos]</code> returns for an in-range position whose byte is 0x00 — which a well-formed UTF-8 document cannot contain, but which a malformed one can.</p>
+<p>The check <code class="inline">if c == &quot;&quot;</code> is one string compare, cheaper than a tag compare plus a null check. It is also what every caller needs to do anyway, because the same <code class="inline">&quot;&quot;</code> sentinel is used at every point in the parser that needs to distinguish &quot;end of input&quot; from &quot;some character that is not the one I wanted&quot;. The alternative would be two separate checks at every call site.</p>
+<p>The cost is that <code class="inline">&quot;&quot;</code> is not a valid single-character match for any predicate, which is why the predicates check <code class="inline">size() == 1</code> first. The savings in the hot path make the extra check in the predicates worth it — <code class="inline">_peek</code> is called twenty times per character parsed, and the predicates are called once per character.</p>
+<h3 id="why-a-facade">Why a facade</h3>
+<p><code class="inline">vjson.vy</code> is a facade because the five leaf modules have a natural dependency order that a reader should not have to reconstruct:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="">Types.vy  →  Kernels.vy  →  Parse.vy
+                         →  Serialize.vy
+                         →  Reductions.vy</div></div>
+<p>The facade encodes the order. A user who imports <code class="inline">vjson.vy</code> gets the whole surface in one line; a user who wants a subset imports the leaves explicitly. Both work; the facade is what the manual recommends.</p>
+<h3 id="why-the-serializer-uses-vcore-sb-directly">Why the serializer uses <code class="inline">vcore.sb_*</code> directly</h3>
+<p>An alternative would be for <code class="inline">vjson.serialize</code> to build the output with <code class="inline">+</code> and let the runtime optimize. That was the 0.0.x version, and it was the reason the library could not exist until the string builder landed — a 1 MB JSON payload built by <code class="inline">+</code> produced quadratic arena traffic and choked on real inputs.</p>
+<p>The builder is not a <code class="inline">vjson</code> concern; it is a runtime primitive. The serializer uses it because it is the right tool. If a future runtime change makes <code class="inline">+</code> amortized-O(1) for accumulated strings, the serializer could be rewritten to use it; the surface would not change.</p>
+<h3 id="why-serialize-takes-any-vynevalue">Why <code class="inline">serialize</code> takes any <code class="inline">VyneValue</code></h3>
+<p>A <code class="inline">JsonValue</code> interface with a <code class="inline">.serialize()</code> method would be more nominal, but every JSON value is a plain <code class="inline">VyneValue</code> — that is the convention described above. Making <code class="inline">serialize</code> a free function that takes any <code class="inline">VyneValue</code> and dispatches on its tag is the natural way to express that convention. It also means callers can serialize a value they built by hand without wrapping it in a <code class="inline">JsonValue</code> constructor.</p>
+<p>The cost is that a <code class="inline">V_STRUCT</code> reaches the dispatcher and is rejected at runtime rather than at compile time. That is the correct tradeoff for a dynamically-typed tree; the error message is specific enough to be actionable, and the compiler cannot know in general that a value's tag will be JSON-compatible at runtime.</p>
+<hr>
+<h2 id="roadmap">Roadmap</h2>
+<p>The following are planned or in progress. They are listed here so the manual is honest about the gap between the intended surface and the current one.</p>
+<h3 id="depth-limit">Depth limit</h3>
+<p>A counter threaded through <code class="inline">_parse_value</code> and a hard limit, defaulting to 256. Every recursive call increments the counter; the check fires before descending. This closes the stack exhaustion hazard for untrusted input.</p>
+<p>The API shape is either a fixed limit (simple, no configuration) or a variant <code class="inline">parse_with_limit(src, max_depth)</code>. The fixed limit is what most JSON parsers offer and is the right default.</p>
+<h3 id="ordered-map-variant">Ordered map variant</h3>
+<p>A <code class="inline">vjson.parse_ordered</code> that returns an ordered map and a <code class="inline">vjson.serialize</code> that consults insertion order when present. This requires an ordered-map type, which is a separate change to the runtime — the parallel-<code class="inline">order[]</code> array sketched earlier.</p>
+<p>Not a priority. Every JSON parser in the world is content with hash order, and no consumer of the output has ever cared. The trigger condition is a diffable-serialization use case, not a desire for aesthetic round-trips.</p>
+<h3 id="structured-errors">Structured errors</h3>
+<p>A <code class="inline">JsonError</code> interface with <code class="inline">message</code>, <code class="inline">line</code>, <code class="inline">column</code>, and <code class="inline">code</code> fields. Thrown instead of a raw <code class="inline">String</code>. Requires the language to have interfaces with heterogeneous field types, which it does, but the ergonomics of catching a boxed interface value are worse than catching a string in the current runtime. Wait for the string conversion machinery to improve.</p>
+<h3 id="parse-string-through-the-string-builder"><code class="inline">_parse_string</code> through the string builder</h3>
+<p>The O(N²) accumulator becomes a per-call <code class="inline">sb_create</code> / <code class="inline">sb_build</code>. Deferred until a benchmark shows strings large enough to matter.</p>
+<h3 id="streaming-parse">Streaming parse</h3>
+<p><code class="inline">parse_stream(read_chunk)</code> that accepts a chunked source and yields one value per call. Requires the parser to be resumable across chunks, which means the <code class="inline">Parser</code> interface gains a state field and every helper gets a continuation-passing rewrite. A significant change; the current design is the whole-document form.</p>
+<h3 id="bounded-number-handling">Bounded number handling</h3>
+<p>Reject integer literals that do not fit in <code class="inline">int64_t</code> instead of saturating. Reject floats that would overflow <code class="inline">double</code> instead of emitting <code class="inline">inf</code>. Both require runtime support for detecting the saturation, which <code class="inline">int64(text)</code> and <code class="inline">float64(text)</code> do not currently provide.</p>
+<h3 id="lexer-fix-for-source-level-json">Lexer fix for source-level JSON</h3>
+<p>The real fix for the brace-escaping problem is in the lexer, not the library. When <code class="inline">{</code> is followed by <code class="inline">&quot;</code> or <code class="inline">}</code>, it is not the start of an interpolation — it is the start of a JSON object or an empty map literal. The lexer can peek and decide. Landing this would let source-level JSON literals be written without escapes, which would make the library usable from a <code class="inline">.vy</code> file for the first time without a workaround.</p>
+<p>This is a language-level change; it affects every existing interpolation, so it belongs in a versioned release with a migration note, not in a patch.</p>
+<hr>
+<h2 id="version-history">Version history</h2>
+<p><strong>0.1.0</strong> — initial release. <code class="inline">Types</code> (<code class="inline">Parser</code> interface, type predicates), <code class="inline">Kernels</code> (<code class="inline">is_digit</code>, <code class="inline">is_hex</code>, <code class="inline">is_ws</code>, <code class="inline">hex_digit</code>), <code class="inline">Parse</code> (<code class="inline">parse</code> and the recursive-descent productions), <code class="inline">Serialize</code> (<code class="inline">serialize</code> and the string-builder append helpers), <code class="inline">Reductions</code> (<code class="inline">validate</code>, <code class="inline">depth</code>). UTF-8 and surrogate pairs handled. Errors as raw strings. No depth limit, no streaming, no ordered maps.</p>

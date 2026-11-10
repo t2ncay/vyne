@@ -1,142 +1,59 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Variables &amp; Assignment</h1>
-            <p class="lede">
-              Declaration, type annotation, reassignment, and mutability rules.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Variables &amp; Assignment</h1>
+<p class="lede">Declaration with :=, reassignment with =, const bindings, scopes, and reference parameters.</p>
+<h2 id="declaration-versus-reassignment">Declaration versus reassignment</h2>
+<p>The parser distinguishes binding a new name from rebinding an existing one:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">x <span class="c-op">:=</span> <span class="c-num">42</span>;          <span class="c-com"># declaration, inferred type</span>
+y <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">42</span>; <span class="c-com"># declaration, explicit type</span>
+z <span class="c-op">::</span> <span class="c-ty">Float64</span>;     <span class="c-com"># declaration, default value</span>
 
-            <h2 id="declaration-syntax">Declaration syntax</h2>
-            <p>
-              The form is
-              <code class="inline">name :: Type = expression;</code>. The type
-              annotation is mandatory under strict mode and optional under
-              dynamic mode. The initializer is optional only when the type has a
-              default (primitives, empty array, empty map, empty string).
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">vars.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-com">// Explicit</span>
-count <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">0</span>; label <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">""</span>; xs <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [];
-
-<span class="c-com"
-                  >// Default-initialised (no initializer)</span
-                >
-ready <span class="c-op">::</span> <span class="c-ty">Bool</span>;
-<span class="c-com">// false</span>
-total <span class="c-op">::</span> <span class="c-ty">Int64</span>;
-<span class="c-com">// 0</span>
-ratio <span class="c-op">::</span> <span class="c-ty">Float64</span>;
-<span class="c-com">// 0.0</span>
-
-<span class="c-com">// Inferred (dynamic mode only)</span>
-x <span class="c-op">=</span> <span class="c-num">42</span>;
-<span class="c-com">// x : Int64</span></div>
-            </div>
-
-            <h2 id="reassignment">Reassignment</h2>
-            <p>
-              Use <code class="inline">=</code> to reassign an existing
-              variable. Its type is fixed at declaration; assigning a value of a
-              different type is a compile error.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">reassign.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">x <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">1</span>; x <span class="c-op">=</span> <span class="c-num">2</span>;
-<span class="c-com">// OK</span>
-x <span class="c-op">=</span> <span class="c-str">"hello"</span>;
-<span class="c-com"
-                  >// Compile error: cannot assign String to Int64</span
-                ></div>
-            </div>
-
-            <h2 id="constants">Constants</h2>
-            <p>
-              Prefix a declaration with <code class="inline">const</code> to
-              make it read-only. Reassignment of a const is a compile error.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">const.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">const</span> pi <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">=</span> <span class="c-num">3.14159</span>;
-<span class="c-com">// pi = 3.0; // Compile error</span></div>
-            </div>
-
-            <h2 id="indexed-assignment">Indexed assignment</h2>
-            <p>
-              Arrays and maps support element assignment with the same
-              <code class="inline">[]</code> syntax used for reads.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">indexed.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">xs <span class="c-op">::</span> <span class="c-ty">Array</span> <span class="c-op">=</span> [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>];
-xs[<span class="c-num">0</span>] <span class="c-op">=</span> <span class="c-num">99</span>; <span class="c-com">// OK</span>
-
-m <span class="c-op">::</span> <span class="c-ty">Map</span> <span class="c-op">=</span> { <span class="c-str">"a"</span>: <span class="c-num">1</span> }; m[<span class="c-str">"b"</span
-                >] <span class="c-op">=</span> <span class="c-num">2</span>;
-<span class="c-com">// inserts "b"</span></div>
-            </div>
-
-            <div class="admonition adm-warn">
-              <i class="fas fa-triangle-exclamation"></i>
-              <div class="adm-body">
-                <div class="adm-title">Out-of-bounds writes are silent</div>
-                Writing to an array index that is out of range is a no-op — it
-                does not throw, grow the array, or report an error. Always
-                ensure your index is valid before writing.
-              </div>
-            </div>
-
-            <h2 id="no-destructuring">No destructuring</h2>
-            <p>
-              Vyne does <strong>not</strong> support destructuring assignment.
-              The following is not valid:
-            </p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">nope.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-com">// NOT valid Vyne</span>
-[x, y] <span class="c-op">=</span> pair;
-<span class="c-com">// ✗</span>
-{ a, b }
-<span class="c-op">=</span> map; <span class="c-com">// ✗</span></div>
-            </div>
-            <p>Assign each element individually instead.</p>
-
-            <h2 id="scope-rules">Scope</h2>
-            <p>
-              Variables live in the block where they are declared. Blocks are
-              introduced by <code class="inline">{ ... }</code>, function
-              bodies, loop bodies, and
-              <code class="inline">region</code> bodies. A variable declared
-              inside a block is not visible outside it.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">scope.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body">x <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">1</span>; { y <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">=</span> <span class="c-num">2</span>;
-  <span class="c-fn">out</span>(x <span class="c-op">+</span> y);
-  <span class="c-com">// → 3, outer visible</span>
+x <span class="c-op">=</span> x <span class="c-op">+</span> <span class="c-num">1</span>;        <span class="c-com"># reassignment</span>
+y <span class="c-op">=</span> <span class="c-num">7</span>;            <span class="c-com"># reassignment</span></div></div>
+<p>Using <code class="inline">=</code> on a name that was never declared is an error. Using <code class="inline">:=</code> on an existing name introduces a new binding in the current scope (shadowing). This split was introduced in v0.5.0; older code that declared with <code class="inline">=</code> must be migrated to <code class="inline">:=</code>.</p>
+<h2 id="type-annotations">Type annotations</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">count  <span class="c-op">::</span> <span class="c-ty">Int64</span>   <span class="c-op">:=</span> <span class="c-num">10</span>;
+ratio  <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">0.5</span>;
+name   <span class="c-op">::</span> <span class="c-ty">String</span>  <span class="c-op">:=</span> <span class="c-str">&quot;vyne&quot;</span>;
+xs     <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>];
+person <span class="c-op">::</span> <span class="c-ty">Person</span>  <span class="c-op">:=</span> <span class="c-fn">Person</span>(<span class="c-str">&quot;Ada&quot;</span>);</div></div>
+<p>An explicit annotation is checked on assignment. A declaration without one gets the inferred type when the compiler can prove it, or a boxed dynamic value when it cannot. Under <code class="inline">ruleset { type_check = &quot;strict&quot; }</code>, an untyped declaration is a compile error.</p>
+<h2 id="constants">Constants</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">const</span> <span class="c-ty">PI</span> <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">3.141592653589793</span>;
+<span class="c-kw">const</span> <span class="c-ty">TAU</span> <span class="c-op">:=</span> <span class="c-ty">PI</span> <span class="c-op">*</span> <span class="c-num">2.0</span>;</div></div>
+<p>A <code class="inline">const</code> binding cannot be reassigned. It is a compile-time restriction, not a runtime immutable object; composite values still have normal region lifetimes.</p>
+<h2 id="defaults">Defaults</h2>
+<p>A declaration without an initializer receives a default:</p>
+<div class="table-wrap"><table><thead><tr><th>Declared type</th><th>Default</th></tr></thead><tbody><tr><td><code class="inline">Int64</code></td><td><code class="inline">0</code></td></tr><tr><td><code class="inline">Float64</code>, <code class="inline">Float32</code></td><td><code class="inline">0.0</code></td></tr><tr><td><code class="inline">Bool</code></td><td><code class="inline">false</code></td></tr><tr><td><code class="inline">String</code></td><td><code class="inline">&quot;&quot;</code></td></tr><tr><td><code class="inline">Array</code> / <code class="inline">Array&lt;T&gt;</code></td><td>empty array</td></tr><tr><td>interface / <code class="inline">Map</code></td><td><code class="inline">null</code></td></tr></tbody></table></div>
+<p>Do not assume an interface default is a usable object. Check for <code class="inline">null</code> when the distinction matters.</p>
+<h2 id="scope-and-shadowing">Scope and shadowing</h2>
+<p>Bindings are lexically scoped. A block may introduce a new binding with the same name as an outer binding:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">x <span class="c-op">:=</span> <span class="c-num">1</span>;
+<span class="c-kw">if</span> flag {
+    x <span class="c-op">:=</span> <span class="c-num">2</span>;       <span class="c-com"># inner binding</span>
+    <span class="c-fn">out</span>(x);       <span class="c-com"># 2</span>
 };
-<span class="c-com"
-                  >// out(y); // Compile error: y not in scope</span
-                ></div>
-            </div>
+<span class="c-fn">out</span>(x);           <span class="c-com"># 1</span></div></div>
+<p><code class="inline">warnings</code> reports shadowed variables when enabled; add <code class="inline">shadow_variable</code> to <code class="inline">warnings_ignore</code> if the shadow is intentional.</p>
+<h2 id="assignment-targets">Assignment targets</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">xs[<span class="c-num">0</span>] <span class="c-op">=</span> <span class="c-num">1.5</span>;
+matrix.data[i] <span class="c-op">=</span> <span class="c-num">0.0</span>;
+cfg[<span class="c-str">&quot;mode&quot;</span>] <span class="c-op">=</span> <span class="c-str">&quot;fast&quot;</span>;
+point.x <span class="c-op">=</span> <span class="c-num">3.0</span>;
+cfg.mode <span class="c-op">??=</span> <span class="c-str">&quot;default&quot;</span>;</div></div>
+<p>Index and member assignment follow the same lifetime rules as reads. Assigning an arena-backed value into a shallower variable can trigger region escape analysis (VNE-070).</p>
+<h2 id="reference-parameters">Reference parameters</h2>
+<p><code class="inline">^^</code> declares a reference parameter. The callee sees and can mutate the caller's variable:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">bump</span>(v <span class="c-op">::</span> <span class="c-ty">Int64</span><span class="c-op">^^</span>) {
+    v <span class="c-op">=</span> v <span class="c-op">+</span> <span class="c-num">1</span>;
+}
+
+counter <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">0</span>;
+<span class="c-fn">bump</span>(counter);
+<span class="c-fn">out</span>(counter);     <span class="c-com"># 1</span></div></div>
+<p><code class="inline">$</code> returns the address of a variable as an <code class="inline">Int64</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">addr <span class="c-op">:=</span> <span class="c-op">$</span>counter;</div></div>
+<p>Address-of is an interpreter feature. The compiled backend rejects it; use reference parameters or pass an explicit buffer when you need aliasing in compiled code.</p>
+<h2 id="no-destructuring">No destructuring</h2>
+<p>Vyne does not currently support destructuring declarations or assignments. Bind each name explicitly.</p>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="types">Values &amp; Types</a></li><li><a data-page="fn">Functions</a></li><li><a data-page="regions">Memory &amp; Regions</a></li></ul>

@@ -1,120 +1,25 @@
-            <div class="page-eyebrow">Reference</div>
-            <h1>Error Codes</h1>
-            <p class="lede">
-              The compiler emits structured diagnostics with stable codes. Use
-              the code to look up the cause.
-            </p>
-
-            <h2 id="syntax-errors">Syntax errors (VNE-001 – VNE-014)</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Meaning</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>VNE-001</td>
-                    <td>Unexpected token</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-002</td>
-                    <td>Missing semicolon</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-003</td>
-                    <td>Unknown type name</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-010</td>
-                    <td>Warnings enabled</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-011</td>
-                    <td>Dynamic casting enabled</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-012</td>
-                    <td>Memory limit enabled</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-013</td>
-                    <td>Unknown ruleset flag</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-014</td>
-                    <td>Ruleset value expected</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 id="ruleset-errors">Ruleset diagnostics (VNE-015 – VNE-032)</h2>
-            <p>
-              Emitted when a ruleset is applied. These are informational notes,
-              not errors.
-            </p>
-
-            <h2 id="advanced-errors">Parser extensions (VNE-040 – VNE-050)</h2>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Meaning</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>VNE-040</td>
-                    <td>Malformed type parameter list on interface</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-041</td>
-                    <td>Nested generic in type parameter position</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-042</td>
-                    <td>Malformed type parameter list on function</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-043</td>
-                    <td>Nested generic in function type parameter</td>
-                  </tr>
-                  <tr>
-                    <td>VNE-050</td>
-                    <td>
-                      Malformed region.commit — expected "commit" after
-                      "region."
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <h2 id="reading-diagnostics">Reading a diagnostic</h2>
-            <p>Every diagnostic in the terminal is printed with:</p>
-            <ul>
-              <li>The severity (error, warning, note, perf hint).</li>
-              <li>The error code, which you can look up here.</li>
-              <li>The message text.</li>
-              <li>
-                The source location, in
-                <code class="inline">file:line</code> form.
-              </li>
-              <li>
-                A three-line excerpt from the offending file with a caret
-                pointing at the column.
-              </li>
-              <li>
-                Zero or more suggestions, when the compiler has a specific fix
-                in mind.
-              </li>
-            </ul>
-            <p>
-              If you see an error that is not in this list, please open an issue
-              — an undocumented error code is a bug in the documentation, not in
-              your code.
-            </p>
+<div class="page-eyebrow">Reference</div>
+<h1>Error Codes</h1>
+<p class="lede">A lookup table for VNE diagnostics, grouped by compiler phase and runtime policy.</p>
+<p>Diagnostics are emitted with a stable <code class="inline">VNE-*</code> code, a severity, a source location, an excerpt, and optional suggestions. Codes in the <code class="inline">VNE-010</code>–<code class="inline">VNE-032</code> range are mostly informational notes emitted when a ruleset is applied.</p>
+<h2 id="lexer-and-parser">Lexer and parser</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-001</code></td><td>Unexpected token</td></tr><tr><td><code class="inline">VNE-002</code></td><td>Missing semicolon</td></tr><tr><td><code class="inline">VNE-003</code></td><td>Unknown type name</td></tr><tr><td><code class="inline">VNE-005</code></td><td>Unresolved import</td></tr><tr><td><code class="inline">VNE-006</code></td><td>Malformed numeric literal (hex or float)</td></tr><tr><td><code class="inline">VNE-007</code></td><td>Integer literal overflow</td></tr><tr><td><code class="inline">VNE-008</code></td><td>Unexpected character</td></tr></tbody></table></div>
+<h2 id="rulesets-and-diagnostics">Rulesets and diagnostics</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Kind</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-010</code></td><td>note</td><td>Warnings enabled</td></tr><tr><td><code class="inline">VNE-011</code></td><td>note</td><td>Dynamic casting enabled</td></tr><tr><td><code class="inline">VNE-012</code></td><td>note</td><td>Memory-limit tracking enabled</td></tr><tr><td><code class="inline">VNE-013</code></td><td>error</td><td>Unknown ruleset flag</td></tr><tr><td><code class="inline">VNE-014</code></td><td>error</td><td>Value expected for a ruleset key</td></tr><tr><td><code class="inline">VNE-015</code></td><td>note</td><td>Memory limit set</td></tr><tr><td><code class="inline">VNE-016</code></td><td>warning</td><td>Unknown ruleset value</td></tr><tr><td><code class="inline">VNE-017</code></td><td>error</td><td>Invalid warning level</td></tr><tr><td><code class="inline">VNE-020</code></td><td>warning</td><td>Unknown ruleset flag</td></tr><tr><td><code class="inline">VNE-021</code></td><td>note</td><td>Valid <code class="inline">type_check</code> modes</td></tr><tr><td><code class="inline">VNE-022</code></td><td>warning</td><td>Unknown <code class="inline">type_check</code> mode</td></tr><tr><td><code class="inline">VNE-023</code></td><td>note</td><td>Valid <code class="inline">implicit_casting</code> modes</td></tr><tr><td><code class="inline">VNE-024</code></td><td>note</td><td>Profiling enabled</td></tr><tr><td><code class="inline">VNE-025</code></td><td>note</td><td>Profiling disabled</td></tr><tr><td><code class="inline">VNE-026</code></td><td>note</td><td>Debug mode enabled</td></tr><tr><td><code class="inline">VNE-027</code></td><td>note</td><td>Trace mode enabled</td></tr><tr><td><code class="inline">VNE-028</code></td><td>note</td><td>Max iterations set</td></tr><tr><td><code class="inline">VNE-029</code></td><td>note</td><td>Type-check mode hint</td></tr><tr><td><code class="inline">VNE-030</code></td><td>note</td><td>Warnings disabled hint</td></tr><tr><td><code class="inline">VNE-031</code></td><td>note</td><td>Pedantic mode enabled</td></tr><tr><td><code class="inline">VNE-032</code></td><td>note</td><td>Verbose mode enabled</td></tr></tbody></table></div>
+<h2 id="generics-interfaces-and-declarations">Generics, interfaces, and declarations</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-040</code></td><td>Malformed interface type-parameter list</td></tr><tr><td><code class="inline">VNE-041</code></td><td>Interface type parameter is not a simple identifier</td></tr><tr><td><code class="inline">VNE-042</code></td><td>Malformed function type-parameter list</td></tr><tr><td><code class="inline">VNE-043</code></td><td>Function type parameter is not a simple identifier</td></tr><tr><td><code class="inline">VNE-050</code></td><td>Expected <code class="inline">commit</code>, <code class="inline">commit_if</code>, or <code class="inline">move</code> after <code class="inline">region.</code></td></tr><tr><td><code class="inline">VNE-060</code></td><td>Invalid <code class="inline">scratch</code> element type</td></tr><tr><td><code class="inline">VNE-061</code></td><td>Scratch dimension is not positive or not a valid expression</td></tr><tr><td><code class="inline">VNE-062</code></td><td>Struct <code class="inline">scratch</code> without <code class="inline">@layout&lt;soa&gt;</code></td></tr><tr><td><code class="inline">VNE-063</code></td><td>Invalid <code class="inline">@layout</code> mode or whole-element SoA access</td></tr><tr><td><code class="inline">VNE-100</code></td><td>Method table full (<code class="inline">VYNE_MAX_METHODS</code> = 4096)</td></tr></tbody></table></div>
+<h2 id="regions-and-scratch">Regions and scratch</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Kind</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-070</code></td><td>error</td><td>Region escape: assigning region-local storage to a shallower variable</td></tr><tr><td><code class="inline">VNE-071</code></td><td>error</td><td>Scratch shape mismatch or invalid single index on rank &gt; 1</td></tr><tr><td><code class="inline">VNE-072</code></td><td>runtime</td><td>Scratch index out of bounds</td></tr><tr><td><code class="inline">VNE-080</code></td><td>error</td><td>Invalid region policy argument, composition, or target</td></tr><tr><td><code class="inline">VNE-081</code></td><td>error</td><td>Invalid policy argument token</td></tr><tr><td><code class="inline">VNE-082</code></td><td>runtime</td><td>Pool/slab/ring/streamed capacity exceeded</td></tr><tr><td><code class="inline">VNE-083</code></td><td>error/runtime</td><td>Intrinsic misuse (<code class="inline">drop</code>, <code class="inline">move</code>, pool/slab/ring/streamed alloc/free, persistent nesting)</td></tr><tr><td><code class="inline">VNE-084</code></td><td>error</td><td><code class="inline">commit</code> / <code class="inline">move</code> on a stack-allocated scratch array</td></tr><tr><td><code class="inline">VNE-085</code></td><td>error</td><td><code class="inline">commit_if</code> outside <code class="inline">@speculative</code></td></tr><tr><td><code class="inline">VNE-086</code></td><td>error</td><td>Qualified commit across a nesting level</td></tr><tr><td><code class="inline">VNE-089</code></td><td>error</td><td>Invalid <code class="inline">@realtime</code> argument</td></tr><tr><td><code class="inline">VNE-090</code></td><td>runtime</td><td><code class="inline">analog_write_resolution</code> above 8 (clamped)</td></tr><tr><td><code class="inline">VNE-091</code></td><td>runtime</td><td>Pin has no external interrupt</td></tr><tr><td><code class="inline">VNE-101</code></td><td>error</td><td><code class="inline">@bounded</code> compile-time violation (static scratch or bad argument)</td></tr><tr><td><code class="inline">VNE-102</code></td><td>runtime</td><td><code class="inline">@bounded</code> exceeded at runtime (arena or VLA)</td></tr><tr><td><code class="inline">VNE-106</code></td><td>error</td><td><code class="inline">@deterministic</code> region contains a time/RNG source</td></tr><tr><td><code class="inline">VNE-107</code></td><td>error</td><td><code class="inline">return</code> inside <code class="inline">@zeroed</code> / <code class="inline">@deterministic</code></td></tr><tr><td><code class="inline">VNE-108</code></td><td>error</td><td><code class="inline">return</code> inside <code class="inline">@bounded</code></td></tr><tr><td><code class="inline">VNE-109</code></td><td>runtime</td><td><code class="inline">@realtime</code> deadline overrun</td></tr></tbody></table></div>
+<h2 id="contracts">Contracts</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Kind</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-111</code></td><td>runtime</td><td><code class="inline">requires</code> / <code class="inline">ensures</code> / <code class="inline">@invariant</code> violation</td></tr><tr><td><code class="inline">VNE-112</code></td><td>error</td><td>Malformed contract or <code class="inline">@invariant</code></td></tr><tr><td><code class="inline">VNE-113</code></td><td>warning</td><td>Unknown <code class="inline">contracts</code> mode</td></tr></tbody></table></div>
+<h2 id="automatic-differentiation">Automatic differentiation</h2>
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Meaning</th></tr></thead><tbody><tr><td><code class="inline">VNE-120</code></td><td>Function outside the supported <code class="inline">@differentiable</code> subset</td></tr><tr><td><code class="inline">VNE-121</code></td><td>Unsupported statement or mutation inside <code class="inline">@differentiable</code></td></tr><tr><td><code class="inline">VNE-122</code>–<code class="inline">VNE-125</code></td><td>Unsupported expression or <code class="inline">grad()</code> misuse</td></tr><tr><td><code class="inline">VNE-126</code></td><td><code class="inline">backward()</code> could not resolve the recorded differentiable call</td></tr></tbody></table></div>
+<h2 id="reading-a-diagnostic">Reading a diagnostic</h2>
+<p>Every diagnostic in the terminal prints:</p>
+<ul><li>the severity (error, warning, note, perf hint);</li><li>the code, which you can look up here;</li><li>the message;</li><li>the source location (<code class="inline">file:line</code>);</li><li>a short excerpt with a caret at the column;</li><li>zero or more suggestions when the compiler has a specific fix.</li></ul>
+<p>If a code is missing from this page, treat that as a documentation bug: the compiler's diagnostics are the source of truth.</p>
+<h2 id="avr-specific-runtime-diagnostics">AVR-specific runtime diagnostics</h2>
+<p>On the Arduino target, some desktop <code class="inline">fprintf + exit</code> paths become serial output followed by a halt:</p>
+<ul><li><code class="inline">VNE-072</code> scratch bounds — <code class="inline">vyne_panic_bounds</code></li><li><code class="inline">VNE-102</code> <code class="inline">@bounded</code> — <code class="inline">vyne_panic_region_bound</code></li><li><code class="inline">VNE-109</code> <code class="inline">@realtime</code> — serial message and halt</li><li><code class="inline">VNE-111</code> contract violation — serial message and halt</li></ul>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="errors">Error Handling</a></li><li><a data-page="rulesets">Rulesets</a></li><li><a data-page="regions">Memory &amp; Regions</a></li></ul>

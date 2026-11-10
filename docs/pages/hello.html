@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hello, World · Vyne Language Reference</title>
-    <meta name="description" content="Getting Started Hello, World The smallest Vyne program is one line. hello.vy vyne copy out ( &quot;hello, world&quot; ); Save it as hello.vy , then: shell copy vynec hello.vy ./hello # → hel" />
+    <meta name="description" content="Getting Started Hello, World Your first Vyne program, the execution modes, and a first look at regions. Create hello.vy : hello.vy vyne copy out ( &quot;hello, vyne&quot; ); Run it: shell sn" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,13 +40,13 @@
           <path d="M13 11 L18 18.8 L23 11" fill="none" stroke="#080a10" stroke-opacity="0.38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
         </svg></span>
           <span class="brand-text">vyne</span>
-          <span class="brand-version">v0.0.4</span>
+          <span class="brand-version">v0.6.0</span>
         </a>
         <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Close navigation">
           <i class="fas fa-xmark"></i>
         </button>
       </div>
-      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link active" href="../pages/hello.html" aria-current="page"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders-h"></i><span>Rulesets</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link" href="../pages/vmem.html"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vglib.html"><i class="fas fa-gamepad"></i><span>VGLib</span></a></li><li><a class="nav-link" href="../pages/vaudio.html"><i class="fas fa-music"></i><span>VAudio</span></a></li><li><a class="nav-link" href="../pages/vserv.html"><i class="fas fa-globe"></i><span>VServ</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li></ul></div></nav>
+      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link active" href="../pages/hello.html" aria-current="page"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li><li><a class="nav-link" href="../pages/projects.html"><i class="fas fa-folder-tree"></i><span>Projects &amp; Tooling</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions, Generics &amp; Contracts</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/autodiff.html"><i class="fas fa-infinity"></i><span>Automatic Differentiation</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins &amp; Collections</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders"></i><span>Rulesets</span></a></li><li><a class="nav-link" href="../pages/device.html"><i class="fas fa-microchip"></i><span>CUDA &amp; Devices</span></a></li><li><a class="nav-link" href="../pages/arduino.html"><i class="fas fa-microchip"></i><span>Arduino &amp; AVR</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/libs.html"><i class="fas fa-cubes"></i><span>Library Overview</span></a></li><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link" href="../pages/vmem.html"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vfs.html"><i class="fas fa-folder-open"></i><span>VFS</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Numerical Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vlin.html"><i class="fas fa-table-cells-large"></i><span>vlin</span></a></li><li><a class="nav-link" href="../pages/vml.html"><i class="fas fa-network-wired"></i><span>vml</span></a></li><li><a class="nav-link" href="../pages/vfft.html"><i class="fas fa-wave-square"></i><span>vfft</span></a></li><li><a class="nav-link" href="../pages/vrand.html"><i class="fas fa-dice"></i><span>vrand</span></a></li><li><a class="nav-link" href="../pages/vstat.html"><i class="fas fa-chart-simple"></i><span>vstat</span></a></li><li><a class="nav-link" href="../pages/vcomplex.html"><i class="fas fa-infinity"></i><span>vcomplex</span></a></li><li><a class="nav-link" href="../pages/vinterp.html"><i class="fas fa-bezier-curve"></i><span>vinterp</span></a></li><li><a class="nav-link" href="../pages/voptim.html"><i class="fas fa-arrow-trend-down"></i><span>voptim</span></a></li><li><a class="nav-link" href="../pages/vsparse.html"><i class="fas fa-braille"></i><span>vsparse</span></a></li><li><a class="nav-link" href="../pages/vdecomp.html"><i class="fas fa-divide"></i><span>vdecomp</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">DSP &amp; Control</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vsignal.html"><i class="fas fa-signal"></i><span>vsignal</span></a></li><li><a class="nav-link" href="../pages/vcontrol.html"><i class="fas fa-sliders"></i><span>vcontrol</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Data &amp; Plotting</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcsv.html"><i class="fas fa-file-csv"></i><span>vcsv</span></a></li><li><a class="nav-link" href="../pages/vjson.html"><i class="fas fa-code"></i><span>vjson</span></a></li><li><a class="nav-link" href="../pages/vtermplot.html"><i class="fas fa-chart-area"></i><span>vtermplot</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Image &amp; Vision</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vimage.html"><i class="fas fa-image"></i><span>vimage</span></a></li><li><a class="nav-link" href="../pages/vconv.html"><i class="fas fa-border-all"></i><span>vconv</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Embedded Buses</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vi2c.html"><i class="fas fa-circle-nodes"></i><span>vi2c</span></a></li><li><a class="nav-link" href="../pages/vspi.html"><i class="fas fa-diagram-project"></i><span>vspi</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Domain Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vbio.html"><i class="fas fa-dna"></i><span>vbio</span></a></li><li><a class="nav-link" href="../pages/vchem.html"><i class="fas fa-flask"></i><span>vchem</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Helpers</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vhelpers.html"><i class="fas fa-toolbox"></i><span>Single-file Helpers</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Showcase</div><ul class="nav-list"><li><a class="nav-link" href="../pages/srcnn.html"><i class="fas fa-trophy"></i><span>SRCNN Image Upscaler</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/cli.html"><i class="fas fa-terminal"></i><span>CLI Reference</span></a></li><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li><li><a class="nav-link" href="../pages/performance.html"><i class="fas fa-gauge-high"></i><span>Performance</span></a></li></ul></div></nav>
       <div class="sidebar-foot">
         <span class="dot"></span> Active development
       </div>
@@ -78,95 +78,54 @@
       <div class="content-wrap">
         <main class="content" id="content">
           <article class="page active">
-                        <div class="page-eyebrow">Getting Started</div>
-            <h1>Hello, World</h1>
-            <p class="lede">The smallest Vyne program is one line.</p>
+            <div class="page-eyebrow">Getting Started</div>
+<h1>Hello, World</h1>
+<p class="lede">Your first Vyne program, the execution modes, and a first look at regions.</p>
+<p>Create <code class="inline">hello.vy</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;hello.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">out</span>(<span class="c-str">&quot;hello, vyne&quot;</span>);</div></div>
+<p>Run it:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec hello.vy</div></div>
+<p>A bare invocation compiles the source and runs the resulting program. <code class="inline">out</code> appends a newline; use <code class="inline">vcore</code> or <code class="inline">arduino.serial_print</code> when you need byte-level control.</p>
+<h2 id="the-same-file-in-three-modes">The same file in three modes</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec --ast hello.vy        <span class="c-com"># AST interpreter, no C emitted</span>
+./vynec --compile hello.vy    <span class="c-com"># emit C, compile a binary, stop</span>
+./vynec --run hello.vy        <span class="c-com"># compile and run</span>
+./vynec --emit-c hello.vy     <span class="c-com"># write hello.vy.c and stop</span></div></div>
+<p>The interpreter is the quickest feedback loop. <code class="inline">--compile</code> is the path to a standalone binary. Both consume the same parsed tree.</p>
+<h2 id="values-and-interpolation">Values and interpolation</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;values.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">:=</span> <span class="c-str">&quot;Vyne&quot;</span>;
+version <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">0.6</span>;
+count <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">3</span>;
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="far fa-file-code"></i>&nbsp;hello.vy</span
-                >
-                <span class="code-lang">vyne</span>
-              <button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div>
-              <div class="code-body"><span class="c-fn">out</span>(<span class="c-str"
-                  >"hello, world"</span
-                >);</div>
-            </div>
+<span class="c-fn">out</span>(<span class="c-str">&quot;hello, &quot;</span> <span class="c-op">+</span> name);
+<span class="c-fn">out</span>(<span class="c-str">&quot;version &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(version));
+<span class="c-fn">out</span>(<span class="c-str">&quot;count = &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(count));</div></div>
+<p>Vyne has explicit types when you want them:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;types.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">x <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-num">42</span>;
+pi <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-num">3.141592653589793</span>;
+flag <span class="c-op">::</span> <span class="c-ty">Bool</span> <span class="c-op">:=</span> <span class="c-kw">true</span>;
+items <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];</div></div>
+<p><code class="inline">:=</code> introduces a new binding; <code class="inline">=</code> reassigns an existing one. The distinction is enforced by the parser and is the single most important syntax change from older Vyne code.</p>
+<h2 id="a-first-region">A first region</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;region.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">through</span> epoch <span class="c-op">::</span> <span class="c-num">1</span><span class="c-op">..</span><span class="c-num">5</span> <span class="c-op">-&gt;</span> <span class="c-kw">loop</span> {
+    <span class="c-kw">region</span> <span class="c-kw">scratch</span> {
+        xs <span class="c-op">::</span> <span class="c-ty">Array</span><span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> [<span class="c-num">1.0</span>, <span class="c-num">2.0</span>, <span class="c-num">3.0</span>];
+        <span class="c-fn">out</span>(<span class="c-str">&quot;epoch &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(epoch) <span class="c-op">+</span> <span class="c-str">&quot; sum &quot;</span> <span class="c-op">+</span> <span class="c-fn">string</span>(xs.<span class="c-fn">sum</span>()));
+    };
+};</div></div>
+<p>Everything allocated inside <code class="inline">region scratch</code> is reclaimed at the closing brace. The loop can run five times or five million times; the arena returns to its entry offset on every iteration. That is the core memory model, and the rest of the language is designed to make it visible rather than implicit.</p>
+<h2 id="comments">Comments</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-com"># line comment</span>
+<span class="c-fn">out</span>(<span class="c-str">&quot;still code&quot;</span>);   <span class="c-com"># trailing comment</span>
 
-            <p>Save it as <code class="inline">hello.vy</code>, then:</p>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="fas fa-terminal"></i>&nbsp;shell</span
-                >
-                <button class="copy-btn">
-                  <i class="far fa-copy"></i> copy
-                </button>
-              </div>
-              <div class="code-body">vynec hello.vy ./hello
-<span class="c-com"># → hello, world</span></div>
-            </div>
-
-            <h2 id="reading-it">Reading it line by line</h2>
-            <p>
-              <code class="inline">out</code> is a built-in function. It takes
-              any value, converts it to its display form, and writes it to
-              standard output followed by a newline. It is not a keyword — it is
-              defined by the runtime — but it is globally available and never
-              needs to be declared.
-            </p>
-            <p>
-              <code class="inline">"hello, world"</code> is a string literal.
-              Strings in Vyne are immutable and UTF-8.
-            </p>
-            <p>
-              The trailing <code class="inline">;</code> is a statement
-              terminator. Vyne does not have automatic semicolon insertion, so
-              you always write it.
-            </p>
-
-            <h2 id="with-a-variable">With a variable</h2>
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename"
-                  ><i class="far fa-file-code"></i>&nbsp;hello2.vy</span
-                >
-                <span class="code-lang">vyne</span>
-              <button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div>
-              <div class="code-body"><span class="c-com"
-                  >// `::` declares the type; the value infers the rest.</span
-                >
-greeting <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"hello"</span>; name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">=</span> <span class="c-str">"world"</span>;
-
-<span class="c-fn">out</span>(greeting <span class="c-op">+</span> <span class="c-str">", "</span> <span class="c-op">+</span> name <span class="c-op">+</span> <span class="c-str">"!"</span>);</div>
-            </div>
-            <p>
-              <code class="inline">::</code> is Vyne's type-annotation operator.
-              It reads naturally: "greeting is a String". Once a variable has a
-              type, its storage layout is fixed for its lifetime — reassigning a
-              <code class="inline">String</code> to an
-              <code class="inline">Int64</code> will be a compile error.
-            </p>
-
-            <div class="admonition adm-note">
-              <i class="fas fa-circle-info"></i>
-              <div class="adm-body">
-                <div class="adm-title">String concatenation</div>
-                The <code class="inline">+</code> operator concatenates when at
-                least one side is a <code class="inline">String</code>. This is
-                the only implicit coercion Vyne performs; everything else
-                requires an explicit conversion with
-                <code class="inline">string()</code>,
-                <code class="inline">int64()</code>, or
-                <code class="inline">float64()</code>.
-              </div>
-            </div>
+<span class="c-op">/</span><span class="c-op">*</span> block comments are also accepted <span class="c-op">*</span><span class="c-op">/</span></div></div>
+<h2 id="next">Next</h2>
+<ul><li><a href="../pages/tour.html">Language Tour</a> — every construct in one pass.</li><li><a href="../pages/regions.html">Memory &amp; Regions</a> — the full policy matrix.</li><li><a href="../pages/projects.html">Projects &amp; Tooling</a> — scaffold, build, run, and benchmark a real project.</li></ul>
 
           </article>
           <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/install.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">Installation</span></a><a class="pager-link next" href="../pages/tour.html"><span class="pager-label"> Next</span><span class="pager-title">Language Tour <i class="fas fa-arrow-right"></i></span></a></nav>
           <footer class="page-footer">
-            <span>Vyne v0.0.4 — Language Reference</span>
+            <span>Vyne v0.6.0 — Language Reference</span>
             <a href="../index.html">Back to top</a>
           </footer>
         </main>

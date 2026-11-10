@@ -1,0 +1,99 @@
+<div class="page-eyebrow">Showcase</div>
+<h1>SRCNN Image Upscaler</h1>
+<p class="lede">A complete Vyne project — synthetic dataset, residual SRCNN training, CUDA inference, and image-quality benchmarks.</p>
+<p><code class="inline">examples/projects/srcnn</code> is a full project built on the language, not a toy snippet. It generates its own training pair, trains a 3-layer residual SRCNN, runs the entire inference graph inside one <code class="inline">@device&lt;cuda&gt;</code> frame, compares against a bilinear baseline and an FSR-1-style baseline, and reports PSNR, SSIM, edge energy, and a ringing proxy.</p>
+<p><img src="../assets/srcnn/sample.png" alt="Sample input" loading="lazy"></p>
+<h2 id="results">Results</h2>
+<p>Generated 128×128 LR → 256×256 HR pair, trained on the same pair. This is a single-image demonstration of the pipeline, not a generalization claim.</p>
+<div class="table-wrap"><table><thead><tr><th>Method</th><th>PSNR (dB)</th><th>SSIM</th><th>Edge energy</th><th>Ringing proxy</th></tr></thead><tbody><tr><td>Bilinear</td><td>29.8139</td><td>0.985724</td><td>0.0345062</td><td>0.0453306</td></tr><tr><td>FSR-1-style (Lanczos3 + RCAS-like)</td><td>31.5510</td><td>0.990767</td><td>0.0494989</td><td>0.0423732</td></tr><tr><td><strong>Vyne SRCNN</strong></td><td><strong>33.5100</strong></td><td><strong>0.994912</strong></td><td>0.0466214</td><td><strong>0.0365586</strong></td></tr></tbody></table></div>
+<p>Higher PSNR/SSIM and higher edge energy are better; lower ringing is better. Vyne SR wins PSNR (+1.96 dB over the FSR-style baseline), SSIM, and ringing, while keeping edge energy well above bilinear.</p>
+<p>The FSR baseline is a faithful <em>style</em> implementation of FSR 1.0, not a bit-exact AMD EASU/RCAS port: EASU is approximated by Lanczos-3 resampling, and RCAS is a simplified local-min/max-clamped adaptive sharpen.</p>
+<p><img src="../assets/srcnn/output_bilinear.png" alt="Bilinear output" loading="lazy"></p>
+<p><img src="../assets/srcnn/output_fsr1.png" alt="FSR-1-style output" loading="lazy"></p>
+<p><img src="../assets/srcnn/output_vyne_sr.png" alt="Vyne SRCNN output" loading="lazy"></p>
+<h2 id="architecture">Architecture</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;text snippet</span><span class="code-lang">text</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="text">input (bilinear-upscaled LR, HWC 3)
+  -&gt; 5x5 conv, 3 -&gt; 8, pad 2, ReLU
+  -&gt; 1x1 conv, 8 -&gt; 4, ReLU
+  -&gt; 5x5 conv, 4 -&gt; 3, pad 2
+  -&gt; residual add to the bilinear input</div></div>
+<p>The final layer starts at zero, so the initial model output is exactly bilinear. Training can only learn a correction, which keeps the optimization stable and guarantees the network starts from a sensible baseline.</p>
+<p>The shipped trainer uses L2 loss for stable PSNR convergence. Pure L1 was implemented and evaluated but stalled on this small scratch model; the README records that honestly instead of claiming an L1 win.</p>
+<h2 id="project-layout">Project layout</h2>
+<div class="table-wrap"><table><thead><tr><th>Path</th><th>Contents</th></tr></thead><tbody><tr><td><code class="inline">src/dataset.vy</code></td><td>Builds a 256×256 synthetic HR montage, LR, and bilinear input; writes <code class="inline">data/train_*.png</code>.</td></tr><tr><td><code class="inline">src/model.vy</code></td><td>Residual SRCNN forward, backward, weight save/load, custom adjoint.</td></tr><tr><td><code class="inline">src/train.vy</code></td><td>Adam training loop and checkpoint save.</td></tr><tr><td><code class="inline">src/main.vy</code></td><td>Inference, output PNGs, benchmark metrics.</td></tr><tr><td><code class="inline">src/metrics.vy</code></td><td>PSNR, global SSIM, edge energy, ringing proxy.</td></tr><tr><td><code class="inline">src/upscale.vy</code></td><td>Lanczos-3 and RCAS-style FSR baseline.</td></tr><tr><td><code class="inline">src/gpu.vy</code></td><td>Full SRCNN inference inside one <code class="inline">@device&lt;cuda&gt;</code> frame.</td></tr><tr><td><code class="inline">data/</code></td><td>Template assets plus generated train/val pairs and <code class="inline">srcnn_x2.vwt</code>.</td></tr><tr><td><code class="inline">scripts/run.ps1</code> / <code class="inline">scripts/run.sh</code></td><td>Dataset → train → benchmark.</td></tr></tbody></table></div>
+<h2 id="run-it">Run it</h2>
+<p>From <code class="inline">examples/projects/srcnn</code>:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">pwsh scripts/run.ps1
+./scripts/run.sh</div></div>
+<p>Or step by step:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">../../../vynec --compile src/dataset.vy &amp;&amp; ./src/dataset
+../../../vynec --compile src/train.vy   &amp;&amp; ./src/train
+../../../vynec --compile src/main.vy    &amp;&amp; ./src/main</div></div>
+<p>Or use the project-aware driver:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec build examples/projects/srcnn
+vynec run examples/projects/srcnn
+vynec bench examples/projects/srcnn</div></div>
+<p>Outputs:</p>
+<ul><li><code class="inline">build/output_bilinear.png</code></li><li><code class="inline">build/output_fsr1.png</code></li><li><code class="inline">build/output_vyne_sr.png</code></li><li><code class="inline">data/srcnn_x2.vwt</code> (trained weights)</li></ul>
+<h2 id="gpu-inference">GPU inference</h2>
+<p><code class="inline">src/gpu.vy</code> runs <strong>all three convolutions, both ReLUs, the residual add, and the final download inside one <code class="inline">@device&lt;cuda&gt;</code> frame</strong>. The device backend has a <code class="inline">device_conv2d</code> kernel (Float32 default, Float64 opt-in) alongside matmul and the elementwise kernels. If CUDA is unavailable, the same calls fall back to the CPU backend and the output is unchanged.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@device<span class="c-op">&lt;</span>cuda<span class="c-op">&gt;</span> <span class="c-kw">region</span> infer {
+    d_x <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-fn">device_alloc</span>(hw <span class="c-op">*</span> <span class="c-num">3</span>);
+    d_w1 <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-fn">device_alloc</span>(<span class="c-num">8</span> <span class="c-op">*</span> <span class="c-num">3</span> <span class="c-op">*</span> <span class="c-num">5</span> <span class="c-op">*</span> <span class="c-num">5</span>);
+    d_h1 <span class="c-op">::</span> <span class="c-ty">Int64</span> <span class="c-op">:=</span> <span class="c-fn">device_alloc</span>(hw <span class="c-op">*</span> <span class="c-num">8</span>);
+    <span class="c-com"># ...</span>
+
+    <span class="c-fn">device_upload</span>(d_x, xf, hw <span class="c-op">*</span> <span class="c-num">3</span>);
+    <span class="c-fn">device_upload</span>(d_w1, w1f, <span class="c-num">8</span> <span class="c-op">*</span> <span class="c-num">3</span> <span class="c-op">*</span> <span class="c-num">5</span> <span class="c-op">*</span> <span class="c-num">5</span>);
+
+    <span class="c-fn">device_conv2d</span>(d_h1, d_x, d_w1, d_b1, h, w, <span class="c-num">3</span>, h, w, <span class="c-num">8</span>, <span class="c-num">5</span>, <span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">1</span>);
+    <span class="c-fn">device_relu</span>(d_h1, d_h1, hw <span class="c-op">*</span> <span class="c-num">8</span>);
+
+    <span class="c-fn">device_conv2d</span>(d_h2, d_h1, d_w2, d_b2, h, w, <span class="c-num">8</span>, h, w, <span class="c-num">4</span>, <span class="c-num">1</span>, <span class="c-num">1</span>, <span class="c-num">0</span>, <span class="c-num">1</span>);
+    <span class="c-fn">device_relu</span>(d_h2, d_h2, hw <span class="c-op">*</span> <span class="c-num">4</span>);
+
+    <span class="c-fn">device_conv2d</span>(d_out, d_h2, d_w3, d_b3, h, w, <span class="c-num">4</span>, h, w, <span class="c-num">3</span>, <span class="c-num">5</span>, <span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">1</span>);
+    <span class="c-fn">device_add</span>(d_out, d_out, d_x, hw <span class="c-op">*</span> <span class="c-num">3</span>);
+    <span class="c-fn">device_download</span>(d_out, outf, hw <span class="c-op">*</span> <span class="c-num">3</span>);
+    <span class="c-fn">device_sync</span>();
+};</div></div>
+<p>The inference path is fully GPU-capable. Training is CPU-side because device backward kernels are not implemented yet.</p>
+<h2 id="training-and-the-custom-adjoint">Training and the custom adjoint</h2>
+<p><code class="inline">vconv</code> has explicit CPU backward kernels:</p>
+<ul><li><code class="inline">conv2d_backward_input</code></li><li><code class="inline">conv2d_backward_weight</code></li><li><code class="inline">conv2d_backward_bias</code></li><li><code class="inline">relu_backward</code></li></ul>
+<p>The compiler's general tensor AD is still scalar/array-reduction only, so the project registers a <strong>custom adjoint by convention</strong>:</p>
+<ul><li><code class="inline">sr_loss</code> is marked <code class="inline">@differentiable</code>.</li><li><code class="inline">sr_loss_vjp</code> (the <code class="inline">&lt;fn&gt;_vjp</code> convention) is the reverse pass. It calls <code class="inline">loss_and_grads</code> and publishes the weight gradients through <code class="inline">last_grads()</code>.</li><li><code class="inline">train.vy</code> writes <code class="inline">@backward region step { loss := sr_loss(...); backward(loss); ... }</code>. The optimizer steps run inside the region because the gradient buffers are arena-scoped.</li></ul>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">@differentiable
+<span class="c-kw">fn</span> <span class="c-fn">sr_loss</span>(model <span class="c-op">::</span> <span class="c-ty">SRCNN</span>, x <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span>, y <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Float64</span> {
+    <span class="c-kw">return</span> <span class="c-fn">loss_and_grads</span>(model, x, y).loss;
+}
+
+<span class="c-kw">fn</span> <span class="c-fn">sr_loss_vjp</span>(model <span class="c-op">::</span> <span class="c-ty">SRCNN</span>, x <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span>, y <span class="c-op">::</span> vconv.<span class="c-ty">Tensor</span>) {
+    grads <span class="c-op">:=</span> <span class="c-fn">loss_and_grads</span>(model, x, y);
+    <span class="c-fn">last_grads</span>(grads);
+}
+
+@<span class="c-kw">backward</span> <span class="c-kw">region</span> step {
+    loss <span class="c-op">::</span> <span class="c-ty">Float64</span> <span class="c-op">:=</span> <span class="c-fn">sr_loss</span>(model, x_batch, y_batch);
+    <span class="c-kw">backward</span>(loss);
+    <span class="c-fn">adam_step</span>(model, <span class="c-fn">last_grads</span>());
+};</div></div>
+<p>This removes the explicit backprop loop from the training script. Full automatic differentiation of <code class="inline">vconv.conv2d</code> calls is still the next AD step; the custom adjoint is the bridge.</p>
+<h2 id="benchmark-report">Benchmark report</h2>
+<p><code class="inline">vynec bench</code> produces a machine-readable report:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;json snippet</span><span class="code-lang">json</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="json">{
+  &quot;project&quot;: &quot;srcnn&quot;,
+  &quot;target&quot;: &quot;desktop&quot;,
+  &quot;config&quot;: { &quot;warmup&quot;: 10, &quot;iterations&quot;: 100 },
+  &quot;results&quot;: {
+    &quot;src/main.vy&quot;: { &quot;mean_ms&quot;: 378.31, &quot;median_ms&quot;: 378.25, &quot;stddev_ms&quot;: 3.08 },
+    &quot;src/gpu.vy&quot;:  { &quot;mean_ms&quot;: 14.51,  &quot;median_ms&quot;: 14.29,  &quot;stddev_ms&quot;: 0.76 }
+  }
+}</div></div>
+<p>See <code class="inline">build/bench.json</code> for the current numbers.</p>
+<h2 id="limits-and-honest-caveats">Limits and honest caveats</h2>
+<ul><li><strong>Single-image demo.</strong> The trainer and benchmark use the same generated pair. Train on more pairs before claiming real-world SR quality.</li><li><strong>The template <code class="inline">data/reference.png</code> is itself a bilinear upscale</strong> of <code class="inline">data/sample.png</code>, so bilinear scores about 60 dB on that pair. The benchmark uses the generated synthetic HR/LR pair instead.</li><li><strong>FSR baseline is a style implementation</strong>, not bit-exact AMD FSR 1.0.</li><li><strong>GPU conv training is not implemented.</strong> Inference is fully on-device; training uses CPU backward kernels because compiler conv VJPs are not landed.</li><li><strong>Conv VJP is a custom adjoint, not automatic tensor AD.</strong> <code class="inline">sr_loss_vjp</code> uses the <code class="inline">vconv</code> backward kernels; automatic conv VJPs remain a follow-up.</li><li>The bundled <code class="inline">data/espcn_x2.vwy</code> is the template's passthrough model and is not used by the SRCNN path.</li></ul>
+<h2 id="what-this-project-demonstrates">What this project demonstrates</h2>
+<ul><li>Project scaffolding and a real <code class="inline">project.toml</code>.</li><li>Dataset generation with <code class="inline">vimage</code> and <code class="inline">vfs</code>.</li><li>Layer construction and forward passes with <code class="inline">vconv</code> and <code class="inline">vlin</code>/<code class="inline">vml</code>.</li><li>Region-scoped training state and Adam with <code class="inline">voptim</code>.</li><li><code class="inline">@differentiable</code> + <code class="inline">@backward</code> + custom VJP.</li><li>Full GPU inference with <code class="inline">@device&lt;cuda&gt;</code> and <code class="inline">device_conv2d</code>.</li><li>Image quality metrics with <code class="inline">vstat</code> (<code class="inline">psnr</code>, <code class="inline">ssim</code>).</li><li>Benchmark reporting with <code class="inline">vynec bench</code>.</li></ul>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="libs">Library Overview</a></li><li><a data-page="autodiff">Automatic Differentiation</a></li><li><a data-page="device">CUDA &amp; Devices</a></li><li><a data-page="projects">Projects &amp; Tooling</a></li></ul>

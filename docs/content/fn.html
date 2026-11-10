@@ -1,90 +1,70 @@
-            <div class="page-eyebrow">Language Reference</div>
-            <h1>Functions</h1>
-            <p class="lede">
-              Declaration, parameters, return values, and named arguments.
-            </p>
+<div class="page-eyebrow">Language Reference</div>
+<h1>Functions, Generics &amp; Contracts</h1>
+<p class="lede">Declarations, typed and untyped parameters, generics by monomorphization, defer, and executable contracts.</p>
+<h2 id="declaration">Declaration</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">add</span>(a <span class="c-op">::</span> <span class="c-ty">Int64</span>, b <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
+    <span class="c-kw">return</span> a <span class="c-op">+</span> b;
+}
 
-            <h2 id="declaration">Declaration</h2>
-            <p>
-              Functions start with <code class="inline">fn</code>. The parameter
-              list can annotate each parameter's type with
-              <code class="inline">::</code>. The return type follows
-              <code class="inline">-&gt;</code>. Both are optional; missing
-              types default to dynamic.
-            </p>
+<span class="c-kw">fn</span> <span class="c-fn">greet</span>(name) {
+    <span class="c-fn">out</span>(<span class="c-str">&quot;hello, &quot;</span> <span class="c-op">+</span> name);
+}</div></div>
+<p>Parameters may be typed or untyped. A typed function is a candidate for native lowering; an untyped one takes the boxed path. A missing return type means the function returns no value. <code class="inline">return</code> exits immediately; a bare <code class="inline">return;</code> is allowed in a no-value function.</p>
+<p>Named arguments and default parameter values are not supported. Call arguments are positional.</p>
+<h2 id="generics">Generics</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> max_of<span class="c-op">&lt;</span><span class="c-ty">T</span><span class="c-op">&gt;</span>(a <span class="c-op">::</span> <span class="c-ty">T</span>, b <span class="c-op">::</span> <span class="c-ty">T</span>) <span class="c-op">-&gt;</span> <span class="c-ty">T</span> {
+    <span class="c-kw">if</span> a <span class="c-op">&gt;</span> b { <span class="c-kw">return</span> a; }
+    <span class="c-kw">return</span> b;
+}
 
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">fn.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">fn</span> <span class="c-fn">add</span>(a <span class="c-op">::</span> <span class="c-ty">Int64</span>, b <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
-  <span class="c-kw">return</span> a <span class="c-op">+</span> b; };
+<span class="c-kw">fn</span> identity<span class="c-op">&lt;</span><span class="c-ty">T</span><span class="c-op">&gt;</span>(x <span class="c-op">::</span> <span class="c-ty">T</span>) <span class="c-op">-&gt;</span> <span class="c-ty">T</span> {
+    <span class="c-kw">return</span> x;
+}
 
-<span class="c-com">// No types — dynamic mode only</span>
-<span class="c-kw">fn</span> <span class="c-fn">square</span>(x) { x <span class="c-op">*</span> x };
+a <span class="c-op">:=</span> max_of<span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>(<span class="c-num">3</span>, <span class="c-num">5</span>);
+b <span class="c-op">:=</span> max_of<span class="c-op">&lt;</span><span class="c-ty">Float64</span><span class="c-op">&gt;</span>(<span class="c-num">3.0</span>, <span class="c-num">5.0</span>);
+c <span class="c-op">:=</span> identity<span class="c-op">&lt;</span><span class="c-ty">String</span><span class="c-op">&gt;</span>(<span class="c-str">&quot;vyne&quot;</span>);</div></div>
+<p>Generics are monomorphized: each distinct type tuple produces a separate C function. Recursive instantiation is detected and terminates with a diagnostic. Generic interfaces are supported too:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">interface</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">T</span><span class="c-op">&gt;</span> {
+    value <span class="c-op">::</span> <span class="c-ty">T</span>;
+}
 
-<span class="c-com">// Explicit null return</span>
-<span class="c-kw">fn</span> <span class="c-fn">log</span>(msg <span class="c-op">::</span> <span class="c-ty">String</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Null</span> {
-  <span class="c-fn">out</span>(msg); };</div>
-            </div>
+b <span class="c-op">::</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span> <span class="c-op">:=</span> <span class="c-ty">Box</span><span class="c-op">&lt;</span><span class="c-ty">Int64</span><span class="c-op">&gt;</span>(<span class="c-num">42</span>);</div></div>
+<h2 id="native-abi">Native ABI</h2>
+<p>A function is eligible for an unboxed native variant when:</p>
+<ul><li>every parameter is a primitive (<code class="inline">Int64</code>, <code class="inline">Float64</code>, <code class="inline">Float32</code>, <code class="inline">Bool</code>), a typed array (<code class="inline">Array&lt;Float64&gt;</code>, <code class="inline">Array&lt;Int64&gt;</code>, <code class="inline">Array&lt;Float32&gt;</code>), or a struct with a registered field layout;</li><li>the return type is a primitive, typed array, or such a struct; and</li><li>the body contains no top-level <code class="inline">defer</code> or <code class="inline">try</code>.</li></ul>
+<p>Eligible functions are emitted twice: once with the boxed signature <code class="inline">(int argc, VyneValue* argv) -&gt; VyneValue</code>, and once with a native signature such as:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;c snippet</span><span class="code-lang">c</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="c">double fn_vlin_k_dot(double* a, double* b, int64_t n);</div></div>
+<p>Call sites prefer the native variant when every argument matches. Struct parameters expand to one C argument per field in declaration order; array parameters pass <code class="inline">.data</code> directly. On AVR this is what keeps numerical kernels off the 1 KB arena.</p>
+<h2 id="defer">Defer</h2>
+<p><code class="inline">defer</code> registers a statement or block to run when the enclosing scope exits, including early returns. Defers run in LIFO order.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">demo</span>() <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
+    <span class="c-kw">defer</span> <span class="c-fn">out</span>(<span class="c-str">&quot;first registered&quot;</span>);
+    <span class="c-kw">defer</span> <span class="c-fn">out</span>(<span class="c-str">&quot;second registered&quot;</span>);
 
-            <h2 id="return">return</h2>
-            <p>
-              A function without an explicit
-              <code class="inline">return</code> returns
-              <code class="inline">null</code>. A bare
-              <code class="inline">return;</code> is equivalent to
-              <code class="inline">return null;</code>.
-            </p>
-            <p>
-              If a function is inside a <code class="inline">region</code>,
-              returning a non-primitive value is handled specially — see
-              <a data-page="regions">Memory &amp; Regions</a>.
-            </p>
+    <span class="c-fn">out</span>(<span class="c-str">&quot;body&quot;</span>);
+    <span class="c-kw">return</span> <span class="c-num">42</span>;
+}</div></div>
+<p>Output order is <code class="inline">body</code>, <code class="inline">second registered</code>, <code class="inline">first registered</code>, then the returned value is observed by the caller. A function with a top-level <code class="inline">defer</code> is not eligible for the native ABI.</p>
+<h2 id="contracts">Contracts</h2>
+<p><code class="inline">requires</code> runs at function entry; <code class="inline">ensures</code> runs before every return, normal or early. Inside <code class="inline">ensures</code>, <code class="inline">result</code> names the return value.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">ruleset</span> { <span class="c-kw">contracts</span> <span class="c-op">=</span> <span class="c-str">&quot;check&quot;</span> };
 
-            <h2 id="named-arguments">Named arguments</h2>
-            <p>
-              At the call site, you can supply arguments by name. You cannot mix
-              positional and named arguments in the same call.
-            </p>
-
-            <div class="code-block">
-              <div class="code-header">
-                <span class="code-filename">named.vy</span
-                ><span class="code-lang">vyne</span>
-              </div>
-              <div class="code-body"><span class="c-kw">fn</span> <span class="c-fn">draw_box</span>(x <span class="c-op">::</span> <span class="c-ty">Int64</span>, y <span class="c-op">::</span> <span class="c-ty">Int64</span>, w <span class="c-op">::</span> <span class="c-ty">Int64</span>, h <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Null</span> {
-  <span class="c-com">// ...</span>
-};
-
-<span class="c-com">// Both valid:</span>
-<span class="c-fn">draw_box</span>(<span class="c-num">10</span
-                >, <span class="c-num">20</span>, <span class="c-num">100</span>, <span class="c-num">50</span>);
-<span class="c-fn">draw_box</span>(x: <span class="c-num">10</span>, y: <span class="c-num">20</span>, w: <span class="c-num">100</span>, h: <span class="c-num">50</span>);</div>
-            </div>
-
-            <h2 id="recursion">Recursion</h2>
-            <p>
-              Functions can call themselves. Vyne does not perform tail-call
-              optimisation, so deep recursion is bounded by the C stack.
-            </p>
-
-            <h2 id="type-parameters">
-              Type parameters <span class="badge badge-exp">experimental</span>
-            </h2>
-            <p>
-              Function-level generic parameters exist syntactically (<code
-                class="inline"
-                >fn max&lt;T&gt;(...)</code
-              >) but the emitter's instantiation strategy is not yet complete.
-              Do not depend on it in production code; the syntax may change
-              before v0.1.
-            </p>
-
-            <h2 id="interfaces-as-structs">Functions on interfaces</h2>
-            <p>
-              Methods are declared inside
-              <code class="inline">interface</code> blocks — see the next
-              chapter.
-            </p>
+<span class="c-kw">fn</span> <span class="c-fn">positive</span>(x <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span>
+<span class="c-kw">requires</span>(x <span class="c-op">&gt;</span> <span class="c-num">0</span>)
+<span class="c-kw">ensures</span>(<span class="c-kw">result</span> <span class="c-op">&gt;</span> <span class="c-num">0</span>)
+{
+    <span class="c-kw">return</span> x <span class="c-op">*</span> <span class="c-num">2</span>;
+}</div></div>
+<div class="table-wrap"><table><thead><tr><th><code class="inline">contracts</code> mode</th><th>Effect</th></tr></thead><tbody><tr><td><code class="inline">&quot;check&quot;</code></td><td>Emit assertions; violation halts with <code class="inline">VNE-111</code></td></tr><tr><td><code class="inline">&quot;evidence&quot;</code></td><td>Assert and append a CSV pass/fail row to <code class="inline">vyne_contracts.log</code> (or <code class="inline">$VYNE_CONTRACT_LOG</code>)</td></tr><tr><td><code class="inline">&quot;off&quot;</code></td><td>Emit nothing (release path)</td></tr></tbody></table></div>
+<p>Contracts are also available on loops as <code class="inline">@invariant(...)</code>. See <a data-page="flow">Control Flow</a>.</p>
+<h2 id="recursion">Recursion</h2>
+<p>Recursion is supported on both backends. The native path handles direct recursion; mutual recursion works through the boxed call path when the signatures cannot be specialized.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">fib</span>(n <span class="c-op">::</span> <span class="c-ty">Int64</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Int64</span> {
+    <span class="c-kw">if</span> n <span class="c-op">&lt;=</span> <span class="c-num">1</span> { <span class="c-kw">return</span> n; }
+    <span class="c-kw">return</span> <span class="c-fn">fib</span>(n <span class="c-op">-</span> <span class="c-num">1</span>) <span class="c-op">+</span> <span class="c-fn">fib</span>(n <span class="c-op">-</span> <span class="c-num">2</span>);
+}</div></div>
+<h2 id="calling-convention-summary">Calling convention summary</h2>
+<div class="table-wrap"><table><thead><tr><th>Call form</th><th>Example</th></tr></thead><tbody><tr><td>Plain function</td><td><code class="inline">add(2, 3)</code></td></tr><tr><td>Generic</td><td><code class="inline">identity&lt;Float64&gt;(1.0)</code></td></tr><tr><td>Module function</td><td><code class="inline">vmath.sqrt(9.0)</code></td></tr><tr><td>Group function</td><td><code class="inline">Geometry.area_of_circle(2.0)</code></td></tr><tr><td>Interface method</td><td><code class="inline">circle.area()</code></td></tr><tr><td>Pipeline</td><td><code class="inline">5 |&gt; double</code></td></tr></tbody></table></div>
+<h2 id="see-also">See also</h2>
+<ul><li><a data-page="iface">Interfaces</a></li><li><a data-page="mods">Groups &amp; Modules</a></li><li><a data-page="autodiff">Automatic Differentiation</a></li><li><a data-page="rulesets">Rulesets</a></li></ul>
