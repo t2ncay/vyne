@@ -628,7 +628,7 @@ static void compilePersistentRegion(C_Emitter& e, const RegionNode& r) {
 // The first release supports explicit intrinsics:
 //   device_alloc, device_upload, device_download, device_add,
 //   device_sub, device_mul, device_scale, device_relu, device_fill,
-//   device_matmul, device_sync, device_bytes, device_peak_bytes,
+//   device_matmul, device_conv2d, device_sync, device_bytes, device_peak_bytes,
 //   device_backend, device_available.
 //
 // Tensors are Float64. Automatic staging/op-list codegen is a follow-up;

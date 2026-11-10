@@ -110,9 +110,9 @@ so the wrapper is the only place a caller needs to reason about.
 
 ## Limits
 
-- CPU convolution. The device backend has matmul/elementwise kernels but
-  no conv primitive; the SR project runs its 1x1 layer through `@device`
-  matmul and keeps the 5x5 layers on the CPU.
+- `vconv.conv2d` is CPU. The `@device` backend now has `device_conv2d`;
+  the SR project uses it for full-device inference, while `vconv` itself does
+  not auto-dispatch. Training uses the CPU backward kernels.
 - Backward is CPU-only and covers the square-kernel stride/pad cases above.
 - No dilation or groups yet.
 - Naive direct convolution. It is fast enough for the ESPCN demo on

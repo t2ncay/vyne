@@ -48,12 +48,16 @@ and commit history record that honestly instead of claiming an L1 win.
 
 ## GPU path
 
-`src/gpu.vy` runs the 1x1 mapping layer on `@device<cuda>` as a
-`[H*W,8] * [8,4]` matmul with a broadcast bias and ReLU. The 5x5 feature and
-reconstruction layers stay on the CPU because `vconv` is still forward-only
-and the device backend exposes matmul/elementwise kernels, not convolution.
-If CUDA is unavailable, `@device` falls back to the CPU backend and the output
-is unchanged.
+`src/gpu.vy` runs the **entire SRCNN inference** inside one `@device<cuda>`
+frame: all three convolutions, both ReLUs, the residual add, and the final
+download. The device backend now has a `device_conv2d` kernel (Float32
+default, Float64 opt-in) alongside matmul and the elementwise kernels. If CUDA
+is unavailable, the same device calls fall back to the CPU backend and the
+output is unchanged.
+
+Training is still CPU-side: it uses the explicit `vconv` backward kernels and
+`voptim` Adam, because the compiler AD path does not yet carry convolution
+VJPs or tensor locals. The forward inference path is fully GPU-capable.
 
 ## Training path
 
@@ -121,8 +125,8 @@ Outputs:
   `data/sample.png`, so bilinear scores ~60 dB on that pair. The benchmark
   therefore uses the generated synthetic HR/LR pair, not the template pair.
 - **FSR baseline is a style implementation**, not bit-exact AMD FSR 1.0.
-- **GPU conv is not implemented.** Only the 1x1 layer uses the device path;
-  the 5x5 layers are CPU. A device conv kernel is the next runtime step.
-- **No `@differentiable` conv.** Training uses explicit backward kernels.
+- **GPU conv training is not implemented.** Inference is fully on-device;
+  training uses CPU backward kernels because compiler conv VJPs are not landed.
+- **No `@differentiable` conv yet.** Training uses explicit backward kernels.
 - The bundled `data/espcn_x2.vwy` is the template's passthrough model; it is
   not used by this project's SRCNN path.

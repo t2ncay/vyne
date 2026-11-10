@@ -411,6 +411,23 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_conv2d") {
+            expectArgs(
+                14,
+                "device_conv2d(out, input, weight, bias, in_h, in_w, in_c, "
+                "out_h, out_w, out_c, k, stride, pad, has_bias)"
+            );
+            e.emit("vyne_device_conv2d(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ", " + normInt(arguments[6]) + ", " +
+                   normInt(arguments[7]) + ", " + normInt(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
+                   normInt(arguments[11]) + ", " + normInt(arguments[12]) + ", " +
+                   normInt(arguments[13]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_sync") {
             expectArgs(0, "device_sync()");
             e.emit("vyne_device_sync();");

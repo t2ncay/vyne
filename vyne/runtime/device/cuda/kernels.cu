@@ -145,3 +145,65 @@ extern "C" __global__ void matmul_f32(float* C, const float* A,
 
     if (row < M && col < N) C[row * N + col] = sum;
 }
+
+// C[H,W,out_c] = conv2d(input[H,W,in_c], weight[out_c,in_c,k,k]), HWC layout.
+// One thread per output element. Zero padding, square kernel.
+extern "C" __global__ void conv2d_f32(
+    float* C, const float* X, const float* W, const float* B,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad, int has_bias) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_h * out_w * out_c;
+    if (idx >= total) return;
+
+    int oc = idx % out_c;
+    int t = idx / out_c;
+    int ox = t % out_w;
+    int oy = t / out_w;
+    float acc = has_bias ? B[oc] : 0.0f;
+
+    for (int ic = 0; ic < in_c; ++ic) {
+        int wb = ((oc * in_c) + ic) * k * k;
+        for (int ky = 0; ky < k; ++ky) {
+            int iy = oy * stride - pad + ky;
+            if (iy < 0 || iy >= in_h) continue;
+            for (int kx = 0; kx < k; ++kx) {
+                int ix = ox * stride - pad + kx;
+                if (ix < 0 || ix >= in_w) continue;
+                acc += X[(iy * in_w + ix) * in_c + ic] * W[wb + ky * k + kx];
+            }
+        }
+    }
+    C[idx] = acc;
+}
+
+extern "C" __global__ void conv2d_f64(
+    double* C, const double* X, const double* W, const double* B,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad, int has_bias) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_h * out_w * out_c;
+    if (idx >= total) return;
+
+    int oc = idx % out_c;
+    int t = idx / out_c;
+    int ox = t % out_w;
+    int oy = t / out_w;
+    double acc = has_bias ? B[oc] : 0.0;
+
+    for (int ic = 0; ic < in_c; ++ic) {
+        int wb = ((oc * in_c) + ic) * k * k;
+        for (int ky = 0; ky < k; ++ky) {
+            int iy = oy * stride - pad + ky;
+            if (iy < 0 || iy >= in_h) continue;
+            for (int kx = 0; kx < k; ++kx) {
+                int ix = ox * stride - pad + kx;
+                if (ix < 0 || ix >= in_w) continue;
+                acc += X[(iy * in_w + ix) * in_c + ic] * W[wb + ky * k + kx];
+            }
+        }
+    }
+    C[idx] = acc;
+}
