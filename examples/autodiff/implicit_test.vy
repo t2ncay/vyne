@@ -100,8 +100,9 @@ region solve_two_param {
 };
 
 # Composition: the implicit solve is an ordinary region for the memory
-# model. `@bounded` accounts for the solver locals and the adjoint temps,
-# and the rewind reclaims them like any other region allocation.
+# model. The solver locals and adjoint temps are plain C locals inside the
+# region block; the rewind ends their lexical lifetime, and `@bounded`
+# still protects any arena allocations made in the body.
 @implicit
 @bounded<64_000_000>
 region solve_repeated {
