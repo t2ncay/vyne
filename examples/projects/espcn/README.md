@@ -94,14 +94,16 @@ would make those fully device-resident too.
 
 ## Next Step
 
-## GPU Training V1
+## GPU Training V2A
 
 `src/train_gpu.vy` is the first explicit GPU-training path for ESPCN. It uses a
 single `@device<cuda>` region, saved device activations, device MSE gradient,
 device pixel-shuffle backward, device conv backward kernels, ReLU backward, and
-in-place device AdamW updates. After training, it downloads the trained weights,
-writes `build/espcn_gpu_trained.vwt`, reloads that checkpoint through
-`vconv.load_model`, and verifies CPU inference from the saved model.
+in-place device AdamW updates. V2A preallocates the forward/backward/loss buffers
+once, reduces loss to one device scalar per epoch with `device_sum`, writes
+`build/train_loss.csv`, downloads the trained weights, writes
+`build/espcn_gpu_trained.vwt`, reloads that checkpoint through `vconv.load_model`,
+and verifies CPU inference from the saved model.
 
 ```bash
 ../../../vynec --compile src/train_gpu.vy
@@ -119,3 +121,6 @@ Scope and limits:
 
 The next training step is a reusable external `vtensor`/`vnn` surface and a
 multi-crop or multi-image dataset loop once the explicit proof stays stable.
+
+`src/main.vy` automatically prefers `build/espcn_gpu_trained.vwt` when it exists;
+otherwise it falls back to `data/espcn_x2.vwy`.

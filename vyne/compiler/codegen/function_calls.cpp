@@ -417,6 +417,13 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_sum") {
+            expectArgs(3, "device_sum(out, input, n)");
+            e.emit("vyne_device_sum(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_mse_grad") {
             expectArgs(5, "device_mse_grad(grad, partial, pred, target, n)");
             e.emit("vyne_device_mse_grad(" + normInt(arguments[0]) + ", " +
@@ -467,6 +474,64 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                    normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
                    normInt(arguments[11]) + ", " + normInt(arguments[12]) + ", " +
                    normInt(arguments[13]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_input") {
+            expectArgs(12, "device_conv2d_backward_input(out, grad, weight, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)");
+            e.emit("vyne_device_conv2d_backward_input(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ", " + normInt(arguments[6]) + ", " +
+                   normInt(arguments[7]) + ", " + normInt(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
+                   normInt(arguments[11]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_weight") {
+            expectArgs(12, "device_conv2d_backward_weight(out, input, grad, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)");
+            e.emit("vyne_device_conv2d_backward_weight(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ", " + normInt(arguments[6]) + ", " +
+                   normInt(arguments[7]) + ", " + normInt(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
+                   normInt(arguments[11]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_bias") {
+            expectArgs(5, "device_conv2d_backward_bias(out, grad, out_h, out_w, out_c)");
+            e.emit("vyne_device_conv2d_backward_bias(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_relu_grad") {
+            expectArgs(4, "device_relu_grad(out, grad, pre, n)");
+            e.emit("vyne_device_relu_grad(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_pixel_shuffle") {
+            expectArgs(6, "device_pixel_shuffle(out, input, h, w, c, r)");
+            e.emit("vyne_device_pixel_shuffle(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_pixel_shuffle_backward") {
+            expectArgs(6, "device_pixel_shuffle_backward(out, grad, h, w, c, r)");
+            e.emit("vyne_device_pixel_shuffle_backward(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ");");
             return "vyne_null()";
         }
 

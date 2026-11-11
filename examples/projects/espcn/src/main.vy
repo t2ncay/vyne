@@ -16,6 +16,7 @@ ruleset { dynamic_casting };
 INPUT :: String := "data/sample.png";
 REFERENCE :: String := "data/reference.png";
 MODEL :: String := "data/espcn_x2.vwy";
+TRAINED_MODEL :: String := "build/espcn_gpu_trained.vwt";
 
 fn print_quality(name :: String, img :: vimage.Image, ref :: vimage.Image) {
     out(name + " PSNR : " + string(psnr_img(img, ref)) + " dB");
@@ -28,12 +29,15 @@ out("=== Vyne ESPCN project ===");
 
 input :: vimage.Image := vimage.load(INPUT);
 reference :: vimage.Image := vimage.load(REFERENCE);
-model :: ESPCN := load_espcn(MODEL);
+model_path :: String := MODEL;
+if vfs.exists(TRAINED_MODEL) { model_path = TRAINED_MODEL; }
+model :: ESPCN := load_espcn(model_path);
 
 out("input     : " + string(input.width) + "x" + string(input.height) +
     "x" + string(input.channels));
 out("reference : " + string(reference.width) + "x" + string(reference.height) +
     "x" + string(reference.channels));
+out("model path: " + model_path);
 out("model     : " + string(model.c1) + " -> " + string(model.c2) +
     " -> " + string(model.c3) + "  kernels " + string(model.k1) + "/" +
     string(model.k2) + "/" + string(model.k3) + "  scale " +

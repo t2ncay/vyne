@@ -137,6 +137,7 @@ static CUfunction g_k_vec_mul = NULL;
 static CUfunction g_k_vec_scale = NULL;
 static CUfunction g_k_vec_relu = NULL;
 static CUfunction g_k_vec_fill = NULL;
+static CUfunction g_k_reduce_sum = NULL;
 static CUfunction g_k_matmul = NULL;
 static CUfunction g_k_conv2d = NULL;
 static CUfunction g_k_conv2d_bwd_input = NULL;
@@ -155,6 +156,7 @@ static CUfunction g_k_vec_mul_f32 = NULL;
 static CUfunction g_k_vec_scale_f32 = NULL;
 static CUfunction g_k_vec_relu_f32 = NULL;
 static CUfunction g_k_vec_fill_f32 = NULL;
+static CUfunction g_k_reduce_sum_f32 = NULL;
 static CUfunction g_k_matmul_f32 = NULL;
 static CUfunction g_k_conv2d_f32 = NULL;
 static CUfunction g_k_conv2d_bwd_input_f32 = NULL;
@@ -229,6 +231,8 @@ static int vyne_device_cuda_init(void) {
         return 0;
     if (g_cuModuleGetFunction(&g_k_vec_fill, g_vyne_cuda_module, "vec_fill_f64") != 0)
         return 0;
+    if (g_cuModuleGetFunction(&g_k_reduce_sum, g_vyne_cuda_module, "reduce_sum_f64") != 0)
+        return 0;
     if (g_cuModuleGetFunction(&g_k_matmul, g_vyne_cuda_module, "matmul_f64") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_conv2d, g_vyne_cuda_module, "conv2d_f64") != 0)
@@ -272,6 +276,8 @@ static int vyne_device_cuda_init(void) {
     if (g_cuModuleGetFunction(&g_k_vec_relu_f32, g_vyne_cuda_module, "vec_relu_f32") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_vec_fill_f32, g_vyne_cuda_module, "vec_fill_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_reduce_sum_f32, g_vyne_cuda_module, "reduce_sum_f32") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_matmul_f32, g_vyne_cuda_module, "matmul_f32") != 0)
         return 0;
@@ -886,6 +892,42 @@ static inline void vyne_device_fill(int64_t out, double v, int64_t n) {
     } else {
         double* op = (double*)(uintptr_t)out;
         for (int64_t i = 0; i < n; ++i) op[i] = v;
+    }
+}
+
+static inline void vyne_device_sum(int64_t out, int64_t in, int64_t n) {
+    VyneDeviceAlloc* O = vyne_dev_find(out, 1, "device_sum(out)");
+    VyneDeviceAlloc* I = vyne_dev_find(in, n, "device_sum(input)");
+    if (O->elem_size != I->elem_size) {
+        fprintf(stderr, "vyne device: device_sum mixed element sizes\n");
+        exit(1);
+    }
+    int es = O->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ip = (const float*)(uintptr_t)in;
+            void* args[] = { &op, &ip, &nn };
+            vyne_dev_launch(g_k_reduce_sum_f32, 1, 1, 1, 256, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ip = (const double*)(uintptr_t)in;
+            void* args[] = { &op, &ip, &nn };
+            vyne_dev_launch(g_k_reduce_sum, 1, 1, 1, 256, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ip = (const float*)(uintptr_t)in;
+        float acc = 0.0f;
+        for (int64_t i = 0; i < n; ++i) acc += ip[i];
+        op[0] = acc;
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ip = (const double*)(uintptr_t)in;
+        double acc = 0.0;
+        for (int64_t i = 0; i < n; ++i) acc += ip[i];
+        op[0] = acc;
     }
 }
 

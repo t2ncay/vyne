@@ -76,11 +76,18 @@ Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 | `device_scale(out, a, s, n)` | `out = a * s`, dtype-dispatched |
 | `device_relu(out, a, n)` | `out = max(a, 0)`, dtype-dispatched |
 | `device_fill(h, v, n)` | fill with `v`, dtype-dispatched |
+| `device_sum(out, input, n)` | reduce `input[0..n)` into one device scalar, dtype-dispatched |
 | `device_mse_grad(grad, partial, pred, target, n)` | MSE gradient and per-element mean-loss contributions, dtype-dispatched |
 | `device_sgd_step(param, grad, lr, n)` | in-place SGD update, dtype-dispatched |
 | `device_adamw_step(param, m, v, grad, lr, beta1, beta2, eps, weight_decay, step, n)` | in-place AdamW update with device-resident moments, dtype-dispatched |
 | `device_matmul(out, a, b, m, n, k)` | `C[m,n] = A[m,k] * B[k,n]`, row-major, dtype-dispatched |
 | `device_conv2d(out, x, w, b, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad, has_bias)` | HWC conv2d, OIHW weights, square kernel, zero padding, dtype-dispatched |
+| `device_conv2d_backward_input(out, grad, weight, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)` | preallocated HWC conv2d input-gradient kernel |
+| `device_conv2d_backward_weight(out, input, grad, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)` | preallocated OIHW conv2d weight-gradient kernel |
+| `device_conv2d_backward_bias(out, grad, out_h, out_w, out_c)` | preallocated conv2d bias-gradient kernel |
+| `device_relu_grad(out, grad, pre, n)` | preallocated ReLU backward kernel |
+| `device_pixel_shuffle(out, input, h, w, c, r)` | preallocated ESPCN depth-to-space |
+| `device_pixel_shuffle_backward(out, grad, h, w, c, r)` | preallocated ESPCN pixel-shuffle backward |
 | `device_sync()` | wait for outstanding device work |
 | `device_bytes()` | live device-arena bytes |
 | `device_peak_bytes()` | peak device-arena bytes |

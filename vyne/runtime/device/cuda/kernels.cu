@@ -116,6 +116,36 @@ extern "C" __global__ void vec_fill_f32(float* c, float v, long long n) {
     if (i < n) c[i] = v;
 }
 
+extern "C" __global__ void reduce_sum_f32(float* out, const float* in,
+                                          long long n) {
+    __shared__ float sh[256];
+    int tid = threadIdx.x;
+    float acc = 0.0f;
+    for (long long i = tid; i < n; i += blockDim.x) acc += in[i];
+    sh[tid] = acc;
+    __syncthreads();
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) sh[tid] += sh[tid + stride];
+        __syncthreads();
+    }
+    if (tid == 0) out[0] = sh[0];
+}
+
+extern "C" __global__ void reduce_sum_f64(double* out, const double* in,
+                                          long long n) {
+    __shared__ double sh[256];
+    int tid = threadIdx.x;
+    double acc = 0.0;
+    for (long long i = tid; i < n; i += blockDim.x) acc += in[i];
+    sh[tid] = acc;
+    __syncthreads();
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) sh[tid] += sh[tid + stride];
+        __syncthreads();
+    }
+    if (tid == 0) out[0] = sh[0];
+}
+
 extern "C" __global__ void matmul_f32(float* C, const float* A,
                                       const float* B, int M, int N, int K) {
     __shared__ float As[VYNE_TILE][VYNE_TILE];
