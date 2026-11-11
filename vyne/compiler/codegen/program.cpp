@@ -323,11 +323,16 @@ void ProgramNode::compile(C_Emitter& e) const {
                     p.arrayElemType != VType::Unknown) {
                     ct.args.push_back(CType::fromVType(p.arrayElemType));
                 }
+                if (p.type == VType::Slice &&
+                    p.sliceElemType != VType::Unknown) {
+                    ct.args.push_back(CType::fromVType(p.sliceElemType));
+                }
                 paramTypes.push_back(ct);
 
                 bool paramOK =
                     ct.isPrimitive() ||
-                    (ct.kind == CType::Kind::Array && !ct.args.empty());
+                    (ct.kind == CType::Kind::Array && !ct.args.empty()) ||
+                    (ct.kind == CType::Kind::Slice && !ct.args.empty());
 
                 // Struct-typed parameter: only native-callable if the
                 // interface has a registered field layout. Registration

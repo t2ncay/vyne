@@ -148,6 +148,7 @@ class Parser {
 
     bool tryParseTypeArgs(std::vector<std::string>& out);
     VType resolveArrayElementType(const std::string& typePath);
+    VType resolveSliceElementType(const std::string& typePath);
 
     std::vector<std::string> parsePolicyArgs();
 

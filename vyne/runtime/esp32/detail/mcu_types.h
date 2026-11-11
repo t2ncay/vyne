@@ -31,7 +31,9 @@ typedef enum : uint8_t {
     V_STRUCT = 6,
     V_MAP = 10,
     V_F64_ARRAY = 11,
-    V_I64_ARRAY = 12
+    V_I64_ARRAY = 12,
+    V_FLOAT32 = 13,
+    V_F32_ARRAY = 14
 } VyneType;
 
 typedef struct VyneValue VyneValue;
@@ -109,6 +111,44 @@ typedef struct {
     int64_t cap;
 } VyneArray_i64;
 
+// --- Slice views --------------------------------------------
+// {data, size} only. A Slice borrows the source buffer and costs two
+// words of stack on AVR; it never owns storage. Native variants take
+// `const VyneSlice_f64*`, so a call passes a pointer to a view the
+// caller already materialised instead of copying {ptr, len} through
+// the argument registers (which AVR does not have).
+typedef struct {
+    double* data;
+    int64_t size;
+} VyneSlice_f64;
+
+typedef struct {
+    int64_t* data;
+    int64_t size;
+} VyneSlice_i64;
+
+static inline void vyne_mcu_reserve_fail(const char* what) {
+#if defined(ESP32) || defined(ARDUINO_ARCH_ESP32)
+    ::Serial.print("vyne: ");
+    ::Serial.print(what);
+    ::Serial.println(" exceeds the MCU arena");
+#endif
+    while (1) {
+    }
+}
+
+static inline void
+vyne_mcu_check_reserve(int64_t n, size_t elem_size, const char* what) {
+    if (n < 0)
+        vyne_mcu_reserve_fail(what);
+    if (elem_size != 0 && (uint64_t)n > (uint64_t)(SIZE_MAX / elem_size))
+        vyne_mcu_reserve_fail(what);
+    size_t bytes = (size_t)n * elem_size;
+    bytes = (bytes + 7) & ~(size_t)7;
+    if (bytes > VYNE_MCU_ARENA_SIZE - g_mcu_cur)
+        vyne_mcu_reserve_fail(what);
+}
+
 // --- Typed constructors -------------------------------------
 // Allocate `n` elements from the arena and return a stack struct.
 // Only the data buffer is arena-backed; the 24-byte container
@@ -132,6 +172,104 @@ static inline VyneArray_i64 vyne_array_i64_create(int64_t n) {
     arr.data =
         (n > 0) ? (int64_t*)arena_alloc((size_t)(n * sizeof(int64_t))) : NULL;
     return arr;
+}
+
+// --- reserve / resize ---------------------------------------
+// The MCU arena has no realloc and no free, so growing allocates a
+// fresh buffer and copies the live prefix; the old buffer stays put
+// until the enclosing region rewinds. Both functions pre-check the
+// remaining SRAM budget and halt with a named diagnostic instead of
+// letting arena_alloc silently spin on a failed bump.
+static inline void vyne_array_f64_reserve(VyneArray_f64* arr, int64_t n) {
+    if (n <= arr->cap)
+        return;
+    vyne_mcu_check_reserve(n, sizeof(double), "Array<Float64>.reserve");
+    double* newData = (double*)arena_alloc((size_t)(n * sizeof(double)));
+    for (int64_t i = 0; i < arr->size; ++i)
+        newData[i] = arr->data[i];
+    arr->data = newData;
+    arr->cap = n;
+}
+
+static inline void vyne_array_i64_reserve(VyneArray_i64* arr, int64_t n) {
+    if (n <= arr->cap)
+        return;
+    vyne_mcu_check_reserve(n, sizeof(int64_t), "Array<Int64>.reserve");
+    int64_t* newData = (int64_t*)arena_alloc((size_t)(n * sizeof(int64_t)));
+    for (int64_t i = 0; i < arr->size; ++i)
+        newData[i] = arr->data[i];
+    arr->data = newData;
+    arr->cap = n;
+}
+
+static inline void
+vyne_array_f64_resize(VyneArray_f64* arr, int64_t n, double v) {
+    if (n < 0)
+        vyne_mcu_reserve_fail("Array<Float64>.resize");
+    if (n > arr->cap)
+        vyne_array_f64_reserve(arr, n);
+    for (int64_t i = arr->size; i < n; ++i)
+        arr->data[i] = v;
+    arr->size = n;
+}
+
+static inline void
+vyne_array_i64_resize(VyneArray_i64* arr, int64_t n, int64_t v) {
+    if (n < 0)
+        vyne_mcu_reserve_fail("Array<Int64>.resize");
+    if (n > arr->cap)
+        vyne_array_i64_reserve(arr, n);
+    for (int64_t i = arr->size; i < n; ++i)
+        arr->data[i] = v;
+    arr->size = n;
+}
+
+// --- Zero-copy views ----------------------------------------
+// Half-open [lo, hi), same clamp rules as the desktop helper.
+static inline VyneSlice_f64
+vyne_slice_f64_make(const VyneArray_f64* src, int64_t lo, int64_t hi) {
+    if (lo < 0)
+        lo = 0;
+    if (lo > src->size)
+        lo = src->size;
+    if (hi < 0)
+        hi = 0;
+    if (hi > src->size)
+        hi = src->size;
+    if (hi < lo)
+        hi = lo;
+    VyneSlice_f64 s;
+    s.data = (src->data != NULL) ? (src->data + lo) : NULL;
+    s.size = hi - lo;
+    return s;
+}
+
+static inline VyneSlice_i64
+vyne_slice_i64_make(const VyneArray_i64* src, int64_t lo, int64_t hi) {
+    if (lo < 0)
+        lo = 0;
+    if (lo > src->size)
+        lo = src->size;
+    if (hi < 0)
+        hi = 0;
+    if (hi > src->size)
+        hi = src->size;
+    if (hi < lo)
+        hi = lo;
+    VyneSlice_i64 s;
+    s.data = (src->data != NULL) ? (src->data + lo) : NULL;
+    s.size = hi - lo;
+    return s;
+}
+
+static inline VyneSlice_f64
+vyne_slice_f64_from_array(const VyneArray_f64* src) {
+    return vyne_slice_f64_make(src, 0, src->size);
+}
+
+static inline VyneSlice_i64
+vyne_slice_i64_from_array(const VyneArray_i64* src) {
+    return vyne_slice_i64_make(src, 0, src->size);
 }
 
 // --- Typed push ---------------------------------------------

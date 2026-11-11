@@ -138,6 +138,96 @@ static std::string coerceToNative(
     return expr;
 }
 
+// Materialise a zero-copy Slice<elem> view on the caller's C stack.
+// `arg` is either a SliceNode (`base[lo:hi]`) or any expression whose
+// CType is the matching typed Array (a whole-array view). Emits direct
+// field writes rather than returning a helper struct by value, keeping
+// the AVR call sequence free of hidden sret/memcpy traffic.
+static std::string emitSliceView(
+    C_Emitter& e,
+    const ASTNode* arg,
+    const CType& want,
+    int lineNumber
+) {
+    VType elem = want.args[0].toVType();
+    if (elem != VType::Float64 && elem != VType::Int64) {
+        throw std::runtime_error(
+            "Compile Error: Slice<" + VTypeToString(elem) +
+            "> is not supported yet; Slice<Float64> and Slice<Int64> are "
+            "the shipped zero-copy view types (line " +
+            std::to_string(lineNumber) + ")."
+        );
+    }
+    std::string sliceT = CType::sliceContainerName(elem);
+
+    const ASTNode* baseNode = arg;
+    const ASTNode* lowNode = nullptr;
+    const ASTNode* highNode = nullptr;
+    if (arg && arg->type() == NodeType::SLICE) {
+        auto* sn = static_cast<const SliceNode*>(arg);
+        baseNode = sn->getBase();
+        lowNode = sn->getLow();
+        highNode = sn->getHigh();
+    }
+    if (!baseNode) {
+        throw std::runtime_error(
+            "Compile Error: Slice<T> argument is not an array view (line " +
+            std::to_string(lineNumber) + ")."
+        );
+    }
+
+    std::string baseRaw = baseNode->getCExpr(e);
+    const CType* bt = e.lookupType(baseRaw);
+    if (!bt || bt->kind != CType::Kind::Array || bt->args.empty() ||
+        bt->args[0].toVType() != elem) {
+        throw std::runtime_error(
+            "Compile Error: Slice<" + VTypeToString(elem) +
+            "> requires an Array<" + VTypeToString(elem) +
+            "> source (line " + std::to_string(lineNumber) + ")."
+        );
+    }
+
+    std::string lo = lowNode
+                         ? coerceToNative(
+                               e,
+                               lowNode,
+                               lowNode->getCExpr(e),
+                               VType::Int64
+                           )
+                         : "0";
+    std::string hi = highNode
+                         ? coerceToNative(
+                               e,
+                               highNode,
+                               highNode->getCExpr(e),
+                               VType::Int64
+                           )
+                         : ("(" + baseRaw + ".size)");
+
+    std::string loT = e.newTemp("slo");
+    std::string hiT = e.newTemp("shi");
+    std::string view = e.newTemp("slicev");
+    e.emit("int64_t " + loT + " = " + lo + ";");
+    e.emit("int64_t " + hiT + " = " + hi + ";");
+    e.emit("if (" + loT + " < 0) " + loT + " = 0;");
+    e.emit("if (" + loT + " > " + baseRaw + ".size) " + loT + " = " +
+           baseRaw + ".size;");
+    e.emit("if (" + hiT + " < 0) " + hiT + " = 0;");
+    e.emit("if (" + hiT + " > " + baseRaw + ".size) " + hiT + " = " +
+           baseRaw + ".size;");
+    e.emit("if (" + hiT + " < " + loT + ") " + hiT + " = " + loT + ";");
+    e.emit(sliceT + " " + view + ";");
+    e.emit(view + ".data = (" + baseRaw + ".data != NULL) ? (" + baseRaw +
+           ".data + " + loT + ") : NULL;");
+    e.emit(view + ".size = " + hiT + " - " + loT + ";");
+
+    CType ct;
+    ct.kind = CType::Kind::Slice;
+    ct.args.push_back(CType::fromVType(elem));
+    e.declareNativeTemp(view, ct);
+    return view;
+}
+
 // Compute the row-major flat index for a shaped scratch array, emitting
 // per-dimension bounds checks (VNE-072) when enabled. Shared by
 // ScratchIndexNode, IndexAccessNode's @layout<soa> member fast path and

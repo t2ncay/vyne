@@ -71,6 +71,45 @@ static void emitFunctionBody(
             }
             e.declareLocal(paramName, pt);
             e.emit(pt.cTypeName() + " " + paramName + " = " + init + ";");
+        } else if (parameters[i].type == VType::Slice &&
+                   parameters[i].sliceElemType != VType::Unknown) {
+            // Boxed entry path for a Slice parameter. The native variant is
+            // the hot path; this keeps the dynamic symbol callable by
+            // materialising a whole-array view when the argument is the
+            // matching typed array, and an empty view otherwise.
+            VType elem = parameters[i].sliceElemType;
+            if (elem != VType::Float64 && elem != VType::Int64) {
+                throw std::runtime_error(
+                    "Compile Error: Slice<" + VTypeToString(elem) +
+                    "> is not supported yet; Slice<Float64> and "
+                    "Slice<Int64> are the shipped zero-copy view types "
+                    "(function '" + mangledName + "')."
+                );
+            }
+            std::string sliceT = CType::sliceContainerName(elem);
+            std::string arrT = CType::arrayContainerName(elem);
+            std::string boxTag = (elem == VType::Int64)
+                                     ? "V_I64_ARRAY"
+                                     : (elem == VType::Float32 ? "V_F32_ARRAY"
+                                                               : "V_F64_ARRAY");
+            std::string argTmp = paramName + "_arg";
+            e.emit(
+                "VyneValue " + argTmp + " = " + guard + " ? " + arg +
+                " : vyne_null();"
+            );
+            e.emit(sliceT + " " + paramName + ";");
+            e.emit(
+                paramName + ".data = (" + argTmp + ".type == " + boxTag + ") "
+                "? ((" + arrT + "*)" + argTmp + ".as.arr)->data : NULL;"
+            );
+            e.emit(
+                paramName + ".size = (" + argTmp + ".type == " + boxTag + ") "
+                "? ((" + arrT + "*)" + argTmp + ".as.arr)->size : 0;"
+            );
+            CType sliceCt;
+            sliceCt.kind = CType::Kind::Slice;
+            sliceCt.args.push_back(CType::fromVType(elem));
+            e.declareLocal(paramName, sliceCt);
         } else {
             e.registerDeclaration(paramName);
             e.emit(
@@ -302,6 +341,15 @@ static void emitNativeFunctionBody(
                                     : (elem == VType::Float32 ? "float"
                                                               : "int64_t");
             paramList += elemC + "* __restrict__ " + pName;
+        } else if (parameters[i].type == VType::Slice &&
+                   parameters[i].sliceElemType != VType::Unknown) {
+            // Pointer-to-view ABI. The caller owns the VyneSlice_* on its
+            // stack for the duration of the call; the callee only reads
+            // {data, size}. This is the same shape on desktop, AVR, and
+            // ESP32 so there is no target-specific ABI fork.
+            paramList += "const " +
+                         CType::sliceContainerName(parameters[i].sliceElemType) +
+                         "* " + pName;
         } else if (parameters[i].type == VType::Struct) {
             const std::string& ifaceName = parameters[i].typePath;
             const auto* layout = e.getInterfaceStructLayout(ifaceName);
@@ -368,6 +416,13 @@ static void emitNativeFunctionBody(
             raw.kind = CType::Kind::RawArrayPtr;
             raw.args.push_back(CType::fromVType(parameters[i].arrayElemType));
             e.declareLocal(pName, raw);
+        } else if (parameters[i].type == VType::Slice &&
+                   parameters[i].sliceElemType != VType::Unknown) {
+            CType slice;
+            slice.kind = CType::Kind::Slice;
+            slice.slicePtr = true;
+            slice.args.push_back(CType::fromVType(parameters[i].sliceElemType));
+            e.declareLocal(pName, slice);
         } else if (parameters[i].type == VType::Struct) {
             // Reconstruct a boxed VyneValue struct from the flat
             // parameters so the body (which uses vyne_struct_get and

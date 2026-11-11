@@ -32,7 +32,8 @@ enum class VType {
     Map = 9,
     Null = 10,
     Bool = 11,
-    Float32 = 12
+    Float32 = 12,
+    Slice = 13
 };
 
 inline VType stringToVType(std::string_view name) {
@@ -44,6 +45,7 @@ inline VType stringToVType(std::string_view name) {
     if (name == "Null")     return VType::Null;
     if (name == "Bool")     return VType::Bool;
     if (name == "Map")      return VType::Map;
+    if (name == "Slice")    return VType::Slice;
     return VType::Unknown;
 }
 
@@ -60,6 +62,7 @@ inline std::string VTypeToString(VType type) {
         case VType::Null:      return "Null";
         case VType::Bool:      return "Bool";
         case VType::Map:       return "Map";
+        case VType::Slice:     return "Slice";
         default:               return "Unknown";
     }
 }

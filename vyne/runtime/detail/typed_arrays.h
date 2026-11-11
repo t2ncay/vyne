@@ -41,6 +41,77 @@ static inline VyneArray_i64 vyne_array_i64_create(int64_t n) {
     return a;
 }
 
+// --- reserve / resize -----------------------------------------------------
+// `reserve(n)` grows the capacity to at least n while preserving [0, size).
+// `resize(n, v)` additionally changes the logical size, filling new slots
+// with v. Both use the arena's LIFO reclaim when the old buffer is still the
+// bump tail, matching the strategy `push` already uses. The Array ABI is
+// untouched: size and cap keep their existing meanings.
+
+static inline void vyne_array_f64_reserve(VyneArray_f64* a, int64_t n) {
+    if (n <= a->cap) return;
+    if (n < 0) {
+        fprintf(stderr, "vyne: reserve() called with a negative size\n");
+        exit(1);
+    }
+    int64_t new_cap = _vyne_next_pow2(n);
+    double* old_data = a->data;
+    arena_try_reclaim(old_data, sizeof(double) * (size_t)a->cap);
+    double* new_data = (double*)arena_alloc_aligned(
+        sizeof(double) * (size_t)new_cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
+    if (new_data != old_data && old_data != NULL && a->size > 0) {
+        memcpy(new_data, old_data, sizeof(double) * (size_t)a->size);
+    }
+    a->data = new_data;
+    a->cap  = new_cap;
+}
+
+static inline void vyne_array_i64_reserve(VyneArray_i64* a, int64_t n) {
+    if (n <= a->cap) return;
+    if (n < 0) {
+        fprintf(stderr, "vyne: reserve() called with a negative size\n");
+        exit(1);
+    }
+    int64_t new_cap = _vyne_next_pow2(n);
+    int64_t* old_data = a->data;
+    arena_try_reclaim(old_data, sizeof(int64_t) * (size_t)a->cap);
+    int64_t* new_data = (int64_t*)arena_alloc_aligned(
+        sizeof(int64_t) * (size_t)new_cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
+    if (new_data != old_data && old_data != NULL && a->size > 0) {
+        memcpy(new_data, old_data, sizeof(int64_t) * (size_t)a->size);
+    }
+    a->data = new_data;
+    a->cap  = new_cap;
+}
+
+static inline void vyne_array_f64_resize(VyneArray_f64* a, int64_t n, double v) {
+    if (n < 0) {
+        fprintf(stderr, "vyne: resize() called with a negative size\n");
+        exit(1);
+    }
+    if (n > a->cap) vyne_array_f64_reserve(a, n);
+    if (n > a->size) {
+        for (int64_t i = a->size; i < n; ++i) a->data[i] = v;
+    }
+    a->size = n;
+}
+
+static inline void vyne_array_i64_resize(VyneArray_i64* a, int64_t n, int64_t v) {
+    if (n < 0) {
+        fprintf(stderr, "vyne: resize() called with a negative size\n");
+        exit(1);
+    }
+    if (n > a->cap) vyne_array_i64_reserve(a, n);
+    if (n > a->size) {
+        for (int64_t i = a->size; i < n; ++i) a->data[i] = v;
+    }
+    a->size = n;
+}
+
 static inline void vyne_array_f64_push(VyneArray_f64* a, double v) {
     if (VYNE_UNLIKELY(a->size >= a->cap)) {
         int64_t new_cap = a->cap * 2;
@@ -150,6 +221,63 @@ static inline VyneArray_i64 vyne_array_i64_slice(const VyneArray_i64* a,
     return r;
 }
 
+// --- Zero-copy views ------------------------------------------------------
+// Half-open [lo, hi), identical clamp rules to the copying slice above. The
+// returned struct borrows the source buffer; no arena allocation happens.
+static inline VyneSlice_f64 vyne_slice_f64_make(
+    const VyneArray_f64* a, int64_t lo, int64_t hi)
+{
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (hi < lo) hi = lo;
+    VyneSlice_f64 s;
+    s.data = (a->data != NULL) ? (a->data + lo) : NULL;
+    s.size = hi - lo;
+    return s;
+}
+
+static inline VyneSlice_i64 vyne_slice_i64_make(
+    const VyneArray_i64* a, int64_t lo, int64_t hi)
+{
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (hi < lo) hi = lo;
+    VyneSlice_i64 s;
+    s.data = (a->data != NULL) ? (a->data + lo) : NULL;
+    s.size = hi - lo;
+    return s;
+}
+
+static inline VyneSlice_f32 vyne_slice_f32_make(
+    const VyneArray_f32* a, int64_t lo, int64_t hi)
+{
+    if (lo < 0) lo = 0;
+    if (lo > a->size) lo = a->size;
+    if (hi < 0) hi = 0;
+    if (hi > a->size) hi = a->size;
+    if (hi < lo) hi = lo;
+    VyneSlice_f32 s;
+    s.data = (a->data != NULL) ? (a->data + lo) : NULL;
+    s.size = hi - lo;
+    return s;
+}
+
+static inline VyneSlice_f64 vyne_slice_f64_from_array(const VyneArray_f64* a) {
+    return vyne_slice_f64_make(a, 0, a->size);
+}
+
+static inline VyneSlice_i64 vyne_slice_i64_from_array(const VyneArray_i64* a) {
+    return vyne_slice_i64_make(a, 0, a->size);
+}
+
+static inline VyneSlice_f32 vyne_slice_f32_from_array(const VyneArray_f32* a) {
+    return vyne_slice_f32_make(a, 0, a->size);
+}
+
 // --- Unbox: VyneValue -> typed array.
 //   V_F64_ARRAY -> O(1): struct copy, shares the data pointer.
 //   V_I64_ARRAY -> O(N): elementwise int64 -> double conversion.
@@ -225,6 +353,38 @@ static inline VyneArray_f32 vyne_array_f32_create(int64_t n) {
     );
     memset(a.data, 0, sizeof(float) * (size_t)n);
     return a;
+}
+
+static inline void vyne_array_f32_reserve(VyneArray_f32* a, int64_t n) {
+    if (n <= a->cap) return;
+    if (n < 0) {
+        fprintf(stderr, "vyne: reserve() called with a negative size\n");
+        exit(1);
+    }
+    int64_t new_cap = _vyne_next_pow2(n);
+    float* old_data = a->data;
+    arena_try_reclaim(old_data, sizeof(float) * (size_t)a->cap);
+    float* new_data = (float*)arena_alloc_aligned(
+        sizeof(float) * (size_t)new_cap,
+        VYNE_TYPED_ARRAY_ALIGN
+    );
+    if (new_data != old_data && old_data != NULL && a->size > 0) {
+        memcpy(new_data, old_data, sizeof(float) * (size_t)a->size);
+    }
+    a->data = new_data;
+    a->cap  = new_cap;
+}
+
+static inline void vyne_array_f32_resize(VyneArray_f32* a, int64_t n, float v) {
+    if (n < 0) {
+        fprintf(stderr, "vyne: resize() called with a negative size\n");
+        exit(1);
+    }
+    if (n > a->cap) vyne_array_f32_reserve(a, n);
+    if (n > a->size) {
+        for (int64_t i = a->size; i < n; ++i) a->data[i] = v;
+    }
+    a->size = n;
 }
 
 static inline void vyne_array_f32_push(VyneArray_f32* a, float v) {

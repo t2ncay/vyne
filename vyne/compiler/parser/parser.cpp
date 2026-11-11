@@ -94,7 +94,8 @@ VType Parser::resolveType(std::string_view typeName) {
 
     if (name.find('.') == std::string::npos && name != "Int64" &&
         name != "Float64" && name != "Float32" && name != "String" &&
-        name != "Array" && name != "Bool" && name != "null") {
+        name != "Array" && name != "Slice" && name != "Bool" &&
+        name != "null") {
 
         bool isGroupName = false;
         for (const auto& t : declaredTypes) {
@@ -163,7 +164,10 @@ VType Parser::resolveType(std::string_view typeName) {
 // type (VType::Float64) if it's a single-level primitive. Returns Unknown
 // for everything else — nested generics, non-Array bases, unknown inner
 // names. Never throws; the emitter treats Unknown as "stay boxed".
-VType Parser::resolveArrayElementType(const std::string& typePath) {
+static VType resolveGenericElementType(
+    const std::string& typePath,
+    const char* baseName
+) {
     size_t lt = typePath.find('<');
     if (lt == std::string::npos)
         return VType::Unknown;
@@ -171,7 +175,7 @@ VType Parser::resolveArrayElementType(const std::string& typePath) {
         return VType::Unknown;
 
     std::string base = typePath.substr(0, lt);
-    if (base != "Array")
+    if (base != baseName)
         return VType::Unknown;
 
     std::string inner = typePath.substr(lt + 1, typePath.size() - lt - 2);
@@ -186,6 +190,14 @@ VType Parser::resolveArrayElementType(const std::string& typePath) {
         return VType::Unknown;
 
     return stringToVType(inner);
+}
+
+VType Parser::resolveArrayElementType(const std::string& typePath) {
+    return resolveGenericElementType(typePath, "Array");
+}
+
+VType Parser::resolveSliceElementType(const std::string& typePath) {
+    return resolveGenericElementType(typePath, "Slice");
 }
 
 bool Parser::tryParseTypeArgs(std::vector<std::string>& out) {
@@ -576,6 +588,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                     uint32_t pId = StringPool::instance().intern(paramTok.name);
                     VType pType = VType::Unknown;
                     VType pArrayElem = VType::Unknown;
+                    VType pSliceElem = VType::Unknown;
                     std::string pTypePath; // NEW
 
                     bool isReference = false;
@@ -590,6 +603,7 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                         pTypePath = parseTypePath(); // CHANGED
                         pType = resolveType(pTypePath);
                         pArrayElem = resolveArrayElementType(pTypePath);
+                        pSliceElem = resolveSliceElementType(pTypePath);
 
                         if (peekToken().type == VTokenType::Referencer) {
                             consume(VTokenType::Referencer);
@@ -603,7 +617,8 @@ std::unique_ptr<ASTNode> Parser::parseInterfaceDefinition() {
                         pType,
                         isReference,
                         pArrayElem,
-                        pTypePath
+                        pTypePath,
+                        pSliceElem
                     );
                 } while (peekToken().type == VTokenType::Comma);
             }
@@ -1336,6 +1351,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
             uint32_t pId = StringPool::instance().intern(paramTok.name);
             VType pType = VType::Unknown;
             VType pArrayElem = VType::Unknown; // M4-C1
+            VType pSliceElem = VType::Unknown;
             std::string pTypePath;
 
             bool isReference = false;
@@ -1351,6 +1367,7 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
                 pTypePath = parseTypePath();
                 pType = resolveType(pTypePath);
                 pArrayElem = resolveArrayElementType(pTypePath); // M4-C1
+                pSliceElem = resolveSliceElementType(pTypePath);
 
                 if (peekToken().type == VTokenType::Referencer) {
                     consume(VTokenType::Referencer);
@@ -1364,7 +1381,8 @@ std::unique_ptr<ASTNode> Parser::parseFunctionDefinition() {
                 pType,
                 isReference,
                 pArrayElem,
-                pTypePath
+                pTypePath,
+                pSliceElem
             );
 
         } while (peekToken().type == VTokenType::Comma);
@@ -1517,6 +1535,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
 
     VType explicitType = VType::Unknown;
     VType arrayElemType = VType::Unknown;
+    VType sliceElemType = VType::Unknown;
     std::string declaredTypeName;
 
     if (peekToken().type == VTokenType::Extends) {
@@ -1530,12 +1549,14 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
         declaredTypeName = parseTypePath();
         explicitType = resolveType(declaredTypeName);
         arrayElemType = resolveArrayElementType(declaredTypeName);
+        sliceElemType = resolveSliceElementType(declaredTypeName);
 
         if (peekToken().type == VTokenType::Referencer) {
             consume(VTokenType::Referencer);
             isRefVar = true;
             explicitType = VType::Reference;
             arrayElemType = VType::Unknown; // references are not typed arrays
+            sliceElemType = VType::Unknown;
         }
 
         if (explicitType == VType::Unknown) {
@@ -1638,6 +1659,7 @@ std::unique_ptr<ASTNode> Parser::parseIdentifierExpr() {
             isRefVar
         );
         varNode->setArrayElemType(arrayElemType);
+        varNode->setSliceElemType(sliceElemType);
         varNode->setDeclaredTypeName(std::move(declaredTypeName));
         node = std::move(varNode);
     }
@@ -2158,6 +2180,7 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     bool isReference = var->isRefVar();
     std::string customTypeName = "";
     VType varArrayElem = VType::Unknown;
+    VType varSliceElem = VType::Unknown;
 
     bool hasExplicitType = var->hasExplicitTypeInfo();
 
@@ -2205,6 +2228,7 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     // ----------------------------------------------------------------
     if (hasExplicitType) {
         varArrayElem = var->getArrayElemType();
+        varSliceElem = var->getSliceElemType();
         customTypeName = var->getDeclaredTypeName();
     } else if (isDeclaration && varType == VType::Unknown) {
         // `x := v` with no type and no existing symbol to infer from.
@@ -2367,6 +2391,7 @@ std::unique_ptr<ASTNode> Parser::parseVariableAssignment(
     );
     node->lineNumber = line;
     node->setArrayElemType(varArrayElem);
+    node->setSliceElemType(varSliceElem);
     node->setDeclaredTypeName(customTypeName);
     if (isDeclaration)
         node->markFreshDeclaration();
