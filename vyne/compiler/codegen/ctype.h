@@ -46,6 +46,8 @@ struct CType {
         Array,       // element type in args[0]
         RawArrayPtr, // NEW: borrowed T* passed by the native ABI. Element type
                      // in args[0].
+        Slice,       // non-owning {T* data; int64_t size} view; element type
+                     // in args[0].
         Map,
         Struct,
         Module,
@@ -69,6 +71,14 @@ struct CType {
     // carry Kind::Struct and a mangledName; only this flag distinguishes
     // them, so boxAny can tell whether `.field` access is valid C.
     bool nativeCStruct = false;
+
+    // Slice ABI flag. When true, this CType describes a *pointer* to a
+    // VyneSlice_* value (`const VyneSlice_f64*`) rather than the value
+    // itself. Native variants use the pointer form on every target so the
+    // ABI never passes a {T*, int64_t} struct by value; call sites
+    // materialise a Slice on the C stack and pass its address. Codegen
+    // for indexing/size reads `->data` / `->size` in that case.
+    bool slicePtr = false;
 
     // Per-field descriptor for struct-typed native-variant parameters.
     // Populated by InterfaceNode::compile from the interface member list,
@@ -145,6 +155,16 @@ struct CType {
             if (args.empty())
                 return "void*";
             return args[0].cTypeName() + "*";
+        }
+        case Kind::Slice: {
+            std::string base = "VyneSlice_f64";
+            if (!args.empty()) {
+                if (args[0].kind == Kind::Float32)
+                    base = "VyneSlice_f32";
+                else if (args[0].kind == Kind::Int64)
+                    base = "VyneSlice_i64";
+            }
+            return slicePtr ? ("const " + base + "*") : base;
         }
         // Slice 3e: an Array CType with a primitive or C-eligible-
         // struct element renders as the monomorphized container
@@ -233,6 +253,8 @@ struct CType {
             return "str";
         case Kind::Array:
             return mangledName.empty() ? "arr" : mangledName;
+        case Kind::Slice:
+            return "slice";
         case Kind::Map:
             return "map";
         case Kind::Struct:
@@ -260,6 +282,8 @@ struct CType {
             return VType::String;
         case Kind::Array:
             return VType::Array;
+        case Kind::Slice:
+            return VType::Slice;
         case Kind::Map:
             return VType::Map;
         case Kind::Struct:
@@ -287,6 +311,8 @@ struct CType {
             return CType{Kind::Str};
         case VType::Array:
             return CType{Kind::Array};
+        case VType::Slice:
+            return CType{Kind::Slice};
         case VType::Map:
             return CType{Kind::Map};
         case VType::Struct:
@@ -334,6 +360,18 @@ struct CType {
             return "VyneArray_f32";
         default:
             return "VyneValue";
+        }
+    }
+
+    // Map a Vyne element type to the zero-copy slice struct name.
+    static std::string sliceContainerName(VType elem) {
+        switch (elem) {
+        case VType::Int64:
+            return "VyneSlice_i64";
+        case VType::Float32:
+            return "VyneSlice_f32";
+        default:
+            return "VyneSlice_f64";
         }
     }
 };

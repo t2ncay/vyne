@@ -585,7 +585,56 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     argVTypes.reserve(orderedArgs.size());
     argCTypes.reserve(orderedArgs.size());
 
-    for (auto* a : orderedArgs) {
+    const std::vector<CType>* callParamTypes =
+        e.getFunctionParamTypes(originalName);
+    if (!callParamTypes) {
+        std::string bare = originalName;
+        std::replace(bare.begin(), bare.end(), '.', '_');
+        callParamTypes = e.getFunctionParamTypes(bare);
+    }
+
+    bool hasSliceParam = false;
+    for (size_t ai = 0; ai < orderedArgs.size(); ++ai) {
+        ASTNode* a = orderedArgs[ai];
+        const CType* want =
+            (callParamTypes && ai < callParamTypes->size())
+                ? &(*callParamTypes)[ai]
+                : nullptr;
+
+        if (want && want->kind == CType::Kind::Slice && !want->args.empty()) {
+            hasSliceParam = true;
+            std::string s;
+            if (a && a->type() == NodeType::SLICE) {
+                s = emitSliceView(e, a, *want, lineNumber);
+            } else {
+                std::string raw = a->getCExpr(e);
+                const CType* have = e.lookupType(raw);
+                if (have && have->kind == CType::Kind::Slice) {
+                    s = std::move(raw);
+                } else if (
+                    have && have->kind == CType::Kind::Array &&
+                    !have->args.empty() &&
+                    have->args[0].toVType() == want->args[0].toVType()
+                ) {
+                    s = emitSliceView(e, a, *want, lineNumber);
+                } else {
+                    throw std::runtime_error(
+                        "Compile Error: cannot pass '" +
+                        VTypeToString(a->getStaticType()) +
+                        "' to a Slice<" +
+                        VTypeToString(want->args[0].toVType()) +
+                        "> parameter (line " + std::to_string(lineNumber) +
+                        ")."
+                    );
+                }
+            }
+            const CType* fullCt = e.lookupType(s);
+            argCExprs.push_back(std::move(s));
+            argVTypes.push_back(VType::Slice);
+            argCTypes.push_back(fullCt);
+            continue;
+        }
+
         std::string s = a->getCExpr(e);
         const CType* fullCt = e.lookupType(s);
         const CType* primCt = e.exprNativeType(s);
@@ -619,6 +668,20 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             e, mangledName, originalName,
             orderedArgs, argCExprs, argVTypes, argCTypes)) {
         return *nativeResult;
+    }
+
+    // Slice is a native-only view type: it cannot be boxed into a single
+    // VyneValue without losing the borrowed-buffer contract. A callee that
+    // takes Slice<T> is always registered as a native variant; reaching
+    // here means its return type or body disqualified that variant.
+    if (hasSliceParam) {
+        throw std::runtime_error(
+            "Compile Error: function '" + originalName +
+            "' takes a Slice<T> parameter but has no native variant (line " +
+            std::to_string(lineNumber) +
+            "). Slice parameters require a native-callable signature "
+            "(primitive, Array<T>, Slice<T>, or a flat struct return)."
+        );
     }
 
     // ----------------------------------------------------------------

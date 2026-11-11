@@ -84,6 +84,38 @@ typedef struct VyneArray_f32 {   // Float32 payload, same layout as f64
 } VyneArray_f32;
 
 // ============================================================================
+// SLICE — non-owning view over a contiguous run of typed-array storage.
+// ----------------------------------------------------------------------------
+// A Slice<T> is deliberately *not* an Array<T>. It has no capacity field and
+// never owns its backing buffer; it is exactly {data, size}. That keeps the
+// existing VyneArray_* ABI (including the `cap` field the OpenBLAS bridge and
+// the vlin kernels read) byte-for-byte unchanged.
+//
+// Lifetime: the view is valid only while the source array's storage is live.
+// It is a borrowed pointer, not a reference-counted object. This is the same
+// contract as a `double*` kernel parameter; the compiler's native-variant
+// lowering keeps the view on the caller's stack for the duration of a call.
+//
+// These structs are intentionally passed by pointer to native variants on
+// every target. Passing {T*, int64_t} by value is cheap on x86-64 but costs
+// stack traffic on AVR, and the pointer ABI is uniform across all backends.
+// ============================================================================
+typedef struct VyneSlice_f64 {
+    double* data;
+    int64_t size;
+} VyneSlice_f64;
+
+typedef struct VyneSlice_i64 {
+    int64_t* data;
+    int64_t size;
+} VyneSlice_i64;
+
+typedef struct VyneSlice_f32 {
+    float*  data;
+    int64_t size;
+} VyneSlice_f32;
+
+// ============================================================================
 // MAP
 // ============================================================================
 typedef struct VyneMapEntry {

@@ -42,14 +42,16 @@ struct Parameter {
     std::string name;
     VType type;
     VType arrayElemType = VType::Unknown;   // M4-C1: for Array<T>, the T
+    VType sliceElemType = VType::Unknown;   // Slice<T>: the T (zero-copy view)
     std::string typePath;                   // raw source path, e.g. "vlinalg.Types.Matrix"
     bool isReference;
 
     Parameter(uint32_t i, std::string n, VType t, bool ir,
               VType aet = VType::Unknown,
-              std::string tp = "")
+              std::string tp = "",
+              VType set = VType::Unknown)
         : id(i), name(std::move(n)), type(t),
-          arrayElemType(aet), typePath(std::move(tp)),
+          arrayElemType(aet), sliceElemType(set), typePath(std::move(tp)),
           isReference(ir) {}
 };
 

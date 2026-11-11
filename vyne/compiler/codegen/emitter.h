@@ -891,6 +891,14 @@ class C_Emitter {
     }
     std::string boxAny(const std::string& expr) const {
         const CType* ct = lookupType(expr);
+        if (ct && ct->kind == CType::Kind::Slice) {
+            throw std::runtime_error(
+                "Compile Error: Slice<T> is a native-only borrowed view and "
+                "cannot cross a boxed boundary. Pass it to a function whose "
+                "parameter is Slice<T>, or copy into an Array<T> first "
+                "(while lowering '" + expr + "')."
+            );
+        }
         if (ct && ct->kind == CType::Kind::Array && !ct->args.empty()) {
             const CType& el = ct->args[0];
 

@@ -82,6 +82,13 @@ std::optional<std::string> tryEmitNativeCall(
                 have->args[0].toVType() != want.args[0].toVType()) {
                 return std::nullopt;
             }
+        } else if (want.kind == CType::Kind::Slice && !want.args.empty()) {
+            const CType* have = argCTypes[i];
+            if (!have || have->kind != CType::Kind::Slice ||
+                have->args.empty() ||
+                have->args[0].toVType() != want.args[0].toVType()) {
+                return std::nullopt;
+            }
         } else if (want.kind == CType::Kind::Struct) {
             // The argument must be a struct whose static interface
             // type is tracked by the emitter. `nodeInterfaceName` handles
@@ -144,6 +151,16 @@ std::optional<std::string> tryEmitNativeCall(
 
         if (want.kind == CType::Kind::Array && !want.args.empty()) {
             argList += argCExprs[i] + ".data";
+        } else if (want.kind == CType::Kind::Slice && !want.args.empty()) {
+            // The native signature takes a pointer to a Slice. A slice-typed
+            // local is already a pointer (slicePtr); a materialised view is
+            // a value, so take its address.
+            const CType* have = argCTypes[i];
+            if (have && have->kind == CType::Kind::Slice && have->slicePtr) {
+                argList += argCExprs[i];
+            } else {
+                argList += "&" + argCExprs[i];
+            }
         } else if (want.kind == CType::Kind::Struct) {
             // structLayouts[i] was set during validation. It cannot be
             // null here — validation guarantees it.

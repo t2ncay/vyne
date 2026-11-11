@@ -212,6 +212,20 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
         return name;
     }
 
+    if (bt && bt->kind == CType::Kind::Slice && !bt->args.empty()) {
+        VType elem = bt->args[0].toVType();
+        std::string rawIdx = index->getCExpr(e);
+        std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
+        std::string member = bt->slicePtr ? "->" : ".";
+        std::string name = e.newTemp("idx");
+        e.emit(
+            (elem == VType::Float64 ? "double " : elem == VType::Float32 ? "float " : "int64_t ") + name + " = " +
+            bRaw + member + "data[" + idx + "];"
+        );
+        e.declareNativeTemp(name, CType::fromVType(elem));
+        return name;
+    }
+
     // Runtime-dim scratch — `scratch buf :: Float64[n];` lowers to a
     // raw C VLA (`double v_buf[n];`), not a `VyneArray_f64` container.
     // Single-index access on it must therefore emit `bRaw[idx]`, not
@@ -458,6 +472,17 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
         std::string rawVal = rhs->getCExpr(e);
         std::string val = coerceToNative(e, rhs.get(), rawVal, elem);
         e.emit(bRaw + "[" + idx + "] = " + val + ";");
+        return;
+    }
+
+    if (bt && bt->kind == CType::Kind::Slice && !bt->args.empty()) {
+        VType elem = bt->args[0].toVType();
+        std::string rawIdx = index->getCExpr(e);
+        std::string idx = coerceToNative(e, index.get(), rawIdx, VType::Int64);
+        std::string rawVal = rhs->getCExpr(e);
+        std::string val = coerceToNative(e, rhs.get(), rawVal, elem);
+        std::string member = bt->slicePtr ? "->" : ".";
+        e.emit(bRaw + member + "data[" + idx + "] = " + val + ";");
         return;
     }
 

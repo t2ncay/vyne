@@ -462,6 +462,7 @@ class VariableNode : public ASTNode {
     // rarer `a.b :: Type` form routed the annotation through
     // parseVariableAssignment instead.
     VType arrayElemType_ = VType::Unknown;
+    VType sliceElemType_ = VType::Unknown;
     std::string declaredTypeName_;
 
   public:
@@ -520,6 +521,13 @@ class VariableNode : public ASTNode {
         arrayElemType_ = t;
     }
 
+    VType getSliceElemType() const {
+        return sliceElemType_;
+    }
+    void setSliceElemType(VType t) {
+        sliceElemType_ = t;
+    }
+
     // M4-C1B: raw source text of the annotation path, e.g. "Array<Float64>".
     const std::string& getDeclaredTypeName() const {
         return declaredTypeName_;
@@ -544,6 +552,7 @@ class AssignmentNode : public ASTNode {
     bool isReference;
     VType expectedType;
     VType arrayElemType = VType::Unknown; // M4-C1
+    VType sliceElemType = VType::Unknown; // Slice<T>: the T
     std::string declaredTypeName; // M4-C1B: user-written type path, if any
 
     bool isFreshDeclaration_ = false;
@@ -599,6 +608,13 @@ class AssignmentNode : public ASTNode {
     }
     void setArrayElemType(VType t) {
         arrayElemType = t;
+    }
+
+    VType getSliceElemType() const {
+        return sliceElemType;
+    }
+    void setSliceElemType(VType t) {
+        sliceElemType = t;
     }
 
     const std::string& getDeclaredTypeName() const {
@@ -1051,6 +1067,16 @@ class SliceNode : public ASTNode {
         , base(std::move(b))
         , low(std::move(lo))
         , high(std::move(hi)) {}
+
+    ASTNode* getBase() const {
+        return base.get();
+    }
+    ASTNode* getLow() const {
+        return low.get();
+    }
+    ASTNode* getHigh() const {
+        return high.get();
+    }
 
     Value
     evaluate(SymbolContainer& env, uint32_t currentGroupId) const override;

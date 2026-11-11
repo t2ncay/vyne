@@ -635,6 +635,26 @@ void AssignmentNode::compile(C_Emitter& e) const {
     if (useGlobal) {
         CType declared = CType::fromVType(expectedType);
 
+        if (isDeclaration && declared.kind == CType::Kind::Slice) {
+            VType elem = getSliceElemType();
+            if (elem == VType::Unknown) {
+                throw std::runtime_error(
+                    "Compile Error: Slice annotation is missing its element "
+                    "type (line " + std::to_string(lineNumber) + ")."
+                );
+            }
+            CType sliceCt;
+            sliceCt.kind = CType::Kind::Slice;
+            sliceCt.args.push_back(CType::fromVType(elem));
+            e.declareGlobal(varName, sliceCt);
+            e.emitGlobalDecl(
+                CType::sliceContainerName(elem) + " " + varName + ";"
+            );
+            std::string view = emitSliceView(e, rhs.get(), sliceCt, lineNumber);
+            e.emit(varName + " = " + view + ";");
+            return;
+        }
+
         if (isDeclaration && declared.kind == CType::Kind::Array) {
             // Element type source order: literal inference, then the declared
             // Array<T> annotation on the assignment target.
@@ -729,6 +749,21 @@ void AssignmentNode::compile(C_Emitter& e) const {
         }
 
         const CType* existing = e.lookupGlobalType(bareName);
+        if (existing && existing->kind == CType::Kind::Slice &&
+            !existing->args.empty()) {
+            if (rhs->type() == NodeType::VARIABLE) {
+                std::string raw = rhs->getCExpr(e);
+                const CType* have = e.lookupType(raw);
+                if (have && have->kind == CType::Kind::Slice) {
+                    e.emit(bareName + " = " + raw + ";");
+                    return;
+                }
+            }
+            std::string view =
+                emitSliceView(e, rhs.get(), *existing, lineNumber);
+            e.emit(bareName + " = " + view + ";");
+            return;
+        }
         if (existing && existing->kind == CType::Kind::Array &&
             !existing->args.empty()) {
             VType elem = existing->args[0].toVType();
@@ -869,6 +904,43 @@ void AssignmentNode::compile(C_Emitter& e) const {
             }
         }
 
+        // (Slice) Fresh local Slice<T> declaration. Materialise a
+        // zero-copy view before evaluating any RHS that would otherwise
+        // copy (`a[lo:hi]` lowers to a copying Array<T> slice by default).
+        if (isDeclaration && declared.kind == CType::Kind::Slice) {
+            VType elem = getSliceElemType();
+            if (elem == VType::Unknown) {
+                throw std::runtime_error(
+                    "Compile Error: Slice annotation is missing its element "
+                    "type (line " + std::to_string(lineNumber) + ")."
+                );
+            }
+            CType sliceCt;
+            sliceCt.kind = CType::Kind::Slice;
+            sliceCt.args.push_back(CType::fromVType(elem));
+
+            if (rhs->type() == NodeType::VARIABLE) {
+                std::string raw = rhs->getCExpr(e);
+                const CType* have = e.lookupType(raw);
+                if (have && have->kind == CType::Kind::Slice) {
+                    e.declareLocal(varName, sliceCt);
+                    e.emit(
+                        CType::sliceContainerName(elem) + " " + varName + " = " +
+                        raw + ";"
+                    );
+                    return;
+                }
+            }
+
+            std::string view = emitSliceView(e, rhs.get(), sliceCt, lineNumber);
+            e.declareLocal(varName, sliceCt);
+            e.emit(
+                CType::sliceContainerName(elem) + " " + varName + " = " + view +
+                ";"
+            );
+            return;
+        }
+
         // Emit the RHS once. Its CType tells us what we actually got —
         // a typed array from a native-dispatching call, a primitive, or
         // a boxed VyneValue.
@@ -966,6 +1038,21 @@ void AssignmentNode::compile(C_Emitter& e) const {
             return;
         }
         e.emit(varName + " = " + e.boxAny(val) + ";");
+        return;
+    }
+
+    if (existing && existing->kind == CType::Kind::Slice &&
+        !existing->args.empty()) {
+        if (rhs->type() == NodeType::VARIABLE) {
+            std::string raw = rhs->getCExpr(e);
+            const CType* have = e.lookupType(raw);
+            if (have && have->kind == CType::Kind::Slice) {
+                e.emit(varName + " = " + raw + ";");
+                return;
+            }
+        }
+        std::string view = emitSliceView(e, rhs.get(), *existing, lineNumber);
+        e.emit(varName + " = " + view + ";");
         return;
     }
 

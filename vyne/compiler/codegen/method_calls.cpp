@@ -761,6 +761,75 @@ std::optional<std::string> tryEmitTypedArrayMethod(
         );
     }
 
+    // Slice<T> methods. A slice has no capacity and owns no storage, so
+    // only the size queries are meaningful. The receiver is usually a
+    // pointer-to-view in the native ABI; read through `->`.
+    if (rt && rt->kind == CType::Kind::Slice && !rt->args.empty()) {
+        if (methodName == "size" || methodName == "length") {
+            if (!args.empty()) {
+                throw std::runtime_error(
+                    "Compile Error: Slice." + methodName +
+                    "() takes no arguments (line " +
+                    std::to_string(node.lineNumber) + ")."
+                );
+            }
+            std::string temp = e.newTemp("slen");
+            std::string member = rt->slicePtr ? "->" : ".";
+            e.emit(
+                "int64_t " + temp + " = " + recvRaw + member + "size;"
+            );
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            return temp;
+        }
+        throw std::runtime_error(
+            "Compile Error: Slice<" + VTypeToString(rt->args[0].toVType()) +
+            "> only supports .size() / .length(); '" + methodName +
+            "' is not available on a borrowed view (line " +
+            std::to_string(node.lineNumber) + ")."
+        );
+    }
+
+    // reserve(n) / resize(n, value) on a typed Array<T>. These are
+    // additive: existing push() growth is unchanged, but callers can now
+    // pre-size a buffer to avoid repeated arena reallocation in a hot
+    // loop. Both return the receiver so chaining keeps working.
+    if ((methodName == "reserve" || methodName == "resize") && rt &&
+        rt->kind == CType::Kind::Array && !rt->args.empty()) {
+        VType elem = rt->args[0].toVType();
+        if (elem != VType::Float64 && elem != VType::Int64 &&
+            elem != VType::Float32) {
+            throw std::runtime_error(
+                "Compile Error: " + methodName +
+                "() is only supported on Array<Float64>, Array<Float32>, "
+                "and Array<Int64> (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        size_t wantArgs = (methodName == "reserve") ? 1 : 2;
+        if (args.size() != wantArgs) {
+            throw std::runtime_error(
+                "Compile Error: " + methodName + "() expects " +
+                std::to_string(wantArgs) + " argument(s) (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
+        std::string rawN = args[0]->getCExpr(e);
+        std::string n = coerceToNative(e, args[0].get(), rawN, VType::Int64);
+        const std::string prefix = (elem == VType::Float64)
+                                       ? "vyne_array_f64_"
+                                       : (elem == VType::Float32
+                                              ? "vyne_array_f32_"
+                                              : "vyne_array_i64_");
+        if (methodName == "reserve") {
+            e.emit(prefix + "reserve(&" + recvRaw + ", " + n + ");");
+            return recvRaw;
+        }
+        std::string rawV = args[1]->getCExpr(e);
+        std::string v = coerceToNative(e, args[1].get(), rawV, elem);
+        e.emit(prefix + "resize(&" + recvRaw + ", " + n + ", " + v + ");");
+        return recvRaw;
+    }
+
     if (methodName == "push") {
         if (rt && rt->kind == CType::Kind::Array && !rt->args.empty()) {
             VType elem = rt->args[0].toVType();
