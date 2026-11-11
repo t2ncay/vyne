@@ -25,23 +25,37 @@
  *
  * Primitives
  * ----------
- *   conv2d_fwd         square-kernel convolution, stride/pad, optional bias
- *   relu_fwd           max(0, x)
- *   leaky_relu_fwd     x >= 0 ? x : alpha*x
- *   tanh_fwd           tanh(x)
- *   sigmoid_fwd        1 / (1 + exp(-x))
- *   pixel_shuffle_fwd  ESPCN depth-to-space, HWC equivalent of nn.PixelShuffle
- *   load_model         read a .vwy (binary) or .vwt (text) weight bundle
+ *   conv2d_fwd             square-kernel convolution, stride/pad, optional bias
+ *   conv2d_backward_input  dL/dinput from dL/doutput and the OIHW weight
+ *   conv2d_backward_weight dL/dweight from the input and dL/doutput
+ *   conv2d_backward_bias   dL/dbias by reducing dL/doutput over space
+ *   relu_fwd               max(0, x)
+ *   relu_backward          pre > 0 ? dL/dout : 0
+ *   leaky_relu_fwd         x >= 0 ? x : alpha*x
+ *   tanh_fwd               tanh(x)
+ *   sigmoid_fwd            1 / (1 + exp(-x))
+ *   pixel_shuffle_fwd      ESPCN depth-to-space, HWC equivalent of nn.PixelShuffle
+ *   load_model             read a .vwy (binary) or .vwt (text) weight bundle
  *
- * This is deliberately a forward-only first slice. Backward passes,
- * dilation, groups, and device execution are tracked separately; the
- * first SR milestone only needs deterministic inference.
+ * Dilation and grouped convolutions are still tracked separately; the SR
+ * training path only needs dense square-kernel convolutions.
+ *
+ * Device-native primitives
+ * ------------------------
+ * The `*_device` functions below are the @device<backend> counterparts of
+ * the host primitives. They assume an active @device frame and operate on
+ * opaque Int64 device handles from `vyne_device_alloc`; they never touch
+ * host memory or the host arena. They launch the matching `vyne_device_*`
+ * kernels (PTX on CUDA, scalar loops on the CPU fallback) and return a
+ * fresh device handle for their output. Device handles are reclaimed by
+ * the enclosing @device region's rewind.
  * ------------------------------------------------------------------- */
 
 #ifndef VYNE_VCONV_RT_H
 #define VYNE_VCONV_RT_H
 
 #include "../vyne_runtime.h"
+#include "vdevice.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -130,38 +144,304 @@ static inline VyneValue vconv_conv2d_fwd(
 
     VyneArray_f64 out = vyne_array_f64_create(out_h * out_w * out_c);
 
-    for (int64_t oy = 0; oy < out_h; ++oy) {
-        for (int64_t ox = 0; ox < out_w; ++ox) {
-            int64_t out_base = (oy * out_w + ox) * out_c;
+    /* `__restrict__` promises the compiler that `in`, `wgt`, `bias` and
+     * `out` never alias, which is what lets GCC auto-vectorize the `ic`
+     * loop. The tap bounds are hoisted out of the innermost loop and kept
+     * in a small running accumulator held in a register. */
+    const double* __restrict__ in_p = in.data;
+    const double* __restrict__ w_p = wgt.data;
+    double* __restrict__ out_p = out.data;
+    const double* __restrict__ bias_p = has_bias ? bias.data : NULL;
 
-            for (int64_t oc = 0; oc < out_c; ++oc) {
-                double acc = has_bias ? bias.data[oc] : 0.0;
-
-                for (int64_t ic = 0; ic < in_c; ++ic) {
-                    int64_t w_ci = ((oc * in_c) + ic) * kh * kw;
-                    for (int64_t ky = 0; ky < kh; ++ky) {
-                        int64_t iy = oy * stride - pad + ky;
-                        if (iy < 0 || iy >= in_h) continue;
-                        int64_t in_row = iy * in_w;
-                        int64_t w_row = w_ci + ky * kw;
-
-                        for (int64_t kx = 0; kx < kw; ++kx) {
-                            int64_t ix = ox * stride - pad + kx;
-                            if (ix < 0 || ix >= in_w) continue;
-
-                            double x = in.data[(in_row + ix) * in_c + ic];
-                            double w = wgt.data[w_row + kx];
-                            acc += x * w;
-                        }
+    /* The OIHW weight strides by kh*kw as `ic` advances, so an `ic`-innermost
+     * reduction would gather from far-apart cache lines. Transpose the
+     * weight once to OC-KH-KW-IC, making the innermost weight stream
+     * unit-stride and matching the HWC input stream. The scratch is
+     * O(out_c*in_c*kh*kw) and dominated by the O(out_h*out_w) spatial
+     * work for any real convolution; if allocation fails we keep the
+     * direct OIHW path below. */
+    const size_t w_count = (size_t)out_c * (size_t)in_c *
+                           (size_t)kh * (size_t)kw;
+    double* __restrict__ w_t = (double*)malloc(w_count * sizeof(double));
+    if (w_t) {
+        for (int64_t oc = 0; oc < out_c; ++oc) {
+            const double* __restrict__ w_oc =
+                w_p + (oc * in_c) * kh * kw;
+            for (int64_t ky = 0; ky < kh; ++ky) {
+                for (int64_t kx = 0; kx < kw; ++kx) {
+                    double* __restrict__ dst =
+                        w_t + (((oc * kh + ky) * kw) + kx) * in_c;
+                    const double* __restrict__ src = w_oc + ky * kw + kx;
+                    for (int64_t ic = 0; ic < in_c; ++ic) {
+                        dst[ic] = src[ic * kh * kw];
                     }
                 }
-
-                out.data[out_base + oc] = acc;
             }
         }
     }
 
+    for (int64_t oy = 0; oy < out_h; ++oy) {
+        int64_t in_oy = oy * stride - pad;
+
+        /* Hoist the vertical tap window: every ky in [ky_lo, ky_hi) maps
+         * to a valid input row, so the hot loops below need no `iy` test. */
+        int64_t ky_lo = in_oy < 0 ? -in_oy : 0;
+        int64_t ky_hi = in_h - in_oy;
+        if (ky_hi > kh) ky_hi = kh;
+        if (ky_lo > ky_hi) ky_lo = ky_hi;
+
+        for (int64_t ox = 0; ox < out_w; ++ox) {
+            int64_t out_base = (oy * out_w + ox) * out_c;
+            int64_t in_ox = ox * stride - pad;
+
+            /* Same for the horizontal taps. */
+            int64_t kx_lo = in_ox < 0 ? -in_ox : 0;
+            int64_t kx_hi = in_w - in_ox;
+            if (kx_hi > kw) kx_hi = kw;
+            if (kx_lo > kx_hi) kx_lo = kx_hi;
+
+            for (int64_t oc = 0; oc < out_c; ++oc) {
+                double acc = has_bias ? bias_p[oc] : 0.0;
+                const double* __restrict__ w_oc =
+                    w_p + (oc * in_c) * kh * kw;
+
+                for (int64_t ky = ky_lo; ky < ky_hi; ++ky) {
+                    const double* __restrict__ in_row =
+                        in_p + (in_oy + ky) * in_w * in_c;
+
+                    for (int64_t kx = kx_lo; kx < kx_hi; ++kx) {
+                        /* `ic` is innermost so the HWC input load is
+                         * unit-stride; the transposed weight stream is
+                         * unit-stride too, so GCC can vectorize the
+                         * reduction. */
+                        const double* __restrict__ x_p =
+                            in_row + (in_ox + kx) * in_c;
+                        if (w_t) {
+                            const double* __restrict__ w_k =
+                                w_t + (((oc * kh + ky) * kw) + kx) * in_c;
+                            for (int64_t ic = 0; ic < in_c; ++ic) {
+                                acc += x_p[ic] * w_k[ic];
+                            }
+                        } else {
+                            const double* __restrict__ w_k =
+                                w_oc + ky * kw + kx;
+                            for (int64_t ic = 0; ic < in_c; ++ic) {
+                                acc += x_p[ic] * w_k[ic * kh * kw];
+                            }
+                        }
+                    }
+                }
+
+                out_p[out_base + oc] = acc;
+            }
+        }
+    }
+
+    free(w_t);
     return vyne_array_f64_to_value(&out);
+}
+
+/* ---------------------------------------------------------------- */
+/* Device-native primitives (@device regions)                        */
+/* ---------------------------------------------------------------- */
+/* The functions below run inside an active @device frame. They take and
+ * return opaque Int64 device handles produced by `vyne_device_alloc`; they
+ * never allocate host memory and never touch the host arena. Each op
+ * allocates its output on the device and launches the matching
+ * `vyne_device_*` kernel (PTX on CUDA, scalar loops on the CPU fallback).
+ *
+ * The caller owns the handles for the duration of the frame; the enclosing
+ * @device region rewind frees them. `bias` is a device handle (0 = no
+ * bias). All handles in one call must share a dtype (the device layer
+ * validates this). */
+
+static inline int64_t vconv_conv2d_fwd_device(
+    int64_t d_input,
+    int64_t d_weight,
+    int64_t d_bias,
+    int64_t in_h,
+    int64_t in_w,
+    int64_t in_c,
+    int64_t out_c,
+    int64_t kh,
+    int64_t kw,
+    int64_t stride,
+    int64_t pad
+) {
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_c <= 0 || kh <= 0 || kw <= 0) {
+        return 0;
+    }
+    if (kh != kw) {
+        fprintf(stderr, "vconv.conv2d_fwd_device: only square kernels are supported\n");
+        exit(1);
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+
+    int64_t out_h = (in_h + 2 * pad - kh) / stride + 1;
+    int64_t out_w = (in_w + 2 * pad - kw) / stride + 1;
+    if (out_h <= 0 || out_w <= 0) return 0;
+
+    int has_bias = d_bias != 0;
+    /* Match the dtype of the input handle so mixed-precision frames fail
+     * loudly in vyne_device_conv2d rather than silently reinterpreting. */
+    VyneDeviceAlloc* x = vyne_dev_find(d_input, in_h * in_w * in_c,
+                                       "vconv.conv2d_fwd_device(input)");
+    int64_t d_out = (x->elem_size == (int)sizeof(double))
+                        ? vyne_device_alloc_f64(out_h * out_w * out_c)
+                        : vyne_device_alloc(out_h * out_w * out_c);
+
+    vyne_device_conv2d(d_out, d_input, d_weight, d_bias,
+                       in_h, in_w, in_c,
+                       out_h, out_w, out_c,
+                       kh, stride, pad, has_bias);
+    return d_out;
+}
+
+static inline int64_t vconv_conv2d_backward_input_device(
+    int64_t d_grad_out,
+    int64_t d_weight,
+    int64_t in_h,
+    int64_t in_w,
+    int64_t in_c,
+    int64_t out_h,
+    int64_t out_w,
+    int64_t out_c,
+    int64_t kh,
+    int64_t kw,
+    int64_t stride,
+    int64_t pad
+) {
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 ||
+        kh <= 0 || kw <= 0) {
+        return 0;
+    }
+    if (kh != kw) {
+        fprintf(stderr, "vconv.conv2d_backward_input_device: only square kernels are supported\n");
+        exit(1);
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+
+    VyneDeviceAlloc* g = vyne_dev_find(d_grad_out, out_h * out_w * out_c,
+                                       "vconv.conv2d_backward_input_device(grad)");
+    int64_t d_grad_in = (g->elem_size == (int)sizeof(double))
+                            ? vyne_device_alloc_f64(in_h * in_w * in_c)
+                            : vyne_device_alloc(in_h * in_w * in_c);
+
+    vyne_device_conv2d_backward_input(d_grad_in, d_grad_out, d_weight,
+                                      in_h, in_w, in_c,
+                                      out_h, out_w, out_c,
+                                      kh, stride, pad);
+    return d_grad_in;
+}
+
+static inline int64_t vconv_conv2d_backward_weight_device(
+    int64_t d_input,
+    int64_t d_grad_out,
+    int64_t in_h,
+    int64_t in_w,
+    int64_t in_c,
+    int64_t out_h,
+    int64_t out_w,
+    int64_t out_c,
+    int64_t kh,
+    int64_t kw,
+    int64_t stride,
+    int64_t pad
+) {
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 ||
+        kh <= 0 || kw <= 0) {
+        return 0;
+    }
+    if (kh != kw) {
+        fprintf(stderr, "vconv.conv2d_backward_weight_device: only square kernels are supported\n");
+        exit(1);
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+
+    VyneDeviceAlloc* x = vyne_dev_find(d_input, in_h * in_w * in_c,
+                                       "vconv.conv2d_backward_weight_device(input)");
+    int64_t d_grad_w = (x->elem_size == (int)sizeof(double))
+                           ? vyne_device_alloc_f64(out_c * in_c * kh * kw)
+                           : vyne_device_alloc(out_c * in_c * kh * kw);
+
+    vyne_device_conv2d_backward_weight(d_grad_w, d_input, d_grad_out,
+                                       in_h, in_w, in_c,
+                                       out_h, out_w, out_c,
+                                       kh, stride, pad);
+    return d_grad_w;
+}
+
+static inline int64_t vconv_conv2d_backward_bias_device(
+    int64_t d_grad_out,
+    int64_t out_h,
+    int64_t out_w,
+    int64_t out_c
+) {
+    if (out_h <= 0 || out_w <= 0 || out_c <= 0) return 0;
+
+    VyneDeviceAlloc* g = vyne_dev_find(d_grad_out, out_h * out_w * out_c,
+                                       "vconv.conv2d_backward_bias_device(grad)");
+    int64_t d_grad_b = (g->elem_size == (int)sizeof(double))
+                           ? vyne_device_alloc_f64(out_c)
+                           : vyne_device_alloc(out_c);
+
+    vyne_device_conv2d_backward_bias(d_grad_b, d_grad_out, out_h, out_w, out_c);
+    return d_grad_b;
+}
+
+static inline int64_t vconv_relu_fwd_device(int64_t d_input, int64_t n) {
+    if (n <= 0) return 0;
+    VyneDeviceAlloc* x = vyne_dev_find(d_input, n, "vconv.relu_fwd_device(input)");
+    int64_t d_out = (x->elem_size == (int)sizeof(double))
+                        ? vyne_device_alloc_f64(n)
+                        : vyne_device_alloc(n);
+    vyne_device_relu(d_out, d_input, n);
+    return d_out;
+}
+
+static inline int64_t vconv_relu_backward_device(
+    int64_t d_grad_out,
+    int64_t d_pre_activation,
+    int64_t n
+) {
+    if (n <= 0) return 0;
+    VyneDeviceAlloc* g = vyne_dev_find(d_grad_out, n,
+                                       "vconv.relu_backward_device(grad)");
+    int64_t d_out = (g->elem_size == (int)sizeof(double))
+                        ? vyne_device_alloc_f64(n)
+                        : vyne_device_alloc(n);
+    vyne_device_relu_grad(d_out, d_grad_out, d_pre_activation, n);
+    return d_out;
+}
+
+static inline int64_t vconv_pixel_shuffle_fwd_device(
+    int64_t d_input,
+    int64_t h,
+    int64_t w,
+    int64_t c,
+    int64_t r
+) {
+    if (h <= 0 || w <= 0 || c <= 0 || r <= 0) return 0;
+    int64_t rr = r * r;
+    if (c % rr != 0) {
+        fprintf(stderr, "vconv.pixel_shuffle_fwd_device: channels not divisible by scale^2\n");
+        exit(1);
+    }
+    int64_t out_c = c / rr;
+
+    VyneDeviceAlloc* x = vyne_dev_find(d_input, h * w * c,
+                                       "vconv.pixel_shuffle_fwd_device(input)");
+    int64_t d_out = (x->elem_size == (int)sizeof(double))
+                        ? vyne_device_alloc_f64(h * r * w * r * out_c)
+                        : vyne_device_alloc(h * r * w * r * out_c);
+    vyne_device_pixel_shuffle(d_out, d_input, h, w, c, r);
+    return d_out;
 }
 
 /* ---------------------------------------------------------------- */
