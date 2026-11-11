@@ -17,6 +17,7 @@
 #pragma once
 #include "mcu_types.h"
 #include <math.h>
+#include <stdio.h>
 
 #ifndef V_FLOAT32
 #define V_FLOAT32 13
@@ -99,6 +100,28 @@ static inline VyneValue vyne_index_get(VyneValue base, VyneValue index) {
         return vyne_string(buf);
     }
     return vyne_null();
+}
+
+// Conversion used by the `string(x)` builtin. Values are formatted into
+// a fixed stack buffer and copied into the arena by vyne_string().
+static inline VyneValue vyne_to_string(VyneValue v) {
+    char buf[64];
+    switch (v.type) {
+    case V_INT64:
+        snprintf(buf, sizeof(buf), "%lld", (long long)v.as.i64);
+        return vyne_string(buf);
+    case V_FLOAT64:
+        snprintf(buf, sizeof(buf), "%g", v.as.f64);
+        return vyne_string(buf);
+    case V_BOOL:
+        return vyne_string(v.as.i64 ? "true" : "false");
+    case V_STRING:
+        return v;
+    case V_NULL:
+        return vyne_string("null");
+    default:
+        return vyne_string("<value>");
+    }
 }
 
 // Binary arithmetic / comparison dispatcher. Division and modulo by zero

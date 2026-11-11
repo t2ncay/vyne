@@ -58,7 +58,8 @@ spaces.
   `esp32.i2c_*`, `esp32.spi_*`, math, bits, memory, interrupts,
   realtime telemetry) map to the same `arduino_*` C symbols as AVR.
 - ESP32-only names (`esp32.nvs_*`, `esp32.wifi_*`, `esp32.http_*`,
-  `esp32.display_*`, `esp32.touch_screen_*`, `esp32.imu_*`,
+  `esp32.display_*`, `esp32.display_sprite_*`, `esp32.touch_screen_*`,
+  `esp32.imu_*`,
   `esp32.power_*`, `esp32.dac_*`, `esp32.touch_pin_*`,
   `esp32.heap_largest_free`, `esp32.serial1_*`) map to `esp32_*` C
   symbols.
@@ -99,6 +100,31 @@ These are intentional and documented at the relevant header:
   The library omits `getTouch`/`setTouch` in that configuration, so the
   Vyne surface stays linkable and reports "no contact" until the user
   enables touch in `User_Setup.h`.
+
+## Display and touch setup
+
+TFT_eSPI is configured outside this repository. The ESP32 test suite was
+validated with `User_Setup.h` set to:
+
+```
+ILI9341_DRIVER
+TFT_MISO 19, TFT_MOSI 23, TFT_SCLK 18
+TFT_CS 15, TFT_DC 2, TFT_RST 4
+TOUCH_CS 21
+SPI_TOUCH_FREQUENCY 2500000
+```
+
+Change the pins to match your panel. If `TOUCH_CS` is disabled, the touch
+surface compiles as inert stubs that report "no contact".
+
+### Double buffering
+
+`display_sprite_create(w, h)` returns a handle to an off-screen
+`TFT_eSprite` (up to four). `display_sprite_select(handle)` routes the
+normal `display_*` drawing calls into the sprite; `display_sprite_push`
+blits it to the panel; `display_sprite_select(-1)` returns to direct
+drawing. A 16-bit 240x320 sprite needs about 150 KB of heap, so create
+sprites after WiFi is initialized and keep only what you need.
 
 ## Tests
 

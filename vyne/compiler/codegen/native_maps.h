@@ -588,6 +588,17 @@ static const NativeMapEntry ESP32_SPECIFIC_MAP[] = {
     {"display_push", "esp32_display_push", false},
     {"display_rgb", "esp32_display_rgb", false},
 
+    // --- Sprite / double-buffer surface (mcu_display.h). Create a
+    //     TFT_eSprite, select it, draw with the normal display_* calls,
+    //     push it, then select(-1) to return to the panel. ---
+    {"display_sprite_create", "esp32_display_sprite_create", false},
+    {"display_sprite_delete", "esp32_display_sprite_delete", false},
+    {"display_sprite_select", "esp32_display_sprite_select", false},
+    {"display_sprite_push", "esp32_display_sprite_push", false},
+    {"display_sprite_width", "esp32_display_sprite_width", false},
+    {"display_sprite_height", "esp32_display_sprite_height", false},
+    {"display_sprite_fill", "esp32_display_sprite_fill", false},
+
     // --- Touchscreen / pen (mcu_touch.h) ---
     {"touch_screen_init", "esp32_touch_screen_init", false},
     {"touch_screen_pressed", "esp32_touch_screen_pressed", false},

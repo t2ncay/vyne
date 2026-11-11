@@ -54,4 +54,25 @@ esp32.display_text(10, 10, "display test complete", white, 2);
 esp32.display_backlight(80);
 esp32.display_push();
 
+# --- Sprite / double buffer ---
+# Draw into an off-screen buffer, then blit it in one transfer. This is
+# the path a drawing app or oscilloscope should use to avoid flicker.
+spr :: Int64 := esp32.display_sprite_create(120, 80);
+if (spr >= 0) {
+    esp32.display_sprite_fill(spr, black);
+    esp32.display_sprite_select(spr);
+    esp32.display_clear(black);
+    esp32.display_circle(60, 40, 30, green);
+    esp32.display_text(10, 10, "sprite", white, 1);
+    esp32.display_sprite_push(spr, 20, 20);
+    esp32.display_sprite_select(-1);
+    esp32.serial_print("sprite size = ");
+    esp32.serial_print(esp32.display_sprite_width(spr));
+    esp32.serial_print(" x ");
+    esp32.serial_println(esp32.display_sprite_height(spr));
+    esp32.display_sprite_delete(spr);
+} else {
+    esp32.serial_println("sprite: allocation failed");
+}
+
 esp32.serial_println("display test complete");

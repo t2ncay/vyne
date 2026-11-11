@@ -13,42 +13,71 @@
 //
 // Colors are packed RGB565 integers in 0..65535. Use display_rgb(r,g,b)
 // to build one from 8-bit components.
+//
+// Double buffering: create up to VYNE_MAX_SPRITES TFT_eSprite buffers,
+// select one, draw with the normal display_* calls, then push it. This
+// is what keeps a drawing app or oscilloscope from flickering. Select
+// -1 to draw directly to the panel again.
 #pragma once
 #include "mcu_types.h"
 #include <TFT_eSPI.h>
 
+#define VYNE_MAX_SPRITES 4
+
 static TFT_eSPI g_vyne_tft;
 static bool g_vyne_tft_inited = false;
 
+// Active drawing target. A TFT_eSprite is-a TFT_eSPI, so the low-level
+// virtual drawPixel/drawChar dispatch routes the inherited drawing
+// methods to the sprite buffer. width()/height()/setRotation() are not
+// virtual, so those three are dispatched explicitly below.
+static TFT_eSPI* g_vyne_draw_target = &g_vyne_tft;
+static TFT_eSprite* g_vyne_active_sprite = nullptr;
+static TFT_eSprite* g_vyne_sprites[VYNE_MAX_SPRITES] = {nullptr};
+
+static inline TFT_eSPI* _vyne_draw(void) {
+    return g_vyne_draw_target;
+}
+
 static inline VyneValue esp32_display_init(VyneValue rotation) {
+    g_vyne_active_sprite = nullptr;
+    g_vyne_draw_target = &g_vyne_tft;
     g_vyne_tft.init();
-    g_vyne_tft_inited = true;
     g_vyne_tft.setRotation((uint8_t)(rotation.as.i64 & 0x3));
     g_vyne_tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    g_vyne_tft_inited = true;
     return vyne_null();
 }
 
 static inline VyneValue esp32_display_width(void) {
+    if (g_vyne_active_sprite)
+        return vyne_int((int64_t)g_vyne_active_sprite->width());
     return vyne_int((int64_t)g_vyne_tft.width());
 }
 
 static inline VyneValue esp32_display_height(void) {
+    if (g_vyne_active_sprite)
+        return vyne_int((int64_t)g_vyne_active_sprite->height());
     return vyne_int((int64_t)g_vyne_tft.height());
 }
 
 static inline VyneValue esp32_display_set_rotation(VyneValue r) {
-    g_vyne_tft.setRotation((uint8_t)(r.as.i64 & 0x3));
+    uint8_t rot = (uint8_t)(r.as.i64 & 0x3);
+    if (g_vyne_active_sprite)
+        g_vyne_active_sprite->setRotation(rot);
+    else
+        g_vyne_tft.setRotation(rot);
     return vyne_null();
 }
 
 static inline VyneValue esp32_display_clear(VyneValue color) {
-    g_vyne_tft.fillScreen((uint16_t)color.as.i64);
+    _vyne_draw()->fillScreen((uint16_t)color.as.i64);
     return vyne_null();
 }
 
 static inline VyneValue
 esp32_display_pixel(VyneValue x, VyneValue y, VyneValue color) {
-    g_vyne_tft.drawPixel(
+    _vyne_draw()->drawPixel(
         (int32_t)x.as.i64,
         (int32_t)y.as.i64,
         (uint16_t)color.as.i64
@@ -63,7 +92,7 @@ static inline VyneValue esp32_display_line(
     VyneValue y1,
     VyneValue color
 ) {
-    g_vyne_tft.drawLine(
+    _vyne_draw()->drawLine(
         (int32_t)x0.as.i64,
         (int32_t)y0.as.i64,
         (int32_t)x1.as.i64,
@@ -80,7 +109,7 @@ static inline VyneValue esp32_display_rect(
     VyneValue h,
     VyneValue color
 ) {
-    g_vyne_tft.drawRect(
+    _vyne_draw()->drawRect(
         (int32_t)x.as.i64,
         (int32_t)y.as.i64,
         (int32_t)w.as.i64,
@@ -97,7 +126,7 @@ static inline VyneValue esp32_display_rect_filled(
     VyneValue h,
     VyneValue color
 ) {
-    g_vyne_tft.fillRect(
+    _vyne_draw()->fillRect(
         (int32_t)x.as.i64,
         (int32_t)y.as.i64,
         (int32_t)w.as.i64,
@@ -109,7 +138,7 @@ static inline VyneValue esp32_display_rect_filled(
 
 static inline VyneValue
 esp32_display_circle(VyneValue x, VyneValue y, VyneValue r, VyneValue color) {
-    g_vyne_tft.drawCircle(
+    _vyne_draw()->drawCircle(
         (int32_t)x.as.i64,
         (int32_t)y.as.i64,
         (int32_t)r.as.i64,
@@ -124,7 +153,7 @@ static inline VyneValue esp32_display_circle_filled(
     VyneValue r,
     VyneValue color
 ) {
-    g_vyne_tft.fillCircle(
+    _vyne_draw()->fillCircle(
         (int32_t)x.as.i64,
         (int32_t)y.as.i64,
         (int32_t)r.as.i64,
@@ -146,13 +175,10 @@ static inline VyneValue esp32_display_text(
         sz = 1;
     if (sz > 7)
         sz = 7;
-    g_vyne_tft.setTextColor((uint16_t)color.as.i64);
-    g_vyne_tft.setTextSize((uint8_t)sz);
-    g_vyne_tft.drawString(
-        String(s),
-        (int32_t)x.as.i64,
-        (int32_t)y.as.i64
-    );
+    TFT_eSPI* d = _vyne_draw();
+    d->setTextColor((uint16_t)color.as.i64);
+    d->setTextSize((uint8_t)sz);
+    d->drawString(String(s), (int32_t)x.as.i64, (int32_t)y.as.i64);
     return vyne_null();
 }
 
@@ -170,18 +196,15 @@ static inline VyneValue esp32_display_text_bg(
         sz = 1;
     if (sz > 7)
         sz = 7;
-    g_vyne_tft.setTextColor((uint16_t)fg.as.i64, (uint16_t)bg.as.i64);
-    g_vyne_tft.setTextSize((uint8_t)sz);
-    g_vyne_tft.drawString(
-        String(s),
-        (int32_t)x.as.i64,
-        (int32_t)y.as.i64
-    );
+    TFT_eSPI* d = _vyne_draw();
+    d->setTextColor((uint16_t)fg.as.i64, (uint16_t)bg.as.i64);
+    d->setTextSize((uint8_t)sz);
+    d->drawString(String(s), (int32_t)x.as.i64, (int32_t)y.as.i64);
     return vyne_null();
 }
 
 static inline VyneValue esp32_display_set_text_wrap(VyneValue wrap) {
-    g_vyne_tft.setTextWrap(wrap.as.i64 != 0);
+    _vyne_draw()->setTextWrap(wrap.as.i64 != 0);
     return vyne_null();
 }
 
@@ -216,9 +239,104 @@ static inline VyneValue esp32_display_backlight(VyneValue percent) {
 }
 
 static inline VyneValue esp32_display_push(void) {
-    // TFT_eSPI draws directly to the panel. A sprite-based backend would
-    // call pushSprite() here; keeping the symbol makes the Vyne source
-    // portable across both.
+    // With a sprite selected, commit it to the panel at the origin.
+    // Direct-to-panel drawing needs no push.
+    if (g_vyne_active_sprite)
+        g_vyne_active_sprite->pushSprite(0, 0);
+    return vyne_null();
+}
+
+// ---------------------------------------------------------------------
+// Sprite / double-buffer surface.
+//
+//   handle := display_sprite_create(w, h);
+//   display_sprite_select(handle);
+//   ... draw with the normal display_* calls ...
+//   display_sprite_push(handle, x, y);   // or display_push() at (0,0)
+//   display_sprite_select(-1);           // back to the panel
+//   display_sprite_delete(handle);
+//
+// Returns -1 when no slot is free or the sprite buffer cannot be
+// allocated. A 16-bit 240x320 sprite needs about 150 KB of heap.
+// ---------------------------------------------------------------------
+static inline VyneValue
+esp32_display_sprite_create(VyneValue width, VyneValue height) {
+    int w = (int)width.as.i64;
+    int h = (int)height.as.i64;
+    if (w <= 0 || h <= 0)
+        return vyne_int(-1);
+
+    for (int i = 0; i < VYNE_MAX_SPRITES; ++i) {
+        if (g_vyne_sprites[i])
+            continue;
+        TFT_eSprite* s = new TFT_eSprite(&g_vyne_tft);
+        s->setColorDepth(16);
+        if (s->createSprite((int16_t)w, (int16_t)h) == nullptr) {
+            delete s;
+            return vyne_int(-1);
+        }
+        s->setRotation(g_vyne_tft.getRotation());
+        g_vyne_sprites[i] = s;
+        return vyne_int(i);
+    }
+    return vyne_int(-1);
+}
+
+static inline VyneValue esp32_display_sprite_delete(VyneValue handle) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i])
+        return vyne_null();
+    if (g_vyne_active_sprite == g_vyne_sprites[i]) {
+        g_vyne_active_sprite = nullptr;
+        g_vyne_draw_target = &g_vyne_tft;
+    }
+    g_vyne_sprites[i]->deleteSprite();
+    delete g_vyne_sprites[i];
+    g_vyne_sprites[i] = nullptr;
+    return vyne_null();
+}
+
+static inline VyneValue esp32_display_sprite_select(VyneValue handle) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i]) {
+        g_vyne_active_sprite = nullptr;
+        g_vyne_draw_target = &g_vyne_tft;
+        return vyne_null();
+    }
+    g_vyne_active_sprite = g_vyne_sprites[i];
+    g_vyne_draw_target = g_vyne_sprites[i];
+    return vyne_null();
+}
+
+static inline VyneValue
+esp32_display_sprite_push(VyneValue handle, VyneValue x, VyneValue y) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i])
+        return vyne_null();
+    g_vyne_sprites[i]->pushSprite((int32_t)x.as.i64, (int32_t)y.as.i64);
+    return vyne_null();
+}
+
+static inline VyneValue esp32_display_sprite_width(VyneValue handle) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i])
+        return vyne_int(0);
+    return vyne_int((int64_t)g_vyne_sprites[i]->width());
+}
+
+static inline VyneValue esp32_display_sprite_height(VyneValue handle) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i])
+        return vyne_int(0);
+    return vyne_int((int64_t)g_vyne_sprites[i]->height());
+}
+
+static inline VyneValue
+esp32_display_sprite_fill(VyneValue handle, VyneValue color) {
+    int i = (int)handle.as.i64;
+    if (i < 0 || i >= VYNE_MAX_SPRITES || !g_vyne_sprites[i])
+        return vyne_null();
+    g_vyne_sprites[i]->fillSprite((uint16_t)color.as.i64);
     return vyne_null();
 }
 
