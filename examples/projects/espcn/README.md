@@ -94,12 +94,14 @@ would make those fully device-resident too.
 
 ## Next Step
 
-## GPU Training V0
+## GPU Training V1
 
-`src/train_gpu.vy` is the first explicit GPU-training proof for ESPCN. It uses a
+`src/train_gpu.vy` is the first explicit GPU-training path for ESPCN. It uses a
 single `@device<cuda>` region, saved device activations, device MSE gradient,
 device pixel-shuffle backward, device conv backward kernels, ReLU backward, and
-in-place device SGD updates.
+in-place device AdamW updates. After training, it downloads the trained weights,
+writes `build/espcn_gpu_trained.vwt`, reloads that checkpoint through
+`vconv.load_model`, and verifies CPU inference from the saved model.
 
 ```bash
 ../../../vynec --compile src/train_gpu.vy
@@ -110,9 +112,10 @@ Scope and limits:
 
 - ReLU ESPCN only.
 - Batch size 1.
-- MSE loss and SGD.
+- MSE loss and AdamW.
 - Explicit training graph, not automatic tensor AD yet.
-- The success criterion is that the loss decreases over the bundled sample pair.
+- The success criterion is that the loss decreases and the saved checkpoint
+  reloads with an improved CPU-side MSE.
 
-The next training step is an AdamW device optimizer and a reusable external
-`vnn`/`DeviceTensor` surface once the explicit proof stays stable.
+The next training step is a reusable external `vtensor`/`vnn` surface and a
+multi-crop or multi-image dataset loop once the explicit proof stays stable.

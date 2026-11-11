@@ -113,8 +113,10 @@ so the wrapper is the only place a caller needs to reason about.
 - `vconv.conv2d` is CPU. The `@device` backend now has `device_conv2d` and
   handle-returning vconv device wrappers for conv forward/backward, ReLU
   forward/backward, pixel shuffle forward, and pixel shuffle backward. The SR
-  projects use those explicit wrappers for full-device inference/training;
-  `vconv` itself does not auto-dispatch.
+  projects use those explicit wrappers for full-device inference/training.
+  Optimizer/loss training primitives such as `device_mse_grad`,
+  `device_sgd_step`, and `device_adamw_step` live in the `@device` intrinsic
+  surface; `vconv` itself does not auto-dispatch.
 - Backward is CPU-only and covers the square-kernel stride/pad cases above.
 - No dilation or groups yet.
 - Naive direct convolution. It is fast enough for the ESPCN demo on

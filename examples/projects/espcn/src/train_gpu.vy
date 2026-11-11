@@ -1,12 +1,14 @@
-# train_gpu.vy - explicit GPU ESPCN training proof.
+# train_gpu.vy - explicit GPU ESPCN training proof with checkpoint save/reload.
 #
-# This is intentionally a v0: ReLU ESPCN, batch size 1, MSE loss, SGD, and an
-# explicit device-resident forward/backward graph. It proves the runtime pieces
-# needed for GPU training without claiming general tensor AD yet.
+# This is intentionally a V1 scope: ReLU ESPCN, batch size 1, MSE loss, AdamW,
+# checkpoint save/reload, and an explicit device-resident forward/backward graph.
+# It proves the runtime pieces needed for GPU training without claiming general
+# tensor AD yet.
 #
 #   ../../../vynec --compile src/train_gpu.vy && ./src/train_gpu
 
 use native vcore;
+use native vfs;
 use external "vimage/vimage.vy";
 use external "vconv/vconv.vy";
 use "model.vy";
@@ -17,10 +19,77 @@ ruleset { dynamic_casting };
 INPUT :: String := "data/sample.png";
 REFERENCE :: String := "data/reference.png";
 MODEL :: String := "data/espcn_x2.vwy";
+OUTPUT_MODEL :: String := "build/espcn_gpu_trained.vwt";
 EPOCHS :: Int64 := 8;
-LR :: Float64 := 0.05;
+LR :: Float64 := 0.001;
+BETA1 :: Float64 := 0.9;
+BETA2 :: Float64 := 0.999;
+EPS :: Float64 := 1e-8;
+WEIGHT_DECAY :: Float64 := 0.0;
 
-out("=== Vyne ESPCN GPU training v0 ===");
+fn append_tensor_f32(sb :: Int64, name :: String, dims :: String,
+                     data :: Array<Float32>, n :: Int64) {
+    vcore.sb_append(sb, name);
+    vcore.sb_append(sb, " ");
+    vcore.sb_append(sb, dims);
+    vcore.sb_append(sb, "\n");
+    through i :: 0..n-1 -> loop {
+        if i != 0 { vcore.sb_append(sb, " "); }
+        vcore.sb_append(sb, string(float64(data[i])));
+    };
+    vcore.sb_append(sb, "\n");
+}
+
+fn save_trained_model(path :: String, model :: ESPCN,
+                      w1 :: Array<Float32>, b1 :: Array<Float32>,
+                      w2 :: Array<Float32>, b2 :: Array<Float32>,
+                      w3 :: Array<Float32>, b3 :: Array<Float32>) {
+    sb :: Int64 := vcore.sb_create();
+    vcore.sb_append(sb, "VYWT1\n7\n");
+    w1_n :: Int64 := model.c1 * model.in_c * model.k1 * model.k1;
+    w2_n :: Int64 := model.c2 * model.c1 * model.k2 * model.k2;
+    w3_n :: Int64 := model.c3 * model.c2 * model.k3 * model.k3;
+    append_tensor_f32(sb, "conv1.weight",
+        "4 " + string(model.c1) + " " + string(model.in_c) + " " +
+            string(model.k1) + " " + string(model.k1),
+        w1, w1_n);
+    append_tensor_f32(sb, "conv1.bias", "1 " + string(model.c1), b1, model.c1);
+    append_tensor_f32(sb, "conv2.weight",
+        "4 " + string(model.c2) + " " + string(model.c1) + " " +
+            string(model.k2) + " " + string(model.k2),
+        w2, w2_n);
+    append_tensor_f32(sb, "conv2.bias", "1 " + string(model.c2), b2, model.c2);
+    append_tensor_f32(sb, "conv3.weight",
+        "4 " + string(model.c3) + " " + string(model.c2) + " " +
+            string(model.k3) + " " + string(model.k3),
+        w3, w3_n);
+    append_tensor_f32(sb, "conv3.bias", "1 " + string(model.c3), b3, model.c3);
+    vcore.sb_append(sb, "meta 1 9\n");
+    vcore.sb_append(sb, string(float64(model.scale)) + " ");
+    vcore.sb_append(sb, string(float64(model.in_c)) + " ");
+    vcore.sb_append(sb, string(float64(model.c1)) + " ");
+    vcore.sb_append(sb, string(float64(model.c2)) + " ");
+    vcore.sb_append(sb, string(float64(model.c3)) + " ");
+    vcore.sb_append(sb, string(float64(model.k1)) + " ");
+    vcore.sb_append(sb, string(float64(model.k2)) + " ");
+    vcore.sb_append(sb, string(float64(model.k3)) + " ");
+    vcore.sb_append(sb, string(float64(model.act)) + "\n");
+    vfs.write(path, vcore.sb_build(sb));
+}
+
+fn tensor_mse(a :: vconv.Tensor, b :: vimage.Image) -> Float64 {
+    if a.width != b.width || a.height != b.height || a.channels != b.channels {
+        throw "train_gpu.tensor_mse: shape mismatch";
+    }
+    s :: Float64 := 0.0;
+    through i :: 0..a.data.size()-1 -> loop {
+        d :: Float64 := a.data[i] - b.pixels[i];
+        s = s + d * d;
+    };
+    return s / float64(a.data.size());
+}
+
+out("=== Vyne ESPCN GPU training v1 ===");
 
 input :: vimage.Image := vimage.load(INPUT);
 reference :: vimage.Image := vimage.load(REFERENCE);
@@ -81,6 +150,19 @@ t0 :: Int64 := vcore.now_ns();
     d_w3 :: Int64 := device_alloc(w3f.size());
     d_b3 :: Int64 := device_alloc(model.c3);
 
+    d_m_w1 :: Int64 := device_alloc(w1f.size());
+    d_v_w1 :: Int64 := device_alloc(w1f.size());
+    d_m_b1 :: Int64 := device_alloc(model.c1);
+    d_v_b1 :: Int64 := device_alloc(model.c1);
+    d_m_w2 :: Int64 := device_alloc(w2f.size());
+    d_v_w2 :: Int64 := device_alloc(w2f.size());
+    d_m_b2 :: Int64 := device_alloc(model.c2);
+    d_v_b2 :: Int64 := device_alloc(model.c2);
+    d_m_w3 :: Int64 := device_alloc(w3f.size());
+    d_v_w3 :: Int64 := device_alloc(w3f.size());
+    d_m_b3 :: Int64 := device_alloc(model.c3);
+    d_v_b3 :: Int64 := device_alloc(model.c3);
+
     x_dev :: DeviceTensor := DeviceTensor(d_x, h, w, model.in_c, in_n);
 
     device_upload(d_x, xf, in_n);
@@ -91,6 +173,19 @@ t0 :: Int64 := vcore.now_ns();
     device_upload(d_b2, b2f, model.c2);
     device_upload(d_w3, w3f, w3f.size());
     device_upload(d_b3, b3f, model.c3);
+
+    device_fill(d_m_w1, 0.0, w1f.size());
+    device_fill(d_v_w1, 0.0, w1f.size());
+    device_fill(d_m_b1, 0.0, model.c1);
+    device_fill(d_v_b1, 0.0, model.c1);
+    device_fill(d_m_w2, 0.0, w2f.size());
+    device_fill(d_v_w2, 0.0, w2f.size());
+    device_fill(d_m_b2, 0.0, model.c2);
+    device_fill(d_v_b2, 0.0, model.c2);
+    device_fill(d_m_w3, 0.0, w3f.size());
+    device_fill(d_v_w3, 0.0, w3f.size());
+    device_fill(d_m_b3, 0.0, model.c3);
+    device_fill(d_v_b3, 0.0, model.c3);
 
     through epoch :: 0..EPOCHS-1 -> loop {
         h1_pre :: Int64 := vconv_conv2d_fwd_device(
@@ -157,12 +252,13 @@ t0 :: Int64 := vcore.now_ns();
         );
         gb1 :: Int64 := vconv_conv2d_backward_bias_device(gh1, h, w, model.c1);
 
-        device_sgd_step(d_w1, gw1, LR, w1f.size());
-        device_sgd_step(d_b1, gb1, LR, model.c1);
-        device_sgd_step(d_w2, gw2, LR, w2f.size());
-        device_sgd_step(d_b2, gb2, LR, model.c2);
-        device_sgd_step(d_w3, gw3, LR, w3f.size());
-        device_sgd_step(d_b3, gb3, LR, model.c3);
+        step :: Int64 := epoch + 1;
+        device_adamw_step(d_w1, d_m_w1, d_v_w1, gw1, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w1f.size());
+        device_adamw_step(d_b1, d_m_b1, d_v_b1, gb1, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c1);
+        device_adamw_step(d_w2, d_m_w2, d_v_w2, gw2, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w2f.size());
+        device_adamw_step(d_b2, d_m_b2, d_v_b2, gb2, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c2);
+        device_adamw_step(d_w3, d_m_w3, d_v_w3, gw3, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w3f.size());
+        device_adamw_step(d_b3, d_m_b3, d_v_b3, gb3, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c3);
     };
 
     device_download(d_w1, w1f, w1f.size());
@@ -182,6 +278,23 @@ if last_loss < first_loss {
     out("training : loss decreased");
 } else {
     out("training : loss did not decrease");
+    exit(1);
+}
+vfs.mkdir_p("build");
+save_trained_model(OUTPUT_MODEL, model, w1f, b1f, w2f, b2f, w3f, b3f);
+out("saved    : " + OUTPUT_MODEL);
+
+reloaded :: ESPCN := load_espcn(OUTPUT_MODEL);
+input_t :: vconv.Tensor := vconv.tensor(
+    input.pixels, input.height, input.width, input.channels
+);
+pred_t :: vconv.Tensor := forward_cpu(reloaded, input_t);
+reload_loss :: Float64 := tensor_mse(pred_t, reference);
+out("reload mse: " + string(reload_loss));
+if reload_loss <= first_loss {
+    out("reload   : trained checkpoint verified");
+} else {
+    out("reload   : trained checkpoint did not improve over initial loss");
     exit(1);
 }
 out("time     : " + string(float64(t1 - t0) / 1000000.0) + " ms");

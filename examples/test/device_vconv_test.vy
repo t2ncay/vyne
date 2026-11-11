@@ -248,6 +248,32 @@ check("mse-part-1", close(float64(mse_part[1]), 2.0, 1e-6));
 check("sgd-step-0", close(float64(sgd_param[0]), 0.9, 1e-6));
 check("sgd-step-1", close(float64(sgd_param[1]), 1.8, 1e-6));
 
+adam_param :: Array<Float32> := [1.0f, 2.0f];
+adam_grad :: Array<Float32> := [1.0f, 2.0f];
+adam_m :: Array<Float32> := [0.0f, 0.0f];
+adam_v :: Array<Float32> := [0.0f, 0.0f];
+
+@device<cuda> region adamw_prim {
+    d_param :: Int64 := device_alloc(2);
+    d_grad :: Int64 := device_alloc(2);
+    d_m :: Int64 := device_alloc(2);
+    d_v :: Int64 := device_alloc(2);
+    device_upload(d_param, adam_param, 2);
+    device_upload(d_grad, adam_grad, 2);
+    device_upload(d_m, adam_m, 2);
+    device_upload(d_v, adam_v, 2);
+    device_adamw_step(d_param, d_m, d_v, d_grad, 0.1, 0.9, 0.999, 1e-8, 0.0, 1, 2);
+    device_download(d_param, adam_param, 2);
+    device_download(d_m, adam_m, 2);
+    device_download(d_v, adam_v, 2);
+    device_sync();
+};
+
+check("adamw-step-0", close(float64(adam_param[0]), 0.9, 1e-5));
+check("adamw-step-1", close(float64(adam_param[1]), 1.9, 1e-5));
+check("adamw-m-0", close(float64(adam_m[0]), 0.1, 1e-6));
+check("adamw-v-1", close(float64(adam_v[1]), 0.004, 1e-6));
+
 # ---------------------------------------------------------------
 # Float64 device handles select the f64 PTX path end-to-end.
 # ---------------------------------------------------------------

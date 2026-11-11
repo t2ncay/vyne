@@ -147,6 +147,7 @@ static CUfunction g_k_pixel_shuffle = NULL;
 static CUfunction g_k_pixel_shuffle_backward = NULL;
 static CUfunction g_k_mse_grad = NULL;
 static CUfunction g_k_sgd_step = NULL;
+static CUfunction g_k_adamw_step = NULL;
 
 static CUfunction g_k_vec_add_f32 = NULL;
 static CUfunction g_k_vec_sub_f32 = NULL;
@@ -164,6 +165,7 @@ static CUfunction g_k_pixel_shuffle_f32 = NULL;
 static CUfunction g_k_pixel_shuffle_backward_f32 = NULL;
 static CUfunction g_k_mse_grad_f32 = NULL;
 static CUfunction g_k_sgd_step_f32 = NULL;
+static CUfunction g_k_adamw_step_f32 = NULL;
 
 #define VYNE_CUDA_LOAD(field, name)                                      \
     do {                                                                 \
@@ -255,6 +257,9 @@ static int vyne_device_cuda_init(void) {
     if (g_cuModuleGetFunction(&g_k_sgd_step, g_vyne_cuda_module,
                               "sgd_step_f64") != 0)
         return 0;
+    if (g_cuModuleGetFunction(&g_k_adamw_step, g_vyne_cuda_module,
+                              "adamw_step_f64") != 0)
+        return 0;
 
     if (g_cuModuleGetFunction(&g_k_vec_add_f32, g_vyne_cuda_module, "vec_add_f32") != 0)
         return 0;
@@ -295,6 +300,9 @@ static int vyne_device_cuda_init(void) {
         return 0;
     if (g_cuModuleGetFunction(&g_k_sgd_step_f32, g_vyne_cuda_module,
                               "sgd_step_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_adamw_step_f32, g_vyne_cuda_module,
+                              "adamw_step_f32") != 0)
         return 0;
 
     g_vyne_dev_cuda_ok = 1;
@@ -965,6 +973,85 @@ static inline void vyne_device_sgd_step(int64_t param, int64_t grad,
         double* p = (double*)(uintptr_t)param;
         const double* g = (const double*)(uintptr_t)grad;
         for (int64_t i = 0; i < n; ++i) p[i] -= lr * g[i];
+    }
+}
+
+static inline void vyne_device_adamw_step(
+    int64_t param, int64_t m, int64_t v, int64_t grad,
+    double lr, double beta1, double beta2, double eps, double weight_decay,
+    int64_t step, int64_t n) {
+    int es = vyne_dev_elementwise_dtype(param, param, grad, n, "device_adamw_step");
+    VyneDeviceAlloc* M = vyne_dev_find(m, n, "device_adamw_step(m)");
+    VyneDeviceAlloc* V = vyne_dev_find(v, n, "device_adamw_step(v)");
+    if (M->elem_size != es || V->elem_size != es) {
+        fprintf(stderr, "vyne device: device_adamw_step mixed element sizes\n");
+        exit(1);
+    }
+    if (step < 1) step = 1;
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        int st = (int)step;
+        if (es == 4) {
+            float* pp = (float*)(uintptr_t)param;
+            float* mp = (float*)(uintptr_t)m;
+            float* vp = (float*)(uintptr_t)v;
+            const float* gp = (const float*)(uintptr_t)grad;
+            float llr = (float)lr;
+            float b1 = (float)beta1;
+            float b2 = (float)beta2;
+            float ee = (float)eps;
+            float wd = (float)weight_decay;
+            void* args[] = { &pp, &mp, &vp, &gp, &llr, &b1, &b2, &ee, &wd, &st, &nn };
+            vyne_dev_launch(g_k_adamw_step_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* pp = (double*)(uintptr_t)param;
+            double* mp = (double*)(uintptr_t)m;
+            double* vp = (double*)(uintptr_t)v;
+            const double* gp = (const double*)(uintptr_t)grad;
+            double llr = lr;
+            double b1 = beta1;
+            double b2 = beta2;
+            double ee = eps;
+            double wd = weight_decay;
+            void* args[] = { &pp, &mp, &vp, &gp, &llr, &b1, &b2, &ee, &wd, &st, &nn };
+            vyne_dev_launch(g_k_adamw_step, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* p = (float*)(uintptr_t)param;
+        float* mm = (float*)(uintptr_t)m;
+        float* vv = (float*)(uintptr_t)v;
+        const float* g = (const float*)(uintptr_t)grad;
+        float llr = (float)lr;
+        float b1 = (float)beta1;
+        float b2 = (float)beta2;
+        float ee = (float)eps;
+        float wd = (float)weight_decay;
+        float bc1 = 1.0f - powf(b1, (float)step);
+        float bc2 = 1.0f - powf(b2, (float)step);
+        for (int64_t i = 0; i < n; ++i) {
+            float mi = b1 * mm[i] + (1.0f - b1) * g[i];
+            float vi = b2 * vv[i] + (1.0f - b2) * g[i] * g[i];
+            mm[i] = mi;
+            vv[i] = vi;
+            p[i] -= llr * ((mi / bc1) / (sqrtf(vi / bc2) + ee) + wd * p[i]);
+        }
+    } else {
+        double* p = (double*)(uintptr_t)param;
+        double* mm = (double*)(uintptr_t)m;
+        double* vv = (double*)(uintptr_t)v;
+        const double* g = (const double*)(uintptr_t)grad;
+        double bc1 = 1.0 - pow(beta1, (double)step);
+        double bc2 = 1.0 - pow(beta2, (double)step);
+        for (int64_t i = 0; i < n; ++i) {
+            double mi = beta1 * mm[i] + (1.0 - beta1) * g[i];
+            double vi = beta2 * vv[i] + (1.0 - beta2) * g[i] * g[i];
+            mm[i] = mi;
+            vv[i] = vi;
+            p[i] -= lr * ((mi / bc1) / (sqrt(vi / bc2) + eps) + weight_decay * p[i]);
+        }
     }
 }
 

@@ -518,3 +518,41 @@ extern "C" __global__ void sgd_step_f64(double* param, const double* grad,
     long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
     if (i < n) param[i] -= lr * grad[i];
 }
+
+extern "C" __global__ void adamw_step_f32(
+    float* param, float* m, float* v, const float* grad,
+    float lr, float beta1, float beta2, float eps, float weight_decay,
+    int step, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float g = grad[i];
+    float mi = beta1 * m[i] + (1.0f - beta1) * g;
+    float vi = beta2 * v[i] + (1.0f - beta2) * g * g;
+    m[i] = mi;
+    v[i] = vi;
+    float bc1 = 1.0f - powf(beta1, (float)step);
+    float bc2 = 1.0f - powf(beta2, (float)step);
+    float mh = mi / bc1;
+    float vh = vi / bc2;
+    float update = mh / (sqrtf(vh) + eps) + weight_decay * param[i];
+    param[i] -= lr * update;
+}
+
+extern "C" __global__ void adamw_step_f64(
+    double* param, double* m, double* v, const double* grad,
+    double lr, double beta1, double beta2, double eps, double weight_decay,
+    int step, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    double g = grad[i];
+    double mi = beta1 * m[i] + (1.0 - beta1) * g;
+    double vi = beta2 * v[i] + (1.0 - beta2) * g * g;
+    m[i] = mi;
+    v[i] = vi;
+    double bc1 = 1.0 - pow(beta1, (double)step);
+    double bc2 = 1.0 - pow(beta2, (double)step);
+    double mh = mi / bc1;
+    double vh = vi / bc2;
+    double update = mh / (sqrt(vh) + eps) + weight_decay * param[i];
+    param[i] -= lr * update;
+}

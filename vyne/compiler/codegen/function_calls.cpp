@@ -433,6 +433,17 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_adamw_step") {
+            expectArgs(11, "device_adamw_step(param, m, v, grad, lr, beta1, beta2, eps, weight_decay, step, n)");
+            e.emit("vyne_device_adamw_step(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normFloat(arguments[4]) + ", " +
+                   normFloat(arguments[5]) + ", " + normFloat(arguments[6]) + ", " +
+                   normFloat(arguments[7]) + ", " + normFloat(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_matmul") {
             expectArgs(6, "device_matmul(out, a, b, m, n, k)");
             e.emit("vyne_device_matmul(" + normInt(arguments[0]) + ", " +
