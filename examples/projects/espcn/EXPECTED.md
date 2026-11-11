@@ -54,6 +54,12 @@ After `scripts/reproduce.*`, `src/main.vy` should report approximately:
 - The device graph can run forward, backward, AdamW, checkpoint save, checkpoint reload, and CPU/GPU inference verification.
 - The PyTorch-style `.vwy`/`.vwt` model path remains usable.
 
+## Determinism Guarantee
+
+On the same GPU and driver version, Vyne's explicit `@device` training graph is **bit-exact deterministic**. Running `src/train_gpu.vy` multiple times produces identical `train_loss.csv` and `val_metrics.csv` files, down to the last decimal place.
+
+This avoids the floating-point non-determinism caused by `atomicAdd` race conditions in default PyTorch CUDA kernels. By using a "gather" formulation in the backward convolution kernels (where one thread owns one output element and loops over the inputs), Vyne ensures that the order of floating-point additions is strictly fixed. This makes Vyne uniquely suited for safety-critical ML applications where bit-reproducibility is required for certification.
+
 ## What This Does Not Prove
 
 - It is not a super-resolution quality claim.
