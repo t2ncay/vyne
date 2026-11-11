@@ -110,6 +110,9 @@ Helpers may live in imported files and may call other `@device_fn` helpers. A
 normal top-level call to a `@device_fn` is a compile-time misuse because no
 device frame is active.
 
+The first reusable library surface over this mechanism is `vtensor` (device
+handle + shape metadata) and `vnn` (explicit conv/ReLU/loss/optimizer helpers).
+
 ## Device arena semantics
 
 - The region opens a device frame on entry and stores the current allocation-list
