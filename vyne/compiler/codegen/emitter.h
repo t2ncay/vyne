@@ -32,6 +32,25 @@
 // The AD tape record only stores opaque AST pointers.
 class ASTNode;
 
+// ---------------------------------------------------------------------
+// Target selection.
+//
+// Desktop emits a `main()` and links the full hosted runtime. AVR and
+// ESP32 are embedded targets: they emit `vyne_setup`/`vyne_loop`, use a
+// target-specific runtime header, and gate optional peripherals behind
+// VYNE_USE_<FEATURE> defines.
+// ---------------------------------------------------------------------
+enum class Target { Desktop, AVR, ESP32 };
+
+// Uppercase helper for feature-define emission. Kept file-scope and
+// inline so including emitter.h from several translation units is safe.
+static inline std::string vyne_upper(std::string s) {
+    for (char& c : s)
+        if (c >= 'a' && c <= 'z')
+            c = (char)(c - 'a' + 'A');
+    return s;
+}
+
 class C_Emitter {
     // --- Output buffers --------------------------------------------------
     // Plain strings, not stringstreams: emit() is the hottest codegen
@@ -383,53 +402,72 @@ class C_Emitter {
 
     // Target selection. Only the entry-point emission and the runtime
     // header name depend on this; every AST lowering path stays identical.
-    bool arduinoTarget_ = false;
+    Target target_ = Target::Desktop;
 
-    // Bundled-library use flags. Set when a native call resolves to an
-    // `arduino.i2c_*` / `arduino.spi_*` member. finalize() turns them
-    // into VYNE_USE_I2C / VYNE_USE_SPI defines so vyne_arduino.h pulls
-    // only the peripheral headers the sketch actually uses. Without
-    // this, every sketch would drag in Wire/SPI global constructors and
-    // their flash cost.
-    bool arduinoUsesI2c_ = false;
-    bool arduinoUsesSpi_ = false;
-
-    // Runtime-feature use flags for the MCU target. `@realtime` and
-    // executable contracts pull in their detail headers only when the
-    // program contains them.
-    bool arduinoUsesRealtime_ = false;
-    bool arduinoUsesContracts_ = false;
+    // Optional runtime features requested by the program. finalize()
+    // turns each entry into a VYNE_USE_<UPPER> define so the embedded
+    // entry header pulls only the peripheral headers the sketch actually
+    // uses. Without this, every sketch would drag in the WiFi/display
+    // stacks and their flash + static-heap cost.
+    std::unordered_set<std::string> embeddedFeatures_;
 
   public:
+    void setTarget(Target t) {
+        target_ = t;
+    }
+    Target getTarget() const {
+        return target_;
+    }
+    bool isAVRTarget() const {
+        return target_ == Target::AVR;
+    }
+    bool isESP32Target() const {
+        return target_ == Target::ESP32;
+    }
+    bool isEmbeddedTarget() const {
+        return target_ != Target::Desktop;
+    }
+
+    // Deprecated compat shim: kept for one release to ease migration.
+    // New code should call setTarget(Target::AVR) directly.
     void setArduinoTarget(bool v) {
-        arduinoTarget_ = v;
+        setTarget(v ? Target::AVR : Target::Desktop);
     }
     bool isArduinoTarget() const {
-        return arduinoTarget_;
+        return target_ == Target::AVR;
     }
+
+    void noteEmbeddedFeature(const std::string& name) {
+        embeddedFeatures_.insert(name);
+    }
+    bool hasEmbeddedFeature(const std::string& name) const {
+        return embeddedFeatures_.count(name) > 0;
+    }
+
+    // Compat shims for the pre-generic call sites.
     void noteArduinoI2cUse() {
-        arduinoUsesI2c_ = true;
+        noteEmbeddedFeature("i2c");
     }
     void noteArduinoSpiUse() {
-        arduinoUsesSpi_ = true;
+        noteEmbeddedFeature("spi");
     }
     bool arduinoUsesI2c() const {
-        return arduinoUsesI2c_;
+        return hasEmbeddedFeature("i2c");
     }
     bool arduinoUsesSpi() const {
-        return arduinoUsesSpi_;
+        return hasEmbeddedFeature("spi");
     }
     void noteArduinoRealtimeUse() {
-        arduinoUsesRealtime_ = true;
+        noteEmbeddedFeature("realtime");
     }
     void noteArduinoContractsUse() {
-        arduinoUsesContracts_ = true;
+        noteEmbeddedFeature("contracts");
     }
     bool arduinoUsesRealtime() const {
-        return arduinoUsesRealtime_;
+        return hasEmbeddedFeature("realtime");
     }
     bool arduinoUsesContracts() const {
-        return arduinoUsesContracts_;
+        return hasEmbeddedFeature("contracts");
     }
 
     void setInNativeVariant(bool v) {
@@ -1339,8 +1377,30 @@ class C_Emitter {
             table = VCONV_MAP;
             count = sizeof(VCONV_MAP) / sizeof(VCONV_MAP[0]);
         } else if (module == "arduino") {
-            table = ARDUINO_MAP;
-            count = sizeof(ARDUINO_MAP) / sizeof(ARDUINO_MAP[0]);
+            if (isAVRTarget()) {
+                table = ARDUINO_MAP;
+                count = sizeof(ARDUINO_MAP) / sizeof(ARDUINO_MAP[0]);
+            } else if (isESP32Target()) {
+                table = ESP32_ARDUINO_MAP;
+                count =
+                    sizeof(ESP32_ARDUINO_MAP) / sizeof(ESP32_ARDUINO_MAP[0]);
+            } else {
+                return nullptr;
+            }
+        } else if (module == "esp32") {
+            if (!isESP32Target())
+                return nullptr;
+            // `esp32.*` exposes the shared surface first, then the
+            // ESP32-only names. A name that exists on both (e.g. `delay`)
+            // resolves to the shared `arduino_*` C symbol.
+            for (size_t i = 0;
+                 i < sizeof(ESP32_ARDUINO_MAP) / sizeof(ESP32_ARDUINO_MAP[0]);
+                 ++i)
+                if (member == ESP32_ARDUINO_MAP[i].vyneName)
+                    return &ESP32_ARDUINO_MAP[i];
+            table = ESP32_SPECIFIC_MAP;
+            count =
+                sizeof(ESP32_SPECIFIC_MAP) / sizeof(ESP32_SPECIFIC_MAP[0]);
         } else
             return nullptr;
 
@@ -1885,24 +1945,24 @@ class C_Emitter {
         if (deterministicBuild_ || cudaSmVersion_ > 0)
             out << "\n";
 
-        if (arduinoTarget_) {
+        if (isEmbeddedTarget()) {
             out << "#include <Arduino.h>\n";
             // Peripheral headers are opt-in: a sketch that never calls
-            // arduino.i2c_* / arduino.spi_* must not link the Wire/SPI
-            // globals. The defines below are set by the native-call
-            // dispatcher (method_calls.cpp) while lowering the body.
-            if (arduinoUsesI2c_)
-                out << "#define VYNE_USE_I2C 1\n";
-            if (arduinoUsesSpi_)
-                out << "#define VYNE_USE_SPI 1\n";
-            if (arduinoUsesRealtime_)
-                out << "#define VYNE_USE_REALTIME 1\n";
-            if (arduinoUsesContracts_)
-                out << "#define VYNE_USE_CONTRACTS 1\n";
-            // Arduino target uses the MCU runtime, not the desktop one.
-            // The caller (file_handler) is responsible for placing
-            // vyne_arduino.h somewhere avr-gcc's -I list can see it.
-            out << "#include \"vyne_arduino.h\"\n";
+            // arduino.i2c_* / esp32.wifi_* must not link the Wire, SPI,
+            // WiFi, or display stacks. The defines below are set by the
+            // native-call dispatcher (method_calls.cpp) while lowering
+            // the body.
+            for (const auto& f : embeddedFeatures_)
+                out << "#define VYNE_USE_" << vyne_upper(f) << " 1\n";
+            if (!embeddedFeatures_.empty())
+                out << "\n";
+            // Embedded targets use their own MCU runtime, not the desktop
+            // one. The caller (file_handler) is responsible for placing
+            // the runtime directory on the include path.
+            if (isAVRTarget())
+                out << "#include \"vyne_arduino.h\"\n";
+            else
+                out << "#include \"vyne_esp32.h\"\n";
         } else {
             out << "#include \"" << runtimeHeader << "\"\n";
             for (const auto& inc : includeSet)
@@ -1920,8 +1980,8 @@ class C_Emitter {
         if (!funcs.empty())
             out << "// --- Functions ---\n" << funcs << "\n";
 
-        if (arduinoTarget_) {
-            // User code that runs on Arduino lives in `setup()` and
+        if (isEmbeddedTarget()) {
+            // User code that runs on the board lives in `setup()` and
             // `loop()`. The emitter keeps mainStream single-stream, so
             // we split it at the first top-level `region` / `through`
             // — user-visible convention: everything before the loop is
@@ -2046,11 +2106,8 @@ class C_Emitter {
         instantiationsInProgress.clear();
 
         inNativeVariant = false;
-        arduinoTarget_ = false;
-        arduinoUsesI2c_ = false;
-        arduinoUsesSpi_ = false;
-        arduinoUsesRealtime_ = false;
-        arduinoUsesContracts_ = false;
+        target_ = Target::Desktop;
+        embeddedFeatures_.clear();
         realtimeStack.clear();
         ensuresEmitter = nullptr;
         tempVarCount = 0;

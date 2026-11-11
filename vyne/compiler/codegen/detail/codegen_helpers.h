@@ -572,7 +572,7 @@ inline void emitContractCheck(
     if (mode == ContractMode::Off)
         return;
 
-    e.noteArduinoContractsUse();
+    e.noteEmbeddedFeature("contracts");
     std::string cond = "vyne_is_truthy(" + e.boxAny(expr->getCExpr(e)) + ")";
     e.emit(
         "vyne_contract_assert(" + cond + ", \"" + kind + "\", \"" + name +

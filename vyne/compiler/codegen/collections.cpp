@@ -164,7 +164,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + std::to_string(bt->shape[0]) + ")) {"
             );
-            if (e.isArduinoTarget()) {
+            if (e.isEmbeddedTarget()) {
                 // Firmware: `fprintf(stderr, ...)` and `exit(1)` are
                 // not available. The MCU runtime exposes a panic that
                 // prints over Serial and halts.
@@ -250,7 +250,7 @@ std::string IndexAccessNode::getCExpr(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + (*runtimeDims)[0] + ")) {"
             );
-            if (e.isArduinoTarget()) {
+            if (e.isEmbeddedTarget()) {
                 e.emit(
                     "    vyne_panic_bounds(\"dim 0\", " + (*runtimeDims)[0] +
                     ", " + std::to_string(lineNumber) + ", " + iv + ");"
@@ -426,7 +426,7 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + std::to_string(bt->shape[0]) + ")) {"
             );
-            if (e.isArduinoTarget()) {
+            if (e.isEmbeddedTarget()) {
                 e.emit(
                     "    vyne_panic_bounds(\"dim 0\", " +
                     std::to_string(bt->shape[0]) + ", " +
@@ -493,7 +493,7 @@ void IndexAssignmentNode::compile(C_Emitter& e) const {
                 "if (VYNE_UNLIKELY(" + iv + " < 0 || " + iv +
                 " >= " + (*runtimeDims)[0] + ")) {"
             );
-            if (e.isArduinoTarget()) {
+            if (e.isEmbeddedTarget()) {
                 e.emit(
                     "    vyne_panic_bounds(\"dim 0\", " + (*runtimeDims)[0] +
                     ", " + std::to_string(lineNumber) + ", " + iv + ");"

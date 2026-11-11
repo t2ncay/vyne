@@ -459,7 +459,7 @@ static void compileRingRegion(C_Emitter& e, const RegionNode& r) {
 // pinned memory and the policy is rejected there.
 // ============================================================
 static void compileStreamedRegion(C_Emitter& e, const RegionNode& r) {
-    if (e.isArduinoTarget()) {
+    if (e.isEmbeddedTarget()) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @streamed is not supported on the "
             "AVR target (line " +
@@ -574,7 +574,7 @@ static void compileStreamedRegion(C_Emitter& e, const RegionNode& r) {
 // per-iteration cache.
 // ============================================================
 static void compilePersistentRegion(C_Emitter& e, const RegionNode& r) {
-    if (e.isArduinoTarget()) {
+    if (e.isEmbeddedTarget()) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @persistent is not supported on the "
             "AVR target yet (line " +
@@ -635,7 +635,7 @@ static void compilePersistentRegion(C_Emitter& e, const RegionNode& r) {
 // this slice proves the device arena and GPU execution path end to end.
 // ============================================================
 static void compileDeviceRegion(C_Emitter& e, const RegionNode& r) {
-    if (e.isArduinoTarget()) {
+    if (e.isEmbeddedTarget()) {
         throw std::runtime_error(
             "Compile Error (VNE-080): @device is not supported on the AVR "
             "target (line " +
@@ -1063,7 +1063,7 @@ static void compileRealtimeRegion(C_Emitter& e, const RegionNode& r) {
         );
     }
 
-    e.noteArduinoRealtimeUse();
+    e.noteEmbeddedFeature("realtime");
 
     std::string cpHandle = e.newTemp("vmem_cp");
     std::string startVar = e.newTemp("realtime_start");
@@ -1100,7 +1100,7 @@ void RegionNode::compile(C_Emitter& e) const {
     const bool implicit = isImplicit();
     int implicitIters = 64;
     if (implicit) {
-        if (e.isArduinoTarget()) {
+        if (e.isEmbeddedTarget()) {
             throw std::runtime_error(
                 "Compile Error (VNE-080): @implicit is not supported on the "
                 "AVR target in this release (line " +
