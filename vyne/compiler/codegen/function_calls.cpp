@@ -417,6 +417,22 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_mse_grad") {
+            expectArgs(5, "device_mse_grad(grad, partial, pred, target, n)");
+            e.emit("vyne_device_mse_grad(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_sgd_step") {
+            expectArgs(4, "device_sgd_step(param, grad, lr, n)");
+            e.emit("vyne_device_sgd_step(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normFloat(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_matmul") {
             expectArgs(6, "device_matmul(out, a, b, m, n, k)");
             e.emit("vyne_device_matmul(" + normInt(arguments[0]) + ", " +
@@ -548,6 +564,11 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         if (originalName == "vconv_pixel_shuffle_fwd_device") {
             expectArgs(5, "vconv_pixel_shuffle_fwd_device(x, h, w, c, r)");
             return emitHandleCall("vconv_pixel_shuffle_fwd_device",
+                                  originalName.c_str(), arguments);
+        }
+        if (originalName == "vconv_pixel_shuffle_backward_device") {
+            expectArgs(5, "vconv_pixel_shuffle_backward_device(grad, h, w, c, r)");
+            return emitHandleCall("vconv_pixel_shuffle_backward_device",
                                   originalName.c_str(), arguments);
         }
     }
@@ -919,4 +940,3 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
 }
 
 void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
-

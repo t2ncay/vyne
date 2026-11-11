@@ -437,3 +437,84 @@ extern "C" __global__ void pixel_shuffle_f64(
     int x = oxt / r;
     out[idx] = in[((y * w + x) * c) + oc * rr + i * r + j];
 }
+
+// Inverse gradient for ESPCN depth-to-space. One thread owns one input-gradient
+// element and gathers from exactly one output-gradient element.
+extern "C" __global__ void pixel_shuffle_backward_f32(
+    float* grad_in, const float* grad_out,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = h * w * c;
+    if (idx >= total) return;
+
+    int sc = idx % c;
+    int t = idx / c;
+    int x = t % w;
+    int y = t / w;
+    int oc = sc / rr;
+    int rem = sc % rr;
+    int i = rem / r;
+    int j = rem % r;
+    grad_in[idx] = grad_out[((y * r + i) * out_w + (x * r + j)) * out_c + oc];
+}
+
+extern "C" __global__ void pixel_shuffle_backward_f64(
+    double* grad_in, const double* grad_out,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = h * w * c;
+    if (idx >= total) return;
+
+    int sc = idx % c;
+    int t = idx / c;
+    int x = t % w;
+    int y = t / w;
+    int oc = sc / rr;
+    int rem = sc % rr;
+    int i = rem / r;
+    int j = rem % r;
+    grad_in[idx] = grad_out[((y * r + i) * out_w + (x * r + j)) * out_c + oc];
+}
+
+// MSE training helper. `partial[i]` is the per-element contribution to the mean
+// loss, so callers can download and sum it for reporting while keeping `grad`
+// device-resident for backpropagation.
+extern "C" __global__ void mse_grad_f32(
+    float* grad, float* partial, const float* pred, const float* target,
+    long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float d = pred[i] - target[i];
+    float inv = n > 0 ? 1.0f / (float)n : 0.0f;
+    grad[i] = 2.0f * d * inv;
+    partial[i] = d * d * inv;
+}
+
+extern "C" __global__ void mse_grad_f64(
+    double* grad, double* partial, const double* pred, const double* target,
+    long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    double d = pred[i] - target[i];
+    double inv = n > 0 ? 1.0 / (double)n : 0.0;
+    grad[i] = 2.0 * d * inv;
+    partial[i] = d * d * inv;
+}
+
+extern "C" __global__ void sgd_step_f32(float* param, const float* grad,
+                                        float lr, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) param[i] -= lr * grad[i];
+}
+
+extern "C" __global__ void sgd_step_f64(double* param, const double* grad,
+                                        double lr, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) param[i] -= lr * grad[i];
+}

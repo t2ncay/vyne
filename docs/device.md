@@ -76,6 +76,8 @@ Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 | `device_scale(out, a, s, n)` | `out = a * s`, dtype-dispatched |
 | `device_relu(out, a, n)` | `out = max(a, 0)`, dtype-dispatched |
 | `device_fill(h, v, n)` | fill with `v`, dtype-dispatched |
+| `device_mse_grad(grad, partial, pred, target, n)` | MSE gradient and per-element mean-loss contributions, dtype-dispatched |
+| `device_sgd_step(param, grad, lr, n)` | in-place SGD update, dtype-dispatched |
 | `device_matmul(out, a, b, m, n, k)` | `C[m,n] = A[m,k] * B[k,n]`, row-major, dtype-dispatched |
 | `device_conv2d(out, x, w, b, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad, has_bias)` | HWC conv2d, OIHW weights, square kernel, zero padding, dtype-dispatched |
 | `device_sync()` | wait for outstanding device work |

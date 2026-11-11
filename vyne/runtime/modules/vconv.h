@@ -444,6 +444,29 @@ static inline int64_t vconv_pixel_shuffle_fwd_device(
     return d_out;
 }
 
+static inline int64_t vconv_pixel_shuffle_backward_device(
+    int64_t d_grad_out,
+    int64_t h,
+    int64_t w,
+    int64_t c,
+    int64_t r
+) {
+    if (h <= 0 || w <= 0 || c <= 0 || r <= 0) return 0;
+    int64_t rr = r * r;
+    if (c % rr != 0) {
+        fprintf(stderr, "vconv.pixel_shuffle_backward_device: channels not divisible by scale^2\n");
+        exit(1);
+    }
+    int64_t out_c = c / rr;
+    VyneDeviceAlloc* g = vyne_dev_find(d_grad_out, h * r * w * r * out_c,
+                                       "vconv.pixel_shuffle_backward_device(grad_out)");
+    int64_t d_out = (g->elem_size == (int)sizeof(double))
+                        ? vyne_device_alloc_f64(h * w * c)
+                        : vyne_device_alloc(h * w * c);
+    vyne_device_pixel_shuffle_backward(d_out, d_grad_out, h, w, c, r);
+    return d_out;
+}
+
 /* ---------------------------------------------------------------- */
 /* Conv2d backward (CPU)                                            */
 /* ---------------------------------------------------------------- */

@@ -94,7 +94,25 @@ would make those fully device-resident too.
 
 ## Next Step
 
-Training should be added after this inference path is verified. The intended
-training shape is CPU-backed first: `vconv` forward/backward kernels,
-`voptim.AdamState`, and a bounded `@backward` training-step region with a custom
-`espcn_loss_vjp` adjoint.
+## GPU Training V0
+
+`src/train_gpu.vy` is the first explicit GPU-training proof for ESPCN. It uses a
+single `@device<cuda>` region, saved device activations, device MSE gradient,
+device pixel-shuffle backward, device conv backward kernels, ReLU backward, and
+in-place device SGD updates.
+
+```bash
+../../../vynec --compile src/train_gpu.vy
+./src/train_gpu
+```
+
+Scope and limits:
+
+- ReLU ESPCN only.
+- Batch size 1.
+- MSE loss and SGD.
+- Explicit training graph, not automatic tensor AD yet.
+- The success criterion is that the loss decreases over the bundled sample pair.
+
+The next training step is an AdamW device optimizer and a reusable external
+`vnn`/`DeviceTensor` surface once the explicit proof stays stable.

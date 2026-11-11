@@ -197,6 +197,58 @@ through i12 :: 0..3 -> loop {
 };
 
 # ---------------------------------------------------------------
+# Pixel shuffle backward maps output gradients back to sub-pixel channels.
+# ---------------------------------------------------------------
+ps_grad_out :: Array<Float32> := [1.0f, 2.0f, 3.0f, 4.0f];
+ps_grad_in :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
+ps_grad_expect :: Array<Float64> := [1.0, 2.0, 3.0, 4.0];
+
+@device<cuda> region bwd_shuffle {
+    d_go :: Int64 := device_alloc(4);
+    device_upload(d_go, ps_grad_out, 4);
+    d_gi :: Int64 := vconv_pixel_shuffle_backward_device(d_go, 1, 1, 4, 2);
+    device_download(d_gi, ps_grad_in, 4);
+    device_sync();
+};
+
+through i14 :: 0..3 -> loop {
+    check("bwd-shuffle-" + string(i14), close(ps_grad_expect[i14], float64(ps_grad_in[i14]), 1e-6));
+};
+
+# ---------------------------------------------------------------
+# MSE gradient and in-place SGD update, the primitive training pair.
+# ---------------------------------------------------------------
+mse_pred :: Array<Float32> := [1.0f, 3.0f];
+mse_target :: Array<Float32> := [0.0f, 1.0f];
+mse_grad :: Array<Float32> := [0.0f, 0.0f];
+mse_part :: Array<Float32> := [0.0f, 0.0f];
+sgd_param :: Array<Float32> := [1.0f, 2.0f];
+
+@device<cuda> region train_prims {
+    d_pred :: Int64 := device_alloc(2);
+    d_target :: Int64 := device_alloc(2);
+    d_grad :: Int64 := device_alloc(2);
+    d_part :: Int64 := device_alloc(2);
+    d_param :: Int64 := device_alloc(2);
+    device_upload(d_pred, mse_pred, 2);
+    device_upload(d_target, mse_target, 2);
+    device_upload(d_param, sgd_param, 2);
+    device_mse_grad(d_grad, d_part, d_pred, d_target, 2);
+    device_sgd_step(d_param, d_grad, 0.1, 2);
+    device_download(d_grad, mse_grad, 2);
+    device_download(d_part, mse_part, 2);
+    device_download(d_param, sgd_param, 2);
+    device_sync();
+};
+
+check("mse-grad-0", close(float64(mse_grad[0]), 1.0, 1e-6));
+check("mse-grad-1", close(float64(mse_grad[1]), 2.0, 1e-6));
+check("mse-part-0", close(float64(mse_part[0]), 0.5, 1e-6));
+check("mse-part-1", close(float64(mse_part[1]), 2.0, 1e-6));
+check("sgd-step-0", close(float64(sgd_param[0]), 0.9, 1e-6));
+check("sgd-step-1", close(float64(sgd_param[1]), 1.8, 1e-6));
+
+# ---------------------------------------------------------------
 # Float64 device handles select the f64 PTX path end-to-end.
 # ---------------------------------------------------------------
 of64 :: Array<Float64> := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
