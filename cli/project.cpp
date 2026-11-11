@@ -446,8 +446,16 @@ void applyProjectConfig(const ProjectConfig& cfg, BuildOptions& opts) {
     // through ArduinoRun so the .hex is emitted without an explicit
     // --arduino-flash flag.
     if (!cfg.board.empty()) {
-        opts.arduinoBoard = boardAlias(cfg.board);
-        opts.mode = RunMode::ArduinoRun;
+        // Fully-qualified ESP32 FQBNs start with "esp32:" (e.g.
+        // "esp32:esp32:esp32s3"). Route them through the arduino-cli
+        // pipeline; AVR FQBNs keep the avr-gcc pipeline.
+        if (cfg.board.rfind("esp32:", 0) == 0) {
+            opts.esp32Board = boardAlias(cfg.board);
+            opts.mode = RunMode::ESP32Run;
+        } else {
+            opts.arduinoBoard = boardAlias(cfg.board);
+            opts.mode = RunMode::ArduinoRun;
+        }
         return;
     }
 

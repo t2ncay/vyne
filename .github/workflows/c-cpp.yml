@@ -26,10 +26,55 @@ jobs:
 
       - name: Install System Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake git g++-13 libstdc++-13-dev \
-            libssl-dev pkg-config
+          set -euo pipefail
+
+          # The hosted ubuntu-24.04 image already ships g++-13,
+          # libstdc++-13-dev, libssl-dev, pkg-config, and git. The host
+          # build below only needs g++-13 plus OpenSSL headers/libs.
+          #
+          # apt is best-effort on purpose: Azure-hosted runners
+          # intermittently fail to resolve azure.archive.ubuntu.com (and
+          # archive/security.ubuntu.com), which makes both `apt-get
+          # update` and `apt-get install` die with exit 100 before the
+          # compiler ever runs. Check for the real requirements first and
+          # skip apt entirely when they are already satisfied.
+          have_deps() {
+            command -v g++-13 >/dev/null 2>&1 &&
+              command -v pkg-config >/dev/null 2>&1 &&
+              test -f /usr/include/openssl/ssl.h &&
+              pkg-config --exists openssl
+          }
+
+          if have_deps; then
+            echo "Build dependencies already present; skipping apt."
+            g++-13 -dumpversion
+            exit 0
+          fi
+
+          for attempt in 1 2 3; do
+            if sudo apt-get update \
+                 -o Acquire::Retries=2 \
+                 -o Acquire::http::Timeout=15 \
+                 -o Acquire::https::Timeout=15; then
+              break
+            fi
+            echo "apt-get update failed (attempt ${attempt}); retrying..."
+            sleep $((attempt * 5))
+          done
+
+          set +e
+          sudo apt-get install -y --no-install-recommends \
+            g++-13 libstdc++-13-dev libssl-dev pkg-config
+          install_rc=$?
+          set -e
+          if [ "${install_rc}" -ne 0 ]; then
+            echo "::warning::apt-get install failed (exit ${install_rc}); verifying preinstalled tools"
+          fi
+
+          # Hard requirements: fail here with a clear message if the
+          # fallback path still does not have what the build needs.
+          have_deps
+          g++-13 -dumpversion
 
       - name: Compile Vyne
         run: |

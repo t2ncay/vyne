@@ -197,6 +197,29 @@ static void printHelp() {
         "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
         W);
 
+    header("ESP32");
+    row("--esp32 <board>",
+        YELLOW,
+        "Target board  " +
+            C(CYAN, "(esp32, esp32s2, esp32s3, esp32c3, esp32c6)"),
+        W);
+    row("--esp32-flash",
+        GREEN,
+        "Build then " + C(CYAN, "arduino-cli upload") + " the .bin",
+        W);
+    row("--esp32-monitor",
+        GREEN,
+        "Build then " + C(CYAN, "arduino-cli monitor") + " the port",
+        W);
+    row("--esp32-port <port>",
+        YELLOW,
+        "Serial port  " + C(CYAN, "(COM3, /dev/ttyUSB0)"),
+        W);
+    row("--esp32-baud <rate>",
+        YELLOW,
+        "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
+        W);
+
     header("PROJECTS");
     row("build [path]",
         MAGENTA,
@@ -410,6 +433,30 @@ int main(int argc, char* argv[]) {
             } catch (...) {
                 std::cerr << RED << "  error" << RESET
                           << "  --baud requires an integer\n";
+                return 1;
+            }
+        } else if (arg == "--esp32" && i + 1 < argc) {
+            opts.esp32Board = argv[++i];
+            setMode(RunMode::ESP32Compile);
+        } else if (arg.rfind("--esp32=", 0) == 0) {
+            opts.esp32Board = arg.substr(std::strlen("--esp32="));
+            setMode(RunMode::ESP32Compile);
+        } else if (arg == "--esp32-flash") {
+            opts.esp32Upload = true;
+            setMode(RunMode::ESP32Run);
+        } else if (arg == "--esp32-monitor") {
+            opts.esp32Monitor = true;
+            setMode(RunMode::ESP32Run);
+        } else if (arg == "--esp32-port" && i + 1 < argc) {
+            opts.esp32Port = argv[++i];
+        } else if (arg.rfind("--esp32-port=", 0) == 0) {
+            opts.esp32Port = arg.substr(std::strlen("--esp32-port="));
+        } else if (arg == "--esp32-baud" && i + 1 < argc) {
+            try {
+                opts.esp32Baud = std::stoi(argv[++i]);
+            } catch (...) {
+                std::cerr << RED << "  error" << RESET
+                          << "  --esp32-baud requires an integer\n";
                 return 1;
             }
         } else if (arg == "-o" && i + 1 < argc)

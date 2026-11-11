@@ -17,6 +17,7 @@
 
 #include "detail/codegen_helpers.h"
 #include <optional>
+#include <stdexcept>
 
 // Method calls, including specialized collection and native methods.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -104,19 +105,50 @@ std::optional<std::string> tryEmitNativeModuleMethod(
         return std::nullopt;
 
     const NativeMapEntry* entry = e.findNative(recvPath, node.getMethodName());
-    if (!entry)
+    if (!entry) {
+        // An embedded native module is a closed surface: a member that is
+        // not in the target table is a source error, not a user function
+        // to be resolved later. This is what makes eeprom_* on ESP32 fail
+        // with a clear Vyne diagnostic instead of a C/link error.
+        if (e.isEmbeddedTarget() &&
+            (recvPath == "arduino" || recvPath == "esp32")) {
+            throw std::runtime_error(
+                "Compile Error (VNE-079): '" + node.getMethodName() +
+                "' is not defined for the " +
+                (e.isESP32Target() ? "ESP32" : "AVR") +
+                " target in native module '" + recvPath + "' (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
         return std::nullopt;
+    }
 
-    // Track bundled-peripheral use so finalize() can emit the
-    // VYNE_USE_I2C / VYNE_USE_SPI defines before including the MCU
-    // runtime. A sketch that never touches these names does not pull in
-    // the Wire/SPI global constructors. Key on the resolved C symbol
-    // rather than the receiver path so `use native arduino as x;`
-    // aliases are covered too.
-    if (std::string(entry->cName).rfind("arduino_i2c_", 0) == 0)
-        e.noteArduinoI2cUse();
-    else if (std::string(entry->cName).rfind("arduino_spi_", 0) == 0)
-        e.noteArduinoSpiUse();
+    // Track optional runtime features so finalize() can emit the
+    // VYNE_USE_<FEATURE> defines before including the embedded runtime.
+    // A sketch that never touches these names does not pull in Wire/SPI/
+    // WiFi/display stacks. Key on the resolved C symbol rather than the
+    // receiver path so `use native arduino as x;` aliases are covered too.
+    const std::string cname(entry->cName);
+    if (cname.rfind("arduino_i2c_", 0) == 0)
+        e.noteEmbeddedFeature("i2c");
+    else if (cname.rfind("arduino_spi_", 0) == 0)
+        e.noteEmbeddedFeature("spi");
+    else if (cname.rfind("esp32_wifi_", 0) == 0)
+        e.noteEmbeddedFeature("wifi");
+    else if (cname.rfind("esp32_nvs_", 0) == 0)
+        e.noteEmbeddedFeature("nvs");
+    else if (cname.rfind("esp32_display_", 0) == 0)
+        e.noteEmbeddedFeature("display");
+    else if (cname.rfind("esp32_touch_screen_", 0) == 0)
+        e.noteEmbeddedFeature("touch");
+    else if (cname.rfind("esp32_imu_", 0) == 0)
+        e.noteEmbeddedFeature("imu");
+    else if (cname.rfind("esp32_power_", 0) == 0)
+        e.noteEmbeddedFeature("power");
+    else if (cname.rfind("arduino_realtime_", 0) == 0)
+        e.noteEmbeddedFeature("realtime");
+    else if (cname.rfind("vyne_contract_", 0) == 0)
+        e.noteEmbeddedFeature("contracts");
 
     // Auto-include the module's runtime header for every native call
     // resolved through this dispatcher. `addInclude` is idempotent —

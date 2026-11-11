@@ -377,3 +377,256 @@ static const NativeMapEntry ARDUINO_MAP[] = {
     // fail at compile time with "not defined" — deliberately clearer
     // than a runtime halt.
 };
+
+// --- esp32 shared surface ----------------------------------------------
+//
+// Every `arduino.*` name that has a faithful ESP32 implementation. The
+// C symbols are the same `arduino_*` names as ARDUINO_MAP because the
+// ESP32 runtime under vyne/runtime/esp32/ keeps the shared surface
+// source-compatible. The eeprom_* entries are deliberately absent: NVS
+// is a different storage model, so a sketch that calls them fails at
+// compile time instead of reading the wrong store.
+static const NativeMapEntry ESP32_ARDUINO_MAP[] = {
+    // --- Base pin / digital / analog (mcu_hardware.h) ---
+    {"pin_mode", "arduino_pin_mode", false},
+    {"digital_write", "arduino_digital_write", false},
+    {"digital_read", "arduino_digital_read", false},
+    {"analog_read", "arduino_analog_read", false},
+    {"analog_write", "arduino_analog_write", false},
+    {"delay", "arduino_delay", false},
+    {"delay_microseconds", "arduino_delay_microseconds", false},
+
+    // --- Serial (mcu_serial.h) ---
+    {"serial_begin", "arduino_serial_begin", false},
+    {"serial_print", "arduino_serial_print", false},
+    {"serial_available", "arduino_serial_available", false},
+    {"serial_read", "arduino_serial_read", false},
+    {"serial_read_line", "arduino_serial_read_line", false},
+    {"serial_parse_int", "arduino_serial_parse_int", false},
+    {"serial_parse_float", "arduino_serial_parse_float", false},
+    {"serial_println", "arduino_serial_println", false},
+    {"serial_flush", "arduino_serial_flush", false},
+
+    // --- Timing (mcu_hardware.h + mcu_timing.h) ---
+    {"millis", "arduino_millis()", true},
+    {"micros", "arduino_micros()", true},
+    {"pulse_width", "arduino_pulse_width", false},
+    {"timer_read", "arduino_timer_read", false},
+
+    // --- Math (mcu_math.h) ---
+    {"sin", "arduino_sin", false, false, "arduino_sin_f64"},
+    {"cos", "arduino_cos", false, false, "arduino_cos_f64"},
+    {"sqrt", "arduino_sqrt", false, false, "arduino_sqrt_f64"},
+    {"tan", "arduino_tan", false, false, "arduino_tan_f64"},
+    {"asin", "arduino_asin", false, false, "arduino_asin_f64"},
+    {"acos", "arduino_acos", false, false, "arduino_acos_f64"},
+    {"atan", "arduino_atan", false, false, "arduino_atan_f64"},
+    {"atan2", "arduino_atan2", false, false, "arduino_atan2_f64"},
+    {"log", "arduino_log", false, false, "arduino_log_f64"},
+    {"log10", "arduino_log10", false, false, "arduino_log10_f64"},
+    {"exp", "arduino_exp", false, false, "arduino_exp_f64"},
+    {"pow", "arduino_pow", false, false, "arduino_pow_f64"},
+    {"fmod", "arduino_fmod", false, false, "arduino_fmod_f64"},
+    {"constrain", "arduino_constrain", false, false, "arduino_constrain_f64"},
+    {"fmap", "arduino_fmap", false, false, "arduino_fmap_f64"},
+    {"lerp", "arduino_lerp", false, false, "arduino_lerp_f64"},
+    {"smoothstep",
+     "arduino_smoothstep",
+     false,
+     false,
+     "arduino_smoothstep_f64"},
+    {"radians", "arduino_radians", false, false, "arduino_radians_f64"},
+    {"degrees", "arduino_degrees", false, false, "arduino_degrees_f64"},
+    {"random", "arduino_random_variadic", false, true},
+    {"random_seed", "arduino_random_seed", false},
+
+    // --- Digital / analog extensions (mcu_pins_ext.h) ---
+    {"pin_toggle", "arduino_pin_toggle", false},
+    {"pulse_in", "arduino_pulse_in", false},
+    {"shift_out", "arduino_shift_out", false},
+    {"pulse_count", "arduino_pulse_count", false},
+    {"analog_read_voltage", "arduino_analog_read_voltage", false},
+    {"analog_reference", "arduino_analog_reference", false},
+    {"analog_read_resolution", "arduino_analog_read_resolution", false},
+    {"analog_write_resolution", "arduino_analog_write_resolution", false},
+    {"analog_read_oversampled", "arduino_analog_read_oversampled", false},
+
+    // --- Memory introspection (mcu_memory.h) ---
+    {"arena_used", "arduino_arena_used()", true},
+    {"arena_peak", "arduino_arena_peak()", true},
+    {"arena_free", "arduino_arena_free()", true},
+    {"free_ram", "arduino_free_ram()", true},
+    {"stack_free", "arduino_stack_free()", true},
+
+    // --- Bit manipulation (mcu_bits.h) ---
+    {"bit_set", "arduino_bit_set", false},
+    {"bit_clear", "arduino_bit_clear", false},
+    {"bit_toggle", "arduino_bit_toggle", false},
+    {"bit_read", "arduino_bit_read", false},
+    {"low_byte", "arduino_low_byte", false},
+    {"high_byte", "arduino_high_byte", false},
+    {"make_word", "arduino_make_word", false},
+    {"popcount", "arduino_popcount", false},
+    {"crc8", "arduino_crc8", false},
+
+    // --- I2C (mcu_i2c.h) ---
+    {"i2c_begin", "arduino_i2c_begin", false},
+    {"i2c_end", "arduino_i2c_end", false},
+    {"i2c_set_clock", "arduino_i2c_set_clock", false},
+    {"i2c_write", "arduino_i2c_write", false},
+    {"i2c_read", "arduino_i2c_read", false},
+    {"i2c_write_reg", "arduino_i2c_write_reg", false},
+    {"i2c_read_reg", "arduino_i2c_read_reg", false},
+    {"i2c_available", "arduino_i2c_available", false},
+
+    // --- SPI (mcu_spi.h) ---
+    {"spi_begin", "arduino_spi_begin", false},
+    {"spi_end", "arduino_spi_end", false},
+    {"spi_set", "arduino_spi_set", false},
+    {"spi_end_transaction", "arduino_spi_end_transaction", false},
+    {"spi_transfer", "arduino_spi_transfer", false},
+    {"spi_transfer16", "arduino_spi_transfer16", false},
+
+    // --- @realtime telemetry (mcu_realtime.h) ---
+    {"realtime_worst_ms", "arduino_realtime_worst_ms", false},
+    {"realtime_overruns", "arduino_realtime_overruns", false},
+    {"realtime_reset", "arduino_realtime_reset", false},
+    {"realtime_worst_ms_named", "arduino_realtime_worst_ms_named", false},
+    {"realtime_overruns_named", "arduino_realtime_overruns_named", false},
+
+    // --- Interrupts + watchdog (mcu_interrupts.h) ---
+    {"attach_interrupt", "arduino_attach_interrupt", false},
+    {"detach_interrupt", "arduino_detach_interrupt", false},
+    {"interrupt_count", "arduino_interrupt_count", false},
+    {"interrupt_reset", "arduino_interrupt_reset", false},
+    {"interrupt_fired", "arduino_interrupt_fired", false},
+    {"watchdog_enable", "arduino_watchdog_enable", false},
+    {"watchdog_reset", "arduino_watchdog_reset()", true},
+    {"watchdog_disable", "arduino_watchdog_disable()", true},
+
+    // --- Deliberately absent: eeprom_read_int / eeprom_write_int /
+    //     eeprom_read_float / eeprom_write_float. Use esp32.nvs_*.
+};
+
+// --- esp32-specific surface --------------------------------------------
+//
+// ESP32-only names reachable as `esp32.*` (and also as `arduino.*` when
+// ESP32_ARDUINO_MAP has no matching entry — the dispatcher searches the
+// shared table first, then this one). All C symbols use the `esp32_`
+// prefix so they are distinguishable from the shared `arduino_*` surface
+// in symbol dumps and link errors.
+static const NativeMapEntry ESP32_SPECIFIC_MAP[] = {
+    // --- DAC + built-in capacitive touch pins (mcu_pins_ext.h) ---
+    {"dac_write", "esp32_dac_write", false},
+    {"dac_write_mv", "esp32_dac_write_mv", false},
+    {"touch_pin_read", "esp32_touch_pin_read", false},
+    {"touch_pin_threshold", "esp32_touch_pin_threshold", false},
+    {"touch_pin_attach", "esp32_touch_pin_attach", false},
+    {"touch_pin_detach", "esp32_touch_pin_detach", false},
+
+    // --- Memory (mcu_memory.h) ---
+    {"heap_largest_free", "esp32_heap_largest_free", false},
+
+    // --- NVS (mcu_nvs.h) ---
+    {"nvs_open", "esp32_nvs_open", false},
+    {"nvs_close", "esp32_nvs_close", false},
+    {"nvs_set_int", "esp32_nvs_set_int", false},
+    {"nvs_get_int", "esp32_nvs_get_int", false},
+    {"nvs_set_float", "esp32_nvs_set_float", false},
+    {"nvs_get_float", "esp32_nvs_get_float", false},
+    {"nvs_set_string", "esp32_nvs_set_string", false},
+    {"nvs_get_string", "esp32_nvs_get_string", false},
+    {"nvs_commit", "esp32_nvs_commit", false},
+    {"nvs_erase_all", "esp32_nvs_erase_all", false},
+    {"nvs_erase_key", "esp32_nvs_erase_key", false},
+    {"nvs_exists", "esp32_nvs_exists", false},
+
+    // --- WiFi (mcu_wifi.h) ---
+    {"wifi_mode", "esp32_wifi_mode", false},
+    {"wifi_connect", "esp32_wifi_connect", false},
+    {"wifi_disconnect", "esp32_wifi_disconnect", false},
+    {"wifi_status", "esp32_wifi_status", false},
+    {"wifi_local_ip", "esp32_wifi_local_ip", false},
+    {"wifi_rssi", "esp32_wifi_rssi", false},
+    {"wifi_ssid", "esp32_wifi_ssid", false},
+    {"wifi_mac", "esp32_wifi_mac", false},
+    {"wifi_hostname", "esp32_wifi_hostname", false},
+    {"wifi_scan", "esp32_wifi_scan", false},
+
+    // --- HTTP (mcu_wifi.h) ---
+    {"http_get", "esp32_http_get", false},
+    {"http_post", "esp32_http_post", false},
+    {"http_post_json", "esp32_http_post_json", false},
+    {"http_status", "esp32_http_status", false},
+
+    // --- UART1/UART2 (mcu_serial.h). UART2 is absent on C3/C6; the C
+    //     layer defines the symbol only when SOC_UART_NUM > 2, so a call
+    //     on those chips fails at compile time rather than linking a
+    //     missing function. ---
+    {"serial1_begin", "esp32_serial1_begin", false},
+    {"serial1_print", "esp32_serial1_print", false},
+    {"serial1_available", "esp32_serial1_available", false},
+    {"serial1_read", "esp32_serial1_read", false},
+    {"serial2_begin", "esp32_serial2_begin", false},
+
+    // --- Display (mcu_display.h). Colors are packed RGB565 Int64. ---
+    {"display_init", "esp32_display_init", false},
+    {"display_width", "esp32_display_width", false},
+    {"display_height", "esp32_display_height", false},
+    {"display_set_rotation", "esp32_display_set_rotation", false},
+    {"display_clear", "esp32_display_clear", false},
+    {"display_pixel", "esp32_display_pixel", false},
+    {"display_line", "esp32_display_line", false},
+    {"display_rect", "esp32_display_rect", false},
+    {"display_rect_filled", "esp32_display_rect_filled", false},
+    {"display_circle", "esp32_display_circle", false},
+    {"display_circle_filled", "esp32_display_circle_filled", false},
+    {"display_text", "esp32_display_text", false},
+    {"display_text_bg", "esp32_display_text_bg", false},
+    {"display_set_text_wrap", "esp32_display_set_text_wrap", false},
+    {"display_backlight", "esp32_display_backlight", false},
+    {"display_push", "esp32_display_push", false},
+    {"display_rgb", "esp32_display_rgb", false},
+
+    // --- Sprite / double-buffer surface (mcu_display.h). Create a
+    //     TFT_eSprite, select it, draw with the normal display_* calls,
+    //     push it, then select(-1) to return to the panel. ---
+    {"display_sprite_create", "esp32_display_sprite_create", false},
+    {"display_sprite_delete", "esp32_display_sprite_delete", false},
+    {"display_sprite_select", "esp32_display_sprite_select", false},
+    {"display_sprite_push", "esp32_display_sprite_push", false},
+    {"display_sprite_width", "esp32_display_sprite_width", false},
+    {"display_sprite_height", "esp32_display_sprite_height", false},
+    {"display_sprite_fill", "esp32_display_sprite_fill", false},
+
+    // --- Touchscreen / pen (mcu_touch.h) ---
+    {"touch_screen_init", "esp32_touch_screen_init", false},
+    {"touch_screen_pressed", "esp32_touch_screen_pressed", false},
+    {"touch_screen_x", "esp32_touch_screen_x", false},
+    {"touch_screen_y", "esp32_touch_screen_y", false},
+    {"touch_screen_pressure", "esp32_touch_screen_pressure", false},
+    {"touch_screen_read", "esp32_touch_screen_read", false},
+    {"touch_screen_wait", "esp32_touch_screen_wait", false},
+    {"touch_screen_wait_release", "esp32_touch_screen_wait_release", false},
+    {"touch_screen_calibrate", "esp32_touch_screen_calibrate", false},
+
+    // --- IMU / pen (mcu_imu.h) ---
+    {"imu_init", "esp32_imu_init", false},
+    {"imu_ok", "esp32_imu_ok", false},
+    {"imu_accel_x", "esp32_imu_accel_x", false},
+    {"imu_accel_y", "esp32_imu_accel_y", false},
+    {"imu_accel_z", "esp32_imu_accel_z", false},
+    {"imu_gyro_x", "esp32_imu_gyro_x", false},
+    {"imu_gyro_y", "esp32_imu_gyro_y", false},
+    {"imu_gyro_z", "esp32_imu_gyro_z", false},
+    {"imu_temp", "esp32_imu_temp", false},
+    {"imu_read", "esp32_imu_read", false},
+
+    // --- Power / sleep (mcu_power.h) ---
+    {"power_deep_sleep_us", "esp32_power_deep_sleep_us", false},
+    {"power_light_sleep_us", "esp32_power_light_sleep_us", false},
+    {"power_wake_timer", "esp32_power_wake_timer", false},
+    {"power_wake_pin", "esp32_power_wake_pin", false},
+    {"power_wake_cause", "esp32_power_wake_cause", false},
+    {"power_restart", "esp32_power_restart", false},
+};

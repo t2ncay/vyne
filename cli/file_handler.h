@@ -63,7 +63,9 @@ enum class RunMode {
     CompileOnly,
     CompileRun,
     ArduinoCompile, // emit .ino-ready .cpp + avr-gcc -c, no link
-    ArduinoRun      // + avr-objcopy -> .hex, ready for avrdude
+    ArduinoRun,     // + avr-objcopy -> .hex, ready for avrdude
+    ESP32Compile,   // emit .ino, arduino-cli compile, produce .bin
+    ESP32Run        // + arduino-cli upload, optionally monitor
 };
 
 // ---------------------------------------------------------------------------
@@ -125,6 +127,15 @@ struct BuildOptions {
     bool arduinoUpload = false;  // --flash: arduino-cli upload <hex>
     bool arduinoMonitor = false; // --monitor: arduino-cli monitor
     int baudRate = 115200;       // --baud: must match vyne_arduino.h
+
+    // ESP32 target. This pipeline is independent of the AVR one: it
+    // emits a .ino, then delegates to `arduino-cli compile/upload/monitor`
+    // so the Espressif core supplies its own toolchain.
+    std::string esp32Board;       // "esp32", "esp32s3", ...
+    std::string esp32Port;        // --esp32-port or --port
+    bool esp32Upload = false;     // --esp32-flash
+    bool esp32Monitor = false;    // --esp32-monitor
+    int esp32Baud = 115200;       // --esp32-baud
 
     // Present when the driver was launched through `vynec build` / `vynec
     // run` and a project.toml was discovered. The flag-based CLI leaves
