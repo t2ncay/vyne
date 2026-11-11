@@ -197,6 +197,118 @@ through i12 :: 0..3 -> loop {
 };
 
 # ---------------------------------------------------------------
+# Pixel shuffle backward maps output gradients back to sub-pixel channels.
+# ---------------------------------------------------------------
+ps_grad_out :: Array<Float32> := [1.0f, 2.0f, 3.0f, 4.0f];
+ps_grad_in :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
+ps_grad_expect :: Array<Float64> := [1.0, 2.0, 3.0, 4.0];
+
+@device<cuda> region bwd_shuffle {
+    d_go :: Int64 := device_alloc(4);
+    device_upload(d_go, ps_grad_out, 4);
+    d_gi :: Int64 := vconv_pixel_shuffle_backward_device(d_go, 1, 1, 4, 2);
+    device_download(d_gi, ps_grad_in, 4);
+    device_sync();
+};
+
+through i14 :: 0..3 -> loop {
+    check("bwd-shuffle-" + string(i14), close(ps_grad_expect[i14], float64(ps_grad_in[i14]), 1e-6));
+};
+
+# ---------------------------------------------------------------
+# MSE gradient and in-place SGD update, the primitive training pair.
+# ---------------------------------------------------------------
+mse_pred :: Array<Float32> := [1.0f, 3.0f];
+mse_target :: Array<Float32> := [0.0f, 1.0f];
+mse_grad :: Array<Float32> := [0.0f, 0.0f];
+mse_part :: Array<Float32> := [0.0f, 0.0f];
+sgd_param :: Array<Float32> := [1.0f, 2.0f];
+
+@device<cuda> region train_prims {
+    d_pred :: Int64 := device_alloc(2);
+    d_target :: Int64 := device_alloc(2);
+    d_grad :: Int64 := device_alloc(2);
+    d_part :: Int64 := device_alloc(2);
+    d_param :: Int64 := device_alloc(2);
+    device_upload(d_pred, mse_pred, 2);
+    device_upload(d_target, mse_target, 2);
+    device_upload(d_param, sgd_param, 2);
+    device_mse_grad(d_grad, d_part, d_pred, d_target, 2);
+    device_sgd_step(d_param, d_grad, 0.1, 2);
+    device_download(d_grad, mse_grad, 2);
+    device_download(d_part, mse_part, 2);
+    device_download(d_param, sgd_param, 2);
+    device_sync();
+};
+
+check("mse-grad-0", close(float64(mse_grad[0]), 1.0, 1e-6));
+check("mse-grad-1", close(float64(mse_grad[1]), 2.0, 1e-6));
+check("mse-part-0", close(float64(mse_part[0]), 0.5, 1e-6));
+check("mse-part-1", close(float64(mse_part[1]), 2.0, 1e-6));
+check("sgd-step-0", close(float64(sgd_param[0]), 0.9, 1e-6));
+check("sgd-step-1", close(float64(sgd_param[1]), 1.8, 1e-6));
+
+adam_param :: Array<Float32> := [1.0f, 2.0f];
+adam_grad :: Array<Float32> := [1.0f, 2.0f];
+adam_m :: Array<Float32> := [0.0f, 0.0f];
+adam_v :: Array<Float32> := [0.0f, 0.0f];
+
+@device<cuda> region adamw_prim {
+    d_param :: Int64 := device_alloc(2);
+    d_grad :: Int64 := device_alloc(2);
+    d_m :: Int64 := device_alloc(2);
+    d_v :: Int64 := device_alloc(2);
+    device_upload(d_param, adam_param, 2);
+    device_upload(d_grad, adam_grad, 2);
+    device_upload(d_m, adam_m, 2);
+    device_upload(d_v, adam_v, 2);
+    device_adamw_step(d_param, d_m, d_v, d_grad, 0.1, 0.9, 0.999, 1e-8, 0.0, 1, 2);
+    device_download(d_param, adam_param, 2);
+    device_download(d_m, adam_m, 2);
+    device_download(d_v, adam_v, 2);
+    device_sync();
+};
+
+check("adamw-step-0", close(float64(adam_param[0]), 0.9, 1e-5));
+check("adamw-step-1", close(float64(adam_param[1]), 1.9, 1e-5));
+check("adamw-m-0", close(float64(adam_m[0]), 0.1, 1e-6));
+check("adamw-v-1", close(float64(adam_v[1]), 0.004, 1e-6));
+
+sum_in :: Array<Float32> := [0.5f, 1.5f, 2.0f];
+sum_out :: Array<Float32> := [0.0f];
+slice_out :: Array<Float32> := [0.0f, 0.0f];
+direct_shuffle_out :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
+direct_shuffle_grad :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
+
+@device<cuda> region direct_prims {
+    d_sum_in :: Int64 := device_alloc(3);
+    d_sum_out :: Int64 := device_alloc(1);
+    d_slice_out :: Int64 := device_alloc(2);
+    d_ps_in :: Int64 := device_alloc(4);
+    d_ps_out :: Int64 := device_alloc(4);
+    d_ps_grad :: Int64 := device_alloc(4);
+    device_upload(d_sum_in, sum_in, 3);
+    device_upload(d_ps_in, ps_inf, 4);
+    device_sum(d_sum_out, d_sum_in, 3);
+    device_copy_slice(d_slice_out, d_sum_in, 1, 2);
+    device_pixel_shuffle(d_ps_out, d_ps_in, 1, 1, 4, 2);
+    device_pixel_shuffle_backward(d_ps_grad, d_ps_out, 1, 1, 4, 2);
+    device_download(d_sum_out, sum_out, 1);
+    device_download(d_slice_out, slice_out, 2);
+    device_download(d_ps_out, direct_shuffle_out, 4);
+    device_download(d_ps_grad, direct_shuffle_grad, 4);
+    device_sync();
+};
+
+check("device-sum", close(float64(sum_out[0]), 4.0, 1e-6));
+check("device-copy-slice-0", close(float64(slice_out[0]), 1.5, 1e-6));
+check("device-copy-slice-1", close(float64(slice_out[1]), 2.0, 1e-6));
+through i15 :: 0..3 -> loop {
+    check("direct-shuffle-" + string(i15), close(ps.data[i15], float64(direct_shuffle_out[i15]), 1e-5));
+    check("direct-shuffle-bwd-" + string(i15), close(float64(ps_inf[i15]), float64(direct_shuffle_grad[i15]), 1e-5));
+};
+
+# ---------------------------------------------------------------
 # Float64 device handles select the f64 PTX path end-to-end.
 # ---------------------------------------------------------------
 of64 :: Array<Float64> := [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];

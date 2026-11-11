@@ -116,6 +116,48 @@ extern "C" __global__ void vec_fill_f32(float* c, float v, long long n) {
     if (i < n) c[i] = v;
 }
 
+extern "C" __global__ void vec_copy_slice_f32(float* dst, const float* src,
+                                              long long offset, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[i] = src[offset + i];
+}
+
+extern "C" __global__ void vec_copy_slice_f64(double* dst, const double* src,
+                                              long long offset, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[i] = src[offset + i];
+}
+
+extern "C" __global__ void reduce_sum_f32(float* out, const float* in,
+                                          long long n) {
+    __shared__ float sh[256];
+    int tid = threadIdx.x;
+    float acc = 0.0f;
+    for (long long i = tid; i < n; i += blockDim.x) acc += in[i];
+    sh[tid] = acc;
+    __syncthreads();
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) sh[tid] += sh[tid + stride];
+        __syncthreads();
+    }
+    if (tid == 0) out[0] = sh[0];
+}
+
+extern "C" __global__ void reduce_sum_f64(double* out, const double* in,
+                                          long long n) {
+    __shared__ double sh[256];
+    int tid = threadIdx.x;
+    double acc = 0.0;
+    for (long long i = tid; i < n; i += blockDim.x) acc += in[i];
+    sh[tid] = acc;
+    __syncthreads();
+    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+        if (tid < stride) sh[tid] += sh[tid + stride];
+        __syncthreads();
+    }
+    if (tid == 0) out[0] = sh[0];
+}
+
 extern "C" __global__ void matmul_f32(float* C, const float* A,
                                       const float* B, int M, int N, int K) {
     __shared__ float As[VYNE_TILE][VYNE_TILE];
@@ -436,4 +478,123 @@ extern "C" __global__ void pixel_shuffle_f64(
     int j = oxt % r;
     int x = oxt / r;
     out[idx] = in[((y * w + x) * c) + oc * rr + i * r + j];
+}
+
+// Inverse gradient for ESPCN depth-to-space. One thread owns one input-gradient
+// element and gathers from exactly one output-gradient element.
+extern "C" __global__ void pixel_shuffle_backward_f32(
+    float* grad_in, const float* grad_out,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = h * w * c;
+    if (idx >= total) return;
+
+    int sc = idx % c;
+    int t = idx / c;
+    int x = t % w;
+    int y = t / w;
+    int oc = sc / rr;
+    int rem = sc % rr;
+    int i = rem / r;
+    int j = rem % r;
+    grad_in[idx] = grad_out[((y * r + i) * out_w + (x * r + j)) * out_c + oc];
+}
+
+extern "C" __global__ void pixel_shuffle_backward_f64(
+    double* grad_in, const double* grad_out,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = h * w * c;
+    if (idx >= total) return;
+
+    int sc = idx % c;
+    int t = idx / c;
+    int x = t % w;
+    int y = t / w;
+    int oc = sc / rr;
+    int rem = sc % rr;
+    int i = rem / r;
+    int j = rem % r;
+    grad_in[idx] = grad_out[((y * r + i) * out_w + (x * r + j)) * out_c + oc];
+}
+
+// MSE training helper. `partial[i]` is the per-element contribution to the mean
+// loss, so callers can download and sum it for reporting while keeping `grad`
+// device-resident for backpropagation.
+extern "C" __global__ void mse_grad_f32(
+    float* grad, float* partial, const float* pred, const float* target,
+    long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float d = pred[i] - target[i];
+    float inv = n > 0 ? 1.0f / (float)n : 0.0f;
+    grad[i] = 2.0f * d * inv;
+    partial[i] = d * d * inv;
+}
+
+extern "C" __global__ void mse_grad_f64(
+    double* grad, double* partial, const double* pred, const double* target,
+    long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    double d = pred[i] - target[i];
+    double inv = n > 0 ? 1.0 / (double)n : 0.0;
+    grad[i] = 2.0 * d * inv;
+    partial[i] = d * d * inv;
+}
+
+extern "C" __global__ void sgd_step_f32(float* param, const float* grad,
+                                        float lr, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) param[i] -= lr * grad[i];
+}
+
+extern "C" __global__ void sgd_step_f64(double* param, const double* grad,
+                                        double lr, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) param[i] -= lr * grad[i];
+}
+
+extern "C" __global__ void adamw_step_f32(
+    float* param, float* m, float* v, const float* grad,
+    float lr, float beta1, float beta2, float eps, float weight_decay,
+    int step, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float g = grad[i];
+    float mi = beta1 * m[i] + (1.0f - beta1) * g;
+    float vi = beta2 * v[i] + (1.0f - beta2) * g * g;
+    m[i] = mi;
+    v[i] = vi;
+    float bc1 = 1.0f - powf(beta1, (float)step);
+    float bc2 = 1.0f - powf(beta2, (float)step);
+    float mh = mi / bc1;
+    float vh = vi / bc2;
+    float update = mh / (sqrtf(vh) + eps) + weight_decay * param[i];
+    param[i] -= lr * update;
+}
+
+extern "C" __global__ void adamw_step_f64(
+    double* param, double* m, double* v, const double* grad,
+    double lr, double beta1, double beta2, double eps, double weight_decay,
+    int step, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    double g = grad[i];
+    double mi = beta1 * m[i] + (1.0 - beta1) * g;
+    double vi = beta2 * v[i] + (1.0 - beta2) * g * g;
+    m[i] = mi;
+    v[i] = vi;
+    double bc1 = 1.0 - pow(beta1, (double)step);
+    double bc2 = 1.0 - pow(beta2, (double)step);
+    double mh = mi / bc1;
+    double vh = vi / bc2;
+    double update = mh / (sqrt(vh) + eps) + weight_decay * param[i];
+    param[i] -= lr * update;
 }

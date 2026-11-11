@@ -1204,6 +1204,7 @@ class FunctionNode : public ASTNode {
     // companion `fn_<name>_grad` that performs a reverse-mode sweep over
     // a straight-line body. The primal emission is unchanged.
     bool differentiable_ = false;
+    bool deviceFn_ = false;
 
   public:
     FunctionNode(
@@ -1299,6 +1300,12 @@ class FunctionNode : public ASTNode {
     }
     bool isDifferentiable() const {
         return differentiable_;
+    }
+    void setDeviceFn(bool v) {
+        deviceFn_ = v;
+    }
+    bool isDeviceFn() const {
+        return deviceFn_;
     }
 };
 

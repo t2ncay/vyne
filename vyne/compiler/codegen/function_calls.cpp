@@ -269,7 +269,13 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     // @device region. Handles are Int64 pointer values; host buffers
     // must be typed Array<Float64> values so `.data` is a double*.
     // ----------------------------------------------------------------
-    if (e.hasDevice()) {
+    if (e.hasDeviceContext()) {
+        {
+            std::filesystem::path moduleBase =
+                std::filesystem::path(FileUtils::getExeDir()) / "vyne" /
+                "runtime" / "modules";
+            e.addInclude((moduleBase / "vdevice.h").string());
+        }
         auto normInt = [&](const std::unique_ptr<ASTNode>& arg) -> std::string {
             if (arg->type() == NodeType::NUMBER) {
                 return static_cast<const NumberNode*>(arg.get())
@@ -417,6 +423,48 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_sum") {
+            expectArgs(3, "device_sum(out, input, n)");
+            e.emit("vyne_device_sum(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_copy_slice") {
+            expectArgs(4, "device_copy_slice(dst, src, src_offset, n)");
+            e.emit("vyne_device_copy_slice(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_mse_grad") {
+            expectArgs(5, "device_mse_grad(grad, partial, pred, target, n)");
+            e.emit("vyne_device_mse_grad(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_sgd_step") {
+            expectArgs(4, "device_sgd_step(param, grad, lr, n)");
+            e.emit("vyne_device_sgd_step(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normFloat(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_adamw_step") {
+            expectArgs(11, "device_adamw_step(param, m, v, grad, lr, beta1, beta2, eps, weight_decay, step, n)");
+            e.emit("vyne_device_adamw_step(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normFloat(arguments[4]) + ", " +
+                   normFloat(arguments[5]) + ", " + normFloat(arguments[6]) + ", " +
+                   normFloat(arguments[7]) + ", " + normFloat(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_matmul") {
             expectArgs(6, "device_matmul(out, a, b, m, n, k)");
             e.emit("vyne_device_matmul(" + normInt(arguments[0]) + ", " +
@@ -440,6 +488,64 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                    normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
                    normInt(arguments[11]) + ", " + normInt(arguments[12]) + ", " +
                    normInt(arguments[13]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_input") {
+            expectArgs(12, "device_conv2d_backward_input(out, grad, weight, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)");
+            e.emit("vyne_device_conv2d_backward_input(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ", " + normInt(arguments[6]) + ", " +
+                   normInt(arguments[7]) + ", " + normInt(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
+                   normInt(arguments[11]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_weight") {
+            expectArgs(12, "device_conv2d_backward_weight(out, input, grad, in_h, in_w, in_c, out_h, out_w, out_c, k, stride, pad)");
+            e.emit("vyne_device_conv2d_backward_weight(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ", " + normInt(arguments[6]) + ", " +
+                   normInt(arguments[7]) + ", " + normInt(arguments[8]) + ", " +
+                   normInt(arguments[9]) + ", " + normInt(arguments[10]) + ", " +
+                   normInt(arguments[11]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_conv2d_backward_bias") {
+            expectArgs(5, "device_conv2d_backward_bias(out, grad, out_h, out_w, out_c)");
+            e.emit("vyne_device_conv2d_backward_bias(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_relu_grad") {
+            expectArgs(4, "device_relu_grad(out, grad, pre, n)");
+            e.emit("vyne_device_relu_grad(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_pixel_shuffle") {
+            expectArgs(6, "device_pixel_shuffle(out, input, h, w, c, r)");
+            e.emit("vyne_device_pixel_shuffle(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ");");
+            return "vyne_null()";
+        }
+
+        if (originalName == "device_pixel_shuffle_backward") {
+            expectArgs(6, "device_pixel_shuffle_backward(out, grad, h, w, c, r)");
+            e.emit("vyne_device_pixel_shuffle_backward(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ", " + normInt(arguments[4]) + ", " +
+                   normInt(arguments[5]) + ");");
             return "vyne_null()";
         }
 
@@ -550,6 +656,11 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return emitHandleCall("vconv_pixel_shuffle_fwd_device",
                                   originalName.c_str(), arguments);
         }
+        if (originalName == "vconv_pixel_shuffle_backward_device") {
+            expectArgs(5, "vconv_pixel_shuffle_backward_device(grad, h, w, c, r)");
+            return emitHandleCall("vconv_pixel_shuffle_backward_device",
+                                  originalName.c_str(), arguments);
+        }
     }
 
     // --- Resolve named args (unchanged) -----------------------------
@@ -604,6 +715,27 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                     "' expects " + std::to_string(sig->size()) +
                     " argument(s), got " + std::to_string(orderedArgs.size()) +
                     " (line " + std::to_string(lineNumber) + ").");
+            }
+        }
+    }
+
+    {
+        std::string devKey = originalName;
+        std::replace(devKey.begin(), devKey.end(), '.', '_');
+        const std::string& modForDevice = e.getActiveModule();
+        bool sameModuleDeviceFn = !modForDevice.empty() &&
+            e.isModuleFunction(modForDevice, originalName);
+        std::string moduleKey = sameModuleDeviceFn
+            ? modForDevice + "_" + devKey
+            : devKey;
+        if (e.isDeviceFunction(originalName) || e.isDeviceFunction(devKey) ||
+            e.isDeviceFunction(moduleKey)) {
+            if (!e.hasDeviceContext()) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): @device_fn '" + originalName +
+                    "' can only be called inside @device regions or other "
+                    "@device_fn functions (line " +
+                    std::to_string(lineNumber) + ").");
             }
         }
     }
@@ -919,4 +1051,3 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
 }
 
 void FunctionCallNode::compile(C_Emitter& e) const { getCExpr(e); }
-

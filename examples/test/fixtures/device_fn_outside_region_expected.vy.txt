@@ -1,0 +1,12 @@
+# This fixture is intentionally .vy.txt so normal compile-all globs do not pick
+# it up as a passing test. It documents the expected diagnostic for V3B.
+#
+# Expected: compiling this as .vy fails because @device_fn helpers require an
+# active @device region or another @device_fn caller.
+
+@device_fn
+fn helper(d :: Int64) {
+    device_fill(d, 1.0, 1);
+}
+
+helper(0);

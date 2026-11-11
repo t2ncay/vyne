@@ -622,6 +622,14 @@ void FunctionNode::compile(C_Emitter& e) const {
             e.registerFunctionReturnType(targetModule + "_" + mangled, retCt);
             e.registerFunctionReturnType(targetModule + "." + orig, retCt);
         }
+        if (isDeviceFn()) {
+            e.registerDeviceFunction(orig);
+            e.registerDeviceFunction(mangled);
+            if (!targetModule.empty()) {
+                e.registerDeviceFunction(targetModule + "_" + mangled);
+                e.registerDeviceFunction(targetModule + "." + orig);
+            }
+        }
     }
 
     e.emitGlobalDecl(
@@ -634,6 +642,9 @@ void FunctionNode::compile(C_Emitter& e) const {
     e.emitBlockOpen(
         "VyneValue fn_" + mangledName + "(int arg_count, VyneValue* args) {"
     );
+
+    if (isDeviceFn())
+        e.pushDeviceFunction();
 
     // Publish the source-level return type so ReturnNode::compile can
     // resolve `return [];` when the declared type is `Array<T>`.
@@ -658,6 +669,9 @@ void FunctionNode::compile(C_Emitter& e) const {
         getSourceFile()
     );
 
+    if (isDeviceFn())
+        e.popDeviceFunction();
+
     e.clearCurrentFunctionReturnType();
 
     e.emitBlockClose();
@@ -673,7 +687,7 @@ void FunctionNode::compile(C_Emitter& e) const {
         if (!targetModule.empty())
             nativeMangled = targetModule + "_" + nativeMangled;
 
-        if (const std::string* nv = e.lookupNativeVariant(nativeMangled)) {
+        if (!isDeviceFn()) if (const std::string* nv = e.lookupNativeVariant(nativeMangled)) {
             CType retCt = CType::fromVType(returnType);
             if (returnType == VType::Array &&
                 getReturnArrayElemType() != VType::Unknown) {
@@ -761,6 +775,10 @@ void FunctionNode::compileAs(
         }
         e.registerFunctionReturnType(name, retCt);
         e.registerFunctionReturnType(originalName, retCt);
+        if (isDeviceFn()) {
+            e.registerDeviceFunction(name);
+            e.registerDeviceFunction(originalName);
+        }
     }
 
     e.emitGlobalDecl(
@@ -772,6 +790,9 @@ void FunctionNode::compileAs(
     e.emitBlockOpen(
         "VyneValue fn_" + name + "(int arg_count, VyneValue* args) {"
     );
+
+    if (isDeviceFn())
+        e.pushDeviceFunction();
 
     {
         CType retCt = CType::fromVType(returnType);
@@ -793,6 +814,9 @@ void FunctionNode::compileAs(
         originalName,
         getSourceFile()
     );
+
+    if (isDeviceFn())
+        e.popDeviceFunction();
 
     e.clearCurrentFunctionReturnType();
 
