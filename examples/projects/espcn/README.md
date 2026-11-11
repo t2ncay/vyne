@@ -48,6 +48,23 @@ Outputs are written to `build/`:
 - `output_espcn_cpu.png`
 - `output_espcn_gpu.png` when the model activation is GPU-supported
 
+## Reproduce The Bundled Training Run
+
+The reproducibility scripts clean `build/`, smoke-test the exporter, run GPU crop
+training, run inference from the generated best checkpoint, and validate that
+training and validation losses decrease.
+
+```powershell
+pwsh scripts/reproduce.ps1
+```
+
+```bash
+./scripts/reproduce.sh
+```
+
+See `EXPECTED.md` for expected metric ranges and the exact claims this smoke run
+does and does not make.
+
 ## Use A Real ESPCN Checkpoint
 
 Export a PyTorch checkpoint into the bundled model path:
@@ -88,6 +105,8 @@ would make those fully device-resident too.
 | `src/metrics.vy` | PSNR/SSIM, edge/ringing, CPU/GPU max difference |
 | `src/upscale.vy` | Lanczos-3 + RCAS-style baseline |
 | `scripts/export_espcn_weights.py` | PyTorch -> `.vwy`/`.vwt` exporter |
+| `scripts/reproduce.ps1` / `scripts/reproduce.sh` | clean training + inference reproduction |
+| `EXPECTED.md` | expected bundled reproduction metrics and tolerances |
 | `data/sample.png` | low-resolution sample input |
 | `data/reference.png` | high-resolution reference |
 | `data/espcn_x2.vwy` | offline passthrough model |
