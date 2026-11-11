@@ -106,6 +106,9 @@ or another `@device_fn`; this keeps the runtime requirement for an open device
 frame explicit while allowing reusable device-layer code. V1 is intentionally
 strict: helpers should operate on caller-provided device handles and shape
 metadata rather than returning or storing handles that outlive the region.
+Helpers may live in imported files and may call other `@device_fn` helpers. A
+normal top-level call to a `@device_fn` is a compile-time misuse because no
+device frame is active.
 
 ## Device arena semantics
 

@@ -108,7 +108,7 @@ fn tensor_mse(a :: vconv.Tensor, target :: Array<Float64>, n :: Int64) -> Float6
     return s / float64(n);
 }
 
-out("=== Vyne ESPCN GPU crop training V2B ===");
+out("=== Vyne ESPCN GPU crop training V3A ===");
 
 input :: vimage.Image := vimage.load(INPUT);
 reference :: vimage.Image := vimage.load(REFERENCE);

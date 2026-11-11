@@ -270,6 +270,12 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     // must be typed Array<Float64> values so `.data` is a double*.
     // ----------------------------------------------------------------
     if (e.hasDeviceContext()) {
+        {
+            std::filesystem::path moduleBase =
+                std::filesystem::path(FileUtils::getExeDir()) / "vyne" /
+                "runtime" / "modules";
+            e.addInclude((moduleBase / "vdevice.h").string());
+        }
         auto normInt = [&](const std::unique_ptr<ASTNode>& arg) -> std::string {
             if (arg->type() == NodeType::NUMBER) {
                 return static_cast<const NumberNode*>(arg.get())
