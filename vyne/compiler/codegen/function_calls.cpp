@@ -478,6 +478,78 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             e.emit("VyneValue " + temp + " = vyne_device_available();");
             return temp;
         }
+
+        // --- device-native vconv primitives -------------------------
+        // These mirror the C `vconv_*_device` functions: Int64 handles
+        // in, a fresh Int64 device handle out. They are only reachable
+        // inside a @device region and require the vconv runtime header,
+        // which the call site's module include provides.
+        auto emitHandleCall =
+            [&](const char* cfname, const char* what,
+                const std::vector<std::unique_ptr<ASTNode>>& args) -> std::string {
+            // The device vconv primitives live in the vconv runtime
+            // header, which itself pulls in vdevice.h. Include it on
+            // first use (idempotent); the device region already emits
+            // vdevice.h, so ordering never matters.
+            {
+                std::filesystem::path moduleBase =
+                    std::filesystem::path(FileUtils::getExeDir()) / "vyne" /
+                    "runtime" / "modules";
+                e.addInclude((moduleBase / "vconv.h").string());
+            }
+            std::string temp = e.newTemp("dev_out");
+            std::string call = std::string(cfname) + "(";
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (i) call += ", ";
+                call += normInt(args[i]);
+            }
+            call += ")";
+            e.emit("int64_t " + temp + " = " + call + ";");
+            e.declareNativeTemp(temp, CType::fromVType(VType::Int64));
+            (void)what;
+            return temp;
+        };
+
+        if (originalName == "vconv_conv2d_fwd_device") {
+            expectArgs(11, "vconv_conv2d_fwd_device(x, w, b, in_h, in_w, in_c, "
+                           "out_c, kh, kw, stride, pad)");
+            return emitHandleCall("vconv_conv2d_fwd_device", originalName.c_str(),
+                                  arguments);
+        }
+        if (originalName == "vconv_conv2d_backward_input_device") {
+            expectArgs(12, "vconv_conv2d_backward_input_device("
+                           "grad, w, in_h, in_w, in_c, out_h, out_w, out_c, "
+                           "kh, kw, stride, pad)");
+            return emitHandleCall("vconv_conv2d_backward_input_device",
+                                  originalName.c_str(), arguments);
+        }
+        if (originalName == "vconv_conv2d_backward_weight_device") {
+            expectArgs(12, "vconv_conv2d_backward_weight_device("
+                           "x, grad, in_h, in_w, in_c, out_h, out_w, out_c, "
+                           "kh, kw, stride, pad)");
+            return emitHandleCall("vconv_conv2d_backward_weight_device",
+                                  originalName.c_str(), arguments);
+        }
+        if (originalName == "vconv_conv2d_backward_bias_device") {
+            expectArgs(4, "vconv_conv2d_backward_bias_device(grad, out_h, out_w, out_c)");
+            return emitHandleCall("vconv_conv2d_backward_bias_device",
+                                  originalName.c_str(), arguments);
+        }
+        if (originalName == "vconv_relu_fwd_device") {
+            expectArgs(2, "vconv_relu_fwd_device(x, n)");
+            return emitHandleCall("vconv_relu_fwd_device", originalName.c_str(),
+                                  arguments);
+        }
+        if (originalName == "vconv_relu_backward_device") {
+            expectArgs(3, "vconv_relu_backward_device(grad, pre, n)");
+            return emitHandleCall("vconv_relu_backward_device", originalName.c_str(),
+                                  arguments);
+        }
+        if (originalName == "vconv_pixel_shuffle_fwd_device") {
+            expectArgs(5, "vconv_pixel_shuffle_fwd_device(x, h, w, c, r)");
+            return emitHandleCall("vconv_pixel_shuffle_fwd_device",
+                                  originalName.c_str(), arguments);
+        }
     }
 
     // --- Resolve named args (unchanged) -----------------------------

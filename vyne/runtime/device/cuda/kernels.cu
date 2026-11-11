@@ -207,3 +207,233 @@ extern "C" __global__ void conv2d_f64(
     }
     C[idx] = acc;
 }
+
+// ============================================================================
+// conv2d backward kernels (Float32 + Float64)
+//
+// All three use the "gather" formulation: one thread owns one unique output
+// element and sums every contribution into it. This is the exact reverse of
+// the forward "one thread per output" mapping, so no atomics are needed and
+// the result is bit-for-bit deterministic across schedules.
+//
+// Layouts match the forward path: HWC activations, OIHW weights, square
+// kernel, zero padding.
+//
+//   backward_input  : grad_X[in_h,in_w,in_c]  from grad_out[out_h,out_w,out_c]
+//   backward_weight : grad_W[out_c,in_c,k,k]  from input + grad_out
+//   backward_bias   : grad_B[out_c] = sum_{oy,ox} grad_out[oy,ox,oc]
+// ============================================================================
+
+extern "C" __global__ void conv2d_backward_input_f32(
+    float* grad_X, const float* grad_out, const float* W,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = in_h * in_w * in_c;
+    if (idx >= total) return;
+
+    int ic = idx % in_c;
+    int t = idx / in_c;
+    int ix = t % in_w;
+    int iy = t / in_w;
+
+    float acc = 0.0f;
+    for (int oc = 0; oc < out_c; ++oc) {
+        for (int ky = 0; ky < k; ++ky) {
+            int oy_num = iy + pad - ky;
+            if (oy_num < 0 || (oy_num % stride) != 0) continue;
+            int oy = oy_num / stride;
+            if (oy >= out_h) continue;
+            for (int kx = 0; kx < k; ++kx) {
+                int ox_num = ix + pad - kx;
+                if (ox_num < 0 || (ox_num % stride) != 0) continue;
+                int ox = ox_num / stride;
+                if (ox >= out_w) continue;
+                acc += grad_out[(oy * out_w + ox) * out_c + oc] *
+                       W[((oc * in_c) + ic) * k * k + ky * k + kx];
+            }
+        }
+    }
+    grad_X[idx] = acc;
+}
+
+extern "C" __global__ void conv2d_backward_input_f64(
+    double* grad_X, const double* grad_out, const double* W,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = in_h * in_w * in_c;
+    if (idx >= total) return;
+
+    int ic = idx % in_c;
+    int t = idx / in_c;
+    int ix = t % in_w;
+    int iy = t / in_w;
+
+    double acc = 0.0;
+    for (int oc = 0; oc < out_c; ++oc) {
+        for (int ky = 0; ky < k; ++ky) {
+            int oy_num = iy + pad - ky;
+            if (oy_num < 0 || (oy_num % stride) != 0) continue;
+            int oy = oy_num / stride;
+            if (oy >= out_h) continue;
+            for (int kx = 0; kx < k; ++kx) {
+                int ox_num = ix + pad - kx;
+                if (ox_num < 0 || (ox_num % stride) != 0) continue;
+                int ox = ox_num / stride;
+                if (ox >= out_w) continue;
+                acc += grad_out[(oy * out_w + ox) * out_c + oc] *
+                       W[((oc * in_c) + ic) * k * k + ky * k + kx];
+            }
+        }
+    }
+    grad_X[idx] = acc;
+}
+
+extern "C" __global__ void conv2d_backward_weight_f32(
+    float* grad_W, const float* X, const float* grad_out,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_c * in_c * k * k;
+    if (idx >= total) return;
+
+    int kx = idx % k;
+    int t1 = idx / k;
+    int ky = t1 % k;
+    int t2 = t1 / k;
+    int ic = t2 % in_c;
+    int oc = t2 / in_c;
+
+    float acc = 0.0f;
+    for (int oy = 0; oy < out_h; ++oy) {
+        int iy = oy * stride - pad + ky;
+        if (iy < 0 || iy >= in_h) continue;
+        for (int ox = 0; ox < out_w; ++ox) {
+            int ix = ox * stride - pad + kx;
+            if (ix < 0 || ix >= in_w) continue;
+            acc += grad_out[(oy * out_w + ox) * out_c + oc] *
+                   X[(iy * in_w + ix) * in_c + ic];
+        }
+    }
+    grad_W[idx] = acc;
+}
+
+extern "C" __global__ void conv2d_backward_weight_f64(
+    double* grad_W, const double* X, const double* grad_out,
+    int in_h, int in_w, int in_c,
+    int out_h, int out_w, int out_c,
+    int k, int stride, int pad) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_c * in_c * k * k;
+    if (idx >= total) return;
+
+    int kx = idx % k;
+    int t1 = idx / k;
+    int ky = t1 % k;
+    int t2 = t1 / k;
+    int ic = t2 % in_c;
+    int oc = t2 / in_c;
+
+    double acc = 0.0;
+    for (int oy = 0; oy < out_h; ++oy) {
+        int iy = oy * stride - pad + ky;
+        if (iy < 0 || iy >= in_h) continue;
+        for (int ox = 0; ox < out_w; ++ox) {
+            int ix = ox * stride - pad + kx;
+            if (ix < 0 || ix >= in_w) continue;
+            acc += grad_out[(oy * out_w + ox) * out_c + oc] *
+                   X[(iy * in_w + ix) * in_c + ic];
+        }
+    }
+    grad_W[idx] = acc;
+}
+
+extern "C" __global__ void conv2d_backward_bias_f32(
+    float* grad_B, const float* grad_out,
+    int out_h, int out_w, int out_c) {
+    int oc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (oc >= out_c) return;
+
+    float acc = 0.0f;
+    for (int oy = 0; oy < out_h; ++oy)
+        for (int ox = 0; ox < out_w; ++ox)
+            acc += grad_out[(oy * out_w + ox) * out_c + oc];
+    grad_B[oc] = acc;
+}
+
+extern "C" __global__ void conv2d_backward_bias_f64(
+    double* grad_B, const double* grad_out,
+    int out_h, int out_w, int out_c) {
+    int oc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (oc >= out_c) return;
+
+    double acc = 0.0;
+    for (int oy = 0; oy < out_h; ++oy)
+        for (int ox = 0; ox < out_w; ++ox)
+            acc += grad_out[(oy * out_w + ox) * out_c + oc];
+    grad_B[oc] = acc;
+}
+
+// ReLU backward: out[i] = pre[i] > 0 ? grad[i] : 0.
+extern "C" __global__ void vec_relu_grad_f32(float* out, const float* grad,
+                                             const float* pre, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) out[i] = pre[i] > 0.0f ? grad[i] : 0.0f;
+}
+
+extern "C" __global__ void vec_relu_grad_f64(double* out, const double* grad,
+                                             const double* pre, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) out[i] = pre[i] > 0.0 ? grad[i] : 0.0;
+}
+
+// ESPCN depth-to-space, HWC layout. One thread per output element.
+//   input  : [h][w][c*r*r]
+//   output : [h*r][w*r][c]  with  out[y*r+i][x*r+j][oc] = in[y][x][oc*r*r+i*r+j]
+extern "C" __global__ void pixel_shuffle_f32(
+    float* out, const float* in,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_h = h * r;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_h * out_w * out_c;
+    if (idx >= total) return;
+
+    int oc = idx % out_c;
+    int t = idx / out_c;
+    int oxt = t % out_w;
+    int oy = t / out_w;
+    int i = oy % r;
+    int y = oy / r;
+    int j = oxt % r;
+    int x = oxt / r;
+    out[idx] = in[((y * w + x) * c) + oc * rr + i * r + j];
+}
+
+extern "C" __global__ void pixel_shuffle_f64(
+    double* out, const double* in,
+    int h, int w, int c, int r) {
+    int rr = r * r;
+    int out_c = c / rr;
+    int out_h = h * r;
+    int out_w = w * r;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total = out_h * out_w * out_c;
+    if (idx >= total) return;
+
+    int oc = idx % out_c;
+    int t = idx / out_c;
+    int oxt = t % out_w;
+    int oy = t / out_w;
+    int i = oy % r;
+    int y = oy / r;
+    int j = oxt % r;
+    int x = oxt / r;
+    out[idx] = in[((y * w + x) * c) + oc * rr + i * r + j];
+}
