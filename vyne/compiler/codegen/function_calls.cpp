@@ -269,7 +269,7 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
     // @device region. Handles are Int64 pointer values; host buffers
     // must be typed Array<Float64> values so `.data` is a double*.
     // ----------------------------------------------------------------
-    if (e.hasDevice()) {
+    if (e.hasDeviceContext()) {
         auto normInt = [&](const std::unique_ptr<ASTNode>& arg) -> std::string {
             if (arg->type() == NodeType::NUMBER) {
                 return static_cast<const NumberNode*>(arg.get())
@@ -709,6 +709,27 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
                     "' expects " + std::to_string(sig->size()) +
                     " argument(s), got " + std::to_string(orderedArgs.size()) +
                     " (line " + std::to_string(lineNumber) + ").");
+            }
+        }
+    }
+
+    {
+        std::string devKey = originalName;
+        std::replace(devKey.begin(), devKey.end(), '.', '_');
+        const std::string& modForDevice = e.getActiveModule();
+        bool sameModuleDeviceFn = !modForDevice.empty() &&
+            e.isModuleFunction(modForDevice, originalName);
+        std::string moduleKey = sameModuleDeviceFn
+            ? modForDevice + "_" + devKey
+            : devKey;
+        if (e.isDeviceFunction(originalName) || e.isDeviceFunction(devKey) ||
+            e.isDeviceFunction(moduleKey)) {
+            if (!e.hasDeviceContext()) {
+                throw std::runtime_error(
+                    "Compile Error (VNE-083): @device_fn '" + originalName +
+                    "' can only be called inside @device regions or other "
+                    "@device_fn functions (line " +
+                    std::to_string(lineNumber) + ").");
             }
         }
     }

@@ -12,6 +12,9 @@ use external "vimage/vimage.vy";
 use external "vconv/vconv.vy";
 use "model.vy";
 use "device_tensor.vy";
+use "device_layers.vy";
+use "device_loss.vy";
+use "device_optim.vy";
 
 ruleset { dynamic_casting };
 
@@ -193,6 +196,9 @@ w3f :: Array<Float32> := [];
 through w3i :: 0..model.w3.size()-1 -> loop { w3f.push(float32(model.w3[w3i])); };
 b3f :: Array<Float32> := [];
 through b3i :: 0..model.c3-1 -> loop { b3f.push(float32(model.b3[b3i])); };
+w1_n :: Int64 := model.c1 * model.in_c * model.k1 * model.k1;
+w2_n :: Int64 := model.c2 * model.c1 * model.k2 * model.k2;
+w3_n :: Int64 := model.c3 * model.c2 * model.k3 * model.k3;
 
 loss_one :: Array<Float32> := [0.0f];
 train_losses :: Array<Float64> := [];
@@ -289,50 +295,24 @@ t0 :: Int64 := vcore.now_ns();
             device_copy_slice(d_x, d_train_x, x_off, in_n);
             device_copy_slice(d_target, d_train_y, y_off, out_n);
 
-            device_conv2d(d_h1_pre, x_dev.handle, d_w1, d_b1, h, w, model.in_c, h, w, model.c1, model.k1, 1, model.k1 / 2, 1);
-            device_relu(d_a1, d_h1_pre, h1_n);
-            device_conv2d(d_h2_pre, d_a1, d_w2, d_b2, h, w, model.c1, h, w, model.c2, model.k2, 1, model.k2 / 2, 1);
-            device_relu(d_a2, d_h2_pre, h2_n);
-            device_conv2d(d_h3, d_a2, d_w3, d_b3, h, w, model.c2, h, w, model.c3, model.k3, 1, model.k3 / 2, 1);
-            device_pixel_shuffle(d_pred, d_h3, h, w, model.c3, model.scale);
-
-            device_mse_grad(d_loss_grad, d_loss_part, d_pred, d_target, out_n);
-            device_sum(d_loss, d_loss_part, out_n);
+            espcn_forward_device(model, x_dev.handle, h, w, d_w1, d_b1, d_w2, d_b2, d_w3, d_b3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_h3, d_pred);
+            mse_grad_sum_device(d_loss_grad, d_loss_part, d_loss, d_pred, d_target, out_n);
             device_download(d_loss, loss_one, 1);
             epoch_loss = epoch_loss + float64(loss_one[0]);
-
-            device_pixel_shuffle_backward(d_gh3, d_loss_grad, h, w, model.c3, model.scale);
-            device_conv2d_backward_weight(d_gw3, d_a2, d_gh3, h, w, model.c2, h, w, model.c3, model.k3, 1, model.k3 / 2);
-            device_conv2d_backward_bias(d_gb3, d_gh3, h, w, model.c3);
-            device_conv2d_backward_input(d_ga2, d_gh3, d_w3, h, w, model.c2, h, w, model.c3, model.k3, 1, model.k3 / 2);
-            device_relu_grad(d_gh2, d_ga2, d_h2_pre, h2_n);
-            device_conv2d_backward_weight(d_gw2, d_a1, d_gh2, h, w, model.c1, h, w, model.c2, model.k2, 1, model.k2 / 2);
-            device_conv2d_backward_bias(d_gb2, d_gh2, h, w, model.c2);
-            device_conv2d_backward_input(d_ga1, d_gh2, d_w2, h, w, model.c1, h, w, model.c2, model.k2, 1, model.k2 / 2);
-            device_relu_grad(d_gh1, d_ga1, d_h1_pre, h1_n);
-            device_conv2d_backward_weight(d_gw1, x_dev.handle, d_gh1, h, w, model.in_c, h, w, model.c1, model.k1, 1, model.k1 / 2);
-            device_conv2d_backward_bias(d_gb1, d_gh1, h, w, model.c1);
+            espcn_backward_device(model, x_dev.handle, h, w, d_w2, d_w3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_loss_grad, d_gh3, d_gw3, d_gb3, d_ga2, d_gh2, d_gw2, d_gb2, d_ga1, d_gh1, d_gw1, d_gb1);
 
             step :: Int64 := epoch * TRAIN_CROPS + crop + 1;
-            device_adamw_step(d_w1, d_m_w1, d_v_w1, d_gw1, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w1f.size());
-            device_adamw_step(d_b1, d_m_b1, d_v_b1, d_gb1, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c1);
-            device_adamw_step(d_w2, d_m_w2, d_v_w2, d_gw2, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w2f.size());
-            device_adamw_step(d_b2, d_m_b2, d_v_b2, d_gb2, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c2);
-            device_adamw_step(d_w3, d_m_w3, d_v_w3, d_gw3, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, w3f.size());
-            device_adamw_step(d_b3, d_m_b3, d_v_b3, d_gb3, LR, BETA1, BETA2, EPS, WEIGHT_DECAY, step, model.c3);
+            adamw_step_espcn_device(model, step, LR, BETA1, BETA2, EPS, WEIGHT_DECAY,
+                d_w1, d_m_w1, d_v_w1, d_gw1, w1_n, d_b1, d_m_b1, d_v_b1, d_gb1,
+                d_w2, d_m_w2, d_v_w2, d_gw2, w2_n, d_b2, d_m_b2, d_v_b2, d_gb2,
+                d_w3, d_m_w3, d_v_w3, d_gw3, w3_n, d_b3, d_m_b3, d_v_b3, d_gb3);
         };
 
         train_loss :: Float64 := epoch_loss / float64(TRAIN_CROPS);
         device_copy_slice(d_x, d_val_x, 0, in_n);
         device_copy_slice(d_target, d_val_y, 0, out_n);
-        device_conv2d(d_h1_pre, d_x, d_w1, d_b1, h, w, model.in_c, h, w, model.c1, model.k1, 1, model.k1 / 2, 1);
-        device_relu(d_a1, d_h1_pre, h1_n);
-        device_conv2d(d_h2_pre, d_a1, d_w2, d_b2, h, w, model.c1, h, w, model.c2, model.k2, 1, model.k2 / 2, 1);
-        device_relu(d_a2, d_h2_pre, h2_n);
-        device_conv2d(d_h3, d_a2, d_w3, d_b3, h, w, model.c2, h, w, model.c3, model.k3, 1, model.k3 / 2, 1);
-        device_pixel_shuffle(d_pred, d_h3, h, w, model.c3, model.scale);
-        device_mse_grad(d_loss_grad, d_loss_part, d_pred, d_target, out_n);
-        device_sum(d_loss, d_loss_part, out_n);
+        espcn_forward_device(model, d_x, h, w, d_w1, d_b1, d_w2, d_b2, d_w3, d_b3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_h3, d_pred);
+        mse_grad_sum_device(d_loss_grad, d_loss_part, d_loss, d_pred, d_target, out_n);
         device_download(d_loss, loss_one, 1);
         val_loss :: Float64 := float64(loss_one[0]);
 

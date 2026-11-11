@@ -801,6 +801,20 @@ std::unique_ptr<ASTNode> Parser::parseStatement() {
             }
             return fn;
         }
+        // `@device_fn fn ...` — helper callable only from @device regions
+        // or other @device_fn functions. Its body may use device intrinsics.
+        if (lookAhead(1).type == VTokenType::Identifier &&
+            lookAhead(1).name == "device_fn") {
+            int attrLine = peekToken().line;
+            consume(VTokenType::At);
+            consume(VTokenType::Identifier);
+            auto fn = parseFunctionDefinition();
+            if (auto* f = dynamic_cast<FunctionNode*>(fn.get())) {
+                f->setDeviceFn(true);
+                f->lineNumber = attrLine;
+            }
+            return fn;
+        }
         return parseRegionStatement();
     case VTokenType::Scratch:
         return parseScratchDeclaration();

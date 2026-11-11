@@ -286,6 +286,8 @@ class C_Emitter {
     // device frame before the host rewind.
     std::vector<bool> deviceRegionStack;
     int deviceRegionCount = 0;
+    int deviceFunctionDepth = 0;
+    std::unordered_set<std::string> deviceFunctionSet;
     std::unordered_set<std::string> committedVars;
 
     // Active @pool context. The pool's own C variable name lives here
@@ -1013,6 +1015,7 @@ class C_Emitter {
         persistentRegionStack.clear();
         deviceRegionStack.clear();
         deviceRegionCount = 0;
+        deviceFunctionDepth = 0;
         poolStack.clear(); // paired with regionStack: both are per-function
         slabStack.clear(); // paired with regionStack: both are per-function
         ringStack.clear(); // paired with regionStack: both are per-function
@@ -1651,6 +1654,25 @@ class C_Emitter {
     bool hasDevice() const {
         return deviceRegionCount > 0;
     }
+    void pushDeviceFunction() {
+        deviceFunctionDepth++;
+    }
+    void popDeviceFunction() {
+        if (deviceFunctionDepth > 0)
+            deviceFunctionDepth--;
+    }
+    bool inDeviceFunction() const {
+        return deviceFunctionDepth > 0;
+    }
+    bool hasDeviceContext() const {
+        return hasDevice() || inDeviceFunction();
+    }
+    void registerDeviceFunction(const std::string& name) {
+        deviceFunctionSet.insert(name);
+    }
+    bool isDeviceFunction(const std::string& name) const {
+        return deviceFunctionSet.count(name) > 0;
+    }
     const std::vector<std::string>& getRegionStack() const {
         return regionStack;
     }
@@ -2065,6 +2087,8 @@ class C_Emitter {
         persistentRegionStack.clear();
         deviceRegionStack.clear();
         deviceRegionCount = 0;
+        deviceFunctionDepth = 0;
+        deviceFunctionSet.clear();
         committedVars.clear();
         poolStack.clear();
         slabStack.clear();

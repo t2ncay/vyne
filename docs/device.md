@@ -40,6 +40,8 @@ path available.
 @device<cpu> region name { ... };       # host execution
 @device<auto> region name { ... };      # CUDA if available, else CPU
 @device<backend, cuda> region name { ... };  # equivalent to @device<cuda>
+
+@device_fn fn helper(...) { ... }        # helper callable only from @device
 ```
 
 Policy arguments are identifiers/integers, so the backend name is an identifier
@@ -97,6 +99,13 @@ Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 
 The intrinsics are intercepted by name only while a `@device` region is active,
 so a user-defined `device_add()` outside the region still resolves normally.
+
+`@device_fn` marks a helper function whose body may use the same device
+intrinsics. A `@device_fn` can be called only inside an active `@device` region
+or another `@device_fn`; this keeps the runtime requirement for an open device
+frame explicit while allowing reusable device-layer code. V1 is intentionally
+strict: helpers should operate on caller-provided device handles and shape
+metadata rather than returning or storing handles that outlive the region.
 
 ## Device arena semantics
 
