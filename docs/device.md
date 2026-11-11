@@ -77,6 +77,7 @@ Float32; mixing with `Float64` or `Int64` promotes to `Float64`.
 | `device_relu(out, a, n)` | `out = max(a, 0)`, dtype-dispatched |
 | `device_fill(h, v, n)` | fill with `v`, dtype-dispatched |
 | `device_sum(out, input, n)` | reduce `input[0..n)` into one device scalar, dtype-dispatched |
+| `device_copy_slice(dst, src, src_offset, n)` | copy `src[src_offset..src_offset+n)` to `dst[0..n)`, dtype-dispatched |
 | `device_mse_grad(grad, partial, pred, target, n)` | MSE gradient and per-element mean-loss contributions, dtype-dispatched |
 | `device_sgd_step(param, grad, lr, n)` | in-place SGD update, dtype-dispatched |
 | `device_adamw_step(param, m, v, grad, lr, beta1, beta2, eps, weight_decay, step, n)` | in-place AdamW update with device-resident moments, dtype-dispatched |

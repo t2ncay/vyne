@@ -424,6 +424,14 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
             return "vyne_null()";
         }
 
+        if (originalName == "device_copy_slice") {
+            expectArgs(4, "device_copy_slice(dst, src, src_offset, n)");
+            e.emit("vyne_device_copy_slice(" + normInt(arguments[0]) + ", " +
+                   normInt(arguments[1]) + ", " + normInt(arguments[2]) + ", " +
+                   normInt(arguments[3]) + ");");
+            return "vyne_null()";
+        }
+
         if (originalName == "device_mse_grad") {
             expectArgs(5, "device_mse_grad(grad, partial, pred, target, n)");
             e.emit("vyne_device_mse_grad(" + normInt(arguments[0]) + ", " +

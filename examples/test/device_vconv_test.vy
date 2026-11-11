@@ -276,27 +276,33 @@ check("adamw-v-1", close(float64(adam_v[1]), 0.004, 1e-6));
 
 sum_in :: Array<Float32> := [0.5f, 1.5f, 2.0f];
 sum_out :: Array<Float32> := [0.0f];
+slice_out :: Array<Float32> := [0.0f, 0.0f];
 direct_shuffle_out :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
 direct_shuffle_grad :: Array<Float32> := [0.0f, 0.0f, 0.0f, 0.0f];
 
 @device<cuda> region direct_prims {
     d_sum_in :: Int64 := device_alloc(3);
     d_sum_out :: Int64 := device_alloc(1);
+    d_slice_out :: Int64 := device_alloc(2);
     d_ps_in :: Int64 := device_alloc(4);
     d_ps_out :: Int64 := device_alloc(4);
     d_ps_grad :: Int64 := device_alloc(4);
     device_upload(d_sum_in, sum_in, 3);
     device_upload(d_ps_in, ps_inf, 4);
     device_sum(d_sum_out, d_sum_in, 3);
+    device_copy_slice(d_slice_out, d_sum_in, 1, 2);
     device_pixel_shuffle(d_ps_out, d_ps_in, 1, 1, 4, 2);
     device_pixel_shuffle_backward(d_ps_grad, d_ps_out, 1, 1, 4, 2);
     device_download(d_sum_out, sum_out, 1);
+    device_download(d_slice_out, slice_out, 2);
     device_download(d_ps_out, direct_shuffle_out, 4);
     device_download(d_ps_grad, direct_shuffle_grad, 4);
     device_sync();
 };
 
 check("device-sum", close(float64(sum_out[0]), 4.0, 1e-6));
+check("device-copy-slice-0", close(float64(slice_out[0]), 1.5, 1e-6));
+check("device-copy-slice-1", close(float64(slice_out[1]), 2.0, 1e-6));
 through i15 :: 0..3 -> loop {
     check("direct-shuffle-" + string(i15), close(ps.data[i15], float64(direct_shuffle_out[i15]), 1e-5));
     check("direct-shuffle-bwd-" + string(i15), close(float64(ps_inf[i15]), float64(direct_shuffle_grad[i15]), 1e-5));

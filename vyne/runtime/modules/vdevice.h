@@ -137,6 +137,7 @@ static CUfunction g_k_vec_mul = NULL;
 static CUfunction g_k_vec_scale = NULL;
 static CUfunction g_k_vec_relu = NULL;
 static CUfunction g_k_vec_fill = NULL;
+static CUfunction g_k_vec_copy_slice = NULL;
 static CUfunction g_k_reduce_sum = NULL;
 static CUfunction g_k_matmul = NULL;
 static CUfunction g_k_conv2d = NULL;
@@ -156,6 +157,7 @@ static CUfunction g_k_vec_mul_f32 = NULL;
 static CUfunction g_k_vec_scale_f32 = NULL;
 static CUfunction g_k_vec_relu_f32 = NULL;
 static CUfunction g_k_vec_fill_f32 = NULL;
+static CUfunction g_k_vec_copy_slice_f32 = NULL;
 static CUfunction g_k_reduce_sum_f32 = NULL;
 static CUfunction g_k_matmul_f32 = NULL;
 static CUfunction g_k_conv2d_f32 = NULL;
@@ -231,6 +233,8 @@ static int vyne_device_cuda_init(void) {
         return 0;
     if (g_cuModuleGetFunction(&g_k_vec_fill, g_vyne_cuda_module, "vec_fill_f64") != 0)
         return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_copy_slice, g_vyne_cuda_module, "vec_copy_slice_f64") != 0)
+        return 0;
     if (g_cuModuleGetFunction(&g_k_reduce_sum, g_vyne_cuda_module, "reduce_sum_f64") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_matmul, g_vyne_cuda_module, "matmul_f64") != 0)
@@ -276,6 +280,8 @@ static int vyne_device_cuda_init(void) {
     if (g_cuModuleGetFunction(&g_k_vec_relu_f32, g_vyne_cuda_module, "vec_relu_f32") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_vec_fill_f32, g_vyne_cuda_module, "vec_fill_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_vec_copy_slice_f32, g_vyne_cuda_module, "vec_copy_slice_f32") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_reduce_sum_f32, g_vyne_cuda_module, "reduce_sum_f32") != 0)
         return 0;
@@ -928,6 +934,47 @@ static inline void vyne_device_sum(int64_t out, int64_t in, int64_t n) {
         double acc = 0.0;
         for (int64_t i = 0; i < n; ++i) acc += ip[i];
         op[0] = acc;
+    }
+}
+
+static inline void vyne_device_copy_slice(int64_t dst, int64_t src,
+                                          int64_t src_offset, int64_t n) {
+    if (src_offset < 0 || n < 0) {
+        fprintf(stderr, "vyne device: device_copy_slice invalid range\n");
+        exit(1);
+    }
+    VyneDeviceAlloc* D = vyne_dev_find(dst, n, "device_copy_slice(dst)");
+    VyneDeviceAlloc* S = vyne_dev_find(src, src_offset + n, "device_copy_slice(src)");
+    if (D->elem_size != S->elem_size) {
+        fprintf(stderr, "vyne device: device_copy_slice mixed element sizes\n");
+        exit(1);
+    }
+    int es = D->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long off = (long long)src_offset;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* dp = (float*)(uintptr_t)dst;
+            const float* sp = (const float*)(uintptr_t)src;
+            void* args[] = { &dp, &sp, &off, &nn };
+            vyne_dev_launch(g_k_vec_copy_slice_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* dp = (double*)(uintptr_t)dst;
+            const double* sp = (const double*)(uintptr_t)src;
+            void* args[] = { &dp, &sp, &off, &nn };
+            vyne_dev_launch(g_k_vec_copy_slice, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* d = (float*)(uintptr_t)dst;
+        const float* s = (const float*)(uintptr_t)src;
+        for (int64_t i = 0; i < n; ++i) d[i] = s[src_offset + i];
+    } else {
+        double* d = (double*)(uintptr_t)dst;
+        const double* s = (const double*)(uintptr_t)src;
+        for (int64_t i = 0; i < n; ++i) d[i] = s[src_offset + i];
     }
 }
 

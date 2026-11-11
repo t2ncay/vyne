@@ -17,6 +17,7 @@ INPUT :: String := "data/sample.png";
 REFERENCE :: String := "data/reference.png";
 MODEL :: String := "data/espcn_x2.vwy";
 TRAINED_MODEL :: String := "build/espcn_gpu_trained.vwt";
+BEST_MODEL :: String := "build/espcn_gpu_best.vwt";
 
 fn print_quality(name :: String, img :: vimage.Image, ref :: vimage.Image) {
     out(name + " PSNR : " + string(psnr_img(img, ref)) + " dB");
@@ -31,6 +32,7 @@ input :: vimage.Image := vimage.load(INPUT);
 reference :: vimage.Image := vimage.load(REFERENCE);
 model_path :: String := MODEL;
 if vfs.exists(TRAINED_MODEL) { model_path = TRAINED_MODEL; }
+if vfs.exists(BEST_MODEL) { model_path = BEST_MODEL; }
 model :: ESPCN := load_espcn(model_path);
 
 out("input     : " + string(input.width) + "x" + string(input.height) +

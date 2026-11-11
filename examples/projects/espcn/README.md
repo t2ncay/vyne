@@ -94,16 +94,18 @@ would make those fully device-resident too.
 
 ## Next Step
 
-## GPU Training V2A
+## GPU Training V2B
 
 `src/train_gpu.vy` is the first explicit GPU-training path for ESPCN. It uses a
 single `@device<cuda>` region, saved device activations, device MSE gradient,
 device pixel-shuffle backward, device conv backward kernels, ReLU backward, and
-in-place device AdamW updates. V2A preallocates the forward/backward/loss buffers
-once, reduces loss to one device scalar per epoch with `device_sum`, writes
-`build/train_loss.csv`, downloads the trained weights, writes
-`build/espcn_gpu_trained.vwt`, reloads that checkpoint through `vconv.load_model`,
-and verifies CPU inference from the saved model.
+in-place device AdamW updates. V2B packs three deterministic training crops and
+one held-out validation crop, uploads them once, stages each crop with
+`device_copy_slice`, preallocates the forward/backward/loss buffers once, reduces
+loss to one device scalar with `device_sum`, writes `build/train_loss.csv` and
+`build/val_metrics.csv`, downloads the trained weights, writes latest/best
+checkpoints, reloads the best checkpoint through `vconv.load_model`, and verifies
+CPU inference from the saved model.
 
 ```bash
 ../../../vynec --compile src/train_gpu.vy
@@ -113,14 +115,14 @@ and verifies CPU inference from the saved model.
 Scope and limits:
 
 - ReLU ESPCN only.
-- Batch size 1.
+- Batch size 1 over deterministic crops.
 - MSE loss and AdamW.
 - Explicit training graph, not automatic tensor AD yet.
 - The success criterion is that the loss decreases and the saved checkpoint
-  reloads with an improved CPU-side MSE.
+  reloads with an improved held-out validation MSE.
 
 The next training step is a reusable external `vtensor`/`vnn` surface and a
 multi-crop or multi-image dataset loop once the explicit proof stays stable.
 
-`src/main.vy` automatically prefers `build/espcn_gpu_trained.vwt` when it exists;
-otherwise it falls back to `data/espcn_x2.vwy`.
+`src/main.vy` automatically prefers `build/espcn_gpu_best.vwt`, then
+`build/espcn_gpu_trained.vwt`, then `data/espcn_x2.vwy`.

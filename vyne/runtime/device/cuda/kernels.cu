@@ -116,6 +116,18 @@ extern "C" __global__ void vec_fill_f32(float* c, float v, long long n) {
     if (i < n) c[i] = v;
 }
 
+extern "C" __global__ void vec_copy_slice_f32(float* dst, const float* src,
+                                              long long offset, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[i] = src[offset + i];
+}
+
+extern "C" __global__ void vec_copy_slice_f64(double* dst, const double* src,
+                                              long long offset, long long n) {
+    long long i = (long long)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) dst[i] = src[offset + i];
+}
+
 extern "C" __global__ void reduce_sum_f32(float* out, const float* in,
                                           long long n) {
     __shared__ float sh[256];
