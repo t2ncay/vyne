@@ -1,0 +1,34 @@
+[project]
+name = "espcn"
+version = "0.1.0"
+authors = ["Tuncay Gafarli <4tvnexmgmt@gmail.com>"]
+license = "AGPL-3.0-only"
+description = "A compiler-native ESPCN image upscaler with CPU reference and full-device CUDA inference."
+repository = ""
+keywords = ["super-resolution", "espcn", "cuda", "image"]
+
+[toolchain]
+vyne = "0.7.0"
+
+[dependencies]
+vimage = "0.4"
+vconv = "0.4"
+vstat = "0.2"
+
+[targets]
+default = "desktop"
+
+[targets.desktop]
+backend = "c"
+
+[build]
+default_targets = ["desktop"]
+deterministic = true
+
+[bench]
+warmup = 3
+iterations = 10
+report = "build/bench.json"
+
+[device.cuda]
+sm_version = "86"
