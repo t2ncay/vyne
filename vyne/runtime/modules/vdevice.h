@@ -139,6 +139,11 @@ static CUfunction g_k_vec_relu = NULL;
 static CUfunction g_k_vec_fill = NULL;
 static CUfunction g_k_matmul = NULL;
 static CUfunction g_k_conv2d = NULL;
+static CUfunction g_k_conv2d_bwd_input = NULL;
+static CUfunction g_k_conv2d_bwd_weight = NULL;
+static CUfunction g_k_conv2d_bwd_bias = NULL;
+static CUfunction g_k_relu_grad = NULL;
+static CUfunction g_k_pixel_shuffle = NULL;
 
 static CUfunction g_k_vec_add_f32 = NULL;
 static CUfunction g_k_vec_sub_f32 = NULL;
@@ -148,6 +153,11 @@ static CUfunction g_k_vec_relu_f32 = NULL;
 static CUfunction g_k_vec_fill_f32 = NULL;
 static CUfunction g_k_matmul_f32 = NULL;
 static CUfunction g_k_conv2d_f32 = NULL;
+static CUfunction g_k_conv2d_bwd_input_f32 = NULL;
+static CUfunction g_k_conv2d_bwd_weight_f32 = NULL;
+static CUfunction g_k_conv2d_bwd_bias_f32 = NULL;
+static CUfunction g_k_relu_grad_f32 = NULL;
+static CUfunction g_k_pixel_shuffle_f32 = NULL;
 
 #define VYNE_CUDA_LOAD(field, name)                                      \
     do {                                                                 \
@@ -215,6 +225,21 @@ static int vyne_device_cuda_init(void) {
         return 0;
     if (g_cuModuleGetFunction(&g_k_conv2d, g_vyne_cuda_module, "conv2d_f64") != 0)
         return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_input, g_vyne_cuda_module,
+                              "conv2d_backward_input_f64") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_weight, g_vyne_cuda_module,
+                              "conv2d_backward_weight_f64") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_bias, g_vyne_cuda_module,
+                              "conv2d_backward_bias_f64") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_relu_grad, g_vyne_cuda_module,
+                              "vec_relu_grad_f64") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_pixel_shuffle, g_vyne_cuda_module,
+                              "pixel_shuffle_f64") != 0)
+        return 0;
 
     if (g_cuModuleGetFunction(&g_k_vec_add_f32, g_vyne_cuda_module, "vec_add_f32") != 0)
         return 0;
@@ -231,6 +256,21 @@ static int vyne_device_cuda_init(void) {
     if (g_cuModuleGetFunction(&g_k_matmul_f32, g_vyne_cuda_module, "matmul_f32") != 0)
         return 0;
     if (g_cuModuleGetFunction(&g_k_conv2d_f32, g_vyne_cuda_module, "conv2d_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_input_f32, g_vyne_cuda_module,
+                              "conv2d_backward_input_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_weight_f32, g_vyne_cuda_module,
+                              "conv2d_backward_weight_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_conv2d_bwd_bias_f32, g_vyne_cuda_module,
+                              "conv2d_backward_bias_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_relu_grad_f32, g_vyne_cuda_module,
+                              "vec_relu_grad_f32") != 0)
+        return 0;
+    if (g_cuModuleGetFunction(&g_k_pixel_shuffle_f32, g_vyne_cuda_module,
+                              "pixel_shuffle_f32") != 0)
         return 0;
 
     g_vyne_dev_cuda_ok = 1;
@@ -1017,6 +1057,361 @@ static inline void vyne_device_conv2d(
                 }
     }
 }
+// Generic conv2d backward-input: grad_X[in_h,in_w,in_c] from
+// grad_out[out_h,out_w,out_c] and the OIHW weight. Zero padding, square
+// kernel, HWC tensors. The F32/F64 kernel is selected by the handle dtype.
+static inline void vyne_device_conv2d_backward_input(
+    int64_t grad_x, int64_t grad_out, int64_t w,
+    int64_t in_h, int64_t in_w, int64_t in_c,
+    int64_t out_h, int64_t out_w, int64_t out_c,
+    int64_t k, int64_t stride, int64_t pad) {
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 || k <= 0) {
+        fprintf(stderr, "vyne device: conv2d backward-input dimensions are invalid\n");
+        exit(1);
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+
+    VyneDeviceAlloc* GX = vyne_dev_find(grad_x, in_h * in_w * in_c,
+                                        "device_conv2d_backward_input(grad_x)");
+    VyneDeviceAlloc* GO = vyne_dev_find(grad_out, out_h * out_w * out_c,
+                                        "device_conv2d_backward_input(grad_out)");
+    VyneDeviceAlloc* W = vyne_dev_find(w, out_c * in_c * k * k,
+                                       "device_conv2d_backward_input(weight)");
+    if (GX->elem_size != GO->elem_size || GX->elem_size != W->elem_size) {
+        fprintf(stderr, "vyne device: device_conv2d_backward_input mixed element sizes\n");
+        exit(1);
+    }
+
+    int total = (int)(in_h * in_w * in_c);
+    int es = GX->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        int IH = (int)in_h, IW = (int)in_w, IC = (int)in_c;
+        int OH = (int)out_h, OW = (int)out_w, OC = (int)out_c;
+        int K = (int)k, S = (int)stride, P = (int)pad;
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((total + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        if (es == 4) {
+            float* gxp = (float*)(uintptr_t)grad_x;
+            const float* gop = (const float*)(uintptr_t)grad_out;
+            const float* wp = (const float*)(uintptr_t)w;
+            void* args[] = { &gxp, &gop, &wp, &IH, &IW, &IC,
+                             &OH, &OW, &OC, &K, &S, &P };
+            vyne_dev_launch(g_k_conv2d_bwd_input_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* gxp = (double*)(uintptr_t)grad_x;
+            const double* gop = (const double*)(uintptr_t)grad_out;
+            const double* wp = (const double*)(uintptr_t)w;
+            void* args[] = { &gxp, &gop, &wp, &IH, &IW, &IC,
+                             &OH, &OW, &OC, &K, &S, &P };
+            vyne_dev_launch(g_k_conv2d_bwd_input, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* gx = (float*)(uintptr_t)grad_x;
+        const float* go = (const float*)(uintptr_t)grad_out;
+        const float* wp = (const float*)(uintptr_t)w;
+        for (int64_t iy = 0; iy < in_h; ++iy)
+            for (int64_t ix = 0; ix < in_w; ++ix)
+                for (int64_t ic = 0; ic < in_c; ++ic) {
+                    float acc = 0.0f;
+                    for (int64_t oc = 0; oc < out_c; ++oc)
+                        for (int64_t ky = 0; ky < k; ++ky) {
+                            int64_t oy_num = iy + pad - ky;
+                            if (oy_num < 0 || (oy_num % stride) != 0) continue;
+                            int64_t oy = oy_num / stride;
+                            if (oy >= out_h) continue;
+                            for (int64_t kx = 0; kx < k; ++kx) {
+                                int64_t ox_num = ix + pad - kx;
+                                if (ox_num < 0 || (ox_num % stride) != 0) continue;
+                                int64_t ox = ox_num / stride;
+                                if (ox >= out_w) continue;
+                                acc += go[(oy * out_w + ox) * out_c + oc] *
+                                       wp[((oc * in_c) + ic) * k * k + ky * k + kx];
+                            }
+                        }
+                    gx[(iy * in_w + ix) * in_c + ic] = acc;
+                }
+    } else {
+        double* gx = (double*)(uintptr_t)grad_x;
+        const double* go = (const double*)(uintptr_t)grad_out;
+        const double* wp = (const double*)(uintptr_t)w;
+        for (int64_t iy = 0; iy < in_h; ++iy)
+            for (int64_t ix = 0; ix < in_w; ++ix)
+                for (int64_t ic = 0; ic < in_c; ++ic) {
+                    double acc = 0.0;
+                    for (int64_t oc = 0; oc < out_c; ++oc)
+                        for (int64_t ky = 0; ky < k; ++ky) {
+                            int64_t oy_num = iy + pad - ky;
+                            if (oy_num < 0 || (oy_num % stride) != 0) continue;
+                            int64_t oy = oy_num / stride;
+                            if (oy >= out_h) continue;
+                            for (int64_t kx = 0; kx < k; ++kx) {
+                                int64_t ox_num = ix + pad - kx;
+                                if (ox_num < 0 || (ox_num % stride) != 0) continue;
+                                int64_t ox = ox_num / stride;
+                                if (ox >= out_w) continue;
+                                acc += go[(oy * out_w + ox) * out_c + oc] *
+                                       wp[((oc * in_c) + ic) * k * k + ky * k + kx];
+                            }
+                        }
+                    gx[(iy * in_w + ix) * in_c + ic] = acc;
+                }
+    }
+}
+
+// Generic conv2d backward-weight: grad_W[out_c,in_c,k,k] from the HWC input
+// and grad_out. Zero padding, square kernel.
+static inline void vyne_device_conv2d_backward_weight(
+    int64_t grad_w, int64_t x, int64_t grad_out,
+    int64_t in_h, int64_t in_w, int64_t in_c,
+    int64_t out_h, int64_t out_w, int64_t out_c,
+    int64_t k, int64_t stride, int64_t pad) {
+    if (in_h <= 0 || in_w <= 0 || in_c <= 0 ||
+        out_h <= 0 || out_w <= 0 || out_c <= 0 || k <= 0) {
+        fprintf(stderr, "vyne device: conv2d backward-weight dimensions are invalid\n");
+        exit(1);
+    }
+    if (stride < 1) stride = 1;
+    if (pad < 0) pad = 0;
+
+    VyneDeviceAlloc* GW = vyne_dev_find(grad_w, out_c * in_c * k * k,
+                                        "device_conv2d_backward_weight(grad_w)");
+    VyneDeviceAlloc* X = vyne_dev_find(x, in_h * in_w * in_c,
+                                       "device_conv2d_backward_weight(input)");
+    VyneDeviceAlloc* GO = vyne_dev_find(grad_out, out_h * out_w * out_c,
+                                        "device_conv2d_backward_weight(grad_out)");
+    if (GW->elem_size != X->elem_size || GW->elem_size != GO->elem_size) {
+        fprintf(stderr, "vyne device: device_conv2d_backward_weight mixed element sizes\n");
+        exit(1);
+    }
+
+    int total = (int)(out_c * in_c * k * k);
+    int es = GW->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        int IH = (int)in_h, IW = (int)in_w, IC = (int)in_c;
+        int OH = (int)out_h, OW = (int)out_w, OC = (int)out_c;
+        int K = (int)k, S = (int)stride, P = (int)pad;
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((total + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        if (es == 4) {
+            float* gwp = (float*)(uintptr_t)grad_w;
+            const float* xp = (const float*)(uintptr_t)x;
+            const float* gop = (const float*)(uintptr_t)grad_out;
+            void* args[] = { &gwp, &xp, &gop, &IH, &IW, &IC,
+                             &OH, &OW, &OC, &K, &S, &P };
+            vyne_dev_launch(g_k_conv2d_bwd_weight_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* gwp = (double*)(uintptr_t)grad_w;
+            const double* xp = (const double*)(uintptr_t)x;
+            const double* gop = (const double*)(uintptr_t)grad_out;
+            void* args[] = { &gwp, &xp, &gop, &IH, &IW, &IC,
+                             &OH, &OW, &OC, &K, &S, &P };
+            vyne_dev_launch(g_k_conv2d_bwd_weight, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* gw = (float*)(uintptr_t)grad_w;
+        const float* xp = (const float*)(uintptr_t)x;
+        const float* go = (const float*)(uintptr_t)grad_out;
+        for (int64_t oc = 0; oc < out_c; ++oc)
+            for (int64_t ic = 0; ic < in_c; ++ic)
+                for (int64_t ky = 0; ky < k; ++ky)
+                    for (int64_t kx = 0; kx < k; ++kx) {
+                        float acc = 0.0f;
+                        for (int64_t oy = 0; oy < out_h; ++oy) {
+                            int64_t iy = oy * stride - pad + ky;
+                            if (iy < 0 || iy >= in_h) continue;
+                            for (int64_t ox = 0; ox < out_w; ++ox) {
+                                int64_t ix = ox * stride - pad + kx;
+                                if (ix < 0 || ix >= in_w) continue;
+                                acc += go[(oy * out_w + ox) * out_c + oc] *
+                                       xp[(iy * in_w + ix) * in_c + ic];
+                            }
+                        }
+                        gw[((oc * in_c) + ic) * k * k + ky * k + kx] = acc;
+                    }
+    } else {
+        double* gw = (double*)(uintptr_t)grad_w;
+        const double* xp = (const double*)(uintptr_t)x;
+        const double* go = (const double*)(uintptr_t)grad_out;
+        for (int64_t oc = 0; oc < out_c; ++oc)
+            for (int64_t ic = 0; ic < in_c; ++ic)
+                for (int64_t ky = 0; ky < k; ++ky)
+                    for (int64_t kx = 0; kx < k; ++kx) {
+                        double acc = 0.0;
+                        for (int64_t oy = 0; oy < out_h; ++oy) {
+                            int64_t iy = oy * stride - pad + ky;
+                            if (iy < 0 || iy >= in_h) continue;
+                            for (int64_t ox = 0; ox < out_w; ++ox) {
+                                int64_t ix = ox * stride - pad + kx;
+                                if (ix < 0 || ix >= in_w) continue;
+                                acc += go[(oy * out_w + ox) * out_c + oc] *
+                                       xp[(iy * in_w + ix) * in_c + ic];
+                            }
+                        }
+                        gw[((oc * in_c) + ic) * k * k + ky * k + kx] = acc;
+                    }
+    }
+}
+
+// Generic conv2d backward-bias: grad_B[out_c] = sum over spatial of grad_out.
+static inline void vyne_device_conv2d_backward_bias(
+    int64_t grad_b, int64_t grad_out,
+    int64_t out_h, int64_t out_w, int64_t out_c) {
+    if (out_h <= 0 || out_w <= 0 || out_c <= 0) {
+        fprintf(stderr, "vyne device: conv2d backward-bias dimensions are invalid\n");
+        exit(1);
+    }
+    VyneDeviceAlloc* GB = vyne_dev_find(grad_b, out_c,
+                                        "device_conv2d_backward_bias(grad_b)");
+    VyneDeviceAlloc* GO = vyne_dev_find(grad_out, out_h * out_w * out_c,
+                                        "device_conv2d_backward_bias(grad_out)");
+    if (GB->elem_size != GO->elem_size) {
+        fprintf(stderr, "vyne device: device_conv2d_backward_bias mixed element sizes\n");
+        exit(1);
+    }
+
+    int es = GB->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        int OH = (int)out_h, OW = (int)out_w, OC = (int)out_c;
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((out_c + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        if (es == 4) {
+            float* gbp = (float*)(uintptr_t)grad_b;
+            const float* gop = (const float*)(uintptr_t)grad_out;
+            void* args[] = { &gbp, &gop, &OH, &OW, &OC };
+            vyne_dev_launch(g_k_conv2d_bwd_bias_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* gbp = (double*)(uintptr_t)grad_b;
+            const double* gop = (const double*)(uintptr_t)grad_out;
+            void* args[] = { &gbp, &gop, &OH, &OW, &OC };
+            vyne_dev_launch(g_k_conv2d_bwd_bias, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* gb = (float*)(uintptr_t)grad_b;
+        const float* go = (const float*)(uintptr_t)grad_out;
+        for (int64_t oc = 0; oc < out_c; ++oc) {
+            float acc = 0.0f;
+            for (int64_t i = 0; i < out_h * out_w; ++i)
+                acc += go[i * out_c + oc];
+            gb[oc] = acc;
+        }
+    } else {
+        double* gb = (double*)(uintptr_t)grad_b;
+        const double* go = (const double*)(uintptr_t)grad_out;
+        for (int64_t oc = 0; oc < out_c; ++oc) {
+            double acc = 0.0;
+            for (int64_t i = 0; i < out_h * out_w; ++i)
+                acc += go[i * out_c + oc];
+            gb[oc] = acc;
+        }
+    }
+}
+
+// ReLU backward on device: out = pre > 0 ? grad : 0, element-wise.
+static inline void vyne_device_relu_grad(int64_t out, int64_t grad,
+                                         int64_t pre, int64_t n) {
+    int es = vyne_dev_elementwise_dtype(out, grad, pre, n, "device_relu_grad");
+    if (g_vyne_dev_backend == 1) {
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((n + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        long long nn = (long long)n;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* gp = (const float*)(uintptr_t)grad;
+            const float* pp = (const float*)(uintptr_t)pre;
+            void* args[] = { &op, &gp, &pp, &nn };
+            vyne_dev_launch(g_k_relu_grad_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* gp = (const double*)(uintptr_t)grad;
+            const double* pp = (const double*)(uintptr_t)pre;
+            void* args[] = { &op, &gp, &pp, &nn };
+            vyne_dev_launch(g_k_relu_grad, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* gp = (const float*)(uintptr_t)grad;
+        const float* pp = (const float*)(uintptr_t)pre;
+        for (int64_t i = 0; i < n; ++i) op[i] = pp[i] > 0.0f ? gp[i] : 0.0f;
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* gp = (const double*)(uintptr_t)grad;
+        const double* pp = (const double*)(uintptr_t)pre;
+        for (int64_t i = 0; i < n; ++i) op[i] = pp[i] > 0.0 ? gp[i] : 0.0;
+    }
+}
+
+// ESPCN depth-to-space on device. HWC, in channels c must be divisible by r*r.
+static inline void vyne_device_pixel_shuffle(
+    int64_t out, int64_t in, int64_t h, int64_t w, int64_t c, int64_t r) {
+    if (h <= 0 || w <= 0 || c <= 0 || r <= 0) {
+        fprintf(stderr, "vyne device: pixel_shuffle dimensions are invalid\n");
+        exit(1);
+    }
+    int64_t rr = r * r;
+    if (c % rr != 0) {
+        fprintf(stderr, "vyne device: pixel_shuffle channels not divisible by r*r\n");
+        exit(1);
+    }
+    int64_t out_c = c / rr;
+    int64_t out_h = h * r;
+    int64_t out_w = w * r;
+
+    VyneDeviceAlloc* O = vyne_dev_find(out, out_h * out_w * out_c,
+                                       "device_pixel_shuffle(out)");
+    VyneDeviceAlloc* I = vyne_dev_find(in, h * w * c,
+                                       "device_pixel_shuffle(input)");
+    if (O->elem_size != I->elem_size) {
+        fprintf(stderr, "vyne device: device_pixel_shuffle mixed element sizes\n");
+        exit(1);
+    }
+
+    int total = (int)(out_h * out_w * out_c);
+    int es = O->elem_size;
+    if (g_vyne_dev_backend == 1) {
+        int H = (int)h, W = (int)w, C = (int)c, R = (int)r;
+        unsigned int threads = 256;
+        unsigned int blocks = (unsigned int)((total + 255) / 256);
+        if (blocks == 0) blocks = 1;
+        if (es == 4) {
+            float* op = (float*)(uintptr_t)out;
+            const float* ip = (const float*)(uintptr_t)in;
+            void* args[] = { &op, &ip, &H, &W, &C, &R };
+            vyne_dev_launch(g_k_pixel_shuffle_f32, blocks, 1, 1, threads, 1, 1, args);
+        } else {
+            double* op = (double*)(uintptr_t)out;
+            const double* ip = (const double*)(uintptr_t)in;
+            void* args[] = { &op, &ip, &H, &W, &C, &R };
+            vyne_dev_launch(g_k_pixel_shuffle, blocks, 1, 1, threads, 1, 1, args);
+        }
+    } else if (es == 4) {
+        float* op = (float*)(uintptr_t)out;
+        const float* ip = (const float*)(uintptr_t)in;
+        for (int64_t y = 0; y < h; ++y)
+            for (int64_t x = 0; x < w; ++x)
+                for (int64_t i = 0; i < r; ++i)
+                    for (int64_t j = 0; j < r; ++j)
+                        for (int64_t oc = 0; oc < out_c; ++oc)
+                            op[((y * r + i) * out_w + (x * r + j)) * out_c + oc] =
+                                ip[((y * w + x) * c) + oc * rr + i * r + j];
+    } else {
+        double* op = (double*)(uintptr_t)out;
+        const double* ip = (const double*)(uintptr_t)in;
+        for (int64_t y = 0; y < h; ++y)
+            for (int64_t x = 0; x < w; ++x)
+                for (int64_t i = 0; i < r; ++i)
+                    for (int64_t j = 0; j < r; ++j)
+                        for (int64_t oc = 0; oc < out_c; ++oc)
+                            op[((y * r + i) * out_w + (x * r + j)) * out_c + oc] =
+                                ip[((y * w + x) * c) + oc * rr + i * r + j];
+    }
+}
+
 static inline void vyne_device_sync(void) {
     if (g_vyne_dev_backend == 1 && g_cuCtxSynchronize)
         g_cuCtxSynchronize();
