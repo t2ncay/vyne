@@ -35,18 +35,17 @@ Minimal dense-neural-network primitives for Vyne.
 
 ## Overview
 
-`vml` is a pure-Vyne neural-network library. It provides the primitives
+`vml` is a pure-Vyne CPU neural-network library. It provides the primitives
 you need to assemble and train a fully-connected network — dense layers
 with a small set of activations, a sequential container that composes
-them, stochastic gradient descent, and the two scalar losses that cover
-almost every binary classification and regression task.
+them, CPU optimizer helpers, and the scalar losses that cover common binary
+classification and regression examples.
 
-The library deliberately omits the features that make PyTorch and JAX
-convenient — autograd, GPU kernels, convolutional layers, optimizers
-beyond vanilla SGD, learning-rate schedules. It does one thing well: it
-represents a network as a list of `Dense` layers and gives you the
-forward pass, the four activation derivatives you need for a manual
-backward pass, and the weight-update kernel that closes the loop.
+The library deliberately stays focused on CPU dense models. It does not try to
+be the device tensor layer: use `vtensor` + `vnn` for explicit `@device` CNN and
+GPU-training graphs. `vml` does one thing well: it represents a network as a
+list of `Dense` layers and gives you the forward pass, activation derivatives,
+loss helpers, and CPU weight-update helpers that close the loop.
 
 `vml` is a thin layer. Every numeric operation is delegated to `vlin`.
 A `Dense` layer holds a `vlin.Types.Matrix` for weights and a plain
@@ -62,6 +61,20 @@ compiles to code where the inner loops of the forward and backward
 passes are bare `double` arithmetic. The network's data path from input
 matrix to loss is a chain of typed arrays with no boxing boundary in
 between.
+
+## Relationship to `vtensor` and `vnn`
+
+| Library | Role |
+| --- | --- |
+| `vml` | CPU dense/MLP models over `vlin.Matrix` |
+| `vlin` | CPU matrix/vector kernels used by `vml` |
+| `voptim` | General CPU optimizer states over flat arrays |
+| `vtensor` | Region-local device handle + shape metadata |
+| `vnn` | Explicit `@device_fn` CNN/device training blocks over `vtensor` |
+
+`vml` is not deprecated. It is the right layer for tabular data, small dense
+models, CPU-only examples, and teaching the mechanics of training. `vnn` is the
+right layer when tensors must stay device-resident inside `@device` regions.
 
 ---
 
@@ -569,8 +582,9 @@ allocated above the loop — outside every checkpoint — and the
 in-place SGD updates mutate them without reallocating, so the weights
 survive every rewind.
 
-For a fully working example that only uses present functions, see the
-`ml_seq.vy` file in `examples/training/`.
+For fully working examples that only use present functions, see
+`examples/training/ml_seq.vy` and the focused
+`examples/test/vml_cpu_mlp_train_test.vy` smoke test.
 
 ---
 
@@ -585,12 +599,13 @@ the worked example above is written by hand: the user computes `delta2`,
 the intended usage for 0.1.0. An autograd engine is planned for a
 future release but is not present.
 
-### No optimizers beyond SGD
+### CPU optimizer scope
 
-There is no Adam, RMSprop, AdaGrad, or momentum. `vml.sgd_step` is
-the only weight-update function. If you need an adaptive optimizer,
-implement it in user code using `vlin` element-wise primitives and
-mutable state arrays.
+`vml` includes `sgd_step` and a compact Adam helper (`vml.adam`,
+`vml.adam_state`, `vml.adam_step`) for dense CPU models. The broader CPU
+optimizer family lives in `voptim`, while GPU/device-resident AdamW lives in
+`vnn`. Keep `vml` optimizer use focused on small dense examples; use `voptim`
+or `vnn` when those layers better match the workload.
 
 ### No convolutional or recurrent layers
 
