@@ -87,9 +87,6 @@ would make those fully device-resident too.
 | `src/gpu.vy` | one-frame `@device<cuda>` Float32 ESPCN inference |
 | `src/metrics.vy` | PSNR/SSIM, edge/ringing, CPU/GPU max difference |
 | `src/upscale.vy` | Lanczos-3 + RCAS-style baseline |
-| `src/device_layers.vy` | `@device_fn` ESPCN forward/backward layer helpers |
-| `src/device_loss.vy` | `@device_fn` MSE gradient + device loss reduction helper |
-| `src/device_optim.vy` | `@device_fn` ESPCN AdamW update helper |
 | `scripts/export_espcn_weights.py` | PyTorch -> `.vwy`/`.vwt` exporter |
 | `data/sample.png` | low-resolution sample input |
 | `data/reference.png` | high-resolution reference |
@@ -124,12 +121,13 @@ Scope and limits:
 - The success criterion is that the loss decreases and the saved checkpoint
   reloads with an improved held-out validation MSE.
 
-The next training step is a reusable external `vtensor`/`vnn` surface and a
-multi-crop or multi-image dataset loop once the explicit proof stays stable.
+Training now uses the reusable external `vtensor` and `vnn` libraries for device
+shape metadata, device crop staging, conv/ReLU/pixel-shuffle blocks, MSE loss
+reduction, and AdamW updates. The next training step is a multi-image dataset
+loop once this first reusable surface stays stable.
 
 `src/main.vy` automatically prefers `build/espcn_gpu_best.vwt`, then
 `build/espcn_gpu_trained.vwt`, then `data/espcn_x2.vwy`.
 
-The device training helpers are kept project-local for now. They prove the
-`@device_fn` compiler surface without prematurely freezing a public `vtensor` or
-`vnn` API.
+`vtensor`/`vnn` are still intentionally small: they are explicit @device-region
+helpers, not automatic tensor AD.

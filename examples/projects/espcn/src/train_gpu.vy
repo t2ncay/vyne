@@ -10,11 +10,9 @@ use native vcore;
 use native vfs;
 use external "vimage/vimage.vy";
 use external "vconv/vconv.vy";
+use external "vtensor/vtensor.vy";
+use external "vnn/vnn.vy";
 use "model.vy";
-use "device_tensor.vy";
-use "device_layers.vy";
-use "device_loss.vy";
-use "device_optim.vy";
 
 ruleset { dynamic_casting };
 
@@ -108,7 +106,7 @@ fn tensor_mse(a :: vconv.Tensor, target :: Array<Float64>, n :: Int64) -> Float6
     return s / float64(n);
 }
 
-out("=== Vyne ESPCN GPU crop training V3A ===");
+out("=== Vyne ESPCN GPU crop training V4 ===");
 
 input :: vimage.Image := vimage.load(INPUT);
 reference :: vimage.Image := vimage.load(REFERENCE);
@@ -204,6 +202,7 @@ loss_one :: Array<Float32> := [0.0f];
 train_losses :: Array<Float64> := [];
 val_losses :: Array<Float64> := [];
 through li :: 0..EPOCHS-1 -> loop { train_losses.push(0.0); val_losses.push(0.0); };
+adamw_hyper :: vnn.AdamWHyper := vnn.adamw_hyper(LR, BETA1, BETA2, EPS, WEIGHT_DECAY);
 
 first_loss :: Float64 := 0.0;
 last_loss :: Float64 := 0.0;
@@ -237,6 +236,7 @@ t0 :: Int64 := vcore.now_ns();
     d_loss_part :: Int64 := device_alloc(out_n);
     d_loss :: Int64 := device_alloc(1);
     d_gh3 :: Int64 := device_alloc(h3_n);
+    d_gx :: Int64 := device_alloc(in_n);
     d_gw3 :: Int64 := device_alloc(w3f.size());
     d_gb3 :: Int64 := device_alloc(model.c3);
     d_ga2 :: Int64 := device_alloc(h2_n);
@@ -261,7 +261,21 @@ t0 :: Int64 := vcore.now_ns();
     d_m_b3 :: Int64 := device_alloc(model.c3);
     d_v_b3 :: Int64 := device_alloc(model.c3);
 
-    x_dev :: DeviceTensor := DeviceTensor(d_x, h, w, model.in_c, in_n);
+    x_dev :: vtensor.DeviceTensor := vtensor.tensor(d_x, h, w, model.in_c);
+    target_dev :: vtensor.DeviceTensor := vtensor.tensor(d_target, hr_h, hr_w, out_c);
+    h1_pre_t :: vtensor.DeviceTensor := vtensor.tensor(d_h1_pre, h, w, model.c1);
+    a1_t :: vtensor.DeviceTensor := vtensor.tensor(d_a1, h, w, model.c1);
+    h2_pre_t :: vtensor.DeviceTensor := vtensor.tensor(d_h2_pre, h, w, model.c2);
+    a2_t :: vtensor.DeviceTensor := vtensor.tensor(d_a2, h, w, model.c2);
+    h3_t :: vtensor.DeviceTensor := vtensor.tensor(d_h3, h, w, model.c3);
+    pred_t :: vtensor.DeviceTensor := vtensor.tensor(d_pred, hr_h, hr_w, out_c);
+    loss_grad_t :: vtensor.DeviceTensor := vtensor.tensor(d_loss_grad, hr_h, hr_w, out_c);
+    gh3_t :: vtensor.DeviceTensor := vtensor.tensor(d_gh3, h, w, model.c3);
+    ga2_t :: vtensor.DeviceTensor := vtensor.tensor(d_ga2, h, w, model.c2);
+    gh2_t :: vtensor.DeviceTensor := vtensor.tensor(d_gh2, h, w, model.c2);
+    ga1_t :: vtensor.DeviceTensor := vtensor.tensor(d_ga1, h, w, model.c1);
+    gh1_t :: vtensor.DeviceTensor := vtensor.tensor(d_gh1, h, w, model.c1);
+    gx_t :: vtensor.DeviceTensor := vtensor.tensor(d_gx, h, w, model.in_c);
 
     device_upload(d_train_x, train_xf, train_xf.size());
     device_upload(d_train_y, train_yf, train_yf.size());
@@ -292,27 +306,38 @@ t0 :: Int64 := vcore.now_ns();
         through crop :: 0..TRAIN_CROPS-1 -> loop {
             x_off :: Int64 := crop * in_n;
             y_off :: Int64 := crop * out_n;
-            device_copy_slice(d_x, d_train_x, x_off, in_n);
-            device_copy_slice(d_target, d_train_y, y_off, out_n);
+            vtensor.copy_slice(x_dev, d_train_x, x_off);
+            vtensor.copy_slice(target_dev, d_train_y, y_off);
 
-            espcn_forward_device(model, x_dev.handle, h, w, d_w1, d_b1, d_w2, d_b2, d_w3, d_b3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_h3, d_pred);
-            mse_grad_sum_device(d_loss_grad, d_loss_part, d_loss, d_pred, d_target, out_n);
+            vnn.conv2d_relu(h1_pre_t, a1_t, x_dev, d_w1, d_b1, model.c1, model.k1);
+            vnn.conv2d_relu(h2_pre_t, a2_t, a1_t, d_w2, d_b2, model.c2, model.k2);
+            vnn.conv2d(h3_t, a2_t, d_w3, d_b3, model.c3, model.k3);
+            vnn.pixel_shuffle(pred_t, h3_t, model.scale);
+            vnn.mse_grad_sum(d_loss_grad, d_loss_part, d_loss, pred_t, target_dev);
             device_download(d_loss, loss_one, 1);
             epoch_loss = epoch_loss + float64(loss_one[0]);
-            espcn_backward_device(model, x_dev.handle, h, w, d_w2, d_w3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_loss_grad, d_gh3, d_gw3, d_gb3, d_ga2, d_gh2, d_gw2, d_gb2, d_ga1, d_gh1, d_gw1, d_gb1);
+            vnn.pixel_shuffle_backward(gh3_t, loss_grad_t, model.scale);
+            vnn.conv2d_backward(ga2_t, d_gw3, d_gb3, a2_t, gh3_t, d_w3, model.c3, model.k3);
+            vnn.conv2d_relu_backward(ga1_t, d_gw2, d_gb2, gh2_t, a1_t, ga2_t, h2_pre_t, d_w2, model.c2, model.k2);
+            vnn.conv2d_relu_backward(gx_t, d_gw1, d_gb1, gh1_t, x_dev, ga1_t, h1_pre_t, d_w1, model.c1, model.k1);
 
             step :: Int64 := epoch * TRAIN_CROPS + crop + 1;
-            adamw_step_espcn_device(model, step, LR, BETA1, BETA2, EPS, WEIGHT_DECAY,
-                d_w1, d_m_w1, d_v_w1, d_gw1, w1_n, d_b1, d_m_b1, d_v_b1, d_gb1,
-                d_w2, d_m_w2, d_v_w2, d_gw2, w2_n, d_b2, d_m_b2, d_v_b2, d_gb2,
-                d_w3, d_m_w3, d_v_w3, d_gw3, w3_n, d_b3, d_m_b3, d_v_b3, d_gb3);
+            vnn.adamw(d_w1, d_m_w1, d_v_w1, d_gw1, adamw_hyper, step, w1_n);
+            vnn.adamw(d_b1, d_m_b1, d_v_b1, d_gb1, adamw_hyper, step, model.c1);
+            vnn.adamw(d_w2, d_m_w2, d_v_w2, d_gw2, adamw_hyper, step, w2_n);
+            vnn.adamw(d_b2, d_m_b2, d_v_b2, d_gb2, adamw_hyper, step, model.c2);
+            vnn.adamw(d_w3, d_m_w3, d_v_w3, d_gw3, adamw_hyper, step, w3_n);
+            vnn.adamw(d_b3, d_m_b3, d_v_b3, d_gb3, adamw_hyper, step, model.c3);
         };
 
         train_loss :: Float64 := epoch_loss / float64(TRAIN_CROPS);
-        device_copy_slice(d_x, d_val_x, 0, in_n);
-        device_copy_slice(d_target, d_val_y, 0, out_n);
-        espcn_forward_device(model, d_x, h, w, d_w1, d_b1, d_w2, d_b2, d_w3, d_b3, d_h1_pre, d_a1, d_h2_pre, d_a2, d_h3, d_pred);
-        mse_grad_sum_device(d_loss_grad, d_loss_part, d_loss, d_pred, d_target, out_n);
+        vtensor.copy_slice(x_dev, d_val_x, 0);
+        vtensor.copy_slice(target_dev, d_val_y, 0);
+        vnn.conv2d_relu(h1_pre_t, a1_t, x_dev, d_w1, d_b1, model.c1, model.k1);
+        vnn.conv2d_relu(h2_pre_t, a2_t, a1_t, d_w2, d_b2, model.c2, model.k2);
+        vnn.conv2d(h3_t, a2_t, d_w3, d_b3, model.c3, model.k3);
+        vnn.pixel_shuffle(pred_t, h3_t, model.scale);
+        vnn.mse_grad_sum(d_loss_grad, d_loss_part, d_loss, pred_t, target_dev);
         device_download(d_loss, loss_one, 1);
         val_loss :: Float64 := float64(loss_one[0]);
 

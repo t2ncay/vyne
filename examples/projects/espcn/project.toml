@@ -14,6 +14,8 @@ vyne = "0.7.0"
 vimage = "0.4"
 vconv = "0.4"
 vstat = "0.2"
+vtensor = "0.1"
+vnn = "0.1"
 
 [targets]
 default = "desktop"

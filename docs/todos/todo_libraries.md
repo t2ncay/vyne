@@ -239,6 +239,8 @@ These are pulled in with `use native`, not `use external`.
 | `vsignal` | **Done** | `vsignal/README.md` | Windows, FIR/IIR, resampling, spectral helpers, DSP kernels. |
 | `vcontrol` | **Done** | `vcontrol/README.md` | PID, complementary filters, Kalman1D/2, state-space helpers. |
 | `voptim` | **Done** | `voptim/README.md` | SGD, momentum/nesterov, Adam/AdamW, RMSProp, Adagrad, schedules. |
+| `vtensor` | **Done** | `vtensor/README.md` | Region-local device tensor metadata over @device handles. |
+| `vnn` | **Done** | `vnn/README.md` | Explicit @device_fn neural-network blocks over vtensor. |
 | `vsparse` | **Done** | `vsparse/README.md` | CSR, SpMV, residual, Frobenius, conjugate gradient. |
 | `vdecomp` | **Done** | `vdecomp/README.md` | LU, QR/least squares, Cholesky, Jacobi eigen, singular values. |
 | `vi2c`, `vspi` | **Done** | header comments | Typed MCU I2C/SPI wrappers over the Arduino bindings. |
