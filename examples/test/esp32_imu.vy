@@ -21,7 +21,8 @@ if (ok) {
 
 if (ok) {
     start :: Int64 := esp32.millis();
-    while ((esp32.millis() - start) < 5000) {
+    now :: Int64 := start;
+    while ((now - start) < 5000) {
         esp32.serial_print("a=(");
         esp32.serial_print(esp32.imu_accel_x());
         esp32.serial_print(", ");
@@ -38,6 +39,7 @@ if (ok) {
         esp32.serial_print(esp32.imu_temp());
         esp32.serial_println(" C");
         esp32.delay(500);
+        now = esp32.millis();
     }
 }
 

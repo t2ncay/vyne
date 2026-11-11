@@ -19,23 +19,23 @@ static inline VyneValue arduino_analog_read_voltage(VyneValue pin) {
 
 static inline VyneValue arduino_analog_reference(VyneValue mode) {
     // AVR's "reference voltage" concept maps to ESP32 input attenuation:
-    //   0 = ADC_ATTEN_DB_11  -> roughly 0..3.3 V  (default)
-    //   1 = ADC_ATTEN_DB_2_5 -> roughly 0..1.5 V
-    //   2 = ADC_ATTEN_DB_0   -> roughly 0..1.1 V
+    //   0 = ADC_11db  -> roughly 0..3.3 V  (default)
+    //   1 = ADC_2_5db -> roughly 0..1.5 V
+    //   2 = ADC_0db   -> roughly 0..1.1 V
     // Values outside 0..2 fall back to the default attenuation.
-    adc_attenuation_t atten = ADC_ATTEN_DB_11;
+    adc_attenuation_t atten = ADC_11db;
     switch ((int)mode.as.i64) {
     case 0:
-        atten = ADC_ATTEN_DB_11;
+        atten = ADC_11db;
         break;
     case 1:
-        atten = ADC_ATTEN_DB_2_5;
+        atten = ADC_2_5db;
         break;
     case 2:
-        atten = ADC_ATTEN_DB_0;
+        atten = ADC_0db;
         break;
     default:
-        atten = ADC_ATTEN_DB_11;
+        atten = ADC_11db;
         break;
     }
     analogSetAttenuation(atten);

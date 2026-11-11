@@ -12,9 +12,13 @@
 //
 // Calibration data is stored in NVS under namespace "vyne_touch" so it
 // survives resets. Run esp32_touch_calibrate.vy once per physical panel.
+//
+// If TFT_eSPI was built without `TOUCH_CS` (the default User_Setup.h has
+// it commented out), the library omits getTouch/setTouch entirely. The
+// surface below is then compiled as inert stubs so touch sketches still
+// build and report "no contact" instead of failing to compile.
 #pragma once
 #include "mcu_types.h"
-#include <Preferences.h>
 #include <TFT_eSPI.h>
 
 #if !defined(VYNE_USE_DISPLAY)
@@ -23,6 +27,10 @@
 static TFT_eSPI g_vyne_tft;
 static bool g_vyne_tft_inited = false;
 #endif
+
+#if defined(TOUCH_CS)
+
+#include <Preferences.h>
 
 static uint16_t g_vyne_touch_x = 0;
 static uint16_t g_vyne_touch_y = 0;
@@ -35,12 +43,8 @@ static inline bool _vyne_touch_poll(void) {
     if (touched) {
         g_vyne_touch_x = x;
         g_vyne_touch_y = y;
-#if defined(TOUCH_CS)
         // Resistive controllers report a Z value proportional to force.
         g_vyne_touch_pressure = (int32_t)g_vyne_tft.getTouchRawZ();
-#else
-        g_vyne_touch_pressure = 1;
-#endif
         return true;
     }
     g_vyne_touch_pressure = 0;
@@ -78,7 +82,7 @@ static inline VyneValue esp32_touch_screen_y(void) {
 }
 
 static inline VyneValue esp32_touch_screen_pressure(void) {
-    // Resistive: raw Z value, roughly 0..4095. Capacitive: 0 or 1.
+    // Resistive: raw Z value, roughly 0..4095.
     return vyne_int((int64_t)g_vyne_touch_pressure);
 }
 
@@ -124,3 +128,40 @@ static inline VyneValue esp32_touch_screen_calibrate(void) {
     }
     return vyne_null();
 }
+
+#else // !TOUCH_CS
+
+// TFT_eSPI has no touch driver configured. Keep the Vyne surface
+// linkable and return "no contact" so a sketch can detect the absence at
+// runtime; the hardware can be enabled by defining TOUCH_CS in
+// User_Setup.h and rebuilding.
+
+static inline VyneValue esp32_touch_screen_init(void) {
+    return vyne_null();
+}
+static inline VyneValue esp32_touch_screen_pressed(void) {
+    return vyne_bool(false);
+}
+static inline VyneValue esp32_touch_screen_x(void) {
+    return vyne_int(0);
+}
+static inline VyneValue esp32_touch_screen_y(void) {
+    return vyne_int(0);
+}
+static inline VyneValue esp32_touch_screen_pressure(void) {
+    return vyne_int(0);
+}
+static inline VyneValue esp32_touch_screen_read(void) {
+    return vyne_int(-1);
+}
+static inline VyneValue esp32_touch_screen_wait(void) {
+    return vyne_int(-1);
+}
+static inline VyneValue esp32_touch_screen_wait_release(void) {
+    return vyne_null();
+}
+static inline VyneValue esp32_touch_screen_calibrate(void) {
+    return vyne_null();
+}
+
+#endif // TOUCH_CS

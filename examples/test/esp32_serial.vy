@@ -14,9 +14,10 @@ esp32.serial_println("=== ESP32 serial ===");
 esp32.serial_println("type characters within 5 seconds");
 
 start :: Int64 := esp32.millis();
+now :: Int64 := start;
 count :: Int64 := 0;
 
-while ((esp32.millis() - start) < 5000) {
+while ((now - start) < 5000) {
     if (esp32.serial_available() > 0) {
         ch :: Int64 := esp32.serial_read();
         esp32.serial_print("rx: ");
@@ -25,6 +26,7 @@ while ((esp32.millis() - start) < 5000) {
     } else {
         esp32.delay(10);
     }
+    now = esp32.millis();
 }
 
 esp32.serial_print("bytes received = ");

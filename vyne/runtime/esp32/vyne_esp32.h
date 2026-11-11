@@ -7,6 +7,7 @@
 #include "detail/mcu_arena.h"
 #include "detail/mcu_bits.h"
 #include "detail/mcu_hardware.h"
+#include "detail/mcu_operators.h"
 #if defined(VYNE_USE_I2C)
 #include "detail/mcu_i2c.h"
 #endif

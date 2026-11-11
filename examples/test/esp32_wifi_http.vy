@@ -29,20 +29,24 @@ if (configured == 0) {
     esp32.wifi_connect(ssid, password);
 
     start :: Int64 := esp32.millis();
-    while ((esp32.wifi_status() != 3) && ((esp32.millis() - start) < 20000)) {
+    now :: Int64 := start;
+    status :: Int64 := esp32.wifi_status();
+    while ((status != 3) && ((now - start) < 20000)) {
         esp32.delay(250);
+        status = esp32.wifi_status();
+        now = esp32.millis();
     }
 
-    if (esp32.wifi_status() == 3) {
-        body :: String := esp32.http_post_json(url, "{\"token\":\"vyne\"}");
-        status :: Int64 := esp32.http_status();
+    if (status == 3) {
+        body :: String := esp32.http_post_json(url, "[\"vyne\"]");
+        http_status :: Int64 := esp32.http_status();
 
         esp32.serial_print("status = ");
-        esp32.serial_println(status);
+        esp32.serial_println(http_status);
         esp32.serial_print("body   = ");
         esp32.serial_println(body);
 
-        if (status == 200) {
+        if (http_status == 200) {
             esp32.serial_println("http: PASS");
         } else {
             esp32.serial_println("http: FAIL");

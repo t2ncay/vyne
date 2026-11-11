@@ -4,15 +4,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Arena size. The ESP32-WROOM-32 has 520 KB of SRAM. Reserving 128 KB
-// for the Vyne arena leaves roughly 390 KB for the WiFi/BT stacks,
-// FreeRTOS objects, and the Arduino core, which is the comfortable
-// operating envelope for a typical application. 128 KB is also far more
-// than any embedded Vyne program that respects region discipline needs:
-// a region body allocates, then rewinds to its checkpoint, so peak use
-// is driven by a single region's working set, not by program length.
+// Arena size. The ESP32-WROOM-32 has 520 KB of SRAM, but the linker's
+// available `.dram0.bss` segment is much smaller: the Arduino core,
+// FreeRTOS, WiFi/BT stacks, and the ESP-IDF runtime already reserve a
+// large part of it. A 128 KB static arena overflows the default
+// esp32:esp32:esp32 image (observed: 28 KB over on a WiFi-enabled
+// build), so the default is 64 KB. That is still far more than an
+// embedded Vyne program using region discipline needs, and it leaves
+// room for the WiFi driver's ~50 KB static heap when the sketch uses it.
+//
+// Override with -DVYNE_MCU_ARENA_SIZE=<bytes> for a board build that
+// disables WiFi/BT and can afford a larger arena.
 #ifndef VYNE_MCU_ARENA_SIZE
-#define VYNE_MCU_ARENA_SIZE 131072
+#define VYNE_MCU_ARENA_SIZE 65536
 #endif
 
 static uint8_t g_mcu_arena[VYNE_MCU_ARENA_SIZE];

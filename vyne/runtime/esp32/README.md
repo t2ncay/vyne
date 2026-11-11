@@ -88,6 +88,17 @@ These are intentional and documented at the relevant header:
   behind a version check.
 - **`timer_read()` returns `esp_timer_get_time()`.** A 64-bit
   microsecond monotonic clock, not a raw Timer1 counter.
+- **The default arena is 64 KB, not 128 KB.** The ESP32 linker's
+  `dram0_0_seg` cannot fit a 128 KB static array in a WiFi-enabled
+  `esp32:esp32:esp32` image. Override with `-DVYNE_MCU_ARENA_SIZE`.
+- **`mcu_operators.h` supplies boxed operators.** The compiler lowers
+  dynamic arithmetic to `vyne_binop`, sizes to `vyne_get_sizeof`, and
+  dynamic indexing to `vyne_index_get`; the shared `mcu_types.h` is
+  minimal, so the ESP32 runtime provides them.
+- **Touch compiles as inert stubs when TFT_eSPI has no `TOUCH_CS`.**
+  The library omits `getTouch`/`setTouch` in that configuration, so the
+  Vyne surface stays linkable and reports "no contact" until the user
+  enables touch in `User_Setup.h`.
 
 ## Tests
 

@@ -31,21 +31,25 @@ if (configured == 0) {
     esp32.wifi_connect(ssid, password);
 
     start :: Int64 := esp32.millis();
-    while ((esp32.wifi_status() != 3) && ((esp32.millis() - start) < 20000)) {
+    now :: Int64 := start;
+    status :: Int64 := esp32.wifi_status();
+    while ((status != 3) && ((now - start) < 20000)) {
         esp32.delay(250);
+        status = esp32.wifi_status();
+        now = esp32.millis();
     }
 
     ip :: String := esp32.wifi_local_ip();
     rssi :: Int64 := esp32.wifi_rssi();
 
     esp32.serial_print("status = ");
-    esp32.serial_println(esp32.wifi_status());
+    esp32.serial_println(status);
     esp32.serial_print("ip     = ");
     esp32.serial_println(ip);
     esp32.serial_print("rssi   = ");
     esp32.serial_println(rssi);
 
-    if (esp32.wifi_status() == 3) {
+    if (status == 3) {
         esp32.serial_println("wifi connect: PASS");
     } else {
         esp32.serial_println("wifi connect: FAIL");

@@ -20,9 +20,10 @@ esp32.touch_screen_init();
 esp32.serial_println("touch the panel for 10 seconds");
 
 start :: Int64 := esp32.millis();
+now :: Int64 := start;
 hits :: Int64 := 0;
 
-while ((esp32.millis() - start) < 10000) {
+while ((now - start) < 10000) {
     if (esp32.touch_screen_pressed()) {
         esp32.serial_print("x=");
         esp32.serial_print(esp32.touch_screen_x());
@@ -34,6 +35,7 @@ while ((esp32.millis() - start) < 10000) {
     } else {
         esp32.delay(20);
     }
+    now = esp32.millis();
 }
 
 esp32.serial_print("hits = ");

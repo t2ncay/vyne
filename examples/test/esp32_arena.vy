@@ -51,7 +51,8 @@ region second {
     };
 };
 
-drift2 :: Int64 := esp32.arena_used() - after_used;
+after2 :: Int64 := esp32.arena_used();
+drift2 :: Int64 := after2 - after_used;
 esp32.serial_print("second drift        = ");
 esp32.serial_print(drift2);
 esp32.serial_println(" B");
