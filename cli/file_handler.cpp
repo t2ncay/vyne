@@ -472,6 +472,183 @@ static int doArduinoMonitor(const std::string& port, int baud) {
 }
 
 // ---------------------------------------------------------------------------
+// ESP32 Build Helper
+// ---------------------------------------------------------------------------
+// The ESP32 core is too large to reproduce the xtensa toolchain invocation
+// by hand (unlike the AVR path above), so this pipeline delegates the
+// compile/upload/monitor phases to `arduino-cli`.
+//
+// The generated `.vy.c` is moved into a throwaway sketch directory as
+// `<sketch>/<sketch>.ino`. The runtime headers are copied alongside it
+// rather than passed through `compiler.cpp.extra_flags`: Arduino sketch
+// directories are implicitly on the include path, which sidesteps the
+// cmd.exe quoting problems caused by spaces in the Vyne install path.
+static int buildESP32(
+    const std::string& base,
+    const std::string& cFile,
+    const std::string& exeDir,
+    const std::string& fqbn
+) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+
+    std::string sketchDir = base + "_sketch";
+    std::string buildDir = base + "_build";
+
+    fs::remove_all(sketchDir, ec);
+    fs::create_directories(sketchDir, ec);
+    if (ec) {
+        std::cerr << RED << "  error" << RESET
+                  << "  cannot create " << sketchDir << ": " << ec.message()
+                  << "\n";
+        return 1;
+    }
+
+    // Arduino requires the primary .ino to share the sketch folder name.
+    std::string sketchName = fs::path(sketchDir).filename().string();
+    std::string inoPath = sketchDir + "/" + sketchName + ".ino";
+
+    fs::remove(inoPath, ec);
+    fs::rename(cFile, inoPath, ec);
+    if (ec) {
+        // Cross-volume or locked file: fall back to copy + delete.
+        ec.clear();
+        fs::copy_file(cFile, inoPath, fs::copy_options::overwrite_existing, ec);
+        if (ec) {
+            std::cerr << RED << "  error" << RESET
+                      << "  cannot move " << cFile << " to " << inoPath
+                      << ": " << ec.message() << "\n";
+            return 1;
+        }
+        fs::remove(cFile, ec);
+    }
+
+    // Vendor the runtime headers into the sketch so `#include
+    // "vyne_esp32.h"` resolves without any -I flags.
+    std::string runtimeDir = exeDir + "/vyne/runtime/esp32";
+    fs::copy_file(
+        runtimeDir + "/vyne_esp32.h",
+        sketchDir + "/vyne_esp32.h",
+        fs::copy_options::overwrite_existing,
+        ec
+    );
+    if (!ec) {
+        fs::copy(
+            runtimeDir + "/detail",
+            sketchDir + "/detail",
+            fs::copy_options::recursive | fs::copy_options::overwrite_existing,
+            ec
+        );
+    }
+    if (ec) {
+        std::cerr << RED << "  error" << RESET
+                  << "  cannot stage ESP32 runtime headers: " << ec.message()
+                  << "\n";
+        return 1;
+    }
+
+    sectionOpen("esp32-build");
+    std::cout << "    " << CYAN << "fqbn" << RESET << "        " << fqbn
+              << "\n";
+    std::cout << "    " << CYAN << "sketch" << RESET << "      " << inoPath
+              << "\n\n";
+
+    std::string cmd = "arduino-cli compile --fqbn " + fqbn + " --output-dir \"" +
+                      buildDir + "\" \"" + sketchDir + "\"";
+    std::cout << "    " << CYAN << "running" << RESET << "     " << cmd
+              << "\n\n";
+
+    int rc = system(cmd.c_str());
+    if (rc != 0) {
+        sectionClose();
+        std::cerr << RED << "  error" << RESET
+                  << "  arduino-cli compile failed (exit " << rc << ")\n\n";
+        return 1;
+    }
+
+    std::cout << "    " << GREEN << "bin" << RESET << "         " << buildDir
+              << "\n";
+    sectionClose();
+    return 0;
+}
+
+static int runESP32Compile(
+    const std::string& base,
+    const std::string& cFile,
+    const BuildOptions& opts
+) {
+    if (opts.esp32Board.empty()) {
+        std::cerr << RED << "  error" << RESET
+                  << "  --esp32 requires a board name "
+                     "(--esp32 esp32, --esp32 esp32s3, ...)\n";
+        return 1;
+    }
+
+    struct ESP32Board {
+        const char* name;
+        const char* fqbn;
+    };
+    static const ESP32Board boards[] = {
+        {"esp32", "esp32:esp32:esp32"},
+        {"esp32s2", "esp32:esp32:esp32s2"},
+        {"esp32s3", "esp32:esp32:esp32s3"},
+        {"esp32c3", "esp32:esp32:esp32c3"},
+        {"esp32c6", "esp32:esp32:esp32c6"},
+    };
+    const ESP32Board* board = nullptr;
+    for (const auto& b : boards)
+        if (opts.esp32Board == b.name) {
+            board = &b;
+            break;
+        }
+    if (!board) {
+        std::cerr << RED << "  error" << RESET << "  unknown ESP32 board '"
+                  << opts.esp32Board
+                  << "'; supported: esp32, esp32s2, esp32s3, esp32c3, esp32c6\n";
+        return 1;
+    }
+
+    std::string exeDir = FileUtils::getExeDir();
+    int rc = buildESP32(base, cFile, exeDir, board->fqbn);
+    if (rc != 0)
+        return rc;
+
+    std::string resolvedPort =
+        opts.esp32Port.empty() ? opts.arduinoPort : opts.esp32Port;
+
+    if (opts.esp32Upload) {
+        sectionOpen("flash");
+        if (resolvedPort.empty()) {
+            resolvedPort = promptPort();
+            if (resolvedPort.empty()) {
+                sectionClose();
+                return 1;
+            }
+        }
+        std::string cmd = "arduino-cli upload -p " + resolvedPort + " --fqbn " +
+                          board->fqbn + " --input-dir \"" + base + "_build\"";
+        std::cout << "    " << CYAN << "running" << RESET << "     " << cmd
+                  << "\n\n";
+        rc = system(cmd.c_str());
+        sectionClose();
+        if (rc != 0) {
+            std::cerr << RED << "  error" << RESET
+                      << "  arduino-cli upload failed (exit " << rc << ")\n\n";
+            return 1;
+        }
+    }
+
+    if (opts.esp32Monitor) {
+        int baud = opts.esp32Baud > 0 ? opts.esp32Baud : opts.baudRate;
+        rc = doArduinoMonitor(resolvedPort, baud);
+        if (rc != 0)
+            return rc;
+    }
+
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
 // Transpile + downstream phases
 // ---------------------------------------------------------------------------
 // Common path for --emit-c, --emit-asm, --compile, --run. The Vyne -> C step
@@ -500,8 +677,12 @@ static int runTranspile(
     C_Emitter emitter;
     emitter.reset();
     emitter.setScratchBoundsEnabled(opts.scratchBounds);
-    emitter.setArduinoTarget(
+    emitter.setTarget(
         opts.mode == RunMode::ArduinoCompile || opts.mode == RunMode::ArduinoRun
+            ? Target::AVR
+        : opts.mode == RunMode::ESP32Compile || opts.mode == RunMode::ESP32Run
+            ? Target::ESP32
+            : Target::Desktop
     );
 
     // Project-level build policy. These become defines in the emitted
@@ -590,6 +771,11 @@ static int runTranspile(
 
         Vyne::DiagnosticEngine::printSummary();
         return 0;
+    }
+
+    // ---------------- ESP32 path: arduino-cli, not avr-gcc --------------
+    if (opts.mode == RunMode::ESP32Compile || opts.mode == RunMode::ESP32Run) {
+        return runESP32Compile(base, cFile, opts);
     }
 
     // ---------------- Arduino path: avr-gcc, not gcc ----------------
