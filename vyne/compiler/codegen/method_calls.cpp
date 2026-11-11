@@ -17,6 +17,7 @@
 
 #include "detail/codegen_helpers.h"
 #include <optional>
+#include <stdexcept>
 
 // Method calls, including specialized collection and native methods.
 // Keep expressions that emit statements in evaluation order; see README.md.
@@ -104,8 +105,23 @@ std::optional<std::string> tryEmitNativeModuleMethod(
         return std::nullopt;
 
     const NativeMapEntry* entry = e.findNative(recvPath, node.getMethodName());
-    if (!entry)
+    if (!entry) {
+        // An embedded native module is a closed surface: a member that is
+        // not in the target table is a source error, not a user function
+        // to be resolved later. This is what makes eeprom_* on ESP32 fail
+        // with a clear Vyne diagnostic instead of a C/link error.
+        if (e.isEmbeddedTarget() &&
+            (recvPath == "arduino" || recvPath == "esp32")) {
+            throw std::runtime_error(
+                "Compile Error (VNE-079): '" + node.getMethodName() +
+                "' is not defined for the " +
+                (e.isESP32Target() ? "ESP32" : "AVR") +
+                " target in native module '" + recvPath + "' (line " +
+                std::to_string(node.lineNumber) + ")."
+            );
+        }
         return std::nullopt;
+    }
 
     // Track optional runtime features so finalize() can emit the
     // VYNE_USE_<FEATURE> defines before including the embedded runtime.
