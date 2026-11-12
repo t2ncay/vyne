@@ -37,6 +37,18 @@ MARKERS = {
 PANIC = re.compile(r"Guru Meditation|Backtrace:|abort\(\)|assert failed|: FAIL|SMOKE: FAIL")
 
 
+def merge_build_properties(properties):
+    """Append extra compiler flags to profile flags; last value wins for other keys."""
+    merged = {}
+    for property in properties:
+        key, value = property.split("=", 1)
+        if key in {"compiler.cpp.extra_flags", "compiler.c.extra_flags"} and key in merged:
+            merged[key] += " " + value
+        else:
+            merged[key] = value
+    return [key + "=" + value for key, value in merged.items()]
+
+
 def classify(name, text):
     if PANIC.search(text):
         return "FAIL", "panic or FAIL diagnostic observed"
@@ -45,6 +57,12 @@ def classify(name, text):
     marker = MARKERS[name]
     if marker not in text:
         return "FAIL", f"completion marker not observed: {marker}"
+    if name == "touch_probe":
+        readings = re.findall(r"raw touch: x=(\d+) y=(\d+) z=(\d+)", text)
+        if readings and all(x == "0" and y == "0" for x, y, z in readings):
+            return "SKIP", "raw controller response has only zero coordinates; contact is not established"
+    if name == "touch_probe" and "contact=" in text and "contact=1" not in text:
+        return "SKIP", "raw probe completed without any contact response"
     unavailable = {
         "imu": "MPU6050 NOT detected",
         "interrupts": "edge seen: none",
@@ -131,6 +149,7 @@ def main():
     for prop in args.build_property:
         if not isinstance(prop, str) or "=" not in prop or prop.startswith("="):
             parser.error("build properties must be key=value strings")
+    args.build_property = merge_build_properties(args.build_property)
     if args.seconds <= 0 or args.build_timeout <= 0:
         parser.error("timeouts must be positive")
     if args.board not in {"esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c6"}:
@@ -156,6 +175,7 @@ def main():
             continue
         base = args.output / source.stem
         build_log = args.output / f"{source.stem}.build.log"
+        print(f"Building {source.stem} (timeout {args.build_timeout:g}s)...", flush=True)
         if source.suffix == ".ino":
             sketch = Path(str(base) + "_sketch")
             sketch.mkdir(exist_ok=True)
@@ -173,6 +193,7 @@ def main():
         rc = command(cmd, build_log, args.build_timeout)
         entry = {"test": name, "build": "PASS" if rc == 0 else "FAIL", "build_exit": rc}
         if rc == 0 and name in run:
+            print(f"Uploading {source.stem} to {args.port}...", flush=True)
             upload = ["arduino-cli", "upload", "-p", args.port, "--fqbn",
                       f"esp32:esp32:{args.board}", "--input-dir", str(base) + "_build"]
             rc = command(upload, args.output / f"{source.stem}.upload.log", 90)
