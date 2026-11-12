@@ -117,6 +117,14 @@ SPI_TOUCH_FREQUENCY 2500000
 Change the pins to match your panel. If `TOUCH_CS` is disabled, the touch
 surface compiles as inert stubs that report "no contact".
 
+For the **HW-350 3.5-inch ILI9488 SPI panel**, use the per-build profile
+in [`profiles/hw350-ili9488-spi.json`](profiles/hw350-ili9488-spi.json).
+The ILI9341 configuration above produces a blank screen on that panel.
+`--esp32-build-property <key=value>` forwards repeatable overrides to
+`arduino-cli compile`, including TFT driver/pin flags for both the sketch
+and the library. See [hardware testing](HARDWARE_TESTING.md) for commands,
+wiring, the COM5 test results, and touch diagnostics.
+
 ### Double buffering
 
 `display_sprite_create(w, h)` returns a handle to an off-screen
@@ -132,3 +140,10 @@ sprites after WiFi is initialized and keep only what you need.
 with a `Requires` / `Hardware` / `Flash` / `Expect` comment block. Start
 with `esp32_hello.vy`, then `esp32_smoke.vy`; the rest are
 peripheral-specific and can be skipped when the hardware is absent.
+
+`python scripts/test_esp32.py` builds all examples and both native fixtures.
+Add `--run` to flash the core suite plus the runtime regression on COM5,
+or give explicit suffixes such as `--run display wifi_radar`.
+The runner captures setup output after reset, checks failure diagnostics,
+and writes per-test logs, `run.json`, and `results.json` outside the source
+tree. No-contact/device/credential cases are reported as skips.
