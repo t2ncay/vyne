@@ -1,6 +1,7 @@
 // Hardware regression for the runtime's sprite lifecycle and drawing target.
 // Staged with the current runtime headers by scripts/test_esp32.py.
 #define VYNE_USE_DISPLAY 1
+#define VYNE_USE_TOUCH 1
 #include "vyne_esp32.h"
 
 static int failures = 0;
@@ -48,6 +49,51 @@ void vyne_setup() {
     Serial.print("int64 min = ");
     arduino_serial_println(vyne_int(INT64_MIN));
     esp32_display_init(vyne_int(1));
+#if (defined(ILI9341_DRIVER) || defined(ILI9341_2_DRIVER)) && defined(TFT_RGB_ORDER) && TFT_RGB_ORDER == 1
+    check(TFT_MAD_COLOR_ORDER == 0 && (TFT_MAD_MV | TFT_MAD_COLOR_ORDER) == 0x20,
+          "ILI9341 RGB MADCTL configuration");
+    for (int rotation = 0; rotation < 4; ++rotation) {
+        esp32_display_set_rotation(vyne_int(rotation));
+        check(g_vyne_tft.getRotation() == rotation, "panel rotation");
+    }
+    esp32_display_set_rotation(vyne_int(1));
+#endif
+#if defined(ST7796_DRIVER) && defined(TFT_RGB_ORDER) && TFT_RGB_ORDER == 1
+    check(TFT_MAD_COLOR_ORDER == 0, "ST7796 RGB configuration");
+    for (int rotation = 0; rotation < 4; ++rotation) {
+        esp32_display_set_rotation(vyne_int(rotation));
+        check(g_vyne_tft.getRotation() == rotation, "panel rotation with mirror profile");
+    }
+    esp32_display_set_rotation(vyne_int(1));
+#endif
+#if defined(VYNE_TOUCH_XPT2046)
+    Preferences prefs;
+    check(prefs.begin("vyne_touch_test", false), "test calibration namespace");
+    VyneTouchCalibration calibration = {1, 480, 320, 1, 0, 2, 400, 3600, 500, 3500};
+    prefs.putBytes("xpt_cal", &calibration, sizeof(calibration));
+    prefs.end();
+    VyneTouchCalibration loaded = {};
+    check(_vyne_touch_load_xpt_calibration("vyne_touch_test", loaded) && loaded.reserved == 2 &&
+          loaded.width == 480 && loaded.x0 == 400, "calibration NVS round trip");
+    prefs.begin("vyne_touch_test", false);
+    prefs.putBytes("xpt_cal", &calibration, sizeof(calibration) - 1);
+    prefs.end();
+    check(!_vyne_touch_load_xpt_calibration("vyne_touch_test", loaded), "truncated NVS calibration rejected");
+    prefs.begin("vyne_touch_test", false);
+    calibration.version = 2;
+    prefs.putBytes("xpt_cal", &calibration, sizeof(calibration));
+    prefs.end();
+    check(!_vyne_touch_load_xpt_calibration("vyne_touch_test", loaded), "unknown calibration version rejected");
+    prefs.begin("vyne_touch_test", false);
+    prefs.clear();
+    prefs.end();
+#endif
+#if defined(TFT_BL)
+    check(digitalRead(TFT_BL) == TFT_BACKLIGHT_ON, "backlight enabled");
+#endif
+#if defined(VYNE_DISPLAY_ENABLE_PIN)
+    check(digitalRead(VYNE_DISPLAY_ENABLE_PIN) == HIGH, "auxiliary panel enable");
+#endif
     esp32_display_clear(vyne_int(TFT_BLACK));
     check(esp32_display_sprite_create(vyne_int(65537), vyne_int(8)).as.i64 == -1,
           "oversized width rejected");
