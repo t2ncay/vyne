@@ -31,6 +31,7 @@ static bool g_vyne_tft_inited = false;
 #if defined(TOUCH_CS)
 
 #include <Preferences.h>
+#include <nvs.h>
 
 static uint16_t g_vyne_touch_x = 0;
 static uint16_t g_vyne_touch_y = 0;
@@ -57,14 +58,18 @@ static inline VyneValue esp32_touch_screen_init(void) {
         g_vyne_tft_inited = true;
     }
 
-    Preferences prefs;
-    if (prefs.begin("vyne_touch", true)) {
+    // Missing calibration is the normal first-boot state. Preferences
+    // logs nvs_open(NOT_FOUND) as an error; read the optional blob via
+    // NVS directly so an uncalibrated panel does not emit a false error.
+    nvs_handle_t handle;
+    if (nvs_open("vyne_touch", NVS_READONLY, &handle) == ESP_OK) {
         uint16_t calData[5] = {0};
-        if (prefs.getBytes("cal", calData, sizeof(calData)) ==
-            sizeof(calData)) {
+        size_t length = sizeof(calData);
+        if (nvs_get_blob(handle, "cal", calData, &length) == ESP_OK &&
+            length == sizeof(calData)) {
             g_vyne_tft.setTouch(calData);
         }
-        prefs.end();
+        nvs_close(handle);
     }
     return vyne_null();
 }
