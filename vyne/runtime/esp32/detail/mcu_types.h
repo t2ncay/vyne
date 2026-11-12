@@ -50,6 +50,14 @@ struct VyneValue {
     } as;
 };
 
+// Native math fallbacks convert the active union member instead of
+// reinterpreting Int64/Bool bits as a double. Shared with boxed operators.
+static inline double _vyne_as_f64(VyneValue v) {
+    if (v.type == V_FLOAT64 || v.type == V_FLOAT32)
+        return v.as.f64;
+    return (double)v.as.i64;
+}
+
 // Forward declarations for the value constructors. `vyne_array_get`
 // and `vyne_array_push` below return / wrap boxed VyneValues, so
 // they need `vyne_null`, `vyne_int`, and `vyne_float` in scope.
@@ -538,7 +546,7 @@ static inline void _vyne_print_internal(VyneValue v) {
     // `const char[5]`) are all candidates for at least one ambiguous
     // overload. `::Serial` forces the Arduino global object.
     if (v.type == V_INT64)
-        ::Serial.print((long)v.as.i64);
+        ::Serial.print((long long)v.as.i64);
     else if (v.type == V_FLOAT64)
         ::Serial.print((double)v.as.f64);
     else if (v.type == V_STRING)

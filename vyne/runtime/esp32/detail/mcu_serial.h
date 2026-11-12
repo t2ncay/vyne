@@ -68,7 +68,7 @@ static inline VyneValue arduino_serial_flush(void) {
 // ---------------------------------------------------------------------
 static inline void _vyne_print_stream(Stream& out, VyneValue v) {
     if (v.type == V_INT64)
-        out.print((long)v.as.i64);
+        out.print((long long)v.as.i64);
     else if (v.type == V_FLOAT64)
         out.print((double)v.as.f64);
     else if (v.type == V_STRING)

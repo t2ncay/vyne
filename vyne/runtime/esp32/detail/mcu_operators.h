@@ -57,12 +57,6 @@ static inline bool _vyne_is_integral(VyneValue v) {
     return v.type == V_INT64 || v.type == V_BOOL;
 }
 
-static inline double _vyne_as_f64(VyneValue v) {
-    if (v.type == V_FLOAT64 || v.type == V_FLOAT32)
-        return v.as.f64;
-    return (double)v.as.i64;
-}
-
 static inline int64_t _vyne_as_i64(VyneValue v) {
     if (v.type == V_FLOAT64 || v.type == V_FLOAT32)
         return (int64_t)v.as.f64;

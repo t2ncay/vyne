@@ -102,39 +102,41 @@ static inline double arduino_degrees_f64(double rad) {
 // statically Float64 (Int64 literal, dynamic result, mixed site).
 // ---------------------------------------------------------------------
 static inline VyneValue arduino_tan(VyneValue x) {
-    return vyne_float(tan(x.as.f64));
+    return vyne_float(tan(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_asin(VyneValue x) {
-    return vyne_float(asin(x.as.f64));
+    return vyne_float(asin(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_acos(VyneValue x) {
-    return vyne_float(acos(x.as.f64));
+    return vyne_float(acos(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_atan(VyneValue x) {
-    return vyne_float(atan(x.as.f64));
+    return vyne_float(atan(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_atan2(VyneValue y, VyneValue x) {
-    return vyne_float(atan2(y.as.f64, x.as.f64));
+    return vyne_float(atan2(_vyne_as_f64(y), _vyne_as_f64(x)));
 }
 static inline VyneValue arduino_log(VyneValue x) {
-    return vyne_float(log(x.as.f64));
+    return vyne_float(log(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_log10(VyneValue x) {
-    return vyne_float(log10(x.as.f64));
+    return vyne_float(log10(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_exp(VyneValue x) {
-    return vyne_float(exp(x.as.f64));
+    return vyne_float(exp(_vyne_as_f64(x)));
 }
 static inline VyneValue arduino_pow(VyneValue x, VyneValue y) {
-    return vyne_float(pow(x.as.f64, y.as.f64));
+    return vyne_float(pow(_vyne_as_f64(x), _vyne_as_f64(y)));
 }
 static inline VyneValue arduino_fmod(VyneValue x, VyneValue y) {
-    return vyne_float(fmod(x.as.f64, y.as.f64));
+    return vyne_float(fmod(_vyne_as_f64(x), _vyne_as_f64(y)));
 }
 
 static inline VyneValue
 arduino_constrain(VyneValue x, VyneValue lo, VyneValue hi) {
-    return vyne_float(arduino_constrain_f64(x.as.f64, lo.as.f64, hi.as.f64));
+    return vyne_float(arduino_constrain_f64(
+        _vyne_as_f64(x), _vyne_as_f64(lo), _vyne_as_f64(hi)
+    ));
 }
 static inline VyneValue arduino_fmap(
     VyneValue x,
@@ -144,25 +146,29 @@ static inline VyneValue arduino_fmap(
     VyneValue out_hi
 ) {
     return vyne_float(arduino_fmap_f64(
-        x.as.f64,
-        in_lo.as.f64,
-        in_hi.as.f64,
-        out_lo.as.f64,
-        out_hi.as.f64
+        _vyne_as_f64(x),
+        _vyne_as_f64(in_lo),
+        _vyne_as_f64(in_hi),
+        _vyne_as_f64(out_lo),
+        _vyne_as_f64(out_hi)
     ));
 }
 static inline VyneValue arduino_lerp(VyneValue a, VyneValue b, VyneValue t) {
-    return vyne_float(arduino_lerp_f64(a.as.f64, b.as.f64, t.as.f64));
+    return vyne_float(arduino_lerp_f64(
+        _vyne_as_f64(a), _vyne_as_f64(b), _vyne_as_f64(t)
+    ));
 }
 static inline VyneValue
 arduino_smoothstep(VyneValue a, VyneValue b, VyneValue x) {
-    return vyne_float(arduino_smoothstep_f64(a.as.f64, b.as.f64, x.as.f64));
+    return vyne_float(arduino_smoothstep_f64(
+        _vyne_as_f64(a), _vyne_as_f64(b), _vyne_as_f64(x)
+    ));
 }
 static inline VyneValue arduino_radians(VyneValue deg) {
-    return vyne_float(arduino_radians_f64(deg.as.f64));
+    return vyne_float(arduino_radians_f64(_vyne_as_f64(deg)));
 }
 static inline VyneValue arduino_degrees(VyneValue rad) {
-    return vyne_float(arduino_degrees_f64(rad.as.f64));
+    return vyne_float(arduino_degrees_f64(_vyne_as_f64(rad)));
 }
 
 // ---------------------------------------------------------------------
