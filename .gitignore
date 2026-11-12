@@ -41,6 +41,11 @@ build/*
 *.txt
 *.ino.cpp
 vyne_contracts.log
+__pycache__/
+*.pyc
+
+# ESP32 hardware profiles are source configuration, not generated reports.
+!vyne/runtime/esp32/profiles/*.json
 
 # `share/vyne` holds compiler data: project templates, license texts, and
 # bundled sample assets. Some of their extensions collide with the
