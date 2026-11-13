@@ -93,6 +93,11 @@ jobs:
               -o vyne_run \
               -lm -lpthread -ldl -lrt -lssl -lcrypto
 
+      - name: Run hardware configuration and initialization acceptance
+        env:
+          VYNEC: ./vyne_run
+        run: python3 scripts/test_hardware.py
+
       - name: Run host touch calibration regression
         run: |
           set -euo pipefail

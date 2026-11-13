@@ -28,7 +28,7 @@ vynec run src/main.vy
 The TUI asks up to five questions:
 
 1. **Project kind** — ML training, Embedded, Scientific, Image / Video, or Mixed.
-2. **Targets** — Desktop, Arduino Uno R3, Coral Edge TPU, Jetson Nano.
+2. **Targets** — Desktop, Arduino Uno R3, generic ESP32 / S2 / S3 / C3 / C6 boards, the measured HW-950 display/touch preset, Coral Edge TPU, Jetson Nano.
 3. **Libraries** — `vlin`, `vml`, `vstat`, `vtermplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv`.
 4. **CUDA** — only when Desktop is selected and the project is not Embedded. It detects `nvcc` and warns without blocking.
 5. **License** — AGPL-3.0-only, MIT, or Proprietary.
@@ -37,7 +37,7 @@ The TUI asks up to five questions:
 | :--- | :--- |
 | `blank` | `@bounded` and `@deterministic` regions |
 | `ml` | Iris MLP, manual backprop, Adam, `vtermplot` loss curve |
-| `embedded` | Arduino Uno blinky and serial over `@bounded` |
+| `embedded` | Uno blinky, generic ESP32 serial greetings, or HW-950 display/touch over `@bounded` |
 | `scientific` | Lorenz RK4 integration, Lyapunov estimate, phase portrait |
 | `sr` | ESPCN-style 2x upscaling with `vimage` + `vconv` |
 
@@ -49,7 +49,11 @@ The TUI asks up to five questions:
 | :--- | :--- |
 | `--name <name>` | project name; also suppresses the TUI |
 | `--kind <kind>` | `blank`, `ml`, `embedded`, `scientific`, `sr`, `mixed` |
-| `--targets <list>` | `desktop`, `arduino-uno`, `coral`, `jetson` |
+| `--targets <list>` | `desktop`, `arduino-uno`, `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, `esp32c6`, `hw950`, `coral`, `jetson` |
+| `--board <name>` | select an embedded board instead of `--targets` |
+| `--preset <name>` | select compiler-managed hardware defaults, e.g. `hw950` |
+| `--port <device>` | save the upload/monitor port in `hardware.toml` |
+| `--baud <rate>` | save serial baud (default `115200`) |
 | `--libraries <list>` | comma-separated library names |
 | `--cuda yes\|no` | add `[device.cuda]` |
 | `--license <id>` | `AGPL-3.0-only`, `MIT`, `proprietary` |
@@ -116,6 +120,84 @@ vynec run examples/projects/srcnn
 ```
 
 Without an argument the driver walks up from the current directory until it finds `project.toml`. The entry point is `src/main.vy`, then `main.vy`. Explicit CLI flags are applied after the project configuration, so `--native`, `--blas`, and `--arduino` still win.
+
+## Embedded hardware: select once, build and run
+
+```shell
+vynec init screen_demo --name screen_demo --kind embedded --preset hw950 --port COM5 --no-git
+cd screen_demo
+vynec hardware setup   # one-time core/library install; requires arduino-cli
+vynec hardware show    # inspect all resolved board/display/touch settings
+vynec build            # compile firmware only
+vynec run              # compile, upload, reset and start
+vynec run --monitor    # explicitly select serial monitoring
+```
+
+For a generic board, replace `--preset hw950` with `--board esp32s3` (or
+`esp32`, `esp32s2`, `esp32c3`, `esp32c6`). Uno uses `--board arduino-uno`.
+The interactive target menu offers the same boards and preset labels.
+`--board`/`--preset` and `--targets` are alternative ways to select targets;
+an explicit board must match the selected preset.
+
+The generated user-facing configuration is TOML:
+
+```toml title="hardware.toml"
+[board]
+preset = "hw950"
+
+[connection]
+port = "COM5"
+baud = 115200
+```
+
+Presets are bundled under `share/vyne/hardware/*.json` and loaded internally.
+Normal applications need no JSON loading, Python launcher or test fixture.
+The measured HW-950 preset uses ST7796-compatible initialization, native
+240×320 RGB dimensions, vertical mirror correction, GPIO21 backlight,
+GPIO27 enable and shared-HSPI XPT2046 touch. Generic boards have no display.
+The HW-950 starter draws touch-contact dots for ten seconds; calibrate the
+physical panel for accurate coordinates.
+
+### Overrides and validation
+
+Precedence is **CLI overrides → hardware.toml overrides → preset defaults**.
+Use native portrait dimensions and rotation `0..3` for orientation:
+
+```toml
+[display]
+rotation = 1
+spi_frequency = 16000000
+mirror_y = true
+```
+
+```shell
+vynec hardware list
+vynec hardware show --hardware-set display.rotation=2
+vynec build --hardware-set display.rotation=2
+vynec run --port COM5 --baud 115200
+```
+
+Strings in `--hardware-set` require TOML quotes (for example,
+`'display.driver="st7796"'` in PowerShell or a POSIX shell). The resolved
+report lists supported display/touch pin fields. Invalid types, duplicate
+keys, unknown settings, drivers, dimensions, GPIO ranges/input-only or
+flash-reserved pins, shared chip-selects and incompatible board families
+produce actionable errors before compilation.
+
+Firmware, generated sketches and compiler intermediates live in
+`build/firmware/`. Hardware defines use the ESP32 core's `build_opt.h` hook,
+preserving platform USB/board flags. Existing low-level ESP32 build-property
+options remain available; `build.extra_flags` additions are staged through
+that response file instead of replacing the platform defaults.
+
+Legacy Uno `[board]`, `[pinout]` and `[budget]` metadata remains accepted;
+flash/SRAM budget entries are metadata, not resource enforcement. Projects
+without `hardware.toml` continue to use their `project.toml` board target.
+
+Run acceptance examples under `examples/templates/` with
+`python scripts/test_hardware.py --compile`; add `--port COM5` to upload the
+fresh HW-950 project and verify its serial startup. `xmake test-hardware`
+runs configuration/initialization checks without requiring a board.
 
 ## Benchmark
 

@@ -21,6 +21,7 @@
 #include <string>
 #include <stdexcept>
 #include <filesystem>
+#include <cstdlib>
 
 #include "../runtime/diagnostics.h"
 
@@ -29,7 +30,26 @@ namespace FileUtils {
 
     static void setExeDir(const std::string& argv0) {
         try {
-            std::filesystem::path p = std::filesystem::absolute(argv0);
+            std::filesystem::path executable(argv0);
+            if (!executable.has_parent_path()) {
+                if (const char* env = std::getenv("PATH")) {
+                    std::stringstream paths(env);
+                    std::string root;
+#ifdef _WIN32
+                    constexpr char separator = ';';
+#else
+                    constexpr char separator = ':';
+#endif
+                    while (std::getline(paths, root, separator)) {
+                        auto candidate = std::filesystem::path(root) / executable;
+#ifdef _WIN32
+                        if (!candidate.has_extension()) candidate += ".exe";
+#endif
+                        if (std::filesystem::is_regular_file(candidate)) { executable = candidate; break; }
+                    }
+                }
+            }
+            std::filesystem::path p = std::filesystem::weakly_canonical(std::filesystem::absolute(executable));
             exeDir = p.parent_path().string();
             if (exeDir.empty()) exeDir = ".";
         } catch (...) {
@@ -39,6 +59,13 @@ namespace FileUtils {
 
     static std::string getExeDir() {
         return exeDir;
+    }
+
+    static std::string getShareDir() {
+        const auto exe = std::filesystem::path(exeDir);
+        for (const auto& root : {exe / "share/vyne", exe.parent_path() / "share/vyne"})
+            if (std::filesystem::is_directory(root)) return root.string();
+        return (exe / "share/vyne").string();
     }
 
     [[maybe_unused]] static std::string getExternPath(const std::string& filePath) {

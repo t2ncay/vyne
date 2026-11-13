@@ -1,0 +1,16 @@
+{
+  "label": "HW-950 measured owner revision: ST7796-compatible 240x320 RGB, mirrored Y, shared-HSPI XPT2046",
+  "settings": {
+    "board.name": "esp32:esp32:esp32", "board.family": "esp32",
+    "connection.baud": 115200, "pinout.led_builtin": 2,
+    "display.driver": "st7796", "display.width": 240, "display.height": 320,
+    "display.rotation": 0, "display.rgb_order": 1, "display.hspi": true,
+    "display.miso": 12, "display.mosi": 13, "display.sclk": 14,
+    "display.cs": 15, "display.dc": 2, "display.rst": -1,
+    "display.backlight": 21, "display.backlight_on": 1, "display.enable": 27,
+    "display.mirror_x": false, "display.mirror_y": true,
+    "display.spi_frequency": 20000000, "display.spi_read_frequency": 10000000,
+    "touch.driver": "xpt2046", "touch.hspi": true,
+    "touch.cs": 33, "touch.irq": 36, "touch.sclk": 14, "touch.mosi": 13, "touch.miso": 12
+  }
+}

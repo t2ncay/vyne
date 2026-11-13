@@ -137,6 +137,8 @@ struct BuildOptions {
     bool esp32Monitor = false;    // --esp32-monitor
     int esp32Baud = 115200;       // --esp32-baud
     std::vector<std::string> esp32BuildProperties; // repeatable arduino-cli overrides
+    std::string hardwareFlags; // generated build_opt.h response-file options
+    std::string boardFqbn;     // complete project/hardware FQBN, including board options
 
     // Present when the driver was launched through `vynec build` / `vynec
     // run` and a project.toml was discovered. The flag-based CLI leaves

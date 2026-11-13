@@ -1,43 +1,57 @@
 # {{name}}
 
-An embedded Vyne project for the Arduino Uno R3. It blinks the
-built-in LED five times inside a `@bounded<512>` region and reports
-progress over serial at 9600 baud.
+An embedded Vyne project for **{{board_label}}**.
 
-## Build
+## One-time setup
 
-```bash
-vynec --arduino uno src/main.vy
+Install `arduino-cli`, then run:
+
+```sh
+vynec hardware setup
+vynec hardware show
 ```
 
-This emits the AVR firmware. Upload it with:
+Set your board's USB port in `[connection]` in `hardware.toml`.
 
-```bash
-vynec --arduino uno --flash --port COM3 src/main.vy
+## Build and run
+
+```sh
+vynec build          # compile firmware
+vynec run            # compile, upload, reset and start
+vynec run --monitor  # explicitly open serial monitoring after upload
 ```
 
-Then open the serial monitor:
+Firmware, sketches and compiler intermediates are under `build/firmware/`.
+The Uno starter blinks pin 13; generic ESP32 prints serial greetings; HW-950
+initializes the measured display and draws green dots on touch contact for
+ten seconds. Calibrate the physical touchscreen for accurate coordinates.
 
-```bash
-vynec --arduino uno --monitor --port COM3 src/main.vy
+## Hardware configuration
+
+`hardware.toml` is functional configuration. A preset supplies board, display,
+touch, pins and orientation. JSON presets are bundled compiler data.
+Precedence is **CLI overrides → TOML overrides → preset defaults**.
+
+```sh
+vynec hardware list
+vynec hardware show --hardware-set display.rotation=1
+vynec build --hardware-set display.rotation=1
+vynec run --port COM5
 ```
 
-`hardware.toml` records the board, pinout, and the flash/SRAM budget
-that `vynec verify` checks in a later milestone.
-
-## Layout
+Advanced overrides use `[display]` and `[touch]` tables in `hardware.toml`;
+see the resolved report for the supported field names. Display dimensions
+are native portrait dimensions; select landscape with rotation.
+Legacy Uno board, pinout and memory-budget metadata are accepted.
 
 | Path | Contents |
 | --- | --- |
-| `src/main.vy` | blinky demo and bounded region |
-| `hardware.toml` | board, pinout, memory budget |
-| `examples/` | serial hello and a bounded-array example |
-| `project.toml` | target and toolchain configuration |
+| `src/main.vy` | board-appropriate bounded starter |
+| `hardware.toml` | selected hardware and connection |
+| `project.toml` | project target and toolchain |
+| `build/firmware/` | generated files |
 
-## Learn more
-
-- Vyne repository: <https://github.com/t2ncay/vyne>
-- Arduino runtime: `vyne/runtime/arduino/README.md`
+Documentation: <https://github.com/t2ncay/vyne>
 {{#if license_spdx}}
-- License: {{license_spdx}}
+License: {{license_spdx}}
 {{/if}}

@@ -20,6 +20,21 @@ The target has a **1 KB static arena**, a **16-deep checkpoint stack**, and a ha
 
 ## A first sketch
 
+For a new project, select the board once and use the project workflow:
+
+```shell
+vynec init blink --name blink --kind embedded --board arduino-uno --port COM5
+cd blink
+vynec hardware setup
+vynec build
+vynec run
+```
+
+`hardware.toml` stores the board and port. Existing Uno pinout and budget
+fields remain accepted. `vynec run --monitor` explicitly enables monitoring.
+ESP32 and HW-950 initialization use the same short commands; see
+[Projects & Tooling](page:projects) for presets, overrides and setup.
+
 ```vyne title="blink.vy"
 use native arduino;
 

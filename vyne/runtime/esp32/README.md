@@ -32,6 +32,28 @@ never pays the ~50 KB static heap the WiFi driver reserves on `begin()`.
 
 ## Building
 
+For normal application development, select hardware once:
+
+```sh
+vynec init screen --name screen --kind embedded --preset hw950 --port COM5
+cd screen
+vynec hardware setup
+vynec hardware show
+vynec build
+vynec run
+```
+
+Generic boards use `--board esp32`, `esp32s2`, `esp32s3`, `esp32c3` or
+`esp32c6`. `hardware.toml` is the user-facing configuration; bundled JSON
+presets are loaded by the compiler. CLI `--hardware-set` values override
+TOML values, which override preset defaults. Firmware/sketch/cache files
+are staged in `build/firmware/`. The core's `build_opt.h` response-file hook
+applies display/touch settings without replacing platform USB defines.
+Use `vynec run --monitor` only when you want serial monitoring.
+
+See `docs/src/getting-started/projects.md` and `examples/templates/README.md`
+for the complete fresh-project workflow and acceptance tests.
+
 The compiler delegates to `arduino-cli`; it does not reproduce the
 xtensa toolchain invocation by hand:
 

@@ -58,7 +58,7 @@ try {
 
     $toml = Get-Content -Raw (Join-Path $blank "project.toml")
     Check "toml-name" ($toml -match 'name = "blank_demo"')
-    Check "toml-vyne" ($toml -match 'vyne = "0\.4\.0"')
+    Check "toml-vyne" ($toml -match 'vyne = "0\.7\.0"')
     Check "toml-target" ($toml -match '\[targets\.desktop\]')
 
     $main = Get-Content -Raw (Join-Path $blank "src/main.vy")
@@ -211,7 +211,7 @@ try {
     $srRun = Build-Run $sr
     Check "sr-compile" ($srRun.Compile -eq 0)
     Check "sr-psnr" ($srRun.Output -match "PSNR")
-    Check "sr-output" (Test-Path (Join-Path $sr "build/output.png"))
+    Check "sr-output" (Test-Path (Join-Path $sr "build/output_cuda.png"))
 
     # Embedded (AVR build when the toolchain is present)
     $emb = Join-Path $base "emb_demo"
