@@ -1,214 +1,233 @@
-# ESP32 hardware testing and HW-350 setup
+# ESP32 hardware testing and the owner's HW-950 setup
 
 ## Requirements
 
 - Build Vyne with `xmake -y`.
-- Install `arduino-cli` and `esp32:esp32` (validated with CLI 1.5.1 and core 3.3.12).
-- Install TFT_eSPI for display/touch/fixture builds (validated with 2.5.43).
-- Python 3; install `pyserial` with `python -m pip install pyserial` for flashing/serial runs.
-- Close other serial monitors before using COM5.
+- Arduino CLI plus `esp32:esp32` (tested CLI 1.5.1 / core 3.3.12).
+- TFT_eSPI (tested 2.5.43).
+- Python 3 and `python -m pip install pyserial` for hardware runs.
+- Close other COM5 serial monitors before uploading or capturing output.
 
-The examples target the classic ESP32. Other supported aliases are
-`esp32s2`, `esp32s3`, `esp32c3`, and `esp32c6`; their hardware-dependent
-surfaces and pin assignments differ and were not board-tested here.
+The chip on COM5 is an ESP32-D0WD-V3, revision 3.1, with 4 MB flash.
+Use `--esp32 esp32` / `esp32:esp32:esp32`. Other supported ESP32 aliases
+are not physically validated by this session.
 
-## HW-350 ILI9488 SPI display
+## The working HW-950 profile
 
-The COM5 board uses a 3.5-inch HW-350 display. Selecting ILI9341 caused a
-blank/white screen; selecting ILI9488 produced a 480×320 landscape display,
-and the owner confirmed the WiFi list rendered correctly.
+Use [`profiles/hw950-screen-rgb.json`](profiles/hw950-screen-rgb.json).
+The owner supplied local front/back photos and participated in the visual
+and touch tests. The final profile is based on these observations, rather
+than assuming the board's PCB marking uniquely determines its controller:
 
-The supplied profile encodes the wiring used for this session, not a
-universal pinout for every board carrying the HW-350 label:
+- **Measured panel:** 240x320 portrait / **320x240 landscape**.
+- **Working initialization:** `ST7796_DRIVER` with explicit `TFT_WIDTH=240`
+  and `TFT_HEIGHT=320`, RGB order, and logical vertical mirror correction.
+- **RGB:** `TFT_RGB_ORDER=1` leaves the MADCTL BGR bit clear.
+- **Orientation:** `VYNE_DISPLAY_MIRROR_Y=1` is re-applied after rotation.
+- **Display SPI:** HSPI, MOSI13 / MISO12 / SCLK14 / CS15 / DC2 / RST=-1.
+- **Power/control:** active-high GPIO21 backlight plus GPIO27 auxiliary enable,
+  both explicitly confirmed safe by the owner and checked HIGH during tests.
+- **Observed touch path:** XPT2046 on shared HSPI pins 13/12/14, CS33, IRQ36.
 
-| Signal | ESP32 GPIO |
-| --- | ---: |
-| Display SCK | 18 |
-| Display SDI / MOSI | 23 |
-| Display CS | 15 |
-| Display DC | 2 |
-| Display RESET | 4 |
-| Touch T_CLK | 18 |
-| Touch T_DIN | 23 |
-| Touch T_DO / MISO | 19 |
-| Touch T_CS | 21 |
+These are the tested settings for this board, not a universal HW-950/CYD
+pinout. Raw display-ID reads returned zero, so the guide does not claim a
+detected IC identity. The initially supplied ILI9341 / separate-touch-bus
+settings remain as a reference in `cyd-ili9341-rgb.json`. The generic
+external ILI9488 profile is not the integrated owner's board configuration.
 
-The profile sets ILI9488, a 20 MHz display SPI clock, a 2.5 MHz touch clock,
-and the built-in GLCD/font 2/font 4/GFX font support. Adjust the flags to
-match your actual connections and controller.
+### Why the original profiles failed
 
-ILI9488 display SDO does not tristate when CS is inactive. Leave **display
-SDO disconnected** when sharing MISO with touch; touch T_DO still connects
-to GPIO19. The profile does not define a backlight-control pin: power the
-panel backlight according to its hardware, or add the appropriate `TFT_BL`
-and polarity configuration for your board.
+1. They replaced Arduino's **`build.extra_flags`** with TFT-only defines.
+   This removed `ESP32` and other platform/USB/core settings. Libraries
+   selected incorrect platform paths; Adafruit BusIO also failed with a
+   missing `BitOrder` type. Profiles now use **`compiler.cpp.extra_flags`**,
+   preserving the core's flags for both sketch and library compilation.
+2. The generic external-panel pins and missing backlight configuration did
+   not match the integrated board.
+3. A 480x320 canvas could produce full color fills but wrapped a line across
+   the actual 320x240 display and put calibration targets off screen. A
+   front photo and numbered bounds markers resolved the physical size.
+4. Text was vertically mirrored; profile-controlled MADCTL adjustment fixes
+   it without changing the installed library and persists across rotations.
 
-### Build and flash with the profile
+`mcu_panel.h` shares initialization between display and touch-only sketches.
+It diagnoses a missing ESP32 platform define instead of silently rendering
+through the wrong platform path.
 
-From the repository root:
+## Direct Vyne commands
 
-```powershell
-python scripts/test_esp32.py --only display wifi_radar --run display wifi_radar --port COM5 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
-```
-
-For direct CLI use, read the same build property and pass it to Vyne:
-
-```powershell
-$profile = Get-Content vyne/runtime/esp32/profiles/hw350-ili9488-spi.json -Raw | ConvertFrom-Json
-$tft = $profile.build_properties[0]
-.\vynec.exe --esp32 esp32 --esp32-build-property $tft --esp32-flash --esp32-port COM5 examples/test/esp32_wifi_radar.vy
-```
-
-`--esp32-build-property` accepts both `--flag key=value` and
-`--flag=key=value`. Repeat it for additional Arduino build properties:
+From the repository root, load the profile and flash in the same PowerShell
+session (an unset `$screen` is not a valid `key=value` build property):
 
 ```powershell
-.\vynec.exe --esp32 esp32 --esp32-build-property $tft --esp32-build-property "compiler.cpp.extra_flags=-DVYNE_MCU_ARENA_SIZE=32768" examples/test/esp32_hello.vy
+$profile = Get-Content "vyne/runtime/esp32/profiles/hw950-screen-rgb.json" -Raw | ConvertFrom-Json
+$screen = $profile.build_properties[0]
+
+.\vynec.exe --esp32 esp32 --esp32-build-property "$screen" --esp32-flash --esp32-port COM5 examples/test/esp32_wifi_radar.vy
 ```
 
-These flags apply to the generated sketch and library compilation. A
-driver define in the `.ino` alone cannot reconfigure separately compiled
-TFT_eSPI sources. The library's global `User_Setup.h` stays available for
-builds that do not supply overrides.
+Firmware starts automatically after upload. Add `--esp32-monitor` to capture
+serial output. RST starts another scan; the radar scans once per boot.
 
-## Repeatable suite
-
-Compile all 21 Vyne examples and both native fixtures without flashing:
+`--esp32-build-property` accepts separate and equals forms and can be repeated.
+It retains Arduino CLI's property-override semantics. To add C++ defines
+directly, append them to the same property string:
 
 ```powershell
-python scripts/test_esp32.py --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+$smallerArena = "$screen -DVYNE_MCU_ARENA_SIZE=32768"
+.\vynec.exe --esp32 esp32 --esp32-build-property "$smallerArena" examples/test/esp32_hello.vy
 ```
 
-Compile everything and flash the eight core examples plus the native
-runtime regression:
+Use C++ extra flags for library configuration. Do not replace the platform's
+`build.extra_flags` with TFT-only flags: that was a reproduced failure here.
+
+## Screen demo
 
 ```powershell
-python scripts/test_esp32.py --run --port COM5 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+python scripts/test_esp32_screen.py --port COM5
+python scripts/test_esp32_screen.py --pattern text --seconds 15
+python scripts/test_esp32_screen.py --pattern bounds --seconds 15
 ```
 
-Run the session's non-interactive matrix (calibration is built but not
-flashed by this command):
+The launcher defaults to the working HW-950 profile and cycles through
+eight stages: red, green, blue, white, black, grid, text, and bounds. It logs
+configuration, actual backlight levels, optional raw ID readback, and drawing
+markers. It asks for physical observations in an interactive terminal;
+`--non-interactive` leaves visual confirmation unknown. Serial completion
+does not by itself validate visible pixels.
+
+`--compile-only`, `--profile`, `--driver`, `--spi-frequency`, confirmed
+`--backlight-pin` / `--backlight-active`, and confirmed `--enable-pin` support
+diagnosis on other panels. Logs default to
+`<system temp>/opencode/vyne-esp32-screen`. See the
+[demo guide](../../../scripts/esp32_screen_demo/README.md).
+
+## XPT2046 and calibration
+
+`VYNE_TOUCH_XPT2046` selects the runtime's 12-bit ADC/SPI implementation.
+Configure `VYNE_TOUCH_CS`, `VYNE_TOUCH_SCLK`, `VYNE_TOUCH_MOSI`,
+`VYNE_TOUCH_MISO`, optional `VYNE_TOUCH_IRQ`, and `VYNE_TOUCH_SPI_PORT`.
+The default custom port is VSPI; the owner's working profile selects HSPI.
+Thus both separate-bus CYD variants and a shared bus can be represented
+without assuming that TFT_eSPI's `TOUCH_CS` uses different data/clock pins.
+The custom driver requires no additional Arduino library.
+
+The driver discards the first conversion after switching channels, uses
+median samples, powers down to re-enable PENIRQ, and rejects disconnected
+all-zero/all-high responses. Raw pressure is derived from two 12-bit ADC
+channels; it is not a calibrated physical force measurement.
 
 ```powershell
-python scripts/test_esp32.py --run analog arena bits contracts display hello i2c_scan imu interrupts math nvs power realtime serial smoke touch wifi_connect wifi_http wifi_radar wifi_scan runtime touch_probe --seconds 18 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+python scripts/test_esp32.py --only touch_calibrate --run touch_calibrate --seconds 100 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
+python scripts/test_esp32.py --only touch --run touch --seconds 15 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
 ```
 
-Use `--only` to limit compilation, `--compiler` to choose the executable,
-`--board` / `--port` for another target, and `--output` for a log directory.
-The default output is `<system temp>/opencode/vyne-esp32-tests`.
-`--build-timeout` defaults to 300 seconds per sketch; slow cold toolchains
-can use a larger value. Timed-out compiler process trees are terminated.
-Serial windows default to 12 seconds; power/longer interactive cases need
-a larger `--seconds` value.
+Hold each magenta crosshair briefly, release, and follow the next visible
+target: TL, TR, BR, BL. Eight consecutive stable samples are collected at
+each corner. Each contact wait is bounded to 30 seconds and release to 15
+seconds. Wrong/mixed targets, degenerate spans, and inconsistent opposite
+edges are rejected; the example checks the returned Bool before reporting
+NVS success. A larger overall serial window may be needed for slow input.
 
-Each build/upload has its own log. Each flashed example has a serial log;
-`run.json` records the target, compiler, properties, and selection, and
-`results.json` records build/upload/runtime results and reasons. The
-runner resets after opening the port to capture `setup()` output, injects
-`V` into the serial echo test, checks Int64 extrema in the runtime fixture,
-and verifies timer wake in the power test. A panic/FAIL or missing completion
-marker fails the run even if an example printed a success line earlier.
-Unconfigured credentials, absent IMU, missing interrupt input, and
-no-contact touch cases are skips. Skips are not positive peripheral validation.
+Custom calibration uses a versioned `vyne_touch/xpt_cal` blob containing
+dimensions, reference rotation, mirror flags, axis swap, and signed endpoints.
+Loads reject incorrect lengths/versions/geometry and a different current
+canvas. Mapping handles rotated/mirrored frames and clamps to pixel bounds.
+Until calibrated, contact coordinates are explicitly reported as approximate.
+Existing shared-bus TFT_eSPI calibration remains under `vyne_touch/cal`.
+Missing first-boot calibration is not an NVS error.
 
-## Touch calibration and diagnosis
+The touch example draws green dots and reports coordinates/pressure at a
+bounded rate. The owner confirmed the dots followed the finger correctly
+after four-corner calibration and a subsequent flash/reset.
 
-Calibrate a wired XPT2046-compatible resistive controller:
+### Raw diagnostic / optional reference library
 
 ```powershell
-python scripts/test_esp32.py --only touch_calibrate --run touch_calibrate --seconds 90 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
-python scripts/test_esp32.py --only touch --run touch --seconds 18 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+python scripts/test_esp32.py --only touch_probe --run touch_probe --seconds 18 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
 ```
 
-Tap each crosshair until it advances. Successful calibration prints
-`touch calibrate: DONE` and stores the tuple under `vyne_touch/cal` in NVS.
-The runtime accepts only the correctly sized calibration blob. A missing
-namespace/blob is a normal first-boot condition and no longer produces the
-Preferences `nvs_open failed: NOT_FOUND` error message during touch init.
+Hold the panel during the 15-second probe. Fixed zero coordinates and
+`z=4095` do not establish contact, even if a library says `contact=1`.
+The runner reports those as skipped/unverified rather than a false pass.
 
-If calibration does not advance, run the direct TFT_eSPI control sketch:
+An optional comparison uses XPT2046_Touchscreen 1.4.0:
 
 ```powershell
-python scripts/test_esp32.py --only touch_probe --run touch_probe --seconds 18 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+arduino-cli lib install XPT2046_Touchscreen
+python scripts/test_esp32.py --only touch_probe --run touch_probe --seconds 18 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json --build-property "compiler.cpp.extra_flags=-DVYNE_TOUCH_REFERENCE_XPT2046"
 ```
 
-Hold the panel while it reports raw X/Y/Z values for 15 seconds. This
-sketch bypasses Vyne lowering, the touch wrapper, and calibration. In this
-session all 30 samples were `x=8191 y=8191 z=0`, consistent with an all-high
-SPI response rather than a working touch controller. Check controller type,
-T_CS/T_DO wiring, common ground, power, and shared-MISO contention. Capacitive
-controllers require their own driver; defining `TOUCH_CS` does not add one.
-Touch contact and stored-calibration reload remain unverified on this board.
+The runner appends extra C/C++ compiler flags to profile flags, so this
+comparison does not discard display/pin configuration. Other property
+values retain last-value-wins semantics.
 
-## WiFi and HTTP
-
-Scanning requires no credentials. Connect/HTTP examples read the
-`vyne_wifi` NVS namespace: `configured` (Int64), `ssid`, `pass`, and `url`
-(strings). Provision those keys with a local sketch using the existing
-`nvs_open`, `nvs_set_int`, and `nvs_set_string` APIs, then close NVS.
-Set `configured=1` after writing valid credentials. `url` should be a
-reachable JSON POST endpoint that returns HTTP 200.
+## Suite and evidence
 
 ```powershell
-python scripts/test_esp32.py --only wifi_connect wifi_http --run wifi_connect wifi_http --seconds 45 --profile vyne/runtime/esp32/profiles/hw350-ili9488-spi.json
+# Build all 21 examples and 2 native fixtures
+python scripts/test_esp32.py --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
+
+# Core suite plus native runtime regression on COM5
+python scripts/test_esp32.py --run --port COM5 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
+
+python -m unittest discover -s scripts/tests -p "test_esp32_screen.py" -v
 ```
 
-The examples allow 20 seconds to connect; the longer serial window also
-allows for HTTP. WiFi/HTTP positive paths were not tested because credentials
-were not provisioned. Keep locally provisioned credentials and raw network
-logs outside version control.
+The pure C++ check at `scripts/tests/esp32_touch_calibration.cpp` covers
+MADCTL rotation/mirror/RGB bits, calibration fit, signed/inverted axes,
+rotation/mirror mapping, clamping, canvas compatibility, invalid versions,
+missed targets, degenerate spans, and oversized inputs. Compile it with a
+host C++17 compiler; its executable belongs in a temporary/build directory.
 
-## COM5 validation results
+Hardware runs capture setup output after resetting the port, inject `V`
+for serial echo, verify signed Int64 extrema and timer wake, and report
+missing completion/panic/failure diagnostics. Build/upload/serial logs plus
+`run.json` and `results.json` are stored outside the source tree. Use
+`--only` for smaller batches and `--build-timeout` for slow cold toolchains.
 
-All **21 Vyne examples plus 2 native fixtures compiled** with the HW-350
-profile. The non-interactive board matrix flashed 22 sketches: **16 passed**
-their runtime checks and **6 were skipped** for missing prerequisites/input.
-The long matrix was completed in batches after outer execution timeouts;
-per-test logs and results were retained. Calibration was separately flashed
-and attempted with 90-second windows but did not complete.
+### Final COM5 validation
 
-| Area | Result | Evidence / coverage |
-| --- | --- | --- |
-| hello, smoke | PASS | Completion markers; GPIO/math checks; no panic |
-| analog | PASS | 9/12-bit reads in range; input read zero, not a calibrated voltage-source test |
-| arena | PASS | Both region drifts = 0 B; 64 KB arena |
-| bits, math | PASS | Expected bit/CRC values and zero printed math deltas |
-| NVS | PASS | Counter 42; scale 2.50; erased default -1 |
-| contracts | PASS | Example positive paths and invariant sum 45; no negative-contract run |
-| realtime | PASS | Worst 4.92 ms, zero overruns |
-| serial | PASS | Injected byte `V` echoed as `rx: 86` |
-| power | PASS | Wake cause 0 followed by timer wake cause 4 |
-| I2C scan | PASS | Completed scan, zero responding devices |
-| display, WiFi radar | PASS | 480×320, sprite 120×80, no crash; owner confirmed visible rendering |
-| WiFi scan | PASS | Nearby networks returned; final scan saw 10 |
-| native runtime fixture | PASS | Mixed/integer math, UART0/stream Int64 extrema, 32 sprite lifecycles, full-buffer pixel checks, invalid dimensions/handles |
-| IMU | SKIP | MPU6050 not detected; readings unverified |
-| interrupts | SKIP | Zero edges; external interrupt signal unverified |
-| touch, direct touch probe | SKIP | No contact; direct raw controller response all-high |
-| WiFi connect, HTTP | SKIP | `vyne_wifi/configured` unset |
-| touch calibration | INCOMPLETE | Compiles/flashes; no completion within 90 seconds |
+All **23 sketches compile** (21 Vyne examples and two native fixtures).
+The final non-interactive matrix was completed in two batches after an
+interruption: **16 runtime passes, 4 prerequisite skips** across 20 selected
+board runs. Calibration and interactive touch were separately verified.
 
-Additional checks: `xmake -y`, CLI missing/invalid build-property rejection,
-repeatable build-property compilation, runner failure/skip/echo/wake
-classification checks, process-tree timeout cleanup, and `git diff --check`.
+| Area | Result / evidence |
+| --- | --- |
+| hello, smoke, bits, math | PASS; expected values and markers |
+| analog | PASS; zero input read in range, not a calibrated-source test |
+| arena | PASS; both region drifts 0 B, 64 KB arena |
+| NVS | PASS; counter 42, scale 2.50, erased default -1 |
+| contracts | PASS; positive paths/invariant sum 45, no negative-contract run |
+| realtime | PASS; worst 4.92 ms, zero overruns |
+| serial | PASS; injected V echoed as rx: 86 |
+| power | PASS; initial cause 0, timer wake cause 4 |
+| I2C scan | PASS; scan completed with zero devices |
+| display / radar / WiFi scan | PASS; 320x240 display and 120x80 sprite, scan returned networks |
+| native runtime fixture | PASS; Int64/mixed math, RGB/rotation/enables, 32 sprite lifecycles, full-buffer pixel checks, calibration NVS round trip and malformed-version/length rejection |
+| screen diagnostic | Owner confirmed colors, orientation, coverage, and all four markers |
+| four-corner calibration | PASS; final samples (681,3424), (521,482), (3226,553), (3203,3425) |
+| interactive touch | PASS; calibration reloaded, 226 contacts in bounds, owner confirmed dot alignment |
+| IMU / external interrupts | SKIP; no sensor / no external edges |
+| WiFi connect / HTTP | SKIP; network credentials unset |
+| raw touch probe | Compiled; early invalid responses correctly classified as unverified; positive contact verified through calibration/touch |
 
-## Runtime defects reproduced and fixed
+Also passed: 16 Python checks, the host C++ geometry/orientation suite,
+`xmake -y`, and `git diff --check`. Earlier timed-out/missed-target calibration
+attempts are diagnostic failures, not successful calibration evidence.
 
-1. **Sprite text crash:** `esp32_display.vy` rebooted with LoadProhibited.
-   Decoded addresses resolved to `TFT_eSPI::textWidth` / `drawString`, called
-   by sprite text. TFT_eSPI 2.5.43 leaves heap-object `gfxFont` uninitialized;
-   explicitly selecting built-in font 1 removes the invalid pointer read.
-2. **Sprite clear / dimensions:** clear uses `fillSprite` for the selected
-   buffer. Int64 dimensions are checked before conversion to signed 16-bit
-   library parameters, so 65537 cannot silently become a one-pixel dimension.
-3. **Boxed numeric math:** Int64 arguments were read from the double union
-   member. Integer sqrt/cosine failed on the board. Shared numeric conversion
-   now feeds the boxed transcendental, mapping, and interpolation helpers.
-4. **Int64 serial truncation:** INT64_MAX printed `-1` and INT64_MIN printed
-   `0` due to a 32-bit `long` cast. UART0 and stream printing now use the
-   core's `long long` overload and preserve both signed extrema.
-5. **First-boot touch NVS error:** optional calibration reads now tolerate a
-   missing namespace/blob using NVS directly, without the Preferences error
-   log. Calibration writes retain the existing Preferences format.
-6. **Panel configuration:** per-build Arduino properties make the correct
-   ILI9488 driver/pins available without editing the installed library.
+## WiFi/HTTP provisioning
+
+Scanning/radar need no credentials. Connect/HTTP read the `vyne_wifi` NVS
+namespace: Int64 `configured=1` and strings `ssid`, `pass`, and `url`.
+Provision those locally with the existing NVS APIs. The URL must be a
+reachable JSON POST endpoint returning HTTP 200.
+
+```powershell
+python scripts/test_esp32.py --only wifi_connect wifi_http --run wifi_connect wifi_http --seconds 45 --profile vyne/runtime/esp32/profiles/hw950-screen-rgb.json
+```
+
+Connection can take 20 seconds; allow time for HTTP afterward. These
+credentialed positive paths remain untested. Keep credentials and raw
+network logs outside version control.
