@@ -4,6 +4,9 @@
 // from the generated .ino; the compiler emits the VYNE_USE_<FEATURE>
 // defines it needs immediately before this include.
 #pragma once
+#if defined(ARDUINO_ARCH_ESP32) && !defined(ESP32)
+#error "ESP32 platform define missing: use compiler.cpp.extra_flags instead of replacing build.extra_flags"
+#endif
 #include "detail/mcu_arena.h"
 #include "detail/mcu_bits.h"
 #include "detail/mcu_hardware.h"

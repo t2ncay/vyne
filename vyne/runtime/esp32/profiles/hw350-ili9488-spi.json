@@ -1,0 +1,6 @@
+{
+  "description": "Generic external ILI9488 SPI panel profile, not the integrated HW-950 CYD pinout. Use hw950-screen-rgb.json for the owner's measured setup.",
+  "build_properties": [
+    "compiler.cpp.extra_flags=-DUSER_SETUP_LOADED -DILI9488_DRIVER -DTFT_MISO=19 -DTFT_MOSI=23 -DTFT_SCLK=18 -DTFT_CS=15 -DTFT_DC=2 -DTFT_RST=4 -DTOUCH_CS=21 -DLOAD_GLCD -DLOAD_FONT2 -DLOAD_FONT4 -DLOAD_GFXFF -DSPI_FREQUENCY=20000000 -DSPI_TOUCH_FREQUENCY=2500000"
+  ]
+}

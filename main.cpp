@@ -219,6 +219,10 @@ static void printHelp() {
         YELLOW,
         "Monitor baud rate  " + C(CYAN, "(default: 115200)"),
         W);
+    row("--esp32-build-property <key=value>",
+        YELLOW,
+        "Repeatable arduino-cli build override (TFT driver/pins, arena size)",
+        W);
 
     header("PROJECTS");
     row("build [path]",
@@ -451,6 +455,25 @@ int main(int argc, char* argv[]) {
             opts.esp32Port = argv[++i];
         } else if (arg.rfind("--esp32-port=", 0) == 0) {
             opts.esp32Port = arg.substr(std::strlen("--esp32-port="));
+        } else if (arg == "--esp32-build-property" ||
+                   arg.rfind("--esp32-build-property=", 0) == 0) {
+            std::string property;
+            if (arg == "--esp32-build-property") {
+                if (i + 1 >= argc) {
+                    std::cerr << RED << "  error" << RESET
+                              << "  --esp32-build-property requires key=value\n";
+                    return 1;
+                }
+                property = argv[++i];
+            } else {
+                property = arg.substr(std::strlen("--esp32-build-property="));
+            }
+            if (property.find('=') == std::string::npos || property.front() == '=') {
+                std::cerr << RED << "  error" << RESET
+                          << "  --esp32-build-property requires key=value\n";
+                return 1;
+            }
+            opts.esp32BuildProperties.push_back(property);
         } else if (arg == "--esp32-baud" && i + 1 < argc) {
             try {
                 opts.esp32Baud = std::stoi(argv[++i]);

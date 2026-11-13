@@ -20,29 +20,26 @@
 // -1 to draw directly to the panel again.
 #pragma once
 #include "mcu_types.h"
-#include <TFT_eSPI.h>
+#include "mcu_panel.h"
+#include <new>
 
 #define VYNE_MAX_SPRITES 4
 
-static TFT_eSPI g_vyne_tft;
-static bool g_vyne_tft_inited = false;
+// Inherited drawing methods dispatch virtual pixel/line operations into
+// the sprite. Non-virtual size/rotation and full-buffer clears need
+// explicit sprite dispatch.
+static VyneDrawTarget* g_vyne_draw_target = &g_vyne_tft;
+static VyneSprite* g_vyne_active_sprite = nullptr;
+static VyneSprite* g_vyne_sprites[VYNE_MAX_SPRITES] = {nullptr};
 
-// Active drawing target. A TFT_eSprite is-a TFT_eSPI, so the low-level
-// virtual drawPixel/drawChar dispatch routes the inherited drawing
-// methods to the sprite buffer. width()/height()/setRotation() are not
-// virtual, so those three are dispatched explicitly below.
-static TFT_eSPI* g_vyne_draw_target = &g_vyne_tft;
-static TFT_eSprite* g_vyne_active_sprite = nullptr;
-static TFT_eSprite* g_vyne_sprites[VYNE_MAX_SPRITES] = {nullptr};
-
-static inline TFT_eSPI* _vyne_draw(void) {
+static inline VyneDrawTarget* _vyne_draw(void) {
     return g_vyne_draw_target;
 }
 
 static inline VyneValue esp32_display_init(VyneValue rotation) {
     g_vyne_active_sprite = nullptr;
     g_vyne_draw_target = &g_vyne_tft;
-    g_vyne_tft.init();
+    _vyne_panel_init();
     g_vyne_tft.setRotation((uint8_t)(rotation.as.i64 & 0x3));
     g_vyne_tft.setTextColor(TFT_WHITE, TFT_BLACK);
     g_vyne_tft_inited = true;
@@ -71,7 +68,10 @@ static inline VyneValue esp32_display_set_rotation(VyneValue r) {
 }
 
 static inline VyneValue esp32_display_clear(VyneValue color) {
-    _vyne_draw()->fillScreen((uint16_t)color.as.i64);
+    if (g_vyne_active_sprite)
+        g_vyne_active_sprite->fillSprite((uint16_t)color.as.i64);
+    else
+        g_vyne_tft.fillScreen((uint16_t)color.as.i64);
     return vyne_null();
 }
 
@@ -175,7 +175,7 @@ static inline VyneValue esp32_display_text(
         sz = 1;
     if (sz > 7)
         sz = 7;
-    TFT_eSPI* d = _vyne_draw();
+    VyneDrawTarget* d = _vyne_draw();
     d->setTextColor((uint16_t)color.as.i64);
     d->setTextSize((uint8_t)sz);
     d->drawString(String(s), (int32_t)x.as.i64, (int32_t)y.as.i64);
@@ -196,7 +196,7 @@ static inline VyneValue esp32_display_text_bg(
         sz = 1;
     if (sz > 7)
         sz = 7;
-    TFT_eSPI* d = _vyne_draw();
+    VyneDrawTarget* d = _vyne_draw();
     d->setTextColor((uint16_t)fg.as.i64, (uint16_t)bg.as.i64);
     d->setTextSize((uint8_t)sz);
     d->drawString(String(s), (int32_t)x.as.i64, (int32_t)y.as.i64);
@@ -261,15 +261,25 @@ static inline VyneValue esp32_display_push(void) {
 // ---------------------------------------------------------------------
 static inline VyneValue
 esp32_display_sprite_create(VyneValue width, VyneValue height) {
-    int w = (int)width.as.i64;
-    int h = (int)height.as.i64;
-    if (w <= 0 || h <= 0)
+    // createSprite takes signed 16-bit dimensions. Validate before the
+    // narrowing conversion so oversized Int64 inputs cannot wrap into
+    // a different, apparently successful allocation.
+    int64_t w = width.as.i64;
+    int64_t h = height.as.i64;
+    if (w <= 0 || h <= 0 || w > INT16_MAX || h > INT16_MAX)
         return vyne_int(-1);
 
     for (int i = 0; i < VYNE_MAX_SPRITES; ++i) {
         if (g_vyne_sprites[i])
             continue;
-        TFT_eSprite* s = new TFT_eSprite(&g_vyne_tft);
+        VyneSprite* s = new (std::nothrow) VyneSprite(&g_vyne_tft);
+        if (!s)
+            return vyne_int(-1);
+        // TFT_eSPI 2.5.43 does not initialize gfxFont in its constructor.
+        // A static panel happens to be zero-initialized; a heap sprite
+        // is not. Explicitly choose the built-in font before any text
+        // operation, otherwise textWidth dereferences a garbage pointer.
+        s->setTextFont(1);
         s->setColorDepth(16);
         if (s->createSprite((int16_t)w, (int16_t)h) == nullptr) {
             delete s;

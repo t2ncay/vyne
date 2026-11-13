@@ -150,15 +150,15 @@ static inline VyneValue arduino_micros(void) {
 }
 
 static inline VyneValue arduino_sin(VyneValue x) {
-    return vyne_float(sin(x.as.f64));
+    return vyne_float(sin(_vyne_as_f64(x)));
 }
 
 static inline VyneValue arduino_cos(VyneValue x) {
-    return vyne_float(cos(x.as.f64));
+    return vyne_float(cos(_vyne_as_f64(x)));
 }
 
 static inline VyneValue arduino_sqrt(VyneValue x) {
-    return vyne_float(sqrt(x.as.f64));
+    return vyne_float(sqrt(_vyne_as_f64(x)));
 }
 
 static inline VyneValue arduino_delay_microseconds(VyneValue us) {

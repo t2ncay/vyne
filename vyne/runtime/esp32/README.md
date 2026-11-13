@@ -23,7 +23,7 @@ the compiler when a matching native call is lowered:
 | `VYNE_USE_NVS`       | `mcu_nvs.h`       | Preferences / NVS                   |
 | `VYNE_USE_WIFI`      | `mcu_wifi.h`      | WiFi + HTTPClient                   |
 | `VYNE_USE_DISPLAY`   | `mcu_display.h`   | TFT_eSPI                            |
-| `VYNE_USE_TOUCH`     | `mcu_touch.h`     | TFT_eSPI touch                      |
+| `VYNE_USE_TOUCH`     | `mcu_touch.h`     | TFT_eSPI or configurable-SPI XPT2046 |
 | `VYNE_USE_IMU`       | `mcu_imu.h`       | MPU6050 over Wire                   |
 | `VYNE_USE_POWER`     | `mcu_power.h`     | Deep/light sleep, reset             |
 
@@ -42,7 +42,7 @@ vynec --esp32 esp32 --esp32-flash --esp32-port COM3 examples/test/esp32_hello.vy
 Prerequisites:
 
 1. `arduino-cli core install esp32:esp32`
-2. TFT_eSPI (and a configured `User_Setup.h`) if you use display/touch.
+2. TFT_eSPI plus a matching per-build profile or `User_Setup.h` for display/touch.
 3. An MPU6050 on I2C if you use the IMU surface.
 
 The build stages this directory next to the generated `.ino` inside a
@@ -96,26 +96,35 @@ These are intentional and documented at the relevant header:
   dynamic arithmetic to `vyne_binop`, sizes to `vyne_get_sizeof`, and
   dynamic indexing to `vyne_index_get`; the shared `mcu_types.h` is
   minimal, so the ESP32 runtime provides them.
-- **Touch compiles as inert stubs when TFT_eSPI has no `TOUCH_CS`.**
+- **Touch compiles as inert stubs when neither `TOUCH_CS` nor `VYNE_TOUCH_XPT2046` is configured.**
   The library omits `getTouch`/`setTouch` in that configuration, so the
   Vyne surface stays linkable and reports "no contact" until the user
-  enables touch in `User_Setup.h`.
+   configures a touch driver. The XPT2046 path supports its own SPI pins and bus.
 
 ## Display and touch setup
 
-TFT_eSPI is configured outside this repository. The ESP32 test suite was
-validated with `User_Setup.h` set to:
+Use a profile matching the actual panel. For the owner's **HW-950** board,
+[`profiles/hw950-screen-rgb.json`](profiles/hw950-screen-rgb.json) is the
+visually tested configuration: ST7796-compatible initialization, explicitly
+measured 240x320 dimensions (320x240 landscape), RGB order, and vertical
+mirror correction. A driver define reports configuration, not detected IC
+identity: raw display-ID reads on this board returned zero.
 
-```
-ILI9341_DRIVER
-TFT_MISO 19, TFT_MOSI 23, TFT_SCLK 18
-TFT_CS 15, TFT_DC 2, TFT_RST 4
-TOUCH_CS 21
-SPI_TOUCH_FREQUENCY 2500000
-```
+The profile uses display HSPI pins MOSI13/MISO12/SCLK14/CS15/DC2, no dedicated
+reset pin, active-high backlight GPIO21 plus the owner-confirmed GPIO27
+enable, and XPT2046 CS33/IRQ36 on the shared HSPI data/clock pins. Other CYD
+variants can use different touch wiring; `cyd-ili9341-rgb.json` retains the
+user-supplied ILI9341/separate-touch-bus reference configuration.
 
-Change the pins to match your panel. If `TOUCH_CS` is disabled, the touch
-surface compiles as inert stubs that report "no contact".
+`--esp32-build-property <key=value>` forwards overrides to Arduino CLI.
+Profiles use **`compiler.cpp.extra_flags`**, preserving the platform's
+`build.extra_flags` (`ESP32`, USB, and core definitions). Replacing
+`build.extra_flags` with only TFT defines previously removed `ESP32` and
+caused incorrect platform code selection and a lit-but-blank screen.
+
+See [hardware testing](HARDWARE_TESTING.md) for direct Vyne commands,
+calibration, the screen demo, and the current COM5 results. The generic
+external ILI9488 profile is not the HW-950 integrated-board pinout.
 
 ### Double buffering
 
@@ -132,3 +141,10 @@ sprites after WiFi is initialized and keep only what you need.
 with a `Requires` / `Hardware` / `Flash` / `Expect` comment block. Start
 with `esp32_hello.vy`, then `esp32_smoke.vy`; the rest are
 peripheral-specific and can be skipped when the hardware is absent.
+
+`python scripts/test_esp32.py` builds all examples and both native fixtures.
+Add `--run` to flash the core suite plus the runtime regression on COM5,
+or give explicit suffixes such as `--run display wifi_radar`.
+The runner captures setup output after reset, checks failure diagnostics,
+and writes per-test logs, `run.json`, and `results.json` outside the source
+tree. No-contact/device/credential cases are reported as skips.

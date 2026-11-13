@@ -136,6 +136,7 @@ struct BuildOptions {
     bool esp32Upload = false;     // --esp32-flash
     bool esp32Monitor = false;    // --esp32-monitor
     int esp32Baud = 115200;       // --esp32-baud
+    std::vector<std::string> esp32BuildProperties; // repeatable arduino-cli overrides
 
     // Present when the driver was launched through `vynec build` / `vynec
     // run` and a project.toml was discovered. The flag-based CLI leaves

@@ -487,7 +487,8 @@ static int buildESP32(
     const std::string& base,
     const std::string& cFile,
     const std::string& exeDir,
-    const std::string& fqbn
+    const std::string& fqbn,
+    const std::vector<std::string>& buildProperties
 ) {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -555,6 +556,30 @@ static int buildESP32(
 
     std::string cmd = "arduino-cli compile --fqbn " + fqbn + " --output-dir \"" +
                       buildDir + "\" \"" + sketchDir + "\"";
+    for (const auto& property : buildProperties) {
+#ifdef _WIN32
+        // Quote one argv item for the Windows CRT parser.
+        std::string quoted = "\"";
+        size_t slashes = 0;
+        for (char c : property) {
+            if (c == '\\') {
+                ++slashes;
+                continue;
+            }
+            quoted.append(c == '"' ? 2 * slashes + 1 : slashes, '\\');
+            quoted += c;
+            slashes = 0;
+        }
+        quoted.append(2 * slashes, '\\');
+        quoted += '"';
+#else
+        std::string quoted = "'";
+        for (char c : property)
+            quoted += c == '\'' ? "'\\''" : std::string(1, c);
+        quoted += '\'';
+#endif
+        cmd += " --build-property " + quoted;
+    }
     std::cout << "    " << CYAN << "running" << RESET << "     " << cmd
               << "\n\n";
 
@@ -609,7 +634,7 @@ static int runESP32Compile(
     }
 
     std::string exeDir = FileUtils::getExeDir();
-    int rc = buildESP32(base, cFile, exeDir, board->fqbn);
+    int rc = buildESP32(base, cFile, exeDir, board->fqbn, opts.esp32BuildProperties);
     if (rc != 0)
         return rc;
 

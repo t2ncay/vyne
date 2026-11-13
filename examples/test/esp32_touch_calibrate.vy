@@ -21,7 +21,10 @@ esp32.display_init(1);
 esp32.touch_screen_init();
 
 esp32.delay(1000);
-esp32.touch_screen_calibrate();
-
-esp32.serial_println("calibration stored in NVS namespace vyne_touch");
-esp32.serial_println("touch calibrate: DONE");
+calibrated :: Bool := esp32.touch_screen_calibrate();
+if (calibrated) {
+    esp32.serial_println("calibration stored in NVS namespace vyne_touch");
+    esp32.serial_println("touch calibrate: DONE");
+} else {
+    esp32.serial_println("touch calibrate: FAIL (controller, timeout, or NVS write)");
+}
