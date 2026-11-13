@@ -217,6 +217,42 @@ Also passed: 16 Python checks, the host C++ geometry/orientation suite,
 `xmake -y`, and `git diff --check`. Earlier timed-out/missed-target calibration
 attempts are diagnostic failures, not successful calibration evidence.
 
+## Initialized-project parity regression (2026-11-14)
+
+The successful radar/touch manifests under the hardware test output directories
+use the measured ST7796 + shared-HSPI + GPIO27-enable + Y-correction profile
+above. The installed TFT_eSPI `User_Setup.h` was a different ST7789 setup;
+using that header alone reproduced a dark screen. The verified profile restored
+the radar display and initialized touch demo. Do not infer the board setup from
+an arbitrary installed library header.
+
+Initialization now defaults to landscape `1`. `esp32.display_init()` uses the
+configured default, while explicit `display_init(0..3)` calls remain authoritative.
+`examples/test/esp32_display_rotation.vy` exercises the default, all four explicit
+rotations and a return to the default. Hardware-option changes invalidate the
+Arduino object cache, and zero-argument native calls execute even when their
+return values are discarded.
+
+The generated starter keeps polling touch, prints geometry/calibration/contact
+diagnostics and memory heartbeats, and accepts serial **C** for explicit
+four-corner calibration. Startup preserves existing NVS calibration.
+
+```powershell
+python scripts/test_hardware.py --compile --port COM5
+python scripts/test_hw950_init.py --port COM5 --seconds 90 --require-touch
+```
+
+The first command verifies actual firmware rotation and persistent polling;
+the second records gestures in an initialized starter already flashed on the
+board. Confirm upright corner labels/RGB bars and aligned contact dots visually.
+Use `--calibrate` only when recalibration is wanted. Build/serial success alone
+is not a claim that panel appearance or physical touch alignment is correct.
+
+Final capture passed on COM5: landscape `320x240`, calibration loaded, 8 contacts
+with positive pressure inside the canvas, 119 heartbeats over 240 seconds and
+stable 32-byte Vyne arena usage. The owner confirmed both restored radar output
+and initialized corner-label/RGB/touch alignment. No recalibration was required.
+
 ## WiFi/HTTP provisioning
 
 Scanning/radar need no credentials. Connect/HTTP read the `vyne_wifi` NVS

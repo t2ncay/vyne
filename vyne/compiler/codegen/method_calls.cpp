@@ -173,10 +173,14 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     // the boxed-arg path so `vmath.random_float()` selects the unit
     // overload instead of emitting a zero-argument call to the 2-arg
     // symbol.
-    if (args.empty() && entry->nativeZero)
-        return std::string(entry->nativeZero) + "()";
-
     std::string resTemp = e.newTemp("n_ret");
+    if (args.empty() && entry->nativeZero) {
+        // Materialize the call even when its result is discarded. Returning
+        // only an expression drops side effects in expression statements
+        // (notably display_init() and random-number state advancement).
+        e.emit("VyneValue " + resTemp + " = " + entry->nativeZero + "();");
+        return resTemp;
+    }
 
     // Variadic: (argc, argv).
     if (entry->usesArgv) {

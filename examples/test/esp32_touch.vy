@@ -2,7 +2,7 @@
 #
 # Requires: VYNE_USE_TOUCH; shared-bus TOUCH_CS or profile-configured XPT2046
 # Hardware: ESP32-WROOM-32 + touch panel
-# Flash:    vynec --esp32 esp32 --esp32-flash --esp32-port COM3 examples/test/esp32_touch.vy
+# Flash:    vynec --preset hw950 --esp32-flash --esp32-port COM5 examples/test/esp32_touch.vy
 # Expect:   green dots follow contact; "x=.. y=.. pressure=..", then "touch: DONE"
 #
 # Pressure is meaningful on a resistive panel. Calibrate before testing coordinates.

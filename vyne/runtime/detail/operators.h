@@ -7,7 +7,6 @@
 #pragma once
 #include "equality.h"
 #include <assert.h>
-#include <winnt.h>
 #include <stdio.h>
 // BINARY OPERATORS
 // ============================================================================
@@ -266,4 +265,3 @@ static inline VyneValue vyne_unary(VyneValue val, int op) {
             return val;
     }
 }
-

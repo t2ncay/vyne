@@ -579,13 +579,21 @@ static int buildESP32(
         }
     }
     if (!responseFlags.empty()) {
-        std::ofstream options(fs::path(sketchDir) / "build_opt.h");
+        std::ofstream options(fs::path(sketchDir) / "build_opt.h", std::ios::binary);
         options << responseFlags;
         if (!options.good()) {
             std::cerr << "error: cannot write hardware build options\n";
             return 1;
         }
     }
+    // The command line references @build_opt.h by pathname. Arduino's object
+    // cache does not reliably fingerprint that file's contents, so changing
+    // rotation/pins/drivers can otherwise upload firmware from old settings.
+    std::ifstream cachedOptions(fs::path(base + "_cache") / "build_opt.h", std::ios::binary);
+    std::ostringstream previousOptions;
+    previousOptions << cachedOptions.rdbuf();
+    const bool hardwareChanged = previousOptions.str() != responseFlags;
+    cachedOptions.close(); // Windows must release the file before --clean deletes it.
     sectionOpen("esp32-build");
     std::cout << "    " << CYAN << "fqbn" << RESET << "        " << fqbn
               << "\n";
@@ -594,6 +602,10 @@ static int buildESP32(
 
     std::string cmd = "arduino-cli compile --fqbn " + fqbn + " --output-dir \"" +
                       buildDir + "\" --build-path \"" + base + "_cache\" \"" + sketchDir + "\"";
+    if (hardwareChanged) {
+        std::cout << "    hardware options changed; rebuilding cached firmware\n\n";
+        cmd += " --clean";
+    }
     for (const auto& property : buildProperties) {
         if (property.starts_with("build.extra_flags=")) continue;
 #ifdef _WIN32

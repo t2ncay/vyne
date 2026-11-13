@@ -4,7 +4,7 @@ on:
   push:
     branches: ["master"]
   pull_request:
-    branches: ["master"]
+    branches: ["master", "feat/**", "fix/**"]
 
 jobs:
   test-suite:
@@ -97,6 +97,12 @@ jobs:
         env:
           VYNEC: ./vyne_run
         run: python3 scripts/test_hardware.py
+
+      - name: Run discarded zero-argument native call regression
+        run: |
+          set -euo pipefail
+          ./vyne_run --compile -o native_zero_test examples/transpiler/native_zero_side_effects.vy
+          ./native_zero_test
 
       - name: Run host touch calibration regression
         run: |

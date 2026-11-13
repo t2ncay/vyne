@@ -241,7 +241,10 @@ std::string hardwareDefines(const HardwareConfig& c) {
     for (const auto& [key, v] : c.settings) {
         const auto* f = field(key);
         if (!f || !*f->define) continue;
-        if (key == "display.hspi" && !std::get<bool>(v)) continue;
+        if (key == "display.hspi" && !std::get<bool>(v)) {
+            out << "-UUSE_HSPI_PORT\n";
+            continue;
+        }
         define(f->define, std::holds_alternative<bool>(v) ? (std::get<bool>(v) ? "1" : "0") : scalar(v));
     }
     auto get = [&](const char* key, const char* fallback) {
@@ -249,7 +252,7 @@ std::string hardwareDefines(const HardwareConfig& c) {
     };
     if (get("display.driver", "none") != "none") {
         define("USER_SETUP_LOADED", "1");
-        for (const auto* d : {"ST7796_DRIVER", "ILI9341_DRIVER", "ILI9488_DRIVER"}) out << "-U" << d << "\n";
+        for (const auto* d : {"ST7789_DRIVER", "ST7796_DRIVER", "ILI9341_DRIVER", "ILI9341_2_DRIVER", "ILI9488_DRIVER"}) out << "-U" << d << "\n";
         const auto driver = get("display.driver", "none");
         define(driver == "st7796" ? "ST7796_DRIVER" : driver == "ili9341" ? "ILI9341_DRIVER" : "ILI9488_DRIVER", "1");
         for (const auto* font : {"LOAD_GLCD", "LOAD_FONT2", "LOAD_FONT4", "LOAD_GFXFF"}) define(font, "1");

@@ -23,8 +23,14 @@ vynec run --monitor  # explicitly open serial monitoring after upload
 
 Firmware, sketches and compiler intermediates are under `build/firmware/`.
 The Uno starter blinks pin 13; generic ESP32 prints serial greetings; HW-950
-initializes the measured display and draws green dots on touch contact for
-ten seconds. Calibrate the physical touchscreen for accurate coordinates.
+initializes the measured display in landscape and continuously draws green
+dots on touch contact. Corner labels and RGB bars make orientation/color
+checks straightforward. Serial output reports rotation, dimensions, touch
+configuration, calibration status, contacts and periodic memory heartbeats.
+
+Send **C** through `vynec run --monitor` to explicitly start four-corner touch
+calibration. Hold and release each magenta target. Existing calibration is
+loaded from NVS; initialization does not erase or replace it automatically.
 
 ## Hardware configuration
 
@@ -43,6 +49,12 @@ Advanced overrides use `[display]` and `[touch]` tables in `hardware.toml`;
 see the resolved report for the supported field names. Display dimensions
 are native portrait dimensions; select landscape with rotation.
 Legacy Uno board, pinout and memory-budget metadata are accepted.
+
+`esp32.display_init()` uses the configured rotation. An explicit
+`esp32.display_init(0..3)` overrides that default. The HW-950 preset uses the
+same ST7796/HSPI/GPIO27-enable/Y-correction settings as the verified standalone
+examples. `mirror_y = true` is a panel correction, not a request to display
+upside-down text. Hardware-option changes invalidate Arduino's cached objects.
 
 | Path | Contents |
 | --- | --- |

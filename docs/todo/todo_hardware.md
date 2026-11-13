@@ -107,3 +107,32 @@ Test environment: Arduino CLI 1.5.1, ESP32 core 3.3.12, AVR core 1.8.8,
 TFT_eSPI 2.5.43, Windows/MinGW compiler build. The physical test verifies
 upload/reset and serial startup; panel appearance and touch calibration
 remain hardware-specific visual checks rather than automated assertions.
+
+## Follow-up: init display/touch parity
+
+- [x] Preserve the known-good radar/touch driver, HSPI wiring, GPIO27 enable
+  and Y-mirror correction instead of guessing from the installed library setup.
+- [x] Default initialized HW-950 projects to landscape and honor explicit
+  `display_init(0..3)` arguments; add configured-default `display_init()`.
+- [x] Materialize discarded zero-argument native calls so initialization and
+  state-changing calls execute.
+- [x] Invalidate Arduino objects when response-file hardware settings change.
+- [x] Keep initialized touch polling active and expose driver/calibration state,
+  contact diagnostics, heartbeat/memory readings and explicit calibration.
+- [x] Compare every define in the recorded known-good profile and verify actual
+  firmware rotation/default precedence on COM5.
+- [x] Restore the working radar display and obtain owner confirmation that the
+  initialized corner labels, RGB bars and touch-contact dots align correctly.
+
+The existing Y-mirror flag is a panel correction. The fault was not evidence
+that it should be removed: the working manifests include it. The configured
+portrait default, explicit-rotation override and response-file cache behavior
+were separate regressions. The corrected preset retains the hardware settings
+and changes only the default orientation/label.
+
+Final operator-assisted COM5 capture: rotation `1`, logical `320x240`, existing
+calibration loaded, **8 positive-pressure contacts in bounds**, **119 heartbeats**
+over 240 seconds and a stable **32-byte Vyne arena** reading. The owner confirmed
+correct radar rendering and initialized corner-label/color/touch alignment.
+The earlier ST7789/no-enable experiment and unattended calibration timeout were
+failed diagnostics and are not counted as successful hardware acceptance.

@@ -2,7 +2,7 @@
 #
 # Requires: VYNE_USE_TOUCH; TFT_eSPI touch configured (TOUCH_CS)
 # Hardware: ESP32-WROOM-32 + resistive touch panel
-# Flash:    vynec --esp32 esp32 --esp32-flash --esp32-monitor --esp32-port COM3 examples/test/esp32_touch_calibrate.vy
+# Flash:    vynec --preset hw950 --esp32-flash --esp32-monitor --esp32-port COM5 examples/test/esp32_touch_calibrate.vy
 # Expect:   crosshairs appear; tap each one. Calibration is stored in NVS
 #           namespace "vyne_touch" and reloaded on the next boot.
 #
