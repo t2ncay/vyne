@@ -159,9 +159,10 @@ std::string boardAlias(const std::string& board) {
     // ("arduino:avr:uno"), while the Arduino pipeline keys off the short
     // name. The mega FQBN is "arduino:avr:mega" but the internal board
     // table calls it "mega2560".
-    size_t colon = board.find_last_of(':');
-    std::string name =
-        (colon == std::string::npos) ? board : board.substr(colon + 1);
+    size_t colon = board.find(':');
+    if (colon != std::string::npos) colon = board.find(':', colon + 1);
+    std::string name = (colon == std::string::npos) ? board : board.substr(colon + 1);
+    name = name.substr(0, name.find(':')); // FQBN menu options follow the board ID.
     if (name == "mega")
         return "mega2560";
     return name;
@@ -446,6 +447,7 @@ void applyProjectConfig(const ProjectConfig& cfg, BuildOptions& opts) {
     // through ArduinoRun so the .hex is emitted without an explicit
     // --arduino-flash flag.
     if (!cfg.board.empty()) {
+        opts.boardFqbn = cfg.board;
         // Fully-qualified ESP32 FQBNs start with "esp32:" (e.g.
         // "esp32:esp32:esp32s3"). Route them through the arduino-cli
         // pipeline; AVR FQBNs keep the avr-gcc pipeline.

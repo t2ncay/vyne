@@ -37,6 +37,9 @@ struct InitChoices {
     std::string license = "AGPL-3.0-only";
 };
 
+// Exercise the real event-driven question flow without opening a terminal.
+bool questionnaireSelfTest(std::string& error);
+
 // Returns true when the user confirmed a project. `cancelled` is set when
 // the user pressed Esc/Ctrl-C. `error` is non-empty on a terminal-size or
 // rendering failure. The `locked` set uses the flag names: kind, targets,

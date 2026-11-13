@@ -19,6 +19,7 @@
 
 #include "template_engine.h"
 #include "tui.h"
+#include "hardware.h"
 #include "../vyne/utils/file_utils.h"
 
 #include <algorithm>
@@ -100,6 +101,10 @@ struct Options {
     bool selfTest = false;
 
     std::string pretrained;
+    std::string board;
+    std::string preset;
+    std::string port;
+    std::string baud = "115200";
 };
 
 std::string lower(std::string s) {
@@ -211,7 +216,9 @@ bool isBinaryAsset(const fs::path& path) {
 
 bool knownTarget(const std::string& name) {
     return name == "desktop" || name == "arduino-uno" ||
-           name == "coral" || name == "jetson";
+           name == "coral" || name == "jetson" || name == "hw950" ||
+           name == "esp32" || name == "esp32s2" || name == "esp32s3" ||
+           name == "esp32c3" || name == "esp32c6";
 }
 
 bool knownLibrary(const std::string& name) {
@@ -444,6 +451,9 @@ std::string buildProjectToml(
         } else if (target == "arduino-uno") {
             out << "backend = \"avr\"\n";
             out << "board = \"arduino:avr:uno\"\n";
+        } else if (target == "hw950" || target.starts_with("esp32")) {
+            out << "backend = \"esp32\"\n";
+            out << "board = \"esp32:esp32:" << (target == "hw950" ? "esp32" : target) << "\"\n";
         } else if (target == "coral") {
             out << "backend = \"c\"\n";
             out << "device = \"coral\"\n";
@@ -501,7 +511,11 @@ void printInitHelp() {
     std::cout << "  " << INIT_CYAN << "OPTIONS" << INIT_RESET << "\n";
     std::cout << "    --name <name>        project name (default: basename of PATH)\n";
     std::cout << "    --kind <kind>        blank | ml | embedded | scientific | sr | mixed\n";
-    std::cout << "    --targets <list>     desktop, arduino-uno, coral, jetson\n";
+    std::cout << "    --targets <list>     desktop, arduino-uno, esp32, esp32s2/s3/c3/c6, hw950, coral, jetson\n";
+    std::cout << "    --board <board>      arduino-uno | esp32 | esp32s2 | esp32s3 | esp32c3 | esp32c6\n";
+    std::cout << "    --preset <name>      bundled preset (hw950 or generic ESP32 family)\n";
+    std::cout << "    --port <port>        USB/serial port saved in hardware.toml\n";
+    std::cout << "    --baud <integer>     serial baud (default: 115200)\n";
     std::cout << "    --libraries <list>   comma-separated library names\n";
     std::cout << "    --cuda <yes|no>      add [device.cuda] when yes\n";
     std::cout << "    --license <id>       AGPL-3.0-only | MIT | proprietary\n";
@@ -588,6 +602,16 @@ int runInit(int argc, char** argv) {
         }
 
         int matched = 0;
+        bool hardwareOption = false;
+        for (auto [flag, value] : {std::pair{"--board", &opts.board}, {"--preset", &opts.preset},
+                                  {"--port", &opts.port}, {"--baud", &opts.baud}}) {
+            if ((matched = matchValue(i, argc, argv, arg, flag, *value))) {
+                if (matched < 0) { std::cerr << "error: " << flag << " needs a value\n"; return 4; }
+                hardwareOption = true;
+                break;
+            }
+        }
+        if (hardwareOption) continue;
         if ((matched = matchValue(i, argc, argv, arg, "--name", opts.name))) {
             if (matched < 0) {
                 std::cerr << INIT_RED << "  error" << INIT_RESET
@@ -676,8 +700,8 @@ int runInit(int argc, char** argv) {
 
     if (opts.selfTest) {
         std::string error;
-        if (Engine::selfTest(error)) {
-            std::cout << INIT_GREEN << "✓ template engine self-test passed"
+        if (Engine::selfTest(error) && questionnaireSelfTest(error)) {
+            std::cout << INIT_GREEN << "✓ template engine and interactive questionnaire self-tests passed"
                       << INIT_RESET << "\n";
             return 0;
         }
@@ -694,7 +718,13 @@ int runInit(int argc, char** argv) {
     }
 
     if (!opts.haveKind)
-        opts.kind = "blank";
+        opts.kind = (!opts.board.empty() || !opts.preset.empty()) ? "embedded" : "blank";
+    if (!opts.board.empty() || !opts.preset.empty()) {
+        if (opts.kind != "embedded") { std::cerr << "error: --board/--preset require --kind embedded\n"; return 4; }
+        if (opts.haveTargets) { std::cerr << "error: use --targets or --board/--preset, not both\n"; return 4; }
+        opts.targets = !opts.board.empty() ? opts.board : opts.preset;
+        opts.haveTargets = true;
+    }
 
     if (!isKnownKind(opts.kind)) {
         std::cerr << INIT_RED << "  error" << INIT_RESET
@@ -753,7 +783,7 @@ int runInit(int argc, char** argv) {
         }
 
         fs::path share =
-            fs::path(FileUtils::getExeDir()) / "share" / "vyne";
+            fs::path(FileUtils::getShareDir());
 
         InitChoices choices;
         choices.kind = opts.haveKind ? opts.kind : "ml";
@@ -880,6 +910,25 @@ int runInit(int argc, char** argv) {
         defaultTarget = targets.front();
     }
 
+    HardwareConfig hardware;
+    const bool esp32 = defaultTarget == "hw950" || defaultTarget.starts_with("esp32");
+    const bool hw950 = opts.preset == "hw950" || defaultTarget == "hw950";
+    if (opts.kind == "embedded") {
+        if (defaultTarget != "arduino-uno" && !esp32) {
+            std::cerr << "error: embedded starter requires an Arduino or ESP32 target\n"; return 4;
+        }
+        hardware.preset = !opts.preset.empty() ? opts.preset : esp32 ? defaultTarget : "";
+        hardware.settings["connection.port"] = opts.port;
+        std::string error;
+        if (!setHardwareValue(hardware, "connection.baud=" + opts.baud, error) ||
+            !resolveHardware(hardware, esp32 ? "esp32:esp32:" + (defaultTarget == "hw950" ? "esp32" : defaultTarget) : "arduino:avr:uno", error)) {
+            std::cerr << "error: " << error << "\n"; return 4;
+        }
+        if (!opts.board.empty() && hardware.fqbn != "esp32:esp32:" + opts.board && esp32) {
+            std::cerr << "error: --board is incompatible with --preset\n"; return 4;
+        }
+    }
+
     fs::path root(opts.path);
     std::error_code ec;
     fs::create_directories(root, ec);
@@ -902,7 +951,7 @@ int runInit(int argc, char** argv) {
         return 3;
     }
 
-    fs::path share = fs::path(FileUtils::getExeDir()) / "share" / "vyne";
+    fs::path share = FileUtils::getShareDir();
     fs::path templateDir = share / "templates" / templateKindFor(opts.kind);
     if (!fs::is_directory(templateDir, ec)) {
         std::cerr << INIT_RED << "  error" << INIT_RESET
@@ -935,6 +984,14 @@ int runInit(int argc, char** argv) {
     ctx.vars["library_list"] = join(libraries, ", ");
     ctx.vars["description"] = description;
     ctx.vars["cuda"] = cuda ? "1" : "0";
+    ctx.vars["esp32"] = esp32 ? "1" : "0";
+    ctx.vars["hw950"] = hw950 ? "1" : "0";
+    ctx.vars["generic_esp32"] = esp32 && !hw950 ? "1" : "0";
+    ctx.vars["uno"] = esp32 ? "0" : "1";
+    ctx.vars["board_label"] = esp32 ? hardware.label : "Arduino Uno R3";
+    ctx.vars["hardware_preset"] = hardware.preset;
+    ctx.vars["hardware_port"] = tomlEscape(opts.port);
+    ctx.vars["hardware_baud"] = opts.baud;
     ctx.vars["cpu"] = cuda ? "0" : "1";
     ctx.vars["device_attr"] = cuda ? "cuda" : "cpu";
     ctx.vars["proprietary"] =
@@ -1144,8 +1201,10 @@ int runInit(int argc, char** argv) {
     if (display != ".")
         std::cout << "    cd " << quote(display) << "\n";
     if (opts.kind == "embedded") {
-        std::cout << "    vynec --arduino uno src/main.vy\n";
-        std::cout << "    # add --flash --port COM3 to upload\n\n";
+        std::cout << "    vynec hardware setup  # one-time core/library install\n";
+        std::cout << "    vynec hardware show\n";
+        std::cout << "    vynec build\n";
+        std::cout << "    vynec run\n\n";
     } else {
         std::cout << "    vynec run src/main.vy\n\n";
     }

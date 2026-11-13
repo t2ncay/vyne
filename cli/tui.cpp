@@ -74,8 +74,14 @@ const TargetOption kTargets[] = {
     {"arduino-uno", "Arduino Uno R3"},
     {"coral", "Coral Edge TPU"},
     {"jetson", "Jetson Nano"},
+    {"esp32", "ESP32 family: generic ESP32 Dev Module"},
+    {"esp32s2", "ESP32 family: generic ESP32-S2"},
+    {"esp32s3", "ESP32 family: generic ESP32-S3"},
+    {"esp32c3", "ESP32 family: generic ESP32-C3"},
+    {"esp32c6", "ESP32 family: generic ESP32-C6"},
+    {"hw950", "ESP32 HW-950: measured ST7796 240x320 + XPT2046"},
 };
-constexpr int kTargetCount = 4;
+constexpr int kTargetCount = 10;
 
 struct LibOption {
     const char* value;
@@ -906,6 +912,40 @@ private:
 };
 
 } // namespace
+
+bool questionnaireSelfTest(std::string& error) {
+    auto screen = ScreenInteractive::FixedSize(100, 40);
+    const std::set<std::string> locked = {"kind", "libraries", "cuda", "license"};
+    for (int index = 4; index < kTargetCount; ++index) {
+        InitChoices choices;
+        choices.kind = "embedded";
+        choices.targets = {"arduino-uno"};
+        Questionnaire q(choices, {}, "hardware_test", locked, screen);
+        q.onEvent(Event::ArrowDown); // Uno
+        q.onEvent(Event::Character(' ')); // deselect the default
+        for (int i = 1; i < index; ++i) q.onEvent(Event::ArrowDown);
+        q.onEvent(Event::Character(' '));
+        q.onEvent(Event::Return);
+        if (choices.targets != std::vector<std::string>{kTargets[index].value}) {
+            error = "interactive board selection failed"; return false;
+        }
+        q.onEvent(Event::Escape); // back from confirmation
+        q.onEvent(Event::Return);
+        q.onEvent(Event::Return); // confirm
+        if (!q.confirmed()) { error = "interactive confirmation failed"; return false; }
+    }
+    InitChoices empty;
+    empty.kind = "embedded";
+    empty.targets = {"arduino-uno"};
+    Questionnaire q(empty, {}, "empty_test", locked, screen);
+    q.onEvent(Event::ArrowDown);
+    q.onEvent(Event::Character(' '));
+    q.onEvent(Event::Return);
+    if (q.error().empty()) { error = "empty interactive target selection accepted"; return false; }
+    q.onEvent(Event::CtrlC);
+    if (!q.cancelled()) { error = "interactive cancellation failed"; return false; }
+    return true;
+}
 
 bool runQuestionnaire(
     InitChoices& choices,

@@ -40,7 +40,11 @@ static inline VyneValue esp32_display_init(VyneValue rotation) {
     g_vyne_active_sprite = nullptr;
     g_vyne_draw_target = &g_vyne_tft;
     _vyne_panel_init();
+#ifdef VYNE_DISPLAY_ROTATION
+    g_vyne_tft.setRotation(VYNE_DISPLAY_ROTATION);
+#else
     g_vyne_tft.setRotation((uint8_t)(rotation.as.i64 & 0x3));
+#endif
     g_vyne_tft.setTextColor(TFT_WHITE, TFT_BLACK);
     g_vyne_tft_inited = true;
     return vyne_null();

@@ -104,6 +104,13 @@ target("vynec")
 set_kind("binary")
 set_filename("vynec" .. EXE_SUFFIX)
 set_targetdir(ROOT)
+-- Distributions include compiler-managed presets and user-facing templates.
+add_installfiles("share/vyne/(**)", { prefixdir = "share/vyne" })
+-- Runtime lookup is relative to the compiler executable.
+add_installfiles("vyne/runtime/(**)", { prefixdir = "bin/vyne/runtime" })
+add_installfiles("vyne/modules/(**)", { prefixdir = "share/vyne/modules" })
+add_installfiles("vendor/arduino/(**)", { prefixdir = "bin/vendor/arduino" })
+add_installfiles("vendor/stb/(**)", { prefixdir = "bin/vendor/stb" })
 
 add_files(VYNEC_SOURCES)
 
@@ -329,6 +336,14 @@ on_run(function()
 end)
 task_end()
 
+task("test-hardware")
+set_category("test")
+set_menu({ description = "Run fresh-project hardware configuration acceptance tests" })
+on_run(function()
+    os.execv("python", { path.join(ROOT, "scripts/test_hardware.py") }, { curdir = ROOT })
+end)
+task_end()
+
 -- ---------------------------------------------------------------------------
 -- Aggregate tasks
 -- ---------------------------------------------------------------------------
@@ -485,4 +500,3 @@ on_run(function()
 	os.execv(out_exe, { "tests/network/socket.vy" })
 end)
 task_end()
-

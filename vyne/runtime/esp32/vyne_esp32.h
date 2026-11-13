@@ -55,7 +55,10 @@ extern void vyne_setup();
 extern void vyne_loop();
 
 void setup() {
-    ::Serial.begin(115200);
+#ifndef VYNE_SERIAL_BAUD
+#define VYNE_SERIAL_BAUD 115200
+#endif
+    ::Serial.begin(VYNE_SERIAL_BAUD);
     // Initialize the arena
     arena_free_all();
     vyne_setup();

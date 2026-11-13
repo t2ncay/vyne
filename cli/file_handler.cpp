@@ -68,6 +68,11 @@ namespace {
 std::string outputBase(const std::string& filename, const BuildOptions& opts) {
     if (!opts.outputName.empty())
         return opts.outputName;
+    if (opts.hasProject && (!opts.esp32Board.empty() || !opts.arduinoBoard.empty())) {
+        const auto dir = std::filesystem::path(opts.project.root_dir) / "build" / "firmware";
+        std::filesystem::create_directories(dir);
+        return (dir / std::filesystem::path(filename).stem()).string();
+    }
     size_t dotPos = filename.find_last_of(".");
     return (dotPos == std::string::npos) ? filename
                                          : filename.substr(0, dotPos);
@@ -488,7 +493,8 @@ static int buildESP32(
     const std::string& cFile,
     const std::string& exeDir,
     const std::string& fqbn,
-    const std::vector<std::string>& buildProperties
+    const std::vector<std::string>& buildProperties,
+    const std::string& hardwareFlags
 ) {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -548,6 +554,38 @@ static int buildESP32(
         return 1;
     }
 
+    // ESP32 core response-file hook applies to sketch, runtime, libraries and
+    // core compilation without replacing any platform compiler properties.
+    std::string responseFlags = hardwareFlags;
+    for (const auto& property : buildProperties) {
+        const auto equal = property.find('=');
+        const auto key = property.substr(0, equal);
+        if (equal == std::string::npos) continue;
+        if (key == "build.extra_flags") {
+            // Legacy hardware flags are additive; keep the core's USB/board
+            // defaults rather than replacing the platform property.
+            responseFlags += property.substr(equal + 1) + "\n";
+        } else if (key == "compiler.cpp.extra_flags" || key == "compiler.c.extra_flags") {
+            // CLI macro overrides must follow generated response-file defaults.
+            std::istringstream tokens(property.substr(equal + 1));
+            std::string token;
+            while (tokens >> token) {
+                if (!token.starts_with("-D") && !token.starts_with("-U")) continue;
+                const auto name = token.substr(2, token.find('=') == std::string::npos ? std::string::npos : token.find('=') - 2);
+                if (name.empty() || name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") != std::string::npos) continue;
+                if (hardwareFlags.find("-U" + name + "\n") == std::string::npos) continue;
+                responseFlags += "-U" + name + "\n" + token + "\n";
+            }
+        }
+    }
+    if (!responseFlags.empty()) {
+        std::ofstream options(fs::path(sketchDir) / "build_opt.h");
+        options << responseFlags;
+        if (!options.good()) {
+            std::cerr << "error: cannot write hardware build options\n";
+            return 1;
+        }
+    }
     sectionOpen("esp32-build");
     std::cout << "    " << CYAN << "fqbn" << RESET << "        " << fqbn
               << "\n";
@@ -555,8 +593,9 @@ static int buildESP32(
               << "\n\n";
 
     std::string cmd = "arduino-cli compile --fqbn " + fqbn + " --output-dir \"" +
-                      buildDir + "\" \"" + sketchDir + "\"";
+                      buildDir + "\" --build-path \"" + base + "_cache\" \"" + sketchDir + "\"";
     for (const auto& property : buildProperties) {
+        if (property.starts_with("build.extra_flags=")) continue;
 #ifdef _WIN32
         // Quote one argv item for the Windows CRT parser.
         std::string quoted = "\"";
@@ -587,7 +626,8 @@ static int buildESP32(
     if (rc != 0) {
         sectionClose();
         std::cerr << RED << "  error" << RESET
-                  << "  arduino-cli compile failed (exit " << rc << ")\n\n";
+                  << "  arduino-cli compile failed (exit " << rc << ")\n"
+                  << "  Run `vynec hardware setup` to install the selected core/libraries.\n\n";
         return 1;
     }
 
@@ -634,7 +674,8 @@ static int runESP32Compile(
     }
 
     std::string exeDir = FileUtils::getExeDir();
-    int rc = buildESP32(base, cFile, exeDir, board->fqbn, opts.esp32BuildProperties);
+    const std::string fqbn = opts.boardFqbn.empty() ? board->fqbn : opts.boardFqbn;
+    int rc = buildESP32(base, cFile, exeDir, fqbn, opts.esp32BuildProperties, opts.hardwareFlags);
     if (rc != 0)
         return rc;
 
@@ -651,14 +692,15 @@ static int runESP32Compile(
             }
         }
         std::string cmd = "arduino-cli upload -p " + resolvedPort + " --fqbn " +
-                          board->fqbn + " --input-dir \"" + base + "_build\"";
+                          fqbn + " --input-dir \"" + base + "_build\"";
         std::cout << "    " << CYAN << "running" << RESET << "     " << cmd
                   << "\n\n";
         rc = system(cmd.c_str());
         sectionClose();
         if (rc != 0) {
             std::cerr << RED << "  error" << RESET
-                      << "  arduino-cli upload failed (exit " << rc << ")\n\n";
+                      << "  arduino-cli upload failed (exit " << rc << ")\n"
+                      << "  Check connection.port in hardware.toml, USB cable and boot mode; run arduino-cli board list.\n\n";
             return 1;
         }
     }

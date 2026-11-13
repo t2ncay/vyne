@@ -1,0 +1,1 @@
+{"label":"Generic ESP32-S2 Dev Module (no display)","settings":{"board.name":"esp32:esp32:esp32s2","board.family":"esp32","pinout.led_builtin":2,"connection.baud":115200,"display.driver":"none","touch.driver":"none"}}

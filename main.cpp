@@ -20,6 +20,7 @@
 #include "cli/init.h"
 #include "cli/packager.h"
 #include "cli/project.h"
+#include "cli/hardware.h"
 #include "cli/repl.h"
 #include "editors/vscode/lsp/backend/src/lsp_server.h"
 #include "vyne/utils/file_utils.h"
@@ -141,6 +142,9 @@ static void printHelp() {
     row("vynec run [path]", GREEN, C(CYAN, "build and run the project"), W);
     row("vynec bench [file]", GREEN, C(CYAN, "benchmark project targets"), W);
     row("vynec init [path]", GREEN, C(CYAN, "scaffold a new project"), W);
+    row("vynec hardware list|show|setup", GREEN, C(CYAN, "presets, resolved configuration, toolchain setup"), W);
+    row("--preset <name>", GREEN, "Select a bundled hardware preset", W);
+    row("--hardware-set section.key=value", GREEN, "Override a typed hardware setting", W);
 
     header("MODES");
     row("--run",
@@ -304,6 +308,8 @@ int main(int argc, char* argv[]) {
 
     // Project scaffolder. Kept ahead of the flag scan so `init` can own
     // its own option namespace without colliding with compile flags.
+    if (argc >= 2 && strcmp(argv[1], "hardware") == 0)
+        return runHardware(argc, argv);
     if (argc >= 2 && strcmp(argv[1], "init") == 0)
         return runInit(argc, argv);
 
@@ -331,6 +337,12 @@ int main(int argc, char* argv[]) {
     bool haveMode = false;
     std::string filename;
     int firstArg = 1;
+    HardwareConfig hardware;
+    bool hasHardware = false;
+    bool cliBoard = false, cliPort = false, cliBaud = false;
+    bool cliEsp32Board = false, cliMode = false;
+    std::string cliPreset;
+    std::vector<std::string> hardwareOverrides;
 
     if (projectCommand) {
         const bool isRun = strcmp(argv[1], "run") == 0;
@@ -361,6 +373,15 @@ int main(int argc, char* argv[]) {
             applyProjectConfig(loaded.config, opts);
             opts.project = loaded.config;
             opts.hasProject = true;
+            const auto hardwarePath = std::filesystem::path(loaded.config.root_dir) / "hardware.toml";
+            if (std::filesystem::exists(hardwarePath)) {
+                std::string error;
+                if (!readHardwareToml(hardwarePath.string(), hardware, error)) {
+                    std::cerr << "error: " << error << "\n";
+                    return 1;
+                }
+                hasHardware = true;
+            }
         }
     }
 
@@ -373,6 +394,7 @@ int main(int argc, char* argv[]) {
         auto setMode = [&](RunMode m) {
             opts.mode = m;
             haveMode = true;
+            cliMode = true;
         };
 
         if (arg == "-h" || arg == "--help") {
@@ -384,7 +406,16 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        if (arg == "--native")
+        if (arg == "--preset" && i + 1 < argc) {
+            cliPreset = argv[++i];
+            hasHardware = true;
+        } else if (arg == "--hardware-set" && i + 1 < argc) {
+            hardwareOverrides.push_back(argv[++i]);
+            hasHardware = true;
+        } else if (arg == "--preset" || arg == "--hardware-set") {
+            std::cerr << "error: " << arg << " requires a value\n";
+            return 1;
+        } else if (arg == "--native")
             opts.nativeIsa = true;
         else if (arg == "--no-scratch-bounds")
             opts.scratchBounds = false;
@@ -404,9 +435,17 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--run") {
             setMode(RunMode::CompileRun);
         } else if (arg == "--arduino" && i + 1 < argc) {
+            cliBoard = true;
+            cliEsp32Board = false;
+            opts.esp32Board.clear();
+            opts.boardFqbn.clear();
             opts.arduinoBoard = argv[++i];
             setMode(RunMode::ArduinoCompile);
         } else if (arg.rfind("--arduino=", 0) == 0) {
+            cliBoard = true;
+            cliEsp32Board = false;
+            opts.esp32Board.clear();
+            opts.boardFqbn.clear();
             opts.arduinoBoard = arg.substr(std::strlen("--arduino="));
             setMode(RunMode::ArduinoCompile);
         } else if (arg == "--arduino-flash") {
@@ -427,22 +466,38 @@ int main(int argc, char* argv[]) {
             (arg == "--port" || arg == "--device-port") && i + 1 < argc
         ) {
             opts.arduinoPort = argv[++i];
+            opts.esp32Port = opts.arduinoPort;
+            cliPort = true;
         } else if (arg.rfind("--port=", 0) == 0) {
             opts.arduinoPort = arg.substr(std::strlen("--port="));
+            opts.esp32Port = opts.arduinoPort;
+            cliPort = true;
         } else if (arg.rfind("--device-port=", 0) == 0) {
             opts.arduinoPort = arg.substr(std::strlen("--device-port="));
+            opts.esp32Port = opts.arduinoPort;
+            cliPort = true;
         } else if (arg == "--baud" && i + 1 < argc) {
             try {
                 opts.baudRate = std::stoi(argv[++i]);
+                opts.esp32Baud = opts.baudRate;
+                cliBaud = true;
             } catch (...) {
                 std::cerr << RED << "  error" << RESET
                           << "  --baud requires an integer\n";
                 return 1;
             }
         } else if (arg == "--esp32" && i + 1 < argc) {
+            cliBoard = true;
+            cliEsp32Board = true;
+            opts.arduinoBoard.clear();
+            opts.boardFqbn.clear();
             opts.esp32Board = argv[++i];
             setMode(RunMode::ESP32Compile);
         } else if (arg.rfind("--esp32=", 0) == 0) {
+            cliBoard = true;
+            cliEsp32Board = true;
+            opts.arduinoBoard.clear();
+            opts.boardFqbn.clear();
             opts.esp32Board = arg.substr(std::strlen("--esp32="));
             setMode(RunMode::ESP32Compile);
         } else if (arg == "--esp32-flash") {
@@ -453,8 +508,10 @@ int main(int argc, char* argv[]) {
             setMode(RunMode::ESP32Run);
         } else if (arg == "--esp32-port" && i + 1 < argc) {
             opts.esp32Port = argv[++i];
+            cliPort = true;
         } else if (arg.rfind("--esp32-port=", 0) == 0) {
             opts.esp32Port = arg.substr(std::strlen("--esp32-port="));
+            cliPort = true;
         } else if (arg == "--esp32-build-property" ||
                    arg.rfind("--esp32-build-property=", 0) == 0) {
             std::string property;
@@ -477,6 +534,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--esp32-baud" && i + 1 < argc) {
             try {
                 opts.esp32Baud = std::stoi(argv[++i]);
+                cliBaud = true;
             } catch (...) {
                 std::cerr << RED << "  error" << RESET
                           << "  --esp32-baud requires an integer\n";
@@ -490,6 +548,63 @@ int main(int argc, char* argv[]) {
             if (filename.empty())
                 filename = arg;
         }
+    }
+
+    const RunMode requestedMode = opts.mode;
+    const bool cliHostMode = cliMode && requestedMode != RunMode::ArduinoCompile &&
+        requestedMode != RunMode::ArduinoRun && requestedMode != RunMode::ESP32Compile &&
+        requestedMode != RunMode::ESP32Run;
+    if (hasHardware) {
+        std::string error;
+        if (!cliPreset.empty()) hardware.preset = cliPreset;
+        for (const auto& assignment : hardwareOverrides) {
+            if (!setHardwareValue(hardware, assignment, error)) {
+                std::cerr << "error: " << error << "\n"; return 1;
+            }
+        }
+        if (cliBoard) {
+            hardware.settings["board.name"] = cliEsp32Board ? "esp32:esp32:" + opts.esp32Board :
+                "arduino:avr:" + (opts.arduinoBoard == "mega2560" ? "mega" : opts.arduinoBoard);
+        }
+        if (cliBaud) hardware.settings["connection.baud"] = opts.esp32Baud;
+        if (cliPort) hardware.settings["connection.port"] = opts.esp32Port.empty() ? opts.arduinoPort : opts.esp32Port;
+        if (!resolveHardware(hardware, opts.project.board, error)) {
+            std::cerr << "error: hardware.toml: " << error << "\n"; return 1;
+        }
+        opts.boardFqbn = hardware.fqbn;
+        if (hardware.family == "esp32") {
+            auto board = hardware.fqbn.substr(12);
+            opts.esp32Board = board.substr(0, board.find(':'));
+            opts.arduinoBoard.clear();
+            opts.mode = RunMode::ESP32Compile;
+            opts.hardwareFlags = hardwareDefines(hardware);
+            if (!cliPort) opts.esp32Port = hardware.port;
+            if (!cliBaud) opts.esp32Baud = hardware.baud;
+        } else {
+            auto board = hardware.fqbn.substr(12);
+            opts.arduinoBoard = board.substr(0, board.find(':'));
+            if (opts.arduinoBoard == "mega") opts.arduinoBoard = "mega2560";
+            opts.esp32Board.clear();
+            opts.mode = RunMode::ArduinoRun;
+            if (!cliPort) opts.arduinoPort = hardware.port;
+            if (!cliBaud) opts.baudRate = hardware.baud;
+        }
+    }
+    // Project run uses the board core's upload/reset/start sequence.
+    // Generic flash and monitor aliases work for either embedded family.
+    if (cliHostMode) {
+        opts.mode = requestedMode;
+    } else if (!opts.esp32Board.empty()) {
+        opts.esp32Upload = opts.esp32Upload || opts.arduinoUpload ||
+            (projectCommand && strcmp(argv[1], "run") == 0);
+        opts.esp32Monitor = opts.esp32Monitor || opts.arduinoMonitor;
+        opts.mode = opts.esp32Upload || opts.esp32Monitor ? RunMode::ESP32Run : RunMode::ESP32Compile;
+    } else if (!opts.arduinoBoard.empty() && projectCommand) {
+        opts.arduinoUpload = opts.arduinoUpload || strcmp(argv[1], "run") == 0;
+        opts.mode = RunMode::ArduinoRun;
+    }
+    if (cliBaud && (opts.baudRate <= 0 || opts.esp32Baud <= 0)) {
+        std::cerr << "error: baud must be positive\n"; return 1;
     }
 
     if (filename.empty()) {
