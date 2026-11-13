@@ -40,6 +40,23 @@ static inline bool _vyne_touch_load_xpt_calibration(const char* name, VyneTouchC
 }
 #endif
 
+#if !defined(VYNE_TOUCH_XPT2046)
+static bool g_vyne_shared_touch_calibrated = false;
+#endif
+
+static inline VyneValue esp32_touch_screen_configured(void) {
+    return vyne_bool(true);
+}
+
+static inline VyneValue esp32_touch_screen_calibrated(void) {
+#if defined(VYNE_TOUCH_XPT2046)
+    return vyne_bool(vyne_touch_calibration_matches(g_vyne_touch_calibration,
+        g_vyne_tft.width(), g_vyne_tft.height(), g_vyne_tft.getRotation()));
+#else
+    return vyne_bool(g_vyne_shared_touch_calibrated);
+#endif
+}
+
 static uint16_t g_vyne_touch_x = 0;
 static uint16_t g_vyne_touch_y = 0;
 static int32_t g_vyne_touch_pressure = 0;
@@ -95,6 +112,7 @@ static inline VyneValue esp32_touch_screen_init(void) {
         g_vyne_tft.width(), g_vyne_tft.height(), g_vyne_tft.getRotation()))
         g_vyne_touch_calibration = {};
 #else
+    g_vyne_shared_touch_calibrated = false;
     nvs_handle_t handle;
     if (nvs_open("vyne_touch", NVS_READONLY, &handle) == ESP_OK) {
         uint16_t calData[5] = {0};
@@ -102,6 +120,7 @@ static inline VyneValue esp32_touch_screen_init(void) {
         if (nvs_get_blob(handle, "cal", calData, &length) == ESP_OK &&
             length == sizeof(calData)) {
             g_vyne_tft.setTouch(calData);
+            g_vyne_shared_touch_calibrated = true;
         }
         nvs_close(handle);
     }
@@ -235,6 +254,7 @@ static inline VyneValue esp32_touch_screen_calibrate(void) {
     g_vyne_tft.fillScreen(TFT_BLACK);
     g_vyne_tft.calibrateTouch(calData, TFT_MAGENTA, TFT_BLACK, 15);
     g_vyne_tft.setTouch(calData);
+    g_vyne_shared_touch_calibrated = true;
 
     Preferences prefs;
     if (!prefs.begin("vyne_touch", false))
@@ -254,6 +274,12 @@ static inline VyneValue esp32_touch_screen_calibrate(void) {
 
 static inline VyneValue esp32_touch_screen_init(void) {
     return vyne_null();
+}
+static inline VyneValue esp32_touch_screen_configured(void) {
+    return vyne_bool(false);
+}
+static inline VyneValue esp32_touch_screen_calibrated(void) {
+    return vyne_bool(false);
 }
 static inline VyneValue esp32_touch_screen_pressed(void) {
     return vyne_bool(false);

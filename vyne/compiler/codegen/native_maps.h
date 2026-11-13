@@ -570,7 +570,8 @@ static const NativeMapEntry ESP32_SPECIFIC_MAP[] = {
     {"serial2_begin", "esp32_serial2_begin", false},
 
     // --- Display (mcu_display.h). Colors are packed RGB565 Int64. ---
-    {"display_init", "esp32_display_init", false},
+    {"display_init", "esp32_display_init", false, false, nullptr, "esp32_display_init_default"},
+    {"display_rotation", "esp32_display_rotation", false},
     {"display_width", "esp32_display_width", false},
     {"display_height", "esp32_display_height", false},
     {"display_set_rotation", "esp32_display_set_rotation", false},
@@ -601,6 +602,8 @@ static const NativeMapEntry ESP32_SPECIFIC_MAP[] = {
 
     // --- Touchscreen / pen (mcu_touch.h) ---
     {"touch_screen_init", "esp32_touch_screen_init", false},
+    {"touch_screen_configured", "esp32_touch_screen_configured", false},
+    {"touch_screen_calibrated", "esp32_touch_screen_calibrated", false},
     {"touch_screen_pressed", "esp32_touch_screen_pressed", false},
     {"touch_screen_x", "esp32_touch_screen_x", false},
     {"touch_screen_y", "esp32_touch_screen_y", false},

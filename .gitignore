@@ -53,3 +53,4 @@ __pycache__/
 !share/vyne/**
 examples/test/*_build
 examples/test/*_sketch
+examples/test/*_cache

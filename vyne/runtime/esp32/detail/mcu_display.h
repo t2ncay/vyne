@@ -40,14 +40,24 @@ static inline VyneValue esp32_display_init(VyneValue rotation) {
     g_vyne_active_sprite = nullptr;
     g_vyne_draw_target = &g_vyne_tft;
     _vyne_panel_init();
-#ifdef VYNE_DISPLAY_ROTATION
-    g_vyne_tft.setRotation(VYNE_DISPLAY_ROTATION);
-#else
     g_vyne_tft.setRotation((uint8_t)(rotation.as.i64 & 0x3));
-#endif
     g_vyne_tft.setTextColor(TFT_WHITE, TFT_BLACK);
     g_vyne_tft_inited = true;
     return vyne_null();
+}
+
+// The no-argument Vyne call uses hardware.toml/preset orientation. An explicit
+// display_init(rotation) remains authoritative, as in standalone examples.
+static inline VyneValue esp32_display_init_default(void) {
+#ifdef VYNE_DISPLAY_ROTATION
+    return esp32_display_init(vyne_int(VYNE_DISPLAY_ROTATION));
+#else
+    return esp32_display_init(vyne_int(0));
+#endif
+}
+
+static inline VyneValue esp32_display_rotation(void) {
+    return vyne_int(g_vyne_tft.getRotation());
 }
 
 static inline VyneValue esp32_display_width(void) {
