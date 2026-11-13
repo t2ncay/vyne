@@ -12,6 +12,8 @@
 
 use native esp32;
 
+const ESP32_DISPLAY_BLACK :: Int64 := 0x0000;
+
 esp32.serial_begin(115200);
 esp32.display_init(1);           # 1 = landscape
 esp32.display_clear(0x0000);     # black
@@ -25,7 +27,7 @@ count :: Int64 := networks.size();
 # Header line. `string(count)` and string concatenation both lower to
 # runtime helpers (vyne_to_string / vyne_binop) supplied by the ESP32
 # runtime.
-esp32.display_clear(0x0000);
+esp32.display_clear(ESP32_DISPLAY_BLACK);
 found_text :: String := "Found " + string(count) + " networks";
 esp32.display_text(10, 10, found_text, 0x07E0, 2);
 
