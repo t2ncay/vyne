@@ -1,8 +1,8 @@
 # esp32_wifi_radar.vy — scan WiFi and render the list on the TFT.
 #
 # Requires: VYNE_USE_WIFI + VYNE_USE_DISPLAY; TFT_eSPI configured
-# Hardware: ESP32-WROOM-32 + ILI9341/TFT panel (TFT_eSPI User_Setup.h)
-# Flash:    vynec --esp32 esp32 --esp32-flash --esp32-monitor --esp32-port COM3 examples/test/esp32_wifi_radar.vy
+# Hardware: ESP32-WROOM-32 + a configured TFT panel; command selects the verified HW-950 setup
+# Flash:    vynec --preset hw950 --esp32-flash --esp32-monitor --esp32-port COM5 examples/test/esp32_wifi_radar.vy
 # Expect:   "Scanning WiFi...", then "Found N networks" and one row per
 #           SSID on the panel; serial ends with "Scan complete."
 #

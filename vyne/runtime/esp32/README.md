@@ -51,6 +51,18 @@ are staged in `build/firmware/`. The core's `build_opt.h` response-file hook
 applies display/touch settings without replacing platform USB defines.
 Use `vynec run --monitor` only when you want serial monitoring.
 
+`esp32.display_init()` uses the configured default (HW-950: landscape `1`);
+`esp32.display_init(0..3)` always honors the source argument. Hardware response
+file changes trigger a clean object rebuild to prevent stale firmware uploads.
+The generated HW-950 starter polls touch continuously, prints geometry and
+calibration status, and accepts **C** over serial for explicit calibration.
+`esp32.display_rotation()`, `esp32.touch_screen_configured()` and
+`esp32.touch_screen_calibrated()` expose that state to applications.
+
+The measured preset's Y mirror is an intentional correction. Its driver,
+HSPI wiring, GPIO27 panel enable and touch settings are checked against the
+recorded successful radar/touch profile, not inferred from local library defaults.
+
 See `docs/src/getting-started/projects.md` and `examples/templates/README.md`
 for the complete fresh-project workflow and acceptance tests.
 

@@ -155,8 +155,11 @@ Normal applications need no JSON loading, Python launcher or test fixture.
 The measured HW-950 preset uses ST7796-compatible initialization, native
 240×320 RGB dimensions, vertical mirror correction, GPIO21 backlight,
 GPIO27 enable and shared-HSPI XPT2046 touch. Generic boards have no display.
-The HW-950 starter draws touch-contact dots for ten seconds; calibrate the
-physical panel for accurate coordinates.
+The HW-950 starter uses landscape rotation `1`, shows labeled corners and RGB
+bars, and continuously draws touch-contact dots. Its serial diagnostics report
+geometry, configured/calibrated touch status, contacts and memory heartbeats.
+Send **C** through the serial monitor to explicitly calibrate the four corners;
+existing NVS calibration is preserved unless calibration is requested.
 
 ### Overrides and validation
 
@@ -189,6 +192,22 @@ Firmware, generated sketches and compiler intermediates live in
 preserving platform USB/board flags. Existing low-level ESP32 build-property
 options remain available; `build.extra_flags` additions are staged through
 that response file instead of replacing the platform defaults.
+
+`esp32.display_init()` uses the configured default rotation, while
+`esp32.display_init(0..3)` honors the explicit source argument. This lets the
+same radar/touch examples work inside a project without silently forcing a
+different orientation. When response-file hardware options change, Vyne
+requests a clean Arduino build so cached objects cannot retain old settings.
+
+The HW-950 Y-mirror flag is the correction from the known-good hardware test
+profile; it is not a generic ESP32 default. A local TFT_eSPI `User_Setup.h` may
+describe a different configuration. Use `--preset hw950` for these standalone
+examples to reproduce the verified board setup without manual property strings:
+
+```shell
+vynec --preset hw950 --esp32-flash --esp32-port COM5 examples/test/esp32_wifi_radar.vy
+vynec --preset hw950 --esp32-flash --esp32-port COM5 examples/test/esp32_touch.vy
+```
 
 Legacy Uno `[board]`, `[pinout]` and `[budget]` metadata remains accepted;
 flash/SRAM budget entries are metadata, not resource enforcement. Projects

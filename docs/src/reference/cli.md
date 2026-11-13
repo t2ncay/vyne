@@ -90,6 +90,15 @@ under `build/firmware/`.
 `vynec init --kind embedded --preset hw950 --port COM5 --name demo` creates a
 project ready for the short workflow after `vynec hardware setup`.
 
+For orientation, `esp32.display_init()` uses the resolved configuration;
+`esp32.display_init(0..3)` overrides it explicitly in source. Changed hardware
+options cause a clean Arduino object rebuild so a subsequent run uploads the
+new configuration instead of stale cached firmware.
+
+The HW-950 starter runs touch polling continuously. It reports geometry,
+touch-driver/calibration status, contact coordinates and arena heartbeats.
+Send **C** through the monitor to explicitly start four-corner calibration.
+
 ```shell
 vynec build
 vynec run
