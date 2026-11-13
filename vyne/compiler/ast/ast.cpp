@@ -2731,7 +2731,7 @@ Value NullCoalesceMemberAssignmentNode::evaluate(
     }
 
     throw std::runtime_error(
-        "Type Error: Cannot use '??=' on non-struct, non-module type " +
+        "Type Error: Cannot use '?" "?=' on non-struct, non-module type " +
         recVal.getTypeName() + " [ line " + std::to_string(lineNumber) + " ]"
     );
 }

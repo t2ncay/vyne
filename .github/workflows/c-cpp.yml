@@ -78,20 +78,25 @@ jobs:
 
       - name: Compile Vyne
         run: |
-          # Host build. Excludes:
-          #   ./vendor/arduino/* — AVR-target sources (avr/pgmspace.h,
-          #                        avr/interrupt.h, its own main.cpp).
-          #                        Built by avr-gcc under `--arduino`,
-          #                        not by g++-13.
-          #   */build/*          — CMake artifacts
-          #   */CMakeFiles/*     — CMake artifacts
+          set -euo pipefail
+
+          # Compile the application source roots, matching xmake.lua.
+          # Standalone tests have their own entry points and build steps.
+          mapfile -t sources < <(find main.cpp cli vyne -type f -name "*.cpp" \
+              ! -path "*/build/*" \
+              ! -path "*/CMakeFiles/*")
           g++-13 -std=c++23 ${{ matrix.flags }} \
               -I./editors/vscode/lsp/backend/include \
               -I./vendor \
               -I./vendor/stb \
-              $(find . -type f -name "*.cpp" \
-                  ! -path "./vendor/arduino/*" \
-                  ! -path "*/build/*" \
-                  ! -path "*/CMakeFiles/*") \
+              "${sources[@]}" \
               -o vyne_run \
               -lm -lpthread -ldl -lrt -lssl -lcrypto
+
+      - name: Run host touch calibration regression
+        run: |
+          set -euo pipefail
+          g++-13 -std=c++23 ${{ matrix.flags }} -Wall -Wextra \
+              scripts/tests/esp32_touch_calibration.cpp \
+              -o esp32_touch_calibration_test
+          ./esp32_touch_calibration_test

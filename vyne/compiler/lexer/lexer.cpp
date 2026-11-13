@@ -460,7 +460,7 @@ std::vector<Token> tokenize(std::string_view input) {
                         VTokenType::NullCoalesceAssign,
                         currentLine,
                         0,
-                        "??="
+                        "?" "?="
                     );
                     i += 3;
                 } else {
