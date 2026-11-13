@@ -184,6 +184,23 @@ vynec run src/main.vy
 `./vynec init --help` lists the flags, the five questions, and the exit
 codes.
 
+Initialize an ESP32 display/touch project and select its hardware once:
+
+```sh
+vynec init screen --name screen --kind embedded --preset hw950 --port COM5
+cd screen
+vynec hardware setup  # one-time core/library installation
+vynec hardware show   # resolved settings from hardware.toml + bundled preset
+vynec build           # compile firmware
+vynec run             # upload, reset and start; add --monitor to watch serial
+```
+
+Generic ESP32 boards use `--board esp32` (also S2/S3/C3/C6 aliases).
+Firmware and sketches stay under `build/firmware/`; advanced TOML/CLI
+overrides and fresh-project tests are documented in
+[Projects & Tooling](docs/src/getting-started/projects.md) and
+[`examples/templates/`](examples/templates/README.md).
+
 Transpile a program to a standalone binary:
 
 ```bash

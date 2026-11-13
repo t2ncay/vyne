@@ -16,6 +16,9 @@ vynec build [path]                 build the current project
 vynec run [path]                   build and run the project
 vynec bench [file]                 benchmark project targets
 vynec init [path]                  scaffold a new project
+vynec hardware list               list bundled board/preset labels
+vynec hardware show               print resolved hardware as TOML
+vynec hardware setup              install the selected core/libraries
 ```
 
 ## Execution modes
@@ -69,6 +72,23 @@ vynec --arduino uno --flash --monitor --port COM3 sketch.vy
 `--arduino uno` alone produces `.elf` and `.hex`. `--flash` and `--monitor` are post-build actions.
 
 ## Projects
+
+Embedded projects load `hardware.toml` automatically. `vynec build` compiles
+without uploading; `vynec run` compiles, uploads, resets and starts the board.
+Monitoring is opt-in with `--monitor`. Generated firmware and sketches live
+under `build/firmware/`.
+
+| Hardware option | Effect |
+| :--- | :--- |
+| `--preset <name>` | Override the bundled preset (`hw950`, `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, `esp32c6`) |
+| `--hardware-set section.key=value` | Repeatable typed TOML override, e.g. `display.rotation=1` |
+| `--port <device>` | Override configured upload/monitor port for either board family |
+| `--baud <rate>` | Override configured serial baud |
+
+`hardware show` and `hardware setup` also accept `--preset` and
+`--hardware-set`. Configuration precedence is CLI → TOML → preset defaults.
+`vynec init --kind embedded --preset hw950 --port COM5 --name demo` creates a
+project ready for the short workflow after `vynec hardware setup`.
 
 ```shell
 vynec build
