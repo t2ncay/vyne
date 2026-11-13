@@ -51,3 +51,5 @@ __pycache__/
 # bundled sample assets. Some of their extensions collide with the
 # build-output ignores above, but they are source files.
 !share/vyne/**
+examples/test/*_build
+examples/test/*_sketch
