@@ -48,6 +48,17 @@ HELPERS = {"buffer": (-1, 2), "buffer_read": (-2, 2), "buffer_write": (-3, 3),
            "live_handles": (-7, 0), "shutdown": (-8, 0), "model_texture": (-9, 3),
            "model_shader": (-10, 2), "render_texture": (-11, 1),
            "buffer_size": (-12, 1), "valid": (-13, 1), "environment": (-14, 1)}
+HELPERS.update({
+    "managed_session": (-15,1), "managed_adopt": (-16,2), "managed_valid": (-17,2),
+    "managed_close": (-18,1), "managed_path": (-19,2), "managed_cache": (-20,3),
+    "managed_store": (-21,4), "managed_release": (-22,2), "managed_uniform": (-23,5),
+    "managed_target": (-24,4), "managed_open": (-25,6), "managed_pass": (-26,4),
+    "managed_config": (-27,3), "managed_state": (-28,2), "managed_frame": (-30,1),
+    "managed_finish": (-31,1), "managed_resize": (-32,4), "managed_present": (-33,4),
+    "managed_texture": (-34,2), "managed_draw_texture": (-35,4), "managed_image": (-36,4),
+    "managed_texture_size": (-41,3),
+    "managed_model_texture": (-42,4),
+})
 GPU_OWNERS = {
     "rlLoadVertexArray": ("rlUnloadVertexArray", "VertexArray"),
     "rlLoadVertexBuffer": ("rlUnloadVertexBuffer", "VertexBuffer"),
