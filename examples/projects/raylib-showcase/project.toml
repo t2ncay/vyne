@@ -1,0 +1,12 @@
+[project]
+name = "raylib-showcase"
+version = "0.1.0"
+
+[dependencies]
+vraylib = "6.2"
+
+[targets]
+default = "desktop"
+
+[targets.desktop]
+backend = "c"
