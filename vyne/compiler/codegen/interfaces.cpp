@@ -197,7 +197,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
     // affect it: an interface with methods can still have a C struct
     // representation for its fields, because method dispatch always
     // goes through the boxed VyneStruct (see vyne_struct_call).
-    if (e.isCEligible(fullName) || e.isCEligible(interfaceName)) {
+    if (e.isCEligible(fullName)) {
         std::string tag = "vyne_" + cStructName;
 
         std::vector<std::string> fieldNames;
@@ -534,6 +534,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
         );
 
         e.emit("VyneValue v_self = (arg_count > 0) ? args[0] : vyne_null();");
+        e.declareLocal("v_self", CType::fromKind(CType::Kind::Unknown));
 
         // Parameter binding. Mirrors emitFunctionBody's primitive
         // unboxing so interface methods take the same native fast
@@ -595,6 +596,7 @@ void InterfaceNode::compile(C_Emitter& e) const {
                 e.declareLocal(paramName, pt);
                 e.emit(pt.cTypeName() + " " + paramName + " = " + init + ";");
             } else {
+                e.declareLocal(paramName, pt);
                 e.emit(
                     "VyneValue " + paramName + " = " + guard + " ? " + arg +
                     " : vyne_null();"

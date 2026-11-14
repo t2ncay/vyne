@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include "../../../vendor/raylib/src/raylib.h"
 #define RAYMATH_STATIC_INLINE
 #include "../../../vendor/raylib/src/raymath.h"
@@ -22,6 +23,7 @@ typedef struct {
     int64_t owner;
     VRDrop drop;
     int allocated;
+    int64_t session;
 } VRSlot;
 static VRSlot *vr_slots;
 static size_t vr_capacity;
@@ -32,6 +34,8 @@ static VRSlot *vr_slot(int64_t id);
 typedef struct VRDependency { int64_t from,to; int key; struct VRDependency *next; } VRDependency;
 static VRDependency *vr_dependencies;
 static void *vr_active_automation, *vr_active_batch;
+static int64_t vr_managed_session;
+static void vr_managed_invalidate(int64_t id);
 
 // All entry points are main-thread only, matching raylib's graphics context.
 // Temporary pointer conversions are freed on both normal and error paths.
@@ -160,6 +164,7 @@ static VR vr_handle(void *data, const char *type, size_t count, size_t stride, V
     if (++s->generation == 0) ++s->generation;
     s->data = data; s->type = type; s->count = count; s->stride = stride;
     s->drop = drop; s->allocated = allocated; s->owner = owner;
+    s->session = 0;
     VR v = vr_int(vr_id(i)); v.kind = VR_HANDLE; return v;
 }
 static void *vr_checked(VR v, const char *type, size_t count) {
@@ -170,6 +175,7 @@ static void *vr_checked(VR v, const char *type, size_t count) {
     return s->data;
 }
 static void vr_invalidate(int64_t id) {
+    vr_managed_invalidate(id);
     for (size_t i = 0; i < vr_capacity; ++i)
         if (vr_slots[i].data && vr_slots[i].owner == id) vr_invalidate(vr_id(i));
     VRSlot *s = vr_slot(id);
@@ -281,7 +287,10 @@ void vyne_ray_dispose(VR v) {
     }
 }
 
+#include "managed.inc"
+
 static VR vr_helper(int id, const VR *a, size_t count) {
+    if (id <= -15) return vr_managed_helper(id,a,count);
     static const unsigned char arities[]={2,2,3,1,3,3,0,0,3,2,1,1,1,1};
     static const char *names[]={"buffer","buffer_read","buffer_write","release","field","set_field","live_handles","shutdown","model_texture","model_shader","render_texture","buffer_size","valid","environment"};
     if(id<=-1 && id>=-14) vr_function=names[-id-1];
@@ -337,6 +346,7 @@ static VR vr_helper(int id, const VR *a, size_t count) {
         return vr_handle(&r->texture, "Texture", 1, sizeof(Texture), NULL, 0, vr_integer(a[0]));
     }
     case VR_SHUTDOWN:
+        if (vr_managed_session) vr_release(vr_managed_session,NULL);
         vr_close_graphics();
         vr_close_audio();
         for (size_t i = vr_capacity; i > 0; --i)

@@ -144,6 +144,14 @@ void ProgramNode::compile(C_Emitter& e) const {
     // diagnostic in InterfaceNode::compile. The fixed-point pass makes
     // eligibility order-independent, not emission order-independent.
     {
+        for (const auto& stmt : statements) {
+            if (stmt && stmt->type() == NodeType::INTERFACE) {
+                auto* iface = static_cast<const InterfaceNode*>(stmt.get());
+                const auto& module = iface->getModuleName();
+                e.registerCanonicalInterface(module.empty() ? iface->getInterfaceName() :
+                    module + "." + iface->getInterfaceName());
+            }
+        }
         bool changed = true;
         while (changed) {
             changed = false;

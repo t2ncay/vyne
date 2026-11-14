@@ -9,6 +9,7 @@ use "Shaders.vy";
 use "Audio.vy";
 use "Math.vy";
 use "GL.vy";
+use "Managed.vy";
 use native vraylib;
 ruleset { dynamic_casting };
 module vraylib;

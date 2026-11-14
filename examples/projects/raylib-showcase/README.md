@@ -4,6 +4,12 @@ This is the small standalone desktop project for `vraylib` (raylib 6.2,
 raymath, rlgl). The original **Bodycam Horror** scene remains at
 `examples/graphics/camera_test.vy` and is the larger real-world showcase.
 
+The project now uses the [managed external facade](../../../vyne/modules/external/vraylib/MANAGED.md):
+an App owns typed resources and frame regions, an orbit camera supplies controls,
+and application shutdown is paired with try/finally. The bodycam example uses
+the same App API for cached assets, named shader uniforms, streamed music, and
+screen-following post-processing targets.
+
 ## Run the project
 
 ```sh
