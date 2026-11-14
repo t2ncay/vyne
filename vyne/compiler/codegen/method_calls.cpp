@@ -104,6 +104,16 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     if (node.getReceiver()->type() != NodeType::VARIABLE)
         return std::nullopt;
 
+    if (e.resolveNativeModule(recvPath) == "vraylib") {
+        if (e.isEmbeddedTarget())
+            throw std::runtime_error("Compile Error (VNE-079): vraylib requires a compiled desktop target.");
+        if (const char* reason = vraylibUnavailable(node.getMethodName()))
+            throw std::runtime_error("Compile Error (VNE-079): vraylib." + node.getMethodName() + ": " + reason);
+        if (!e.findNative(recvPath, node.getMethodName()))
+            return std::nullopt; // Typed facade helpers are ordinary Vyne functions.
+        registerRaylibFields(e);
+    }
+
     const NativeMapEntry* entry = e.findNative(recvPath, node.getMethodName());
     if (!entry) {
         if (e.resolveNativeModule(recvPath) == "vplot" && node.getMethodName() == "display_surface" && !e.isESP32Target())

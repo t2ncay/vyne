@@ -20,6 +20,17 @@
 #include "../../contract_config.h"
 #include <cmath>
 
+static inline void registerRaylibFields(C_Emitter& e) {
+    if (e.isGlobalDeclared("__vraylib_field_ids")) return;
+    e.declareGlobal("__vraylib_field_ids", CType::fromKind(CType::Kind::Unknown));
+    std::string code = "static uint32_t vraylib_field_id(const char *name) {\n";
+    for (const char* name : VRAYLIB_FIELDS)
+        code += "    if (!strcmp(name, \"" + std::string(name) + "\")) return " +
+                std::to_string(StringPool::instance().intern(name)) + "u;\n";
+    code += "    return 0;\n}\n";
+    e.emitGlobalDecl(code);
+}
+
 // Shared, translation-unit-local emission helpers from the original
 // codegen.cpp. These helpers do not retain mutable state; per-compilation state
 // lives in C_Emitter.

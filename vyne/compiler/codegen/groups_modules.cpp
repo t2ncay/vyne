@@ -150,6 +150,9 @@ std::string ModuleNode::getCExpr(C_Emitter& e) const {
 // harmless (includeSet deduplicates by path).
 // ============================================================
 void NativeModuleNode::compile(C_Emitter& e) const {
+    if (moduleName == "vraylib" && e.isEmbeddedTarget())
+        throw std::runtime_error("Compile Error (VNE-079): vraylib requires a compiled desktop target.");
+    if (moduleName == "vraylib") registerRaylibFields(e);
     e.registerNativeModuleAlias(alias, moduleName);
     // The `arduino` pseudo-module has no standalone `arduino.h` under
     // vyne/runtime/modules. Its runtime lives in vyne/runtime/arduino/

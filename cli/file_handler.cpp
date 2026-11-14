@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "file_handler.h"
+#include "raylib_build.h"
 #include "../vyne/utils/sha256.h"
 #include "../vyne/compiler/contract_config.h"
 #include <functional>
@@ -1035,6 +1036,8 @@ static int runTranspile(
 
     // ---------------- Phase 2c: link for --compile / --run -------------
     std::string cmd = gccBase() + " -o \"" + exeName + "\"";
+    if (cSource.find("/modules/vraylib.h") != std::string::npos || cSource.find("\\modules\\vraylib.h") != std::string::npos)
+        cmd += raylibLinkFlags(exeDir);
 #ifdef _WIN32
     // 64 MB stack. MSVC and MinGW honour this; GNU ld on Linux does not
     // implement -z stacksize, so the flag is only emitted on Windows.

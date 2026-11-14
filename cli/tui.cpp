@@ -100,8 +100,9 @@ const LibOption kLibs[] = {
     {"vcsv", "vcsv", "CSV loading"},
     {"vimage", "vimage", "Image I/O"},
     {"vconv", "vconv", "Convolution"},
+    {"vraylib", "vraylib", "Desktop raylib 6.2, raymath and rlgl"},
 };
-constexpr int kLibCount = 10;
+constexpr int kLibCount = 11;
 
 const char* const kLicenses[] = {
     "AGPL-3.0-only",

@@ -2386,6 +2386,8 @@ Value NativeModuleNode::evaluate(
     SymbolContainer& env,
     uint32_t currentGroupId
 ) const {
+    if (moduleName == "vraylib")
+        throw std::runtime_error("vraylib requires desktop compilation; use --run or --compile instead of --ast.");
     if (moduleName == "vcore")
         setupVCore(env, StringPool::instance());
     if (moduleName == "vmem")
