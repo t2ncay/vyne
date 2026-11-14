@@ -293,6 +293,20 @@ Useful `vmem` calls: `total_allocated`, `peak_allocated`, `peak_reset`, `commit_
 - **Slices of runtime VLAs.** `buf[lo:hi]` on runtime-length scratch is not supported yet.
 - **Poison-on-rewind is debug-only.** Enable with `VYNE_POISON_ARENA=1` or `-DVYNE_ARENA_POISON_DEFAULT=1` to fill reclaimed memory with a quiet NaN pattern.
 
+## Borrowed slices and preallocated arrays
+
+`Slice<T>` is a pointer-and-length borrow, not an owning allocation. Creating a
+view adds no payload bytes, but the view becomes invalid when its owner's region
+rewinds or its payload is dropped/replaced. Create long-lived owners outside
+short-lived frame regions, and keep borrowed views within the owner's lifetime.
+Escape analysis is not a borrow checker and does not prove pointer stability.
+
+`Array<T>.reserve(n)` reserves capacity and `resize(n, fill)` changes logical
+length. Both can grow the payload and consume the active arena budget. Reserve
+before taking views; reuse capacity inside repeated operations when practical.
+Shrinking logical size does not return capacity to the arena.
+See [Values & Types](page:types) and [Built-ins & Collections](page:builtins).
+
 ## See also
 
 - [Automatic Differentiation](page:autodiff)

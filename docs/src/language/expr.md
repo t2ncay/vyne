@@ -61,6 +61,11 @@ xs[1:3]       # slice
 
 Ranges are the input to `through`. The inclusive upper bound is part of the range value, so `0..9` has ten elements. `sequence(lo, hi)` is the built-in that generates values from `lo` up to but excluding `hi`.
 
+Array slice bounds are half-open: `xs[1:3]` selects elements 1 and 2. An ordinary
+array slice copies its elements. When the expected type is `Slice<T>` (a typed
+declaration or function parameter), the compiler instead creates a zero-copy
+borrow over a typed numeric array. See [Slice views](page:types).
+
 ## Calls and member access
 
 ```vyne

@@ -11,10 +11,15 @@ description: The module map, import conventions, kernel/wrapper pattern, and eve
 
 Vyne has two library layers:
 
-- **Native modules** implemented in C++ for the desktop runtime or `static inline` C for AVR. They are available through `use native <name>`.
+- **Native modules** implemented in C++ for the interpreter or C/C++ for compiled desktop and embedded targets. They are available through `use native <name>`.
 - **External libraries** written in Vyne itself under `vyne/modules/external/`. They are imported through `use external "<lib>/<facade>.vy"`.
 
-The external layer is where most numerical work lives. Every library follows the same kernel/wrapper structure: hot loops over typed arrays live in `Kernels.vy`, typed interfaces live in `Types.vy`, validation and allocation live in `Ops.vy` or the leaf modules, and a facade re-exports the surface.
+The external layer is where most numerical work lives. Numerical libraries
+typically separate typed kernels, interfaces, validation/allocation, and a facade.
+Some external libraries are **hybrid native-backed facades**: `vplot` uses a shared
+native rendering core, `vraylib` wraps vendored graphics/audio, and `vtensor`/`vnn`
+compose explicit device intrinsics. Their import syntax is still `use external`;
+their native storage has its own ownership/lifetime rules.
 
 ## Native modules
 
@@ -25,6 +30,7 @@ The external layer is where most numerical work lives. Every library follows the
 | [`vmem`](page:vmem) | Arena checkpoints, peak/live accounting, commit/stream stats, diagnostics. |
 | [`vfs`](page:vfs) | Filesystem read/write, lines, bytes, walk, glob, mkdir, path operations. |
 | [`arduino`](page:arduino) | AVR-only: 110 bindings for serial, GPIO, ADC, I2C/SPI, EEPROM, bits, interrupts, watchdog, realtime. |
+| [`esp32`](page:esp32) | ESP32 firmware: shared MCU calls plus Wi-Fi/HTTP, NVS, display/sprites, touch, IMU, and power. |
 
 ```vyne
 use native vmath;
@@ -41,7 +47,7 @@ out(vmem.total_allocated());
 | Library | What it gives you |
 | :--- | :--- |
 | [`vlin`](page:vlin) | Dense matrices and vectors, arithmetic, products, reductions, activations, in-place training kernels. |
-| [`vml`](page:vml) | Dense layers, Sequential, activations, losses, SGD, Adam. |
+| [`vml`](page:vml) | CPU dense/MLP layers, Sequential, activations, losses, and optimizer helpers over vlin matrices. |
 | [`vfft`](page:vfft) | Radix-2 FFT with cached twiddle factors, inverse, magnitude/phase. |
 | [`vrand`](page:vrand) | Continuous/discrete distributions and sampling. |
 | [`vstat`](page:vstat) | Descriptive statistics, correlation, regression, histograms, streaming moments, PSNR/SSIM. |
@@ -50,6 +56,8 @@ out(vmem.total_allocated());
 | [`voptim`](page:voptim) | SGD, momentum, Nesterov, Adam, AdamW, RMSProp, Adagrad, schedules. |
 | [`vsparse`](page:vsparse) | CSR, SpMV, residuals, conjugate gradient. |
 | [`vdecomp`](page:vdecomp) | LU, QR, Cholesky, Jacobi eigen, singular values, direct solves. |
+| [`vtensor`](page:vtensor) | Region-local device handle plus HWC shape metadata and crop staging. |
+| [`vnn`](page:vnn) | Explicit device CNN forward/backward, MSE, pixel shuffle, and AdamW blocks. |
 
 ## DSP & control
 
@@ -65,6 +73,7 @@ out(vmem.total_allocated());
 | [`vcsv`](page:vcsv) | RFC 4180 CSV/TSV parse/write, typed columns, vfs-backed I/O. |
 | [`vjson`](page:vjson) | JSON parse, serialize, validate, path access. |
 | [`vtermplot`](page:vtermplot) | Line, scatter, bar, histogram, heatmap, sparkline in the terminal. |
+| [`vplot`](page:vplot) | Universal colorful charts, managed quick starts, bounded live series, ESP32 and image surfaces. |
 
 ## Image & vision
 
@@ -72,6 +81,17 @@ out(vmem.total_allocated());
 | :--- | :--- |
 | [`vimage`](page:vimage) | PNG/JPEG/BMP/TGA I/O, bilinear resize, crop, grayscale. |
 | [`vconv`](page:vconv) | Conv2d, activations, pixel shuffle, backward kernels, weight bundles. |
+
+## Graphics & audio
+
+| Library / guide | What it gives you |
+| :--- | :--- |
+| [Managed vraylib](page:vraylib-managed) | App-owned typed resources, frame lifetimes, cameras, shader uniforms, render targets, music, and Sound. |
+| [vraylib native reference](page:vraylib) | Vendored raylib 6.2, raymath, and rlgl; checked native resources and pointer adapters. |
+
+`vraylib` needs the compiled desktop backend and platform graphics tools.
+`vtensor` and `vnn` require active device regions for device helpers. They do not
+turn the CPU `vml` API into automatic GPU tensor AD.
 
 ## Embedded buses
 
@@ -162,3 +182,5 @@ Run them with `vynec --compile <file>` followed by the produced executable, or `
 - [Groups & Modules](page:mods)
 - [Projects & Tooling](page:projects)
 - [SRCNN Showcase](page:srcnn)
+- [ESPCN Inference & Training](page:espcn)
+- [Graphics Showcase](page:graphics)

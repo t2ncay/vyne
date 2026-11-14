@@ -1,0 +1,374 @@
+{
+  "groups": [
+    {
+      "title": "Getting Started",
+      "items": [
+        {
+          "id": "intro",
+          "title": "Introduction",
+          "icon": "fa-house"
+        },
+        {
+          "id": "install",
+          "title": "Installation",
+          "icon": "fa-download"
+        },
+        {
+          "id": "hello",
+          "title": "Hello, World",
+          "icon": "fa-terminal"
+        },
+        {
+          "id": "tour",
+          "title": "Language Tour",
+          "icon": "fa-route"
+        },
+        {
+          "id": "projects",
+          "title": "Projects & Tooling",
+          "icon": "fa-folder-tree"
+        }
+      ]
+    },
+    {
+      "title": "Language Reference",
+      "items": [
+        {
+          "id": "types",
+          "title": "Values & Types",
+          "icon": "fa-cube"
+        },
+        {
+          "id": "expr",
+          "title": "Literals & Expressions",
+          "icon": "fa-superscript"
+        },
+        {
+          "id": "vars",
+          "title": "Variables & Assignment",
+          "icon": "fa-tag"
+        },
+        {
+          "id": "flow",
+          "title": "Control Flow",
+          "icon": "fa-code-branch"
+        },
+        {
+          "id": "fn",
+          "title": "Functions, Generics & Contracts",
+          "icon": "fa-square-root-variable"
+        },
+        {
+          "id": "iface",
+          "title": "Interfaces",
+          "icon": "fa-shapes"
+        },
+        {
+          "id": "mods",
+          "title": "Groups & Modules",
+          "icon": "fa-box"
+        },
+        {
+          "id": "enums",
+          "title": "Enums",
+          "icon": "fa-list-ol"
+        },
+        {
+          "id": "regions",
+          "title": "Memory & Regions",
+          "icon": "fa-layer-group"
+        },
+        {
+          "id": "autodiff",
+          "title": "Automatic Differentiation",
+          "icon": "fa-infinity"
+        },
+        {
+          "id": "errors",
+          "title": "Error Handling",
+          "icon": "fa-triangle-exclamation"
+        },
+        {
+          "id": "builtins",
+          "title": "Built-ins & Collections",
+          "icon": "fa-bolt"
+        },
+        {
+          "id": "rulesets",
+          "title": "Rulesets",
+          "icon": "fa-sliders"
+        },
+        {
+          "id": "device",
+          "title": "CUDA & Devices",
+          "icon": "fa-microchip"
+        },
+        {
+          "id": "arduino",
+          "title": "Arduino & AVR",
+          "icon": "fa-microchip"
+        },
+        {
+          "id": "esp32",
+          "title": "ESP32 & Hardware",
+          "icon": "fa-microchip"
+        }
+      ]
+    },
+    {
+      "title": "Standard Library",
+      "items": [
+        {
+          "id": "libs",
+          "title": "Library Overview",
+          "icon": "fa-cubes"
+        },
+        {
+          "id": "vcore",
+          "title": "VCore",
+          "icon": "fa-microchip"
+        },
+        {
+          "id": "vmath",
+          "title": "VMath",
+          "icon": "fa-calculator"
+        },
+        {
+          "id": "vmem",
+          "title": "VMem",
+          "icon": "fa-memory"
+        },
+        {
+          "id": "vfs",
+          "title": "VFS",
+          "icon": "fa-folder-open"
+        }
+      ]
+    },
+    {
+      "title": "Numerical Libraries",
+      "items": [
+        {
+          "id": "vlin",
+          "title": "vlin",
+          "icon": "fa-table-cells-large"
+        },
+        {
+          "id": "vml",
+          "title": "vml",
+          "icon": "fa-network-wired"
+        },
+        {
+          "id": "vfft",
+          "title": "vfft",
+          "icon": "fa-wave-square"
+        },
+        {
+          "id": "vrand",
+          "title": "vrand",
+          "icon": "fa-dice"
+        },
+        {
+          "id": "vstat",
+          "title": "vstat",
+          "icon": "fa-chart-simple"
+        },
+        {
+          "id": "vcomplex",
+          "title": "vcomplex",
+          "icon": "fa-infinity"
+        },
+        {
+          "id": "vinterp",
+          "title": "vinterp",
+          "icon": "fa-bezier-curve"
+        },
+        {
+          "id": "voptim",
+          "title": "voptim",
+          "icon": "fa-arrow-trend-down"
+        },
+        {
+          "id": "vsparse",
+          "title": "vsparse",
+          "icon": "fa-braille"
+        },
+        {
+          "id": "vdecomp",
+          "title": "vdecomp",
+          "icon": "fa-divide"
+        },
+        {
+          "id": "vtensor",
+          "title": "vtensor",
+          "icon": "fa-cubes-stacked"
+        },
+        {
+          "id": "vnn",
+          "title": "vnn",
+          "icon": "fa-network-wired"
+        }
+      ]
+    },
+    {
+      "title": "DSP & Control",
+      "items": [
+        {
+          "id": "vsignal",
+          "title": "vsignal",
+          "icon": "fa-signal"
+        },
+        {
+          "id": "vcontrol",
+          "title": "vcontrol",
+          "icon": "fa-sliders"
+        }
+      ]
+    },
+    {
+      "title": "Data & Plotting",
+      "items": [
+        {
+          "id": "vcsv",
+          "title": "vcsv",
+          "icon": "fa-file-csv"
+        },
+        {
+          "id": "vjson",
+          "title": "vjson",
+          "icon": "fa-code"
+        },
+        {
+          "id": "vtermplot",
+          "title": "vtermplot",
+          "icon": "fa-chart-area"
+        },
+        {
+          "id": "vplot",
+          "title": "Universal Plotting",
+          "icon": "fa-chart-line"
+        }
+      ]
+    },
+    {
+      "title": "Image & Vision",
+      "items": [
+        {
+          "id": "vimage",
+          "title": "vimage",
+          "icon": "fa-image"
+        },
+        {
+          "id": "vconv",
+          "title": "vconv",
+          "icon": "fa-border-all"
+        }
+      ]
+    },
+    {
+      "title": "Graphics & Audio",
+      "items": [
+        {
+          "id": "vraylib-managed",
+          "title": "Managed Graphics & Audio",
+          "icon": "fa-window-maximize"
+        },
+        {
+          "id": "vraylib",
+          "title": "vraylib Native Reference",
+          "icon": "fa-gamepad"
+        }
+      ]
+    },
+    {
+      "title": "Embedded Buses",
+      "items": [
+        {
+          "id": "vi2c",
+          "title": "vi2c",
+          "icon": "fa-circle-nodes"
+        },
+        {
+          "id": "vspi",
+          "title": "vspi",
+          "icon": "fa-diagram-project"
+        }
+      ]
+    },
+    {
+      "title": "Domain Libraries",
+      "items": [
+        {
+          "id": "vbio",
+          "title": "vbio",
+          "icon": "fa-dna"
+        },
+        {
+          "id": "vchem",
+          "title": "vchem",
+          "icon": "fa-flask"
+        }
+      ]
+    },
+    {
+      "title": "Helpers",
+      "items": [
+        {
+          "id": "vhelpers",
+          "title": "Single-file Helpers",
+          "icon": "fa-toolbox"
+        }
+      ]
+    },
+    {
+      "title": "Showcase",
+      "items": [
+        {
+          "id": "srcnn",
+          "title": "SRCNN Image Upscaler",
+          "icon": "fa-trophy"
+        },
+        {
+          "id": "espcn",
+          "title": "ESPCN Inference & Training",
+          "icon": "fa-network-wired"
+        },
+        {
+          "id": "graphics",
+          "title": "Graphics Showcase",
+          "icon": "fa-gamepad"
+        }
+      ]
+    },
+    {
+      "title": "Reference",
+      "items": [
+        {
+          "id": "cli",
+          "title": "CLI Reference",
+          "icon": "fa-terminal"
+        },
+        {
+          "id": "keywords",
+          "title": "Keywords",
+          "icon": "fa-key"
+        },
+        {
+          "id": "operators",
+          "title": "Operators",
+          "icon": "fa-arrow-right-arrow-left"
+        },
+        {
+          "id": "errcodes",
+          "title": "Error Codes",
+          "icon": "fa-bug"
+        },
+        {
+          "id": "performance",
+          "title": "Performance",
+          "icon": "fa-gauge-high"
+        }
+      ]
+    }
+  ]
+}

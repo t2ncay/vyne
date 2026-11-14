@@ -1,9 +1,9 @@
 ---
 id: vplot
 title: Universal Plotting
-group: Standard Library
+group: Data & Plotting
 icon: fa-chart-line
-order: 25
+order: 40
 description: Colorful charts and bounded live updates on ESP32 displays and vimage surfaces.
 ---
 
@@ -26,6 +26,13 @@ preserved; no surface or memory budget is needed in the quick-start code.
 
 On desktop, use `vplot.save_line(xs,ys,"Temperature","temperature.png")`.
 Equivalent quick helpers cover scatter, bars, histograms and heatmaps.
+
+```vyne title="save-line.vy"
+use external "vplot/vplot.vy";
+xs := [0, 1, 2, 3];
+ys := [22.0, 23.4, 21.8, 24.1];
+vplot.save_line(xs, ys, "Temperature", "temperature.png");
+```
 
 ## Managed charts and live values
 
@@ -125,7 +132,13 @@ The host suite covers C/C++/sanitizer behavior, native API/types, errors, memory
 PNG decoding and 128 band/viewport/chart/theme parity cases. The physical suite
 checks direct/buffered rendering, rotation, every chart type and live metrics.
 
-See the full API at `vyne/modules/external/vplot/README.md` and the exact coverage
-catalog at `examples/projects/plotter-esp32/tests/TESTS.md`. Shared pixel/span and
+See the [full API](https://github.com/t2ncay/vyne/blob/master/vyne/modules/external/vplot/README.md)
+and the [coverage catalog](https://github.com/t2ncay/vyne/blob/master/examples/projects/plotter-esp32/tests/TESTS.md).
+Shared pixel/span and
 presentation callbacks make additional adapters possible without duplicating
 chart algorithms. Current compiled targets are desktop and ESP32.
+
+## See also
+
+- [ESP32 & Hardware](page:esp32) and [Projects & Tooling](page:projects)
+- [vtermplot](page:vtermplot) for terminal output
