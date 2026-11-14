@@ -1,16 +1,12 @@
+# Legacy text bar helper. The universal API is in vplot/vplot.vy.
+ruleset { dynamic_casting };
 module vplot;
 
-fn :: vplot bar_chart(data, height) {
-    count = 0;
-    through data -> collect {
-        line = "";
-        through 1..height -> collect { 
-            line = line + "|"; 
-        };
-        
-        out(string(data[count]) + " " + line); 
-        
-        count++;
+fn :: vplot bar_chart(data :: Array, height :: Int64) {
+    through i :: 0..data.size()-1 -> loop {
+        line :: String := "";
+        through j :: 1..height -> loop { line = line + "|"; };
+        out(string(data[i]) + " " + line);
     };
 }
 

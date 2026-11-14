@@ -63,6 +63,33 @@ static inline int64_t _vyne_as_i64(VyneValue v) {
     return v.as.i64;
 }
 
+// Scalar conversions and unary operations emitted by ordinary Vyne plotting
+// code (float64(millis()), !render(...)). Match the desktop value semantics.
+static inline VyneValue vyne_to_float(VyneValue v) {
+    if (v.type == V_FLOAT64) return v;
+    if (v.type == V_FLOAT32) return vyne_float(v.as.f64);
+    if (v.type == V_INT64) return vyne_float((double)v.as.i64);
+    if (v.type == V_STRING) return vyne_float(atof(v.as.str));
+    return vyne_float(0.0);
+}
+static inline VyneValue vyne_to_int(VyneValue v) {
+    if (v.type == V_INT64) return v;
+    if (v.type == V_FLOAT64 || v.type == V_FLOAT32) return vyne_int((int64_t)v.as.f64);
+    if (v.type == V_STRING) return vyne_int(atoll(v.as.str));
+    if (v.type == V_BOOL) return vyne_int(v.as.i64);
+    return vyne_int(0);
+}
+static inline VyneValue vyne_unary(VyneValue v, int op) {
+    if (op == VBOP_NEQ) return vyne_bool(!vyne_is_truthy(v));
+    if (op == VBOP_BITWISE_NOT) return vyne_int(~v.as.i64);
+    if (op == VBOP_SUB) {
+        if (v.type == V_INT64) return vyne_int(-v.as.i64);
+        if (v.type == V_FLOAT64 || v.type == V_FLOAT32) { v.as.f64 = -v.as.f64; return v; }
+        return vyne_null();
+    }
+    return v;
+}
+
 // Size helper used by `.size()` on any container. Maps are not part of
 // the MCU type surface yet; strings are byte length.
 static inline int64_t vyne_get_sizeof(VyneValue v) {

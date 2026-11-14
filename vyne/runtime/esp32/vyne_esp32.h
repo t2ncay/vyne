@@ -42,6 +42,9 @@
 #if defined(VYNE_USE_TOUCH)
 #include "detail/mcu_touch.h"
 #endif
+#if defined(VYNE_USE_PLOT)
+#include "detail/mcu_vplot.h"
+#endif
 #if defined(VYNE_USE_IMU)
 #include "detail/mcu_imu.h"
 #endif

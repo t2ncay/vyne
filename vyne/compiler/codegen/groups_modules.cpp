@@ -143,12 +143,14 @@ std::string ModuleNode::getCExpr(C_Emitter& e) const {
 //
 // The group branch checks `findNative(recvPath, methodName)`
 // before falling through to the boxed call, so registering the
-// name as a group is sufficient — no new emitter state is needed.
+// name as a group enables dispatch. Native aliases also retain their canonical
+// module name for symbol lookup and automatic runtime-header inclusion.
 // Aliases are registered as additional groups pointing at the
 // same underlying header. Emitting the same `#include` twice is
 // harmless (includeSet deduplicates by path).
 // ============================================================
 void NativeModuleNode::compile(C_Emitter& e) const {
+    e.registerNativeModuleAlias(alias, moduleName);
     // The `arduino` pseudo-module has no standalone `arduino.h` under
     // vyne/runtime/modules. Its runtime lives in vyne/runtime/arduino/
     // and is included by C_Emitter::finalize() whenever the Arduino

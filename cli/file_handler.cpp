@@ -547,6 +547,10 @@ static int buildESP32(
             ec
         );
     }
+    if (!ec && fs::is_directory(exeDir + "/vyne/runtime/vplot")) {
+        fs::copy(exeDir + "/vyne/runtime/vplot", sketchDir + "/vplot",
+                 fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+    }
     if (ec) {
         std::cerr << RED << "  error" << RESET
                   << "  cannot stage ESP32 runtime headers: " << ec.message()

@@ -5,5 +5,5 @@ preset = "hw950"
 
 
 [connection]
-port = ""
+port = "COM5"
 baud = 115200

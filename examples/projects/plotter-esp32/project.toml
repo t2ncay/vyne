@@ -3,7 +3,7 @@ name = "plotter-esp32"
 version = "0.1.0"
 authors = ["Your Name <you@example.com>"]
 license = "AGPL-3.0-only"
-description = "A Vyne project"
+description = "Universal vplot charts, image exports, and a bounded live ESP32 dashboard"
 repository = ""
 keywords = []
 
@@ -11,6 +11,7 @@ keywords = []
 vyne = "0.7.0"
 
 [dependencies]
+vplot = "0.1"
 vlin = "0.4"
 vml = "0.4"
 vfft = "0.4"
