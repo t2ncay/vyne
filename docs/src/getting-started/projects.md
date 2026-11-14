@@ -29,7 +29,7 @@ The TUI asks up to five questions:
 
 1. **Project kind** — ML training, Embedded, Scientific, Image / Video, or Mixed.
 2. **Targets** — Desktop, Arduino Uno R3, generic ESP32 / S2 / S3 / C3 / C6 boards, the measured HW-950 display/touch preset, Coral Edge TPU, Jetson Nano.
-3. **Libraries** — `vlin`, `vml`, `vstat`, `vtermplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv`.
+3. **Libraries** — `vlin`, `vml`, `vstat`, `vtermplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv`, `vplot`, `vraylib`.
 4. **CUDA** — only when Desktop is selected and the project is not Embedded. It detects `nvcc` and warns without blocking.
 5. **License** — AGPL-3.0-only, MIT, or Proprietary.
 
@@ -217,6 +217,29 @@ Run acceptance examples under `examples/templates/` with
 `python scripts/test_hardware.py --compile`; add `--port COM5` to upload the
 fresh HW-950 project and verify its serial startup. `xmake test-hardware`
 runs configuration/initialization checks without requiring a board.
+
+## Plotting and graphics starters
+
+Select `vplot` for an HW-950 project to generate the friendly live-chart starter:
+
+```shell
+vynec init dashboard --name dashboard --kind embedded --preset hw950 --libraries vplot --port COM5
+```
+
+Then run `vynec hardware setup` once and `vynec run` from the project directory.
+See [vplot](page:vplot) and [ESP32 & Hardware](page:esp32).
+
+For desktop graphics, initialize a project with the library dependency and use
+the [managed application example](page:vraylib-managed) as `src/main.vy`:
+
+```shell
+vynec init graphics_demo --name graphics_demo --kind blank --targets desktop --libraries vraylib
+```
+
+Or run the ready-made `examples/projects/raylib-showcase` project. The first
+compiled `vraylib` import builds vendored native archives automatically; subsequent
+builds reuse the user cache. See [Graphics Showcase](page:graphics) for commands
+and [Installation](page:install) for platform prerequisites.
 
 ## Benchmark
 

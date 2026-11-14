@@ -4,7 +4,7 @@ title: Installation
 group: Getting Started
 icon: fa-download
 order: 2
-description: Build vynec from source, verify the toolchain, and set up the optional Arduino and CUDA paths.
+description: Build vynec, verify the toolchain, and set up Arduino/ESP32, CUDA, and desktop raylib graphics.
 ---
 
 # Installation
@@ -21,6 +21,8 @@ Vyne is a source-built toolchain. The compiler and desktop runtime are C++26; ge
 | `avr-gcc` + `avr-libc` | Arduino firmware | the AVR toolchain from Arduino or your package manager |
 | `arduino-cli` + `arduino:avr` | flashing and serial monitor | `arduino-cli core install arduino:avr` |
 | OpenBLAS | `--blas` | optional; vendored binaries live under `vendor/openblas/` |
+| `arduino-cli` + `esp32:esp32` | ESP32 firmware | `vynec hardware setup` installs the selected core/libraries |
+| GCC + CMake + make | `vraylib` compiled desktop programs | vendored raylib builds automatically on first import |
 
 The compiler vendors its other dependencies: `stb_image` / `stb_image_write` for `vimage`, and the FTXUI amalgamated header used by `vynec init`.
 
@@ -82,6 +84,44 @@ Then build, flash, and monitor:
 ```
 
 `--arduino uno` alone produces `.elf` and `.hex` files. `--flash` and `--monitor` invoke `arduino-cli` after the build. `--fqbn` overrides the default board identifier (`arduino:avr:uno`).
+
+## ESP32 setup
+
+Install `arduino-cli`, select a board/preset, and let the hardware workflow install
+the core and libraries:
+
+```shell
+vynec init screen --name screen --kind embedded --preset hw950 --port COM5
+cd screen
+vynec hardware setup
+vynec build
+vynec run --monitor
+```
+
+Generic ESP32 boards use `--board esp32` (or S2/S3/C3/C6 aliases) instead of the
+HW-950 preset. See [ESP32 & Hardware](page:esp32) for memory, display, and touch.
+
+## Desktop graphics and audio
+
+`vraylib` supports compiled Windows (MinGW), Linux, and macOS desktop programs.
+It requires GCC, CMake, and make; rendering needs an OpenGL 3.3 context.
+Windows additionally needs `mingw32-make` on PATH. On Ubuntu install
+`libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`;
+`xvfb` supplies a virtual display for rendering tests. macOS needs command-line
+developer tools. The compiler's own C++ toolchain requirement still applies.
+
+```shell
+vynec run examples/projects/raylib-showcase
+```
+
+The first build compiles vendored raylib into `%LOCALAPPDATA%/vyne/raylib/` on
+Windows or the XDG/`~/.cache/vyne/raylib/` directory on Unix. `VYNE_RAYLIB_CACHE`
+overrides that location. Archives are statically linked: no system raylib package
+or copied DLL is needed. `--emit-c` / `--emit-asm` do not build/link archives.
+`--ast`, AVR, and ESP32 are not execution targets for `vraylib`.
+
+See [Managed Graphics & Audio](page:vraylib-managed),
+[Native Reference](page:vraylib), and [Graphics Showcase](page:graphics).
 
 ## CUDA path
 

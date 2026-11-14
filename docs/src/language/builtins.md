@@ -56,6 +56,8 @@ Arrays and typed arrays share a method surface. Typed arrays keep the native, un
 | Method | Meaning |
 | :--- | :--- |
 | `push(x)` | Append an element |
+| `reserve(n)` | Typed numeric arrays: ensure capacity of at least `n`; preserve length and elements |
+| `resize(n, fill)` | Typed numeric arrays: change length; fill newly added elements; grow capacity if needed |
 | `pop()` | Remove and return the last element |
 | `pop_front()` | Remove and return the first element |
 | `size()` / `length()` | Element count |
@@ -90,6 +92,29 @@ if 3 in xs {
     out("present");
 }
 ```
+
+## Preallocated typed buffers
+
+```vyne title="buffer.vy"
+samples :: Array<Float32> := [];
+samples.reserve(256);       # capacity only; size is still 0
+samples.resize(4, 0.0f);    # four initialized elements
+samples[0] = 1.0f;
+samples.resize(2, 0.0f);    # truncate logical length; keep capacity
+samples.push(3.0f);        # size is now 3
+out(samples.size());
+```
+
+`reserve` and `resize` apply to `Array<Float64>`, `Array<Float32>`, and
+`Array<Int64>` in compiled desktop code. Use non-negative sizes and a fill value
+matching the element type. Reserving less than existing capacity does not shrink
+storage. Shrinking with `resize` does not release capacity; growing initializes
+only the new range. Ordinary `push` growth is unchanged.
+
+Capacity growth can replace the payload. Reserve before creating borrowed
+[Slice views](page:types#zero-copy-slice-t-views), and do not grow the owner while
+a view is in use. Arena allocations are still subject to the region budget:
+preallocation reduces repeated growth, but does not bypass `@bounded`.
 
 ## Map methods
 

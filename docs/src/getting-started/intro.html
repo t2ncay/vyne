@@ -4,7 +4,7 @@ title: Introduction
 group: Getting Started
 icon: fa-house
 order: 1
-description: A C-flavored scientific language with deterministic regions, native C output, CUDA frames, and an Arduino backend.
+description: A C-flavored scientific language with deterministic regions, CUDA training, ESP32/AVR firmware, live plotting, and desktop graphics.
 header: false
 ---
             <div class="hero">
@@ -20,8 +20,9 @@ header: false
                   <strong>native C output</strong>, an
                   <strong>AST interpreter</strong> for fast iteration, a
                   <strong>CUDA device backend</strong>, and a native
-                  <strong>Arduino Uno</strong> target. No garbage collector. No
-                  hidden allocation pauses. One source, three execution models.
+                  <strong>ESP32 and Arduino Uno</strong> firmware path. No garbage collector. No
+                  hidden allocation pauses. Numerical computing, live charts,
+                  and managed desktop graphics in one language.
                 </p>
                 <div class="hero-stats">
                   <div class="hero-stat"><b>0</b><span>GC pauses</span></div>
@@ -82,7 +83,7 @@ opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <spa
               <div class="card">
                 <div class="card-title"><i class="fas fa-bolt"></i>Interpreter</div>
                 <div class="card-desc">
-                  <code class="inline">vynec script.vy</code> runs directly for fast
+                  <code class="inline">vynec --ast script.vy</code> runs directly for fast
                   iteration and REPL use. The AST interpreter is the reference
                   semantics for the language.
                 </div>
@@ -96,11 +97,11 @@ opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <spa
                 </div>
               </div>
               <div class="card">
-                <div class="card-title"><i class="fas fa-memory"></i>AVR transpiler</div>
+                <div class="card-title"><i class="fas fa-memory"></i>Embedded firmware</div>
                 <div class="card-desc">
-                  <code class="inline">vynec --arduino uno</code> emits firmware for
-                  the ATmega328P. The arena shrinks to 1 KB, but checkpoint and
-                  rewind semantics do not change.
+                  <code class="inline">vynec build</code> uses selected ESP32 or
+                  Uno hardware. The arena is 64 KB on ESP32 and 1 KB on AVR;
+                  checkpoint and rewind semantics remain explicit.
                 </div>
               </div>
             </div>
@@ -133,7 +134,7 @@ opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <spa
                 <div class="card-desc">
                   Linear algebra, neural networks, FFT, statistics, optimization,
                   sparse and dense solvers, DSP, control, images, CSV/JSON, plotting,
-                  and domain libraries — all written in Vyne.
+                  and domain libraries — with Vyne facades over native kernels.
                 </div>
               </div>
             </div>
@@ -168,12 +169,32 @@ opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <spa
               <li>
                 <a data-page="device"><strong>A CUDA device backend</strong></a>
                 — <code class="inline">@device&lt;cuda&gt;</code>, Float32 by
-                default, matmul and conv2d kernels, with a CPU fallback.
+                default, forward/backward kernels, reusable
+                <a data-page="vnn">vnn</a> training blocks, and a CPU fallback.
               </li>
               <li>
                 <a data-page="arduino"><strong>An Arduino Uno target</strong></a>
                 — a 1 KB arena, 16 checkpoints, 110 bindings, and the same
                 region semantics as desktop.
+              </li>
+              <li>
+                <a data-page="esp32"><strong>ESP32 and select-once hardware</strong></a>
+                — saved presets, short build/run commands, Wi-Fi, NVS, display,
+                sprites, touch, sensors, and the measured HW-950 configuration.
+              </li>
+              <li>
+                <a data-page="types"><strong>Zero-copy slices</strong></a>
+                — borrowed <code class="inline">Slice&lt;T&gt;</code> views and
+                typed-array reserve/resize for reusable numerical buffers.
+              </li>
+              <li>
+                <a data-page="vplot"><strong>Universal live plotting</strong></a>
+                — colorful image and ESP32 charts with bounded series and automatic live updates.
+              </li>
+              <li>
+                <a data-page="vraylib-managed"><strong>Managed graphics and audio</strong></a>
+                — raylib 6.2, App-owned resources and frames, cameras, shaders,
+                render targets, music, and one-shot sound.
               </li>
               <li>
                 <a data-page="libs"><strong>A full numerical library stack</strong></a>
@@ -185,6 +206,12 @@ opt <span class="c-op">::</span> voptim.<span class="c-ty">AdamState</span> <spa
                 <a data-page="srcnn"><strong>A real project</strong></a> — the
                 SRCNN image upscaler with dataset generation, training, CUDA
                 inference, and PSNR/SSIM benchmarks.
+              </li>
+              <li>
+                <a data-page="espcn"><strong>ESPCN device training</strong></a>
+                — explicit forward/backward/AdamW, checkpoint reload, and reproducible
+                bundled metrics. Explore the <a data-page="graphics">graphics showcases</a>
+                for real rendering examples.
               </li>
             </ul>
 

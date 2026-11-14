@@ -28,3 +28,16 @@ use external "vtensor/vtensor.vy";
 | :--- | :--- |
 | `vtensor.tensor(handle, h, w, c)` | shape metadata for an existing handle |
 | `vtensor.copy_slice(dst, packed, offset)` | device-side packed-buffer crop staging |
+
+`DeviceTensor` exposes `handle`, `height`, `width`, `channels`, and `n`
+(`height * width * channels`). Supply positive dimensions matching the actual
+allocation. Metadata does not validate the capacity or dtype of an arbitrary
+handle. `copy_slice` copies `dst.n` elements from the packed device buffer at
+`offset`; it does not create a host slice or a borrowed sub-tensor handle.
+
+Use [vnn](../vnn/README.md) for explicit neural-network blocks and the
+[ESPCN project](../../../../examples/projects/espcn/README.md) for the full graph.
+
+```shell
+vynec --run examples/test/vtensor_vnn_test.vy
+```

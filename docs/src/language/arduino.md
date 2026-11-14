@@ -33,7 +33,8 @@ vynec run
 `hardware.toml` stores the board and port. Existing Uno pinout and budget
 fields remain accepted. `vynec run --monitor` explicitly enables monitoring.
 ESP32 and HW-950 initialization use the same short commands; see
-[Projects & Tooling](page:projects) for presets, overrides and setup.
+[Projects & Tooling](page:projects) for presets, overrides and setup, and
+[ESP32 & Hardware](page:esp32) for the ESP32 runtime and peripheral surface.
 
 ```vyne title="blink.vy"
 use native arduino;

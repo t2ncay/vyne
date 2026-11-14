@@ -23,6 +23,7 @@ Vyne is statically analyzable but not statically typed everywhere. A binding wit
 | `Null` | `null` | absence of a value |
 | `Array` | `[1, "two", 3.0]` | boxed heterogeneous sequence |
 | `Array<T>` | `Array<Float64>`, `Array<Int64>`, `Array<Float32>` | typed, native-ABI sequence |
+| `Slice<T>` | `Slice<Float64>`, `Slice<Int64>` | borrowed pointer-and-length view; no capacity |
 | `Map` | `{"key": 42}` | string-keyed association |
 | interface name | `Circle(4.0)` | structured value with fields and methods |
 
@@ -46,6 +47,44 @@ cfg :: Map := {"mode": "fast", "retries": 3};
 Typed-array payloads are aligned to `VYNE_TYPED_ARRAY_ALIGN` (32 bytes by default). Override at build time with `-DVYNE_TYPED_ARRAY_ALIGN=64`.
 
 A generic `Array` is boxed. Use it when the element type is genuinely mixed or unknown; use a typed array when the data is numeric.
+
+## Zero-copy `Slice<T>` views
+
+On the compiled desktop backend, a `Slice<T>` borrows a contiguous section of a
+typed array. It stores a pointer and element count, with no payload allocation or
+copy. The expected type determines the operation: `xs[lo:hi]` in a `Slice<T>`
+declaration or argument creates a view; an ordinary array slice still copies.
+Bounds are half-open (`lo` inclusive, `hi` exclusive).
+
+```vyne title="slice.vy"
+fn sum_view(values :: Slice<Float64>) -> Float64 {
+    total :: Float64 := 0.0;
+    through i :: 0..values.size()-1 -> loop {
+        total = total + values[i];
+    };
+    return total;
+}
+
+data :: Array<Float64> := [10.0, 20.0, 30.0, 40.0];
+view :: Slice<Float64> := data[1:3];
+out(sum_view(view));        # 50
+out(sum_view(data));        # whole-array borrow: 100
+out(sum_view(data[0:2]));    # 30; no copied subarray
+```
+
+`size()` / `length()` and indexed reads/writes are supported. Writing `view[i]`
+updates the owner's storage. A slice is not a growable `Array<T>`: it has no
+`push`, `reserve`, or `resize`. It sees changes made through other aliases.
+Keep the owner alive and its storage stable for every use of the view. Growing,
+dropping, or reclaiming the owner can invalidate the pointer; a view does not
+extend a region's lifetime. See [Memory & Regions](page:regions).
+
+The shipped function-parameter types are Float64 and Int64. Float32 view structs
+exist in the runtime, but `Slice<Float32>` function parameters are currently
+rejected by codegen. This reference
+describes compiled desktop views; the interpreter and embedded runtimes do not
+provide the same general slice ABI. A runnable regression is
+[slice_reserve_test.vy](https://github.com/t2ncay/vyne/blob/master/examples/slice_reserve_test.vy).
 
 ## Float32 promotion
 

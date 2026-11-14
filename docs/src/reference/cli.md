@@ -4,7 +4,7 @@ title: CLI Reference
 group: Reference
 icon: fa-terminal
 order: 1
-description: Every vynec command and flag, project discovery, Arduino upload, and benchmark reports.
+description: vynec commands and flags, project discovery, ESP32/Arduino hardware configuration and upload, and benchmark reports.
 ---
 
 # CLI Reference
@@ -70,6 +70,25 @@ vynec --arduino uno --flash --monitor --port COM3 sketch.vy
 ```
 
 `--arduino uno` alone produces `.elf` and `.hex`. `--flash` and `--monitor` are post-build actions.
+
+## ESP32
+
+| Flag | Effect |
+| :--- | :--- |
+| `--esp32 <board>` | Target `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, or `esp32c6` |
+| `--esp32-flash` | Upload the generated firmware with `arduino-cli` |
+| `--esp32-monitor` | Open the serial monitor after building/uploading |
+| `--esp32-port <device>` | ESP32 upload/monitor port |
+| `--esp32-baud <rate>` | ESP32 monitor baud; default `115200` |
+| `--esp32-build-property <key=value>` | Repeatable Arduino CLI build-property override |
+
+```shell
+vynec --esp32 esp32 --esp32-flash --esp32-port COM3 examples/test/esp32_hello.vy
+vynec --preset hw950 --esp32-flash --esp32-port COM5 examples/test/esp32_touch.vy
+```
+
+The project workflow below is the shorter path for initialized hardware.
+See [ESP32 & Hardware](page:esp32) for runtime and peripheral details.
 
 ## Projects
 
@@ -138,7 +157,10 @@ vynec init --help
 | :--- | :--- |
 | `--name <name>` | Project name; suppresses the TUI |
 | `--kind <kind>` | `blank`, `ml`, `embedded`, `scientific`, `sr`, `mixed` |
-| `--targets <list>` | `desktop`, `arduino-uno`, `coral`, `jetson` |
+| `--targets <list>` | `desktop`, `arduino-uno`, `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, `esp32c6`, `hw950`, `coral`, `jetson` |
+| `--board <name>` | Embedded board alias; must match a selected preset |
+| `--preset <name>` | Bundled embedded configuration, e.g. `hw950` |
+| `--port <device>` / `--baud <rate>` | Save connection settings in `hardware.toml` |
 | `--libraries <list>` | Comma-separated library names |
 | `--cuda yes\|no` | Write `[device.cuda]` |
 | `--license <id>` | `AGPL-3.0-only`, `MIT`, `proprietary` |
@@ -173,3 +195,4 @@ vynec --arduino uno --flash --port COM3 examples/arduino/blink.vy
 - [Installation](page:install)
 - [Projects & Tooling](page:projects)
 - [Error Codes](page:errcodes)
+- [ESP32 & Hardware](page:esp32)
