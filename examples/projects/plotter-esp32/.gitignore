@@ -1,0 +1,14 @@
+# Vyne build outputs
+build/
+*.exe
+*.vy.c
+*.vy.s
+*.hex
+*.elf
+*.o
+*.obj
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/

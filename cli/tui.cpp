@@ -94,13 +94,14 @@ const LibOption kLibs[] = {
     {"vml", "vml", "Neural network primitives"},
     {"vstat", "vstat", "Statistics and metrics"},
     {"vtermplot", "vtermplot", "Terminal plotting"},
+    {"vplot", "vplot", "Universal colorful charts and live plots"},
     {"vfft", "vfft", "FFT and spectral"},
     {"vcomplex", "vcomplex", "Complex numbers"},
     {"vcsv", "vcsv", "CSV loading"},
     {"vimage", "vimage", "Image I/O"},
     {"vconv", "vconv", "Convolution"},
 };
-constexpr int kLibCount = 9;
+constexpr int kLibCount = 10;
 
 const char* const kLicenses[] = {
     "AGPL-3.0-only",

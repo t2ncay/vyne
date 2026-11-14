@@ -36,6 +36,7 @@ struct NativeMapEntry {
     bool usesArgv = false;
     const char* nativeF64 = nullptr;
     const char* nativeZero = nullptr;
+    int arity = -1; // optional fixed native-call argument count
 };
 
 // --- vcore -----------------------------------------------------------------
@@ -223,6 +224,36 @@ static const NativeMapEntry VIMAGE_MAP[] = {
     {"crop_raw", "vimage_crop", false},
     {"grayscale_raw", "vimage_grayscale", false},
 };
+
+// --- vplot -----------------------------------------------------------------
+// vplot owns native handles; append/render use fixed-arity stack arguments.
+#define VPLOT_CALL(name, count) {#name,"vplot_" #name,false,false,nullptr,nullptr,count}
+static const NativeMapEntry VPLOT_MAP[] = {
+    VPLOT_CALL(chart,1), VPLOT_CALL(labels,3), VPLOT_CALL(add_line,4),
+    VPLOT_CALL(show,1), VPLOT_CALL(output_surface,1), VPLOT_CALL(live_chart,1), VPLOT_CALL(add_live_series,2),
+    VPLOT_CALL(push,2), VPLOT_CALL(push_xy,3), VPLOT_CALL(live_count,1),
+    {"close","vplot_destroy",false,false,nullptr,nullptr,1},
+    VPLOT_CALL(show_line,3), VPLOT_CALL(show_scatter,3), VPLOT_CALL(show_bars,3),
+    VPLOT_CALL(show_histogram,2), VPLOT_CALL(show_heatmap,4),
+    VPLOT_CALL(save,2), VPLOT_CALL(save_line,4), VPLOT_CALL(save_scatter,4),
+    VPLOT_CALL(save_bars,4), VPLOT_CALL(save_histogram,3), VPLOT_CALL(save_heatmap,5),
+    VPLOT_CALL(new_plot,3), VPLOT_CALL(destroy,1), VPLOT_CALL(live_series,4),
+    VPLOT_CALL(append,3), VPLOT_CALL(clear,1), VPLOT_CALL(set_data,3),
+    VPLOT_CALL(line,5), VPLOT_CALL(line_view,5), VPLOT_CALL(scatter,5), VPLOT_CALL(bars,5),
+    VPLOT_CALL(bar_width,2), VPLOT_CALL(histogram,5), VPLOT_CALL(histogram_update,2),
+    VPLOT_CALL(heatmap,5), VPLOT_CALL(heatmap_update,2), VPLOT_CALL(limits,5),
+    VPLOT_CALL(autoscale,4), VPLOT_CALL(theme,2), VPLOT_CALL(grid,2), VPLOT_CALL(minor_grid,2), VPLOT_CALL(legend,2),
+    VPLOT_CALL(transparent,2), VPLOT_CALL(decimation,2), VPLOT_CALL(thickness,2),
+    VPLOT_CALL(marker_size,2), VPLOT_CALL(invalidate,1), VPLOT_CALL(rgb,3),
+    VPLOT_CALL(render,2), VPLOT_CALL(render_at,6), VPLOT_CALL(surface_width,1),
+    VPLOT_CALL(surface_height,1), VPLOT_CALL(frame_count,1), VPLOT_CALL(series_count,1),
+    VPLOT_CALL(sample_x,2), VPLOT_CALL(sample_y,2), VPLOT_CALL(memory_bytes,0),
+    VPLOT_CALL(peak_bytes,0), VPLOT_CALL(allocation_count,0), VPLOT_CALL(last_error,0),
+    VPLOT_CALL(image_surface,2), VPLOT_CALL(image_bind,4), VPLOT_CALL(image_pixels,1),
+    VPLOT_CALL(pixel_rgb,3), VPLOT_CALL(display_surface,1),
+    {"DARK","vyne_int(0)",true,false,nullptr,nullptr,0}, {"LIGHT","vyne_int(1)",true,false,nullptr,nullptr,0}
+};
+#undef VPLOT_CALL
 
 // --- vconv -----------------------------------------------------------------
 // CPU forward convolution primitives for the SR inference path.

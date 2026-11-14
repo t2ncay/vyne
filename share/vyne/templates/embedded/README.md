@@ -2,6 +2,28 @@
 
 An embedded Vyne project for **{{board_label}}**.
 
+{{#if vplot_starter}}
+## Your first chart
+
+The generated program is ready to draw:
+
+```vyne
+use external "vplot/vplot.vy";
+xs := [0, 1, 2, 3, 4, 5];
+ys := [22.0, 23.4, 21.8, 24.1, 23.0, 25.2];
+vplot.show_line(xs, ys, "{{name}}");
+```
+
+After one-time hardware setup, run `vynec run`. Display initialization, theme,
+axis ranges, color, reusable buffering and temporary cleanup are automatic.
+No display/surface setup is needed in application code.
+
+For live values, create `chart := vplot.live_chart("Temperature")` and call
+`vplot.push(chart, value)` whenever you obtain a sample. Timestamps and redraw
+throttling are automatic; sampling cadence is yours. Close managed charts with
+`vplot.close(chart)` when finished.
+{{/if}}
+
 ## One-time setup
 
 Install `arduino-cli`, then run:
@@ -22,7 +44,8 @@ vynec run --monitor  # explicitly open serial monitoring after upload
 ```
 
 Firmware, sketches and compiler intermediates are under `build/firmware/`.
-The Uno starter blinks pin 13; generic ESP32 prints serial greetings; HW-950
+{{#if hw950_touch}}
+The HW-950 touch starter
 initializes the measured display in landscape and continuously draws green
 dots on touch contact. Corner labels and RGB bars make orientation/color
 checks straightforward. Serial output reports rotation, dimensions, touch
@@ -31,6 +54,14 @@ configuration, calibration status, contacts and periodic memory heartbeats.
 Send **C** through `vynec run --monitor` to explicitly start four-corner touch
 calibration. Hold and release each magenta target. Existing calibration is
 loaded from NVS; initialization does not erase or replace it automatically.
+{{/if}}
+{{#if uno}}
+The Uno starter blinks pin 13 and prints serial greetings.
+{{/if}}
+{{#if generic_esp32}}
+The generic ESP32 starter prints serial greetings. Configure a physical display
+before using display chart helpers.
+{{/if}}
 
 ## Hardware configuration
 

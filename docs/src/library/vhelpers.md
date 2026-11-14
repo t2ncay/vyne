@@ -101,7 +101,7 @@ For real plotting, use [`vtermplot`](page:vtermplot): line, scatter, bar, histog
 
 These helpers predate the current kernel/wrapper library layout. They are not part of the numerical stack's tested surface and may use older declaration forms. New code should prefer:
 
-- `vtermplot` instead of `vplot`;
+- `vtermplot` for terminal charts, or [`vplot/vplot.vy`](page:vplot) for colorful images and live ESP32 plots;
 - the built-in string methods or `vstring` instead of ad-hoc loops;
 - explicit conversions instead of relying on older untyped helper signatures.
 

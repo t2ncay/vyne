@@ -1,0 +1,9 @@
+[board]
+
+preset = "hw950"
+
+
+
+[connection]
+port = "COM5"
+baud = 115200

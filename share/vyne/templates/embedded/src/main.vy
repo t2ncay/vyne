@@ -1,3 +1,11 @@
+{{#if vplot_starter}}
+# {{name}} — run with vynec run
+use external "vplot/vplot.vy";
+xs := [0, 1, 2, 3, 4, 5];
+ys := [22.0, 23.4, 21.8, 24.1, 23.0, 25.2];
+vplot.show_line(xs, ys, "{{name}}");
+{{/if}}
+{{#if standard_starter}}
 # {{name}} — {{board_label}}
 # One-time setup: vynec hardware setup
 # Compile: vynec build
@@ -6,8 +14,8 @@
 
 ruleset { dynamic_casting };
 {{#if esp32}}
+{{#if hw950_touch}}
 use native esp32;
-{{#if hw950}}
 const HW950_BLACK :: Int64 := 0x0000;
 
 fn hw950_draw_frame(width :: Int64, height :: Int64) {
@@ -83,6 +91,7 @@ while true {
 }
 {{/if}}
 {{#if generic_esp32}}
+use native esp32;
 esp32.serial_println("{{name}}: ESP32 ready");
 @bounded<4096> region hello {
     through i :: 0..5 -> loop {
@@ -106,4 +115,5 @@ arduino.serial_println("{{name}}: starting blink");
     };
 };
 arduino.serial_println("{{name}}: 5 blinks complete");
+{{/if}}
 {{/if}}

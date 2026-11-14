@@ -1,0 +1,38 @@
+[project]
+name = "plotter-esp32"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+license = "AGPL-3.0-only"
+description = "Universal vplot charts, image exports, and a bounded live ESP32 dashboard"
+repository = ""
+keywords = []
+
+[toolchain]
+vyne = "0.7.0"
+
+[dependencies]
+vplot = "0.1"
+vlin = "0.4"
+vml = "0.4"
+vfft = "0.4"
+vimage = "0.4"
+
+[targets]
+default = "hw950"
+
+[targets.hw950]
+backend = "esp32"
+board = "esp32:esp32:esp32"
+
+[build]
+default_targets = ["hw950"]
+deterministic = true
+
+[test]
+discovery = "tests/*.vy"
+snapshot_format = "json"
+
+[bench]
+warmup = 10
+iterations = 100
+report = "build/bench.json"

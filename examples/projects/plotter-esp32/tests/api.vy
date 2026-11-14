@@ -1,0 +1,47 @@
+use external "vplot/Image.vy";
+ruleset { dynamic_casting };
+
+fn check(ok :: Bool, label :: String) { if (!ok) { out(label); out(vplot.last_error()); throw label; } }
+p :: Int64 := vplot.new_plot("API regression", "X", "Y");
+s :: Int64 := vplot.live_series(p,4,"Signal",vplot.rgb(255,100,30));
+through i :: 0..9 -> loop { check(vplot.append(s,float64(i),float64(i*i)),"append"); };
+check(vplot.series_count(s)==4,"ring capacity");
+check(vplot.sample_x(s,0)==6.0,"ring oldest");
+check(vplot.sample_y(s,3)==81.0,"ring newest");
+check(!vplot.limits(p,1.0,1.0,0.0,1.0),"zero axis rejected");
+check(!vplot.thickness(p,0),"bad thickness");
+check(!vplot.theme(p,2),"bad theme");
+check(vplot.clear(s),"clear");
+check(vplot.series_count(s)==0,"empty count");
+x :: Array<Float64> := [0.0,1.0,2.0,3.0];
+y :: Array<Float64> := [0.0,1.0,0.0,-1.0];
+check(vplot.set_data(s,x,y),"set data");
+check(vplot.sample_y(s,3)==-1.0,"copy value");
+view :: Int64 := vplot.line_view(p,x,y,"Borrowed",vplot.rgb(56,189,248));
+y[1]=0.5;
+check(vplot.sample_y(view,1)==0.5,"borrowed mutation");
+check(!vplot.append(view,4.0,0.0),"borrowed append rejected");
+surface :: Int64 := vplot.image_surface(320,240);
+check(vplot.render(p,surface),"render");
+allocations :: Int64 := vplot.allocation_count();
+bytes :: Int64 := vplot.memory_bytes();
+through frame :: 0..200 -> loop {
+    vplot.append(s,float64(frame),0.5);
+    check(vplot.render(p,surface),"redraw");
+};
+check(vplot.allocation_count()==allocations,"no render allocation");
+check(vplot.memory_bytes()==bytes,"stable live bytes");
+check(!vplot.render_at(p,surface,-1,0,200,150),"viewport bounds");
+image :: vimage.Image := vplot.to_image(surface);
+check(image.width==320 && image.height==240,"image dimensions");
+check(image.pixels.size()==320*240*3,"image payload");
+overlay :: Int64 := vplot.from_image(image);
+check(vplot.transparent(p,true),"overlay transparency");
+check(vplot.render_at(p,overlay,10,10,200,150),"image overlay");
+check(vplot.destroy(overlay),"overlay destroy");
+check(vplot.destroy(p),"plot destroy");
+check(!vplot.append(s,0.0,0.0),"destroyed series rejected");
+check(!vplot.destroy(p),"double destroy rejected");
+check(vplot.destroy(surface),"surface destroy");
+check(vplot.memory_bytes()==0,"all native allocations released");
+out("VPLOT_API_PASS");

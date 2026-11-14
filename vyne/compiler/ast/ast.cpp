@@ -2437,8 +2437,7 @@ Value ImportNode::evaluate(
     }
 
     if (isExtern) {
-        finalPath = std::filesystem::path(FileUtils::exeDir) / "vyne" /
-                    "modules" / "external" / cleanPath;
+        finalPath = FileUtils::getExternalPath(cleanPath);
     } else {
         finalPath = std::filesystem::path(env.getSourceDir()) / cleanPath;
     }
