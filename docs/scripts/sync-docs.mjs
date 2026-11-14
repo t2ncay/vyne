@@ -28,16 +28,21 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { parseFrontMatter, extractTitle, renderMarkdown } from "./lib/markdown.mjs";
 import { stripHtml, escapeHtml } from "./lib/slug.mjs";
+import { rewriteRepositoryLinks } from "./lib/repository-links.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DOCS = path.resolve(__dirname, "..");
 const ROOT = path.resolve(DOCS, "..");
 const SRC = path.join(DOCS, "src");
-const CONTENT = path.join(DOCS, "content");
-const NAV_FILE = path.join(DOCS, "nav.json");
-
 const argv = process.argv.slice(2);
 const NO_BUILD = argv.includes("--no-build");
+const outputIndex = argv.indexOf("--output-dir");
+if (outputIndex !== -1 && (!argv[outputIndex + 1] || argv[outputIndex + 1].startsWith("--"))) {
+  throw new Error("--output-dir requires a directory");
+}
+const OUTPUT = outputIndex === -1 ? DOCS : path.resolve(argv[outputIndex + 1]);
+const CONTENT = path.join(OUTPUT, "content");
+const NAV_FILE = path.join(OUTPUT, "nav.json");
 
 const GROUPS = [
   ["Getting Started", "fa-rocket"],
@@ -47,6 +52,7 @@ const GROUPS = [
   ["DSP & Control", "fa-wave-square"],
   ["Data & Plotting", "fa-chart-line"],
   ["Image & Vision", "fa-image"],
+  ["Graphics & Audio", "fa-gamepad"],
   ["Embedded Buses", "fa-plug"],
   ["Domain Libraries", "fa-dna"],
   ["Helpers", "fa-toolbox"],
@@ -71,7 +77,7 @@ const LIBRARIES = [
     group: "Numerical Libraries",
     icon: "fa-network-wired",
     order: 20,
-    lede: "Dense neural-network primitives: Dense layers, Sequential containers, activations, losses, and SGD.",
+    lede: "CPU dense/MLP primitives over vlin matrices: Dense layers, Sequential, activations, losses, and optimizer helpers.",
   },
   {
     id: "vfft",
@@ -138,6 +144,30 @@ const LIBRARIES = [
     lede: "LU, Householder QR, Cholesky, symmetric Jacobi eigen, and singular values for dense matrices.",
   },
   {
+    id: "vtensor",
+    title: "vtensor",
+    group: "Numerical Libraries",
+    icon: "fa-cubes-stacked",
+    order: 110,
+    lede: "Region-local device tensor handles with HWC shape metadata and packed-buffer crop staging.",
+  },
+  {
+    id: "vnn",
+    title: "vnn",
+    group: "Numerical Libraries",
+    icon: "fa-network-wired",
+    order: 120,
+    lede: "Explicit device-resident convolution, ReLU, pixel shuffle, MSE gradients, and AdamW training blocks.",
+  },
+  {
+    id: "vraylib",
+    title: "vraylib Native Reference",
+    group: "Graphics & Audio",
+    icon: "fa-gamepad",
+    order: 20,
+    lede: "Compiled desktop raylib 6.2, raymath, and rlgl with checked resources and a managed external facade.",
+  },
+  {
     id: "vsignal",
     title: "vsignal",
     group: "DSP & Control",
@@ -191,7 +221,7 @@ const LIBRARIES = [
     group: "Image & Vision",
     icon: "fa-border-all",
     order: 20,
-    lede: "CPU square-kernel convolution, activations, pixel shuffle, backward kernels, and weight bundles.",
+    lede: "CPU tensor convolution and explicit device forward/backward primitives, activations, pixel shuffle, and weight bundles.",
   },
   {
     id: "vi2c",
@@ -258,12 +288,31 @@ function arduinoApiSection() {
   const start = text.indexOf("## API reference");
   const end = text.indexOf("## Common patterns");
   if (start === -1) return "";
-  return text.slice(start, end === -1 ? undefined : end).trim();
+  return text.slice(start, end === -1 ? undefined : end).trim()
+    .replace(/\(#what-is-not-bound-and-why\)/g, "(#what-is-not-bound)")
+    .replace(/\(#memory-model\)/g, "(#the-memory-model-on-avr)");
 }
 
 function expandPlaceholders(markdown) {
-  if (!markdown.includes("<!-- ARDUINO_API -->")) return markdown;
-  return markdown.replace("<!-- ARDUINO_API -->", arduinoApiSection());
+  if (markdown.includes("<!-- ARDUINO_API -->")) {
+    markdown = markdown.replace("<!-- ARDUINO_API -->", arduinoApiSection());
+  }
+  if (markdown.includes("<!-- VRAYLIB_MANAGED -->")) {
+    const manual = path.join(ROOT, "vyne/modules/external/vraylib/MANAGED.md");
+    const { body } = extractTitle(fs.readFileSync(manual, "utf8"));
+    markdown = markdown.replace("<!-- VRAYLIB_MANAGED -->", rewriteRepositoryLinks(body, manual, ROOT, siteManuals()));
+  }
+  return markdown;
+}
+
+function siteManuals() {
+  const entries = LIBRARIES.map((lib) => [path.join(ROOT, "vyne/modules/external", lib.id, "README.md"), lib.id]);
+  entries.push([path.join(ROOT, "vyne/modules/external/vraylib/MANAGED.md"), "vraylib-managed"]);
+  for (const file of walk(SRC)) {
+    const { data } = parseFrontMatter(fs.readFileSync(file, "utf8"));
+    entries.push([file, data.id || path.basename(file, path.extname(file))]);
+  }
+  return new Map(entries);
 }
 
 function libraryManual(lib) {
@@ -294,6 +343,7 @@ function libraryManual(lib) {
   }
 
   normalized = normalized.replace(/\n{3,}/g, "\n\n").trim();
+  normalized = rewriteRepositoryLinks(normalized, manual, ROOT, siteManuals());
   return renderMarkdown(normalized);
 }
 
@@ -313,6 +363,9 @@ function manualDependencies(lib) {
     voptim: "none beyond the core runtime",
     vsparse: "`vmath`",
     vdecomp: "`vmath`",
+    vtensor: "an active `@device` region for device helpers",
+    vnn: "`vtensor` and an active `@device` region",
+    vraylib: "GCC, CMake, make and platform graphics libraries (compiled desktop)",
     vsignal: "`vfft`, `vstat` (optional spectral/statistics helpers)",
     vcontrol: "`vsignal` (recommended for sensor pre-filtering)",
     vcsv: "`vfs`, `vcore`",
@@ -439,7 +492,7 @@ if (removed.length) console.log(`  Removed stale content: ${removed.join(", ")}`
 
 if (NO_BUILD) process.exit(0);
 
-const build = spawnSync(process.execPath, [path.join(__dirname, "build.mjs"), "--clean"], {
+const build = spawnSync(process.execPath, [path.join(__dirname, "build.mjs"), "--clean", "--root", OUTPUT], {
   cwd: DOCS,
   stdio: "inherit",
 });

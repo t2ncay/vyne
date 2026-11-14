@@ -14,13 +14,17 @@ import { renderPage, flattenNav } from "./lib/layout.mjs";
 import { stripHtml, escapeHtml } from "./lib/slug.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, "..");
+const argv = process.argv.slice(2);
+const rootIndex = argv.indexOf("--root");
+if (rootIndex !== -1 && (!argv[rootIndex + 1] || argv[rootIndex + 1].startsWith("--"))) {
+  throw new Error("--root requires a directory");
+}
+const ROOT = rootIndex === -1 ? path.resolve(__dirname, "..") : path.resolve(argv[rootIndex + 1]);
 const CONTENT_DIR = path.join(ROOT, "content");
 const PAGES_DIR = path.join(ROOT, "pages");
 const ASSETS_DIR = path.join(ROOT, "assets");
 const NAV_FILE = path.join(ROOT, "nav.json");
 
-const argv = process.argv.slice(2);
 const CLEAN = argv.includes("--clean");
 
 function die(msg) {
@@ -45,11 +49,10 @@ function rewritelinks(html, rel) {
   return html.replace(
     /<a\b([^>]*?)data-page="([^"]+)"([^>]*)>/g,
     (_m, pre, id, post) => {
-      const target = knownIds.has(id)
-        ? id === "intro"
-          ? "index.html"
-          : `pages/${id}.html`
-        : `pages/${id}.html`;
+      const [pageId, fragment] = id.split("#", 2);
+      if (!knownIds.has(pageId)) die(`Unknown internal page: ${id}`);
+      const target = (pageId === "intro" ? "index.html" : `pages/${pageId}.html`) +
+        (fragment ? `#${fragment}` : "");
       const attrs = `${pre}${post}`.replace(/\s+/g, " ").trim();
       const href = `${rel}${target}`;
       return `<a${attrs ? " " + attrs : ""} href="${href}">`;

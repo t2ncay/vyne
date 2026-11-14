@@ -13,6 +13,12 @@ npm run sync
 # build only (after editing content/*.html or nav.json by hand)
 npm run build
 
+# verify freshness, local links/anchors/assets, navigation, and search (read-only)
+npm run check
+
+# exercise generator/link/freshness regressions
+npm test
+
 # add one Markdown page through the single-section helper
 npm run add -- --file docs/guide/threads.md --title "Threads" --group "Language Reference"
 
@@ -48,6 +54,11 @@ Library reference pages are generated from
 `vyne/modules/external/<lib>/README.md`, so they never drift from the library
 manuals. `npm run sync` writes `content/*.html`, updates `nav.json`, deletes
 retired fragments, and rebuilds every page.
+
+The managed graphics guide also expands `vraylib/MANAGED.md`. Repository-relative
+links in library manuals are rewritten to registered site pages when available,
+or to GitHub source/download links. `page:id#heading` links preserve fragments.
+An unknown `page:` id stops the build instead of publishing a broken page URL.
 
 ## What the `add` command does
 
@@ -162,6 +173,41 @@ scripts/lib/               markdown, highlighter, layout, normalizer
   next `sync` will not know about it unless it is moved under `src/`.
 - **Look & feel:** edit `assets/styles.css` (`:root` holds the design tokens).
 
+## Publication and freshness
+
+GitHub Pages serves committed files from `master:/docs`; it does not invoke
+`npm run sync`. After changing a source/manual, run `npm run sync`, then
+`npm test` and `npm run check`, and commit the generated files with the source.
+The dependency-free scripts need only Node 18+; no `npm install` is required.
+`package.json` and the generated `nav.json` are tracked explicitly despite the
+repository's broad JSON ignore rule, so the same workflow works in fresh clones.
+
+`npm run check` rebuilds into a temporary directory and compares `content/`,
+`pages/`, `index.html`, `nav.json`, and `assets/search-index.js`. It detects missing,
+stale, and retired generated files, and checks local links, anchors, static assets,
+duplicate ids, and search targets. It does not modify the checkout or fetch
+external sites. The `Documentation` workflow runs the tests/check on relevant
+pull requests and pushes to master, including library-manual changes.
+
+With an existing compiler, verify complete examples directly from their Markdown:
+
+```shell
+python docs/scripts/test-examples.py
+python docs/scripts/test-examples.py --graphics
+```
+
+Run those commands from the repository root. `VYNEC` or `--compiler` selects the
+compiler. Six examples cover slices, typed buffers, a portable CPU device helper,
+tensor metadata, device MSE, and PNG plotting. `--graphics` also compiles the
+interactive managed-window example without opening it. Outputs go to
+`build/docs-examples/`; physical ESP32/GPU acceptance uses the feature suites
+linked from the reference pages.
+
+Feature references include ESP32/HW-950, universal/live plotting, zero-copy slices,
+device helpers, `vtensor`/`vnn`, managed/native `vraylib`, and ESPCN/graphics
+showcases. `v0.7.0 + main` remains the scope; newer main features do not imply
+an additional release tag.
+
 ## Notes on the original content
 
 The original single-file `index.html` was split losslessly when the site was
@@ -176,5 +222,6 @@ the unreleased `main` features (autodiff, `@realtime`, `@layout<soa>`,
 | --- | --- |
 | `⚙ Build failed` / `Missing content file` | `nav.json` lists an id with no `content/<id>.html`; run `add` for it or remove the entry. |
 | Section not in the sidebar | Ensure it is listed in `nav.json`, then `npm run build`. |
-| Changes to a `.md` don't appear | Re-run `npm run add` (the `build` alone won't re-read Markdown). |
+| Changes to a `.md` don't appear | Run `npm run sync`; `build` alone does not re-read sources or manuals. |
+| `npm run check` reports stale output | Run `npm run sync`, review the generated diff, and commit it with the source change. |
 | Want real URLs when opening files directly | Open `index.html` in a browser; internal links are relative and work from `file://`. |

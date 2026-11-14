@@ -1,0 +1,37 @@
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'docs/**'
+      - 'vyne/modules/external/**/README.md'
+      - 'vyne/modules/external/vraylib/MANAGED.md'
+      - 'vyne/runtime/arduino/README.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'vyne/modules/external/**/README.md'
+      - 'vyne/modules/external/vraylib/MANAGED.md'
+      - 'vyne/runtime/arduino/README.md'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Site freshness and links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test documentation pipeline
+        working-directory: docs
+        run: npm test
+      - name: Verify committed Pages output
+        working-directory: docs
+        run: npm run check
