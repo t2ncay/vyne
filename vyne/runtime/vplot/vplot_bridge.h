@@ -2,6 +2,10 @@
 // Copyright (c) 2026 Tuncay Gafarli
 #pragma once
 #include "vplot_core.h"
+#ifndef VPLOT_CLOCK_MS
+#define VPLOT_CLOCK_MS() 0u
+#endif
+static inline int64_t vp_managed_surface(VPPlot* plot);
 
 // Fixed-arity native bindings use stack VyneValues. Stateful objects and their
 // reserved buffers live in the native core, never in rewindable Vyne regions.
@@ -145,12 +149,16 @@ static inline VyneValue vplot_##name(VyneValue plot,VyneValue value) { \
 VP_OPTION(theme,light,0,1)
 VP_OPTION(grid,grid,0,1)
 VP_OPTION(minor_grid,minor,0,1)
-VP_OPTION(legend,legend,0,1)
 VP_OPTION(transparent,transparent,0,1)
 VP_OPTION(decimation,decimate,0,1)
 VP_OPTION(thickness,thickness,1,7)
 VP_OPTION(marker_size,marker,1,8)
 #undef VP_OPTION
+static inline VyneValue vplot_legend(VyneValue plot,VyneValue value) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);if(!p)return vyne_bool(false);
+    int64_t n=vp_b_int(value);if(n<0||n>1)return vyne_bool(vp_fail(VP_ARGUMENT));
+    p->legend=(int)n;p->automatic_legend=0;++p->revision;vp_last_error=VP_OK;return vyne_bool(true);
+}
 static inline VyneValue vplot_invalidate(VyneValue plot) {
     VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);if(!p)return vyne_bool(false);
     ++p->revision;vp_last_error=VP_OK;return vyne_bool(true);
@@ -197,7 +205,125 @@ static inline VyneValue vplot_peak_bytes(void) {return vyne_int((int64_t)vp_stat
 static inline VyneValue vplot_allocation_count(void) {return vyne_int((int64_t)vp_stats.allocations);}
 static inline VyneValue vplot_last_error(void) {return vyne_string_static(vp_error_text());}
 
+// Beginner-facing managed charts retain the same plot model and styling API.
+static inline uint32_t vp_palette_color(int index) {
+    static const uint32_t colors[]={0x38BDF8,0xFB923C,0xF472B6,0x4ADE80,0xC084FC,0xFACC15,0x2DD4BF,0xFB7185};
+    return colors[(unsigned)index%8];
+}
+static inline VyneValue vplot_chart(VyneValue title) {
+    int64_t id=vp_create_plot(vp_b_text(title),"Sample","Value");if(!id)return vyne_int(0);
+    VPPlot* p=(VPPlot*)vp_object(id,VP_OBJECT_PLOT);
+    p->legend=0;p->automatic_legend=1;p->thickness=2;p->marker=3;
+    return vyne_int(id);
+}
+static inline VyneValue vplot_labels(VyneValue plot,VyneValue x,VyneValue y) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);
+    const char* xlabel=vp_b_text(x);const char* ylabel=vp_b_text(y);
+    if(!p)return vyne_bool(false);
+    if(!xlabel||!ylabel||strlen(xlabel)>=VPLOT_TEXT_SIZE||strlen(ylabel)>=VPLOT_TEXT_SIZE)return vyne_bool(vp_fail(VP_ARGUMENT));
+    vp_copy_text(p->xlabel,xlabel);vp_copy_text(p->ylabel,ylabel);++p->revision;vp_last_error=VP_OK;return vyne_bool(true);
+}
+static inline VyneValue vplot_add_line(VyneValue plot,VyneValue xs,VyneValue ys,VyneValue label) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);if(!p)return vyne_int(0);
+    VyneValue series=vplot_line(plot,xs,ys,label,vyne_int(vp_palette_color(p->count)));
+    if(series.as.i64&&p->automatic_legend)p->legend=p->count>1;
+    return series;
+}
+static inline int vp_managed_show(VPPlot* p,uint32_t now,int force) {
+    int64_t surface=vp_managed_surface(p);if(!surface)return 0;
+    if(force||!p->has_shown||(uint32_t)(now-p->last_show_ms)>=100){
+        if(!vp_render(p->handle,surface))return 0;
+        p->last_show_ms=now;p->has_shown=1;
+    }
+    vp_last_error=VP_OK;return 1;
+}
+static inline VyneValue vplot_show(VyneValue plot) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);if(!p)return vyne_bool(false);
+    return vyne_bool(vp_managed_show(p,(uint32_t)VPLOT_CLOCK_MS(),1));
+}
+static inline VyneValue vplot_output_surface(VyneValue plot) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);return vyne_int(p?vp_managed_surface(p):0);
+}
+static inline VyneValue vplot_live_chart(VyneValue title) {
+    VyneValue id=vplot_chart(title);if(!id.as.i64)return id;
+    VPPlot* p=(VPPlot*)vp_object(id.as.i64,VP_OBJECT_PLOT);
+    p->managed_series=vp_add_series(p->handle,512,"Value",vp_palette_color(0),VP_LINE);
+    if(p->managed_series){
+        vp_copy_text(p->xlabel,"Time (s)");vp_autoscale(p->handle,.05,.25,10);
+        p->managed_live=1;p->last_sample_ms=(uint32_t)VPLOT_CLOCK_MS();
+        if(vp_managed_show(p,p->last_sample_ms,1))return id;
+    }
+    int error=vp_last_error;vp_destroy_plot(id.as.i64);vp_last_error=error;return vyne_int(0);
+}
+static inline VyneValue vplot_add_live_series(VyneValue chart,VyneValue label) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(chart),VP_OBJECT_PLOT);if(!p)return vyne_int(0);
+    if(!p->managed_live)return vyne_int(vp_fail(VP_ARGUMENT));
+    int64_t id=vp_add_series(p->handle,512,vp_b_text(label),vp_palette_color(p->count),VP_LINE);
+    if(id&&p->automatic_legend)p->legend=p->count>1;
+    return vyne_int(id);
+}
+static inline VPPlot* vp_push_target(VyneValue target,int64_t* series) {
+    int64_t id=vp_b_int(target);VPPlot* p=(VPPlot*)vp_peek(id,VP_OBJECT_PLOT);
+    if(p){*series=p->managed_series;return p;}
+    VPSeries* s=(VPSeries*)vp_object(id,VP_OBJECT_SERIES);if(!s)return NULL;
+    *series=s->handle;return s->owner;
+}
+static inline VyneValue vplot_push_xy(VyneValue plot,VyneValue x,VyneValue y) {
+    int64_t series=0;VPPlot* p=vp_push_target(plot,&series);if(!p)return vyne_bool(false);
+    if(!p->managed_live||!vp_b_numeric(x)||!vp_b_numeric(y))return vyne_bool(vp_fail(VP_ARGUMENT));
+    if(!vp_append(series,vp_b_number(x),vp_b_number(y)))return vyne_bool(false);
+    return vyne_bool(vp_managed_show(p,(uint32_t)VPLOT_CLOCK_MS(),0));
+}
+static inline VyneValue vplot_push(VyneValue plot,VyneValue value) {
+    int64_t series=0;VPPlot* p=vp_push_target(plot,&series);if(!p)return vyne_bool(false);
+    if(!p->managed_live||!vp_b_numeric(value))return vyne_bool(vp_fail(VP_ARGUMENT));
+    uint32_t now=(uint32_t)VPLOT_CLOCK_MS();
+    p->elapsed_ms+=(uint32_t)(now-p->last_sample_ms);p->last_sample_ms=now;
+    if(!vp_append(series,(double)p->elapsed_ms/1000,vp_b_number(value)))return vyne_bool(false);
+    return vyne_bool(vp_managed_show(p,now,0));
+}
+static inline VyneValue vplot_live_count(VyneValue plot) {
+    VPPlot* p=(VPPlot*)vp_object(vp_b_int(plot),VP_OBJECT_PLOT);if(!p)return vyne_int(0);
+    VPSeries* s=(VPSeries*)vp_object(p->managed_series,VP_OBJECT_SERIES);return vyne_int(s?s->count:0);
+}
+static inline int64_t vp_quick_plot(VyneValue xs,VyneValue ys,VyneValue title,int kind) {
+    VyneValue id=vplot_chart(title);if(!id.as.i64)return 0;
+    VyneValue series=vp_b_make_series(id,xs,ys,vyne_string_static("Value"),vyne_int(vp_palette_color(0)),kind,0);
+    if(series.as.i64)return id.as.i64;
+    int error=vp_last_error;vp_destroy_plot(id.as.i64);vp_last_error=error;return 0;
+}
+static inline int64_t vp_quick_histogram(VyneValue values,VyneValue title) {
+    int64_t n=vp_b_length(values);if(!vp_b_array_valid(values,n))return 0;
+    int bins=(int)ceil(sqrt((double)n));if(bins<1)bins=1;if(bins>32)bins=32;
+    VyneValue id=vplot_chart(title);if(!id.as.i64)return 0;
+    if(vplot_histogram(id,values,vyne_int(bins),vyne_string_static("Distribution"),vyne_int(vp_palette_color(0))).as.i64){
+        vplot_labels(id,vyne_string_static("Value"),vyne_string_static("Count"));return id.as.i64;
+    }
+    int error=vp_last_error;vp_destroy_plot(id.as.i64);vp_last_error=error;return 0;
+}
+static inline int64_t vp_quick_heatmap(VyneValue values,VyneValue cols,VyneValue rows,VyneValue title) {
+    VyneValue id=vplot_chart(title);if(!id.as.i64)return 0;
+    if(vplot_heatmap(id,values,cols,rows,vyne_string_static("Intensity")).as.i64){
+        vplot_labels(id,vyne_string_static("Column"),vyne_string_static("Row"));vp_autoscale(id.as.i64,0,0,0);return id.as.i64;
+    }
+    int error=vp_last_error;vp_destroy_plot(id.as.i64);vp_last_error=error;return 0;
+}
+static inline VyneValue vp_quick_show(int64_t id) {
+    if(!id)return vyne_bool(false);
+    VyneValue result=vplot_show(vyne_int(id));int error=vp_last_error;
+    vp_destroy_plot(id);vp_last_error=error;return result;
+}
+static inline VyneValue vplot_show_line(VyneValue xs,VyneValue ys,VyneValue title) {return vp_quick_show(vp_quick_plot(xs,ys,title,VP_LINE));}
+static inline VyneValue vplot_show_scatter(VyneValue xs,VyneValue ys,VyneValue title) {return vp_quick_show(vp_quick_plot(xs,ys,title,VP_SCATTER));}
+static inline VyneValue vplot_show_bars(VyneValue xs,VyneValue ys,VyneValue title) {return vp_quick_show(vp_quick_plot(xs,ys,title,VP_BAR));}
+static inline VyneValue vplot_show_histogram(VyneValue values,VyneValue title) {return vp_quick_show(vp_quick_histogram(values,title));}
+static inline VyneValue vplot_show_heatmap(VyneValue values,VyneValue cols,VyneValue rows,VyneValue title) {return vp_quick_show(vp_quick_heatmap(values,cols,rows,title));}
+
 #ifndef VYNE_VPLOT_MCU
+static inline int64_t vp_managed_surface(VPPlot* p) {
+    if(!vp_peek(p->managed_surface,VP_OBJECT_SURFACE))p->managed_surface=vp_raster_surface(640,360,NULL,3);
+    return p->managed_surface;
+}
 static inline VyneValue vplot_image_surface(VyneValue width,VyneValue height) {
     int64_t w=vp_b_int(width),h=vp_b_int(height);
     if(w<1||h<1||w>VPLOT_MAX_DIMENSION||h>VPLOT_MAX_DIMENSION)return vyne_int(vp_fail(VP_ARGUMENT));

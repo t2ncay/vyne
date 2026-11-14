@@ -1395,8 +1395,8 @@ class C_Emitter {
             count = sizeof(VIMAGE_MAP) / sizeof(VIMAGE_MAP[0]);
         } else if (module == "vplot") {
             if (isAVRTarget()) return nullptr;
-            if (isESP32Target() && (member.rfind("image_", 0) == 0 || member == "pixel_rgb")) return nullptr;
-            if (!isESP32Target() && member == "display_surface") return nullptr;
+            if (isESP32Target() && (member.rfind("image_", 0) == 0 || member.rfind("save",0)==0 || member == "pixel_rgb")) return nullptr;
+            if (!isESP32Target() && (member == "display_surface" || member.rfind("show_",0)==0)) return nullptr;
             table = VPLOT_MAP;
             count = sizeof(VPLOT_MAP) / sizeof(VPLOT_MAP[0]);
         } else if (module == "vconv") {

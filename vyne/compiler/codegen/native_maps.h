@@ -229,6 +229,14 @@ static const NativeMapEntry VIMAGE_MAP[] = {
 // vplot owns native handles; append/render use fixed-arity stack arguments.
 #define VPLOT_CALL(name, count) {#name,"vplot_" #name,false,false,nullptr,nullptr,count}
 static const NativeMapEntry VPLOT_MAP[] = {
+    VPLOT_CALL(chart,1), VPLOT_CALL(labels,3), VPLOT_CALL(add_line,4),
+    VPLOT_CALL(show,1), VPLOT_CALL(output_surface,1), VPLOT_CALL(live_chart,1), VPLOT_CALL(add_live_series,2),
+    VPLOT_CALL(push,2), VPLOT_CALL(push_xy,3), VPLOT_CALL(live_count,1),
+    {"close","vplot_destroy",false,false,nullptr,nullptr,1},
+    VPLOT_CALL(show_line,3), VPLOT_CALL(show_scatter,3), VPLOT_CALL(show_bars,3),
+    VPLOT_CALL(show_histogram,2), VPLOT_CALL(show_heatmap,4),
+    VPLOT_CALL(save,2), VPLOT_CALL(save_line,4), VPLOT_CALL(save_scatter,4),
+    VPLOT_CALL(save_bars,4), VPLOT_CALL(save_histogram,3), VPLOT_CALL(save_heatmap,5),
     VPLOT_CALL(new_plot,3), VPLOT_CALL(destroy,1), VPLOT_CALL(live_series,4),
     VPLOT_CALL(append,3), VPLOT_CALL(clear,1), VPLOT_CALL(set_data,3),
     VPLOT_CALL(line,5), VPLOT_CALL(line_view,5), VPLOT_CALL(scatter,5), VPLOT_CALL(bars,5),

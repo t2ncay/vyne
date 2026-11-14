@@ -23,13 +23,14 @@
 
 enum { VP_LINE, VP_SCATTER, VP_BAR, VP_HEATMAP };
 enum { VP_OBJECT_PLOT=1, VP_OBJECT_SERIES, VP_OBJECT_SURFACE };
-enum { VP_OK, VP_ARGUMENT, VP_MEMORY, VP_HANDLE, VP_CAPACITY, VP_RANGE, VP_CAPABILITY };
+enum { VP_OK, VP_ARGUMENT, VP_MEMORY, VP_HANDLE, VP_CAPACITY, VP_RANGE, VP_CAPABILITY, VP_CONFIGURATION };
 static int vp_last_error = VP_OK;
 static inline int vp_fail(int error) { vp_last_error=error; return 0; }
 static inline const char* vp_error_text(void) {
     static const char* text[] = {"ok","invalid plotting argument","plot allocation failed",
         "invalid or destroyed plot handle","plotting capacity exceeded","invalid axis range",
-        "surface does not support this operation"};
+        "surface does not support this operation",
+        "configure a display in hardware.toml (for HW-950, use --preset hw950)"};
     return text[vp_last_error];
 }
 
@@ -88,6 +89,10 @@ struct VPPlot {
     uint64_t revision;
     double xmin,xmax,ymin,ymax,padding,hysteresis,window;
     char title[VPLOT_TEXT_SIZE],xlabel[VPLOT_TEXT_SIZE],ylabel[VPLOT_TEXT_SIZE];
+    int64_t managed_surface,managed_series;
+    uint32_t last_sample_ms,last_show_ms;
+    uint64_t elapsed_ms;
+    int managed_live,has_shown,automatic_legend;
 };
 struct VPSurface {
     int64_t handle,last_plot;
@@ -111,13 +116,16 @@ static inline int64_t vp_register(void* object,int kind) {
     }
     vp_fail(VP_CAPACITY); return 0;
 }
-static inline void* vp_object(int64_t handle,int kind) {
+static inline void* vp_peek(int64_t handle,int kind) {
     unsigned slot=(unsigned)((uint64_t)handle&65535);
     uint64_t generation=(uint64_t)handle>>16;
     if (handle<=0 || !slot || slot>VPLOT_MAX_HANDLES ||
         !vp_slots[slot-1].object || vp_slots[slot-1].kind!=kind ||
-        generation!=vp_slots[slot-1].generation) { vp_fail(VP_HANDLE); return NULL; }
+        generation!=vp_slots[slot-1].generation) return NULL;
     return vp_slots[slot-1].object;
+}
+static inline void* vp_object(int64_t handle,int kind) {
+    void* object=vp_peek(handle,kind);if(!object)vp_fail(VP_HANDLE);return object;
 }
 static inline void vp_unregister(int64_t handle) {
     unsigned slot=(unsigned)((uint64_t)handle&65535);
@@ -215,10 +223,23 @@ static inline int64_t vp_create_plot(const char* title,const char* xlabel,const 
 static inline void vp_release_series(VPSeries* series) {
     vp_unregister(series->handle);vp_free(series->storage);vp_free(series);
 }
+static inline int vp_destroy_surface(int64_t handle);
 static inline int vp_destroy_plot(int64_t handle) {
     VPPlot* p=(VPPlot*)vp_object(handle,VP_OBJECT_PLOT);if(!p)return 0;
     for(int i=0;i<p->count;++i)vp_release_series(p->series[i]);
+    if(vp_peek(p->managed_surface,VP_OBJECT_SURFACE))vp_destroy_surface(p->managed_surface);
     vp_unregister(handle);vp_free(p);vp_last_error=VP_OK;return 1;
+}
+
+// Reusable automatic buffering policy. Backends supply construction; failures
+// unrelated to memory/capacity remain actionable rather than being hidden.
+static inline int64_t vp_auto_surface(int64_t (*create)(size_t)) {
+    static const size_t budgets[]={16384,8192,4096,0};
+    for(unsigned i=0;i<sizeof(budgets)/sizeof(budgets[0]);++i){
+        int64_t surface=create(budgets[i]);if(surface)return surface;
+        if(vp_last_error!=VP_MEMORY&&vp_last_error!=VP_CAPACITY)return 0;
+    }
+    return 0;
 }
 static inline int64_t vp_add_series(int64_t plot,int capacity,const char* label,uint32_t color,int kind) {
     VPPlot* p=(VPPlot*)vp_object(plot,VP_OBJECT_PLOT);if(!p)return 0;

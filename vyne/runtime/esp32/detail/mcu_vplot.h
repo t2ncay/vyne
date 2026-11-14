@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Tuncay Gafarli
 #pragma once
 #define VYNE_VPLOT_MCU 1
+#define VPLOT_CLOCK_MS() ((uint32_t)millis())
 #include "../vplot/vplot_bridge.h"
 
 #ifdef VYNE_USE_PLOT_DISPLAY
@@ -48,4 +49,20 @@ static inline VyneValue vplot_display_surface(VyneValue buffer_bytes) {
     VPSurface* s=(VPSurface*)vp_object(handle,VP_OBJECT_SURFACE);s->refresh=vp_display_refresh;s->draw=vp_display_draw;
     return vyne_int(handle);
 }
+static inline int64_t vp_display_auto_create(size_t budget) {
+    return vplot_display_surface(vyne_int((int64_t)budget)).as.i64;
+}
+static inline int64_t vp_managed_surface(VPPlot* p) {
+    if(vp_peek(p->managed_surface,VP_OBJECT_SURFACE))return p->managed_surface;
+    if(!g_vyne_tft_inited){
+#if defined(VYNE_PLOT_DISPLAY_CONFIGURED) && !VYNE_PLOT_DISPLAY_CONFIGURED
+        return vp_fail(VP_CONFIGURATION);
+#endif
+        esp32_display_init_default();
+    }
+    p->managed_surface=vp_auto_surface(vp_display_auto_create);
+    return p->managed_surface;
+}
+#else
+static inline int64_t vp_managed_surface(VPPlot* p) { (void)p;return vp_fail(VP_CAPABILITY); }
 #endif

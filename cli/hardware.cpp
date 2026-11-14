@@ -251,12 +251,13 @@ std::string hardwareDefines(const HardwareConfig& c) {
         auto it = c.settings.find(key); return it == c.settings.end() ? std::string(fallback) : scalar(it->second);
     };
     if (get("display.driver", "none") != "none") {
+        define("VYNE_PLOT_DISPLAY_CONFIGURED", "1");
         define("USER_SETUP_LOADED", "1");
         for (const auto* d : {"ST7789_DRIVER", "ST7796_DRIVER", "ILI9341_DRIVER", "ILI9341_2_DRIVER", "ILI9488_DRIVER"}) out << "-U" << d << "\n";
         const auto driver = get("display.driver", "none");
         define(driver == "st7796" ? "ST7796_DRIVER" : driver == "ili9341" ? "ILI9341_DRIVER" : "ILI9488_DRIVER", "1");
         for (const auto* font : {"LOAD_GLCD", "LOAD_FONT2", "LOAD_FONT4", "LOAD_GFXFF"}) define(font, "1");
-    }
+    } else define("VYNE_PLOT_DISPLAY_CONFIGURED", "0");
     if (get("touch.driver", "none") == "xpt2046") {
         define("VYNE_TOUCH_XPT2046", "1");
         define("VYNE_TOUCH_SPI_PORT", get("touch.hspi", "false") == "true" ? "HSPI" : "VSPI");

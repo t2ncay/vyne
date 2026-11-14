@@ -108,6 +108,8 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     if (!entry) {
         if (e.resolveNativeModule(recvPath) == "vplot" && node.getMethodName() == "display_surface" && !e.isESP32Target())
             throw std::runtime_error("Compile Error (VNE-079): vplot.display_surface requires the ESP32 target.");
+        if (e.resolveNativeModule(recvPath) == "vplot" && node.getMethodName().rfind("show_",0)==0 && !e.isESP32Target())
+            throw std::runtime_error("Compile Error (VNE-079): vplot.show_* requires ESP32; use vplot.save_* for image output.");
         // An embedded native module is a closed surface: a member that is
         // not in the target table is a source error, not a user function
         // to be resolved later. This is what makes eeprom_* on ESP32 fail
@@ -136,7 +138,8 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     const std::string cname(entry->cName);
     if (cname.rfind("vplot_", 0) == 0) {
         e.noteEmbeddedFeature("plot");
-        if (cname == "vplot_display_surface") {
+        if (cname == "vplot_display_surface" || cname == "vplot_show" || cname == "vplot_output_surface" ||
+            cname == "vplot_live_chart" || cname == "vplot_push" || cname == "vplot_push_xy" || cname.rfind("vplot_show_",0)==0) {
             e.noteEmbeddedFeature("plot_display");
             e.noteEmbeddedFeature("display");
         }
@@ -173,6 +176,7 @@ std::optional<std::string> tryEmitNativeModuleMethod(
             std::filesystem::path(FileUtils::getExeDir()) / "vyne" / "runtime" /
             "modules";
         e.addInclude((moduleBase / (e.resolveNativeModule(recvPath) + ".h")).string());
+        if (cname.rfind("vplot_save",0)==0)e.addInclude((moduleBase / "vplot_export.h").string());
     }
 
     // Zero-arg getter: `vmath.pi()` -> "vmath_pi()".

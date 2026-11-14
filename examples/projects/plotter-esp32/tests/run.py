@@ -26,13 +26,25 @@ def command(args, cwd=PROJECT, timeout=300):
     return result.stdout
 
 
-def png_info(path):
+def device_capture(port, marker, seconds=60):
+    import serial
+    output=bytearray()
+    with serial.Serial(port,115200,timeout=.2) as uart:
+        uart.dtr=False;uart.rts=True;time.sleep(.1);uart.reset_input_buffer();uart.rts=False
+        deadline=time.monotonic()+seconds
+        while time.monotonic()<deadline:
+            output.extend(uart.read(4096))
+            if marker.encode() in output:break
+    return output.decode(errors="replace")
+
+
+def png_info(path, expected_size=(400,300)):
     import struct
     import zlib
     data = path.read_bytes()
     assert data[:8] == b"\x89PNG\r\n\x1a\n", path
     width, height, depth, kind = struct.unpack(">IIBB", data[16:26])
-    assert (width, height, depth, kind) == (400, 300, 8, 2)
+    assert (width, height, depth, kind) == (*expected_size, 8, 2)
     offset = 8
     compressed = bytearray()
     while offset < len(data):
@@ -84,7 +96,7 @@ def main():
     (BUILD / "plots").mkdir(exist_ok=True)
     exe = ".exe" if os.name == "nt" else ""
     sanitizers = ["-g","-fsanitize=address,undefined","-fno-omit-frame-pointer"] if args.sanitize else []
-    for name in ("core", "adapters", "bridge"):
+    for name in ("core", "adapters", "bridge", "managed"):
         command(["gcc","-std=gnu11","-O2","-Wall","-Wextra",*sanitizers,f"tests/{name}.c","-o",BUILD/(name+"_tests"+exe),"-lm"])
         command([BUILD/(name+"_tests"+exe)])
     # C++ compatibility is required by the Arduino runtime.
@@ -93,11 +105,13 @@ def main():
     if args.core_only:
         print("PASS: portable core, band adapter pixel parity, bridge and C++ compatibility")
         return
-    for name in ("api", "gallery", "aliases", "memory", "legacy"):
+    for name in ("api", "gallery", "aliases", "memory", "legacy", "friendly"):
         text = command([COMPILER,"--run","-o",BUILD/name,PROJECT/f"tests/{name}.vy"])
         assert f"VPLOT_{name.upper()}_PASS" in text
     results = {name:png_info(BUILD/f"plots/{name}.png") for name in ("line","scatter","bars","histogram","heatmap")}
     (BUILD / "host_results.json").write_text(json.dumps(results,indent=2)+"\n")
+    for name in ("chart","line","scatter","bars","histogram","heatmap"):
+        png_info(BUILD/f"friendly/{name}.png",(640,360))
     invalid = BUILD / "invalid"
     invalid.mkdir(exist_ok=True)
     for name, source, flags, diagnostic in [
@@ -114,16 +128,29 @@ def main():
     with tempfile.TemporaryDirectory(prefix="init_vplot_",dir=BUILD) as path:
         command([COMPILER,"init",path,"--name","vplot_init","--kind","blank","--libraries","vplot","--no-git"])
         assert 'vplot = "0.1"' in (Path(path)/"project.toml").read_text()
+    with tempfile.TemporaryDirectory(prefix="init_chart_",dir=BUILD) as path:
+        command([COMPILER,"init",path,"--name","chart_init","--kind","embedded","--preset","hw950","--libraries","vplot","--port",args.port,"--no-git"])
+        source=(Path(path)/"src/main.vy").read_text()
+        assert "vplot.show_line" in source and "display_surface" not in source and "display_init" not in source and "use native esp32" not in source
+        assert len(source.splitlines())<=6,source
+        if args.esp32:
+            command([COMPILER,"run","--port",args.port],cwd=Path(path),timeout=600)
+            fresh_ino=(Path(path)/"build/firmware/main_sketch/main_sketch.ino").read_text()
+            assert "vplot_show_line(" in fresh_ino and "esp32_display_init(" not in fresh_ino
+            (BUILD/"fresh_starter.vy").write_text(source)
+            print("PASS: fresh-project short chart starter built and uploaded without display/surface setup")
     print("PASS: C/C++ core, native API, ownership, zero-allocation redraws, five decoded PNG chart types")
     if args.esp32:
         command([COMPILER,"run","tests/device.vy","--port",args.port], timeout=600)
         import serial
-        with serial.Serial(args.port,115200,timeout=3) as uart:
-            uart.dtr=False;uart.rts=True;time.sleep(.1);uart.reset_input_buffer();uart.rts=False
-            device_text=uart.read(16384).decode(errors="replace")
+        device_text=device_capture(args.port,"VPLOT_DEVICE_PASS")
         (BUILD / "esp32_device.log").write_text(device_text)
         assert "VPLOT_DEVICE_PASS" in device_text and "VPLOT_DEVICE_FAIL" not in device_text, device_text
-        command([COMPILER,"run","--port",args.port], timeout=600)
+        command([COMPILER,"run","tests/friendly_device.vy","--port",args.port],timeout=600)
+        friendly_text=device_capture(args.port,"VPLOT_FRIENDLY_DEVICE_PASS",90)
+        (BUILD/"esp32_friendly.log").write_text(friendly_text)
+        assert "VPLOT_FRIENDLY_DEVICE_PASS" in friendly_text and "VPLOT_FRIENDLY_FAIL" not in friendly_text,friendly_text
+        command([COMPILER,"run","tests/friendly_live.vy","--port",args.port], timeout=600)
         output = bytearray()
         with serial.Serial(args.port,115200,timeout=.1) as uart:
             uart.dtr=False
@@ -146,6 +173,7 @@ def main():
         assert not re.search(r"Guru Meditation|panic|invalid plotting|allocation failed",text,re.I),text
         (BUILD / "esp32_results.json").write_text(json.dumps({"frames":samples[-1][0],"samples":samples[-1][1],"native_bytes":samples[-1][2],"allocations":samples[-1][3],"heap_free_min":min(s[4] for s in samples),"heap_free_max":max(s[4] for s in samples),"arena":samples[-1][5],"result":"PASS"},indent=2)+"\n")
         print("PASS: ESP32 live frames, ring capacity, native allocation count and arena/heap ownership stability")
+        command([COMPILER,"run","--port",args.port],timeout=600) # leave the short user-facing demo running
 
 
 if __name__ == "__main__":
