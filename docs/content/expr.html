@@ -32,6 +32,7 @@ cfg     <span class="c-op">::</span> <span class="c-ty">Map</span> <span class="
 xs[<span class="c-num">0</span>]         <span class="c-com"># index</span>
 xs[<span class="c-num">1</span>:<span class="c-num">3</span>]       <span class="c-com"># slice</span></div></div>
 <p>Ranges are the input to <code class="inline">through</code>. The inclusive upper bound is part of the range value, so <code class="inline">0..9</code> has ten elements. <code class="inline">sequence(lo, hi)</code> is the built-in that generates values from <code class="inline">lo</code> up to but excluding <code class="inline">hi</code>.</p>
+<p>Array slice bounds are half-open: <code class="inline">xs[1:3]</code> selects elements 1 and 2. An ordinary array slice copies its elements. When the expected type is <code class="inline">Slice&lt;T&gt;</code> (a typed declaration or function parameter), the compiler instead creates a zero-copy borrow over a typed numeric array. See <a data-page="types">Slice views</a>.</p>
 <h2 id="calls-and-member-access">Calls and member access</h2>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">add</span>(<span class="c-num">2</span>, <span class="c-num">3</span>);
 vmath.<span class="c-fn">sqrt</span>(<span class="c-num">9.0</span>);

@@ -42,6 +42,6 @@ vplot.<span class="c-fn">bar_chart</span>([<span class="c-num">3</span>, <span c
 <p>For real plotting, use <a data-page="vtermplot"><code class="inline">vtermplot</code></a>: line, scatter, bar, histogram, heatmap, and sparkline with axes, labels, Unicode/ASCII themes, and file export.</p>
 <h2 id="compatibility-note">Compatibility note</h2>
 <p>These helpers predate the current kernel/wrapper library layout. They are not part of the numerical stack's tested surface and may use older declaration forms. New code should prefer:</p>
-<ul><li><code class="inline">vtermplot</code> instead of <code class="inline">vplot</code>;</li><li>the built-in string methods or <code class="inline">vstring</code> instead of ad-hoc loops;</li><li>explicit conversions instead of relying on older untyped helper signatures.</li></ul>
+<ul><li><code class="inline">vtermplot</code> for terminal charts, or <a data-page="vplot"><code class="inline">vplot/vplot.vy</code></a> for colorful images and live ESP32 plots;</li><li>the built-in string methods or <code class="inline">vstring</code> instead of ad-hoc loops;</li><li>explicit conversions instead of relying on older untyped helper signatures.</li></ul>
 <h2 id="see-also">See also</h2>
 <ul><li><a data-page="libs">Library Overview</a></li><li><a data-page="vtermplot">VTermPlot</a></li><li><a data-page="builtins">Built-ins &amp; Collections</a></li></ul>

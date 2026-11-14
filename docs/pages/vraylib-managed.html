@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Managed Graphics &amp; Audio · Vyne Language Reference</title>
+    <meta name="description" content="Graphics &amp; Audio Managed Graphics &amp; Audio App-owned resources, automatic frame lifetimes, cameras, shaders, render targets, music, and one-shot sound. The guide below is generated " />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=Sora:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link rel="stylesheet" href="../assets/styles.css" />
+  </head>
+  <body data-page="vraylib-managed" data-root="../">
+    <a class="skip-link" href="#content">Skip to content</a>
+    <div class="progress" id="progressBar" aria-hidden="true"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+
+    <aside class="sidebar" id="sidebar" aria-label="Documentation navigation">
+      <div class="sidebar-head">
+        <a class="brand" href="../index.html">
+          <span class="brand-badge"><svg class="logo-mark" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="vyneMark" x1="0" y1="0" x2="0.45" y2="1">
+              <stop offset="0" stop-color="#4df0de" />
+              <stop offset="0.5" stop-color="#6cb6ff" />
+              <stop offset="1" stop-color="#b48cff" />
+            </linearGradient>
+          </defs>
+          <rect x="0.5" y="0.5" width="35" height="35" rx="10.5" fill="url(#vyneMark)" />
+          <path d="M9.5 11 L18 24.5 L26.5 11" fill="none" stroke="#080a10" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M13 11 L18 18.8 L23 11" fill="none" stroke="#080a10" stroke-opacity="0.38" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span>
+          <span class="brand-text">vyne</span>
+          <span class="brand-version">v0.7.0</span>
+        </a>
+        <button class="icon-btn sidebar-close" id="sidebarClose" aria-label="Close navigation">
+          <i class="fas fa-xmark"></i>
+        </button>
+      </div>
+      <nav class="sidebar-nav"><div class="nav-group"><div class="nav-group-title">Getting Started</div><ul class="nav-list"><li><a class="nav-link" href="../index.html"><i class="fas fa-house"></i><span>Introduction</span></a></li><li><a class="nav-link" href="../pages/install.html"><i class="fas fa-download"></i><span>Installation</span></a></li><li><a class="nav-link" href="../pages/hello.html"><i class="fas fa-terminal"></i><span>Hello, World</span></a></li><li><a class="nav-link" href="../pages/tour.html"><i class="fas fa-route"></i><span>Language Tour</span></a></li><li><a class="nav-link" href="../pages/projects.html"><i class="fas fa-folder-tree"></i><span>Projects &amp; Tooling</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Language Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/types.html"><i class="fas fa-cube"></i><span>Values &amp; Types</span></a></li><li><a class="nav-link" href="../pages/expr.html"><i class="fas fa-superscript"></i><span>Literals &amp; Expressions</span></a></li><li><a class="nav-link" href="../pages/vars.html"><i class="fas fa-tag"></i><span>Variables &amp; Assignment</span></a></li><li><a class="nav-link" href="../pages/flow.html"><i class="fas fa-code-branch"></i><span>Control Flow</span></a></li><li><a class="nav-link" href="../pages/fn.html"><i class="fas fa-square-root-variable"></i><span>Functions, Generics &amp; Contracts</span></a></li><li><a class="nav-link" href="../pages/iface.html"><i class="fas fa-shapes"></i><span>Interfaces</span></a></li><li><a class="nav-link" href="../pages/mods.html"><i class="fas fa-box"></i><span>Groups &amp; Modules</span></a></li><li><a class="nav-link" href="../pages/enums.html"><i class="fas fa-list-ol"></i><span>Enums</span></a></li><li><a class="nav-link" href="../pages/regions.html"><i class="fas fa-layer-group"></i><span>Memory &amp; Regions</span></a></li><li><a class="nav-link" href="../pages/autodiff.html"><i class="fas fa-infinity"></i><span>Automatic Differentiation</span></a></li><li><a class="nav-link" href="../pages/errors.html"><i class="fas fa-triangle-exclamation"></i><span>Error Handling</span></a></li><li><a class="nav-link" href="../pages/builtins.html"><i class="fas fa-bolt"></i><span>Built-ins &amp; Collections</span></a></li><li><a class="nav-link" href="../pages/rulesets.html"><i class="fas fa-sliders"></i><span>Rulesets</span></a></li><li><a class="nav-link" href="../pages/device.html"><i class="fas fa-microchip"></i><span>CUDA &amp; Devices</span></a></li><li><a class="nav-link" href="../pages/arduino.html"><i class="fas fa-microchip"></i><span>Arduino &amp; AVR</span></a></li><li><a class="nav-link" href="../pages/esp32.html"><i class="fas fa-microchip"></i><span>ESP32 &amp; Hardware</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Standard Library</div><ul class="nav-list"><li><a class="nav-link" href="../pages/libs.html"><i class="fas fa-cubes"></i><span>Library Overview</span></a></li><li><a class="nav-link" href="../pages/vcore.html"><i class="fas fa-microchip"></i><span>VCore</span></a></li><li><a class="nav-link" href="../pages/vmath.html"><i class="fas fa-calculator"></i><span>VMath</span></a></li><li><a class="nav-link" href="../pages/vmem.html"><i class="fas fa-memory"></i><span>VMem</span></a></li><li><a class="nav-link" href="../pages/vfs.html"><i class="fas fa-folder-open"></i><span>VFS</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Numerical Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vlin.html"><i class="fas fa-table-cells-large"></i><span>vlin</span></a></li><li><a class="nav-link" href="../pages/vml.html"><i class="fas fa-network-wired"></i><span>vml</span></a></li><li><a class="nav-link" href="../pages/vfft.html"><i class="fas fa-wave-square"></i><span>vfft</span></a></li><li><a class="nav-link" href="../pages/vrand.html"><i class="fas fa-dice"></i><span>vrand</span></a></li><li><a class="nav-link" href="../pages/vstat.html"><i class="fas fa-chart-simple"></i><span>vstat</span></a></li><li><a class="nav-link" href="../pages/vcomplex.html"><i class="fas fa-infinity"></i><span>vcomplex</span></a></li><li><a class="nav-link" href="../pages/vinterp.html"><i class="fas fa-bezier-curve"></i><span>vinterp</span></a></li><li><a class="nav-link" href="../pages/voptim.html"><i class="fas fa-arrow-trend-down"></i><span>voptim</span></a></li><li><a class="nav-link" href="../pages/vsparse.html"><i class="fas fa-braille"></i><span>vsparse</span></a></li><li><a class="nav-link" href="../pages/vdecomp.html"><i class="fas fa-divide"></i><span>vdecomp</span></a></li><li><a class="nav-link" href="../pages/vtensor.html"><i class="fas fa-cubes-stacked"></i><span>vtensor</span></a></li><li><a class="nav-link" href="../pages/vnn.html"><i class="fas fa-network-wired"></i><span>vnn</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">DSP &amp; Control</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vsignal.html"><i class="fas fa-signal"></i><span>vsignal</span></a></li><li><a class="nav-link" href="../pages/vcontrol.html"><i class="fas fa-sliders"></i><span>vcontrol</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Data &amp; Plotting</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vcsv.html"><i class="fas fa-file-csv"></i><span>vcsv</span></a></li><li><a class="nav-link" href="../pages/vjson.html"><i class="fas fa-code"></i><span>vjson</span></a></li><li><a class="nav-link" href="../pages/vtermplot.html"><i class="fas fa-chart-area"></i><span>vtermplot</span></a></li><li><a class="nav-link" href="../pages/vplot.html"><i class="fas fa-chart-line"></i><span>Universal Plotting</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Image &amp; Vision</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vimage.html"><i class="fas fa-image"></i><span>vimage</span></a></li><li><a class="nav-link" href="../pages/vconv.html"><i class="fas fa-border-all"></i><span>vconv</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Graphics &amp; Audio</div><ul class="nav-list"><li><a class="nav-link active" href="../pages/vraylib-managed.html" aria-current="page"><i class="fas fa-window-maximize"></i><span>Managed Graphics &amp; Audio</span></a></li><li><a class="nav-link" href="../pages/vraylib.html"><i class="fas fa-gamepad"></i><span>vraylib Native Reference</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Embedded Buses</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vi2c.html"><i class="fas fa-circle-nodes"></i><span>vi2c</span></a></li><li><a class="nav-link" href="../pages/vspi.html"><i class="fas fa-diagram-project"></i><span>vspi</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Domain Libraries</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vbio.html"><i class="fas fa-dna"></i><span>vbio</span></a></li><li><a class="nav-link" href="../pages/vchem.html"><i class="fas fa-flask"></i><span>vchem</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Helpers</div><ul class="nav-list"><li><a class="nav-link" href="../pages/vhelpers.html"><i class="fas fa-toolbox"></i><span>Single-file Helpers</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Showcase</div><ul class="nav-list"><li><a class="nav-link" href="../pages/srcnn.html"><i class="fas fa-trophy"></i><span>SRCNN Image Upscaler</span></a></li><li><a class="nav-link" href="../pages/espcn.html"><i class="fas fa-network-wired"></i><span>ESPCN Inference &amp; Training</span></a></li><li><a class="nav-link" href="../pages/graphics.html"><i class="fas fa-gamepad"></i><span>Graphics Showcase</span></a></li></ul></div><div class="nav-group"><div class="nav-group-title">Reference</div><ul class="nav-list"><li><a class="nav-link" href="../pages/cli.html"><i class="fas fa-terminal"></i><span>CLI Reference</span></a></li><li><a class="nav-link" href="../pages/keywords.html"><i class="fas fa-key"></i><span>Keywords</span></a></li><li><a class="nav-link" href="../pages/operators.html"><i class="fas fa-arrow-right-arrow-left"></i><span>Operators</span></a></li><li><a class="nav-link" href="../pages/errcodes.html"><i class="fas fa-bug"></i><span>Error Codes</span></a></li><li><a class="nav-link" href="../pages/performance.html"><i class="fas fa-gauge-high"></i><span>Performance</span></a></li></ul></div></nav>
+      <div class="sidebar-foot">
+        <span class="dot"></span> Active development
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn mobile-toggle" id="menuToggle" aria-label="Open navigation" aria-controls="sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
+          <nav class="breadcrumb" aria-label="Breadcrumb">
+            <a href="../index.html">Vyne</a>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-group">Graphics &amp; Audio</span>
+            <span class="crumb-sep">/</span>
+            <b>Managed Graphics &amp; Audio</b>
+          </nav>
+        </div>
+        <div class="topbar-right">
+          <button class="search-trigger" id="searchTrigger" type="button">
+            <i class="fas fa-magnifying-glass"></i>
+            <span class="search-trigger-text">Search docs…</span>
+            <kbd class="kbd">⌘K</kbd>
+          </button>
+        </div>
+      </header>
+
+      <div class="content-wrap">
+        <main class="content" id="content">
+          <article class="page active">
+            <div class="page-eyebrow">Graphics &amp; Audio</div>
+<h1>Managed Graphics &amp; Audio</h1>
+<p class="lede">App-owned resources, automatic frame lifetimes, cameras, shaders, render targets, music, and one-shot sound.</p>
+<p>The guide below is generated from the maintained <code class="inline">vraylib/MANAGED.md</code> manual. Start with this API for application code, then use the <a href="../pages/vraylib.html">native reference</a> for lower-level raylib, raymath, and rlgl calls. See <a href="../pages/graphics.html">Graphics Showcase</a> for runnable projects and acceptance commands.</p>
+<p>Import <code class="inline">vraylib/vraylib.vy</code> to get a hybrid API: an <code class="inline">App</code> owns resources and frames, resource objects expose methods, and drawing primitives remain concise module functions. The native raylib/raymath/rlgl calls are also available.</p>
+<h2 id="start-with-an-application">Start with an application</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">use</span> <span class="c-kw">external</span> <span class="c-str">&quot;vraylib/vraylib.vy&quot;</span>;
+app <span class="c-op">::</span> vraylib.<span class="c-ty">App</span> <span class="c-op">:=</span> vraylib.<span class="c-fn">app</span>(<span class="c-num">800</span>, <span class="c-num">450</span>, <span class="c-str">&quot;My application&quot;</span>);
+<span class="c-kw">try</span> {
+    <span class="c-kw">while</span> app.<span class="c-fn">frame</span>() {
+        app.<span class="c-fn">begin</span>();
+        app.<span class="c-fn">clear</span>(vraylib.<span class="c-ty">RAYWHITE</span>);
+        vraylib.<span class="c-fn">draw_text</span>(<span class="c-str">&quot;Hello&quot;</span>, <span class="c-num">40</span>, <span class="c-num">40</span>, <span class="c-num">24</span>, vraylib.<span class="c-ty">BLUE</span>);
+        app.<span class="c-fn">end</span>();
+    }
+} <span class="c-kw">finally</span> {
+    app.<span class="c-fn">close</span>();
+}</div></div>
+<p><code class="inline">app(width,height,title)</code> defaults to 60 FPS, a resizable window and VSync. <code class="inline">app_options(width,height,title,fps,flags)</code> selects explicit raylib flags. <code class="inline">session(asset_root)</code> creates the same App without opening graphics, useful for CPU image processing. A headless loop needs <code class="inline">limit(n)</code> or an explicit <code class="inline">stop()</code>. Only one managed application/context owner may be live at once.</p>
+<p><code class="inline">frame()</code> completes the previous frame, reclaims its transient arena data, updates streamed music, resizes screen-following targets, and starts a new frame. It returns false on window exit, <code class="inline">stop()</code>, or the configured frame limit. <code class="inline">end_frame()</code> finishes a frame explicitly; <code class="inline">close()</code> aborts any unfinished frame and releases the application's resources and contexts. Both close operations on already-released resource tokens and App.close are idempotent.</p>
+<h3 id="let-app-own-the-loop">Let App own the loop</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-kw">fn</span> <span class="c-fn">update</span>(app <span class="c-op">::</span> vraylib.<span class="c-ty">App</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span> {
+    <span class="c-com"># Your simulation; app.dt() is clamped to at most 0.05 seconds.</span>
+    <span class="c-kw">return</span> <span class="c-kw">true</span>;
+}
+<span class="c-kw">fn</span> <span class="c-fn">draw</span>(app <span class="c-op">::</span> vraylib.<span class="c-ty">App</span>) <span class="c-op">-&gt;</span> <span class="c-ty">Bool</span> {
+    app.<span class="c-fn">clear</span>(vraylib.<span class="c-ty">BLACK</span>);
+    vraylib.<span class="c-fn">draw_text</span>(<span class="c-str">&quot;Managed loop&quot;</span>, <span class="c-num">20</span>, <span class="c-num">20</span>, <span class="c-num">24</span>, vraylib.<span class="c-ty">WHITE</span>);
+    <span class="c-kw">return</span> <span class="c-kw">true</span>;
+}
+app <span class="c-op">::</span> vraylib.<span class="c-ty">App</span> <span class="c-op">:=</span> vraylib.<span class="c-fn">app</span>(<span class="c-num">800</span>, <span class="c-num">450</span>, <span class="c-str">&quot;Callbacks&quot;</span>);
+app.<span class="c-fn">run</span>(update, draw);</div></div>
+<p><code class="inline">run(update,draw)</code> invokes named compiled Vyne functions with the App argument, opens/closes window drawing for <code class="inline">draw</code>, and closes the application on success or failure. Headless sessions invoke both callbacks without opening drawing passes. It returns the completed frame count. These are ordinary Vyne calls, not C callbacks. Named function values and callable parameters use the compiler's boxed ABI; callback arity/type errors are catchable. Use <code class="inline">stop()</code> for loop exit.</p>
+<h2 id="typed-shared-resources">Typed, shared resources</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">app.<span class="c-fn">assets</span>(<span class="c-str">&quot;assets&quot;</span>);
+texture <span class="c-op">::</span> vraylib.<span class="c-ty">Texture</span> <span class="c-op">:=</span> app.<span class="c-fn">load_texture</span>(<span class="c-str">&quot;building.png&quot;</span>);
+model <span class="c-op">::</span> vraylib.<span class="c-ty">Model</span> <span class="c-op">:=</span> app.<span class="c-fn">cube</span>(texture);
+camera <span class="c-op">::</span> vraylib.<span class="c-ty">Camera</span> <span class="c-op">:=</span> app.<span class="c-fn">first_person</span>();</div></div>
+<p>Factories return <code class="inline">Texture</code>, <code class="inline">Image</code>, <code class="inline">Model</code>, <code class="inline">Font</code>, <code class="inline">Shader</code>, <code class="inline">Camera</code>, <code class="inline">Music</code>, and <code class="inline">RenderTarget</code> value wrappers. Internally each wrapper carries stable tokens. Copying a wrapper shares the underlying resource; it does not duplicate ownership. <code class="inline">valid()</code> checks the session and generation. Early <code class="inline">close()</code> is available, and dependent resources must be released before resources they reference.</p>
+<p>App loads cache by resolved path and resource kind. Repeating a load returns the same token. Closing it invalidates aliases and removes the cache entry, so a later load creates a fresh resource. Cache paths, uniform names, ownership and pass state are stored persistently, even when first populated inside a frame. Changing <code class="inline">assets(root)</code> affects subsequent path resolution. Absolute paths are accepted. Relative roots are relative to the process working directory.</p>
+<div class="table-wrap"><table><thead><tr><th>App factory</th><th>Result / purpose</th></tr></thead><tbody><tr><td><code class="inline">load_texture(path)</code></td><td>Checked GPU texture; <code class="inline">width</code>, <code class="inline">height</code>, <code class="inline">draw</code>, <code class="inline">close</code></td></tr><tr><td><code class="inline">load_image(path)</code>, <code class="inline">image(w,h,color)</code></td><td>CPU image; <code class="inline">resize</code>, <code class="inline">save</code>, <code class="inline">close</code></td></tr><tr><td><code class="inline">load_model(path)</code>, <code class="inline">cube(texture)</code>, <code class="inline">plane(texture,w,length)</code></td><td>Model; material count, shader/texture assignment and drawing</td></tr><tr><td><code class="inline">load_font(path)</code></td><td>Font; <code class="inline">draw(text,position,size,tint)</code></td></tr><tr><td><code class="inline">load_shader(vertex_or_null,fragment)</code></td><td>Custom shader; rejects default fallback on compilation failure</td></tr><tr><td><code class="inline">camera(position,target,fovy)</code>, <code class="inline">first_person()</code>, <code class="inline">orbit(position,target)</code></td><td>Persistent mutable camera</td></tr><tr><td><code class="inline">music(path,volume)</code></td><td>Looping streamed audio; automatically updated every frame</td></tr><tr><td><code class="inline">load_sound(path)</code></td><td>Cached one-shot Sound with <code class="inline">play</code>, <code class="inline">stop</code>, <code class="inline">playing</code>, <code class="inline">volume</code>, <code class="inline">close</code></td></tr><tr><td><code class="inline">target(w,h)</code>, <code class="inline">screen_target()</code></td><td>Fixed-size or window-following render target</td></tr></tbody></table></div>
+<p>Model/camera/target drawing requires an open App window. Image sessions need no graphics or audio device. Music has <code class="inline">valid</code>, <code class="inline">play</code>, <code class="inline">pause</code>, <code class="inline">volume</code> and <code class="inline">close</code>; if no audio device can open, it returns an unavailable Music token (<code class="inline">valid=false</code>). Missing files and failed resource/shader loads produce descriptive exceptions.</p>
+<h3 id="fixed-native-saturation">Fixed native saturation</h3>
+<p><code class="inline">app.saturation(drive,mode)</code> adds a built-in mixed stereo processor after audio has opened. Drive is 0..1; mode 0 is normalized soft/tanh saturation and mode 1 is hard clipping. Zero drive detaches it. Invalid settings throw; if no audio device is ready, enabling returns false. <code class="inline">saturation_attached()</code> and <code class="inline">saturation_blocks()</code> expose diagnostics. Sound volume is clamped to 0..1. The callback reads one packed lock-free atomic configuration and uses no allocation, locks, logging or Vyne code. App/audio shutdown detaches it before destroying streams. Arbitrary foreign/Vyne audio callbacks remain unavailable.</p>
+<h2 id="named-shader-uniforms">Named shader uniforms</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">shader <span class="c-op">::</span> vraylib.<span class="c-ty">Shader</span> <span class="c-op">:=</span> app.<span class="c-fn">load_shader</span>(<span class="c-kw">null</span>, <span class="c-str">&quot;post.fs&quot;</span>);
+shader.<span class="c-fn">set</span>(<span class="c-str">&quot;time&quot;</span>, app.<span class="c-fn">elapsed</span>());
+shader.<span class="c-fn">set</span>(<span class="c-str">&quot;size&quot;</span>, vraylib.<span class="c-fn">vec2</span>(<span class="c-fn">float64</span>(app.<span class="c-fn">width</span>()), <span class="c-fn">float64</span>(app.<span class="c-fn">height</span>())));
+shader.<span class="c-fn">set</span>(<span class="c-str">&quot;matrix&quot;</span>, vraylib.<span class="c-fn">math_matrix_identity</span>());
+shader.<span class="c-fn">set_ints</span>(<span class="c-str">&quot;counts&quot;</span>, [<span class="c-num">1</span>, <span class="c-num">2</span>, <span class="c-num">3</span>]);
+shader.<span class="c-fn">set_texture</span>(<span class="c-str">&quot;sourceTex&quot;</span>, target.<span class="c-fn">texture</span>());</div></div>
+<p><code class="inline">set</code> supports Float64/Float32 scalars, Int64/Bool scalars, numeric vectors of 1..4 components (arrays or Vector2/3/4), and Matrix values. Use floating literals for GLSL floats; <code class="inline">1</code> is an int and <code class="inline">1.0</code> is a float. <code class="inline">set_ints</code> selects integer vector uniforms. <code class="inline">set_texture</code> selects sampler uniforms and retains dependencies. Locations are queried once per shader/name; warm updates use stack scratch storage, so users do not allocate uniform buffers. Missing or optimized-out uniforms throw a named-operation error rather than silently disabling an effect. <code class="inline">uniform_queries()</code> provides diagnostic verification of the cache.</p>
+<h2 id="render-targets-passes-and-cameras">Render targets, passes and cameras</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;vyne snippet</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">scene <span class="c-op">::</span> vraylib.<span class="c-ty">RenderTarget</span> <span class="c-op">:=</span> app.<span class="c-fn">screen_target</span>();
+scene.<span class="c-fn">begin</span>();
+app.<span class="c-fn">clear</span>(vraylib.<span class="c-ty">BLACK</span>);
+camera.<span class="c-fn">begin</span>();
+model.<span class="c-fn">draw</span>(vraylib.<span class="c-fn">vec3</span>(<span class="c-num">0.0</span>, <span class="c-num">0.0</span>, <span class="c-num">0.0</span>), <span class="c-num">1.0</span>, vraylib.<span class="c-ty">WHITE</span>);
+camera.<span class="c-fn">end</span>();
+scene.<span class="c-fn">end</span>();
+app.<span class="c-fn">begin</span>();
+scene.<span class="c-fn">present</span>(<span class="c-fn">float64</span>(app.<span class="c-fn">width</span>()), <span class="c-fn">float64</span>(app.<span class="c-fn">height</span>()));
+app.<span class="c-fn">end</span>();</div></div>
+<p>Targets, cameras and shaders expose <code class="inline">begin/end</code> and <code class="inline">with_draw(callback)</code>. The latter invokes a zero-argument named function and pairs the pass using try/finally. Passes are tracked in LIFO order and unwound when a frame or App closes, including exceptions. A drawing surface must precede camera/shader passes; nested targets or same-kind passes are rejected rather than corrupting raylib's state. Keep raw begin/end calls outside managed pass composition.</p>
+<p>Target <code class="inline">present</code> handles render-texture orientation. <code class="inline">texture()</code> returns a borrowed, non-owning logical view that follows target resizing; its <code class="inline">close()</code> does not release the target. <code class="inline">resize(w,h)</code> replaces storage while preserving the target token. <code class="inline">screen_target()</code> follows the window at the next frame boundary. Managed shader samplers are refreshed when their shader pass begins, so a cached sampler continues to reference a resized logical target. Resizing active targets is rejected. Managed model texture assignments also refresh after replacement. Raw attachment references used by low-level model/material APIs must be detached before replacing storage; <code class="inline">native_handle()</code> is an explicit escape hatch whose returned attachment handle is invalidated by resize.</p>
+<p>Camera methods include <code class="inline">position</code>, <code class="inline">set_position</code>, <code class="inline">set_height</code>, <code class="inline">move</code>, <code class="inline">look</code>, <code class="inline">update</code>, <code class="inline">begin/end</code> and <code class="inline">with_draw</code>. First-person update normalizes diagonal WASD input and uses App.dt; orbit uses raylib's orbital controller. Speed and sensitivity are wrapper value fields that can be configured before updating. Collision, crouching, jumping and scene-specific physics remain application logic, as demonstrated by the full bodycam example. <code class="inline">camera.billboard(texture,position,size,tint)</code> draws a checked managed texture in the active 3D pass. Sector Shift demonstrates this with sector-specific fog.</p>
+<h2 id="region-and-exception-rules">Region and exception rules</h2>
+<p>The managed frame <strong>is</strong> a transient arena scope. Avoid keeping new strings, arrays, maps or boxed records from one frame into the next. Native resources loaded during a frame survive because the session owns their native storage; thin primitive-token wrappers can be copied, and cached assets can be retrieved again in the next frame. Long-lived application containers should be created before the loop; use explicit <code class="inline">region.commit</code> for arena data that must escape.</p>
+<p>Start managed frames outside <code class="inline">@persistent</code> regions. Balanced nested ordinary regions are fine. An exceptional nested persistent region is exited during frame cleanup so its allocator routing and commit lock do not remain active. The frame exception hook promotes string/array/map/struct error data into the commit arena before throw propagation. Consequently errors remain readable after App.close or automatic run cleanup; their copies live until program teardown. Shared and cyclic array/map/struct error graphs are copied with identity tracking. Frame scopes bound allocation lifetimes, not a guarantee of zero allocations.</p>
+<h2 id="diagnostics-and-examples">Diagnostics and examples</h2>
+<p>App exposes <code class="inline">frames</code>, <code class="inline">dt</code>, <code class="inline">elapsed</code>, <code class="inline">width</code>, <code class="inline">height</code>, <code class="inline">resources</code>, <code class="inline">passes</code>, <code class="inline">uniform_queries</code>, <code class="inline">valid</code>, <code class="inline">limit</code>, <code class="inline">fps</code> and <code class="inline">stop</code>. The full bodycam example now uses typed assets, managed frames/music, named uniforms and resizing targets. The small desktop showcase demonstrates a managed orbit camera.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;sh snippet</span><span class="code-lang">sh</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="sh">python examples/projects/raylib-showcase/tests/run.py --graphics
+python examples/projects/raylib-showcase/tests/run.py --graphics --camera --audio</div></div>
+<p>The original low-level facade and the pinned API coverage/capability limits remain documented in <a href="../pages/vraylib.html">README.md</a>.</p>
+
+          </article>
+          <nav class="pager" aria-label="Section navigation"><a class="pager-link prev" href="../pages/vconv.html"><span class="pager-label"><i class="fas fa-arrow-left"></i> Previous</span><span class="pager-title">vconv</span></a><a class="pager-link next" href="../pages/vraylib.html"><span class="pager-label"> Next</span><span class="pager-title">vraylib Native Reference <i class="fas fa-arrow-right"></i></span></a></nav>
+          <footer class="page-footer">
+            <span>Vyne v0.7.0 — Language Reference</span>
+            <a href="../index.html">Back to top</a>
+          </footer>
+        </main>
+
+        <aside class="toc" id="toc" aria-label="On this page">
+          <div class="toc-inner">
+            <div class="toc-title">On this page</div>
+            <ul class="toc-list" id="tocList"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="palette" id="palette" hidden>
+      <div class="palette-backdrop" data-close></div>
+      <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Search documentation">
+        <div class="palette-input-wrap">
+          <i class="fas fa-magnifying-glass"></i>
+          <input id="paletteInput" type="text" placeholder="Search the docs…" autocomplete="off" spellcheck="false" />
+          <kbd class="kbd">esc</kbd>
+        </div>
+        <ul class="palette-results" id="paletteResults"></ul>
+        <div class="palette-foot">
+          <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
+          <span><kbd>↵</kbd> open</span>
+          <span><kbd>esc</kbd> close</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Back to top">
+      <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <script src="../assets/search-index.js"></script>
+    <script src="../assets/app.js"></script>
+  </body>
+</html>
