@@ -1045,8 +1045,16 @@ std::string FunctionCallNode::getCExpr(C_Emitter& e) const {
         e.emit("VyneValue* " + argArr + " = NULL;");
     }
 
-    e.emit("VyneValue " + retTemp + " = fn_" + mangledName +
-           "(" + std::to_string(argSize) + ", " + argArr + ");");
+    std::string callable = "v_" + originalName;
+    std::string localCallable = "v_" + e.getActiveFunctionPrefix() + "_" + originalName;
+    if (e.isLocalDeclared(localCallable)) callable = localCallable;
+    if (e.isLocalDeclared(callable) || e.isGlobalDeclared(callable)) {
+        e.emit("VyneValue " + retTemp + " = vyne_function_call(" + e.boxAny(callable) +
+            ", " + std::to_string(argSize) + ", " + argArr + ");");
+    } else {
+        e.emit("VyneValue " + retTemp + " = fn_" + mangledName +
+               "(" + std::to_string(argSize) + ", " + argArr + ");");
+    }
     return retTemp;
 }
 

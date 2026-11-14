@@ -35,6 +35,9 @@ typedef struct {
 static VyneExcFrame g_exc_stack[VYNE_MAX_EXC_FRAMES];
 static int g_exc_top = 0;
 static VyneValue g_exc_value;
+// Optional allocator-aware promotion before a throw crosses a temporary scope.
+// The managed graphics facade installs this only while a frame arena is active.
+static VyneValue (*g_vyne_exception_promoter)(VyneValue) = NULL;
 
 static inline int vyne_try_push(void) {
     if (g_exc_top >= VYNE_MAX_EXC_FRAMES) {
@@ -50,6 +53,7 @@ static inline void vyne_try_pop(void) {
 }
 
 static inline void vyne_throw(VyneValue val) {
+    if (g_vyne_exception_promoter) val = g_vyne_exception_promoter(val);
     if (g_exc_top == 0) {
         fprintf(stderr, "Uncaught exception: ");
         _vyne_print_internal(val);
@@ -59,4 +63,16 @@ static inline void vyne_throw(VyneValue val) {
     g_exc_value = val;
     g_exc_top--;
     longjmp(g_exc_stack[g_exc_top].buf, 1);
+}
+
+static inline VyneValue vyne_function_call(VyneValue value, int argc, VyneValue *args) {
+    if (value.type != V_FUNCTION || !value.as.fn || !value.as.fn->native_fn) {
+        vyne_throw(vyne_string("Expected a callable compiled function"));
+        return vyne_null();
+    }
+    if (value.as.fn->arity >= 0 && value.as.fn->arity != argc) {
+        vyne_throw(vyne_string("Callback argument count does not match its signature"));
+        return vyne_null();
+    }
+    return value.as.fn->native_fn(argc, args);
 }

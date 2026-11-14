@@ -119,6 +119,7 @@ class C_Emitter {
 
     // --- Interface / group registry -------------------------------------
     std::unordered_set<std::string> interfaceSet;
+    std::unordered_set<std::string> canonicalInterfaceNames;
     std::unordered_set<std::string> groupSet;
     std::unordered_map<std::string, std::string> interfaceCtorNames;
     std::unordered_map<std::string, std::vector<std::string>>
@@ -1205,6 +1206,7 @@ class C_Emitter {
         };
         if (const auto* r = probe(ifaceName))
             return r;
+        if (canonicalInterfaceNames.count(ifaceName)) return nullptr;
         std::string tmp = ifaceName;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
@@ -1233,6 +1235,7 @@ class C_Emitter {
         };
         if (probe(ifaceName))
             return true;
+        if (canonicalInterfaceNames.count(ifaceName)) return false;
         std::string tmp = ifaceName;
         size_t dot;
         while ((dot = tmp.find('.')) != std::string::npos) {
@@ -1455,6 +1458,9 @@ class C_Emitter {
     // --- Interface / group registry -------------------------------------
     void registerInterface(const std::string& name) {
         interfaceSet.insert(name);
+    }
+    void registerCanonicalInterface(const std::string& name) {
+        canonicalInterfaceNames.insert(name);
     }
     void
     registerInterfaceCtor(const std::string& name, const std::string& suffix) {
@@ -2088,6 +2094,7 @@ class C_Emitter {
         contextStack.clear();
         groupPrefix.clear();
         interfaceSet.clear();
+        canonicalInterfaceNames.clear();
         groupSet.clear();
         declaredVars.clear();
         references.clear();

@@ -47,6 +47,29 @@ std::string VariableNode::getCExpr(C_Emitter& e) const {
     if (e.isReference(resolved)) {
         return "(*" + resolved + ")";
     }
+    // Named functions used as values use the existing boxed-call ABI. Static
+    // descriptors outlive frame regions and do not capture temporary storage.
+    if (!e.isLocalDeclared(resolved) && !e.isGlobalDeclared(resolved)) {
+        std::string fn = sanitized;
+        const auto* signature = e.getFunctionSignature(fn);
+        if (!signature && !e.getActiveModule().empty()) {
+            fn = e.getActiveModule() + "_" + sanitized;
+            signature = e.getFunctionSignature(fn);
+        }
+        if (signature && !e.isInterface(originalName)) {
+            const std::string marker = "__callable_" + fn;
+            if (!e.isGlobalDeclared(marker)) {
+                e.declareGlobal(marker, CType::fromKind(CType::Kind::Unknown));
+                e.emitGlobalDecl("VyneValue fn_" + fn + "(int, VyneValue*);");
+                e.emitGlobalDecl("static VyneFunction " + marker + " = {.arity = " +
+                    std::to_string(signature->size()) + ", .native_fn = fn_" + fn +
+                    ", .is_native = true, .name = \"" + fn + "\"};");
+            }
+            std::string value = e.newTemp("callable");
+            e.emit("VyneValue " + value + " = {.type = V_FUNCTION, .as.fn = &" + marker + "};");
+            return value;
+        }
+    }
     return resolved;
 }
 
