@@ -1232,3 +1232,335 @@ No intentional source-language breaking change is introduced in this window. The
 See `git log v0.6.0..HEAD` for the raw list. The 22 commits this release covers span `8bfa634` (2026-11-09) through `6cd2870` (2026-11-11).
 
 **Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.6.0...v0.7.0>
+
+---
+
+# Vyne v0.8.0 - ESP32 hardware workflows, device training, universal plotting, and managed graphics
+
+**Released 2026-11-15**
+
+This release extends Vyne from numerical computation into practical embedded, device-training, and graphics applications. It introduces the ESP32 backend with configurable hardware presets and a select-once build/run workflow, zero-copy `Slice<T>` views and typed-array capacity management, explicit device-resident convolution and training primitives, reusable `vtensor` / `vnn` helpers, and a standalone ESPCN inference/training project. Universal `vplot` charts share a rendering engine across host images and ESP32 displays, while `vraylib` integrates vendored raylib 6.2, raymath, and rlgl with App-owned resources, automatic frame lifetimes, shaders, cameras, render targets, music, and one-shot audio. The Bodycam and Sector Shift examples are restored through the managed facade, and the documentation site grows from 53 to 61 pages with freshness checks and dedicated CI.
+
+---
+
+## Highlights
+
+- **ESP32 backend.** Compile Vyne into Arduino-ESP32 firmware for ESP32, S2, S3, C3, and C6 boards. The runtime exposes shared MCU operations plus Wi-Fi/HTTP, NVS, displays, sprites, touch, IMU, DAC, and power controls, with a 64 KB default arena and demand-driven peripheral headers. Commit `61a14ae` (#134).
+
+- **Select-once hardware configuration.** `vynec init` records a board/preset and connection settings in `hardware.toml`; `vynec hardware list`, `show`, and `setup` handle discovery, resolved configuration, and toolchain installation. `vynec build` compiles firmware and `vynec run` uploads, resets, and starts the board. Commits `e5bdb2c` (#142), `20d64f9` (#143).
+
+- **Zero-copy slices and reusable buffers.** `Slice<Float64>` and `Slice<Int64>` borrow typed-array storage without copying the payload. `reserve()` and `resize()` add explicit capacity and length management without changing the existing `Array<T>` ABI. Commit `b496955` (#135).
+
+- **Explicit GPU training primitives.** Device convolution gains backward input/weight/bias kernels, ReLU gradients, pixel shuffle and its reverse pass, MSE gradients, reductions, crop staging, SGD, and AdamW. Preallocated operations allow training buffers to be reused across steps. Commits `13bd9b8` (#136), `1ce2dee` (#137).
+
+- **Reusable device ML libraries.** `vtensor` carries region-local device handles and HWC shape metadata; `vnn` composes explicit `@device_fn` convolution, activation, loss, backward, and optimizer blocks. `vml` remains the CPU dense/MLP layer. Commits `4f10ab9` (#138), `2da8412` (#139).
+
+- **ESPCN inference and training.** A standalone project combines CPU exact inference, full-device Float32 inference, deterministic crop training, best/latest checkpoints, checkpoint reload, metrics, and reproduction scripts. Repeatability of the fixed bundled graph is documented for the same GPU and driver version. Commits `1ce2dee` (#137), `55e6747` (#140), `0fd74f9`.
+
+- **Universal live plotting.** `vplot/vplot.vy` adds colorful line, scatter, bar, histogram, and heatmap charts on host images and ESP32 displays, managed chart surfaces, bounded rolling series, automatic timestamps, and throttled live presentation. Commit `6b80291` (#145).
+
+- **Managed desktop graphics and audio.** `vraylib` brings raylib 6.2, raymath, and rlgl to compiled Vyne, then layers typed App-owned resources, automatic frame cleanup, named uniforms, resizable targets, cameras, streamed music, one-shot Sound, and fixed native saturation on top. Commits `b349223` (#146), `38b43c0` (#147), `d53eb69`.
+
+- **Documentation and acceptance coverage.** The manual now publishes 61 pages, including ESP32, plotting, device libraries, managed/native graphics, ESPCN, and graphics showcases. A dedicated workflow validates generated output, local links, anchors, navigation, and search. Commits `cc7905d` (#148), `774aec1`.
+
+---
+
+## New features
+
+### ESP32 firmware backend
+
+The compiler gains a Desktop / AVR / ESP32 target model and emits an Arduino-ESP32 sketch against `vyne/runtime/esp32/vyne_esp32.h`. The CLI delegates core compilation, upload, and serial monitoring to `arduino-cli`.
+
+- Board aliases: `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, and `esp32c6`.
+- Flags: `--esp32`, `--esp32-flash`, `--esp32-monitor`, `--esp32-port`, and `--esp32-baud`.
+- Repeatable `--esp32-build-property key=value` overrides for standalone builds.
+- Shared bindings for GPIO, serial, math, bits, memory, I2C/SPI, interrupts, contracts, and realtime telemetry.
+- ESP32-specific bindings for NVS, Wi-Fi/HTTP, additional UARTs, display/touch, MPU6050, DAC, capacitive touch, sleep/reset, and heap inspection.
+- Feature-gated headers keep unused peripheral stacks out of generated firmware.
+- Up to four off-screen display sprites support buffered drawing through the normal `display_*` calls.
+
+`use native arduino;` exposes the shared MCU surface on ESP32; EEPROM bindings are deliberately absent there, with NVS providing persistent storage. Commits `61a14ae` (#134), `2250209` (#141).
+
+### Hardware configuration and initialization
+
+`hardware.toml` becomes functional configuration rather than descriptive metadata. Bundled presets cover generic ESP32 boards and the measured HW-950 display/touch setup.
+
+```shell
+vynec init screen --name screen --kind embedded --preset hw950 --port COM5
+cd screen
+vynec hardware setup
+vynec hardware show
+vynec build
+vynec run --monitor
+```
+
+- Configuration precedence is CLI overrides → TOML overrides → preset defaults.
+- `--board`, `--preset`, `--port`, and `--baud` support scripted initialization.
+- `--hardware-set section.key=value` supplies repeatable typed overrides.
+- Validation covers drivers, dimensions, GPIO suitability, chip-select conflicts, and incompatible board families.
+- Firmware, sketches, response-file settings, and intermediates live under `build/firmware/`.
+- Hardware settings preserve platform USB/core definitions.
+- Changed response-file settings request a clean object rebuild to prevent stale firmware uploads.
+- Existing Uno metadata remains accepted.
+
+The HW-950 starter uses configured landscape orientation, polls touch continuously, reports geometry/calibration/contact state, and accepts serial **C** for explicit four-corner calibration. Saved NVS calibration is otherwise preserved. Commits `e5bdb2c` (#142), `20d64f9` (#143).
+
+### Zero-copy `Slice<T>` and typed-array capacity management
+
+`Slice<T>` is a separate pointer-and-length view; `Array<T>` retains its existing data, size, and capacity layout.
+
+- A typed slice declaration or argument borrows contiguous array storage.
+- Whole-array arguments can become whole-array views.
+- Bounds are half-open: `data[lo:hi]`.
+- Indexed reads/writes and `size()` / `length()` are supported.
+- Ordinary array slicing retains its copying behavior.
+- Views do not own storage or extend the owner's lifetime.
+- Growing, dropping, or reclaiming the owner can invalidate a view.
+
+`reserve(n)` preserves length while ensuring capacity. `resize(n, fill)` changes logical length, initializes new elements, and retains capacity when shrinking. Desktop growth uses the existing arena-tail reclamation strategy; embedded growth checks the static arena budget before allocation. Commit `b496955` (#135).
+
+### Device convolution and training primitives
+
+The CUDA runtime adds Float32 and Float64 backward convolution kernels with HWC activations and OIHW weights. Gather-style accumulation assigns one output element to each thread, avoiding atomic reductions.
+
+The explicit device surface includes:
+
+- Convolution forward and backward input/weight/bias.
+- ReLU forward and backward.
+- Pixel shuffle forward and backward.
+- MSE gradients and per-element loss contributions.
+- Device scalar reduction with `device_sum`.
+- Packed-buffer staging with `device_copy_slice`.
+- In-place SGD and AdamW updates.
+
+Handle-returning `vconv_*_device` wrappers allocate outputs within the active device frame. Preallocated `device_*` intrinsics let callers reuse activations, gradients, loss buffers, and optimizer moments.
+
+`@device_fn` marks helpers that may issue device intrinsics from an active device region or another device helper. Imported helpers and nested helper calls are supported; calls without an active device context are rejected. Commits `13bd9b8` (#136), `1ce2dee` (#137).
+
+### `vtensor`, `vnn`, and ESPCN
+
+`vtensor.DeviceTensor` combines an Int64 device handle with height, width, channels, and element count. It carries metadata, not ownership.
+
+`vnn` provides preallocated convolution/ReLU blocks, pixel shuffle, MSE gradient/reduction, backward blocks, and AdamW updates over those tensors and caller-owned handles. The ESPCN trainer is migrated from project-local wrappers to this reusable library surface. Commit `4f10ab9` (#138).
+
+The standalone `examples/projects/espcn` project adds:
+
+- CPU exact and full-device Float32 ReLU inference.
+- Bilinear and FSR-style non-neural comparisons.
+- PSNR, SSIM, edge/ringing metrics, timings, and CPU/GPU differences.
+- Committed sample/reference images and an offline passthrough model.
+- PyTorch checkpoint export to the weight-bundle format.
+- Three fixed training crops and one held-out validation crop.
+- Preallocated training buffers and device-resident AdamW moments.
+- Training/validation CSVs and best/latest checkpoint export.
+- Best-checkpoint reload and CPU inference verification.
+
+PowerShell and POSIX reproduction scripts clean build outputs, smoke-test the exporter, train, reload the best checkpoint, run inference, and check decreasing losses. Commits `1ce2dee` (#137), `55e6747` (#140), `0fd74f9`.
+
+### Universal plotting
+
+The new `vplot/vplot.vy` facade shares one native chart/layout engine across RGB host images and RGB565 ESP32 displays.
+
+- Line, scatter, signed bar, histogram, and heatmap charts.
+- Automatic/fixed ranges, grids, labels, legends, themes, and dashboard viewports.
+- One-call `show_*` display helpers and `save_*` PNG helpers.
+- Managed charts with reusable surfaces and explicit close.
+- Fixed-capacity live rings, automatic timestamps, and best-effort 100 ms redraw throttling.
+- Borrowed Float64 line views and image overlays.
+- Ordered column reduction that preserves spikes in dense monotonic lines.
+- Native memory, allocation, and frame diagnostics.
+- Generation-checked handles and allocation-free steady-state updates.
+
+Selecting `vplot` during HW-950 initialization generates the short chart starter. The original single-file `vplot.vy` text-bar helper retains its API with updated syntax. Commit `6b80291` (#145).
+
+### Vendored and managed `vraylib`
+
+`vraylib` integrates raylib 6.2 with raymath and rlgl for compiled desktop Windows, Linux, and macOS.
+
+The binding inventory covers 928 declarations: 901 direct/adapted bindings, two literal-safe text adapters, and 25 explicitly unavailable operations. Resources use generation-checked handles; pointer adapters validate supported buffer capacities and ownership. Vendored native archives build on first use and are cached by compiler/source/configuration fingerprints. Commit `b349223` (#146).
+
+The managed facade adds:
+
+- `App` and headless sessions.
+- Typed Texture, Image, Font, Shader, Model, Camera, Music, Sound, and RenderTarget wrappers.
+- Cached asset loading and named shader-uniform lookup.
+- Frame-scoped transient arena cleanup.
+- Automatic music updates and screen-following target resizing.
+- LIFO render-pass tracking and callback-paired drawing.
+- Borrowed logical target views that follow resize.
+- Named compiled callbacks through `App.run`.
+- Idempotent resource/session cleanup and descriptive load failures.
+
+`App.saturation(drive, mode)` adds a fixed mixed-stereo soft/tanh or hard-clipping processor. Its native callback uses a packed lock-free atomic configuration without allocation, locks, logging, or Vyne calls. Commits `38b43c0` (#147), `d53eb69`.
+
+### Restored graphics showcases
+
+The Bodycam scene is migrated to typed assets, managed frames/music, cached uniforms, and resizing render targets while preserving its scene, animation, movement, physics, and post-processing.
+
+Sector Shift retains the corridor, stalker events, radio, malfunction, blackouts, recording overlay, and ending. It adds corrected time-based movement/fades, one-shot radio playback, sector-specific fog/VHS shaders, managed billboard drawing, and native audio saturation.
+
+Bounded runs and deterministic autoplay support acceptance testing; the original media remain local assets. Commits `b349223` (#146), `38b43c0` (#147), `6ce9f2a`, `b676295`.
+
+---
+
+## Bug fixes
+
+### ESP32 runtime and hardware
+
+- Reduce the default ESP32 arena from 128 KB to 64 KB so Wi-Fi-enabled firmware fits the original ESP32 linker layout. Commit `61a14ae` (#134).
+- Correct Arduino-ESP32 ADC attenuation names, missing boxed operators, Float32 tagging, and unconfigured touch handling. Commit `61a14ae` (#134).
+- Reject unavailable embedded native members during Vyne compilation rather than emitting unresolved C calls. Commit `61a14ae` (#134).
+- Prevent sprite text crashes by selecting the built-in font, validate dimensions before narrowing, preserve allocation-failure behavior, and correctly clear/delete selected sprites. Commit `2250209` (#141).
+- Convert boxed numeric arguments instead of reinterpreting integer bits as doubles; preserve signed 64-bit serial output. Commit `2250209` (#141).
+- Treat missing calibration as an expected first-boot condition and validate versioned calibration blobs. Commit `2250209` (#141).
+- Preserve platform definitions when applying display settings; correct HW-950 geometry, enables, orientation, and mirror handling. Commit `2250209` (#141).
+- Add stable-sample, geometry-checked XPT2046 calibration with rotation/mirror mapping and bounded pixel coordinates. Commit `2250209` (#141).
+- Execute discarded zero-argument native calls so display initialization and RNG state advancement are not dropped. Commit `20d64f9` (#143).
+- Clean cached firmware objects when hardware response-file contents change. Commit `20d64f9` (#143).
+
+### Graphics, exceptions, and portability
+
+- Stabilize optimized MinGW Win64 exception jumps using the platform-aware `vyne_setjmp` path. Commit `b349223` (#146).
+- Isolate qualified interface layouts so `vraylib.Image` and `vimage.Image` do not collide. Commit `38b43c0` (#147).
+- Preserve thrown string/array/map/struct graphs across managed frame cleanup and application shutdown, including shared/cyclic graphs. Commit `38b43c0` (#147).
+- Refresh managed sampler/model bindings when logical render targets replace storage. Commit `38b43c0` (#147).
+- Correct Sector Shift's fog baseline, immediate blackout freezes, one-shot radio state, and bounded frame-independent ending fades. Commits `6ce9f2a`, `b676295`.
+- Correct hosted Windows xmake configuration and Darwin process-memory/value-conversion build issues. Commit `b349223` (#146).
+
+### CI and documentation
+
+- Restrict compiler source collection so standalone hardware tests do not introduce a second `main`; run calibration regressions separately and remove trigraph warnings. Commit `e246b1c`.
+- Remove an unused Windows-only header exposed by Linux generated-program testing. Commit `20d64f9` (#143).
+- Separate plotting PNG directories from extensionless Linux executables. Commit `6b80291` (#145).
+- Track the previously ignored documentation package/navigation manifests, reject unknown internal page IDs, and repair relocated manual links and extracted AVR anchors. Commit `cc7905d` (#148).
+- Correct root README build commands, interpreter modes, repository links, prerequisites, and stale embedded-library descriptions. Commit `774aec1`.
+
+---
+
+## Runtime and memory
+
+### Borrowed and reusable typed storage
+
+Slices add a non-owning pointer-and-length ABI alongside unchanged typed-array containers. Capacity management remains arena-backed; embedded growth checks available arena space. Views require stable live owner storage. Commit `b496955` (#135).
+
+### Device frame reuse
+
+Training buffers, saved activations, gradients, loss storage, and optimizer moments can be allocated once and reused inside the owning device region. Device reduction and crop staging avoid unnecessary host round trips. Commits `13bd9b8` (#136), `1ce2dee` (#137).
+
+### Plotting resources
+
+Plots own their series; managed charts also own reusable output surfaces. Native plotting storage survives host region rewinds and is explicitly released. Steady-state append/render/update reuse reserved storage. Commit `6b80291` (#145).
+
+### Managed graphics frames
+
+Native resources and persistent caches outlive transient Vyne frames. App frame transitions reclaim transient arena data, update music, resize following targets, and unwind active passes. Exception promotion preserves error values in commit storage across cleanup. Commit `38b43c0` (#147).
+
+### Recorded measurements
+
+- Optimized CPU convolution moved approximately 2.00 → 1.74 ms for the recorded 64×64×3 → 32-channel 3×3 workload. Commit `13bd9b8` (#136).
+- The recorded RTX 5060 device convolution comparison measured approximately 11.53 ms CPU versus 1.07 ms GPU end-to-end for its stated workload. Commit `13bd9b8` (#136).
+- HW-950 managed plotting acceptance recorded 385 frames in 60 seconds, stable 33,760 native bytes, eight setup allocations, and zero Vyne arena growth. Commit `6b80291` (#145).
+- Initialized HW-950 touch acceptance recorded eight in-bounds positive-pressure contacts, 119 heartbeats, and stable 32-byte arena usage over 240 seconds. Commit `20d64f9` (#143).
+
+These are workload- and hardware-specific observations, not universal timing guarantees.
+
+---
+
+## Documentation
+
+- **61-page manual.** Publish ESP32, universal plotting, `vtensor`, `vnn`, managed/native `vraylib`, ESPCN, and graphics showcase pages; refresh navigation, pagers, and search. Commit `cc7905d` (#148).
+- **Documentation freshness CI.** Isolated rebuilds detect stale, missing, and retired generated files and validate local resources, anchors, duplicate IDs, navigation, and search coverage. Commit `cc7905d` (#148).
+- **Executable Markdown examples.** Add a runner for slices, typed buffers, device helpers, tensor metadata, MSE, PNG plotting, and compile-only interactive graphics. Commit `cc7905d` (#148).
+- **Hardware guides.** Document setup, precedence, presets, display/touch configuration, calibration, and recorded COM5 acceptance. Commits `2250209` (#141), `e5bdb2c` (#142), `20d64f9` (#143).
+- **ML guides.** Clarify CPU `vml` versus device `vtensor`/`vnn`, and document ESPCN checkpoints, reproduction, metrics, and determinism scope. Commits `2da8412` (#139), `55e6747` (#140), `0fd74f9`.
+- **README refresh.** Update execution paths, library groups, workflows, prerequisites, project layout, documentation links, and contribution guidance. Commit `774aec1`.
+- **Sponsorship policy.** Add `SPONSORS.md` with recognition, intake, allocation, and technical-independence rules; recognize Zeka Shamilli as Founding Sponsor. Commit `8fac133`.
+
+---
+
+## Internal changes
+
+### Compiler and tooling
+
+- Generalize target selection and demand-driven embedded features for ESP32. Commit `61a14ae` (#134).
+- Add slice types, view construction, native dispatch, and reserve/resize lowering. Commit `b496955` (#135).
+- Add device helper contexts, imported-helper handling, and training-intrinsic lowering. Commit `1ce2dee` (#137).
+- Add schema-aware hardware configuration, bundled presets, initializer choices, and firmware staging. Commit `e5bdb2c` (#142).
+- Add reproducible raylib binding generation, API inventory, native cache builds, checked resources, and managed helper bindings. Commits `b349223` (#146), `38b43c0` (#147).
+- Add checked named-function descriptors and callable parameter dispatch for compiled callbacks. Commit `38b43c0` (#147).
+
+### Tests
+
+- ESP32 peripheral sketches, native runtime/touch fixtures, hardware runners, Python configuration checks, and host calibration/orientation regressions.
+- Source-tree and installed-distribution initialization, hardware precedence, validation, upload, and monitoring acceptance.
+- Slice/reserve/resize regression.
+- Device forward/backward parity, Float32/Float64 operations, reductions, crop staging, MSE, SGD, AdamW, and imported `@device_fn` coverage.
+- CPU `vml` training and reusable `vtensor`/`vnn` smoke tests.
+- Plotting lifecycle, memory, decoded PNG, and 128 chart/theme/viewport/band parity cases.
+- Graphics resource/pointer ownership, callbacks, structured exceptions, resize, uniforms, GPU readback, and native sanitizer checks.
+- Sector story thresholds, freezes, radio, fades, shader pixels, saturation DSP, and full local autoplay/audio cleanup.
+- Five documentation-pipeline regressions and fresh-checkout generation checks.
+
+### Repository maintenance
+
+Hardware and plotting planning documents are added and reconciled with implementation; generated project scaffolds and example formatting are maintained, and stale build/sketch outputs are ignored. The initial commit in this window, `cacd78a`, synchronizes v0.7.0 version references and introduces no runtime feature.
+
+---
+
+## Breaking changes
+
+No intentional broad source-language breaking change is introduced in this window. The following behavioral and ownership boundaries matter when upgrading:
+
+- **Embedded native surfaces are closed.** Unsupported members now fail during Vyne compilation instead of at the C link stage.
+- **ESP32 arena default is 64 KB.** Applications relying on the earlier 128 KB assumption must configure and validate their memory budget.
+- **Hardware initialization has configured defaults.** No-argument display initialization uses resolved settings; explicit rotation arguments remain authoritative.
+- **`vynec run` uploads configured firmware.** Use `build` for compile-only behavior and request monitoring explicitly.
+- **Slices are borrowed views.** They do not own storage, grow, or preserve data after owner reclamation.
+- **Managed graphics wrappers share resources.** Copying a wrapper shares its token; closing the resource invalidates aliases.
+- **Managed frames reclaim transient host data.** Long-lived application containers must be allocated outside the frame or explicitly preserved.
+- **Native target attachment handles can become stale after resize.** Prefer managed logical views.
+- **ESPCN inference prefers generated checkpoints.** Existing best/latest build checkpoints take precedence over bundled weights.
+
+---
+
+## Upgrade guide
+
+1. **Rebuild the compiler and generated programs** together so runtime headers, device PTX, and graphics bindings match.
+2. **Select embedded hardware once.** Initialize a board/preset, inspect `hardware show`, install dependencies with `hardware setup`, then use `build` and `run` from the project directory.
+3. **Rebuild and reflash ESP32 firmware.** Review the 64 KB arena, target-specific peripherals, display geometry, and explicit calibration workflow.
+4. **Reserve buffers before borrowing views.** Keep slice owners alive and storage stable; use reserve/resize to reuse typed capacity.
+5. **Keep device training explicit.** Allocate buffers inside the device region, initialize optimizer moments, and use `vtensor`/`vnn` for reusable blocks.
+6. **Try the ESPCN reproduction scripts.** They clean build outputs and validate the bundled training/checkpoint/inference lifecycle.
+7. **Migrate graphical applications through the managed App guide.** Pair cleanup, respect resource dependencies, and keep transient values within frame lifetimes.
+8. **Use the new plotting facade.** Import `vplot/vplot.vy` for host/display/live charts; retain `vtermplot` for terminal output.
+9. **Regenerate documentation after source/manual edits.** Run `npm run sync`, `npm test`, and `npm run check` in `docs/`, then commit generated Pages output.
+10. **Synchronize release versions before publishing.** The current compiler/toolchain/site metadata still identify v0.7.0; update release-facing references to v0.8.0.
+
+---
+
+## Known limitations
+
+- **Device training is not automatic tensor AD.** The reusable ML surface targets explicit HWC image graphs and the documented convolution/activation/optimizer operations.
+- **ESPCN training is a fixed-crop smoke workflow.** It is not multi-image dataset training or a general super-resolution quality claim. Full-device inference currently targets ReLU checkpoints.
+- **Determinism is environment-scoped.** Bit-exact repeatability describes the fixed bundled graph on the same GPU and driver; other environments use tolerances.
+- **Device handles must remain region-local.** Mixed dtypes, asynchronous streams, and multi-GPU scheduling are not provided.
+- **Shipped slice function parameters support Float64 and Int64.** `Slice<Float32>` parameters are still rejected despite runtime view storage.
+- **Embedded hardware remains configuration-dependent.** Pin availability, display controllers, touch wiring, sensors, and network credentials require the appropriate board/peripheral setup.
+- **Plotting scales are linear.** Font coverage and native resource limits remain bounded; sample acquisition and synchronization belong to the application.
+- **`vraylib` is compiled desktop-only.** Rendering needs OpenGL; arbitrary foreign callbacks and unsupported OpenGL 4.3 compute/SSBO operations are unavailable.
+- **Only one managed graphics application/context owner may be live at once.** Raw and managed render-pass composition must follow the documented state rules.
+- **Bodycam and Sector Shift require local media.** Their historical assets are not included in the repository.
+- **Existing AD limitations remain.** This release does not expand implicit differentiation to vector residuals or remove the documented straight-line AD restrictions.
+
+---
+
+## Contributors
+
+- **Tuncay Gafarli** - all commits in this release.
+- **Zeka Shamilli** - Founding Sponsor, recognized in `SPONSORS.md`.
+
+## Full commit list
+
+See `git log v0.7.0..HEAD` for the raw list. The 28 commits this release covers span `cacd78a` (2026-11-11) through `774aec1` (2026-11-15), including release housekeeping, merged feature work, examples, tests, documentation, and repository maintenance.
+
+**Full Changelog**: <https://github.com/t2ncay/vyne/compare/v0.7.0...v0.8.0>
