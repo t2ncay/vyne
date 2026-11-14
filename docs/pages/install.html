@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Installation · Vyne Language Reference</title>
-    <meta name="description" content="Getting Started Installation Build vynec, verify the toolchain, and set up Arduino/ESP32, CUDA, and desktop raylib graphics. Vyne is a source-built toolchain. The compiler and desk" />
+    <meta name="description" content="Getting Started Installation Install the Windows x64 release with Scoop or build vynec from source, then set up optional embedded, CUDA, and graphics tools. Windows x64 users can i" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -80,12 +80,35 @@
           <article class="page active">
             <div class="page-eyebrow">Getting Started</div>
 <h1>Installation</h1>
-<p class="lede">Build vynec, verify the toolchain, and set up Arduino/ESP32, CUDA, and desktop raylib graphics.</p>
-<p>Vyne is a source-built toolchain. The compiler and desktop runtime are C++26; generated programs are C11; the Arduino target additionally needs <code class="inline">avr-gcc</code>, <code class="inline">avr-libc</code>, and <code class="inline">arduino-cli</code>.</p>
-<h2 id="prerequisites">Prerequisites</h2>
-<div class="table-wrap"><table><thead><tr><th>Component</th><th>Needed for</th><th>Notes</th></tr></thead><tbody><tr><td>C++26 compiler</td><td>building <code class="inline">vynec</code></td><td>GCC 14+, Clang 18+, or MSVC 19.40+</td></tr><tr><td><a href="https://xmake.io/" target="_blank" rel="noopener">xmake</a></td><td>build system</td><td><code class="inline">scoop install xmake</code>, <code class="inline">brew install xmake</code>, or the official install script</td></tr><tr><td>C11 compiler</td><td>generated programs</td><td>GCC, Clang, or MSVC; defaults to the host compiler</td></tr><tr><td><code class="inline">avr-gcc</code> + <code class="inline">avr-libc</code></td><td>Arduino firmware</td><td>the AVR toolchain from Arduino or your package manager</td></tr><tr><td><code class="inline">arduino-cli</code> + <code class="inline">arduino:avr</code></td><td>flashing and serial monitor</td><td><code class="inline">arduino-cli core install arduino:avr</code></td></tr><tr><td>OpenBLAS</td><td><code class="inline">--blas</code></td><td>optional; vendored binaries live under <code class="inline">vendor/openblas/</code></td></tr><tr><td><code class="inline">arduino-cli</code> + <code class="inline">esp32:esp32</code></td><td>ESP32 firmware</td><td><code class="inline">vynec hardware setup</code> installs the selected core/libraries</td></tr><tr><td>GCC + CMake + make</td><td><code class="inline">vraylib</code> compiled desktop programs</td><td>vendored raylib builds automatically on first import</td></tr></tbody></table></div>
+<p class="lede">Install the Windows x64 release with Scoop or build vynec from source, then set up optional embedded, CUDA, and graphics tools.</p>
+<p>Windows x64 users can install a precompiled Vyne release with Scoop. Source builds use a C++23-capable compiler and xmake; generated desktop programs are C11 and the current compile/run path invokes GCC. Embedded and graphics applications need the additional tools described below.</p>
+<h2 id="windows-install-with-scoop">Windows: install with Scoop</h2>
+<p>Install <a href="https://scoop.sh/" target="_blank" rel="noopener">Scoop</a> and ensure Git is available, then run in PowerShell:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;powershell snippet</span><span class="code-lang">powershell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="powershell">scoop bucket add vyne https://github.com/t2ncay/scoop-vyne
+scoop install vyne/vyne
+vynec --version
+vynec --help</div></div>
+<p>The <a href="https://github.com/t2ncay/scoop-vyne" target="_blank" rel="noopener">Vyne bucket</a> downloads the precompiled Windows x64 release and checks the manifest's SHA256. The package includes the runtime/module/template files used by compilation and project initialization. GCC is installed as a dependency because <code class="inline">vynec file.vy</code> compiles and runs. Installing the precompiled toolchain does not require building Vyne with xmake.</p>
+<p>Create and run a first project from your preferred projects directory:</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;powershell snippet</span><span class="code-lang">powershell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="powershell">vynec init --name hello --kind blank --no-git
+cd hello
+vynec run</div></div>
+<h3 id="update-or-uninstall">Update or uninstall</h3>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;powershell snippet</span><span class="code-lang">powershell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="powershell">scoop update
+scoop update vyne
+vynec --version
+# Remove the package when needed
+scoop uninstall vyne</div></div>
+<p><code class="inline">scoop update</code> refreshes Scoop and its bucket manifests; <code class="inline">scoop update vyne</code> installs a newer published package when available. Project files outside the Scoop installation directory remain separate.</p>
+<h3 id="installed-versus-local-builds">Installed versus local builds</h3>
+<p>Scoop normally installs under <code class="inline">%USERPROFILE%/scoop/apps/vyne/current/</code> and exposes <code class="inline">vynec</code> through a shim. It does not replace a source checkout. Use <code class="inline">vynec</code> for the PATH-selected installation and <code class="inline">./vynec.exe</code> inside a Windows source checkout for your local executable.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;powershell snippet</span><span class="code-lang">powershell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="powershell">Get-Command vynec -All
+Get-Command gcc -All</div></div>
+<p>These commands show tool selection if you keep multiple compiler installations. See <a href="../pages/hello.html">Hello, World</a> for execution modes and <a href="../pages/projects.html">Projects &amp; Tooling</a> for manifests and initialization.</p>
+<h2 id="source-build-prerequisites">Source-build prerequisites</h2>
+<div class="table-wrap"><table><thead><tr><th>Component</th><th>Needed for</th><th>Notes</th></tr></thead><tbody><tr><td>C++23 compiler</td><td>building <code class="inline">vynec</code></td><td><code class="inline">xmake.lua</code> uses <code class="inline">-std=c++23</code>; Windows selects MinGW</td></tr><tr><td><a href="https://xmake.io/" target="_blank" rel="noopener">xmake</a></td><td>build system</td><td><code class="inline">scoop install xmake</code>, <code class="inline">brew install xmake</code>, or the official install script</td></tr><tr><td>GCC</td><td>generated desktop programs</td><td>The current CLI invokes <code class="inline">gcc</code>; Scoop installs it as a dependency</td></tr><tr><td><code class="inline">avr-gcc</code> + <code class="inline">avr-libc</code></td><td>Arduino firmware</td><td>the AVR toolchain from Arduino or your package manager</td></tr><tr><td><code class="inline">arduino-cli</code> + <code class="inline">arduino:avr</code></td><td>flashing and serial monitor</td><td><code class="inline">arduino-cli core install arduino:avr</code></td></tr><tr><td>OpenBLAS</td><td><code class="inline">--blas</code></td><td>optional; vendored binaries live under <code class="inline">vendor/openblas/</code></td></tr><tr><td><code class="inline">arduino-cli</code> + <code class="inline">esp32:esp32</code></td><td>ESP32 firmware</td><td><code class="inline">vynec hardware setup</code> installs the selected core/libraries</td></tr><tr><td>GCC + CMake + make</td><td><code class="inline">vraylib</code> compiled desktop programs</td><td>vendored raylib builds automatically on first import</td></tr></tbody></table></div>
 <p>The compiler vendors its other dependencies: <code class="inline">stb_image</code> / <code class="inline">stb_image_write</code> for <code class="inline">vimage</code>, and the FTXUI amalgamated header used by <code class="inline">vynec init</code>.</p>
-<h2 id="build">Build</h2>
+<h2 id="build-from-source">Build from source</h2>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;Build</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell"><span class="c-com"># macOS / Linux / Windows (PowerShell)</span>
 xmake
 
@@ -94,15 +117,17 @@ build.bat</div></div>
 <p>The build produces <code class="inline">vynec</code> in the repository root. To check it:</p>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;Verify</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec --version
 ./vynec --help</div></div>
+<p>For the remaining examples, put <code class="inline">vynec</code> on PATH or substitute <code class="inline">./vynec</code> (<code class="inline">./vynec.exe</code> on Windows) when working in the source checkout. Scoop already provides the PATH shim.</p>
 <h2 id="first-program">First program</h2>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;hello.vy</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">out(&quot;hello, vyne&quot;);</div></div>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;Run</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec hello.vy          <span class="c-com"># compile and run</span>
-./vynec --ast hello.vy    <span class="c-com"># interpret, no C emitted</span>
-./vynec --compile hello.vy
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;hello.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">out</span>(<span class="c-str">&quot;hello, vyne&quot;</span>);</div></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;Run</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec hello.vy          <span class="c-com"># compile and run</span>
+vynec --ast hello.vy    <span class="c-com"># interpret, no C emitted</span>
+vynec --compile hello.vy
 ./hello</div></div>
+<p>On Windows, run the produced binary as <code class="inline">./hello.exe</code>.</p>
 <p>A bare <code class="inline">vynec hello.vy</code> compiles and runs the program. Add <code class="inline">--ast</code> when you want the interpreter semantics with no C emission, or <code class="inline">--emit-c</code> when you want to inspect the generated translation unit.</p>
 <h2 id="repl">REPL</h2>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec</div></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec</div></div>
 <p>The REPL evaluates expressions and declarations against the live symbol table. Use it for quick numeric checks and API discovery; use <code class="inline">--ast</code> on real files when you need reproducible interpreter runs.</p>
 <h2 id="arduino-toolchain">Arduino toolchain</h2>
 <p>Verify the AVR tools before the first firmware build:</p>
@@ -110,8 +135,8 @@ build.bat</div></div>
 avr-objcopy --version
 arduino-cli core list      <span class="c-com"># expect &quot;arduino:avr ... installed&quot;</span></div></div>
 <p>Then build, flash, and monitor:</p>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec --arduino uno examples/arduino/blink.vy
-./vynec --arduino uno --flash --monitor --port COM3 examples/arduino/tinyml_xor.vy</div></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec --arduino uno examples/arduino/blink.vy
+vynec --arduino uno --flash --monitor --port COM3 examples/arduino/tinyml_xor.vy</div></div>
 <p><code class="inline">--arduino uno</code> alone produces <code class="inline">.elf</code> and <code class="inline">.hex</code> files. <code class="inline">--flash</code> and <code class="inline">--monitor</code> invoke <code class="inline">arduino-cli</code> after the build. <code class="inline">--fqbn</code> overrides the default board identifier (<code class="inline">arduino:avr:uno</code>).</p>
 <h2 id="esp32-setup">ESP32 setup</h2>
 <p>Install <code class="inline">arduino-cli</code>, select a board/preset, and let the hardware workflow install the core and libraries:</p>
@@ -122,8 +147,10 @@ vynec build
 vynec run --monitor</div></div>
 <p>Generic ESP32 boards use <code class="inline">--board esp32</code> (or S2/S3/C3/C6 aliases) instead of the HW-950 preset. See <a href="../pages/esp32.html">ESP32 &amp; Hardware</a> for memory, display, and touch.</p>
 <h2 id="desktop-graphics-and-audio">Desktop graphics and audio</h2>
-<p><code class="inline">vraylib</code> supports compiled Windows (MinGW), Linux, and macOS desktop programs. It requires GCC, CMake, and make; rendering needs an OpenGL 3.3 context. Windows additionally needs <code class="inline">mingw32-make</code> on PATH. On Ubuntu install <code class="inline">libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev</code>; <code class="inline">xvfb</code> supplies a virtual display for rendering tests. macOS needs command-line developer tools. The compiler's own C++ toolchain requirement still applies.</p>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec run examples/projects/raylib-showcase</div></div>
+<p><code class="inline">vraylib</code> supports compiled Windows (MinGW), Linux, and macOS desktop programs. It requires GCC, CMake, and make; rendering needs an OpenGL 3.3 context. Windows additionally needs <code class="inline">mingw32-make</code> on PATH. On Ubuntu install <code class="inline">libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev</code>; <code class="inline">xvfb</code> supplies a virtual display for rendering tests. macOS needs command-line developer tools. Building <code class="inline">vynec</code> itself from source additionally requires the C++23 toolchain listed above.</p>
+<p>With Scoop, <code class="inline">scoop install cmake</code> provides CMake. Also ensure <code class="inline">mingw32-make</code> is available on PATH; installing the precompiled Vyne package does not remove the native build requirements for graphics applications.</p>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">cd examples/projects/raylib-showcase
+vynec run</div></div>
 <p>The first build compiles vendored raylib into <code class="inline">%LOCALAPPDATA%/vyne/raylib/</code> on Windows or the XDG/<code class="inline">~/.cache/vyne/raylib/</code> directory on Unix. <code class="inline">VYNE_RAYLIB_CACHE</code> overrides that location. Archives are statically linked: no system raylib package or copied DLL is needed. <code class="inline">--emit-c</code> / <code class="inline">--emit-asm</code> do not build/link archives. <code class="inline">--ast</code>, AVR, and ESP32 are not execution targets for <code class="inline">vraylib</code>.</p>
 <p>See <a href="../pages/vraylib-managed.html">Managed Graphics &amp; Audio</a>, <a href="../pages/vraylib.html">Native Reference</a>, and <a href="../pages/graphics.html">Graphics Showcase</a>.</p>
 <h2 id="cuda-path">CUDA path</h2>
@@ -134,6 +161,9 @@ vynec run --monitor</div></div>
 <h2 id="editors">Editors</h2>
 <ul><li><strong>VS Code</strong> — extension and language server under <code class="inline">editors/vscode/lsp/</code>, with prebuilt VSIX packages.</li><li><strong>Neovim</strong> — plugin under <code class="inline">editors/nvim/</code> with file-type detection, syntax, and an LSP client.</li><li><strong>Doxygen</strong> — <code class="inline">doxygen Doxyfile</code> for the compiler and runtime internals.</li></ul>
 <h2 id="verify-the-install">Verify the install</h2>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec --version
+vynec --help</div></div>
+<p>For a source checkout with xmake, run:</p>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">xmake test
 xmake test-init</div></div>
 <p><code class="inline">xmake test</code> runs the compiler, runtime, numerical library, region-safety, and (when the AVR toolchain is present) host-side MCU translation-unit tests. <code class="inline">xmake test-init</code> exercises every <code class="inline">vynec init</code> template.</p>

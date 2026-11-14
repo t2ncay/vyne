@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hello, World · Vyne Language Reference</title>
-    <meta name="description" content="Getting Started Hello, World Your first Vyne program, the execution modes, and a first look at regions. Create hello.vy : hello.vy vyne copy out ( &quot;hello, vyne&quot; ); Run it: shell sn" />
+    <meta name="description" content="Getting Started Hello, World Your first Vyne program, the execution modes, and a first look at regions. On Windows, Installation describes the precompiled Scoop package. The comman" />
     <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -81,16 +81,17 @@
             <div class="page-eyebrow">Getting Started</div>
 <h1>Hello, World</h1>
 <p class="lede">Your first Vyne program, the execution modes, and a first look at regions.</p>
+<p>On Windows, <a href="../pages/install.html">Installation</a> describes the precompiled Scoop package. The commands below assume <code class="inline">vynec</code> is on PATH; in a source checkout, substitute <code class="inline">./vynec</code> (<code class="inline">./vynec.exe</code> on Windows) to use the local build.</p>
 <p>Create <code class="inline">hello.vy</code>:</p>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;hello.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne"><span class="c-fn">out</span>(<span class="c-str">&quot;hello, vyne&quot;</span>);</div></div>
 <p>Run it:</p>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec hello.vy</div></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec hello.vy</div></div>
 <p>A bare invocation compiles the source and runs the resulting program. <code class="inline">out</code> appends a newline; use <code class="inline">vcore</code> or <code class="inline">arduino.serial_print</code> when you need byte-level control.</p>
 <h2 id="the-same-file-in-three-modes">The same file in three modes</h2>
-<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">./vynec --ast hello.vy        <span class="c-com"># AST interpreter, no C emitted</span>
-./vynec --compile hello.vy    <span class="c-com"># emit C, compile a binary, stop</span>
-./vynec --run hello.vy        <span class="c-com"># compile and run</span>
-./vynec --emit-c hello.vy     <span class="c-com"># write hello.vy.c and stop</span></div></div>
+<div class="code-block"><div class="code-header"><span class="code-filename"><i class="fas fa-terminal"></i>&nbsp;shell snippet</span><span class="code-lang">shell</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="shell">vynec --ast hello.vy        <span class="c-com"># AST interpreter, no C emitted</span>
+vynec --compile hello.vy    <span class="c-com"># emit C, compile a binary, stop</span>
+vynec --run hello.vy        <span class="c-com"># compile and run</span>
+vynec --emit-c hello.vy     <span class="c-com"># write hello.vy.c and stop</span></div></div>
 <p>The interpreter is the quickest feedback loop. <code class="inline">--compile</code> is the path to a standalone binary. Both consume the same parsed tree.</p>
 <h2 id="values-and-interpolation">Values and interpolation</h2>
 <div class="code-block"><div class="code-header"><span class="code-filename"><i class="far fa-file-code"></i>&nbsp;values.vy</span><span class="code-lang">vyne</span><button class="copy-btn" type="button"><i class="far fa-copy"></i> copy</button></div><div class="code-body" data-lang="vyne">name <span class="c-op">::</span> <span class="c-ty">String</span> <span class="c-op">:=</span> <span class="c-str">&quot;Vyne&quot;</span>;

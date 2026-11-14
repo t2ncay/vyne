@@ -9,6 +9,10 @@ description: Your first Vyne program, the execution modes, and a first look at r
 
 # Hello, World
 
+On Windows, [Installation](page:install) describes the precompiled Scoop package.
+The commands below assume `vynec` is on PATH; in a source checkout, substitute
+`./vynec` (`./vynec.exe` on Windows) to use the local build.
+
 Create `hello.vy`:
 
 ```vyne title="hello.vy"
@@ -18,7 +22,7 @@ out("hello, vyne");
 Run it:
 
 ```shell
-./vynec hello.vy
+vynec hello.vy
 ```
 
 A bare invocation compiles the source and runs the resulting program. `out` appends a newline; use `vcore` or `arduino.serial_print` when you need byte-level control.
@@ -26,10 +30,10 @@ A bare invocation compiles the source and runs the resulting program. `out` appe
 ## The same file in three modes
 
 ```shell
-./vynec --ast hello.vy        # AST interpreter, no C emitted
-./vynec --compile hello.vy    # emit C, compile a binary, stop
-./vynec --run hello.vy        # compile and run
-./vynec --emit-c hello.vy     # write hello.vy.c and stop
+vynec --ast hello.vy        # AST interpreter, no C emitted
+vynec --compile hello.vy    # emit C, compile a binary, stop
+vynec --run hello.vy        # compile and run
+vynec --emit-c hello.vy     # write hello.vy.c and stop
 ```
 
 The interpreter is the quickest feedback loop. `--compile` is the path to a standalone binary. Both consume the same parsed tree.

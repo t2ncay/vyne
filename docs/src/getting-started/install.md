@@ -4,20 +4,79 @@ title: Installation
 group: Getting Started
 icon: fa-download
 order: 2
-description: Build vynec, verify the toolchain, and set up Arduino/ESP32, CUDA, and desktop raylib graphics.
+description: Install the Windows x64 release with Scoop or build vynec from source, then set up optional embedded, CUDA, and graphics tools.
 ---
 
 # Installation
 
-Vyne is a source-built toolchain. The compiler and desktop runtime are C++26; generated programs are C11; the Arduino target additionally needs `avr-gcc`, `avr-libc`, and `arduino-cli`.
+Windows x64 users can install a precompiled Vyne release with Scoop. Source builds
+use a C++23-capable compiler and xmake; generated desktop programs are C11 and
+the current compile/run path invokes GCC. Embedded and graphics applications
+need the additional tools described below.
 
-## Prerequisites
+## Windows: install with Scoop
+
+Install [Scoop](https://scoop.sh/) and ensure Git is available, then run in
+PowerShell:
+
+```powershell
+scoop bucket add vyne https://github.com/t2ncay/scoop-vyne
+scoop install vyne/vyne
+vynec --version
+vynec --help
+```
+
+The [Vyne bucket](https://github.com/t2ncay/scoop-vyne) downloads the precompiled
+Windows x64 release and checks the manifest's SHA256. The package includes the
+runtime/module/template files used by compilation and project initialization.
+GCC is installed as a dependency because `vynec file.vy` compiles and runs.
+Installing the precompiled toolchain does not require building Vyne with xmake.
+
+Create and run a first project from your preferred projects directory:
+
+```powershell
+vynec init --name hello --kind blank --no-git
+cd hello
+vynec run
+```
+
+### Update or uninstall
+
+```powershell
+scoop update
+scoop update vyne
+vynec --version
+# Remove the package when needed
+scoop uninstall vyne
+```
+
+`scoop update` refreshes Scoop and its bucket manifests; `scoop update vyne`
+installs a newer published package when available. Project files outside the
+Scoop installation directory remain separate.
+
+### Installed versus local builds
+
+Scoop normally installs under `%USERPROFILE%/scoop/apps/vyne/current/` and exposes
+`vynec` through a shim. It does not replace a source checkout. Use `vynec` for
+the PATH-selected installation and `./vynec.exe` inside a Windows source
+checkout for your local executable.
+
+```powershell
+Get-Command vynec -All
+Get-Command gcc -All
+```
+
+These commands show tool selection if you keep multiple compiler installations.
+See [Hello, World](page:hello) for execution modes and [Projects & Tooling](page:projects)
+for manifests and initialization.
+
+## Source-build prerequisites
 
 | Component | Needed for | Notes |
 | :--- | :--- | :--- |
-| C++26 compiler | building `vynec` | GCC 14+, Clang 18+, or MSVC 19.40+ |
+| C++23 compiler | building `vynec` | `xmake.lua` uses `-std=c++23`; Windows selects MinGW |
 | [xmake](https://xmake.io/) | build system | `scoop install xmake`, `brew install xmake`, or the official install script |
-| C11 compiler | generated programs | GCC, Clang, or MSVC; defaults to the host compiler |
+| GCC | generated desktop programs | The current CLI invokes `gcc`; Scoop installs it as a dependency |
 | `avr-gcc` + `avr-libc` | Arduino firmware | the AVR toolchain from Arduino or your package manager |
 | `arduino-cli` + `arduino:avr` | flashing and serial monitor | `arduino-cli core install arduino:avr` |
 | OpenBLAS | `--blas` | optional; vendored binaries live under `vendor/openblas/` |
@@ -26,7 +85,7 @@ Vyne is a source-built toolchain. The compiler and desktop runtime are C++26; ge
 
 The compiler vendors its other dependencies: `stb_image` / `stb_image_write` for `vimage`, and the FTXUI amalgamated header used by `vynec init`.
 
-## Build
+## Build from source
 
 ```shell title="Build with xmake"
 # macOS / Linux / Windows (PowerShell)
@@ -43,25 +102,31 @@ The build produces `vynec` in the repository root. To check it:
 ./vynec --help
 ```
 
+For the remaining examples, put `vynec` on PATH or substitute `./vynec`
+(`./vynec.exe` on Windows) when working in the source checkout. Scoop already
+provides the PATH shim.
+
 ## First program
 
-```shell title="hello.vy"
+```vyne title="hello.vy"
 out("hello, vyne");
 ```
 
 ```shell title="Run it"
-./vynec hello.vy          # compile and run
-./vynec --ast hello.vy    # interpret, no C emitted
-./vynec --compile hello.vy
+vynec hello.vy          # compile and run
+vynec --ast hello.vy    # interpret, no C emitted
+vynec --compile hello.vy
 ./hello
 ```
+
+On Windows, run the produced binary as `./hello.exe`.
 
 A bare `vynec hello.vy` compiles and runs the program. Add `--ast` when you want the interpreter semantics with no C emission, or `--emit-c` when you want to inspect the generated translation unit.
 
 ## REPL
 
 ```shell
-./vynec
+vynec
 ```
 
 The REPL evaluates expressions and declarations against the live symbol table. Use it for quick numeric checks and API discovery; use `--ast` on real files when you need reproducible interpreter runs.
@@ -79,8 +144,8 @@ arduino-cli core list      # expect "arduino:avr ... installed"
 Then build, flash, and monitor:
 
 ```shell
-./vynec --arduino uno examples/arduino/blink.vy
-./vynec --arduino uno --flash --monitor --port COM3 examples/arduino/tinyml_xor.vy
+vynec --arduino uno examples/arduino/blink.vy
+vynec --arduino uno --flash --monitor --port COM3 examples/arduino/tinyml_xor.vy
 ```
 
 `--arduino uno` alone produces `.elf` and `.hex` files. `--flash` and `--monitor` invoke `arduino-cli` after the build. `--fqbn` overrides the default board identifier (`arduino:avr:uno`).
@@ -108,10 +173,16 @@ It requires GCC, CMake, and make; rendering needs an OpenGL 3.3 context.
 Windows additionally needs `mingw32-make` on PATH. On Ubuntu install
 `libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev`;
 `xvfb` supplies a virtual display for rendering tests. macOS needs command-line
-developer tools. The compiler's own C++ toolchain requirement still applies.
+developer tools. Building `vynec` itself from source additionally requires the
+C++23 toolchain listed above.
+
+With Scoop, `scoop install cmake` provides CMake. Also ensure `mingw32-make`
+is available on PATH; installing the precompiled Vyne package does not remove
+the native build requirements for graphics applications.
 
 ```shell
-vynec run examples/projects/raylib-showcase
+cd examples/projects/raylib-showcase
+vynec run
 ```
 
 The first build compiles vendored raylib into `%LOCALAPPDATA%/vyne/raylib/` on
@@ -142,6 +213,13 @@ The script uses `nvcc -ptx -arch=compute_80` and must run inside a Visual Studio
 - **Doxygen** — `doxygen Doxyfile` for the compiler and runtime internals.
 
 ## Verify the install
+
+```shell
+vynec --version
+vynec --help
+```
+
+For a source checkout with xmake, run:
 
 ```shell
 xmake test

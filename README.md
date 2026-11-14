@@ -89,6 +89,7 @@ vynec --arduino uno --flash --monitor --port COM3 blinky.vy   # Uno R3
 
 - [Why Vyne](#why-vyne)
 - [Quick start](#quick-start)
+  - [Windows: install with Scoop](#windows-install-with-scoop)
 - [Language tour](#language-tour)
 - [Memory model](#memory-model)
 - [Standard library](#standard-library)
@@ -178,6 +179,42 @@ and device configuration you chose.
 
 ## Quick start
 
+### Windows: install with Scoop
+
+With [Scoop](https://scoop.sh/) and Git installed, run in PowerShell:
+
+```powershell
+scoop bucket add vyne https://github.com/t2ncay/scoop-vyne
+scoop install vyne/vyne
+vynec --version
+vynec init --name hello --kind blank --no-git
+cd hello
+vynec run
+```
+
+The [Vyne bucket](https://github.com/t2ncay/scoop-vyne) installs the precompiled
+Windows x64 release and GCC for compiling user programs. No source build of Vyne
+is required. Extra graphics and embedded tools are
+documented in [Installation](https://t2ncay.github.io/vyne/pages/install.html).
+
+To update or uninstall:
+
+```powershell
+scoop update
+scoop update vyne
+# Remove the installed package when needed
+scoop uninstall vyne
+```
+
+Scoop keeps the installation separate from your source checkout. `vynec` uses
+the executable selected by PATH; inside a development checkout, `./vynec.exe`
+selects the local build. `Get-Command vynec -All` and `Get-Command gcc -All`
+show which tools are selected.
+
+### Build from source
+
+For source development or other platforms:
+
 ```bash
 git clone https://github.com/t2ncay/vyne.git
 cd vyne
@@ -186,7 +223,10 @@ xmake
 ./vynec run hello/src/main.vy
 ```
 
-Scaffold a new project with the interactive questionnaire:
+### Project and execution workflows
+
+The examples below use a source checkout. With Scoop, use `vynec` instead of
+`./vynec`. Scaffold a new project with the interactive questionnaire:
 
 ```bash
 ./vynec init
