@@ -237,6 +237,7 @@ static size_t vr_uniform_bytes(int type,int count) {
 // Definitions and the exhaustive dispatcher are generated from the pinned headers.
 #include "generated_types.inc"
 #include "custom_ownership.inc"
+#include "audio_effect.inc"
 static void vr_close_graphics(void);
 static void vr_close_audio(void);
 #include "generated_calls.inc"
@@ -271,6 +272,7 @@ static void vr_close_graphics(void) {
     if(IsWindowReady()) CloseWindow();
 }
 static void vr_close_audio(void) {
+    vr_saturation_detach(0);
     vr_forget_context_dependencies(0);
     for(size_t i=vr_capacity;i>0;--i) {
         VRSlot *s=&vr_slots[i-1];

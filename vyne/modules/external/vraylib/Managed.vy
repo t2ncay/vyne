@@ -92,6 +92,11 @@ interface Camera {
     set_height(height :: Float64) -> Bool { return vraylib.camera_set_height(vraylib.require_managed(self.session, self.token), height); }
     move(forward :: Float64, right :: Float64) -> Bool { return vraylib.camera_step(vraylib.require_managed(self.session, self.token), forward, right); }
     look() -> Bool { return vraylib.camera_mouse_look(vraylib.require_managed(self.session, self.token), self.sensitivity); }
+    billboard(texture :: vraylib.Texture, position :: vraylib.Vector3, size :: Float64, tint :: vraylib.Color) -> Bool {
+        if texture.session != self.session { throw "Billboard texture belongs to another application"; }
+        vraylib.draw_billboard(vraylib.camera_view(vraylib.require_managed(self.session, self.token)), texture.native_handle(), position, size, tint);
+        return true;
+    }
     update() -> Bool {
         handle :: Int64 := vraylib.require_managed(self.session, self.token);
         if self.controller == vraylib.CAMERA_ORBITAL { vraylib.update_camera(handle, vraylib.CAMERA_ORBITAL); return true; }
@@ -132,6 +137,21 @@ interface Model {
     }
     draw_scaled(position :: vraylib.Vector3, scale :: vraylib.Vector3, tint :: vraylib.Color) -> Bool {
         return vraylib.model_at(vraylib.require_managed(self.session, self.token), position, scale, tint);
+    }
+}
+
+interface Sound {
+    token :: Int64,
+    session :: Int64,
+    valid() -> Bool { return self.token != 0 && vraylib.managed_valid(self.session, self.token); }
+    close() -> Bool { return vraylib.managed_release(self.session, self.token); }
+    play() -> Bool { if !self.valid() { return false; } vraylib.play_sound(self.token); return true; }
+    stop() -> Bool { if !self.valid() { return false; } vraylib.stop_sound(self.token); return true; }
+    playing() -> Bool { if !self.valid() { return false; } return vraylib.is_sound_playing(self.token); }
+    volume(value :: Float64) -> Bool {
+        if !self.valid() { return false; }
+        vraylib.set_sound_volume(self.token, vraylib.math_clamp(value, 0.0, 1.0));
+        return true;
     }
 }
 
@@ -177,6 +197,9 @@ interface App {
     resources() -> Int64 { return vraylib.managed_state(self.token, "resources"); }
     passes() -> Int64 { return vraylib.managed_state(self.token, "passes"); }
     uniform_queries() -> Int64 { return vraylib.managed_state(self.token, "uniform_queries"); }
+    saturation(drive :: Float64, mode :: Int64) -> Bool { return vraylib.managed_saturation(self.token, drive, mode); }
+    saturation_attached() -> Bool { return vraylib.managed_state(self.token, "saturation_attached"); }
+    saturation_blocks() -> Int64 { return vraylib.managed_state(self.token, "saturation_blocks"); }
     window_ready() -> Bool { return vraylib.managed_state(self.token, "window"); }
     frame() -> Bool { return vraylib.managed_frame(self.token); }
     end_frame() -> Bool { return vraylib.managed_finish(self.token); }
@@ -290,6 +313,20 @@ interface App {
         result :: vraylib.Model := vraylib.Model(handle, self.token);
         result.set_texture(texture, 0);
         return result;
+    }
+    load_sound(path :: String) -> vraylib.Sound {
+        resolved :: String := self.asset(path);
+        if !vraylib.file_exists(resolved) { throw "Sound file not found: " + resolved; }
+        handle :: Int64 := vraylib.managed_cache(self.token, resolved, "Sound");
+        if handle == 0 {
+            if !vraylib.is_audio_device_ready() { vraylib.init_audio_device(); }
+            if !vraylib.is_audio_device_ready() { return vraylib.Sound(0, self.token); }
+            handle = vraylib.load_sound(resolved);
+            vraylib.managed_adopt(self.token, handle);
+            if !vraylib.is_sound_valid(handle) { vraylib.managed_release(self.token, handle); throw "Could not load sound: " + resolved; }
+            vraylib.managed_store(self.token, resolved, "Sound", handle);
+        }
+        return vraylib.Sound(handle, self.token);
     }
     music(path :: String, volume :: Float64) -> vraylib.Music {
         resolved :: String := self.asset(path);

@@ -116,6 +116,7 @@ static void vr_sampler_refresh(int64_t session,int64_t shader) {
 }
 static void vr_session_drop(void *data,size_t count) {
     (void)count; VRSession *s=data; int64_t session=vr_managed_session;
+    vr_saturation_detach(session);
     vr_finish(s,0);
     // All application resources close together; discard their outgoing edges,
     // including sharing cycles, without disturbing unrelated raw resources.
@@ -138,7 +139,7 @@ static void vr_session_drop(void *data,size_t count) {
 static VR vr_managed_helper(int id,const VR *a,size_t count) {
     // Fixed arities also protect direct neutral-bridge clients.
     int expected=id==-15||id==-18||id==-30||id==-31 ? 1 : id==-16||id==-17||id==-19||id==-22||id==-28||id==-34 ? 2 :
-        id==-20||id==-27||id==-41 ? 3 : id==-21||id==-24||id==-26||id==-32||id==-33||id==-35||id==-36||id==-42 ? 4 : id==-23 ? 5 : id==-25 ? 6 : -1;
+        id==-20||id==-27||id==-41||id==-43 ? 3 : id==-21||id==-24||id==-26||id==-32||id==-33||id==-35||id==-36||id==-42 ? 4 : id==-23 ? 5 : id==-25 ? 6 : -1;
     if(expected<0 || count!=(size_t)expected) vr_fail("incorrect managed helper argument count");
     vr_function="managed";
     if(id==-15) {
@@ -200,6 +201,8 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         if(!strcmp(key,"audio")) return vr_bool(IsAudioDeviceReady());
         if(!strcmp(key,"passes")) return vr_int(s->depth);
         if(!strcmp(key,"uniform_queries")) return vr_int(s->uniform_queries);
+        if(!strcmp(key,"saturation_attached")) return vr_bool(vr_saturation_owner==session);
+        if(!strcmp(key,"saturation_blocks")) return vr_int(atomic_load_explicit(&vr_saturation.blocks,memory_order_relaxed));
         if(!strcmp(key,"resources")) { size_t n=0; for(size_t i=0;i<vr_capacity;++i) if(vr_slots[i].data && !vr_slots[i].owner && vr_slots[i].session==session) ++n; return vr_int(n); }
         vr_fail("unknown application state");
     }
@@ -256,6 +259,7 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         VR out=vr_handle(p,"Image",1,sizeof(*p),vr_drop_UnloadImage,1,0); vr_adopt(session,out.integer); return out;
     }
     if(id==-41) { Texture t=vr_managed_texture(session,vr_integer(a[1])); return vr_int(vr_integer(a[2]) ? t.height : t.width); }
+    if(id==-43) { return vr_bool(vr_saturation_enable(session,(float)vr_number(a[1]),vr_i32(a[2]))); }
     if(id==-42) {
         int64_t model=vr_integer(a[1]),texture=vr_integer(a[2]); int material=vr_i32(a[3]);
         (void)vr_managed_resource(session,model); Model *m=vr_checked(vr_int(model),"Model",1);

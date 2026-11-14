@@ -88,12 +88,24 @@ accepted. Relative roots are relative to the process working directory.
 | `load_shader(vertex_or_null,fragment)` | Custom shader; rejects default fallback on compilation failure |
 | `camera(position,target,fovy)`, `first_person()`, `orbit(position,target)` | Persistent mutable camera |
 | `music(path,volume)` | Looping streamed audio; automatically updated every frame |
+| `load_sound(path)` | Cached one-shot Sound with `play`, `stop`, `playing`, `volume`, `close` |
 | `target(w,h)`, `screen_target()` | Fixed-size or window-following render target |
 
 Model/camera/target drawing requires an open App window. Image sessions need no
 graphics or audio device. Music has `valid`, `play`, `pause`, `volume` and `close`;
 if no audio device can open, it returns an unavailable Music token (`valid=false`).
 Missing files and failed resource/shader loads produce descriptive exceptions.
+
+### Fixed native saturation
+
+`app.saturation(drive,mode)` adds a built-in mixed stereo processor after audio
+has opened. Drive is 0..1; mode 0 is normalized soft/tanh saturation and mode 1
+is hard clipping. Zero drive detaches it. Invalid settings throw; if no audio
+device is ready, enabling returns false. `saturation_attached()` and
+`saturation_blocks()` expose diagnostics. Sound volume is clamped to 0..1.
+The callback reads one packed lock-free atomic configuration and uses no
+allocation, locks, logging or Vyne code. App/audio shutdown detaches it before
+destroying streams. Arbitrary foreign/Vyne audio callbacks remain unavailable.
 
 ## Named shader uniforms
 
@@ -154,6 +166,8 @@ WASD input and uses App.dt; orbit uses raylib's orbital controller. Speed and
 sensitivity are wrapper value fields that can be configured before updating.
 Collision, crouching, jumping and scene-specific physics remain application
 logic, as demonstrated by the full bodycam example.
+`camera.billboard(texture,position,size,tint)` draws a checked managed texture
+in the active 3D pass. Sector Shift demonstrates this with sector-specific fog.
 
 ## Region and exception rules
 

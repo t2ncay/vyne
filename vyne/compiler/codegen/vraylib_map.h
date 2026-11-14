@@ -38,6 +38,7 @@ static const NativeMapEntry VRAYLIB_MAP[] = {
     {"managed_image","vraylib_managed_image",false,false,nullptr,nullptr,4},
     {"managed_texture_size","vraylib_managed_texture_size",false,false,nullptr,nullptr,3},
     {"managed_model_texture","vraylib_managed_model_texture",false,false,nullptr,nullptr,4},
+    {"managed_saturation","vraylib_managed_saturation",false,false,nullptr,nullptr,3},
     {"init_window","vraylib_init_window",false,false,nullptr,nullptr,3},
     {"close_window","vraylib_close_window",false,false,nullptr,nullptr,0},
     {"window_should_close","vraylib_window_should_close",false,false,nullptr,nullptr,0},

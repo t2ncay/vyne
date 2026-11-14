@@ -36,6 +36,7 @@ static inline VyneValue vraylib_managed_draw_texture(VyneValue a0, VyneValue a1,
 static inline VyneValue vraylib_managed_image(VyneValue a0, VyneValue a1, VyneValue a2, VyneValue a3) { VyneValue a[] = {a0,a1,a2,a3}; return vraylib_invoke(-36,4,a); }
 static inline VyneValue vraylib_managed_texture_size(VyneValue a0, VyneValue a1, VyneValue a2) { VyneValue a[] = {a0,a1,a2}; return vraylib_invoke(-41,3,a); }
 static inline VyneValue vraylib_managed_model_texture(VyneValue a0, VyneValue a1, VyneValue a2, VyneValue a3) { VyneValue a[] = {a0,a1,a2,a3}; return vraylib_invoke(-42,4,a); }
+static inline VyneValue vraylib_managed_saturation(VyneValue a0, VyneValue a1, VyneValue a2) { VyneValue a[] = {a0,a1,a2}; return vraylib_invoke(-43,3,a); }
 static inline VyneValue vraylib_init_window(VyneValue a0, VyneValue a1, VyneValue a2) { VyneValue a[] = {a0,a1,a2}; return vraylib_invoke(0,3,a); }
 static inline VyneValue vraylib_close_window(void) { return vraylib_invoke(1,0,NULL); }
 static inline VyneValue vraylib_window_should_close(void) { return vraylib_invoke(2,0,NULL); }

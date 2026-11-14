@@ -58,6 +58,7 @@ HELPERS.update({
     "managed_texture": (-34,2), "managed_draw_texture": (-35,4), "managed_image": (-36,4),
     "managed_texture_size": (-41,3),
     "managed_model_texture": (-42,4),
+    "managed_saturation": (-43,3),
 })
 GPU_OWNERS = {
     "rlLoadVertexArray": ("rlUnloadVertexArray", "VertexArray"),
