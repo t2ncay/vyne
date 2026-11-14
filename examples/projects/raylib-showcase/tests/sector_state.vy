@@ -1,0 +1,35 @@
+use "../../../graphics/sector_shift_state.vy";
+ruleset { dynamic_casting };
+fn check(ok :: Bool, message :: String) -> Bool { if !ok { throw message; } return true; }
+state :: SectorShift.State := SectorShift.initial();
+state = SectorShift.step(state, 50.0, 0.0);
+check(state.game_event == 0, "warning threshold remains strictly above 50");
+state = SectorShift.step(state, 55.0, 0.1);
+check(state.game_event == 1 && state.message_id == 1, "fog warning");
+state = SectorShift.step(state, 105.0, 0.1);
+check(state.radio_now && state.radio_played && state.message_id == 2, "radio one-shot trigger");
+state = SectorShift.step(state, 105.0, 0.1);
+check(!state.radio_now, "radio never retriggers");
+state = SectorShift.step(state, 120.0, 0.0);
+check(state.freeze && state.event_active && state.stalker_z == 300.0 && state.event_count == 1, "stalker triggers immediate freeze and relocation");
+check(state.glitch > 0.0, "stalker glitch is active");
+state = SectorShift.step(state, 120.0, 2.99);
+check(state.freeze, "freeze remains active before three seconds");
+state = SectorShift.step(state, 120.0, 0.02);
+check(!state.freeze, "freeze recovers after three seconds");
+state = SectorShift.step(state, 155.0, 0.1);
+check(state.game_event == 2 && state.message_id == 3, "malfunction progression");
+check(state.fog_density >= 0.18 && state.fog_density <= 0.38, "corrected fog density range");
+state = SectorShift.step(state, 300.0, 0.0);
+check(state.freeze && state.event_count == 2 && state.stalker_z == 480.0, "second stalker event");
+state = SectorShift.step(state, 300.0, 3.1);
+state = SectorShift.step(state, 360.0, 0.0);
+check(state.final_triggered && state.fade == 0.0, "ending trigger");
+state = SectorShift.step(state, 200.0, 10.0);
+check(state.final_triggered && state.fade == 1.0, "ending is latched and fade is bounded");
+
+one :: SectorShift.State := SectorShift.step(SectorShift.initial(), 360.0, 1.0);
+many :: SectorShift.State := SectorShift.initial();
+through i :: 0..99 -> loop { many = SectorShift.step(many, 360.0, 0.01); };
+check(one.fade - many.fade < 0.000001 && many.fade - one.fade < 0.000001, "fade is independent of frame count");
+out("VRAYLIB_SECTOR_STATE_OK");

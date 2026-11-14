@@ -3,7 +3,7 @@ name: vraylib desktop acceptance
 on:
   pull_request:
   push:
-    branches: [master, feat/vraylib-desktop]
+    branches: [master, feat/vraylib-desktop, fix/sector-shift]
 
 jobs:
   linux:

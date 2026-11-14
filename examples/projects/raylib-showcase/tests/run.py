@@ -34,6 +34,7 @@ def main():
     parser.add_argument("--graphics", action="store_true", help="run GPU readback and rlgl acceptance")
     parser.add_argument("--camera", action="store_true", help="run original bodycam assets for 30 frames")
     parser.add_argument("--audio", action="store_true", help="enable bodycam audio device during --camera")
+    parser.add_argument("--sector", action="store_true", help="run the complete Sector Shift story with original local assets")
     parser.add_argument("--sanitize", action="store_true", help="instrument native bridge and C test with ASan/UBSan (Linux)")
     opts = parser.parse_args()
     BUILD.mkdir(parents=True, exist_ok=True)
@@ -53,7 +54,7 @@ def main():
         assert config["dependencies"]["vraylib"] == "6.2", config
     print("PASS: project scaffolding records vraylib 6.2")
 
-    for name in ("api", "ownership", "callbacks", "managed") + (("render", "managed_render") if opts.graphics else ()):
+    for name in ("api", "ownership", "callbacks", "managed", "sector_state") + (("render", "managed_render", "sector_render") if opts.graphics else ()):
         output = BUILD / name
         run([compiler, "--compile", "-o", output, TESTS / (name + ".vy")], env=env)
         run([str(output) + SUFFIX], expected="VRAYLIB_" + name.upper() + "_OK", env=env)
@@ -100,6 +101,10 @@ def main():
     run(["gcc", *flags, TESTS / "native.c", native_dir / "libvyne_raylib.a", native_dir / "libraylib.a", *libraries, "-o", native], env=env)
     run([native], expected="VRAYLIB_NATIVE_OK", env=env)
     print("PASS: native runtime / Windows headers / stb coexistence" + (" with ASan/UBSan" if opts.sanitize else ""))
+    saturation = BUILD / ("saturation" + SUFFIX)
+    run(["gcc", *flags, TESTS / "saturation.c", "-lm", "-o", saturation], env=env)
+    run([saturation], expected="VRAYLIB_SATURATION_OK", env=env)
+    print("PASS: lock-free stereo saturation kernel" + (" with ASan/UBSan" if opts.sanitize else ""))
 
     for name, marker in (("try_test", "done"), ("native_zero_side_effects", "nativeZero side effects: PASS")):
         binary=BUILD / name
@@ -118,6 +123,19 @@ def main():
         if opts.audio:
             assert re.search(r"BODYCAM_AUDIO active=\s*true", output), output
         print("PASS: bodycam shaders/models/post-processing, 30 frames, zero live handles")
+    sector = BUILD / "sector_shift"
+    run([compiler, "--compile", "-o", sector, ROOT / "examples/graphics/sector_shift.vy"], env=env)
+    print("PASS: Sector Shift compiles")
+    if opts.sector:
+        env.update(VYNE_SECTOR_FRAMES="60", VYNE_SECTOR_WIDTH="640", VYNE_SECTOR_HEIGHT="360",
+                   VYNE_SECTOR_WINDOWED="1", VYNE_SECTOR_AUTOPLAY="1", VYNE_SECTOR_AUDIO="1" if opts.audio else "0")
+        output = run([str(sector) + SUFFIX], expected="SECTOR_COMPLETE", env=env)
+        assert re.search(r"events=\s*2\s*phase=\s*2\s*fade=\s*1", output), output
+        assert re.search(r"frames=\s*60\s*live_handles=\s*0", output), output
+        if opts.audio:
+            assert re.search(r"SECTOR_AUDIO active=\s*true", output), output
+            assert re.search(r"radio=\s*1\s*dsp=\s*true\s*dsp_blocks=\s*[1-9][0-9]*", output), output
+        print("PASS: Sector Shift full progression, two freezes, ending and cleanup" + (" with live radio/saturation" if opts.audio else ""))
     print("All requested vraylib checks passed.")
 
 

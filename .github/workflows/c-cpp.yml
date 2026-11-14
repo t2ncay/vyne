@@ -2,7 +2,7 @@ name: Vyne CI
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master", "fix/sector-shift"]
   pull_request:
     branches: ["master", "feat/**", "fix/**"]
 

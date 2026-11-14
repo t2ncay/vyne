@@ -10,6 +10,11 @@ and application shutdown is paired with try/finally. The bodycam example uses
 the same App API for cached assets, named shader uniforms, streamed music, and
 screen-following post-processing targets.
 
+The [Sector Shift horror corridor](../../graphics/sector_shift.md) also uses the
+managed facade, with one-shot radio Sound, a fixed native saturation effect and
+deterministic progression/shader tests. Run its full local acceptance with
+`python examples/projects/raylib-showcase/tests/run.py --graphics --sector --audio`.
+
 ## Run the project
 
 ```sh
