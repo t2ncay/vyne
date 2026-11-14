@@ -53,8 +53,7 @@ std::string VyneLinker::canonicalize(const std::string& baseDir,
 
     std::filesystem::path p;
     if (isExtern) {
-        p = std::filesystem::path(FileUtils::exeDir)
-            / "vyne" / "modules" / "external" / cleanPath;
+        p = FileUtils::getExternalPath(cleanPath);
     } else {
         p = std::filesystem::path(baseDir) / cleanPath;
     }

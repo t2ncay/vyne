@@ -101,6 +101,7 @@ class C_Emitter {
     // --- Static type tables (M0/M1) -------------------------------------
     std::unordered_map<std::string, CType> globalTypes;
     std::unordered_map<std::string, CType> nativeTemps;
+    std::unordered_map<std::string, std::string> nativeModuleAliases;
 
     // Runtime dimensions for a scratch local, keyed by the mangled C
     // name. Populated by ScratchNode::compile when any dim is non-literal;
@@ -1364,8 +1365,16 @@ class C_Emitter {
     }
 
     // --- Native module lookup -------------------------------------------
+    std::string resolveNativeModule(const std::string& name) const {
+        auto found = nativeModuleAliases.find(name);
+        return found == nativeModuleAliases.end() ? name : found->second;
+    }
+    void registerNativeModuleAlias(const std::string& alias, const std::string& module) {
+        if (!alias.empty() && alias != module) nativeModuleAliases[alias] = resolveNativeModule(module);
+    }
     const NativeMapEntry*
-    findNative(const std::string& module, const std::string& member) const {
+    findNative(const std::string& name, const std::string& member) const {
+        const std::string module = resolveNativeModule(name);
         const NativeMapEntry* table = nullptr;
         size_t count = 0;
 
@@ -1384,6 +1393,12 @@ class C_Emitter {
         } else if (module == "vimage") {
             table = VIMAGE_MAP;
             count = sizeof(VIMAGE_MAP) / sizeof(VIMAGE_MAP[0]);
+        } else if (module == "vplot") {
+            if (isAVRTarget()) return nullptr;
+            if (isESP32Target() && (member.rfind("image_", 0) == 0 || member.rfind("save",0)==0 || member == "pixel_rgb")) return nullptr;
+            if (!isESP32Target() && (member == "display_surface" || member.rfind("show_",0)==0)) return nullptr;
+            table = VPLOT_MAP;
+            count = sizeof(VPLOT_MAP) / sizeof(VPLOT_MAP[0]);
         } else if (module == "vconv") {
             table = VCONV_MAP;
             count = sizeof(VCONV_MAP) / sizeof(VCONV_MAP[0]);
@@ -2109,6 +2124,7 @@ class C_Emitter {
         localScopes.emplace_back();
         globalTypes.clear();
         nativeTemps.clear();
+        nativeModuleAliases.clear();
         scratchRuntimeDims.clear();
 
         functionParamTypes.clear();

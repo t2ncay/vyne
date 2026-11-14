@@ -111,3 +111,8 @@ jobs:
               scripts/tests/esp32_touch_calibration.cpp \
               -o esp32_touch_calibration_test
           ./esp32_touch_calibration_test
+
+      - name: Run universal plotting tests and sanitizers
+        env:
+          VYNEC: ./vyne_run
+        run: python3 examples/projects/plotter-esp32/tests/run.py --sanitize

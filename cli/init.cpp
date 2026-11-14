@@ -224,7 +224,7 @@ bool knownTarget(const std::string& name) {
 bool knownLibrary(const std::string& name) {
     static const char* names[] = {
         "vlin", "vml", "vstat", "vtermplot", "vfft",
-        "vcomplex", "vcsv", "vimage", "vconv",
+        "vcomplex", "vcsv", "vimage", "vconv", "vplot",
     };
     for (const char* n : names) {
         if (name == n)
@@ -272,6 +272,7 @@ bool isKnownKind(const std::string& kind) {
 }
 
 std::string dependencyVersion(const std::string& name) {
+    if (name == "vplot") return "0.1";
     if (name == "vstat")
         return "0.2";
     return "0.4";
@@ -986,6 +987,11 @@ int runInit(int argc, char** argv) {
     ctx.vars["cuda"] = cuda ? "1" : "0";
     ctx.vars["esp32"] = esp32 ? "1" : "0";
     ctx.vars["hw950"] = hw950 ? "1" : "0";
+    const bool plotStarter = esp32 && hw950 &&
+        std::find(libraries.begin(),libraries.end(),"vplot")!=libraries.end();
+    ctx.vars["vplot_starter"] = plotStarter ? "1" : "0";
+    ctx.vars["standard_starter"] = plotStarter ? "0" : "1";
+    ctx.vars["hw950_touch"] = hw950 && !plotStarter ? "1" : "0";
     ctx.vars["generic_esp32"] = esp32 && !hw950 ? "1" : "0";
     ctx.vars["uno"] = esp32 ? "0" : "1";
     ctx.vars["board_label"] = esp32 ? hardware.label : "Arduino Uno R3";
@@ -1131,6 +1137,7 @@ int runInit(int argc, char** argv) {
             return 4;
         }
 
+        if(plotStarter&&relative.generic_string()=="src/main.vy")rendered=trim(rendered)+"\n";
         bool skipped = false;
         if (!writeIfAbsent(destination, rendered, skipped, error)) {
             std::cerr << INIT_RED << "  error" << INIT_RESET << "  " << error

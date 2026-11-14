@@ -7,7 +7,7 @@ ColumnLimit: 80
 
 BreakBeforeBraces: Attach
 
-PointerAlignment: Left
+PointerAlignment: Left  
 ReferenceAlignment: Pointer
 
 BinPackParameters: false

@@ -106,12 +106,16 @@ std::optional<std::string> tryEmitNativeModuleMethod(
 
     const NativeMapEntry* entry = e.findNative(recvPath, node.getMethodName());
     if (!entry) {
+        if (e.resolveNativeModule(recvPath) == "vplot" && node.getMethodName() == "display_surface" && !e.isESP32Target())
+            throw std::runtime_error("Compile Error (VNE-079): vplot.display_surface requires the ESP32 target.");
+        if (e.resolveNativeModule(recvPath) == "vplot" && node.getMethodName().rfind("show_",0)==0 && !e.isESP32Target())
+            throw std::runtime_error("Compile Error (VNE-079): vplot.show_* requires ESP32; use vplot.save_* for image output.");
         // An embedded native module is a closed surface: a member that is
         // not in the target table is a source error, not a user function
         // to be resolved later. This is what makes eeprom_* on ESP32 fail
         // with a clear Vyne diagnostic instead of a C/link error.
         if (e.isEmbeddedTarget() &&
-            (recvPath == "arduino" || recvPath == "esp32")) {
+            (e.resolveNativeModule(recvPath) == "arduino" || e.resolveNativeModule(recvPath) == "esp32" || e.resolveNativeModule(recvPath) == "vplot")) {
             throw std::runtime_error(
                 "Compile Error (VNE-079): '" + node.getMethodName() +
                 "' is not defined for the " +
@@ -122,6 +126,9 @@ std::optional<std::string> tryEmitNativeModuleMethod(
         }
         return std::nullopt;
     }
+    if (entry->arity >= 0 && node.getArguments().size() != static_cast<size_t>(entry->arity))
+        throw std::runtime_error("Compile Error (VNE-079): " + recvPath + "." + node.getMethodName() +
+                                 " expects " + std::to_string(entry->arity) + " arguments.");
 
     // Track optional runtime features so finalize() can emit the
     // VYNE_USE_<FEATURE> defines before including the embedded runtime.
@@ -129,6 +136,14 @@ std::optional<std::string> tryEmitNativeModuleMethod(
     // WiFi/display stacks. Key on the resolved C symbol rather than the
     // receiver path so `use native arduino as x;` aliases are covered too.
     const std::string cname(entry->cName);
+    if (cname.rfind("vplot_", 0) == 0) {
+        e.noteEmbeddedFeature("plot");
+        if (cname == "vplot_display_surface" || cname == "vplot_show" || cname == "vplot_output_surface" ||
+            cname == "vplot_live_chart" || cname == "vplot_push" || cname == "vplot_push_xy" || cname.rfind("vplot_show_",0)==0) {
+            e.noteEmbeddedFeature("plot_display");
+            e.noteEmbeddedFeature("display");
+        }
+    }
     if (cname.rfind("arduino_i2c_", 0) == 0)
         e.noteEmbeddedFeature("i2c");
     else if (cname.rfind("arduino_spi_", 0) == 0)
@@ -160,7 +175,8 @@ std::optional<std::string> tryEmitNativeModuleMethod(
         std::filesystem::path moduleBase =
             std::filesystem::path(FileUtils::getExeDir()) / "vyne" / "runtime" /
             "modules";
-        e.addInclude((moduleBase / (recvPath + ".h")).string());
+        e.addInclude((moduleBase / (e.resolveNativeModule(recvPath) + ".h")).string());
+        if (cname.rfind("vplot_save",0)==0)e.addInclude((moduleBase / "vplot_export.h").string());
     }
 
     // Zero-arg getter: `vmath.pi()` -> "vmath_pi()".

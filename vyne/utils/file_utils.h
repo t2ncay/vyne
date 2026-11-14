@@ -68,6 +68,16 @@ namespace FileUtils {
         return (exe / "share/vyne").string();
     }
 
+    static std::string getExternalPath(const std::string& filePath) {
+        const auto source = std::filesystem::path(exeDir) / "vyne/modules/external";
+        const auto installed = std::filesystem::path(getShareDir()) / "modules/external";
+        for (const auto& root : {source, installed}) {
+            const auto candidate = root / filePath;
+            if (std::filesystem::exists(candidate)) return candidate.string();
+        }
+        return (source / filePath).string();
+    }
+
     [[maybe_unused]] static std::string getExternPath(const std::string& filePath) {
         std::filesystem::path base(exeDir);
         return (base / "modules" / "external" / filePath).string();

@@ -94,6 +94,7 @@ out(vmem.total_allocated());
 | [`vcolors.vy`](page:vhelpers) | ANSI color and terminal styling constants. |
 | [`vconvert.vy`](page:vhelpers) | Temperature, distance, and unit conversions. |
 | [`vplot.vy`](page:vhelpers) | A minimal bar chart helper. |
+| [`vplot/vplot.vy`](page:vplot) | Universal colorful charts, bounded live series, ESP32 and image surfaces. |
 | [`vstring.vy`](page:vhelpers) | Small string helpers (`upper`, `lower`, and similar). |
 
 ## Import conventions

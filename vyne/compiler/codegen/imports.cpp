@@ -31,8 +31,7 @@ void ImportNode::compile(C_Emitter& e) const {
         cleanPath.erase(0, 1);
 
     if (isExtern) {
-        finalPath = std::filesystem::path(FileUtils::getExeDir())
-                    / "vyne" / "modules" / "external" / cleanPath;
+        finalPath = FileUtils::getExternalPath(cleanPath);
     } else {
         finalPath = std::filesystem::path(e.getSourceDir()) / cleanPath;
     }
@@ -233,4 +232,3 @@ std::string ImportNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
-

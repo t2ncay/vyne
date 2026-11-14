@@ -344,6 +344,14 @@ on_run(function()
 end)
 task_end()
 
+task("test-vplot")
+set_category("test")
+set_menu({ description = "Run universal plotting acceptance in examples/projects/plotter-esp32" })
+on_run(function()
+    os.execv("python", { path.join(ROOT, "examples/projects/plotter-esp32/tests/run.py") }, { curdir = ROOT })
+end)
+task_end()
+
 -- ---------------------------------------------------------------------------
 -- Aggregate tasks
 -- ---------------------------------------------------------------------------
