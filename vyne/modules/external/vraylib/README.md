@@ -1,5 +1,10 @@
 # vraylib — raylib 6.2, raymath, and rlgl for compiled Vyne
 
+The [managed external facade](MANAGED.md) adds App-owned typed resources,
+automatic frame memory/music updates, cached named uniforms, and managed render
+passes. Start there for application code; this reference documents native API
+coverage and the lower-level helpers.
+
 ```vyne
 use external "vraylib/vraylib.vy";
 vraylib.open(800, 450, "Hello raylib", 60);
