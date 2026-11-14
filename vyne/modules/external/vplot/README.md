@@ -1,23 +1,79 @@
 # vplot — universal charts and bounded live updates
 
-`vplot` uses one portable C11 geometry/layout engine for image surfaces and
-ESP32 displays. The public Vyne calls are fixed-arity native bindings, so
-append/render do not allocate temporary argument arrays in the Vyne arena.
+Select your board once, install the hardware dependencies, and write a chart:
 
 ```vyne
 use external "vplot/vplot.vy";
-p :: Int64 := vplot.new_plot("Signals", "Time (s)", "Value");
-s :: Int64 := vplot.live_series(p, 256, "Channel A", vplot.rgb(56,189,248));
-vplot.autoscale(p, 0.05, 0.25, 10.0);
-vplot.append(s, 1.0, 0.8);
-vplot.render(p, surface);
+xs := [0,1,2,3];
+ys := [22.0,23.4,21.8,24.1];
+vplot.show_line(xs,ys,"Temperature");
 ```
 
-Change surface construction to select the output; chart construction, data,
-themes, clipping and scales are shared. Native aliases are supported:
-`use native vplot as chart;`.
+```sh
+vynec init screen --name screen --kind embedded --preset hw950 --libraries vplot --port COM5
+cd screen
+vynec hardware setup
+vynec run
+```
 
-## Surfaces
+`show_line` initializes the configured display once, uses the gallery's theme,
+colors and automatic ranges, chooses a reusable buffer, presents the chart and
+releases temporary objects. Existing application-selected display rotation is
+preserved. Buffer selection tries 16/8/4 KiB, then direct drawing if necessary.
+
+The same portable C11 engine serves all outputs. Native aliases are supported
+with `use native vplot as chart;`. Explicit surfaces are an advanced option.
+
+## Quick charts and managed objects
+
+| Display helper | Host PNG helper |
+| --- | --- |
+| `show_line(xs,ys,title)` | `save_line(xs,ys,title,path)` |
+| `show_scatter(xs,ys,title)` | `save_scatter(xs,ys,title,path)` |
+| `show_bars(xs,ys,title)` | `save_bars(xs,ys,title,path)` |
+| `show_histogram(values,title)` | `save_histogram(values,title,path)` |
+| `show_heatmap(values,columns,rows,title)` | `save_heatmap(values,columns,rows,title,path)` |
+
+Quick helpers manage creation and cleanup. Histogram bin count is automatic.
+Host helpers create parent output directories and encode PNG directly from
+the native RGB buffer, without an intermediate Float64 image.
+
+For styling/multiple series, retain a chart:
+
+```vyne
+chart := vplot.chart("Temperature");
+vplot.add_line(chart,xs,ys,"Sensor");
+vplot.labels(chart,"Time (s)","C");
+vplot.show(chart);                 # ESP32: show on the configured display
+vplot.close(chart);                # releases the chart and its managed surface
+```
+
+On desktop, `show(chart)` prepares a managed 640x360 image. Use
+`save(chart,"temperature.png")` to export it; it does not open an interactive
+window. Managed charts support the existing theme/grid/legend/limits functions.
+`output_surface(chart)` provides advanced access; the chart owns that surface.
+
+## Simple live updates
+
+```vyne
+chart := vplot.live_chart("Temperature");
+# Whenever a sample arrives:
+vplot.push(chart,value);
+```
+
+`live_chart` shows initial axes and reserves a 512-sample ring. `push` records
+time since chart creation and redraws at most once per requested 100 ms interval.
+It does not control sample acquisition or promise a fixed frame rate. Use
+`push_xy(chart,x,value)` for explicit coordinates. `add_live_series(chart,label)`
+adds an automatically colored series; pass that series to `push`/`push_xy`.
+`live_count(chart)` inspects the default ring. Creation reserves storage;
+updates allocate neither native objects nor Vyne arena storage.
+
+The live clock handles the ESP32 millisecond counter wrapping. Managed
+`show`/`save` reuse their surface, and both `close(chart)` and existing
+`destroy(chart)` release it. Quick transient charts require no explicit cleanup.
+
+## Advanced: explicit surfaces
 
 ### ESP32
 

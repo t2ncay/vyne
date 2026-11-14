@@ -29,3 +29,20 @@ scales and richer font shaping are future surface/scale/font work.
 - Final 120-second COM5 capture: 751 frames, 512 retained samples, stable 33712
   native bytes / 8 allocation calls / 0 Vyne arena bytes, free heap 225828..225916.
 - Owner confirmed the live display visually.
+
+## Beginner UX follow-up
+
+- [x] One-call quick display and PNG helpers for all five chart types.
+- [x] Managed chart defaults, automatic colors/legends, show/save and owned-surface cleanup.
+- [x] Configured display initialization that preserves existing application rotation.
+- [x] Automatic 16/8/4 KiB/direct buffer fallback without user budgets.
+- [x] Managed live rings, automatic timestamps, clock wrapping and redraw throttling.
+- [x] Short user-facing live demo and retained explicit-surface advanced demo.
+- [x] Plot-library selection generates a short HW-950 chart starter.
+- [x] New managed clock/ownership/failure/fallback/export and beginner integration tests.
+
+Follow-up acceptance: host/source and installed suites passed; Ubuntu sanitizer
+tests passed; fresh generated starter uploaded without setup code and was
+owner-confirmed on COM5. All quick display helpers, explicit-rotation retention,
+cleanup and live throttling passed. The managed 60-second capture observed 385
+frames, stable 33760 bytes / 8 allocations / 0 arena bytes / 225892 free heap.

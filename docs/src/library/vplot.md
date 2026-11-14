@@ -9,6 +9,47 @@ description: Colorful charts and bounded live updates on ESP32 displays and vima
 
 # vplot — universal plotting
 
+## A chart in a few lines
+
+```vyne
+use external "vplot/vplot.vy";
+xs := [0,1,2,3];
+ys := [22.0,23.4,21.8,24.1];
+vplot.show_line(xs,ys,"Temperature");
+```
+
+Initialize with `--kind embedded --preset hw950 --libraries vplot --port COM5`,
+run `vynec hardware setup` once, then `vynec run`. The starter uses this short
+API. Configured display initialization, theme, colors, ranges, reusable buffer
+selection and temporary cleanup are automatic. Existing display rotation is
+preserved; no surface or memory budget is needed in the quick-start code.
+
+On desktop, use `vplot.save_line(xs,ys,"Temperature","temperature.png")`.
+Equivalent quick helpers cover scatter, bars, histograms and heatmaps.
+
+## Managed charts and live values
+
+```vyne
+chart := vplot.chart("Temperature");
+vplot.add_line(chart,xs,ys,"Sensor");
+vplot.labels(chart,"Time (s)","C");
+vplot.show(chart);
+vplot.close(chart);
+```
+
+`show` presents on ESP32 or prepares a 640x360 image on desktop; `save(chart,path)`
+exports PNG and creates parent directories. Managed surfaces are reused and
+released with the chart. Existing styling functions still apply.
+
+`chart := vplot.live_chart("Temperature")` shows initial axes and reserves a
+512-sample ring. Submit values with `vplot.push(chart,value)`; timestamps and
+best-effort 100 ms redraw throttling are automatic. Sampling remains application
+controlled. `add_live_series(chart,label)` returns an automatically colored
+additional series usable with `push`. Use `push_xy` for explicit coordinates.
+Native objects and Vyne arena storage do not grow during updates.
+
+## Advanced surfaces
+
 `vplot` shares chart geometry, layout, fonts and colors between ESP32 displays
 and raster/vimage output. Line, scatter, signed bar, histogram and heatmap
 charts support automatic/fixed linear ranges, major/minor grids, labels,

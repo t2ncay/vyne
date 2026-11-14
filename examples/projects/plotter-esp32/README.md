@@ -4,6 +4,19 @@ This project is the main test/demo workspace for **vplot**. Its chart core is
 shared by ESP32 displays and raster/vimage output. The HW-950 demo attaches to
 the verified configured display and never reconfigures its wiring or orientation.
 
+## Your first ESP32 chart
+
+```vyne
+use external "vplot/vplot.vy";
+xs := [0,1,2,3];
+ys := [22.0,23.4,21.8,24.1];
+vplot.show_line(xs,ys,"Temperature");
+```
+
+Selecting `--libraries vplot` when initializing an HW-950 project now generates
+a short starter like this. Configured display initialization, colors, ranges,
+buffer selection and temporary cleanup are automatic.
+
 ## Live ESP32 demo
 
 ```sh
@@ -14,12 +27,14 @@ vynec build
 vynec run --port COM5
 ```
 
-Two colored synthetic signals use 512-sample rings, a ten-second scrolling
-window, stabilized autoscaling, major/minor grids and a 16 KiB strip buffer.
-The application schedules sampling separately from a requested 100 ms refresh
-interval; actual acquisition/refresh timing depends on rendering and device load.
-Serial `VPLOT_STATUS` reports frames, samples, native memory/allocation count,
-ESP32 free heap and Vyne arena usage. Add `--monitor` to observe it manually.
+The short `src/main.vy` uses `live_chart`, `add_live_series` and `push` for two
+automatically colored synthetic signals. Timestamps, ten-second scrolling,
+autoscaling, buffer selection and redraw throttling are handled by vplot.
+The application only obtains values and chooses when to submit them.
+
+An instrumented version lives in `tests/friendly_live.vy`; its serial
+`VPLOT_STATUS` reports frames/samples and memory counters. The original
+explicit-surface dashboard remains available as `examples/advanced_live.vy`.
 
 The original initialized touch demo is preserved:
 
@@ -96,3 +111,14 @@ hooks without adding hardware-specific chart algorithms.
 
 These are measured results on the classic ESP32 HW-950 / ESP32 core 3.3.12 /
 TFT_eSPI 2.5.43. The refresh interval is a request, not a fixed-frame-rate guarantee.
+
+### Managed-API follow-up
+
+The new quick/managed suite also passed on Windows, Ubuntu ASan/UBSan, and the
+installed distribution. The six-line generated source (comment, import, two
+arrays, one chart call) was built/uploaded on COM5, and the owner confirmed its
+appearance. Device checks confirmed quick-helper cleanup and preservation of an
+explicit portrait rotation. A 60-second managed live capture observed 385
+frames, stable 33760 native bytes / 8 setup allocations / 0 arena bytes and
+constant 225892-byte free heap. Clock wrapping, exact throttling, ring wrapping
+and buffer fallback are additionally exercised with a deterministic test clock.
