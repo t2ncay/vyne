@@ -53,7 +53,7 @@ def main():
         assert config["dependencies"]["vraylib"] == "6.2", config
     print("PASS: project scaffolding records vraylib 6.2")
 
-    for name in ("api", "ownership") + (("render",) if opts.graphics else ()):
+    for name in ("api", "ownership", "callbacks", "managed") + (("render", "managed_render") if opts.graphics else ()):
         output = BUILD / name
         run([compiler, "--compile", "-o", output, TESTS / (name + ".vy")], env=env)
         run([str(output) + SUFFIX], expected="VRAYLIB_" + name.upper() + "_OK", env=env)
