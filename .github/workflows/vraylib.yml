@@ -45,7 +45,7 @@ jobs:
         run: |
           $sdk = "${{ steps.msys2.outputs.msys2-location }}/ucrt64"
           $env:PATH = "$sdk/bin;" + $env:PATH
-          xmake f -y "--mingw=$sdk"
+          xmake f -y -p windows "--mingw=$sdk"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           xmake -j 4
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

@@ -1243,11 +1243,11 @@ Value MethodCallNode::evaluate(
         if (methodName == "length" || methodName == "size") {
             if (receiverVal.getType() == Value::STRING) {
                 return Value(
-                    static_cast<uint64_t>(receiverVal.asString().size())
+                    static_cast<int64_t>(receiverVal.asString().size())
                 );
             } else {
                 return Value(
-                    static_cast<uint64_t>(receiverVal.asList().size())
+                    static_cast<int64_t>(receiverVal.asList().size())
                 );
             }
         }
@@ -1550,7 +1550,7 @@ Value MethodCallNode::evaluate(
     // --- MAP METHODS ---
     if (receiverVal.getType() == Value::MAP) {
         if (methodName == "length" || methodName == "size") {
-            return Value(static_cast<uint64_t>(receiverVal.asMap().size()));
+            return Value(static_cast<int64_t>(receiverVal.asMap().size()));
         }
 
         Value* target = nullptr;

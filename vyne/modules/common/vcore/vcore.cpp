@@ -23,6 +23,10 @@
     #include <sys/wait.h>
 #endif
 
+#ifdef __APPLE__
+#include <mach/mach.h>
+#endif
+
 #include "vcore.h"
 #include "../../../compiler/ast/ast.h"
 #include "../../../compiler/ast/value.h"
