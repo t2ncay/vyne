@@ -54,3 +54,8 @@ __pycache__/
 examples/test/*_build
 examples/test/*_sketch
 examples/test/*_cache
+
+# Vendored build metadata and the binding coverage inventory are source files.
+!vendor/raylib/**
+!vyne/runtime/vraylib/CMakeLists.txt
+!vyne/runtime/vraylib/api.json

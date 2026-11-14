@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
+#include <string>
 // native_maps.h — Vyne name → C runtime symbol tables.
 //
 // Shared by C_Emitter and any other consumer that resolves native module
@@ -38,6 +39,8 @@ struct NativeMapEntry {
     const char* nativeZero = nullptr;
     int arity = -1; // optional fixed native-call argument count
 };
+
+#include "vraylib_map.h"
 
 // --- vcore -----------------------------------------------------------------
 static const NativeMapEntry VCORE_MAP[] = {

@@ -1,1 +1,4 @@
 *.vy linguist-language=C++
+
+# Keep the pinned upstream snapshot byte-for-byte, including upstream line endings.
+vendor/raylib/** -text

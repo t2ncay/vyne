@@ -16,6 +16,16 @@
 
 #include <setjmp.h>
 
+// Generated C uses language-managed defer/finally, not Win64 SEH unwinding.
+// MinGW's default setjmp saves a frame-address SEH context that can make
+// longjmp fail in optimized emitted functions. A null context selects the
+// CRT's non-unwinding C jump, leaving cleanup to the generated code.
+#if defined(__MINGW32__) && defined(_WIN64)
+#define vyne_setjmp(buf) _setjmp((buf), NULL)
+#else
+#define vyne_setjmp(buf) setjmp(buf)
+#endif
+
 #define VYNE_MAX_EXC_FRAMES 64
 
 typedef struct {

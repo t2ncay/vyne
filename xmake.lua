@@ -111,6 +111,7 @@ add_installfiles("vyne/runtime/(**)", { prefixdir = "bin/vyne/runtime" })
 add_installfiles("vyne/modules/(**)", { prefixdir = "share/vyne/modules" })
 add_installfiles("vendor/arduino/(**)", { prefixdir = "bin/vendor/arduino" })
 add_installfiles("vendor/stb/(**)", { prefixdir = "bin/vendor/stb" })
+add_installfiles("vendor/raylib/(**)", { prefixdir = "bin/vendor/raylib" })
 
 add_files(VYNEC_SOURCES)
 

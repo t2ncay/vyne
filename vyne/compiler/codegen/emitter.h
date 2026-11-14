@@ -1393,6 +1393,10 @@ class C_Emitter {
         } else if (module == "vimage") {
             table = VIMAGE_MAP;
             count = sizeof(VIMAGE_MAP) / sizeof(VIMAGE_MAP[0]);
+        } else if (module == "vraylib") {
+            if (isEmbeddedTarget()) return nullptr;
+            table = VRAYLIB_MAP;
+            count = sizeof(VRAYLIB_MAP) / sizeof(VRAYLIB_MAP[0]);
         } else if (module == "vplot") {
             if (isAVRTarget()) return nullptr;
             if (isESP32Target() && (member.rfind("image_", 0) == 0 || member.rfind("save",0)==0 || member == "pixel_rgb")) return nullptr;

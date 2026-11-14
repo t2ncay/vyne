@@ -57,7 +57,7 @@ void TryCatchNode::compile(C_Emitter& e) const {
     e.emit("int " + mark + " = vyne_try_push();");
 
     // ---- try body ----
-    e.emitBlockOpen("if (setjmp(g_exc_stack[" + mark + "].buf) == 0) {");
+    e.emitBlockOpen("if (vyne_setjmp(g_exc_stack[" + mark + "].buf) == 0) {");
     e.pushTryCleanup(cleanup);
     if (tryBody) tryBody->compile(e);
     e.popTryCleanup();
@@ -74,7 +74,7 @@ void TryCatchNode::compile(C_Emitter& e) const {
     if (catchBody) {
         e.emit("int " + cmark + " = vyne_try_push();");
         e.emit(cframeLive + " = 1;");
-        e.emitBlockOpen("if (setjmp(g_exc_stack[" + cmark + "].buf) == 0) {");
+        e.emitBlockOpen("if (vyne_setjmp(g_exc_stack[" + cmark + "].buf) == 0) {");
 
         // Bind the catch variable in the current function scope
         std::string prefix = e.getActiveFunctionPrefix();
@@ -132,4 +132,3 @@ std::string TryCatchNode::getCExpr(C_Emitter& e) const {
     compile(e);
     return "vyne_null()";
 }
-

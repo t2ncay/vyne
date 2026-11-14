@@ -1,0 +1,66 @@
+name: vraylib desktop acceptance
+
+on:
+  pull_request:
+  push:
+    branches: [master, feat/vraylib-desktop]
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install desktop graphics dependencies
+        run: |
+          if command -v xvfb-run >/dev/null && pkg-config --exists gl x11 xrandr xinerama xcursor xi; then
+            exit 0
+          fi
+          sudo apt-get update -o Acquire::Retries=3
+          sudo apt-get install -y cmake make libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev xvfb
+      - name: Build compiler
+        run: |
+          mapfile -t sources < <(find main.cpp cli vyne -name '*.cpp')
+          g++-13 -std=c++23 -O2 -I. -Ivendor "${sources[@]}" -o vynec -lm -lpthread -ldl
+      - name: API, ownership, graphics, and native ASan/UBSan
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+          ASAN_OPTIONS: detect_leaks=1
+        run: xvfb-run -a python3 examples/projects/raylib-showcase/tests/run.py --graphics --sanitize
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-python
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+      - name: Build and test Windows header isolation
+        shell: pwsh
+        run: |
+          $sdk = "${{ steps.msys2.outputs.msys2-location }}/ucrt64"
+          $env:PATH = "$sdk/bin;" + $env:PATH
+          xmake f -y -p windows "--mingw=$sdk"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          xmake -j 4
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python examples/projects/raylib-showcase/tests/run.py
+          exit $LASTEXITCODE
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compiler and build tools
+        run: brew install gcc cmake || brew upgrade gcc cmake
+      - name: Build compiler
+        run: |
+          cxx="$(find "$(brew --prefix gcc)/bin" -name 'g++-*' | sort | tail -n 1)"
+          "$cxx" -std=c++23 -O2 -I. -Ivendor main.cpp cli/*.cpp $(find vyne -name '*.cpp') -o vynec -lm -lpthread -ldl
+      - name: Core API and native runtime acceptance
+        run: python3 examples/projects/raylib-showcase/tests/run.py

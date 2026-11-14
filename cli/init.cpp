@@ -224,7 +224,7 @@ bool knownTarget(const std::string& name) {
 bool knownLibrary(const std::string& name) {
     static const char* names[] = {
         "vlin", "vml", "vstat", "vtermplot", "vfft",
-        "vcomplex", "vcsv", "vimage", "vconv", "vplot",
+        "vcomplex", "vcsv", "vimage", "vconv", "vplot", "vraylib",
     };
     for (const char* n : names) {
         if (name == n)
@@ -272,6 +272,7 @@ bool isKnownKind(const std::string& kind) {
 }
 
 std::string dependencyVersion(const std::string& name) {
+    if (name == "vraylib") return "6.2";
     if (name == "vplot") return "0.1";
     if (name == "vstat")
         return "0.2";
