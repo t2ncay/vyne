@@ -1,33 +1,42 @@
 # Vyne
 
 > A C-flavored scientific numerical programming language. Region-based
-> deterministic memory, dual backend (interpreter + C transpiler), and a
-> native AVR backend that runs the same source on an Arduino Uno R3.
+> deterministic memory, an interpreter and native transpiler, CUDA device
+> training, ESP32/AVR firmware, live plotting, and managed desktop graphics.
 
-[![CI](https://github.com/tuncaygafarli/vyne/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/tuncaygafarli/vyne/actions/workflows/c-cpp.yml)
-[![Docs](https://github.com/tuncaygafarli/vyne/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/tuncaygafarli/vyne/actions/workflows/pages/pages-build-deployment)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![C++26](https://img.shields.io/badge/C%2B%2B-26-00599C.svg)](https://isocpp.org/)
+[![CI](https://github.com/t2ncay/vyne/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/t2ncay/vyne/actions/workflows/c-cpp.yml)
+[![Docs](https://github.com/t2ncay/vyne/actions/workflows/docs.yml/badge.svg)](https://t2ncay.github.io/vyne/)
+[![License](https://img.shields.io/badge/license-AGPL--3.0%20%2F%20MIT-blue.svg)](#license)
+[![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C.svg)](https://isocpp.org/)
 [![Version](https://img.shields.io/badge/version-0.7.0-orange.svg)](CHANGELOG.md)
-[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr-lightgrey.svg)](#build-from-source)
+[![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr%20%7C%20esp32-lightgrey.svg)](#build-from-source)
 
 ---
 
 ## Overview
 
-**Desktop graphics:** [vraylib](vyne/modules/external/vraylib/README.md) binds
-the vendored raylib 6.2, raymath, and rlgl APIs to compiled Vyne programs.
-Try the [desktop showcase](examples/projects/raylib-showcase/README.md) or the
-modernized `examples/graphics/camera_test.vy` bodycam scene.
+**Read the [language and library manual](https://t2ncay.github.io/vyne/)**,
+covering v0.7.0 and current `main` features across 61 pages. Start with
+[Projects & Tooling](https://t2ncay.github.io/vyne/pages/projects.html),
+[ESP32 & Hardware](https://t2ncay.github.io/vyne/pages/esp32.html),
+[CUDA & Devices](https://t2ncay.github.io/vyne/pages/device.html), or
+[Managed Graphics & Audio](https://t2ncay.github.io/vyne/pages/vraylib-managed.html).
 
 Vyne is a statically-analyzable numerical programming language with
-**three** execution backends sharing a single AST:
+execution paths sharing a single AST:
 
 - a **tree-walking interpreter** for fast iteration and REPL use,
 - a **C transpiler** that lowers the same AST to one self-contained C
-  translation unit against a small arena-based runtime, and
+  translation unit against a small arena-based runtime,
 - an **AVR transpiler** that targets AVR-GCC and produces firmware for
-  the Arduino Uno R3 (ATmega328P, 2 KB SRAM) from the same `.vy` source.
+  the Arduino Uno R3 (ATmega328P, 2 KB SRAM), and
+- an **ESP32 backend** that emits Arduino-ESP32 sketches, with hardware presets
+  and a 64 KB default arena.
+
+Desktop `@device` regions add explicit CUDA operations with a CPU fallback.
+`vtensor` and `vnn` compose device-resident inference/training graphs; `vplot`
+renders colorful live charts on ESP32 or host images; `vraylib` brings vendored
+raylib 6.2, raymath and rlgl through an App-owned graphics/audio facade.
 
 The language is deliberately C-shaped: braces, semicolons, `fn` for
 declarations, `if` / `while` / `through` for control flow, `::` for
@@ -37,15 +46,15 @@ operator, null coalescing, string interpolation, interface-based structs,
 generics via monomorphization — without giving up the ability to run
 without a garbage collector.
 
-Every value the compiled backend produces lives in an arena. There is no
-GC, no reference counting, no hidden allocator traffic inside numeric
-loops. A `region` block scopes that arena lexically: the block takes a
+Compiled strings, arrays and boxed records use arena storage. Native device,
+plotting and graphics resources have their own explicit ownership rules.
+There is no GC. A `region` block scopes host arena allocations lexically: it takes a
 checkpoint on entry, and every allocation made inside is reclaimed at the
-closing brace. Programs that use regions have flat peak memory regardless
-of iteration count — on the desktop *and* on a 2 KB microcontroller.
+closing brace. Reusing persistent state and bounding transient allocations keeps
+iteration memory predictable on desktop and microcontrollers.
 
 ```vyne
-# blinky.vy — one source, three targets
+# blinky.vy — AVR firmware with a scoped scratch buffer
 use native arduino;
 
 arduino.serial_begin(115200);
@@ -67,13 +76,10 @@ region probe {
     arduino.serial_print(buf.mean());
 };
 
-# The exact same file runs under the interpreter (interactive demo),
-# the C transpiler (desktop), and `--arduino uno` (firmware).
+# Arduino bindings and scratch require the compiled embedded path.
 ```
 
 ```bash
-vynec blinky.vy                                   # interpreter
-vynec --compile blinky.vy                         # native binary
 vynec --arduino uno --flash --monitor --port COM3 blinky.vy   # Uno R3
 ```
 
@@ -89,6 +95,9 @@ vynec --arduino uno --flash --monitor --port COM3 blinky.vy   # Uno R3
 - [Arduino backend](#arduino-backend)
 - [Flagship example: TinyML XOR on an Uno R3](#flagship-example-tinyml-xor-on-an-uno-r3)
 - [External library system](#external-library-system)
+- [ESP32 backend](#esp32-backend)
+- [CUDA and device ML](#cuda-and-device-ml)
+- [Plotting and desktop graphics](#plotting-and-desktop-graphics)
 - [Transpiler architecture](#transpiler-architecture)
 - [Diagnostics](#diagnostics)
 - [Performance](#performance)
@@ -96,6 +105,7 @@ vynec --arduino uno --flash --monitor --port COM3 blinky.vy   # Uno R3
 - [Build from source](#build-from-source)
 - [Project layout](#project-layout)
 - [Editor support](#editor-support)
+- [Documentation](#documentation)
 - [Limitations](#limitations)
 - [Contributing](#contributing)
 - [License](#license)
@@ -111,13 +121,11 @@ or a compiled language where a quick edit means a full build cycle. Vyne
 occupies the middle ground — and it goes one step further by extending
 the same memory discipline from a workstation down to an 8-bit MCU.
 
-**Three backends, one AST.** The interpreter, the C transpiler, and the
-AVR transpiler consume the same parsed tree. A program that runs under
-`vynec script.vy` behaves identically under `vynec --compile script.vy`.
-The third form, `vynec --arduino uno script.vy`, produces AVR firmware
-that links against a 1 KB MCU runtime and inherits the same region
-semantics as the desktop build — the arena becomes 1 KB of SRAM instead
-of 8 MB, but the checkpoint / rewind contract is identical.
+**One AST, desktop and embedded paths.** Use `vynec --ast script.vy` for
+the interpreter, `vynec script.vy` to compile and run, and `vynec --compile`
+to build without executing. AVR and ESP32 firmware reuse the same parsed tree
+and checkpoint/rewind discipline, with target-specific runtime/API support.
+Select hardware once, then use `vynec build` and `vynec run` for firmware.
 
 **Deterministic memory, no GC.** Values live in a bump arena. `region`
 blocks reclaim everything allocated inside them. There are no pauses, no
@@ -145,16 +153,22 @@ network primitives), `vfft` (radix-2 FFT with plan caching), `vrand`
 `vcontrol` (PID / Kalman / state-space), `voptim` (SGD/Adam/AdamW and
 schedules), `vsparse` (CSR, SpMV, conjugate gradient), `vdecomp` (LU, QR,
 Cholesky, eigen, singular values), and `vbio` (nucleotide / protein
-sequences) are written in Vyne itself, in the same kernel/wrapper pattern,
-and the major libraries ship with a full manual each. On AVR, the same
+sequences) expose Vyne facades, with typed numerical kernels or native-backed
+implementations, and the major libraries ship with a full manual each. On AVR, the same
 numerical idioms run
 through a 110-function `arduino` module: serial I/O, ADC, I2C/SPI, bit
 manipulation, EEPROM, watchdog, realtime deadline telemetry, and an unboxed
 math family (`_f64` variants) that the emitter picks at call sites where
 every argument is a provable `Float64`.
 
+**Explicit device training and managed presentation.** Keep tensors, saved
+activations, gradients and optimizer moments in a device region with `vtensor`
+and `vnn`. Reuse bounded live-series storage with `vplot`, or let a `vraylib.App`
+own graphics resources, transient frames, shader uniforms and streamed audio.
+The ESPCN and graphics showcases demonstrate these end-to-end workflows.
+
 **Start from a working project.** `vynec init` opens an ftxui
-questionnaire and scaffolds an ML training project, an Arduino sketch
+questionnaire and scaffolds an ML training project, an Uno/ESP32 sketch
 with `@bounded` regions, a Lorenz simulation, an ESPCN image upscaler,
 or a minimal blank project. Every template compiles and runs out of the
 box, and the generated `project.toml` records the targets, dependencies,
@@ -165,10 +179,11 @@ and device configuration you chose.
 ## Quick start
 
 ```bash
-git clone https://github.com/tuncaygafarli/vyne.git
+git clone https://github.com/t2ncay/vyne.git
 cd vyne
-make
-./vynec examples/hello.vy
+xmake
+./vynec init --name hello --kind blank --no-git
+./vynec run hello/src/main.vy
 ```
 
 Scaffold a new project with the interactive questionnaire:
@@ -203,15 +218,15 @@ vynec run             # upload, reset and start; add --monitor to watch serial
 Generic ESP32 boards use `--board esp32` (also S2/S3/C3/C6 aliases).
 Firmware and sketches stay under `build/firmware/`; advanced TOML/CLI
 overrides and fresh-project tests are documented in
-[Projects & Tooling](docs/src/getting-started/projects.md) and
+[Projects & Tooling](https://t2ncay.github.io/vyne/pages/projects.html) and
 [`examples/templates/`](examples/templates/README.md).
 
 Transpile a program to a standalone binary:
 
 ```bash
-./vynec --compile examples/logic_test.vy
-# emits logic_test.vy.c and compiles it against runtime/vyne_runtime.h
-# produces ./logic_test
+./vynec --compile hello/src/main.vy
+# emits hello/src/main.vy.c and compiles against vyne/runtime/vyne_runtime.h
+# produces the source-stem executable
 ```
 
 Enable BLAS dispatch for matrix operations:
@@ -241,13 +256,15 @@ Start the REPL:
 ### Bindings
 
 ```vyne
-x = 42;                     # inferred
-y :: Int64 = 42;            # explicit
-const PI :: Float64 = 3.141592653589793;
+ruleset { dynamic_casting };
+x := 42;                    # inferred
+y :: Int64 := 42;           # explicit
+const PI :: Float64 := 3.141592653589793;
 ```
 
-Under `ruleset { type_check = "strict" }`, `x = 42` without a type is a
-compile error. The default is dynamic binding with a warning.
+Under `ruleset { type_check = "strict" }`, `x := 42` without a type is a
+compile error. Use `dynamic_casting` when deliberately omitting annotations,
+as above.
 
 ### Primitive types
 
@@ -255,11 +272,13 @@ compile error. The default is dynamic binding with a warning.
 | ---------- | ----------------- | ---------------------------------------- |
 | `Int64`    | `42`, `0x7FFFFFFF`| 64-bit signed; hex literals supported    |
 | `Float64`  | `3.14`            | IEEE-754 double                          |
+| `Float32`  | `1.0f`           | IEEE-754 single precision; default device dtype |
 | `String`   | `"hello"`         | UTF-8, immutable, interned               |
 | `Bool`     | `true`, `false`   |                                          |
 | `Null`     | `null`            |                                          |
 | `Array`    | `[1, "two", 3.0]` | heterogeneous                            |
 | `Array<T>` | `Array<Float64>`  | typed array, native ABI on the C backend |
+| `Slice<T>` | `Slice<Float64>`  | zero-copy borrowed view on compiled desktop |
 | `Map`      | `{"key": 42}`     | string keys                              |
 
 ### Control flow
@@ -621,13 +640,41 @@ the halt path if the arena is full.
 
 ### Typed arrays
 
-`Array<Float64>` and `Array<Int64>` are represented at runtime by
-`VyneArray_f64` and `VyneArray_i64`, structs holding a raw `double*` or
-`int64_t*` plus size and capacity. Boxing a typed array into a `VyneValue`
+`Array<Float64>`, `Array<Float32>` and `Array<Int64>` are represented at runtime by
+typed containers holding a raw numeric pointer plus size and capacity. Boxing a typed array into a `VyneValue`
 is O(1) — it wraps the pointer, it does not copy elements. Unboxing a
 `V_F64_ARRAY` is likewise O(1). This is what makes `A.data[i]` compile to
 a direct load. On AVR, this same optimization is what allows the `k_*`
 numerical kernels to run in a loop without touching the arena.
+
+### Zero-copy views and reusable buffers
+
+`Slice<Float64>` and `Slice<Int64>` borrow contiguous typed-array storage.
+`data[lo:hi]` creates a view when a slice is expected; ordinary array slicing
+still copies. Slices support indexed reads/writes and size queries, but own no
+storage. Keep the owner alive and do not grow/drop it while a view is in use.
+`Slice<Float32>` function parameters are not supported yet.
+
+```vyne
+fn sum_view(values :: Slice<Float64>) -> Float64 {
+    total :: Float64 := 0.0;
+    through i :: 0..values.size()-1 -> loop {
+        total = total + values[i];
+    };
+    return total;
+}
+
+data :: Array<Float64> := [];
+data.reserve(16);           # capacity only
+data.resize(4, 2.0);        # length and fill
+view :: Slice<Float64> := data[1:3];
+out(sum_view(view));        # 4.0
+```
+
+`reserve(n)` preserves length; `resize(n, fill)` initializes new elements and
+retains capacity when shrinking. Both can allocate on growth and still obey
+arena budgets. See [Values & Types](https://t2ncay.github.io/vyne/pages/types.html)
+and [Built-ins & Collections](https://t2ncay.github.io/vyne/pages/builtins.html).
 
 ---
 
@@ -648,6 +695,7 @@ module exists on both targets, the surface is identical.
 | `vfs`   | Filesystem: read, write, lines, bytes, walk, glob, mkdir, path ops. Desktop only — AVR has no filesystem.             |
 | `vmem`  | Arena checkpoints, peak tracking, live-state inspection, commit.                                                     |
 | `arduino` | **AVR-only.** 110 bindings covering serial, GPIO, ADC, I2C/SPI, EEPROM, bit manipulation, watchdog, interrupts, memory introspection, and `@realtime` telemetry. See [Arduino backend](#arduino-backend). |
+| `esp32` | Shared MCU operations plus Wi-Fi/HTTP, NVS, display/sprites, touch, IMU, DAC, and power. See [ESP32 backend](#esp32-backend). |
 
 ### Built-in functions
 
@@ -658,6 +706,7 @@ sizeof(x)       # length of a string or array
 string(x)       # any value -> String
 int64(x)        # any value -> Int64
 float64(x)      # any value -> Float64
+float32(x)      # explicit Float32 conversion
 sequence(lo, hi)# generate [lo, hi)
 exit(code)      # terminate
 free(x)         # no-op on the compiled backend (arena); releases object on the interpreter
@@ -681,12 +730,10 @@ advertised here. Users depending on them should pin to a pre-0.4 tag.
 
 ## Arduino backend
 
-The Arduino Uno R3 target ships a 60+ function runtime under
-`arduino/detail/`, split one header per concern. All headers are
-**self-contained**: each pulls only from `<Arduino.h>` and `<avr-libc>`,
-never from a bundled `arduino/libraries/*` header, so `avr-gcc` compiles
-the runtime without the Vyne AVR build integration having to add library
-`src/` directories to its include path.
+The Arduino Uno R3 target exposes 110 bindings through the runtime under
+`vyne/runtime/arduino/detail/`, split one header per concern. Core operations
+use Arduino/avr-libc; I2C and SPI use bundled Wire/SPI libraries, whose sources
+are included by the AVR build integration.
 
 `@bounded<bytes>` regions lower on AVR as well. The MCU arena maintains
 the same live-allocation counter as the desktop arena, `@bounded` checks
@@ -719,10 +766,8 @@ sketch fails at compile time with "not defined", which is clearer than a
 runtime halt. `attach_interrupt` is counter-based, not callback-based: a
 Vyne `fn` compiles to `VyneValue fn_X(int, VyneValue*)`, which cannot be
 installed as an AVR `void(void)` ISR without compiler-side wrapper
-emission. `Wire` (I2C), `SPI`, and `SoftwareSerial` are not bound: those
-libraries have `.cpp` sources that would also need the Vyne AVR build
-integration to add `arduino/libraries/*/src` to its include path and
-link the corresponding objects.
+emission. I2C and SPI are available through native bindings and typed
+`vi2c`/`vspi` wrappers; SoftwareSerial is not exposed.
 
 **What is deliberately boxed on AVR.** `VyneValue` is 16 bytes; a `double`
 is 4. The emitter's native fast paths run first: typed `Float64` locals,
@@ -811,7 +856,7 @@ touched. That is the region-based memory model working on a chip with
 
 ## External library system
 
-Libraries written in Vyne itself live under `vyne/modules/external/`. Each
+External Vyne facades live under `vyne/modules/external/`. Each
 library is a directory with a facade `<lib>.vy` that imports its leaf modules
 and ends with `deploy <lib>;`:
 
@@ -845,12 +890,14 @@ is designed to be paired with `vsignal` for sensor pre-filtering, while the
 | Area | Libraries |
 | :--- | :--- |
 | Linear algebra and ML | `vlin`, `vml`, `vfft`, `vrand` |
+| Device tensors and neural networks | `vtensor`, `vnn` |
 | Statistics and numerics | `vstat`, `vcomplex`, `vinterp` |
 | Optimization | `voptim` |
 | Sparse and dense solvers | `vsparse`, `vdecomp` |
 | DSP and control | `vsignal`, `vcontrol` |
-| Data and plotting | `vcsv`, `vjson`, `vtermplot` |
+| Data and plotting | `vcsv`, `vjson`, `vtermplot`, `vplot` |
 | Image and vision | `vimage`, `vconv` |
+| Desktop graphics and audio | `vraylib` (managed facade + native raylib/raymath/rlgl) |
 | Embedded buses | `vi2c`, `vspi` |
 | Domain | `vbio`, `vchem` (`vchem_common`, `vgraph`) |
 | Single-file helpers | `vcolors.vy`, `vconvert.vy`, `vplot.vy`, `vstring.vy` |
@@ -859,6 +906,12 @@ Every library directory ships a `README.md` describing its user-visible
 surface, conventions, and limitations. The most complete references are
 `vlin/README.md`, `vml/README.md`, `vstat/README.md`, `vsignal/README.md`,
 `vcontrol/README.md`, `voptim/README.md`, `vsparse/README.md`, and `vdecomp/README.md`.
+
+`vml` remains the CPU dense/MLP layer over `vlin`; `voptim` provides general CPU
+optimizer states. Device CNN/training blocks live in `vtensor`/`vnn`. Hybrid
+facades such as `vplot` and `vraylib` use native cores/resources while retaining
+the external import syntax. See the
+[Library Overview](https://t2ncay.github.io/vyne/pages/libs.html) for the full map.
 
 ### Kernel/wrapper pattern
 
@@ -912,6 +965,147 @@ desktop-only flag; the AVR backend has no BLAS path.
 
 ---
 
+## ESP32 backend
+
+`use native esp32;` exposes shared MCU operations plus Wi-Fi/HTTP, NVS storage,
+TFT drawing and sprites, XPT2046 touch, MPU6050 sensors, DAC and power controls.
+Optional peripheral headers are pulled in only when used. The default arena is
+**64 KB**, with region checkpoint/rewind semantics; driver heap and sprite
+storage are budgeted separately. ESP32 retains double-precision `Float64`.
+
+Supported board aliases are `esp32`, `esp32s2`, `esp32s3`, `esp32c3` and `esp32c6`.
+The measured `hw950` preset selects the integrated display/touch configuration.
+Hardware precedence is **CLI overrides → hardware.toml → preset defaults**.
+
+```shell
+vynec hardware list
+vynec hardware show --preset hw950
+vynec build --hardware-set display.rotation=2
+vynec run --monitor --port COM5
+```
+
+Run build/run commands inside an initialized project. `build` compiles without
+uploading; `run` builds, uploads, resets and starts the board. Monitoring is
+opt-in. Changed hardware settings invalidate stale firmware objects.
+For HW-950, `display_init()` uses configured rotation, explicit `display_init(0..3)`
+overrides it, and the starter continuously polls touch. Send **C** through serial
+for explicit four-corner calibration; saved NVS calibration is otherwise retained.
+
+See [ESP32 & Hardware](https://t2ncay.github.io/vyne/pages/esp32.html),
+[runtime details](vyne/runtime/esp32/README.md), and
+[hardware acceptance](vyne/runtime/esp32/HARDWARE_TESTING.md).
+
+## CUDA and device ML
+
+`@device<cuda>` opens a region-local device frame with Float32 allocation by
+default (`device_alloc_f64` opts into doubles). The runtime dynamically loads the
+CUDA driver and embedded PTX; ordinary generated programs need neither CUDA
+headers nor `nvcc`. If CUDA is unavailable, the same source uses the CPU device
+backend. Check the reported backend when comparing timings.
+
+`@device_fn` helpers issue explicit device operations inside an active device
+region or another helper. They are not arbitrary GPU kernel definitions.
+Preallocated primitives cover convolution forward/backward, ReLU, pixel shuffle,
+MSE gradients, loss reduction, packed-buffer crop staging, SGD and AdamW.
+
+| Layer | Intended workload |
+| :--- | :--- |
+| `vml` + `vlin` | CPU dense/MLP models and matrix kernels |
+| `voptim` | CPU optimizers over flat arrays |
+| `vtensor` | Region-local device handle with HWC shape metadata; no ownership |
+| `vnn` | Explicit device CNN forward/backward/loss/AdamW blocks |
+| `vconv` | CPU tensor wrappers, model loading, and explicit device primitives |
+
+Allocate parameters, activations, gradients, moments and loss buffers once in a
+device region, reuse them across steps, then download results/checkpoints.
+Handles and tensor metadata must not outlive their owning frame. CPU
+`vconv.conv2d` does not silently dispatch to GPU, and tensor AD is not automatic.
+
+### ESPCN inference and training
+
+```shell
+# From the repository root
+cd examples/projects/espcn
+vynec run
+```
+
+The standalone project compares CPU/device ESPCN inference with non-neural
+baselines, reports PSNR/SSIM and CPU/GPU differences, and saves output images.
+Its offline model is a deterministic nearest-neighbour 2× passthrough, not a
+trained quality benchmark. Training reuses device buffers, stages fixed crops,
+runs explicit backward/AdamW, and saves/reloads latest and best checkpoints.
+
+From `examples/projects/espcn`, reproduce the bundled smoke training/inference:
+
+```shell
+pwsh scripts/reproduce.ps1
+# POSIX equivalent
+./scripts/reproduce.sh
+```
+
+The scripts clean the project build directory before reproduction. Fixed-graph
+bit-exact repeatability is scoped to the **same GPU and driver version**;
+cross-device/driver comparisons use tolerances. Inference prefers the best
+checkpoint, then latest, then the bundled model. See
+[ESPCN Showcase](https://t2ncay.github.io/vyne/pages/espcn.html),
+[project guide](examples/projects/espcn/README.md),
+[expected metrics](examples/projects/espcn/EXPECTED.md), and
+[CUDA & Devices](https://t2ncay.github.io/vyne/pages/device.html).
+
+## Plotting and desktop graphics
+
+### Universal and live plotting
+
+`vtermplot` renders terminal plots. `vplot/vplot.vy` supplies colorful line,
+scatter, bar, histogram and heatmap charts on host images and ESP32 displays.
+Managed charts reuse surfaces; live charts use bounded rings, automatic
+timestamps and best-effort redraw throttling. Sampling remains application-owned.
+
+```vyne
+use external "vplot/vplot.vy";
+xs := [0, 1, 2, 3];
+ys := [22.0, 23.4, 21.8, 24.1];
+vplot.save_line(xs, ys, "Temperature", "temperature.png");
+```
+
+For the HW-950 live-chart starter, initialize with
+`--kind embedded --preset hw950 --libraries vplot --port COM5`, run
+`vynec hardware setup` once, then `vynec run` from the project directory.
+See [Universal Plotting](https://t2ncay.github.io/vyne/pages/vplot.html) and the
+[plotter project](examples/projects/plotter-esp32/README.md).
+The older single-file `vplot.vy` remains a minimal bar-chart helper.
+
+### Managed raylib graphics and audio
+
+`vraylib/vraylib.vy` combines vendored raylib 6.2, raymath and rlgl with an
+App-owned facade. Typed textures/models/cameras/shaders/render targets share
+checked resource tokens; managed frames reclaim transient arena data, update
+music, resize targets and pair render passes. Named uniforms cache their
+locations. One-shot Sound and a fixed native soft/hard saturation effect are
+available alongside streamed music.
+
+```shell
+cd examples/projects/raylib-showcase
+vynec build
+vynec run
+```
+
+The first build compiles native archives into a user cache; subsequent builds
+reuse them. Programs statically link raylib, with no DLL to copy. This path needs
+compiled desktop GCC, CMake, make and platform graphics dependencies; rendering
+needs OpenGL. `--ast`, AVR and ESP32 are not vraylib execution targets.
+
+The portable project needs no historical assets. The restored
+Bodycam (`examples/graphics/camera_test.vy`) and
+[Sector Shift](examples/graphics/sector_shift.md) scenes need their original
+ignored local media under `examples/assets/`. See
+[Managed Graphics & Audio](https://t2ncay.github.io/vyne/pages/vraylib-managed.html),
+[native reference](vyne/modules/external/vraylib/README.md), and
+[Graphics Showcase](https://t2ncay.github.io/vyne/pages/graphics.html) for controls,
+assets, bounded runs and acceptance commands.
+
+---
+
 ## Transpiler architecture
 
 ### Pipeline
@@ -934,7 +1128,9 @@ ASTNode tree        compiler/ast
             │
             ├──► desktop target ──► single .c file, links runtime/vyne_runtime.h
             │
-            └──► arduino target ──► single .ino.cpp, links arduino/vyne_arduino.h
+            ├──► AVR target ──► firmware, links vyne/runtime/arduino/vyne_arduino.h
+            │
+            └──► ESP32 target ──► Arduino-ESP32 sketch, links vyne/runtime/esp32/vyne_esp32.h
 ```
 
 The emitter is parameterized on target. `C_Emitter::setArduinoTarget(true)`
@@ -999,8 +1195,8 @@ inline` C function.
 
 A function is a candidate for native lowering when:
 
-- every parameter is a primitive (`Int64`, `Float64`, `Bool`), a typed
-  array (`Array<Float64>` or `Array<Int64>`), or a struct with a
+- every parameter is a primitive (`Int64`, `Float64`, `Float32`, `Bool`), a typed
+  numeric array, a supported `Slice<T>` view, or a struct with a
   registered field layout,
 - the return type is a primitive, a typed array, or such a struct, and
 - the body does not contain a top-level `defer` or `try`.
@@ -1160,14 +1356,19 @@ vynec [options] <file.vy>
 
 | Flag                 | Effect                                                          |
 | :------------------- | :-------------------------------------------------------------- |
-| *(none)*             | Run under the interpreter                                       |
+| *(none)* / `--run`    | Compile and run                                                 |
 | `--compile`          | Transpile to C and invoke the host C compiler                   |
+| `--ast`              | Interpret directly; no C emitted                                |
 | `--arduino <board>`  | Transpile for an Arduino target; currently only `uno` is defined |
 | `--flash`            | After `--arduino`, invoke `arduino-cli upload`                  |
 | `--monitor`          | After `--flash`, invoke `arduino-cli monitor`                   |
 | `--port <device>`    | Serial port for `--flash` / `--monitor` (e.g. `COM3`)           |
 | `--baud <rate>`      | Serial baud rate for `--monitor`; default `115200`              |
-| `--interp`           | Force the interpreter even for scripts that ship compiled       |
+| `--esp32 <board>`    | Generate/build firmware for an ESP32 board alias                |
+| `--esp32-flash` / `--esp32-monitor` | Upload / monitor ESP32 firmware                     |
+| `--esp32-port <device>` / `--esp32-baud <rate>` | ESP32 connection settings               |
+| `--preset <name>`    | Select bundled embedded hardware settings                       |
+| `--hardware-set section.key=value` | Repeatable typed hardware override                  |
 | `--blas`             | Lower matched matrix calls to BLAS (desktop only)               |
 | `--native`           | Add `-march=native` to the host compiler invocation             |
 | `--emit-c`           | Emit the C source without invoking the host compiler            |
@@ -1183,6 +1384,24 @@ For the Arduino target, `--flash` requires `arduino-cli` and the
 connected board. Both flags also accept `--fqbn <string>` to override
 the board identifier (default `arduino:avr:uno`).
 
+### Projects, hardware and benchmarks
+
+```shell
+vynec build [file.vy]       # discover project.toml and build its target
+vynec run [file.vy]         # build/run desktop, or upload/start configured firmware
+vynec bench [file]          # benchmark native targets and write JSON
+vynec hardware list        # bundled preset labels
+vynec hardware show        # resolved hardware as TOML
+vynec hardware setup       # install selected embedded core/libraries
+```
+
+Run project commands from the project directory; they search parent directories
+for `project.toml`. An explicit source file overrides the derived entry point.
+CLI overrides take precedence over project/hardware settings. Benchmarks accept
+`--warmup`, `--iterations` and `--report`; board targets are skipped.
+For all modes, flags and schemas, see
+[CLI Reference](https://t2ncay.github.io/vyne/pages/cli.html).
+
 ### `vynec init`
 
 Scaffolds a new project. With no `--name` and a terminal, it opens an
@@ -1194,8 +1413,10 @@ fully non-interactive.
 | :--- | :--- |
 | `--name <name>` | project name; also suppresses the TUI |
 | `--kind <kind>` | `blank`, `ml`, `embedded`, `scientific`, `sr`, `mixed` |
-| `--targets <list>` | `desktop`, `arduino-uno`, `coral`, `jetson` |
-| `--libraries <list>` | `vlin`, `vml`, `vstat`, `vtermplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv` |
+| `--targets <list>` | `desktop`, `arduino-uno`, `esp32`, `esp32s2`, `esp32s3`, `esp32c3`, `esp32c6`, `hw950`, `coral`, `jetson` |
+| `--board <name>` / `--preset <name>` | Embedded board alias / bundled hardware configuration |
+| `--port <device>` / `--baud <rate>` | Save connection settings in hardware.toml |
+| `--libraries <list>` | `vlin`, `vml`, `vstat`, `vtermplot`, `vplot`, `vfft`, `vcomplex`, `vcsv`, `vimage`, `vconv`, `vraylib` |
 | `--cuda yes\|no` | write `[device.cuda]` |
 | `--license <id>` | `AGPL-3.0-only`, `MIT`, `proprietary` |
 | `--yes` | accept defaults without prompting |
@@ -1203,8 +1424,8 @@ fully non-interactive.
 | `--no-git` | skip `git init` and the initial commit |
 
 The templates are `blank` (`@bounded` + `@deterministic`), `ml` (Iris
-MLP with a `vtermplot` loss curve), `embedded` (Uno blinky with
-`@bounded`), `scientific` (Lorenz RK4 + Lyapunov estimate), and `sr`
+MLP with a `vtermplot` loss curve), `embedded` (Uno blinky, generic ESP32 serial,
+or HW-950 display/touch/live-chart starter), `scientific` (Lorenz RK4 + Lyapunov estimate), and `sr`
 (ESPCN 2x upscaling with `vimage` + `vconv`). `mixed` uses the ML
 template with every library.
 
@@ -1218,8 +1439,8 @@ exists, `4` generation or configuration error.
 
 ### Prerequisites
 
-- C++26 compiler (GCC 14+ with `-std=c++26`, or equivalent) for the
-  compiler and the desktop runtime
+- C++23-capable compiler for `vynec` (`xmake.lua` uses `-std=c++23`);
+  Windows builds select MinGW
 - [xmake](https://xmake.io/) — `scoop install xmake` on Windows,
   `brew install xmake` on macOS, `curl -fsSL https://xmake.io/shget.text | bash` on Linux
 - A C11 compiler for the generated output (default: the same compiler)
@@ -1228,9 +1449,16 @@ exists, `4` generation or configuration error.
   installed (`arduino-cli core install arduino:avr`). `arduino-cli` is
   only required for `--flash` and `--monitor`; `--arduino uno` alone
   produces the `.hex` given the AVR toolchain.
+- **For ESP32:** `arduino-cli` and the selected `esp32:esp32` core/peripheral
+  libraries; `vynec hardware setup` installs these for an initialized project.
+- **For vraylib:** GCC, CMake and make (`mingw32-make` on Windows), plus platform
+  graphics development libraries. See
+  [Installation](https://t2ncay.github.io/vyne/pages/install.html) for platform details.
+- **For CUDA execution:** a compatible NVIDIA driver/device. `nvcc` is needed
+  only when regenerating the committed PTX, not for ordinary device-region builds.
 
 Vendored dependencies under `vendor/`: OpenBLAS (optional, for
-`--blas`), the stb single headers used by `vimage`, and the FTXUI
+`--blas`), raylib 6.2, the stb single headers used by `vimage`, and the FTXUI
 amalgamated header (MIT) used by `vynec init`'s questionnaire. FTXUI is
 header-only and adds no runtime dependency to generated projects.
 
@@ -1278,7 +1506,7 @@ board and is not part of CI.
 vyne/
 ├── main.cpp                       # entry point
 ├── xmake.lua                      # build script
-├── compiler/
+├── vyne/compiler/
 │   ├── lexer/                     # tokenizer, string interpolation, hex literals
 │   ├── parser/                    # recursive descent, type resolution
 │   ├── ast/                       # AST nodes, Value type, SymbolContainer
@@ -1296,7 +1524,7 @@ vyne/
 │   │   └── *.cpp                  # per-feature emitters
 │   └── types.h                    # VType enum
 │
-├── runtime/                       # desktop C runtime, linked into compiled output
+├── vyne/runtime/                  # desktop C runtime, linked into compiled output
 │   ├── vyne_runtime.h
 │   ├── diagnostics.h              # shared with compiler
 │   ├── detail/                    # arena, arrays, maps, strings, structs,
@@ -1305,7 +1533,7 @@ vyne/
 │       ├── vcore.h, vfs.h, vmath.h, vmem.h
 │       └── vyne_pool_runtime.h
 │
-├── arduino/                       # AVR C runtime, linked into firmware
+├── vyne/runtime/arduino/           # AVR C runtime, linked into firmware
 │   ├── vyne_arduino.h             # entry point: setup() / loop() wrapper
 │   └── detail/
 │       ├── mcu_types.h            # VyneValue, type tags, boxing helpers
@@ -1320,7 +1548,12 @@ vyne/
 │       ├── mcu_eeprom.h           # EEPROM via <avr/eeprom.h> (4)
 │       └── mcu_interrupts.h       # interrupts + watchdog (8)
 │
-├── modules/
+├── vyne/runtime/esp32/             # ESP32 C++ sketch runtime, display/touch/networking
+├── vyne/runtime/device/            # device backend and CUDA kernel sources
+├── vyne/runtime/vraylib/           # checked native graphics/audio bridge
+├── vyne/runtime/vplot/             # shared native chart/raster core
+│
+├── vyne/modules/
 │   ├── common/                    # native C++ module bindings
 │   │   ├── vcore/                 # system utilities
 │   │   ├── vmath/                 # scalar math
@@ -1329,7 +1562,9 @@ vyne/
 │   │   └── vml/                   # ML native bindings
 │   └── external/                  # libraries written in Vyne
 │       ├── vlin/                  # linear algebra
-│       ├── vml/                   # neural network primitives
+│       ├── vml/                   # CPU dense/MLP primitives
+│       ├── vtensor/               # device handle + HWC metadata
+│       ├── vnn/                   # explicit device CNN/training blocks
 │       ├── vfft/                  # FFT with plan caching
 │       ├── vrand/                 # distributions and sampling
 │       ├── vstat/                 # statistics, PSNR/SSIM
@@ -1345,7 +1580,8 @@ vyne/
 │       ├── vtermplot/             # terminal plotting
 │       ├── vplot/                 # universal colorful charts, images, ESP32 and live series
 │       ├── vimage/                # PNG/JPEG I/O
-│       ├── vconv/                 # forward convolution
+│       ├── vconv/                 # CPU/device forward/backward convolution
+│       ├── vraylib/               # managed/native raylib, raymath and rlgl facade
 │       ├── vi2c/                  # I2C device surface (AVR)
 │       ├── vspi/                  # SPI device surface (AVR)
 │       ├── vbio/                  # bioinformatics
@@ -1359,6 +1595,8 @@ vyne/
 │
 ├── examples/                      # language and library examples
 │   ├── arduino/                   # AVR firmware examples (tinyml_xor.vy, ...)
+│   ├── projects/                  # SRCNN, ESPCN, HW-950 plotter and raylib showcase
+│   ├── graphics/                  # Bodycam and Sector Shift scenes/shaders
 │   ├── benchmark/                 # matmul, recursion, ML training
 │   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, voptim, vsparse, vdecomp, vfft)
 │   ├── network/                   # vnet (archival, no longer maintained)
@@ -1368,12 +1606,13 @@ vyne/
 │
 ├── models/                        # pre-trained weights (.dat)
 ├── tests/                         # test suite
-├── docs/                          # documentation site
+├── docs/                          # 61-page static manual: src/, scripts/, pages/, search
 ├── scripts/                       # build and test scripts
 ├── share/vyne/                    # init templates + license texts
 └── vendor/                        # third-party libraries
     ├── openblas/
     ├── stb/                       # image codecs for vimage
+    ├── raylib/                    # vendored raylib 6.2, raymath and rlgl
     └── ftxui_all.hpp              # TUI for vynec init
 ```
 
@@ -1402,6 +1641,54 @@ bindings, and call graphs.
 
 ---
 
+## Documentation
+
+The [GitHub Pages manual](https://t2ncay.github.io/vyne/) covers the language,
+libraries, tools and showcases for v0.7.0 plus current `main` features.
+
+| Guide | Start here for |
+| :--- | :--- |
+| [Projects & Tooling](https://t2ncay.github.io/vyne/pages/projects.html) | Initialization, manifests, hardware selection, build/run/bench |
+| [ESP32 & Hardware](https://t2ncay.github.io/vyne/pages/esp32.html) | Presets, memory, peripherals, display/touch and HW-950 |
+| [Values & Types](https://t2ncay.github.io/vyne/pages/types.html) | Typed buffers, Float32 and borrowed Slice views |
+| [CUDA & Devices](https://t2ncay.github.io/vyne/pages/device.html) | Device frames, intrinsics, helpers and explicit training |
+| [Universal Plotting](https://t2ncay.github.io/vyne/pages/vplot.html) | Host images, ESP32 charts and bounded live updates |
+| [Managed Graphics & Audio](https://t2ncay.github.io/vyne/pages/vraylib-managed.html) | App frames/resources, shaders, cameras and audio |
+| [ESPCN Showcase](https://t2ncay.github.io/vyne/pages/espcn.html) | Inference, checkpoints and training reproduction |
+| [Graphics Showcase](https://t2ncay.github.io/vyne/pages/graphics.html) | Portable project, Bodycam, Sector Shift and acceptance |
+
+Maintained site sources live under `docs/src/`; registered library references
+come from their in-repo manuals, including `vraylib/MANAGED.md`. GitHub Pages
+serves **committed files from `master:/docs`**, so source edits require regeneration:
+
+```shell
+cd docs
+npm run sync
+npm test
+npm run check
+python -m http.server 8000
+```
+
+Open http://localhost:8000/ for a preview. The dependency-free generator needs
+Node 18+; no npm installation step is required. `npm run check` rebuilds outside
+the checkout, detects stale/missing/retired output, and checks local resources,
+anchors, navigation and search. Documentation CI runs the pipeline tests and
+freshness check on relevant source/manual changes.
+
+With an existing compiler, verify complete Markdown examples from the repository root:
+
+```shell
+python docs/scripts/test-examples.py
+python docs/scripts/test-examples.py --graphics
+```
+
+`VYNEC` or `--compiler` selects the compiler. The default checks six executable
+examples; `--graphics` additionally compiles the managed window example without
+opening its interactive loop. See [Documentation maintenance](docs/README-SECTIONS.md)
+for sources, generation, links and publication details.
+
+---
+
 ## Limitations
 
 The project is at an early alpha. The following constraints are known and
@@ -1414,13 +1701,19 @@ runtime but their pin maps, memory sizes, and interrupt counts differ;
 they are not yet wired up. The `VYNE_MCU_ARENA_SIZE` macro is the only
 tunable at present.
 
-**AVR runtime does not bind Wire, SPI, or SoftwareSerial.** Those
-libraries ship `.cpp` sources; binding them requires the AVR build
-integration to add their `src/` directories to the include path and link
-the corresponding objects. The runtime currently ships self-contained
-headers under `arduino/detail/` for everything it does expose, and
-`mcu_eeprom.h` uses `<avr/eeprom.h>` directly rather than pulling the
-bundled Arduino EEPROM library.
+**Embedded support is target-specific.** AVR binds Wire/SPI, but not
+SoftwareSerial; ESP32 uses NVS instead of EEPROM and has board-specific pin and
+peripheral support. Driver heap/sprites are separate from the Vyne arena budget.
+See the embedded reference pages for runtime differences and tested presets.
+
+**Device training is explicit.** `vtensor`/`vnn` do not provide automatic tensor
+AD, mixed-dtype operations, asynchronous streams or multi-GPU scheduling. Handles
+must stay region-local. ReLU ESPCN has a full-device path; other activations use
+the CPU inference path documented by the project.
+
+**vraylib is compiled desktop-only.** Native resources outlive region rewinds
+and follow the App/resource ownership rules. Rendering needs a graphics context;
+the large historical scenes also require their local assets.
 
 **No `dot`, `norm`, `argmax`, `argmin` on AVR.** These would require
 `VyneArray_f64` / `VyneArray_i64` containers in `mcu_types.h` plus
@@ -1478,8 +1771,7 @@ Contributions are welcome. Before opening a pull request:
 2. Follow the existing code style: feature-split `.cpp` files in
    `compiler/codegen/`, `static inline` functions in `runtime/detail/`,
    `.vy` leaf modules with a facade under `modules/external/`, and
-   self-contained `static inline` headers under `arduino/detail/`
-   (no `#include <EEPROM.h>`-style dependencies on bundled libraries).
+   target-specific headers under `vyne/runtime/arduino/` or `vyne/runtime/esp32/`.
 3. Add tests. New language features belong under `examples/transpiler/`
    or `tests/`; new library functions belong in the library's own test
    file and, where applicable, in `examples/`. New Arduino bindings
@@ -1488,6 +1780,9 @@ Contributions are welcome. Before opening a pull request:
 4. Update the relevant README under `modules/external/<lib>/` if the
    public surface changed.
 5. Run `xmake test` and ensure everything passes.
+6. Update the maintained documentation sources/library manuals, run
+   `npm run sync`, `npm test` and `npm run check` from `docs/`, and commit the
+   generated Pages output alongside the source. See [Documentation](#documentation).
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the full guide. Bug reports
 and feature requests use the templates under `.github/ISSUE_TEMPLATE/`.
@@ -1497,8 +1792,7 @@ and feature requests use the templates under `.github/ISSUE_TEMPLATE/`.
 ## License
 
 Vyne is dual-licensed: the compiler is AGPL-3.0-only, the runtime is MIT.
-See [LICENSE](LICENSE), [LICENSE-MIT](LICENSE-MIT), and
-[TRADEMARK.md](TRADEMARK.md) for details.
+See [LICENSE](LICENSE) and [LICENSE-MIT](LICENSE-MIT) for details.
 
 ---
 
