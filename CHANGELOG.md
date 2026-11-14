@@ -1534,7 +1534,7 @@ No intentional broad source-language breaking change is introduced in this windo
 7. **Migrate graphical applications through the managed App guide.** Pair cleanup, respect resource dependencies, and keep transient values within frame lifetimes.
 8. **Use the new plotting facade.** Import `vplot/vplot.vy` for host/display/live charts; retain `vtermplot` for terminal output.
 9. **Regenerate documentation after source/manual edits.** Run `npm run sync`, `npm test`, and `npm run check` in `docs/`, then commit generated Pages output.
-10. **Synchronize release versions before publishing.** The current compiler/toolchain/site metadata still identify v0.7.0; update release-facing references to v0.8.0.
+10. **Synchronize release versions before publishing.** Ensure the compiler/toolchain/site metadata and release-facing references identify v0.8.0.
 
 ---
 

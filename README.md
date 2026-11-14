@@ -8,7 +8,7 @@
 [![Docs](https://github.com/t2ncay/vyne/actions/workflows/docs.yml/badge.svg)](https://t2ncay.github.io/vyne/)
 [![License](https://img.shields.io/badge/license-AGPL--3.0%20%2F%20MIT-blue.svg)](#license)
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C.svg)](https://isocpp.org/)
-[![Version](https://img.shields.io/badge/version-0.7.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr%20%7C%20esp32-lightgrey.svg)](#build-from-source)
 
 ---
@@ -16,7 +16,7 @@
 ## Overview
 
 **Read the [language and library manual](https://t2ncay.github.io/vyne/)**,
-covering v0.7.0 and current `main` features across 61 pages. Start with
+covering v0.8.0 and current `main` features across 61 pages. Start with
 [Projects & Tooling](https://t2ncay.github.io/vyne/pages/projects.html),
 [ESP32 & Hardware](https://t2ncay.github.io/vyne/pages/esp32.html),
 [CUDA & Devices](https://t2ncay.github.io/vyne/pages/device.html), or
@@ -1644,7 +1644,7 @@ bindings, and call graphs.
 ## Documentation
 
 The [GitHub Pages manual](https://t2ncay.github.io/vyne/) covers the language,
-libraries, tools and showcases for v0.7.0 plus current `main` features.
+libraries, tools and showcases for v0.8.0 plus current `main` features.
 
 | Guide | Start here for |
 | :--- | :--- |

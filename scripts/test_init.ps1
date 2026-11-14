@@ -58,7 +58,7 @@ try {
 
     $toml = Get-Content -Raw (Join-Path $blank "project.toml")
     Check "toml-name" ($toml -match 'name = "blank_demo"')
-    Check "toml-vyne" ($toml -match 'vyne = "0\.7\.0"')
+    Check "toml-vyne" ($toml -match 'vyne = "0\.8\.0"')
     Check "toml-target" ($toml -match '\[targets\.desktop\]')
 
     $main = Get-Content -Raw (Join-Path $blank "src/main.vy")

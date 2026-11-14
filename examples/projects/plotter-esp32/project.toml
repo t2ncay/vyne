@@ -8,7 +8,7 @@ repository = ""
 keywords = []
 
 [toolchain]
-vyne = "0.7.0"
+vyne = "0.8.0"
 
 [dependencies]
 vplot = "0.1"

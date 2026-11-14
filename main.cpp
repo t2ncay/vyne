@@ -39,7 +39,7 @@
 #define VYNE_FILENO fileno
 #endif
 
-static constexpr const char* VYNE_VERSION = "0.7.0";
+static constexpr const char* VYNE_VERSION = "0.8.0";
 
 // ---------------------------------------------------------------------------
 // Terminal capability detection

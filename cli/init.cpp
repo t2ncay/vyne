@@ -61,7 +61,7 @@ using Vyne::Template::trim;
 
 namespace {
 
-constexpr const char* VYNE_VERSION = "0.7.0";
+constexpr const char* VYNE_VERSION = "0.8.0";
 
 #ifdef _WIN32
 constexpr const char* NULL_SINK = " > NUL 2>&1";

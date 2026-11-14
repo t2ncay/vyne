@@ -205,14 +205,14 @@ linked from the reference pages.
 
 Feature references include ESP32/HW-950, universal/live plotting, zero-copy slices,
 device helpers, `vtensor`/`vnn`, managed/native `vraylib`, and ESPCN/graphics
-showcases. `v0.7.0 + main` remains the scope; newer main features do not imply
+showcases. `v0.8.0 + main` remains the scope; newer main features do not imply
 an additional release tag.
 
 ## Notes on the original content
 
 The original single-file `index.html` was split losslessly when the site was
 first generated. The current site is a rewritten manual: the language surface,
-region policy matrix, library set, CLI, and showcase track the v0.7.0 tree and
+region policy matrix, library set, CLI, and showcase track the v0.8.0 tree and
 the unreleased `main` features (autodiff, `@realtime`, `@layout<soa>`,
 `voptim`/`vsparse`/`vdecomp`, CUDA conv, and the SRCNN project).
 

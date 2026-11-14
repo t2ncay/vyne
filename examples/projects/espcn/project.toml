@@ -8,7 +8,7 @@ repository = ""
 keywords = ["super-resolution", "espcn", "cuda", "image"]
 
 [toolchain]
-vyne = "0.7.0"
+vyne = "0.8.0"
 
 [dependencies]
 vimage = "0.4"
