@@ -111,7 +111,7 @@ def main():
     results = {name:png_info(BUILD/f"plots/{name}.png") for name in ("line","scatter","bars","histogram","heatmap")}
     (BUILD / "host_results.json").write_text(json.dumps(results,indent=2)+"\n")
     for name in ("chart","line","scatter","bars","histogram","heatmap"):
-        png_info(BUILD/f"friendly/{name}.png",(640,360))
+        png_info(BUILD/f"quick_plots/{name}.png",(640,360))
     invalid = BUILD / "invalid"
     invalid.mkdir(exist_ok=True)
     for name, source, flags, diagnostic in [
