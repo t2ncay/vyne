@@ -1338,6 +1338,7 @@ vyne/
 │       ├── vcsv/                  # CSV/TSV tables
 │       ├── vjson/                 # JSON parser and serializer
 │       ├── vtermplot/             # terminal plotting
+│       ├── vplot/                 # universal colorful charts, images, ESP32 and live series
 │       ├── vimage/                # PNG/JPEG I/O
 │       ├── vconv/                 # forward convolution
 │       ├── vi2c/                  # I2C device surface (AVR)
