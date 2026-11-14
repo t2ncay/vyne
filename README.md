@@ -15,6 +15,11 @@
 
 ## Overview
 
+**Desktop graphics:** [vraylib](vyne/modules/external/vraylib/README.md) binds
+the vendored raylib 6.2, raymath, and rlgl APIs to compiled Vyne programs.
+Try the [desktop showcase](examples/projects/raylib-showcase/README.md) or the
+modernized `examples/graphics/camera_test.vy` bodycam scene.
+
 Vyne is a statically-analyzable numerical programming language with
 **three** execution backends sharing a single AST:
 
