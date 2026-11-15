@@ -61,3 +61,7 @@ examples/test/*_cache
 !vendor/raylib/**
 !vyne/runtime/vraylib/CMakeLists.txt
 !vyne/runtime/vraylib/api.json
+
+# Keep the safety entry point versioned; other machine-local PS scripts stay ignored.
+!examples/safety/run_safety.ps1
+examples/optimization/build/

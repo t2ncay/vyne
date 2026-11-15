@@ -18,15 +18,16 @@ To keep the "Vyne" from getting tangled, please follow these guidelines:
 
 ### 1. Prerequisites
 
-You will need a C++17 (or higher) compatible compiler (GCC, Clang, or MSVC) and CMake.
+Use a C++23-capable toolchain and xmake for the compiler. Registered regression
+tests require Python 3.11 or newer; target-specific suites may need additional tools.
 
 ### 2. Build Instructions
 
 ```bash
-git clone https://github.com/yourusername/vyne.git && cd vyne
-
-./build.bat # For Windows
-./build.sh  # For Linux
+git clone https://github.com/t2ncay/vyne.git
+cd vyne
+xmake
+xmake test
 ```
 
 ---
@@ -50,9 +51,13 @@ We follow the Conventional Commits specification. This helps us generate clean c
 
 ### Pull Requests
 
-1. Fork the repo and create your branch from `main`.
+1. Fork the repo and create your branch from `master`.
 2. Ensure your code compiles without warnings (we use `-Wall -Wextra -Wpedantics`).
-3. Add a small test script in `tests/` if you are adding new syntax.
+3. Add a meaningful fixture under `examples/transpiler/`, `examples/test/`, or
+   `examples/optimization/` and register its compile/runtime/output contract in
+   `scripts/tests/suites.toml`. Run `xmake test` (core) or `xmake test-all` (all
+   registered suites). See `scripts/tests/README.md`; empty or unregistered
+   discovery is an error, not a passing test run.
 4. Open a PR with a clear description of your changes.
 
 ---

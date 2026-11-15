@@ -1,0 +1,33 @@
+# Preserved pre-V03 acceptance logic for a controlled baseline, not current testing.
+$ErrorActionPreference = 'Stop'
+$Here = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Repo = Resolve-Path (Join-Path $Here '..\..')
+$VYNEC = $env:VYNEC
+$pass = 0
+$fail = 0
+function Run-Case {
+    param([string]$File, [string]$Expect)
+    $name = Split-Path -Leaf $File
+    $out = & $VYNEC --run $File 2>&1 | Out-String
+    $ok = $false
+    switch ($Expect) {
+        'pass' { if ($out -notmatch 'VNE-07[012]') { $ok = $true } }
+        'fail-runtime-VNE-072' { if ($out -match 'VNE-072') { $ok = $true } }
+        'fail-compile-VNE-070' { if ($out -match 'VNE-070') { $ok = $true } }
+        'fail-compile-VNE-071' { if ($out -match 'VNE-071') { $ok = $true } }
+    }
+    if ($ok) { $script:pass++; "PASS $name ($Expect)" }
+    else { $script:fail++; "FAIL $name ($Expect)" }
+}
+Run-Case (Join-Path $Here 'correct_index.vy')         'pass'
+Run-Case (Join-Path $Here 'negative_index.vy')        'fail-runtime-VNE-072'
+Run-Case (Join-Path $Here 'too_large_index.vy')       'fail-runtime-VNE-072'
+Run-Case (Join-Path $Here 'wrong_index_count.vy')     'fail-compile-VNE-071'
+Run-Case (Join-Path $Here 'escape_via_assignment.vy') 'fail-compile-VNE-070'
+Run-Case (Join-Path $Here 'escape_via_member.vy')     'fail-compile-VNE-070'
+Run-Case (Join-Path $Here 'escape_via_index.vy')      'fail-compile-VNE-070'
+Run-Case (Join-Path $Here 'boxed_local_in_region.vy') 'pass'
+Run-Case (Join-Path $Here 'safe_commit.vy')           'pass'
+Run-Case (Join-Path $Here 'nested_region.vy')         'pass'
+"$pass passed, $fail failed"
+if ($fail -gt 0) { exit 1 }

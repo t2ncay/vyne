@@ -149,29 +149,8 @@ target_end()
 -- Test infrastructure
 -- ===========================================================================
 
-local VYNEC_EXE = path.join(ROOT, "vynec" .. EXE_SUFFIX)
-
-local SKIP_TESTS = {
-	"tests/graphics/game_test.vy",
-	"tests/graphics/drone_fpv.vy",
-	"tests/graphics/sector_shift.vy",
-	"tests/graphics/vcas.vy",
-	"tests/graphics/vdec_minigame.vy",
-	"tests/graphics/vterm.vy",
-	"tests/network/vserv/server.vy",
-	"tests/dsp/room_spatializer.vy",
-	"tests/dsp/v_studio.vy",
-}
-
-local function _is_skipped(f)
-	local abs = path.absolute(f)
-	for _, s in ipairs(SKIP_TESTS) do
-		if path.absolute(s) == abs then
-			return true
-		end
-	end
-	return false
-end
+-- Test tasks launch a host executable even before a target configuration loads.
+local VYNEC_EXE = path.join(ROOT, "vynec" .. (os.host() == "windows" and ".exe" or ""))
 
 local function _collect(patterns)
 	local out = {}
@@ -184,56 +163,27 @@ local function _collect(patterns)
 	return out
 end
 
-local function _run_one(f)
-	local ok = false
-	try({
+-- The manifest inventories actual fixtures and checks compile/runtime/output
+-- contracts. Interactive examples are not indiscriminately launched as tests.
+local function _python(task_os)
+	local configured = task_os.getenv("PYTHON")
+	if configured and #configured > 0 then return configured end
+	return task_os.host() == "windows" and "python" or "python3"
+end
+
+local function _run_group(name, task_os, task_try)
+	-- File-scope DSL functions do not inherit on_run's sandbox helpers.
+	return task_try({
 		function()
-			os.execv(VYNEC_EXE, { f }, {
-				stdout = os.nuldev(),
-				stderr = os.nuldev(),
-			})
-			ok = true
+			task_os.execv(_python(task_os), {
+				path.join(ROOT, "scripts/run_tests.py"),
+				"--suite", name:lower(), "--compiler", VYNEC_EXE,
+			}, { curdir = ROOT })
+			return 0
 		end,
-		catch({ function() end }),
-	})
-	return ok
+		{ catch = function(err) print("%s suite failed: %s", name, err) end },
+	}) or 1
 end
-
-local function _run_group(name, patterns)
-	if not os.isfile(VYNEC_EXE) then
-		raise("vynec" .. EXE_SUFFIX .. " not found — run `xmake` first")
-	end
-
-	local files = _collect(patterns)
-	local total, passed, failed, skipped = 0, 0, 0, 0
-
-	print(("%s tests:"):format(name))
-	for _, f in ipairs(files) do
-		total = total + 1
-		if _is_skipped(f) then
-			skipped = skipped + 1
-			print("  SKIP: " .. path.basename(f))
-		elseif _run_one(f) then
-			passed = passed + 1
-			print("  PASS: " .. path.basename(f))
-		else
-			failed = failed + 1
-			print("  FAIL: " .. path.basename(f))
-		end
-	end
-	print(("%s: %d total, %d passed, %d failed, %d skipped"):format(name, total, passed, failed, skipped))
-	print()
-	return failed
-end
-
-local PATTERNS = {
-	compiler = { "tests/compiler/*.vy", "tests/*.vy" },
-	dsp = { "tests/dsp/*.vy" },
-	graphics = { "tests/graphics/*.vy" },
-	network = { "tests/network/*.vy" },
-	training = { "tests/training/*.vy" },
-	vserv = { "tests/network/vserv/*.vy" },
-}
 
 -- ---------------------------------------------------------------------------
 -- Individual test tasks
@@ -243,9 +193,33 @@ task("test-compiler")
 set_category("test")
 set_menu({ description = "Run compiler tests" })
 on_run(function()
-	if _run_group("Compiler", PATTERNS.compiler) > 0 then
+	if _run_group("Compiler", os, try) > 0 then
 		raise("Compiler tests failed")
 	end
+end)
+task_end()
+
+task("test-safety")
+set_category("test")
+set_menu({ description = "Run phase-checked safety regressions" })
+on_run(function()
+	if _run_group("Safety", os, try) > 0 then raise("Safety tests failed") end
+end)
+task_end()
+
+task("test-ast")
+set_category("test")
+set_menu({ description = "Run registered interpreter regressions" })
+on_run(function()
+	if _run_group("AST", os, try) > 0 then raise("Interpreter tests failed") end
+end)
+task_end()
+
+task("test-optimization")
+set_category("test")
+set_menu({ description = "Run optimization and runner acceptance" })
+on_run(function()
+	if _run_group("Optimization", os, try) > 0 then raise("Optimization tests failed") end
 end)
 task_end()
 
@@ -253,7 +227,7 @@ task("test-dsp")
 set_category("test")
 set_menu({ description = "Run DSP tests" })
 on_run(function()
-	if _run_group("DSP", PATTERNS.dsp) > 0 then
+	if _run_group("DSP", os, try) > 0 then
 		raise("DSP tests failed")
 	end
 end)
@@ -263,7 +237,7 @@ task("test-graphics")
 set_category("test")
 set_menu({ description = "Run graphics tests" })
 on_run(function()
-	if _run_group("Graphics", PATTERNS.graphics) > 0 then
+	if _run_group("Graphics", os, try) > 0 then
 		raise("Graphics tests failed")
 	end
 end)
@@ -273,7 +247,7 @@ task("test-network")
 set_category("test")
 set_menu({ description = "Run network tests" })
 on_run(function()
-	if _run_group("Network", PATTERNS.network) > 0 then
+	if _run_group("Network", os, try) > 0 then
 		raise("Network tests failed")
 	end
 end)
@@ -283,7 +257,7 @@ task("test-training")
 set_category("test")
 set_menu({ description = "Run training tests" })
 on_run(function()
-	if _run_group("Training", PATTERNS.training) > 0 then
+	if _run_group("Training", os, try) > 0 then
 		raise("Training tests failed")
 	end
 end)
@@ -293,7 +267,7 @@ task("test-vserv")
 set_category("test")
 set_menu({ description = "Run VServ tests" })
 on_run(function()
-	if _run_group("VServ", PATTERNS.vserv) > 0 then
+	if _run_group("VServ", os, try) > 0 then
 		raise("VServ tests failed")
 	end
 end)
@@ -303,37 +277,17 @@ task("test-codegen")
 set_category("test")
 set_menu({ description = "Run codegen golden tests" })
 on_run(function()
-	local script = path.join(ROOT, "scripts/test_codegen.sh")
-	if not os.isfile(script) then
-		raise("scripts/test_codegen.sh not found")
-	end
-	-- bash is present on Git-for-Windows, MSYS2, Linux, and macOS.
-	os.execv("bash", { script }, {
-		curdir = ROOT,
-		envs = { VYNEC = "./vynec" .. EXE_SUFFIX },
-	})
+	if _run_group("Codegen", os, try) > 0 then raise("Codegen golden tests failed") end
 end)
 task_end()
 
 task("test-init")
 set_category("test")
-set_menu({ description = "Run vynec init tests" })
+set_menu({ description = "Run initialization and hardware configuration acceptance" })
 on_run(function()
-	if os.host() ~= "windows" then
-		print("test-init: skipped (PowerShell test script is Windows-only)")
-		return
-	end
-	local script = path.join(ROOT, "scripts/test_init.ps1")
-	if not os.isfile(script) then
-		raise("scripts/test_init.ps1 not found")
-	end
-	os.execv("powershell", {
-		"-NoProfile",
-		"-ExecutionPolicy",
-		"Bypass",
-		"-File",
-		script,
-	}, { curdir = ROOT })
+	os.execv(_python(os), { path.join(ROOT, "scripts/test_hardware.py") }, {
+		curdir = ROOT, envs = { VYNEC = VYNEC_EXE },
+	})
 end)
 task_end()
 
@@ -341,7 +295,7 @@ task("test-hardware")
 set_category("test")
 set_menu({ description = "Run fresh-project hardware configuration acceptance tests" })
 on_run(function()
-    os.execv("python", { path.join(ROOT, "scripts/test_hardware.py") }, { curdir = ROOT })
+    os.execv(_python(os), { path.join(ROOT, "scripts/test_hardware.py") }, { curdir = ROOT, envs = { VYNEC = VYNEC_EXE } })
 end)
 task_end()
 
@@ -349,7 +303,7 @@ task("test-vplot")
 set_category("test")
 set_menu({ description = "Run universal plotting acceptance in examples/projects/plotter-esp32" })
 on_run(function()
-    os.execv("python", { path.join(ROOT, "examples/projects/plotter-esp32/tests/run.py") }, { curdir = ROOT })
+    os.execv(_python(os), { path.join(ROOT, "examples/projects/plotter-esp32/tests/run.py") }, { curdir = ROOT, envs = { VYNEC = VYNEC_EXE } })
 end)
 task_end()
 
@@ -359,13 +313,12 @@ task_end()
 
 task("test")
 set_category("test")
-set_menu({ description = "Run core test suite (compiler, dsp, network, training)" })
+set_menu({ description = "Run registered core, safety, golden, interpreter and optimization tests" })
 on_run(function()
 	local failed = 0
-	failed = failed + _run_group("Compiler", PATTERNS.compiler)
-	failed = failed + _run_group("DSP", PATTERNS.dsp)
-	failed = failed + _run_group("Network", PATTERNS.network)
-	failed = failed + _run_group("Training", PATTERNS.training)
+	for _, suite in ipairs({ "Compiler", "Safety", "Codegen", "AST", "Optimization" }) do
+		failed = failed + _run_group(suite, os, try)
+	end
 	if failed > 0 then
 		raise("Some test groups failed")
 	end
@@ -374,15 +327,12 @@ task_end()
 
 task("test-all")
 set_category("test")
-set_menu({ description = "Run every test suite" })
+set_menu({ description = "Run every registered automated suite, including numerical and headless graphics acceptance" })
 on_run(function()
 	local failed = 0
-	failed = failed + _run_group("Compiler", PATTERNS.compiler)
-	failed = failed + _run_group("DSP", PATTERNS.dsp)
-	failed = failed + _run_group("Graphics", PATTERNS.graphics)
-	failed = failed + _run_group("Network", PATTERNS.network)
-	failed = failed + _run_group("Training", PATTERNS.training)
-	failed = failed + _run_group("VServ", PATTERNS.vserv)
+	for _, suite in ipairs({ "Compiler", "Safety", "Codegen", "AST", "DSP", "Training", "Graphics", "Optimization" }) do
+		failed = failed + _run_group(suite, os, try)
+	end
 	if failed > 0 then
 		raise("Some test groups failed")
 	end
@@ -393,29 +343,7 @@ task("quick-test")
 set_category("test")
 set_menu({ description = "Run fast smoke tests" })
 on_run(function()
-	local tests = {
-		"array_test.vy",
-		"for_test.vy",
-		"function_test.vy",
-		"enum_test.vy",
-		"interface_test.vy",
-		"map_test.vy",
-		"string_test.vy",
-		"pipeline_test.vy",
-	}
-	local failed = 0
-	for _, name in ipairs(tests) do
-		local f = path.join(ROOT, "tests", name)
-		if _run_one(f) then
-			print("  PASS: " .. name)
-		else
-			print("  FAIL: " .. name)
-			failed = failed + 1
-		end
-	end
-	if failed > 0 then
-		raise("Some quick tests failed")
-	end
+	if _run_group("Compiler", os, try) > 0 then raise("Quick smoke tests failed") end
 end)
 task_end()
 
@@ -423,9 +351,10 @@ task("benchmark")
 set_category("test")
 set_menu({ description = "Run performance benchmarks" })
 on_run(function()
-	for _, name in ipairs({ "fib_test.vy", "factorial_test.vy", "bubble_sort_test.vy" }) do
-		os.execv(VYNEC_EXE, { "--benchmark", path.join(ROOT, "tests", name) })
-	end
+	os.execv(VYNEC_EXE, {
+		"bench", path.join(ROOT, "examples/optimization/profile_safe.vy"),
+		"--report", path.join(ROOT, "build/benchmark.json"),
+	}, { curdir = ROOT })
 end)
 task_end()
 
@@ -455,13 +384,11 @@ on_run(function()
 		try({
 			function()
 				os.execv("g++", args, {
-					stdout = warn_file,
-					stderr = warn_file,
-					appendout = true,
-					appenderr = true,
+					stdout = warn_file, stderr = warn_file,
+					appendout = true, appenderr = true,
 				})
 			end,
-			catch({ function() end }),
+			{ catch = function() end },
 		})
 	end
 	print("Scan complete. Results written to warning.txt")
@@ -470,19 +397,17 @@ task_end()
 
 task("check-leaks")
 set_category("action")
-set_menu({ description = "Build with ASan/LSan and run a network test" })
+set_menu({ description = "Build the compiler with ASan/UBSan and run registered safety acceptance" })
 on_run(function()
-	-- LeakSanitizer is bundled into ASan on Linux/macOS. On Windows
-	-- MinGW, LSan is not available; ASan alone is still useful for
-	-- use-after-free, so keep the task working but skip the leak
-	-- portion there.
-	local sanitizer = is_windows and "-fsanitize=address" or "-fsanitize=address,undefined"
+	if os.host() == "windows" then raise("check-leaks requires a supported POSIX sanitizer toolchain") end
+	local sanitizer = "-fsanitize=address,undefined"
 
 	local sources = _collect(VYNEC_SOURCES)
-	local out_exe = path.join(ROOT, "vyne_leak_test" .. EXE_SUFFIX)
+	local out_exe = path.join(ROOT, "vyne_leak_release" .. EXE_SUFFIX)
 
 	local args = { "-std=c++23", "-O1", "-g", sanitizer }
 	table.insert(args, "-I.")
+	table.insert(args, "-Ivendor")
 	for _, d in ipairs(COMMON_DEFINES) do
 		table.insert(args, "-D" .. d)
 	end
@@ -502,10 +427,11 @@ on_run(function()
 	end
 	table.insert(args, "-pthread")
 
-	print("Building vyne_leak_test" .. EXE_SUFFIX .. "...")
+	print("Building instrumented compiler...")
 	os.execv("g++", args)
 
-	print("Running vyne_leak_test" .. EXE_SUFFIX .. " tests/network/socket.vy ...")
-	os.execv(out_exe, { "tests/network/socket.vy" })
+	os.execv(_python(os), {
+		path.join(ROOT, "scripts/run_tests.py"), "--suite", "safety", "--compiler", out_exe,
+	}, { curdir = ROOT })
 end)
 task_end()

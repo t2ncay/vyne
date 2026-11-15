@@ -8,8 +8,9 @@ results must link their tests, issue, and implementation commit.
 
 ## Current measured gains
 
-V01 and V02 are verified on Windows and Linux/WSL: child failures reach CLI
-callers, and diagnostic/instrumented generated-C builds are explicit. Executable
+V01-V03 are verified on Windows and Linux/WSL: child failures reach CLI callers,
+diagnostic/instrumented generated-C builds are explicit, and regression discovery
+and phase-specific expectations are enforced. Executable
 speed and runtime memory gains are **not measured**. Debug/instrumented artifact
 sizes and functional detector results are recorded separately below.
 
@@ -18,6 +19,7 @@ sizes and functional detector results are recorded separately below.
 | Setup | Not measured | Not measured | No runtime change | Full actionable roadmap | 70 native sub-issues, stable task IDs and evidence policy | Established |
 | V01 | Not measured | Not measured | Runtime failures no longer masked by CLI | Correct child exit codes and decoded summaries | Cross-platform exact-status regression and CI step | Implemented/tested awaiting merge |
 | V02 | Not measured | Runtime memory not measured; larger debug artifacts reported | Emitted-runtime ASan/UBSan faults detected; normal bounds checks retained | Visible warnings, selectable detectors, explicit unsupported modes | Identical emitted C/checksum across supported profiles; 28 Windows/38 Linux checks | Implemented/tested awaiting merge |
+| V03 | Not measured | Not measured | Empty/false-pass/wrong-phase/missing-artifact/golden/timeout failures rejected | Actual fixture discovery, useful failures, portable compatibility entries | 30 adversarial regressions per platform; 21 registered Windows contracts; reviewed C goldens | Implemented/tested awaiting merge |
 
 ## Running tests
 
@@ -31,6 +33,7 @@ absence of a diagnostic. Build the compiler, then run:
 ```sh
 python examples/optimization/run.py --task V01
 python examples/optimization/run.py --task V02
+python examples/optimization/run.py --task V03
 python examples/optimization/run.py --task all
 # Select a differently named compiler, as in CI:
 python examples/optimization/run.py --task V01 --compiler ./vyne_run --cxx g++-13
@@ -196,8 +199,7 @@ the standalone process-status contract compiles without warnings.
 - **Date/status:** 2026-11-15; implemented/tested awaiting the single PR #221 merge.
 - **Before revision:** `9180e90`; the Windows binary was tested before rebuilding,
   and the preserved Linux V01 binary was used for the Linux baseline.
-- **Implementation:** commit titled `feat(cli): add generated-C diagnostic and sanitizer profiles`;
-  its hash is recorded in #152 after creation.
+- **Implementation:** `86b6c1b`, `feat(cli): add generated-C diagnostic and sanitizer profiles`.
 - **Sources:** `main.cpp`, `cli/file_handler.h/.cpp`, and `cli/bench.cpp`.
 - **Tests:** `profile_safe.vy`, `profile_warning.vy`, `profile_overflow.vy`,
   `profile_address.vy`, and `run.py` in this directory. CI runs V02 in both
@@ -348,3 +350,161 @@ contract. Existing bounds checks remain enabled unless the caller independently
 opts out. Instrumentation helps find defects; it does not solve C03/C11 or establish
 complete arena memory safety. Retain poison/reuse and target-specific regressions
 as the next safety work proceeds.
+
+### V03 — Real discovery and phase-specific outcome checking
+
+- **Issue:** [#154](https://github.com/t2ncay/vyne/issues/154), child of #150.
+- **Date/status:** 2026-11-15; implemented/tested awaiting PR #221 merge.
+- **Before revision:** `86b6c1b` (all six CI checks passed on that revision).
+- **Implementation:** commit titled `fix(tests): enforce discovery and phase-specific outcomes`;
+  its hash is recorded in #154 after creation.
+- **Sources:** `scripts/run_tests.py`, `scripts/tests/suites.toml`, `xmake.lua`,
+  shell compatibility entries, the now-versioned safety PowerShell wrapper, and
+  restored `examples/safety/` fixtures.
+- **New tests:** `v03_runner_tests.py`, controlled baseline fixtures under
+  `fixtures/`, and reviewed scalar/region fixtures plus `.expected.c` goldens
+  under `codegen/`. All are under `examples/optimization/`.
+
+#### Reproduced baseline failures
+
+1. `xmake test-compiler` returned success while reporting **0 total, 0 passed,
+   0 failed** because its `tests/` patterns selected a nonexistent tree.
+2. The original local PowerShell safety runner accepted **10/10 cases** with a
+   controlled compiler double that **always exits 1**. Four supposed positive
+   cases printed syntax failures; two runtime-negative cases failed in compilation
+   with the expected code. The old predicate accepted all six inappropriate
+   outcomes. The preserved predicate fixture reproduces this behavior; it is not
+   used for current acceptance. The corrected wrapper accepts the four proper
+   compile rejections and rejects the **six false positives/wrong-phase cases**.
+3. Real fixture failures became visible: typed declarations used obsolete `=`,
+   the boxed accumulator was never declared, and the commit example ended a
+   function with an unsupported semicolon. The restored boxed fixtures declare
+   their locals with current syntax and intentionally retain boxed representation.
+4. Nonempty xmake execution exposed previously unreachable helper errors: root
+   DSL functions lacked sandbox `catch`/`pcall`, and target-derived suffix selection
+   chose a stale Linux `vynec` on Windows. Task helpers now receive the sandbox
+   APIs explicitly and select the host executable suffix.
+
+#### Verified gains
+
+| Parameter | Evidence |
+| --- | --- |
+| Discovery | A checked manifest inventories 21 cases in eight registered suites; missing/empty/unregistered selections fail |
+| Phase correctness | Compile rejections require exact status/diagnostic and no executable; runtime failures require successful compilation first |
+| Positive correctness | Zero status, required output, and executable existence are all checked; failure/unreachable markers reject the run |
+| Codegen reproducibility | Two reviewed C goldens compare on Windows and Linux, retaining guards, temporaries, and cleanup |
+| Timeout behavior | A process that prints a success marker then hangs with a descendant is rejected; process-tree cleanup is exercised |
+| User experience | Current paths, explicit case labels, useful failure details, and portable shell/PowerShell entries replace silent/no-op behavior |
+| Runtime performance/memory | Not measured; no executable speed, RSS, allocation, or arena improvement claimed |
+
+Local verification:
+
+- **30 adversarial runner regressions passed on Windows and on Linux/WSL.**
+  They inject incorrect statuses/diagnostics, missing outputs/artifacts/goldens,
+  duplicate or unregistered discovery, all-skipped definitions, altered C, and
+  real timeout/descendant behavior. They do not merely mirror successful execution.
+- **16 registered core contracts passed on both platforms:** three compiler,
+  ten safety, two golden/native, and one interpreter case.
+- **Windows `xmake test-all` passed all 21 registered contracts across eight
+  suites**, including numerical/training tests and existing headless graphics
+  and optimization delegates. A delegated suite is one registry contract with
+  additional internal checks; counts are not summed as distinct programs.
+- **Linux/WSL 19 direct registered contracts passed** across core, DSP, and
+  training. The shell codegen, aggregate-core, and explicit-source AST entries
+  also passed. The Windows PowerShell safety entry passed its ten real cases.
+- The combined optimization runner still passes V01's 20 checks and V02's
+  28 Windows / 38 Linux checks alongside V03. No prior acceptance was discarded.
+- Five documentation pipeline tests and freshness/link validation pass after
+  synchronizing the maintained installation/testing guidance and generated site.
+- Boundary commands reject an unregistered network suite and a nonexistent AST
+  source with nonzero status; neither becomes an empty successful test run.
+
+The new CI step runs V03 in both compiler build configurations. Remote results
+are recorded in the PR after the commit, not inferred from these local results.
+
+#### Reproduction and inventory policy
+
+Environment: same Windows/i7-14700 and Ubuntu/WSL2 setup as V02; Python 3.14.5
+on Windows and 3.14.4 on Linux, GCC 15.2.0, existing V02 compiler binaries (no
+compiler/runtime C++ implementation was changed in V03). The portable runner
+requires Python 3.11+; cases use default release compilation. Each native case
+compiles to fresh temporary output then directly executes that output. Tests do
+not reuse old `.exe`/`.vy.c` files in `examples/`.
+
+Windows baseline before V03:
+
+```powershell
+xmake test-compiler
+python examples/optimization/v03_runner_tests.py --baseline --original
+```
+
+The original PowerShell file had been ignored by Git; its acceptance predicate
+is preserved in `fixtures/legacy_safety.ps1.in` for subsequent reproduction.
+The corrected PowerShell wrapper has a narrowly scoped ignore exception and is
+now versioned. Reproduce the controlled contrast on Windows after V03:
+
+```powershell
+python examples/optimization/v03_runner_tests.py --baseline --compare
+```
+
+Current Windows acceptance:
+
+```powershell
+xmake test
+xmake test-all
+pwsh -NoProfile -File examples/safety/run_safety.ps1
+python examples/optimization/run.py --task all
+```
+
+Linux/WSL acceptance from the repository root, selecting the preserved V02 host
+compiler rather than an older unrelated `vynec` binary:
+
+```sh
+python3 scripts/run_tests.py --suite compiler --suite safety --suite codegen \
+  --suite ast --suite dsp --suite training --compiler ./v02_linux_release
+python3 examples/optimization/run.py --task all --compiler ./v02_linux_release
+VYNEC=./v02_linux_release bash scripts/run_all_tests.sh
+VYNEC=./v02_linux_release bash scripts/test_codegen.sh
+VYNEC=./v02_linux_release bash scripts/test_ast.sh examples/optimization/codegen/scalar.vy
+```
+
+Use `python scripts/run_tests.py --suite all --list` to inspect and validate the
+registry without compiling. Registry fixtures and discovered paths must agree.
+Empty/missing output contracts, missing fixtures/goldens, duplicates, skip entries,
+and unknown suites return failure before execution. Individual failed execution
+contracts return nonzero after reporting all selected cases. Per-phase timeouts
+default to 120s, with longer explicit limits for delegated suites. Relative CLI
+paths resolve from the caller; manifest source paths are repository-relative.
+Xmake chooses the host compiler suffix before target configuration and defaults
+to `python` on Windows or `python3` on POSIX; `PYTHON` overrides the interpreter.
+
+Artifacts use temporary space-containing directories under ignored
+`build/test-runs/` and `build/optimization/`, then are removed. Existing graphics
+delegates retain their documented `build/vraylib-tests/` cache. Goldens are reviewed
+test sources: only machine-specific runtime include roots and insignificant
+layout are normalized. The runner never updates expected C automatically.
+
+The inventory does not claim every application in `examples/` is an automated
+test. Archival network/VServ examples have no registered headless suite; their
+legacy task names now fail explicitly. Firmware and real-device testing remain
+target-specific. See `scripts/tests/README.md` for schema and suite coverage.
+
+Documentation validation from `docs/`: `npm run sync`, `npm test`, and
+`npm run check`. The committed generated output matches the maintained sources.
+
+#### C17 follow-up and language philosophy
+
+After restoring the commit fixture's syntax, a mixed boxed/native assignment
+revealed a distinct compiler defect: a new typed variable shadows the intended
+outer boxed binding. `boxed_native_assignment.vy` prints `C17 outer size: 0`
+instead of 3 and exits 1. This is retained as pending **C17 / #223**, the 72nd
+native sub-issue. The boxed commit fixture now explicitly tests a boxed value
+promoted by named-region commit and verifies size/elements after transient reuse;
+the mixed-representation failure is not claimed as solved or passing coverage.
+
+V03 changes test infrastructure and stale test syntax, not language semantics.
+Named-region promotion stays explicit, regions remain deterministic/no-GC, and
+tests retain the intended boxed reassignment and checkpoint behavior. Goldens
+preserve actual emitted bounds/cleanup code; timing limits bound test execution,
+not program realtime guarantees. Better failure detection makes later safety and
+performance claims reproducible without disabling checks or hiding known defects.

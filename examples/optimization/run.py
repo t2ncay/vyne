@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import shlex
 import subprocess
+import sys
 import tempfile
 
 
@@ -213,9 +214,24 @@ def check_v02(compiler, work, *, baseline):
     print(f"PASS V02: {checks} acceptance checks")
 
 
+def check_v03(compiler, work, *, baseline):
+    if baseline:
+        run([sys.executable, HERE / "v03_runner_tests.py", "--baseline"],
+            cwd=ROOT, expected=0, required=("BASELINE V03 preserved:",))
+        return
+    run([sys.executable, HERE / "v03_runner_tests.py"], cwd=ROOT, expected=0,
+        required=("PASS V03 runner regressions: 30 checks",))
+    result = run([sys.executable, ROOT / "scripts/run_tests.py", "--suite", "compiler",
+                  "--suite", "safety", "--suite", "codegen", "--suite", "ast",
+                  "--compiler", compiler], cwd=ROOT, expected=0,
+                 required=("Registered tests: 16 executed, 16 passed, 0 failed",))
+    print(ANSI.sub("", result.stdout).strip())
+    print("PASS V03: 30 adversarial runner regressions and 16 registered core cases")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", choices=["V01", "V02", "all"], default="all")
+    parser.add_argument("--task", choices=["V01", "V02", "V03", "all"], default="all")
     parser.add_argument("--compiler", default=os.environ.get(
         "VYNEC", str(ROOT / ("vynec.exe" if os.name == "nt" else "vynec"))))
     parser.add_argument("--cxx", default=os.environ.get("CXX", "g++"))
@@ -235,6 +251,8 @@ def main():
             check_v01(compiler, Path(temporary), baseline=args.baseline, cxx=args.cxx)
         if args.task in ("V02", "all"):
             check_v02(compiler, Path(temporary), baseline=args.baseline)
+        if args.task in ("V03", "all"):
+            check_v03(compiler, Path(temporary), baseline=args.baseline)
 
 
 if __name__ == "__main__":

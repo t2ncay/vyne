@@ -1559,13 +1559,23 @@ reports a clear diagnostic instead of a mid-compile `command not found`.
 
 ```bash
 xmake test
+xmake test-all
+python scripts/run_tests.py --suite all --list
 ```
 
-Runs the suite under `tests/`, including compiler tests, numerical
-library tests, region-safety harness under `examples/safety/`, and
-(if the AVR toolchain is present) a host-side test of the emitted MCU
-C translation unit — full firmware verification requires an actual
-board and is not part of CI.
+Requires Python 3.11+. `xmake test` runs registered compiler, safety, golden,
+interpreter, and optimization acceptance. `xmake test-all` adds complex/interpolation,
+CPU training, and the existing headless graphics acceptance suite. The manifest
+at `scripts/tests/suites.toml` currently registers 21 cases across eight suites;
+delegated suites perform additional internal checks.
+
+The runner checks compilation separately from execution, requires exact statuses
+and output, and fails on missing fixtures, goldens, contracts, or empty discovery.
+Artifacts stay under `build/`. Standalone runtime C tests remain under
+`vyne/runtime/tests/`; firmware/device validation uses its target-specific suites.
+See [`scripts/tests/README.md`](scripts/tests/README.md) for contracts, commands,
+and golden maintenance. Archival network/VServ applications do not count as
+headless automated coverage.
 
 ---
 
@@ -1670,13 +1680,13 @@ vyne/
 │   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, voptim, vsparse, vdecomp, vfft)
 │   ├── network/                   # vnet (archival, no longer maintained)
 │   ├── safety/                    # region escape negative tests
+│   ├── optimization/              # optimization acceptance, runner regressions and C goldens
 │   ├── training/                  # vlin/vml training scripts
 │   └── transpiler/                # codegen coverage tests
 │
 ├── models/                        # pre-trained weights (.dat)
-├── tests/                         # test suite
 ├── docs/                          # 61-page static manual: src/, scripts/, pages/, search
-├── scripts/                       # build and test scripts
+├── scripts/                       # build/test scripts and tests/suites.toml registry
 ├── share/vyne/                    # init templates + license texts
 └── vendor/                        # third-party libraries
     ├── openblas/
@@ -1842,7 +1852,8 @@ Contributions are welcome. Before opening a pull request:
    `.vy` leaf modules with a facade under `modules/external/`, and
    target-specific headers under `vyne/runtime/arduino/` or `vyne/runtime/esp32/`.
 3. Add tests. New language features belong under `examples/transpiler/`
-   or `tests/`; new library functions belong in the library's own test
+   or `examples/test/`; register automated outcomes in `scripts/tests/suites.toml`.
+   Optimization regressions belong under `examples/optimization/`; new library functions belong in the library's own test
    file and, where applicable, in `examples/`. New Arduino bindings
    belong in the matching `arduino/detail/mcu_*.h` and the corresponding
    entry in `compiler/codegen/native_maps.h`.

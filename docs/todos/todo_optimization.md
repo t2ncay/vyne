@@ -74,7 +74,7 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
 
 1. Validation: V01-V08 establish reliable failures, diagnostics, timing, and CI.
 2. Lifetime and allocation: C01-C06, C16, R01-R06, R11-R13.
-3. Semantics and representation: C07-C15, R09-R10, R14-R20.
+3. Semantics and representation: C07-C15, C17, R09-R10, R14-R20.
 4. Allocation/copy reduction: P01-P06, P08-P10, P14-P15.
 5. Numerical/device work: R07-R08 first, then P07, P11-P13, P16-P18.
 6. Incremental architecture and legacy candidates: A01, L01-L08 as evidence
@@ -101,7 +101,7 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   drive desktop GCC compile/run/assembly. Windows diagnostic and POSIX sanitizer
   coverage pass; unsupported targets/modes reject rather than silently downgrade.
   See [#152](https://github.com/t2ncay/vyne/issues/152) and the V02 results ledger.
-- [ ] **V03 — Repair test discovery and outcome assertions** (high, S).
+- [x] **V03 — Repair test discovery and outcome assertions** (high; implemented/tested).
   `xmake.lua:229-236`, `scripts/test_codegen.sh:25,55-66`, and
   `scripts/run_all_tests.sh:15-23` reference missing root test trees.
   `examples/safety/run_safety.ps1:39-40` can classify unrelated failures as passes.
@@ -110,6 +110,11 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   V01's strict runner reproduced an additional gap: `examples/safety/correct_index.vy`
   is rejected at line 9 for legacy `:: Type =` declaration syntax. Audit stale
   fixtures before treating their absence-of-diagnostic runner as valid coverage.
+  Registered manifest/portable runner now checks discovery, compile/run phases,
+  exact status/output, missing artifacts, C goldens, and timeouts. Restored safety
+  fixture syntax and genuine boxed cases. Windows `xmake test-all` passes all 21
+  registered contracts; 30 adversarial runner regressions and core cases pass on
+  Windows/Linux. See [#154](https://github.com/t2ncay/vyne/issues/154) and V03 results.
 - [ ] **V04 — Correct benchmark timing and memory reporting** (high, S).
   `bench.ps1:218-246,270-274` measures exit observation after polling sleeps;
   default polling can dominate short cases. Separate process launch, actual
@@ -227,6 +232,13 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   Acceptance: all supported transfers restore zero modes, bounds/realtime state,
   checkpoints, device/persistent state, finally, and defers once. Audit longjmp
   live locals; unsupported combinations must reject consistently until supported.
+- [ ] **C17 — Preserve outer binding during boxed/native reassignment** (high; reproduced in V03).
+  Reassignment promotion in `codegen/assignments.cpp` emits a new typed outer
+  variable inside a region instead of updating its pre-existing boxed binding.
+  `examples/optimization/boxed_native_assignment.vy` prints size 0 instead of 3
+  after explicit commit and exits 1. Acceptance: compatible assignments update the
+  intended lexical binding across representation changes; preserve alias/lifetime
+  contracts without shadow declarations. [#223](https://github.com/t2ncay/vyne/issues/223).
 
 ## R: runtime safety and lifetime
 
@@ -519,7 +531,7 @@ independent percentage gains. Missing metrics are **not measured**, never zero.
 
 ### GitHub sub-issue index
 
-All 71 tasks (70 original plus the R20 diagnostic follow-up) are attached using
+All 72 tasks (70 original plus R20 and C17 follow-ups) are attached using
 GitHub's native sub-issue relationship, not only textual references. Each issue
 links back to its detailed entry above.
 
@@ -528,6 +540,7 @@ links back to its detailed entry above.
 | Validation | V01 [#151](https://github.com/t2ncay/vyne/issues/151), V02 [#152](https://github.com/t2ncay/vyne/issues/152), V03 [#154](https://github.com/t2ncay/vyne/issues/154), V04 [#156](https://github.com/t2ncay/vyne/issues/156), V05 [#158](https://github.com/t2ncay/vyne/issues/158), V06 [#160](https://github.com/t2ncay/vyne/issues/160), V07 [#162](https://github.com/t2ncay/vyne/issues/162), V08 [#164](https://github.com/t2ncay/vyne/issues/164) |
 | Compiler (1) | C01 [#166](https://github.com/t2ncay/vyne/issues/166), C02 [#168](https://github.com/t2ncay/vyne/issues/168), C03 [#170](https://github.com/t2ncay/vyne/issues/170), C04 [#173](https://github.com/t2ncay/vyne/issues/173), C05 [#175](https://github.com/t2ncay/vyne/issues/175), C06 [#177](https://github.com/t2ncay/vyne/issues/177), C07 [#179](https://github.com/t2ncay/vyne/issues/179), C08 [#181](https://github.com/t2ncay/vyne/issues/181) |
 | Compiler (2) | C09 [#182](https://github.com/t2ncay/vyne/issues/182), C10 [#184](https://github.com/t2ncay/vyne/issues/184), C11 [#186](https://github.com/t2ncay/vyne/issues/186), C12 [#188](https://github.com/t2ncay/vyne/issues/188), C13 [#190](https://github.com/t2ncay/vyne/issues/190), C14 [#192](https://github.com/t2ncay/vyne/issues/192), C15 [#194](https://github.com/t2ncay/vyne/issues/194), C16 [#197](https://github.com/t2ncay/vyne/issues/197) |
+| Compiler follow-up | C17 [#223](https://github.com/t2ncay/vyne/issues/223) |
 | Runtime (1) | R01 [#199](https://github.com/t2ncay/vyne/issues/199), R02 [#201](https://github.com/t2ncay/vyne/issues/201), R03 [#203](https://github.com/t2ncay/vyne/issues/203), R04 [#205](https://github.com/t2ncay/vyne/issues/205), R05 [#207](https://github.com/t2ncay/vyne/issues/207), R06 [#209](https://github.com/t2ncay/vyne/issues/209), R07 [#211](https://github.com/t2ncay/vyne/issues/211), R08 [#213](https://github.com/t2ncay/vyne/issues/213), R09 [#215](https://github.com/t2ncay/vyne/issues/215) |
 | Runtime (2) | R10 [#153](https://github.com/t2ncay/vyne/issues/153), R11 [#155](https://github.com/t2ncay/vyne/issues/155), R12 [#157](https://github.com/t2ncay/vyne/issues/157), R13 [#159](https://github.com/t2ncay/vyne/issues/159), R14 [#161](https://github.com/t2ncay/vyne/issues/161), R15 [#163](https://github.com/t2ncay/vyne/issues/163), R16 [#165](https://github.com/t2ncay/vyne/issues/165), R17 [#167](https://github.com/t2ncay/vyne/issues/167), R18 [#169](https://github.com/t2ncay/vyne/issues/169), R19 [#171](https://github.com/t2ncay/vyne/issues/171) |
 | Runtime follow-up | R20 [#222](https://github.com/t2ncay/vyne/issues/222) |
@@ -540,7 +553,9 @@ links back to its detailed entry above.
 | --- | --- | --- | --- |
 | Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | `1d80a09` |
 | V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass; all six CI checks at `9180e90` passed | `9180e90` |
-| V02 | Implemented/tested awaiting merge | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; V01 regression passes; debug artifact overhead recorded | `feat(cli): add generated-C diagnostic and sanitizer profiles`; hash recorded in #152 after commit |
+| V02 | Implemented/tested awaiting merge | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; all six CI checks at `86b6c1b` passed | `86b6c1b` |
+| V03 | Implemented/tested awaiting merge | Empty/false-pass baselines reproduced; strict Windows/Linux core and runner regressions, compatibility entries, and all 21 Windows registered contracts pass | `fix(tests): enforce discovery and phase-specific outcomes`; hash recorded in #154 after commit |
 | R20 | Planned | LP64 Int64 format warnings exposed by V02 | Pending |
+| C17 | Reproduced, planned solution | Boxed/native reassignment shadows outer binding; safe pending source retained | Pending |
 
 All other IDs are planned until their issue and ledger entry say otherwise.
