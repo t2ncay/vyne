@@ -83,12 +83,14 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
 
 ## V: validation and reproducibility
 
-- [ ] **V01 — Propagate executable exit status** (high, S; first implementation).
+- [x] **V01 — Propagate executable exit status** (high; reproduced and fixed).
   `cli/file_handler.cpp:1088-1144` prints child failure but returns success.
   Decode POSIX `system()` wait status; retain Windows status; distinguish launch
   failure. Acceptance: default and explicit run preserve success and multiple
   nonzero statuses, actual bounds failure propagates, compile-only still succeeds,
   and the displayed status is decoded. Test POSIX normal/signal/launch cases too.
+  Implemented/tested on Windows and Linux/WSL; see the V01 results ledger and
+  [#151](https://github.com/t2ncay/vyne/issues/151). Awaiting the single PR merge.
 - [ ] **V02 — Generated-C diagnostic and sanitizer profiles** (high, S/D).
   `cli/file_handler.cpp:961-987` uses `-O3 -w`; CI compiler sanitizers do not
   instrument ordinary emitted C. Add an explicit diagnostic path with useful
@@ -101,6 +103,9 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   `examples/safety/run_safety.ps1:39-40` can classify unrelated failures as passes.
   Acceptance: discover actual sources, reject empty suites, assert exact expected
   compile/runtime outcomes and required output; wire optimization tests into CI.
+  V01's strict runner reproduced an additional gap: `examples/safety/correct_index.vy`
+  is rejected at line 9 for legacy `:: Type =` declaration syntax. Audit stale
+  fixtures before treating their absence-of-diagnostic runner as valid coverage.
 - [ ] **V04 — Correct benchmark timing and memory reporting** (high, S).
   `bench.ps1:218-246,270-274` measures exit observation after polling sleeps;
   default polling can dominate short cases. Separate process launch, actual
@@ -518,7 +523,7 @@ only textual references. Each issue links back to its detailed entry above.
 
 | ID | Status | Evidence/results | Commit |
 | --- | --- | --- | --- |
-| Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | Initial roadmap commit |
-| V01 | Investigating | Exit-status reproduction pending | Pending |
+| Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | `1d80a09` |
+| V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass | `fix(cli): propagate generated executable exit status`; hash recorded in #151 after commit |
 
 All other IDs are planned until their issue and ledger entry say otherwise.

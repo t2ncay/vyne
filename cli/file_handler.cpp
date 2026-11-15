@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "file_handler.h"
+#include "process_status.h"
 #include "raylib_build.h"
 #include "../vyne/utils/sha256.h"
 #include "../vyne/compiler/contract_config.h"
@@ -1111,6 +1112,7 @@ static int runTranspile(
 
         auto start_exec = std::chrono::high_resolution_clock::now();
         int run_result = system(runCmd.c_str());
+        int exit_code = Vyne::decodeSystemExitStatus(run_result);
         auto end_exec = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> exec_ms =
             end_exec - start_exec;
@@ -1136,12 +1138,15 @@ static int runTranspile(
         vprintln("     {}execution {:.2f}ms", GREEN, exec_ms.count());
         vprintln("{} {} {}total      {:.2f}ms", YELLOW, "  -", BOLD, total_ms);
 
-        if (run_result != 0)
-            std::cout << RED << "  >> exited with code " << run_result << RESET
+        if (run_result == -1)
+            std::cerr << RED << "  error  could not launch or wait for executable"
+                      << RESET << "\n\n";
+        else if (exit_code != 0)
+            std::cout << RED << "  >> exited with code " << exit_code << RESET
                       << "\n\n";
 
         Vyne::DiagnosticEngine::printSummary();
-        return 0;
+        return exit_code;
     }
 
     // ---------------- --compile: stop after the .exe is built ----------------

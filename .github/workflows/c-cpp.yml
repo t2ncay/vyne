@@ -104,6 +104,12 @@ jobs:
           ./vyne_run --compile -o native_zero_test examples/transpiler/native_zero_side_effects.vy
           ./native_zero_test
 
+      - name: Run optimization exit-status acceptance
+        env:
+          VYNEC: ./vyne_run
+          CXX: g++-13
+        run: python3 examples/optimization/run.py --task V01
+
       - name: Run host touch calibration regression
         run: |
           set -euo pipefail
