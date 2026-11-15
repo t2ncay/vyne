@@ -110,6 +110,11 @@ jobs:
           CXX: g++-13
         run: python3 examples/optimization/run.py --task V01
 
+      - name: Run generated-C diagnostic and sanitizer acceptance
+        env:
+          VYNEC: ./vyne_run
+        run: python3 examples/optimization/run.py --task V02
+
       - name: Run host touch calibration regression
         run: |
           set -euo pipefail

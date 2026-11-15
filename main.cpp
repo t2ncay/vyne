@@ -158,6 +158,11 @@ static void printHelp() {
     row("--verify", GREEN, "Hash-check source, then interpret", W);
 
     header("FLAGS");
+    row("--c-profile <name>", YELLOW,
+        "Generated C: release (default), diagnostic, sanitize", W);
+    std::cout << "      " << C(CYAN, "diagnostic/sanitize: desktop GCC modes; sanitize needs POSIX ASan/UBSan") << "\n";
+    row("--sanitizers <list>", YELLOW,
+        "With sanitize: address, undefined, address,undefined (default)", W);
     row("--native", YELLOW, "Compile with " + C(CYAN, "-march=native"), W);
     row("--no-scratch-bounds",
         YELLOW,
@@ -415,6 +420,51 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--preset" || arg == "--hardware-set") {
             std::cerr << "error: " << arg << " requires a value\n";
             return 1;
+        } else if (arg == "--c-profile" || arg.rfind("--c-profile=", 0) == 0) {
+            std::string name;
+            if (arg == "--c-profile") {
+                if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                    std::cerr << "error: --c-profile requires release, diagnostic, or sanitize\n";
+                    return 2;
+                }
+                name = argv[++i];
+            } else {
+                name = arg.substr(std::strlen("--c-profile="));
+            }
+            if (name == "release")
+                opts.cProfile = GeneratedCProfile::Release;
+            else if (name == "diagnostic")
+                opts.cProfile = GeneratedCProfile::Diagnostic;
+            else if (name == "sanitize")
+                opts.cProfile = GeneratedCProfile::Sanitize;
+            else {
+                std::cerr << "error: unknown C profile '" << name
+                          << "'; expected release, diagnostic, or sanitize\n";
+                return 2;
+            }
+        } else if (arg == "--sanitizers" || arg.rfind("--sanitizers=", 0) == 0) {
+            std::string name;
+            if (arg == "--sanitizers") {
+                if (i + 1 >= argc || argv[i + 1][0] == '-') {
+                    std::cerr << "error: --sanitizers requires address, undefined, or address,undefined\n";
+                    return 2;
+                }
+                name = argv[++i];
+            } else {
+                name = arg.substr(std::strlen("--sanitizers="));
+            }
+            if (name == "address")
+                opts.cSanitizers = GeneratedCSanitizers::Address;
+            else if (name == "undefined")
+                opts.cSanitizers = GeneratedCSanitizers::Undefined;
+            else if (name == "address,undefined" || name == "undefined,address")
+                opts.cSanitizers = GeneratedCSanitizers::AddressUndefined;
+            else {
+                std::cerr << "error: unsupported sanitizer list '" << name
+                          << "'; expected address, undefined, or address,undefined\n";
+                return 2;
+            }
+            opts.sanitizersExplicit = true;
         } else if (arg == "--native")
             opts.nativeIsa = true;
         else if (arg == "--no-scratch-bounds")

@@ -74,7 +74,7 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
 
 1. Validation: V01-V08 establish reliable failures, diagnostics, timing, and CI.
 2. Lifetime and allocation: C01-C06, C16, R01-R06, R11-R13.
-3. Semantics and representation: C07-C15, R09-R10, R14-R19.
+3. Semantics and representation: C07-C15, R09-R10, R14-R20.
 4. Allocation/copy reduction: P01-P06, P08-P10, P14-P15.
 5. Numerical/device work: R07-R08 first, then P07, P11-P13, P16-P18.
 6. Incremental architecture and legacy candidates: A01, L01-L08 as evidence
@@ -91,12 +91,16 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   and the displayed status is decoded. Test POSIX normal/signal/launch cases too.
   Implemented/tested on Windows and Linux/WSL; see the V01 results ledger and
   [#151](https://github.com/t2ncay/vyne/issues/151). Awaiting the single PR merge.
-- [ ] **V02 — Generated-C diagnostic and sanitizer profiles** (high, S/D).
+- [x] **V02 — Generated-C diagnostic and sanitizer profiles** (high; implemented/tested).
   `cli/file_handler.cpp:961-987` uses `-O3 -w`; CI compiler sanitizers do not
   instrument ordinary emitted C. Add an explicit diagnostic path with useful
   warnings and supported ASan/UBSan flags. Acceptance: a generated-runtime
   regression is detected and optimized valid output still passes. Track platform
   support and arena-specific poison/reuse tests; ASan alone misses intra-arena UAF.
+  `--c-profile release|diagnostic|sanitize` and explicit detector selection now
+  drive desktop GCC compile/run/assembly. Windows diagnostic and POSIX sanitizer
+  coverage pass; unsupported targets/modes reject rather than silently downgrade.
+  See [#152](https://github.com/t2ncay/vyne/issues/152) and the V02 results ledger.
 - [ ] **V03 — Repair test discovery and outcome assertions** (high, S).
   `xmake.lua:229-236`, `scripts/test_codegen.sh:25,55-66`, and
   `scripts/run_all_tests.sh:15-23` reference missing root test trees.
@@ -152,6 +156,8 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   `functions.cpp:336-343` emit direct indexing/discard length. Acceptance: negative
   and upper-bound loads/stores on typed arrays, slices, parameters, and struct
   fields obey a documented common contract; only proven-safe paths omit checks.
+  V02 also reproduced invalid `.data` lowering for a scratch argument passed to
+  Array<Float64>; safe pending reproducer: `examples/optimization/scratch_array_argument.vy`.
 - [ ] **C04 — Scratch copy length and overlap** (high, S).
   `assignments.cpp:397-443` checks boxed but not typed source lengths and uses
   `memcpy` for scratch self-copy. Acceptance: short/long typed sources have the
@@ -322,6 +328,13 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   `runtime/arduino/detail/mcu_arena.h:12-14,48-66` repeat unchecked addition and
   ignore requested alignment. Acceptance: allocation has representable bounds,
   real backing/requested alignment, and documented OOM behavior on AVR/ESP32.
+- [ ] **R20 — Portable host Int64 formatting** (high, S; discovered through V02).
+  Diagnostic GCC on LP64 Linux reports `%lld`/`int64_t` type mismatches in
+  `runtime/detail/printing.h:22` and `conversions.h:76`. These are reproduced
+  warnings, not a claimed crash. Acceptance: use a portable fixed-width format
+  contract, audit related host formatting, and assert printed/stringified Int64
+  boundaries on Windows and Linux with format warnings enabled. Keep values and
+  string semantics unchanged. [#222](https://github.com/t2ncay/vyne/issues/222).
 
 ## P: measurable executable-performance opportunities
 
@@ -506,8 +519,9 @@ independent percentage gains. Missing metrics are **not measured**, never zero.
 
 ### GitHub sub-issue index
 
-All 70 tasks are attached using GitHub's native sub-issue relationship, not
-only textual references. Each issue links back to its detailed entry above.
+All 71 tasks (70 original plus the R20 diagnostic follow-up) are attached using
+GitHub's native sub-issue relationship, not only textual references. Each issue
+links back to its detailed entry above.
 
 | Group | ID -> issue |
 | --- | --- |
@@ -516,6 +530,7 @@ only textual references. Each issue links back to its detailed entry above.
 | Compiler (2) | C09 [#182](https://github.com/t2ncay/vyne/issues/182), C10 [#184](https://github.com/t2ncay/vyne/issues/184), C11 [#186](https://github.com/t2ncay/vyne/issues/186), C12 [#188](https://github.com/t2ncay/vyne/issues/188), C13 [#190](https://github.com/t2ncay/vyne/issues/190), C14 [#192](https://github.com/t2ncay/vyne/issues/192), C15 [#194](https://github.com/t2ncay/vyne/issues/194), C16 [#197](https://github.com/t2ncay/vyne/issues/197) |
 | Runtime (1) | R01 [#199](https://github.com/t2ncay/vyne/issues/199), R02 [#201](https://github.com/t2ncay/vyne/issues/201), R03 [#203](https://github.com/t2ncay/vyne/issues/203), R04 [#205](https://github.com/t2ncay/vyne/issues/205), R05 [#207](https://github.com/t2ncay/vyne/issues/207), R06 [#209](https://github.com/t2ncay/vyne/issues/209), R07 [#211](https://github.com/t2ncay/vyne/issues/211), R08 [#213](https://github.com/t2ncay/vyne/issues/213), R09 [#215](https://github.com/t2ncay/vyne/issues/215) |
 | Runtime (2) | R10 [#153](https://github.com/t2ncay/vyne/issues/153), R11 [#155](https://github.com/t2ncay/vyne/issues/155), R12 [#157](https://github.com/t2ncay/vyne/issues/157), R13 [#159](https://github.com/t2ncay/vyne/issues/159), R14 [#161](https://github.com/t2ncay/vyne/issues/161), R15 [#163](https://github.com/t2ncay/vyne/issues/163), R16 [#165](https://github.com/t2ncay/vyne/issues/165), R17 [#167](https://github.com/t2ncay/vyne/issues/167), R18 [#169](https://github.com/t2ncay/vyne/issues/169), R19 [#171](https://github.com/t2ncay/vyne/issues/171) |
+| Runtime follow-up | R20 [#222](https://github.com/t2ncay/vyne/issues/222) |
 | Performance (1) | P01 [#172](https://github.com/t2ncay/vyne/issues/172), P02 [#174](https://github.com/t2ncay/vyne/issues/174), P03 [#176](https://github.com/t2ncay/vyne/issues/176), P04 [#178](https://github.com/t2ncay/vyne/issues/178), P05 [#180](https://github.com/t2ncay/vyne/issues/180), P06 [#183](https://github.com/t2ncay/vyne/issues/183), P07 [#185](https://github.com/t2ncay/vyne/issues/185), P08 [#187](https://github.com/t2ncay/vyne/issues/187), P09 [#189](https://github.com/t2ncay/vyne/issues/189) |
 | Performance (2) | P10 [#191](https://github.com/t2ncay/vyne/issues/191), P11 [#193](https://github.com/t2ncay/vyne/issues/193), P12 [#195](https://github.com/t2ncay/vyne/issues/195), P13 [#196](https://github.com/t2ncay/vyne/issues/196), P14 [#198](https://github.com/t2ncay/vyne/issues/198), P15 [#200](https://github.com/t2ncay/vyne/issues/200), P16 [#202](https://github.com/t2ncay/vyne/issues/202), P17 [#204](https://github.com/t2ncay/vyne/issues/204), P18 [#206](https://github.com/t2ncay/vyne/issues/206) |
 | Architecture | A01 [#208](https://github.com/t2ncay/vyne/issues/208) |
@@ -524,6 +539,8 @@ only textual references. Each issue links back to its detailed entry above.
 | ID | Status | Evidence/results | Commit |
 | --- | --- | --- | --- |
 | Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | `1d80a09` |
-| V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass | `fix(cli): propagate generated executable exit status`; hash recorded in #151 after commit |
+| V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass; all six CI checks at `9180e90` passed | `9180e90` |
+| V02 | Implemented/tested awaiting merge | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; V01 regression passes; debug artifact overhead recorded | `feat(cli): add generated-C diagnostic and sanitizer profiles`; hash recorded in #152 after commit |
+| R20 | Planned | LP64 Int64 format warnings exposed by V02 | Pending |
 
 All other IDs are planned until their issue and ledger entry say otherwise.

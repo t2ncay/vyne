@@ -1412,13 +1412,41 @@ vynec [options] <file.vy>
 | `--hardware-set section.key=value` | Repeatable typed hardware override                  |
 | `--blas`             | Lower matched matrix calls to BLAS (desktop only)               |
 | `--native`           | Add `-march=native` to the host compiler invocation             |
+| `--c-profile <name>` | Host generated C: `release` (default), `diagnostic`, or `sanitize` |
+| `--sanitizers <list>` | With `sanitize`: `address`, `undefined`, or both (default)       |
 | `--emit-c`           | Emit the C source without invoking the host compiler            |
 | `--out <name>`       | Set the output binary name                                      |
 | `--quiet`            | Suppress notes and warnings                                     |
 | `--strict`           | Enable strict type checking                                     |
 
-Diagnostics are written to stderr. Exit codes are `0` on success, `1` on
-compilation or runtime error, `2` on CLI misuse.
+Compilation failures return `1`; compile-and-run forwards the generated program's
+termination status. C-profile option misuse returns `2`. Compiler diagnostics
+and sanitizer reports are written to stderr.
+
+The default generated-C profile retains the portable `-O3 -w` build.
+`--c-profile diagnostic` uses `-O2 -g -Wall -Wextra -Wformat=2` to expose
+downstream warnings and retain debug information. On supported POSIX host
+toolchains, `--c-profile sanitize` uses `-O1 -g`, warnings, ASan/UBSan, frame
+pointers, and nonrecovering sanitizer checks **in the generated executable**.
+Select one detector with `--sanitizers address` or `--sanitizers undefined`;
+both are enabled by default. These profiles support desktop `--compile`,
+`--run`, `--emit-asm`, and explicit-file `build`/`run` commands. Diagnostic and
+sanitize profiles reject interpreter-only, emit-C-only, and firmware modes;
+the benchmark driver rejects profile overrides. The Windows GCC backend
+supports diagnostic builds and explicitly rejects sanitizer builds.
+
+```sh
+vynec --run --c-profile diagnostic program.vy
+vynec --run --c-profile sanitize program.vy
+vynec --compile --c-profile sanitize --sanitizers address program.vy
+```
+
+Profiles do not alter Vyne's region policies or disable bounds checks. Sanitizer
+instrumentation and debug data have a cost; use release for performance
+comparisons. Retain arena poison/reuse regressions as well: sanitizers do not
+detect every stale reference inside a still-mapped arena block. See
+[`examples/optimization/OPTIMIZATION.md`](examples/optimization/OPTIMIZATION.md)
+for acceptance tests, exact flags, and observed results.
 
 For the Arduino target, `--flash` requires `arduino-cli` and the
 `arduino:avr` core installed; `--monitor` requires `arduino-cli` and a

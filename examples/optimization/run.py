@@ -14,10 +14,10 @@ ROOT = HERE.parents[1]
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
-def run(command, *, cwd, expected, required=(), forbidden=()):
+def run(command, *, cwd, expected, required=(), forbidden=(), env=None):
     result = subprocess.run(
         [str(arg) for arg in command], cwd=cwd, capture_output=True,
-        text=True, encoding="utf-8", errors="replace", timeout=120,
+        text=True, encoding="utf-8", errors="replace", timeout=120, env=env,
     )
     output = ANSI.sub("", result.stdout + result.stderr)
     if result.returncode != expected:
@@ -85,15 +85,145 @@ def check_v01(compiler, work, *, baseline, cxx):
     print(f"PASS V01: {checks} checks including platform process-status contract")
 
 
+def check_v02(compiler, work, *, baseline):
+    safe = HERE / "profile_safe.vy"
+    warning = HERE / "profile_warning.vy"
+    overflow = HERE / "profile_overflow.vy"
+    if baseline:
+        # Before V02 these unknown equals-form flags were silently ignored.
+        run([compiler, safe, "--c-profile=diagnostic", "-o", work / "ignored_diagnostic"],
+            cwd=work, expected=0, required=("V02 checksum: 10", "gcc -O3"),
+            forbidden=("-Wall", "-fsanitize="))
+        run([compiler, overflow, "--c-profile=sanitize", "-o", work / "ignored_sanitize"],
+            cwd=work, expected=0, required=("V02 UBSan probe escaped (BUG)", "gcc -O3"),
+            forbidden=("runtime error: signed integer overflow", "-fsanitize="))
+        print("BASELINE V02: requested profiles ignored; emitted overflow ran without detection")
+        return
+
+    checks = 0
+    run([compiler, "--help"], cwd=work, expected=0,
+        required=("--c-profile", "diagnostic", "sanitize"))
+    checks += 1
+    run([compiler, safe, "-o", work / "safe_default"], cwd=work, expected=0,
+        required=("V02 checksum: 10", "-O3 -w"), forbidden=("-fsanitize=",))
+    checks += 1
+    profiles = [("release", "-O3 -w"), ("diagnostic", "-O2 -g -Wall -Wextra -Wformat=2")]
+    if os.name != "nt":
+        profiles.append(("sanitize", "-fsanitize=address,undefined"))
+    # Do not inherit local sanitizer configuration into reproducible fixture runs.
+    env = {**os.environ, "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1:abort_on_error=0",
+           "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"}
+    reference_c = None
+    for profile, flags in profiles:
+        base = work / f"safe_{profile}"
+        run([compiler, "--compile", safe, "--c-profile", profile, "-o", base],
+            cwd=work, expected=0, required=(flags,), env=env)
+        generated = Path(str(base) + ".vy.c").read_bytes()
+        if reference_c is None:
+            reference_c = generated
+        elif generated != reference_c:
+            raise AssertionError(f"{profile}: profile unexpectedly changed emitted C semantics")
+        binary = Path(str(base) + (".exe" if os.name == "nt" else ""))
+        run([binary], cwd=work, expected=0, required=("V02 checksum: 10",),
+            forbidden=("AddressSanitizer:", "runtime error:"), env=env)
+        run([compiler, safe, f"--c-profile={profile}", "-o", base],
+            cwd=work, expected=0, required=("V02 checksum: 10", flags), env=env)
+        print(f"PASS V02 {profile}: identical emitted C and checksum; binary bytes={binary.stat().st_size}")
+        checks += 3
+
+    # Verify real compiler diagnostics, not just a printed flag label.
+    warnings = run([compiler, "--compile", warning, "--c-profile=diagnostic", "-o", work / "warning"],
+                   cwd=work, expected=0, required=("warning:", "intentionally_unused"))
+    print(f"PASS V02 diagnostic warning visibility: {(warnings.stdout + warnings.stderr).count('warning:')} compiler warnings surfaced")
+    checks += 1
+    for mode in ("build", "run"):
+        required = ("-O2 -g -Wall -Wextra -Wformat=2",)
+        if mode == "run":
+            required += ("V02 checksum: 10",)
+        run([compiler, mode, safe, "--c-profile=diagnostic", "-o", work / f"project_{mode}"],
+            cwd=work, expected=0, required=required)
+        checks += 1
+    run([compiler, HERE / "exit_bounds_failure.vy", "--c-profile=diagnostic",
+         "-o", work / "diagnostic_bounds"], cwd=work, expected=1,
+        required=("VNE-072",), forbidden=("AddressSanitizer:",))
+    checks += 1
+
+    # Assembly uses the same downstream profile; emit-C and interpreter do not.
+    asm_base = work / "diagnostic_assembly"
+    run([compiler, "--emit-asm", safe, "--c-profile=diagnostic", "-o", asm_base],
+        cwd=work, expected=0, required=("-O2 -g -Wall -Wextra -Wformat=2",))
+    if not Path(str(asm_base) + ".vy.s").is_file():
+        raise AssertionError("diagnostic assembly was not produced")
+    checks += 1
+    for args, marker in [
+        (["--c-profile"], "--c-profile requires"),
+        (["--c-profile", "--run"], "--c-profile requires"),
+        (["--c-profile=unknown"], "unknown C profile"),
+        (["--c-profile="], "unknown C profile"),
+        (["--sanitizers"], "--sanitizers requires"),
+        (["--sanitizers=thread", "--c-profile=sanitize"], "unsupported sanitizer list"),
+        (["--sanitizers="], "unsupported sanitizer list"),
+        (["--sanitizers=address"], "--sanitizers requires --c-profile sanitize"),
+        (["--sanitizers=address,undefined", "--c-profile=diagnostic"], "--sanitizers requires"),
+        (["--ast", "--c-profile=diagnostic"], "require a desktop"),
+        (["--emit-c", "--c-profile=sanitize"], "require a desktop"),
+        (["--arduino", "uno", "--c-profile=diagnostic"], "require a desktop"),
+        (["--esp32", "esp32", "--c-profile=sanitize"], "require a desktop"),
+    ]:
+        run([compiler, safe, *args, "-o", work / "rejected"], cwd=work,
+            expected=2, required=(marker,))
+        checks += 1
+    run([compiler, "bench", safe, "--c-profile=diagnostic"], cwd=work, expected=2,
+        required=("are not supported by bench",))
+    checks += 1
+
+    if os.name == "nt":
+        run([compiler, safe, "--c-profile=sanitize", "-o", work / "unsupported"],
+            cwd=work, expected=2, required=("unsupported by the Windows GCC backend",))
+        checks += 1
+        print("PASS V02 Windows sanitizer request explicitly rejected; no sanitizer execution claimed")
+    else:
+        sanitized_asm = work / "sanitized_assembly"
+        run([compiler, "--emit-asm", safe, "--c-profile=sanitize", "-o", sanitized_asm],
+            cwd=work, expected=0, required=("-fsanitize=address,undefined",), env=env)
+        if "__asan" not in Path(str(sanitized_asm) + ".vy.s").read_text():
+            raise AssertionError("sanitized assembly contains no address instrumentation")
+        checks += 1
+        run([compiler, HERE / "exit_bounds_failure.vy", "--c-profile=sanitize",
+             "--sanitizers=undefined,address", "-o", work / "sanitized_bounds"],
+            cwd=work, expected=1, required=("VNE-072", "-fsanitize=address,undefined"),
+            forbidden=("AddressSanitizer:",), env=env)
+        checks += 1
+        # Independent detector selection proves both runtimes work; combined mode
+        # was exercised with valid output above and remains the default.
+        for source, marker, escaped, extra in [
+            (overflow, "runtime error: signed integer overflow", "V02 UBSan probe escaped (BUG)",
+             ["--sanitizers", "undefined"]),
+            (HERE / "profile_address.vy", "AddressSanitizer: stack-buffer-overflow", "V02 ASan probe escaped (BUG)",
+             ["--sanitizers=address", "--no-scratch-bounds"]),
+        ]:
+            base = work / source.stem
+            run([compiler, "--compile", source, "--c-profile=sanitize", *extra, "-o", base],
+                cwd=work, expected=0, required=("-fsanitize=",), env=env)
+            run([base], cwd=work, expected=1, required=(marker,), forbidden=(escaped,), env=env)
+            run([compiler, source, "--c-profile=sanitize", *extra, "-o", base], cwd=work,
+                expected=1, required=(marker, "exited with code 1"), forbidden=(escaped,), env=env)
+            checks += 3
+            print(f"PASS V02 emitted-runtime detector: {source.name}")
+    print(f"PASS V02: {checks} acceptance checks")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", choices=["V01"], default="V01")
+    parser.add_argument("--task", choices=["V01", "V02", "all"], default="all")
     parser.add_argument("--compiler", default=os.environ.get(
         "VYNEC", str(ROOT / ("vynec.exe" if os.name == "nt" else "vynec"))))
     parser.add_argument("--cxx", default=os.environ.get("CXX", "g++"))
     parser.add_argument("--baseline", action="store_true",
-                        help="Assert the pre-V01 false-success behavior; not acceptance")
+                        help="Assert the selected task's pre-fix behavior; not acceptance")
     args = parser.parse_args()
+    if args.baseline and args.task == "all":
+        parser.error("--baseline requires a specific --task")
     compiler = Path(args.compiler).resolve()
     if not compiler.is_file():
         parser.error(f"compiler not found: {compiler}; build first or set VYNEC")
@@ -101,7 +231,10 @@ def main():
     artifacts = ROOT / "build" / "optimization"
     artifacts.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="vyne optimization ", dir=artifacts) as temporary:
-        check_v01(compiler, Path(temporary), baseline=args.baseline, cxx=args.cxx)
+        if args.task in ("V01", "all"):
+            check_v01(compiler, Path(temporary), baseline=args.baseline, cxx=args.cxx)
+        if args.task in ("V02", "all"):
+            check_v02(compiler, Path(temporary), baseline=args.baseline)
 
 
 if __name__ == "__main__":
