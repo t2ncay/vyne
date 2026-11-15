@@ -10,7 +10,7 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C.svg)](https://isocpp.org/)
 [![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr%20%7C%20esp32-lightgrey.svg)](#build-from-source)
-[![Discord](https://shields.io)](https://discord.gg/tMqmTb3ZM)
+[![Discord](https://img.shields.io/discord/1475562767384842280)](https://discord.gg/tMqmTb3ZM)
 
 ---
 
