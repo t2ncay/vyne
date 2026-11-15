@@ -10,6 +10,7 @@
 [![C++23](https://img.shields.io/badge/C%2B%2B-23-00599C.svg)](https://isocpp.org/)
 [![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr%20%7C%20esp32-lightgrey.svg)](#build-from-source)
+[![Discord](https://shields.io)](https://discord.gg/tMqmTb3ZM)
 
 ---
 
@@ -1709,7 +1710,7 @@ npm run check
 python -m http.server 8000
 ```
 
-Open http://localhost:8000/ for a preview. The dependency-free generator needs
+Open <http://localhost:8000/> for a preview. The dependency-free generator needs
 Node 18+; no npm installation step is required. `npm run check` rebuilds outside
 the checkout, detects stale/missing/retired output, and checks local resources,
 anchors, navigation and search. Documentation CI runs the pipeline tests and
