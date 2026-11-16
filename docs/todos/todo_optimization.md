@@ -4,9 +4,9 @@ Last updated: 2026-11-17. Baseline source: `6d6ef99` (before this effort).
 
 Parent issue: [#150](https://github.com/t2ncay/vyne/issues/150). The first validation
 milestone, V01–V04, is delivered by [PR #221](https://github.com/t2ncay/vyne/pull/221)
-from `optimization/memory-safety-and-codegen`, based on `master`. It is ready for
-review and awaits the required approval before merge. Only completed issues
-#151, #152, #154, and #156 close on its merge; the parent and the other 68 tasks
+from `optimization/memory-safety-and-codegen`, based on `master`. It merged in
+`00f1e7a`. Completed issues #151, #152, #154, and #156 are closed;
+the parent and the other 68 tasks
 remain open. Continue remaining work in focused follow-up branches and PRs based
 on updated `master`. Related interpreter discussion: [#35](https://github.com/t2ncay/vyne/issues/35).
 
@@ -100,7 +100,7 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   nonzero statuses, actual bounds failure propagates, compile-only still succeeds,
   and the displayed status is decoded. Test POSIX normal/signal/launch cases too.
   Implemented/tested on Windows and Linux/WSL; see the V01 results ledger and
-  [#151](https://github.com/t2ncay/vyne/issues/151). Awaiting PR #221 merge.
+  [#151](https://github.com/t2ncay/vyne/issues/151). Merged via PR #221 (`00f1e7a`).
 - [x] **V02 — Generated-C diagnostic and sanitizer profiles** (high; implemented/tested).
   `cli/file_handler.cpp:961-987` uses `-O3 -w`; CI compiler sanitizers do not
   instrument ordinary emitted C. Add an explicit diagnostic path with useful
@@ -137,7 +137,7 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   and Linux/WSL. Preserved polling fixture reproduces the timing/memory defects.
   Unix OS peaks/CPU accounting remain unsupported/unavailable explicitly; V05
   failed-run/checksum validation remains pending. See [#156](https://github.com/t2ncay/vyne/issues/156)
-  and the V04 results ledger. Awaiting PR #221 merge.
+  and the V04 results ledger. Merged via PR #221 (`00f1e7a`).
 - [ ] **V05 — Require checksums and exclude failed benchmark runs** (high, S).
   `bench.ps1:423-450,514-519,583-587` filters missing checksums and can accept
   none; failed/timed-out runs enter aggregates. Acceptance: absent, mismatched,
@@ -569,10 +569,10 @@ links back to its detailed entry above.
 | ID | Status | Evidence/results | Commit |
 | --- | --- | --- | --- |
 | Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | `1d80a09` |
-| V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass; all six CI checks at `9180e90` passed | `9180e90` |
-| V02 | Implemented/tested awaiting merge | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; all six CI checks at `86b6c1b` passed | `86b6c1b` |
-| V03 | Implemented/tested awaiting merge | Empty/false-pass baselines reproduced; strict Windows/Linux core and runner regressions, compatibility entries, and all 21 Windows registered contracts pass; all six CI checks passed | `3d441c4` |
-| V04 | Implemented/tested awaiting merge | Polling inflation and missed allocation burst reproduced; 17 measurement/export contracts pass per platform; Windows 21 registered contracts and Linux optimization/core/numerical suites pass; all six CI checks at `1b17ed6` passed | `1b17ed6` |
+| V01 | Merged via PR #221 (`00f1e7a`) | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass; all six CI checks at `9180e90` passed | `9180e90` |
+| V02 | Merged via PR #221 (`00f1e7a`) | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; all six CI checks at `86b6c1b` passed | `86b6c1b` |
+| V03 | Merged via PR #221 (`00f1e7a`) | Empty/false-pass baselines reproduced; strict Windows/Linux core and runner regressions, compatibility entries, and all 21 Windows registered contracts pass; all six CI checks passed | `3d441c4` |
+| V04 | Merged via PR #221 (`00f1e7a`) | Polling inflation and missed allocation burst reproduced; 17 measurement/export contracts pass per platform; Windows 21 registered contracts and Linux optimization/core/numerical suites pass; all six CI checks at `1b17ed6` passed | `1b17ed6` |
 | R20 | Planned | LP64 Int64 format warnings exposed by V02 | Pending |
 | C17 | Reproduced, planned solution | Boxed/native reassignment shadows outer binding; safe pending source retained | Pending |
 
