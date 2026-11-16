@@ -158,6 +158,10 @@ std::optional<std::string> tryEmitNativeModuleMethod(
         e.noteEmbeddedFeature("i2c");
     else if (cname.rfind("arduino_spi_", 0) == 0)
         e.noteEmbeddedFeature("spi");
+    else if (cname.rfind("esp32_wifi_sniff_", 0) == 0) {
+        e.noteEmbeddedFeature("wifi");
+        e.noteEmbeddedFeature("wifi_sniff");
+    }
     else if (cname.rfind("esp32_wifi_", 0) == 0)
         e.noteEmbeddedFeature("wifi");
     else if (cname.rfind("esp32_nvs_", 0) == 0)

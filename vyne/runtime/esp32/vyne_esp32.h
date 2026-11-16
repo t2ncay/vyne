@@ -36,6 +36,9 @@
 #if defined(VYNE_USE_WIFI)
 #include "detail/mcu_wifi.h"
 #endif
+#if defined(VYNE_USE_WIFI_SNIFF)
+#include "detail/mcu_wifi_sniff.h"
+#endif
 #if defined(VYNE_USE_DISPLAY)
 #include "detail/mcu_display.h"
 #endif

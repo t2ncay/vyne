@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import time
 import tempfile
 
@@ -102,6 +103,10 @@ def main():
     # C++ compatibility is required by the Arduino runtime.
     command(["g++","-std=c++17","-O2","-x","c++","tests/core.c","-o",BUILD/("core_cpp_tests"+exe),"-lm"])
     command([BUILD/("core_cpp_tests"+exe)])
+    sniff_args = [sys.executable, PROJECT / "tests/run_sniff.py"]
+    if args.sanitize: sniff_args.append("--sanitize")
+    if args.core_only: sniff_args.append("--core-only")
+    command(sniff_args)
     if args.core_only:
         print("PASS: portable core, band adapter pixel parity, bridge and C++ compatibility")
         return

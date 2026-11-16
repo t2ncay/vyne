@@ -586,6 +586,15 @@ static const NativeMapEntry ESP32_SPECIFIC_MAP[] = {
     {"wifi_mac", "esp32_wifi_mac", false},
     {"wifi_hostname", "esp32_wifi_hostname", false},
     {"wifi_scan", "esp32_wifi_scan", false},
+    {"wifi_sniff_start", "esp32_wifi_sniff_start", false, false, nullptr, nullptr, 1},
+    {"wifi_sniff_stop", "esp32_wifi_sniff_stop", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_sample", "esp32_wifi_sniff_sample", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_management", "esp32_wifi_sniff_management", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_data", "esp32_wifi_sniff_data", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_control", "esp32_wifi_sniff_control", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_elapsed_us", "esp32_wifi_sniff_elapsed_us", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_saturated", "esp32_wifi_sniff_saturated", false, false, nullptr, nullptr, 0},
+    {"wifi_sniff_error", "esp32_wifi_sniff_error", false, false, nullptr, nullptr, 0},
 
     // --- HTTP (mcu_wifi.h) ---
     {"http_get", "esp32_http_get", false},
