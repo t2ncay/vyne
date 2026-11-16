@@ -1,6 +1,6 @@
 # Vyne optimization and memory-safety roadmap
 
-Last updated: 2026-11-15. Baseline source: `6d6ef99` (before this effort).
+Last updated: 2026-11-16. Baseline source: `6d6ef99` (before this effort).
 
 Parent issue: [#150](https://github.com/t2ncay/vyne/issues/150). Branch:
 `optimization/memory-safety-and-codegen`, based on `master`. All implementation
@@ -115,12 +115,19 @@ Evidence: **S** = concrete source-level concern, not dynamically reproduced;
   fixture syntax and genuine boxed cases. Windows `xmake test-all` passes all 21
   registered contracts; 30 adversarial runner regressions and core cases pass on
   Windows/Linux. See [#154](https://github.com/t2ncay/vyne/issues/154) and V03 results.
-- [ ] **V04 — Correct benchmark timing and memory reporting** (high, S).
+- [x] **V04 — Correct benchmark timing and memory reporting** (high; reproduced and implemented/tested).
   `bench.ps1:218-246,270-274` measures exit observation after polling sleeps;
   default polling can dominate short cases. Separate process launch, actual
   execution, and sampling. Acceptance: known short/long workloads validate timing;
   distinguish sampled working set, process peak, and live arena bytes; retain raw
   precision and label missed/unsupported memory measurements.
+  Exit-aware waits and raw schema-v2 exports now distinguish Windows OS process
+  lifetime/peaks, monotonic exit observation, sampled working set, and optional
+  allocation-free `vmem.dump()` snapshots. All 17 V04 contracts pass on Windows
+  and Linux/WSL. Preserved polling fixture reproduces the timing/memory defects.
+  Unix OS peaks/CPU accounting remain unsupported/unavailable explicitly; V05
+  failed-run/checksum validation remains pending. See [#156](https://github.com/t2ncay/vyne/issues/156)
+  and the V04 results ledger. Awaiting the single PR merge.
 - [ ] **V05 — Require checksums and exclude failed benchmark runs** (high, S).
   `bench.ps1:423-450,514-519,583-587` filters missing checksums and can accept
   none; failed/timed-out runs enter aggregates. Acceptance: absent, mismatched,
@@ -554,7 +561,8 @@ links back to its detailed entry above.
 | Setup | Documentation and 70 native sub-issues established | No implementation gain claimed | `1d80a09` |
 | V01 | Implemented/tested awaiting merge | Windows baseline reproduced; Windows and Linux acceptance plus existing regressions pass; all six CI checks at `9180e90` passed | `9180e90` |
 | V02 | Implemented/tested awaiting merge | Both baselines reproduced; 28 Windows and 38 Linux/WSL checks pass; all six CI checks at `86b6c1b` passed | `86b6c1b` |
-| V03 | Implemented/tested awaiting merge | Empty/false-pass baselines reproduced; strict Windows/Linux core and runner regressions, compatibility entries, and all 21 Windows registered contracts pass | `fix(tests): enforce discovery and phase-specific outcomes`; hash recorded in #154 after commit |
+| V03 | Implemented/tested awaiting merge | Empty/false-pass baselines reproduced; strict Windows/Linux core and runner regressions, compatibility entries, and all 21 Windows registered contracts pass; all six CI checks passed | `3d441c4` |
+| V04 | Implemented/tested awaiting merge | Polling inflation and missed allocation burst reproduced; 17 measurement/export contracts pass per platform; Windows 21 registered contracts and Linux optimization/core/numerical suites pass | `fix(bench): report precise timing and distinct memory measurements`; hash recorded in #156 after commit |
 | R20 | Planned | LP64 Int64 format warnings exposed by V02 | Pending |
 | C17 | Reproduced, planned solution | Boxed/native reassignment shadows outer binding; safe pending source retained | Pending |
 

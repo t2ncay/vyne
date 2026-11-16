@@ -226,7 +226,8 @@ xmake test
 xmake test-init
 ```
 
-`xmake test` requires Python 3.11+ and runs registered compiler, region-safety,
+`xmake test` requires Python 3.11+, PowerShell 7+ (`pwsh` on PATH) for benchmark
+measurement acceptance, and a host C++ compiler. It runs registered compiler, region-safety,
 golden/native, interpreter, and optimization acceptance. `xmake test-all` adds
 the registered numerical/training cases and existing headless graphics suite.
 The inventory is `scripts/tests/suites.toml`; missing/empty discovery and mismatched

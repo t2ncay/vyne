@@ -120,6 +120,16 @@ jobs:
           VYNEC: ./vyne_run
         run: python3 examples/optimization/run.py --task V03
 
+      - name: Run benchmark timing and memory reporting acceptance
+        env:
+          VYNEC: ./vyne_run
+          CXX: g++-13
+        run: |
+          set -euo pipefail
+          command -v pwsh
+          pwsh --version
+          python3 examples/optimization/run.py --task V04
+
       - name: Run host touch calibration regression
         run: |
           set -euo pipefail

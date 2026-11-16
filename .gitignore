@@ -65,3 +65,7 @@ examples/test/*_cache
 # Keep the safety entry point versioned; other machine-local PS scripts stay ignored.
 !examples/safety/run_safety.ps1
 examples/optimization/build/
+
+# Maintained benchmark tooling (reports remain ignored).
+!bench.ps1
+!examples/training/bench.ps1

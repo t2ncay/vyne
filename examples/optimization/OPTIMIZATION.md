@@ -10,7 +10,9 @@ results must link their tests, issue, and implementation commit.
 
 V01-V03 are verified on Windows and Linux/WSL: child failures reach CLI callers,
 diagnostic/instrumented generated-C builds are explicit, and regression discovery
-and phase-specific expectations are enforced. Executable
+and phase-specific expectations are enforced. V04 corrects benchmark timing and
+separates sampled, OS-reported, and logical arena memory with measured evidence
+below. Executable
 speed and runtime memory gains are **not measured**. Debug/instrumented artifact
 sizes and functional detector results are recorded separately below.
 
@@ -20,6 +22,7 @@ sizes and functional detector results are recorded separately below.
 | V01 | Not measured | Not measured | Runtime failures no longer masked by CLI | Correct child exit codes and decoded summaries | Cross-platform exact-status regression and CI step | Implemented/tested awaiting merge |
 | V02 | Not measured | Runtime memory not measured; larger debug artifacts reported | Emitted-runtime ASan/UBSan faults detected; normal bounds checks retained | Visible warnings, selectable detectors, explicit unsupported modes | Identical emitted C/checksum across supported profiles; 28 Windows/38 Linux checks | Implemented/tested awaiting merge |
 | V03 | Not measured | Not measured | Empty/false-pass/wrong-phase/missing-artifact/golden/timeout failures rejected | Actual fixture discovery, useful failures, portable compatibility entries | 30 adversarial regressions per platform; 21 registered Windows contracts; reviewed C goldens | Implemented/tested awaiting merge |
+| V04 | Measurement error corrected; no executable speedup claimed | Missed 32 MiB burst distinguished from OS peak; no memory reduction claimed | Exit-aware timing, null unavailable metrics, explicit arena snapshots | Labeled sources/units, raw exports, compatible-baseline checks | 17 contracts each on Windows/Linux; preserved polling reproducer | Implemented/tested awaiting merge |
 
 ## Running tests
 
@@ -34,6 +37,7 @@ absence of a diagnostic. Build the compiler, then run:
 python examples/optimization/run.py --task V01
 python examples/optimization/run.py --task V02
 python examples/optimization/run.py --task V03
+python examples/optimization/run.py --task V04
 python examples/optimization/run.py --task all
 # Select a differently named compiler, as in CI:
 python examples/optimization/run.py --task V01 --compiler ./vyne_run --cxx g++-13
@@ -45,6 +49,7 @@ removes them after each run. It fails on missing compiler, incorrect exit status
 missing required output, forbidden output, compiler failure, or timeout. This is
 functional acceptance, not timing instrumentation. `--baseline` deliberately
 asserts the old false-success behavior and is never used by acceptance CI.
+V04 requires PowerShell 7+ (`pwsh` on PATH); absence is an error, not a skip.
 
 ## Required outcome record per task
 
@@ -356,8 +361,7 @@ as the next safety work proceeds.
 - **Issue:** [#154](https://github.com/t2ncay/vyne/issues/154), child of #150.
 - **Date/status:** 2026-11-15; implemented/tested awaiting PR #221 merge.
 - **Before revision:** `86b6c1b` (all six CI checks passed on that revision).
-- **Implementation:** commit titled `fix(tests): enforce discovery and phase-specific outcomes`;
-  its hash is recorded in #154 after creation.
+- **Implementation:** `3d441c4`, `fix(tests): enforce discovery and phase-specific outcomes`.
 - **Sources:** `scripts/run_tests.py`, `scripts/tests/suites.toml`, `xmake.lua`,
   shell compatibility entries, the now-versioned safety PowerShell wrapper, and
   restored `examples/safety/` fixtures.
@@ -508,3 +512,204 @@ tests retain the intended boxed reassignment and checkpoint behavior. Goldens
 preserve actual emitted bounds/cleanup code; timing limits bound test execution,
 not program realtime guarantees. Better failure detection makes later safety and
 performance claims reproducible without disabling checks or hiding known defects.
+
+### V04 — Benchmark timing and memory reporting
+
+- **Issue:** [#156](https://github.com/t2ncay/vyne/issues/156), child of #150.
+- **Date/status:** 2026-11-16; implemented/tested awaiting draft PR #221 merge.
+- **Before:** `3d441c4`, with the original ignored local root `bench.ps1` preserved
+  before edits. Neither root nor training harness was versioned at that revision;
+  their specific ignore exceptions now make the maintained tooling reproducible.
+- **Implementation:** `fix(bench): report precise timing and distinct memory measurements`;
+  hash linked in #156 after commit.
+- **Sources:** root `bench.ps1`, `scripts/benchmark_process.cs`, training wrapper,
+  optimization runner/registry, and the existing two Linux CI build configurations.
+- **Coverage:** `v04_workload.cpp`, `v04_arena.vy`, `v04_benchmark_tests.py`, and
+  `fixtures/v04_legacy_benchmark.ps1.in`, all in this directory. The frozen fixture
+  retains the old timer/polling/rounding mechanism for subsequent reproduction;
+  it is not the acceptance harness.
+
+#### Baseline and raw timing evidence
+
+The original harness stopped its stopwatch only after observing exit following a
+sampling sleep. It rounded seconds to three decimals and sampled memory to two
+decimals before exporting/aggregating. A nominal 20 ms native sleep took roughly
+one second with 1,000 ms sampling; a nominal 1,200 ms sleep took roughly two.
+
+Raw reported seconds (no warmups; three repetitions except two for long cases):
+
+| Workload / sampling ms | Original Windows polling | V04 Windows OS process lifetime | V04 Linux exit-observed time |
+| --- | --- | --- | --- |
+| Immediate / 50 | 0.076, 0.058, 0.061 | 0.0192850, 0.0154361, 0.0156566 | 0.0040691, 0.0038116, 0.0035618 |
+| Sleep 20 ms / 50 | 0.070, 0.066, 0.076 | 0.0496165, 0.0453450, 0.0365492 | 0.0237420, 0.0239956, 0.0242140 |
+| Sleep 20 ms / 1,000 | 1.022, 1.010, 1.008 | 0.0510516, 0.0612680, 0.0519909 | 0.0245546, 0.0248202, 0.0237454 |
+| Sleep 1,200 ms / 50 | 1.278, 1.245 | 1.2209913, 1.2301511 | 1.2037832, 1.2041277 |
+| Sleep 1,200 ms / 1,000 | 2.033, 2.018 | 1.2231613, 1.2260800 | 1.2043540, 1.2039034 |
+| Touch 32 MiB, hold 400 ms / 50 | 0.436, 0.442, 0.442 | 0.4275828, 0.4213523, 0.4267320 | 0.4166958, 0.4123131, 0.4107784 |
+| Touch 32 MiB, hold 10 ms, free, sleep 250 ms / 1,000 | 1.027, 1.008, 1.013 | 0.3027730, 0.2953063, 0.2888080 | 0.2776651, 0.2712929, 0.2707315 |
+
+These are **measurement-correctness observations, not executable speedups**.
+Windows and Linux V04 evidence collection ran concurrently on the same host;
+they are not isolated performance trials. The controlled target gained dormant
+timeout/descendant coverage after the original baseline, so these are not
+byte-identical before/after application binaries. Each successful native run
+independently reports `steady_clock` elapsed time: assertions allow 50 ms
+underrun tolerance and 350 ms startup/scheduling/observation overhead, which still
+reject the reproduced one-second floor. For example, Windows short/coarse
+in-process samples were 0.0343796, 0.0437760, 0.0367251 s. No percentage speed
+gain, throughput gain, or summed improvement is inferred from these values.
+
+#### Memory evidence and measurement contract
+
+The burst allocates **33,554,432 bytes**, writes one byte in each 4,096-byte page,
+and checksums the stores (`57344`); it cannot be optimized into an untouched
+allocation. Original Windows sampled "peak" values were **3.11, 2.57, 2.57 MiB**.
+V04's burst still sampled only **2,695,168 bytes** in each run, but Windows
+`GetProcessMemoryInfo` reported working-set peaks of **37,814,272; 37,826,560;
+37,822,464 bytes** (36.0625, 36.07421875, 36.0703125 MiB). This demonstrates a
+missed transient allocation, not less application memory. Sustained V04 Windows
+allocation samples and OS peaks were 36.0625, 36.07421875, 36.078125 MiB.
+
+- `WallSec` uses Windows OS creation/exit timestamps when available;
+  `ProcessLifetimeSec` is null on other hosts. `TimingSource` records the choice.
+  Windows lifetime includes loader/startup, workload, and shutdown; it is not a
+  kernel-only timer. Timestamp subtraction is not a monotonic clock guarantee.
+- `LaunchSec` is the monotonic duration of `Process.Start()`. `ExitObservedSec`
+  runs from before launch until exit is observed, before output parsing/accounting.
+  These intervals overlap process lifetime and **must not be added**. POSIX wall
+  time uses this explicit observation measurement, not .NET's observed exit
+  timestamp presented as an exact kernel timestamp.
+- `SampledWorkingSetBytes`/`MiB` are the maximum positive direct-child working-set
+  samples. Sampling can miss brief usage and perturbs scheduling. `Samples` and
+  `SampledWorkingSetStatus` distinguish sampled/missed/unsupported observations.
+- Windows `ProcessPeakWorkingSetBytes` and `ProcessPeakPagefileBytes` are separate
+  OS counters read through a retained process handle after exit. Pagefile usage
+  is the Windows API's commit-charge counter, not bytes actually paged out.
+  POSIX process peaks are **unsupported/null**, not inferred from sampled RSS.
+- `CpuSec` is OS accounting where available. Linux/WSL post-exit accounting was
+  **unavailable/null** in this matrix; Windows valid zero/coarse CPU samples are
+  retained. `CpuStatus` and aggregate counts preserve the distinction.
+- Opt in to logical metrics by calling existing allocation-free **`vmem.dump()`**
+  at a deliberate measurement point. The last complete stderr dump is exported
+  with its count, main live/peak/blocks/capacity and commit live/peak counters.
+  A malformed dump becomes `ArenaStatus=malformed` and null metrics; no dump is
+  `not-reported`. Peaks retain the caller's runtime/reset scope, not an invented
+  whole-program scope. Main counters describe the active thread/context;
+  committed storage is reported separately. Counters include rounding/alignment,
+  not just payload, and are not reachable-object counts or total process bytes.
+- The region fixture checks an 8,192-byte typed allocation and post-region
+  reclamation before calling dump. Both platforms reported main live **0**,
+  main peak **8,192**, main block capacity **0**, and commit live/peak **0**,
+  with checksum **7**. Those are measured zeros, unlike unavailable metrics.
+  Missing sampling was also observed in Linux's immediate-exit case: null WS,
+  zero samples, `missed`, while two other runs produced positive samples.
+
+Schema **version 2** exports full raw per-run seconds, bytes, sources, statuses,
+sample counts, timeout/exit state and captured output in JSON; CSV retains the
+measurement fields without output text. Seconds/statistics are not pre-rounded.
+Empty metric statistics are null with count zero; sample standard deviation is
+null for one observation. Console formatting uses `n/a` for absent values.
+Version-1/incompatible-timing-source baseline comparisons are explicitly skipped
+with a diagnostic; sampled-WS deltas also require equal sampling intervals.
+`-Source` compilation elapsed time is a separate `compile_sec` measurement and
+is never included in executable wall samples. Warmup metadata reports the actual
+discard count, including zero for `-NoWarmup`.
+
+#### Verification, environment, and commands
+
+**17 V04 contracts passed per platform**: seven duration/memory matrices,
+output drainage, timeout, descendant timeout, malformed arena dump, real region
+snapshot, empty/single statistics, compatible/legacy baselines, training wrapper,
+and source compile-time separation. Per-run exports are checked against CSV,
+independent workload time/checksum, byte-to-MiB conversion, platform sources and
+Python's independent mean/median/sample-standard-deviation calculations.
+
+Windows `xmake test-all` passed **all 21 registered contracts** across eight suites,
+including the expanded optimization delegate. Linux `--task all` retained V01's
+20 checks, V02's 38 checks, and V03's 30 adversarial regressions plus 16 core
+contracts; the separate core/DSP/training selection passed **19 contracts**.
+CI adds V04 to both Performance and Memory-Safety compiler configurations and
+requires installed `pwsh` explicitly. Remote results belong in #156/PR #221 after
+push; local success does not imply remote success. Windows-specific accounting
+is locally verified; no new hosted Windows V04 job or macOS V04 run is claimed.
+
+Host: Windows 10.0.26300 x86_64, Intel i7-14700; Python 3.14.5, PowerShell 7.6.10,
+.NET 10.0.15, MinGW GCC/G++ 15.2.0. Linux: Ubuntu/WSL2 x86_64 kernel 6.6.114.1,
+Python 3.14.4, GCC/G++ 15.2.0, PowerShell 7.5.5/.NET 9.0.14. The standalone target
+uses `-std=c++17 -O2 -Wall -Wextra -pedantic`. Vyne uses the existing Windows
+release compiler and preserved `v02_linux_release` compiler, with default emitted
+release C flags; V04 changes no compiler/runtime C++ implementation. No GPU,
+BLAS, host-native ISA, relaxed math, or firmware execution is involved.
+
+Original local Windows baseline, before harness edits:
+
+```powershell
+python examples/optimization/v04_benchmark_tests.py --baseline --report build/optimization/v04_before.json
+```
+
+The original script was preserved as ignored `build/optimization/v04_baseline.ps1`.
+The checked-in frozen mechanism supports later reproduction on either platform:
+
+```sh
+python examples/optimization/run.py --task V04 --baseline
+# Explicit original (if retained locally):
+python examples/optimization/v04_benchmark_tests.py --baseline --harness build/optimization/v04_baseline.ps1
+```
+
+Windows acceptance/evidence:
+
+```powershell
+python examples/optimization/v04_benchmark_tests.py --report build/optimization/v04_after_windows.json
+xmake test-all
+```
+
+Linux acceptance/evidence, from the root with `pwsh` on PATH:
+
+```sh
+python3 examples/optimization/v04_benchmark_tests.py --compiler ./v02_linux_release --report build/optimization/v04_after_linux.json
+python3 examples/optimization/run.py --task all --compiler ./v02_linux_release
+python3 scripts/run_tests.py --suite compiler --suite safety --suite codegen --suite ast --suite dsp --suite training --compiler ./v02_linux_release
+```
+
+For this local WSL verification only, PowerShell's official 7.5.5 Linux x64
+archive was unpacked under ignored `build/optimization/pwsh`; the environment used
+`PATH="$PWD/build/optimization/pwsh:$PATH"` and
+`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` because compatible ICU was unavailable.
+That setting affects this host-tooling test environment, not Vyne math/runtime
+defaults. Raw reports remain ignored; the evidence above is committed. Temporary
+space-containing workload directories are removed by the runner.
+
+The frozen baseline also reproduces on Linux/WSL. Its cold metadata query can
+outlive a short child, so not every run reaches the polling sleep: the observed
+short/coarse series was 0.529, 1.007, 1.003 s. The baseline assertion requires
+reproducing interval inflation in a run, not assuming every run follows the same
+schedule. Existing missing-CPU/memory fallback also printed zero in that baseline.
+Five documentation pipeline tests and site freshness/link validation passed after
+synchronizing the PowerShell test prerequisite into the installation guidance.
+
+#### Tradeoffs, pending findings, and philosophy compatibility
+
+PowerShell 7/.NET and a small host C# helper are now explicit test/tooling
+dependencies. Helper compilation and environment discovery occur before timed
+runs. Their startup cost, sampling/redirected-output overhead, and harness memory
+are **not measured** as performance gains; output is captured in host memory,
+not streamed into the Vyne arena. Direct-child process metrics exclude descendants
+and device allocations. Exit-aware waits bound timeout observation independently
+of sampling; tree termination and five-second output-close waits prevent the
+tested hang cases. A descendant retaining pipes after normal parent exit fails
+explicitly rather than hanging indefinitely.
+
+**V05 remains pending:** legacy checksum presence/validation and failed-run
+aggregation are not solved. Failed/timeout reports retain evidence and visibly
+warn against performance claims; none of their values is used in the timing table
+above. V06 GPU labels/checks remain pending. C03 scratch/Array ABI, C17 boxed/native
+shadowing, R20 LP64 formatting warnings, and other roadmap findings remain open.
+V04 does not make any of those unsafe/pending programs into passing coverage.
+
+These changes are host measurement infrastructure. They add no GC, automatic
+promotion, ownership changes, alias restrictions, evaluation reordering, allocator
+retention policy, unchecked indexing, numerical reassociation, or embedded runtime
+dependency. Region reclamation and explicit commit/move remain intact; the arena
+fixture observes the existing policy without altering it. Executable speed, runtime
+memory reductions, allocation-count reductions, device memory, and firmware costs
+are **not measured**, and no such gains are claimed.

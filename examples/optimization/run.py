@@ -231,7 +231,7 @@ def check_v03(compiler, work, *, baseline):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--task", choices=["V01", "V02", "V03", "all"], default="all")
+    parser.add_argument("--task", choices=["V01", "V02", "V03", "V04", "all"], default="all")
     parser.add_argument("--compiler", default=os.environ.get(
         "VYNEC", str(ROOT / ("vynec.exe" if os.name == "nt" else "vynec"))))
     parser.add_argument("--cxx", default=os.environ.get("CXX", "g++"))
@@ -253,6 +253,14 @@ def main():
             check_v02(compiler, Path(temporary), baseline=args.baseline)
         if args.task in ("V03", "all"):
             check_v03(compiler, Path(temporary), baseline=args.baseline)
+        if args.task in ("V04", "all"):
+            command = [sys.executable, HERE / "v04_benchmark_tests.py", "--compiler", compiler,
+                       "--cxx", args.cxx]
+            if args.baseline:
+                command.append("--baseline")
+            result = run(command, cwd=ROOT, expected=0,
+                         required=("BASELINE V04 reproduced:" if args.baseline else "PASS V04:",))
+            print(ANSI.sub("", result.stdout).strip())
 
 
 if __name__ == "__main__":

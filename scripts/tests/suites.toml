@@ -159,5 +159,5 @@ suite = "optimization"
 source = "examples/optimization/run.py"
 kind = "command"
 command = ["{python}", "{source}", "--task", "all"]
-required = ['PASS V01:', 'PASS V02:', 'PASS V03:']
+required = ['PASS V01:', 'PASS V02:', 'PASS V03:', 'PASS V04:']
 timeout = 300

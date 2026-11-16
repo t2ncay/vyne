@@ -33,7 +33,7 @@ There are 21 registered cases in eight suites:
 | dsp | 2 | Complex arithmetic and interpolation library assertions |
 | training | 1 | Deterministic CPU MLP loss decrease and accuracy |
 | graphics | 1 delegated suite | Existing headless raylib acceptance runner; no camera/display/audio flag |
-| optimization | 1 delegated suite | V01/V02/V03 acceptance and adversarial runner tests |
+| optimization | 1 delegated suite | V01–V04 acceptance and adversarial runner tests |
 
 Delegated suites perform additional internal checks; do not add their assertion
 counts to registered-case counts as if those were distinct programs.
@@ -44,6 +44,15 @@ eight registered suites. Dedicated tasks include `test-safety`, `test-codegen`,
 `test-ast`, `test-optimization`, `test-dsp`, `test-training`, and `test-graphics`.
 `quick-test` selects compiler smoke cases. `test-init` uses the independent
 initialization/hardware-configuration acceptance runner.
+
+Optimization acceptance also requires **PowerShell 7+ (`pwsh` on PATH)** and a
+host C++ compiler (`CXX`, or `--cxx` for `examples/optimization/run.py`). V04
+compiles controlled native timing/memory targets and tests the root `bench.ps1`
+measurement/export contract. Missing PowerShell fails explicitly. The two Linux
+CI compiler configurations run V04; Windows process-lifetime/peak accounting is
+covered by the local Windows acceptance matrix. See
+[`OPTIMIZATION.md`](../../examples/optimization/OPTIMIZATION.md#v04--benchmark-timing-and-memory-reporting)
+for raw evidence, platform limitations, and schema-v2 migration.
 
 Archival interactive network/VServ programs are not registered headless tests.
 Their old task names report a missing automated suite instead of passing an empty
