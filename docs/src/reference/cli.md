@@ -46,12 +46,52 @@ vynec --emit-asm --native script.vy
 | :--- | :--- |
 | `-o <name>` / `--out <name>` | Set the output binary name |
 | `--native` | Add `-march=native` to the host compile |
+| `--c-profile <name>` | Generated C: `release` (default), `diagnostic`, or `sanitize` |
+| `--sanitizers <list>` | With sanitize: `address`, `undefined`, or both (default) |
 | `--blas` | Lower matched matrix calls to BLAS (desktop only) |
 | `--no-scratch-bounds` | Elide generated scratch bounds checks |
 | `--quiet` | Suppress notes and warnings |
 | `--strict` | Enable strict type checking |
 | `-h`, `--help` | Show help |
 | `-V`, `--version` | Show version |
+
+### Generated-C build profiles
+
+Profiles select downstream host compiler flags independently of how `vynec`
+itself was built. Both `--c-profile diagnostic` and `--c-profile=diagnostic`
+forms are accepted.
+
+| Profile | Flags |
+| :--- | :--- |
+| `release` | `-O3 -w`, preserving the existing portable default |
+| `diagnostic` | `-O2 -g -Wall -Wextra -Wformat=2` |
+| `sanitize` | `-O1 -g -Wall -Wextra -Wformat=2 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer` |
+
+```shell
+vynec --run --c-profile diagnostic script.vy
+vynec --run --c-profile sanitize script.vy
+vynec --compile --c-profile sanitize --sanitizers address script.vy
+vynec --emit-asm --c-profile diagnostic script.vy
+```
+
+Diagnostic and sanitize profiles support desktop compile/run/assembly, including
+the `build`/`run` project commands. They reject interpreter-only, emit-C-only, and
+firmware modes. `bench` rejects profile overrides. Windows GCC supports diagnostic
+builds and explicitly rejects sanitizer requests; supported POSIX host toolchains
+provide the sanitizer compiler/linker runtimes.
+
+`--sanitizers address`, `--sanitizers undefined`, and
+`--sanitizers address,undefined` select address checks, undefined-behavior checks,
+or both. Both is the default; `undefined,address` is equivalent. Detector selection
+requires the sanitize profile. Unknown/missing values and unsupported combinations
+return `2`, not an apparently successful uninstrumented build.
+
+These flags instrument the **generated executable**, not the interpreter or the
+C++ compiler. Profiles do not alter region policies, floating-point defaults, or
+enable `--no-scratch-bounds`. Debug data and instrumentation have explicit costs;
+use release for performance comparisons. Arena poison/reuse regressions remain
+necessary because sanitizers cannot detect every stale reference within a mapped
+arena block.
 
 ## Arduino
 
@@ -175,8 +215,12 @@ Exit codes: `0` success, `1` cancel, `2` non-interactive without a name or a ter
 | Code | Meaning |
 | :--- | :--- |
 | `0` | Success |
-| `1` | Compilation or runtime error |
-| `2` | CLI misuse |
+| `1` | Compilation failure; also used by normal runtime error checks |
+| `2` | C-profile option misuse or unsupported profile/mode combination |
+
+Compile-and-run forwards the generated program's termination status, including
+nonzero explicit exits. POSIX signal termination is represented as `128 + signal`.
+Init has its separate status contract documented above.
 
 Diagnostics go to stderr. Color is enabled only when stdout is a terminal and `NO_COLOR` is unset.
 

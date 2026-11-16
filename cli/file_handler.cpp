@@ -16,6 +16,7 @@
 // along with Vyne. If not, see <https://www.gnu.org/licenses/>.
 
 #include "file_handler.h"
+#include "process_status.h"
 #include "raylib_build.h"
 #include "../vyne/utils/sha256.h"
 #include "../vyne/compiler/contract_config.h"
@@ -65,6 +66,24 @@ bool verifyIntegrity(const std::string& scriptPath) {
 // Local helpers
 // ---------------------------------------------------------------------------
 namespace {
+
+std::string generatedCFlags(const BuildOptions& opts) {
+    switch (opts.cProfile) {
+    case GeneratedCProfile::Release:
+        return "-O3 -w";
+    case GeneratedCProfile::Diagnostic:
+        return "-O2 -g -Wall -Wextra -Wformat=2";
+    case GeneratedCProfile::Sanitize:
+        const char* sanitizers = "address,undefined";
+        if (opts.cSanitizers == GeneratedCSanitizers::Address)
+            sanitizers = "address";
+        else if (opts.cSanitizers == GeneratedCSanitizers::Undefined)
+            sanitizers = "undefined";
+        return std::string("-O1 -g -Wall -Wextra -Wformat=2 -fsanitize=") +
+               sanitizers + " -fno-sanitize-recover=all -fno-omit-frame-pointer";
+    }
+    return "";
+}
 
 std::string outputBase(const std::string& filename, const BuildOptions& opts) {
     if (!opts.outputName.empty())
@@ -961,7 +980,7 @@ static int runTranspile(
     // Common gcc flags, extended per downstream mode.
     auto gccBase = [&]() {
         std::string cmd = "gcc \"" + cFile + "\"";
-        cmd += " -I\"" + exeDir + "\" -O3 -w";
+        cmd += " -I\"" + exeDir + "\" " + generatedCFlags(opts);
         if (opts.nativeIsa)
             cmd += " -march=native";
         if (opts.blasEnabled) {
@@ -1000,10 +1019,13 @@ static int runTranspile(
             std::cerr << "\n"
                       << RED << "  error" << RESET
                       << "  gcc -S failed — see above\n\n";
+            if (opts.cProfile == GeneratedCProfile::Sanitize)
+                std::cerr << "  sanitize requires host compiler support for the selected sanitizers\n";
             return 1;
         }
 
-        std::cout << GREEN << "  assemble " << RESET << "  gcc -S"
+        std::cout << GREEN << "  assemble " << RESET << "  gcc -S "
+                  << generatedCFlags(opts)
                   << (opts.nativeIsa ? " -march=native" : "") << "  "
                   << std::fixed << std::setprecision(2) << asm_ms.count()
                   << "ms\n";
@@ -1054,6 +1076,8 @@ static int runTranspile(
         std::cerr << "\n"
                   << RED << "  error" << RESET
                   << "  gcc failed — see above\n\n";
+        if (opts.cProfile == GeneratedCProfile::Sanitize)
+            std::cerr << "  sanitize requires host compiler and linker support for the selected sanitizers\n";
         return 1;
     }
 
@@ -1079,7 +1103,8 @@ static int runTranspile(
                               : "?";
 
     if (!opts.quiet) {
-        std::cout << GREEN << "  compile  " << RESET << "  gcc -O3"
+        std::cout << GREEN << "  compile  " << RESET << "  gcc "
+                  << generatedCFlags(opts)
                   << (opts.nativeIsa ? " -march=native" : "") << "  "
                   << std::fixed << std::setprecision(2) << compile_ms.count()
                   << "ms\n";
@@ -1111,6 +1136,7 @@ static int runTranspile(
 
         auto start_exec = std::chrono::high_resolution_clock::now();
         int run_result = system(runCmd.c_str());
+        int exit_code = Vyne::decodeSystemExitStatus(run_result);
         auto end_exec = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double, std::milli> exec_ms =
             end_exec - start_exec;
@@ -1136,12 +1162,15 @@ static int runTranspile(
         vprintln("     {}execution {:.2f}ms", GREEN, exec_ms.count());
         vprintln("{} {} {}total      {:.2f}ms", YELLOW, "  -", BOLD, total_ms);
 
-        if (run_result != 0)
-            std::cout << RED << "  >> exited with code " << run_result << RESET
+        if (run_result == -1)
+            std::cerr << RED << "  error  could not launch or wait for executable"
+                      << RESET << "\n\n";
+        else if (exit_code != 0)
+            std::cout << RED << "  >> exited with code " << exit_code << RESET
                       << "\n\n";
 
         Vyne::DiagnosticEngine::printSummary();
-        return 0;
+        return exit_code;
     }
 
     // ---------------- --compile: stop after the .exe is built ----------------
@@ -1213,6 +1242,27 @@ int runFile(
     SymbolContainer& env,
     const BuildOptions& opts
 ) {
+    if (opts.sanitizersExplicit && opts.cProfile != GeneratedCProfile::Sanitize) {
+        std::cerr << "error: --sanitizers requires --c-profile sanitize\n";
+        return 2;
+    }
+    if (opts.cProfile != GeneratedCProfile::Release) {
+        if (opts.mode != RunMode::CompileOnly && opts.mode != RunMode::CompileRun &&
+            opts.mode != RunMode::EmitAsm) {
+            std::cerr << "error: diagnostic/sanitize C profiles require a desktop "
+                         "--compile, --run, or --emit-asm mode\n";
+            return 2;
+        }
+#ifdef _WIN32
+        // This backend invokes MinGW GCC, which does not provide the required
+        // combined ASan/UBSan runtime. Do not label an uninstrumented build safe.
+        if (opts.cProfile == GeneratedCProfile::Sanitize) {
+            std::cerr << "error: sanitize C profile is unsupported by the Windows GCC "
+                         "backend; use diagnostic or a supported POSIX ASan/UBSan toolchain\n";
+            return 2;
+        }
+#endif
+    }
     if (opts.enforceIntegrity && !verifyIntegrity(filename))
         return 1;
 

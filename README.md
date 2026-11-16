@@ -1412,13 +1412,41 @@ vynec [options] <file.vy>
 | `--hardware-set section.key=value` | Repeatable typed hardware override                  |
 | `--blas`             | Lower matched matrix calls to BLAS (desktop only)               |
 | `--native`           | Add `-march=native` to the host compiler invocation             |
+| `--c-profile <name>` | Host generated C: `release` (default), `diagnostic`, or `sanitize` |
+| `--sanitizers <list>` | With `sanitize`: `address`, `undefined`, or both (default)       |
 | `--emit-c`           | Emit the C source without invoking the host compiler            |
 | `--out <name>`       | Set the output binary name                                      |
 | `--quiet`            | Suppress notes and warnings                                     |
 | `--strict`           | Enable strict type checking                                     |
 
-Diagnostics are written to stderr. Exit codes are `0` on success, `1` on
-compilation or runtime error, `2` on CLI misuse.
+Compilation failures return `1`; compile-and-run forwards the generated program's
+termination status. C-profile option misuse returns `2`. Compiler diagnostics
+and sanitizer reports are written to stderr.
+
+The default generated-C profile retains the portable `-O3 -w` build.
+`--c-profile diagnostic` uses `-O2 -g -Wall -Wextra -Wformat=2` to expose
+downstream warnings and retain debug information. On supported POSIX host
+toolchains, `--c-profile sanitize` uses `-O1 -g`, warnings, ASan/UBSan, frame
+pointers, and nonrecovering sanitizer checks **in the generated executable**.
+Select one detector with `--sanitizers address` or `--sanitizers undefined`;
+both are enabled by default. These profiles support desktop `--compile`,
+`--run`, `--emit-asm`, and explicit-file `build`/`run` commands. Diagnostic and
+sanitize profiles reject interpreter-only, emit-C-only, and firmware modes;
+the benchmark driver rejects profile overrides. The Windows GCC backend
+supports diagnostic builds and explicitly rejects sanitizer builds.
+
+```sh
+vynec --run --c-profile diagnostic program.vy
+vynec --run --c-profile sanitize program.vy
+vynec --compile --c-profile sanitize --sanitizers address program.vy
+```
+
+Profiles do not alter Vyne's region policies or disable bounds checks. Sanitizer
+instrumentation and debug data have a cost; use release for performance
+comparisons. Retain arena poison/reuse regressions as well: sanitizers do not
+detect every stale reference inside a still-mapped arena block. See
+[`examples/optimization/OPTIMIZATION.md`](examples/optimization/OPTIMIZATION.md)
+for acceptance tests, exact flags, and observed results.
 
 For the Arduino target, `--flash` requires `arduino-cli` and the
 `arduino:avr` core installed; `--monitor` requires `arduino-cli` and a
@@ -1531,13 +1559,23 @@ reports a clear diagnostic instead of a mid-compile `command not found`.
 
 ```bash
 xmake test
+xmake test-all
+python scripts/run_tests.py --suite all --list
 ```
 
-Runs the suite under `tests/`, including compiler tests, numerical
-library tests, region-safety harness under `examples/safety/`, and
-(if the AVR toolchain is present) a host-side test of the emitted MCU
-C translation unit — full firmware verification requires an actual
-board and is not part of CI.
+Requires Python 3.11+. `xmake test` runs registered compiler, safety, golden,
+interpreter, and optimization acceptance. `xmake test-all` adds complex/interpolation,
+CPU training, and the existing headless graphics acceptance suite. The manifest
+at `scripts/tests/suites.toml` currently registers 21 cases across eight suites;
+delegated suites perform additional internal checks.
+
+The runner checks compilation separately from execution, requires exact statuses
+and output, and fails on missing fixtures, goldens, contracts, or empty discovery.
+Artifacts stay under `build/`. Standalone runtime C tests remain under
+`vyne/runtime/tests/`; firmware/device validation uses its target-specific suites.
+See [`scripts/tests/README.md`](scripts/tests/README.md) for contracts, commands,
+and golden maintenance. Archival network/VServ applications do not count as
+headless automated coverage.
 
 ---
 
@@ -1642,13 +1680,13 @@ vyne/
 │   ├── libs/                      # newer library tests and benchmarks (vsignal, vcontrol, voptim, vsparse, vdecomp, vfft)
 │   ├── network/                   # vnet (archival, no longer maintained)
 │   ├── safety/                    # region escape negative tests
+│   ├── optimization/              # optimization acceptance, runner regressions and C goldens
 │   ├── training/                  # vlin/vml training scripts
 │   └── transpiler/                # codegen coverage tests
 │
 ├── models/                        # pre-trained weights (.dat)
-├── tests/                         # test suite
 ├── docs/                          # 61-page static manual: src/, scripts/, pages/, search
-├── scripts/                       # build and test scripts
+├── scripts/                       # build/test scripts and tests/suites.toml registry
 ├── share/vyne/                    # init templates + license texts
 └── vendor/                        # third-party libraries
     ├── openblas/
@@ -1814,7 +1852,8 @@ Contributions are welcome. Before opening a pull request:
    `.vy` leaf modules with a facade under `modules/external/`, and
    target-specific headers under `vyne/runtime/arduino/` or `vyne/runtime/esp32/`.
 3. Add tests. New language features belong under `examples/transpiler/`
-   or `tests/`; new library functions belong in the library's own test
+   or `examples/test/`; register automated outcomes in `scripts/tests/suites.toml`.
+   Optimization regressions belong under `examples/optimization/`; new library functions belong in the library's own test
    file and, where applicable, in `examples/`. New Arduino bindings
    belong in the matching `arduino/detail/mcu_*.h` and the corresponding
    entry in `compiler/codegen/native_maps.h`.

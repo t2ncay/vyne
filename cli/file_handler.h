@@ -68,6 +68,10 @@ enum class RunMode {
     ESP32Run        // + arduino-cli upload, optionally monitor
 };
 
+// Host GCC profiles for generated C, independent of the compiler's own build.
+enum class GeneratedCProfile { Release, Diagnostic, Sanitize };
+enum class GeneratedCSanitizers { AddressUndefined, Address, Undefined };
+
 // ---------------------------------------------------------------------------
 // Project configuration (project.toml)
 // ---------------------------------------------------------------------------
@@ -111,6 +115,9 @@ struct ProjectConfig {
 
 struct BuildOptions {
     RunMode mode = RunMode::Interpret;
+    GeneratedCProfile cProfile = GeneratedCProfile::Release;
+    GeneratedCSanitizers cSanitizers = GeneratedCSanitizers::AddressUndefined;
+    bool sanitizersExplicit = false;
     bool nativeIsa = false;
     bool enforceIntegrity = false;
     bool scratchBounds = true;

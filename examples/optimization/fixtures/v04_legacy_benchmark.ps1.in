@@ -1,0 +1,51 @@
+# Frozen V04 reproducer of the original local bench.ps1 measurement mechanism.
+# Baseline only: polling sleeps, pre-export rounding, sampled WS labeled peak.
+param([string]$Exe, [int]$Runs = 3, [int]$IntervalMs = 50,
+      [int]$Timeout = 10, [switch]$NoWarmup, [string]$Json, [string]$Csv)
+$ErrorActionPreference = 'Stop'
+$results = @()
+for ($i = 0; $i -lt $Runs; $i++) {
+    $psi = [System.Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = (Resolve-Path -LiteralPath $Exe).Path
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.CreateNoWindow = $true
+    $psi.WorkingDirectory = [System.IO.Path]::GetDirectoryName($psi.FileName)
+    $proc = [System.Diagnostics.Process]::new()
+    $proc.StartInfo = $psi
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    [void]$proc.Start()
+    $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+    $stderrTask = $proc.StandardError.ReadToEndAsync()
+    $peakWS = 0L
+    $samples = 0
+    $deadline = (Get-Date).AddSeconds($Timeout)
+    while (-not $proc.HasExited) {
+        if ((Get-Date) -gt $deadline) { $proc.Kill(); break }
+        try {
+            $proc.Refresh()
+            $ws = $proc.WorkingSet64
+            if ($ws -gt $peakWS) { $peakWS = $ws }
+            $samples++
+        } catch {}
+        Start-Sleep -Milliseconds $IntervalMs
+    }
+    $sw.Stop()
+    $proc.WaitForExit()
+    try { $cpuSec = $proc.TotalProcessorTime.TotalSeconds } catch { $cpuSec = 0.0 }
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $null = $stderrTask.GetAwaiter().GetResult()
+    $checksum = $null
+    if ($stdout -match 'checksum[:=]\s*(\S+)') { $checksum = $Matches[1] }
+    $results += [pscustomobject]@{
+        wall = [math]::Round($sw.Elapsed.TotalSeconds, 3)
+        cpu = [math]::Round($cpuSec, 3)
+        peak = [math]::Round($peakWS / 1MB, 2)
+        exit = $proc.ExitCode
+        ck = $checksum
+    }
+    $proc.Dispose()
+}
+$results | Export-Csv -LiteralPath $Csv -NoTypeInformation -Encoding UTF8
+[pscustomobject]@{ runs_detail = $results } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $Json -Encoding UTF8

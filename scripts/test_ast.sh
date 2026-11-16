@@ -1,32 +1,15 @@
-#!/bin/bash
-
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-# Move to root
-cd "$(dirname "$0")/.." || exit
-
-# Check for exe
-if [ ! -f "vynec.exe" ]; then
-    echo -e "${RED}ERROR:${NC} vynec.exe not found."
-    exit 1
+#!/usr/bin/env bash
+# Interpreter cases require registered output contracts, not basename rewriting.
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ -z "${PYTHON:-}" ]; then
+    if command -v python3 >/dev/null 2>&1; then PYTHON=python3; else PYTHON=python; fi
 fi
-
-# The Magic: Use a relative path for the test file too
-# This removes the "Coding projects" part of the string entirely
-REL_TEST_FILE="tests/$(basename "$1")"
-
-echo "--------------------------------"
-# Using 'eval' or direct execution with literal quotes
-./vynec.exe --ast "$REL_TEST_FILE" 2>&1
-EXIT_CODE=$?
-echo "--------------------------------"
-
-if [ $EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}PASS:${NC} $1"
-    exit 0
-else
-    echo -e "${RED}FAIL:${NC} $1 (Code $EXIT_CODE)"
-    exit 1
+if [ "$#" -gt 1 ]; then
+    echo "error: test_ast.sh accepts at most one registered source path" >&2
+    exit 2
 fi
+if [ "$#" -gt 0 ]; then
+    exec "$PYTHON" "$ROOT_DIR/scripts/run_tests.py" --suite ast --source "$1"
+fi
+exec "$PYTHON" "$ROOT_DIR/scripts/run_tests.py" --suite ast

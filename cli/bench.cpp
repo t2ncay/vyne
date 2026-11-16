@@ -494,6 +494,13 @@ int runBench(int argc, char** argv) {
             return 0;
         }
 
+        if (arg == "--c-profile" || arg.rfind("--c-profile=", 0) == 0 ||
+            arg == "--sanitizers" || arg.rfind("--sanitizers=", 0) == 0) {
+            std::cerr << "error: --c-profile/--sanitizers are not supported by bench; "
+                         "use desktop --compile or --run for diagnostic/sanitize builds\n";
+            return 2;
+        }
+
         if (arg == "--warmup" && i + 1 < argc) {
             if (!parseInteger(argv[++i], warmupOverride)) {
                 std::cerr << RED << "  error" << RESET

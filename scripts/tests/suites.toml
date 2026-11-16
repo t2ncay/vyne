@@ -1,0 +1,163 @@
+version = 1
+
+# Patterns define the automated inventory; every discovered source needs a contract.
+# Interactive applications are not automatically executed as regression tests.
+[suites.compiler]
+patterns = ["examples/test/codegen_peepholes.vy", "examples/transpiler/native_zero_side_effects.vy", "examples/optimization/profile_safe.vy"]
+[suites.safety]
+patterns = ["examples/safety/*.vy"]
+[suites.codegen]
+patterns = ["examples/optimization/codegen/*.vy"]
+[suites.ast]
+patterns = ["examples/optimization/codegen/scalar.vy"]
+[suites.dsp]
+patterns = ["examples/test/vcomplex_test.vy", "examples/test/vinterp_test.vy"]
+[suites.training]
+patterns = ["examples/test/vml_cpu_mlp_train_test.vy"]
+[suites.graphics]
+patterns = ["examples/projects/raylib-showcase/tests/run.py"]
+[suites.optimization]
+patterns = ["examples/optimization/run.py"]
+
+[[cases]]
+id = "peepholes"
+suite = "compiler"
+source = "examples/test/codegen_peepholes.vy"
+kind = "native"
+required = ['=== done ===']
+forbidden = ['(?im)^false$']
+[[cases]]
+id = "native_zero"
+suite = "compiler"
+source = "examples/transpiler/native_zero_side_effects.vy"
+kind = "native"
+required = ['nativeZero side effects: PASS']
+[[cases]]
+id = "region_checksum"
+suite = "compiler"
+source = "examples/optimization/profile_safe.vy"
+kind = "native"
+required = ['(?m)^V02 checksum: 10$']
+
+[[cases]]
+id = "correct_index"
+suite = "safety"
+source = "examples/safety/correct_index.vy"
+kind = "native"
+required = ['(?m)^correct_index: total=28(?:\.0)?$']
+[[cases]]
+id = "negative_index"
+suite = "safety"
+source = "examples/safety/negative_index.vy"
+kind = "runtime_failure"
+expected_exit = 1
+required = ['\bVNE-072\b']
+[[cases]]
+id = "too_large_index"
+suite = "safety"
+source = "examples/safety/too_large_index.vy"
+kind = "runtime_failure"
+expected_exit = 1
+required = ['\bVNE-072\b']
+[[cases]]
+id = "wrong_index_count"
+suite = "safety"
+source = "examples/safety/wrong_index_count.vy"
+kind = "compile_failure"
+expected_exit = 1
+required = ['\bVNE-071\b']
+[[cases]]
+id = "escape_assignment"
+suite = "safety"
+source = "examples/safety/escape_via_assignment.vy"
+kind = "compile_failure"
+expected_exit = 1
+required = ['\bVNE-070\b']
+[[cases]]
+id = "escape_member"
+suite = "safety"
+source = "examples/safety/escape_via_member.vy"
+kind = "compile_failure"
+expected_exit = 1
+required = ['\bVNE-070\b']
+[[cases]]
+id = "escape_index"
+suite = "safety"
+source = "examples/safety/escape_via_index.vy"
+kind = "compile_failure"
+expected_exit = 1
+required = ['\bVNE-070\b']
+[[cases]]
+id = "boxed_local"
+suite = "safety"
+source = "examples/safety/boxed_local_in_region.vy"
+kind = "native"
+required = ['(?m)^boxed_local_in_region: acc=45(?:\.0)?$']
+[[cases]]
+id = "safe_commit"
+suite = "safety"
+source = "examples/safety/safe_commit.vy"
+kind = "native"
+required = ['(?m)^safe_commit: len=3$']
+[[cases]]
+id = "nested_region"
+suite = "safety"
+source = "examples/safety/nested_region.vy"
+kind = "native"
+required = ['(?m)^nested_region: a\[3\]=6(?:\.0)?$']
+
+[[cases]]
+id = "golden_scalar"
+suite = "codegen"
+source = "examples/optimization/codegen/scalar.vy"
+kind = "golden"
+golden = "examples/optimization/codegen/scalar.expected.c"
+required = ['(?m)^V03 scalar: 42$']
+[[cases]]
+id = "golden_region"
+suite = "codegen"
+source = "examples/optimization/codegen/region.vy"
+kind = "golden"
+golden = "examples/optimization/codegen/region.expected.c"
+required = ['(?m)^V03 region: 6(?:\.0)?$']
+[[cases]]
+id = "ast_scalar"
+suite = "ast"
+source = "examples/optimization/codegen/scalar.vy"
+kind = "interpret"
+required = ['(?m)^V03 scalar: 42$']
+
+[[cases]]
+id = "complex"
+suite = "dsp"
+source = "examples/test/vcomplex_test.vy"
+kind = "native"
+required = ['vcomplex: all checks passed']
+[[cases]]
+id = "interpolation"
+suite = "dsp"
+source = "examples/test/vinterp_test.vy"
+kind = "native"
+required = ['vinterp: all checks passed']
+[[cases]]
+id = "cpu_mlp"
+suite = "training"
+source = "examples/test/vml_cpu_mlp_train_test.vy"
+kind = "native"
+required = ['PASS loss-decreased', 'PASS accuracy', '=== done ===']
+[[cases]]
+id = "graphics_acceptance"
+suite = "graphics"
+source = "examples/projects/raylib-showcase/tests/run.py"
+kind = "command"
+command = ["{python}", "{source}"]
+required = ['PASS: native runtime / Windows headers / stb coexistence']
+timeout = 600
+[[cases]]
+id = "optimization_acceptance"
+suite = "optimization"
+source = "examples/optimization/run.py"
+kind = "command"
+command = ["{python}", "{source}", "--task", "all"]
+required = ['PASS V01:', 'PASS V02:', 'PASS V03:', 'PASS V04:']
+timeout = 300

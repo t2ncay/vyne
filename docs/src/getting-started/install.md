@@ -226,4 +226,13 @@ xmake test
 xmake test-init
 ```
 
-`xmake test` runs the compiler, runtime, numerical library, region-safety, and (when the AVR toolchain is present) host-side MCU translation-unit tests. `xmake test-init` exercises every `vynec init` template.
+`xmake test` requires Python 3.11+, PowerShell 7+ (`pwsh` on PATH) for benchmark
+measurement acceptance, and a host C++ compiler. It runs registered compiler, region-safety,
+golden/native, interpreter, and optimization acceptance. `xmake test-all` adds
+the registered numerical/training cases and existing headless graphics suite.
+The inventory is `scripts/tests/suites.toml`; missing/empty discovery and mismatched
+compile/runtime/output expectations fail rather than reporting success.
+Standalone runtime C and physical firmware/device checks use their separate suites.
+`xmake test-init` runs initialization self-tests and fresh desktop/embedded hardware
+configuration acceptance. Set `PYTHON` to choose an interpreter and use
+`python scripts/run_tests.py --suite all --list` to inspect registered coverage.
