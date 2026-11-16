@@ -27,3 +27,20 @@ while physical appearance is confirmed on the actual display.
 
 Scope is the supported vplot API/backends. SVG, window interaction, log scales,
 Unicode font shaping and other future backends are not claimed as tested.
+
+## Wi-Fi capture follow-up
+
+`run.py` now includes `run_sniff.py` host checks; `--core-only` runs just the
+injected driver test and `--sanitize` instruments it with ASan/UBSan. `sniff.cpp`
+executes the real driver against small hardware mocks to cover category/buffer
+guards, country/ownership validation, each setup error, callback detachment,
+failed shutdown/retry, zero-duration snapshots, saturation/clock wrapping, and
+100000 concurrent callback events conserved across snapshots. It checks that
+receive/snapshot functions allocate no host objects. This is not radio emulation.
+
+`run_sniff.py --esp32 --port COM5 --seconds 60` additionally uploads
+`sniff_device.vy` to check physical invalid/busy-radio rejection and warmed
+start/stop heap stability, then tests the main packet-rate dashboard and Q cleanup.
+It leaves the real chart running after resetting the board. Missing/failed receive
+events cannot count as successful physical capture. Measured results, tolerance
+choices and pending visual confirmation are recorded in the project README.

@@ -100,6 +100,7 @@ for exact argument order and wiring; the runtime headers are the signature sourc
 | Interrupts/watchdog | `attach_interrupt`, `interrupt_count`, `interrupt_reset`, `watchdog_*` | [interrupts](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_interrupts.vy) |
 | NVS storage | `nvs_open`, `nvs_set_int`, `nvs_get_int`, float/string variants, `nvs_exists`, `nvs_erase_key`, `nvs_close` | [NVS](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_nvs.vy) |
 | Wi-Fi | `wifi_connect`, `wifi_status`, `wifi_local_ip`, `wifi_rssi`, `wifi_scan`, `wifi_disconnect` | [Wi-Fi scan](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_wifi_scan.vy) |
+| Wi-Fi capture | `wifi_sniff_start`, `wifi_sniff_sample`, counter/time getters, `wifi_sniff_stop` | [Live packet-rate dashboard](https://github.com/t2ncay/vyne/tree/master/examples/projects/plotter-esp32) |
 | HTTP | `http_get`, `http_post`, `http_post_json`, `http_status` | [HTTP](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_wifi_http.vy) |
 | Display | `display_init`, `display_width`, `display_height`, `display_rotation`, drawing and sprite operations | [display](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_display.vy) |
 | Screen touch | `touch_screen_init`, `touch_screen_pressed`, `touch_screen_x`, `touch_screen_y`, `touch_screen_calibrate` | [touch](https://github.com/t2ncay/vyne/blob/master/examples/test/esp32_touch.vy) |
@@ -111,6 +112,40 @@ Interrupts are counter-based rather than arbitrary Vyne ISR callbacks. Timer
 reads use a 64-bit microsecond clock. ADC reference selects attenuation; PWM uses
 LEDC. `wifi_scan()` returns tab-separated strings (`ssid`, RSSI, channel, secure),
 not maps. `imu_read()` packs seven 9-bit fields; individual accessors retain precision.
+
+### Fixed-channel frame counters
+
+`wifi_sniff_start(channel)` returns Bool and takes an Int64 channel in 1..14,
+further restricted by the driver's configured country. It requires Wi-Fi OFF and
+owns the radio until `wifi_sniff_stop()`; start never replaces an existing
+connection. Do not use ordinary Wi-Fi mode/connect/scan/HTTP operations while
+capture owns it. Initialization failures return false and attempt to release
+acquired radio resources. Stop returns Bool, disables reception/detaches the
+callback and turns off its radio; failed shutdown can be retried. Neither call
+erases credentials nor changes NVS/display configuration.
+
+`wifi_sniff_sample()` atomically snapshots and clears the pending counters and
+returns Bool. A stopped sniffer returns false with an invalid-state error; a
+zero-duration interval returns false without consuming counts. On success, these
+allocation-free getters describe the same interval until the next successful
+sample (start clears them):
+
+| Getter | Result |
+| --- | --- |
+| `wifi_sniff_management()`, `wifi_sniff_data()`, `wifi_sniff_control()` | Int64 counts of driver-classified receive events |
+| `wifi_sniff_elapsed_us()` | Int64 actual elapsed microseconds from the ESP32 64-bit timer |
+| `wifi_sniff_saturated()` | Bool; a counter reached its UInt32 limit and additional events were not represented |
+| `wifi_sniff_error()` | Int64 ESP-IDF error code for the last lifecycle/sample operation, zero for success |
+
+Null/MISC receive buffers, reception-error metadata and undersized frames are
+ignored. Packet payloads are not stored; counters include retries and
+driver-delivered aggregates, not unique IP packets or lossless all-channel traffic.
+The Wi-Fi callback does no allocation/printing/plotting or Vyne evaluation and
+updates counters under a short critical section. Lifecycle, sampling/getters and
+display calls belong to the application's single task. Divide counts by actual
+elapsed seconds, not a requested delay. Driver initialization uses additional
+heap; opt-in chart rendering reuses bounded series/band buffers. See the project
+README for measured hardware costs and reception limitations.
 
 ## HW-950 display and touch
 
