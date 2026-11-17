@@ -1,0 +1,9 @@
+{
+  "arduino_cli": "1.5.1",
+  "esp32_core": "3.3.12",
+  "tflm_repository": "https://github.com/espressif/esp-tflite-micro",
+  "tflm_distribution": "Official esp-tflite-micro bundled in esp32:esp32@3.3.12 / esp32-libs@3.3.12",
+  "tflm_kernel_policy": "Pinned core prebuilt defaults, including ESP-NN; model is Float32, no quantization",
+  "tflm_library_sha256": "71eaea963c113b1cab317f8054fe872536f69671a15db71005bf21a8a0fd8395",
+  "baseline": "0b4fd8355e14dfe5f40c45cee618885a9b17ce76"
+}

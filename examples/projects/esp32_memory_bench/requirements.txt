@@ -1,0 +1,5 @@
+# Export environment: Python 3.13; firmware runner also works on Python 3.14.
+numpy==2.2.6
+torch==2.8.0
+tensorflow==2.20.0
+pyserial==3.5

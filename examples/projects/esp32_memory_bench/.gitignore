@@ -1,0 +1,9 @@
+/build/
+/data/*.h
+/data/*.vwt
+/data/*.tflite
+/data/*.json
+/data/*.npz
+__pycache__/
+!/dependencies.json
+!/requirements.txt

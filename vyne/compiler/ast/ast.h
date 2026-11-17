@@ -701,6 +701,8 @@ class BinOpNode : public ASTNode {
                 return VType::Array;
             if (lt == VType::Float64 || rt == VType::Float64)
                 return VType::Float64;
+            if (lt == VType::Float32 && rt == VType::Float32)
+                return VType::Float32;
             if (lt == VType::Int64 && rt == VType::Int64)
                 return VType::Int64;
             return VType::Unknown;
@@ -710,6 +712,8 @@ class BinOpNode : public ASTNode {
             // Vyne int/int → int (C-style truncation), see vyne_binop.
             if (lt == VType::Float64 || rt == VType::Float64)
                 return VType::Float64;
+            if (lt == VType::Float32 && rt == VType::Float32)
+                return VType::Float32;
             if (lt == VType::Int64 && rt == VType::Int64)
                 return VType::Int64;
             return VType::Unknown;
@@ -917,6 +921,11 @@ class BuiltInCallNode : public ASTNode {
 
     const std::string& getFunctionName() const {
         return funcName;
+    }
+    VType getStaticType() const override {
+        if (builtInType == BuiltInType::FLOAT32) return VType::Float32;
+        if (builtInType == BuiltInType::FLOAT64) return VType::Float64;
+        return VType::Unknown;
     }
     const std::vector<std::unique_ptr<ASTNode>>& getArguments() const {
         return arguments;
