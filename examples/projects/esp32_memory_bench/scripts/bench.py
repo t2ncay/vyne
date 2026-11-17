@@ -410,6 +410,11 @@ def main():
             if (BUILD / profile).exists():
                 shutil.move(str(BUILD / profile), str(destination / profile))
         shutil.copytree(ROOT / "data", destination / "data")
+        for name in ("bench.json", "results.md"):
+            if (BUILD / name).exists():
+                shutil.copy2(BUILD / name, destination / name)
+        if args.compiler.exists():
+            shutil.copy2(args.compiler, destination / ("vynec-baseline.exe" if os.name == "nt" else "vynec-baseline"))
         print(f"Archived prior builds/results to {destination}")
         return
     if args.action == "report":

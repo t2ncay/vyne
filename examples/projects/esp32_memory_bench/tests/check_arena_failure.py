@@ -3,6 +3,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("bench", ROOT / "scripts/bench.py")
@@ -15,6 +16,9 @@ def main():
     _, hardware = bench.configuration()
     directory = bench.BUILD / "sized/tflm"
     before = set(directory.glob("result-*.json"))
+    compile_log = directory / "compile.log"
+    if compile_log.exists() and "internal compiler error" in compile_log.read_text(errors="replace"):
+        shutil.copy2(compile_log, directory / "compile-toolchain-ice.log")
     directory = bench.build("tflm", "sized", compiler, tflm_arena=896)
     failures_before = set(directory.glob("failed-*.json"))
     try:
