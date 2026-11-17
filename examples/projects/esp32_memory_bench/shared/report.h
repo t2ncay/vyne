@@ -33,7 +33,7 @@ static void bench_report() {
     if (bench_checked != 80) bench_fail("incomplete_validation");
     // ESP-IDF reports high-water marks in bytes (not upstream FreeRTOS words).
     size_t stack_free_min = uxTaskGetStackHighWaterMark(nullptr);
-    Serial.printf("BENCH_META implementation=%s model=%s cpu_mhz=%u psram_bytes=%u arena_reserved=%u arena_used=%u scratch_bytes=%u setup_us=%lld sketch_bytes=%u heap_free=%u heap_min=%u heap_largest=%u stack_free_min_bytes=%u stack_reserved_bytes=%u checked=%u max_error=%.9g\n",
+    Serial.printf("BENCH_META implementation=%s model=%s cpu_mhz=%u psram_bytes=%u arena_capacity=%u arena_used=%u scratch_bytes=%u setup_us=%lld sketch_bytes=%u heap_free=%u heap_min=%u heap_largest=%u stack_free_min_bytes=%u stack_reserved_bytes=%u checked=%u max_error=%.9g\n",
         BENCH_IMPLEMENTATION, BENCH_MODEL_SHA, getCpuFrequencyMhz(),
         unsigned(ESP.getPsramSize()),
         unsigned(bench_arena_reserved), unsigned(bench_arena_used), unsigned(bench_scratch_bytes),

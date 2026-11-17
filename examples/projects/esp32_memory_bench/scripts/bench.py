@@ -95,7 +95,6 @@ def bridge(source):
             f'if ({index} < 0 || {index} >= {size}) bench_fail("data_index"); return {array}[{index}];')
     source = replace_function(source, "begin",
         'Serial.begin(115200); delay(1500); if (getCpuFrequencyMhz() != 240) bench_fail("cpu_frequency"); '
-        'asm volatile("" : : "r"(g_mcu_arena) : "memory"); '
         'bench_arena_reserved = sizeof(g_mcu_arena); bench_scratch_bytes = 424; return 0;')
     source = replace_function(source, "end",
         'if (v_bench_end_native_batch < 0 || v_bench_end_native_batch >= 20) bench_fail("batch_index"); '
@@ -178,6 +177,15 @@ def build(implementation, profile, compiler, tflm_arena=None):
                 re.finditer(r"^(\.[\w.]+)\s+(\d+)\s+", sections_text, re.M)}
     static_dram = sum(n for section, n in sections.items()
                       if re.fullmatch(r"\.dram\d+\.(?:data|bss)|\.noinit", section))
+    nm_tool = size_tool.with_name(size_tool.name.replace("-size", "-nm"))
+    symbols_text = command([nm_tool, "-S", "-C", "--defined-only", elf], log=directory / "symbols.txt")
+    symbol = "g_mcu_arena" if implementation == "vyne" else "tensor_arena"
+    arena_symbols = re.findall(r"^\S+\s+([0-9a-fA-F]+)\s+\w\s+" + symbol + r"$", symbols_text, re.M)
+    if len(arena_symbols) > 1:
+        raise ValueError("ambiguous linked arena symbol")
+    linked_arena = int(arena_symbols[0], 16) if arena_symbols else 0
+    if implementation == "tflm" and linked_arena != tensor_arena:
+        raise ValueError("TFLM linked arena does not match configured capacity")
     libpath = Path(properties["compiler.sdk.path"]) / "lib/libespressif__esp-tflite-micro.a"
     if sha(libpath) != lock["tflm_library_sha256"]:
         raise ValueError("bundled TFLM binary differs from the pinned classic ESP32 distribution")
@@ -194,6 +202,7 @@ def build(implementation, profile, compiler, tflm_arena=None):
               "compiler_sha256": sha(compiler), "compiler_version": command([compiler, "--version"]).strip(),
               "arduino_cli": cli_version.strip(), "tflm_library_sha256": sha(libpath),
               "elf_sha256": sha(elf), "sections": sections, "static_dram_data_bss_bytes": static_dram,
+              "linked_arena_bytes": linked_arena,
               "compile_command": [str(x) for x in args], "compile_summary": text[-1500:]}
     (directory / "build.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print(f"BUILD_PASS {profile}/{implementation}: static DRAM data/BSS {static_dram} bytes")
@@ -224,10 +233,10 @@ def parse_capture(text, implementation, model_hash, capacity, max_error_limit=0.
         raise ValueError("wrong implementation")
     if meta["model"] != model_hash or int(meta["checked"]) != 80 or int(meta["cpu_mhz"]) != 240:
         raise ValueError("model/correctness/CPU contract")
-    integer_fields = ("arena_reserved", "arena_used", "scratch_bytes", "sketch_bytes", "psram_bytes",
+    integer_fields = ("arena_capacity", "arena_used", "scratch_bytes", "sketch_bytes", "psram_bytes",
                       "heap_free", "heap_min", "heap_largest", "stack_free_min_bytes", "stack_reserved_bytes", "checked", "cpu_mhz")
     numbers = {key: int(meta[key]) for key in integer_fields}
-    if any(value < 0 for value in numbers.values()) or numbers["arena_reserved"] != capacity:
+    if any(value < 0 for value in numbers.values()) or numbers["arena_capacity"] != capacity:
         raise ValueError("invalid memory measurement/capacity")
     if numbers["arena_used"] > capacity or numbers["sketch_bytes"] == 0:
         raise ValueError("invalid memory/flash measurement")
@@ -326,7 +335,7 @@ def report(update_readme=False):
             group = [r for r in results if r["build"]["profile"] == profile and r["build"]["implementation"] == impl]
             if not group:
                 continue
-            capacities = {r["metadata"]["arena_reserved"] for r in group}
+            capacities = {r["metadata"]["arena_capacity"] for r in group}
             if len(capacities) != 1:
                 raise ValueError("mixed arena capacities in one comparison profile")
             values = [s["per_inference_us"] for r in group for s in r["samples"]]
@@ -335,6 +344,7 @@ def report(update_readme=False):
                          "batches": len(values), "median_us": statistics.median(values),
                          "min_us": min(values), "max_us": max(values),
                          "metadata": metadata, "static_dram_data_bss_bytes": group[-1]["build"]["static_dram_data_bss_bytes"]})
+            rows[-1]["linked_arena_bytes"] = group[-1]["build"]["linked_arena_bytes"]
     summary = {"schema": 1, "rows": rows, "results": results,
                "failed_runs": [str(p.relative_to(ROOT)) for p in BUILD.glob("*/*/failed-*.json")],
                "loc": {"vyne_firmware": loc(ROOT / "src_vyne/bench.vy"),
@@ -345,28 +355,28 @@ def report(update_readme=False):
                        "common_reporting": loc(ROOT / "shared/report.h")}}
     (BUILD / "bench.json").write_text(json.dumps(summary, indent=2) + "\n")
     lines = ["## Measured device results", "", "Raw times are batch durations / 100, not independently timed inference calls.", "",
-             "| Profile | Runtime | Runs/batches | Reserved arena B | Arena used/peak B | Scratch B | Static DRAM data/BSS B | Median ms/inference (min–max) | Flash B |",
-             "| --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: |"]
+             "| Profile | Runtime | Runs/batches | Configured arena B | Linked arena B | Arena used/peak B | Scratch B | Static DRAM data/BSS B | Median ms/inference (min–max) | Flash B |",
+             "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: |"]
     for row in rows:
         m = row["metadata"]
         lines.append(f"| {row['profile']} | {row['implementation']} | {row['runs']}/{row['batches']} | "
-                     f"{m['arena_reserved']} | {m['arena_used']} | {m['scratch_bytes']} | "
+                     f"{m['arena_capacity']} | {row['linked_arena_bytes']} | {m['arena_used']} | {m['scratch_bytes']} | "
                      f"{row['static_dram_data_bss_bytes']} | {row['median_us']/1000:.6f} "
                      f"({row['min_us']/1000:.6f}–{row['max_us']/1000:.6f}) | {m['sketch_bytes']} |")
     lines += ["", "All accepted runs checked 80 outputs at atol=2e-5, rtol=2e-4. "
-              "Reserved capacity, arena high-water and scratch bytes overlap with total SRAM and must not be blindly summed.", "",
+              "Configured capacity can differ from linked storage. Arena high-water and scratch bytes overlap with total SRAM and must not be blindly summed.", "",
               "Source LOC (nonblank, whole-line language comments excluded; braces and C/C++ preprocessor lines counted): " +
               json.dumps(summary["loc"], sort_keys=True), "",
               f"Failed captures excluded: {len(summary['failed_runs'])}.", "",
               "### Capture provenance", ""]
     for r in results:
         m = r["metadata"]
+        setup = "not measured" if m["setup_us"] is None else f"{m['setup_us']} us"
         lines.append(f"- `{r['raw_log']}`: model `{m['model']}`, capture SHA256 `{r['capture_sha256']}`, "
                      f"max absolute error `{m['max_error']:.9g}`, stack free minimum `{m['stack_free_min_bytes']}` B, "
                      f"internal heap free/minimum/largest `{m['heap_free']}/{m['heap_min']}/{m['heap_largest']}` B, "
                      f"task stack reserved `{m['stack_reserved_bytes']}` B, "
-                     f"setup `{m['setup_us'] if m['setup_us'] is not None else 'not measured'}` "
-                     f"{'' if m['setup_us'] is None else 'us'}. Build metadata and ELF sections are retained alongside the capture.")
+                     f"setup `{setup}`. Build metadata and ELF sections are retained alongside the capture.")
     markdown = "\n".join(lines) + "\n"
     (BUILD / "results.md").write_text(markdown, encoding="utf-8")
     if update_readme:

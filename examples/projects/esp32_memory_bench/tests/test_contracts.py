@@ -17,7 +17,7 @@ spec.loader.exec_module(bench)
 
 def valid_capture():
     lines = ["BENCH_META implementation=vyne model=" + "a" * 64 +
-             " cpu_mhz=240 psram_bytes=0 arena_reserved=1024 arena_used=0 scratch_bytes=424 setup_us=0"
+             " cpu_mhz=240 psram_bytes=0 arena_capacity=1024 arena_used=0 scratch_bytes=424 setup_us=0"
              " sketch_bytes=300000 heap_free=200000 heap_min=190000 heap_largest=100000"
              " stack_free_min_bytes=4096 stack_reserved_bytes=8192 checked=80 max_error=0.000001"]
     lines += [f"BENCH_SAMPLE implementation=vyne batch={i} iterations=100 elapsed_us={10000+i}"
@@ -61,7 +61,7 @@ class CaptureContracts(unittest.TestCase):
 
     def test_invalid_measurements(self):
         replacements = (("elapsed_us=10000", "elapsed_us=0"), ("iterations=100", "iterations=99"),
-                        ("arena_used=0", "arena_used=1025"), ("arena_reserved=1024", "arena_reserved=0"),
+                        ("arena_used=0", "arena_used=1025"), ("arena_capacity=1024", "arena_capacity=0"),
                         ("cpu_mhz=240", "cpu_mhz=160"), ("max_error=0.000001", "max_error=nan"),
                         ("heap_free=200000", "heap_free=-1"), ("sketch_bytes=300000", "sketch_bytes=0"),
                         ("psram_bytes=0", "psram_bytes=4194304"), ("max_error=0.000001", "max_error=1.0"),
@@ -155,6 +155,7 @@ class ReportContracts(unittest.TestCase):
                             "source_hashes": {"bench": "same"}, "compiler_sha256": compiler_hash,
                             "tflm_library_sha256": "library", "fqbn": "board",
                             "static_dram_data_bss_bytes": 12345,
+                            "linked_arena_bytes": 0,
                             "model": {"hashes": {"model.tflite": "a" * 64}, "max_reference_abs": 1.0}},
                   "raw_log": str(log.relative_to(self.root)), "capture_sha256": bench.sha(log),
                   **bench.parse_capture(text, runtime, "a" * 64, 1024)}
