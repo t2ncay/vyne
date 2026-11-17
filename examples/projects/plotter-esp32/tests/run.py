@@ -20,7 +20,11 @@ COMPILER = Path(os.environ.get("VYNEC", ROOT / ("vynec.exe" if os.name == "nt" e
 
 
 def command(args, cwd=PROJECT, timeout=300):
-    result = subprocess.run([str(arg) for arg in args], cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    # Resolve VYNEC in the caller's directory once. Nested runners execute in
+    # PROJECT, where a relative CI value such as ./vyne_run does not exist.
+    env = {**os.environ, "VYNEC": str(COMPILER)}
+    result = subprocess.run([str(arg) for arg in args], cwd=cwd, env=env,
+                            capture_output=True, text=True, timeout=timeout)
     if result.returncode:
         raise AssertionError(f"{args}\n{result.stdout}\n{result.stderr}")
     print(result.stdout.strip())

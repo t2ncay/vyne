@@ -40,17 +40,17 @@ def main():
     # Arity is rejected by Vyne before invoking any hardware build.
     invalid = build / "invalid.vy"
     invalid.write_text('use native esp32; esp32.wifi_sniff_start();\n', encoding="utf-8")
-    text = command([COMPILER, "--esp32", "esp32", invalid], expected=1)
+    text = command([COMPILER, "--esp32", "esp32", "--emit-c", invalid], expected=1)
     assert "expects 1 arguments" in text
     # Emit only: verifies resolved alias and opt-in sniff feature selection.
     binding = build / "binding.vy"
     binding.write_text('use native esp32 as radio; radio.wifi_sniff_start(6); radio.wifi_sniff_sample(); radio.wifi_sniff_stop();\n', encoding="utf-8")
-    command([COMPILER, "--esp32", "esp32", "-o", build / "binding", binding])
-    ino = (build / "binding_sketch/binding_sketch.ino").read_text()
+    command([COMPILER, "--esp32", "esp32", "--emit-c", "-o", build / "binding", binding])
+    ino = (build / "binding.vy.c").read_text()
     assert "#define VYNE_USE_WIFI_SNIFF" in ino and "esp32_wifi_sniff_start(" in ino
     binding.write_text('use native esp32; esp32.wifi_mode(0);\n', encoding="utf-8")
-    command([COMPILER, "--esp32", "esp32", "-o", build / "ordinary", binding])
-    ordinary = (build / "ordinary_sketch/ordinary_sketch.ino").read_text()
+    command([COMPILER, "--esp32", "esp32", "--emit-c", "-o", build / "ordinary", binding])
+    ordinary = (build / "ordinary.vy.c").read_text()
     assert "#define VYNE_USE_WIFI" in ordinary and "#define VYNE_USE_WIFI_SNIFF" not in ordinary
     print("PASS: ESP32 native arity, aliases and optional capture feature lowering")
     if not args.esp32:
