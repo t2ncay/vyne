@@ -55,4 +55,5 @@ bench_begin();
         };
     };
 };
-bench_finish(esp32.arena_peak());
+arena_peak :: Int64 := esp32.arena_peak();
+bench_finish(arena_peak);

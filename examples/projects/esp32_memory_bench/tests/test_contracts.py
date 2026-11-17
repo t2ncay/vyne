@@ -125,6 +125,8 @@ class EmissionContracts(unittest.TestCase):
         self.assertIn("float v_input[64]", original)
         self.assertIn("float v_hidden[32]", original)
         self.assertIn("float v_output[10]", original)
+        self.assertIn("fn_bench_finish_native", original[original.index("void vyne_setup()") :])
+        self.assertNotIn("fn_bench_finish(", original[original.index("void vyne_setup()") :])
         with self.assertRaises(ValueError):
             bench.bridge(original.replace("fn_bench_weight1_native", "different_abi"))
         with self.assertRaises(ValueError):
