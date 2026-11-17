@@ -1,0 +1,37 @@
+[project]
+name = "esp32_memory_bench"
+version = "0.1.0"
+license = "AGPL-3.0-only"
+description = "Correctness-gated Float32 TFLM versus bounded Vyne MLP benchmark"
+
+[toolchain]
+vyne = "0.8.0"
+
+[dependencies]
+
+[targets]
+default = "hw950"
+
+[targets.hw950]
+backend = "esp32"
+board = "esp32:esp32:esp32"
+
+[build]
+default_targets = ["hw950"]
+deterministic = true
+
+[test]
+discovery = "tests/*.py"
+snapshot_format = "json"
+
+[bench]
+warmup = 10
+iterations = 100
+batches = 20
+cpu_mhz = 240
+report = "build/bench.json"
+absolute_tolerance = 0.00002
+relative_tolerance = 0.0002
+tflm_arena_bytes = 16384
+tflm_sized_arena_bytes = 1024
+vyne_arena_bytes = 1024

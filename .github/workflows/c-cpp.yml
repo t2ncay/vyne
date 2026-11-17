@@ -98,6 +98,11 @@ jobs:
           VYNEC: ./vyne_run
         run: python3 scripts/test_hardware.py
 
+      - name: Run ESP32 memory benchmark host and embedded-emission contracts
+        env:
+          VYNEC: ./vyne_run
+        run: python3 -m unittest discover -s examples/projects/esp32_memory_bench/tests -p test_contracts.py -v
+
       - name: Run discarded zero-argument native call regression
         run: |
           set -euo pipefail
