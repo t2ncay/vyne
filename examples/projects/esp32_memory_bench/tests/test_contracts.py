@@ -132,6 +132,37 @@ class EmissionContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             bench.bridge(lowered)
 
+    def test_mlp_inner_loop_keeps_float32_conversions_native(self):
+        result = subprocess.run([str(self.compiler), "--esp32", "esp32", "--emit-c", "-o",
+                                 str(self.directory / "fixture"), str(ROOT / "src_vyne/bench.vy")],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        source = (self.directory / "fixture.vy.c").read_text()
+        body = source[source.index("void vyne_setup()") :]
+        hot_loop = body.split("int64_t v_iteration", 1)[1].split("arduino_timer_read()", 1)[0]
+        for unwanted in ("vyne_binop(", "vyne_to_float32(", "vyne_float32("):
+            self.assertNotIn(unwanted, hot_loop)
+        self.assertIn("float convert_", hot_loop)
+        self.assertIn("fn_bench_weight1_native", hot_loop)
+
+    def test_native_conversion_rounding_and_effects(self):
+        fixture = ROOT / "tests/native_conversions.vy"
+        for optimization in ("-O0", "-O3"):
+            base = self.directory / ("conversions" + optimization[-1])
+            result = subprocess.run([str(self.compiler), "--emit-c", "-o", str(base), str(fixture)],
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            binary = base.with_suffix(".exe" if os.name == "nt" else "")
+            args = ["gcc", "-std=gnu11", optimization, "-ffp-contract=off", str(base.with_suffix(".vy.c")),
+                    "-I", str(REPO), "-o", str(binary)]
+            if os.name != "nt":
+                args += ["-lm", "-lpthread"]
+            compiled = subprocess.run(args, capture_output=True, text=True)
+            self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)
+            run = subprocess.run([str(binary)], capture_output=True, text=True)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            self.assertIn("NATIVE_CONVERSIONS_PASS", run.stdout)
+
 
 class ReportContracts(unittest.TestCase):
     def setUp(self):

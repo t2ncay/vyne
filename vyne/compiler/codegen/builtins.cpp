@@ -68,13 +68,41 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
                                             : e.boxAny(arguments[0]->getCExpr(e));
         return "vyne_to_int(" + arg + ")";
     }
-    if (funcName == "float64") {
-        if (arguments.empty()) return "vyne_float(0.0)";
-        return "vyne_to_float(" + e.boxAny(arguments[0]->getCExpr(e)) + ")";
-    }
-    if (funcName == "float32") {
-        if (arguments.empty()) return "vyne_float32(0.0f)";
-        return "vyne_to_float32(" + e.boxAny(arguments[0]->getCExpr(e)) + ")";
+    if (funcName == "float32" || funcName == "float64") {
+        const VType want = funcName == "float32" ? VType::Float32 : VType::Float64;
+        const CType resultType = CType::fromVType(want);
+        const std::string temp = e.newTemp("convert");
+        std::string value = want == VType::Float32 ? "0.0f" : "0.0";
+        if (!arguments.empty()) {
+            const ASTNode* node = arguments[0].get();
+            // Evaluate once before choosing representation. Literal reads are
+            // boxed by getCExpr but can be converted directly from their value.
+            const std::string raw = node->getCExpr(e);
+            const CType* native = e.exprNativeType(raw);
+            const bool numericLiteral = node->type() == NodeType::NUMBER;
+            const bool nativeNumeric = native &&
+                (native->kind == CType::Kind::Int64 ||
+                 native->kind == CType::Kind::Float32 ||
+                 native->kind == CType::Kind::Float64);
+            if (numericLiteral || nativeNumeric) {
+                value = coerceToNative(e, node, raw, want);
+            } else {
+                // Keep runtime conversion semantics for strings, booleans and
+                // dynamic values. Materialize the converted box before unboxing
+                // so coercion cannot repeat calls/side effects in raw.
+                const std::string box = e.newTemp("converted_box");
+                const std::string converter = want == VType::Float32
+                    ? "vyne_to_float32" : "vyne_to_float";
+                e.emit("VyneValue " + box + " = " + converter + "(" +
+                       e.boxAny(raw) + ");");
+                value = coerceToNative(e, nullptr, box, want);
+            }
+        }
+        // A typed temporary preserves explicit narrowing/rounding boundaries
+        // and lets enclosing arithmetic/dispatch retain the native fast path.
+        e.emit(resultType.cTypeName() + " " + temp + " = " + value + ";");
+        e.declareNativeTemp(temp, resultType);
+        return temp;
     }
     if (funcName == "sizeof") {
         if (arguments.empty()) return "vyne_int(0)";
@@ -196,4 +224,3 @@ std::string BuiltInCallNode::getCExpr(C_Emitter& e) const {
 }
 
 void BuiltInCallNode::compile(C_Emitter& e) const { getCExpr(e); }
-
