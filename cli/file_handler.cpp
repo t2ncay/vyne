@@ -781,9 +781,11 @@ static int runTranspile(
     emitter.reset();
     emitter.setScratchBoundsEnabled(opts.scratchBounds);
     emitter.setTarget(
-        opts.mode == RunMode::ArduinoCompile || opts.mode == RunMode::ArduinoRun
+        opts.mode == RunMode::ArduinoCompile || opts.mode == RunMode::ArduinoRun ||
+            (opts.mode == RunMode::EmitC && !opts.arduinoBoard.empty())
             ? Target::AVR
-        : opts.mode == RunMode::ESP32Compile || opts.mode == RunMode::ESP32Run
+        : opts.mode == RunMode::ESP32Compile || opts.mode == RunMode::ESP32Run ||
+            (opts.mode == RunMode::EmitC && !opts.esp32Board.empty())
             ? Target::ESP32
             : Target::Desktop
     );
