@@ -11,6 +11,7 @@
 [![Version](https://img.shields.io/badge/version-0.8.0-orange.svg)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-linux%20%7C%20macOS%20%7C%20windows%20%7C%20avr%20%7C%20esp32-lightgrey.svg)](#build-from-source)
 [![Discord](https://img.shields.io/discord/1475562767384842280)](https://discord.gg/tMqmTb3ZM)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/t2ncay/badge.svg)](https://hub.xerj.org/contributors/t2ncay)
 
 ---
 
