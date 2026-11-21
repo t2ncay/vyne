@@ -26,6 +26,10 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           ASAN_OPTIONS: detect_leaks=1
         run: xvfb-run -a python3 examples/projects/raylib-showcase/tests/run.py --graphics --sanitize
+      - name: VMGE portable editor, viewer, physics and GPU acceptance
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python3 examples/projects/vmge/tests/run.py --graphics
 
   windows:
     runs-on: windows-latest
@@ -50,6 +54,8 @@ jobs:
           xmake -j 4
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python examples/projects/raylib-showcase/tests/run.py
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python examples/projects/vmge/tests/run.py
           exit $LASTEXITCODE
 
   macos:
@@ -64,3 +70,5 @@ jobs:
           "$cxx" -std=c++23 -O2 -I. -Ivendor main.cpp cli/*.cpp $(find vyne -name '*.cpp') -o vynec -lm -lpthread -ldl
       - name: Core API and native runtime acceptance
         run: python3 examples/projects/raylib-showcase/tests/run.py
+      - name: VMGE map, physics, frame lifetime and entry-point acceptance
+        run: python3 examples/projects/vmge/tests/run.py
