@@ -1,6 +1,7 @@
 use "../engine/collision.vy";
 use "../engine/input.vy";
 use native vcore;
+use "../ui/theme.vy";
 
 fn vmge_viewer() -> Int64 {
     app :: vraylib.App := vraylib.App(0);
@@ -12,6 +13,7 @@ fn vmge_viewer() -> Int64 {
         if vraylib.environment("VYNE_VMGE_MAP") == null && !vraylib.file_exists(map_path) { map_path = project + "/maps/demo.dat"; }
         world :: VMGEMap := vmge_map_load(map_path, vmge_setting("VYNE_VMGE_CAPACITY", 16384), false);
         app = vmge_window("VMGE - Bodycam Map Viewer");
+        se_theme_load(app,project);
         assets :: String := vmge_asset_root(project);
         textures :: Array := vmge_palette(app, assets);
         models :: Array := vmge_models(app, textures);
@@ -67,11 +69,11 @@ fn vmge_viewer() -> Int64 {
             scanline.begin();
             bodycam.present(float64(app.width()), float64(app.height()));
             scanline.end();
-            vraylib.draw_text("AXON BODY 3 - VMGE", 24, 24, 20, vraylib.WHITE);
-            vraylib.draw_text(vcore.now(), 24, 52, 18, vraylib.WHITE);
-            vraylib.draw_text("REC", app.width() - 90, 24, 24, vraylib.RED);
-            vraylib.draw_text("WASD move | Shift sprint | Ctrl crouch | Space jump", 24, app.height() - 48, 14, vraylib.WHITE);
-            vraylib.draw_text("J reset | Tab mouse | F11 fullscreen | Escape exit", 24, app.height() - 28, 14, vraylib.WHITE);
+            se_draw_heading("AXON BODY 3 - VMGE", 24, 24, 20, vraylib.WHITE);
+            se_draw_text(vcore.now(), 24, 52, 18, vraylib.WHITE);
+            se_draw_heading("REC", app.width() - 90, 24, 24, vraylib.RED);
+            se_draw_text("WASD move | Shift sprint | Ctrl crouch | Space jump", 24, app.height() - 48, 14, vraylib.WHITE);
+            se_draw_text("J reset | Tab mouse | F11 fullscreen | Escape exit", 24, app.height() - 28, 14, vraylib.WHITE);
             app.end();
         }
         frames = app.frames();

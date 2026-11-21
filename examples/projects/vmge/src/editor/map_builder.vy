@@ -1,6 +1,7 @@
 use "../engine/render.vy";
 use "../engine/export.vy";
 use "../engine/input.vy";
+use "../ui/theme.vy";
 
 fn vmge_editor() -> Int64 {
     app :: vraylib.App := vraylib.App(0);
@@ -12,6 +13,7 @@ fn vmge_editor() -> Int64 {
         export_path :: String := vmge_option("VYNE_VMGE_EXPORT", "exported_map.obj");
         world :: VMGEMap := vmge_map_load(map_path, vmge_setting("VYNE_VMGE_CAPACITY", 16384), true);
         app = vmge_window("VMGE - Map Builder");
+        se_theme_load(app,project);
         textures :: Array := vmge_palette(app, vmge_asset_root(project));
         models :: Array := vmge_models(app, textures);
         camera :: vraylib.Camera := app.camera(vraylib.vec3(0.0, 9.0, -15.0), vraylib.vec3(0.0, 1.0, 0.0), 70.0);
@@ -82,13 +84,13 @@ fn vmge_editor() -> Int64 {
             vraylib.draw_rectangle(x - 8, y - 8, 176, 176, vraylib.rgba(40, 40, 50, 220));
             texture :: vraylib.Texture := textures[slot];
             texture.draw_region(vraylib.Rectangle(0.0, 0.0, float64(texture.width()), float64(texture.height())), vraylib.Rectangle(float64(x), float64(y), 160.0, 160.0), vraylib.vec2(0.0, 0.0), 0.0, vraylib.WHITE);
-            vraylib.draw_text("SELECTED SLOT " + string(slot + 1), x, y - 28, 18, vraylib.SKYBLUE);
-            vraylib.draw_text("VMGE MAP BUILDER | " + map_path, 24, 24, 22, vraylib.SKYBLUE);
-            vraylib.draw_text("CUBES " + string(world.count()) + "/" + string(world.capacity) + " | SLOT " + string(slot + 1), 24, 54, 18, vraylib.WHITE);
-            vraylib.draw_text("WASD move | Shift/Ctrl up/down | 1-8 texture", 24, 84, 16, vraylib.GRAY);
-            vraylib.draw_text("Space/left click place | Backspace/right click remove", 24, 108, 16, vraylib.GRAY);
-            vraylib.draw_text("J save | K export | Tab mouse | F11 fullscreen | Esc exit", 24, 132, 16, vraylib.GRAY);
-            vraylib.draw_text("+", app.width() / 2 - 5, app.height() / 2 - 10, 20, vraylib.WHITE);
+            se_draw_text("SELECTED SLOT " + string(slot + 1), x, y - 28, 18, vraylib.SKYBLUE);
+            se_draw_heading("VMGE MAP BUILDER | " + map_path, 24, 24, 22, vraylib.SKYBLUE);
+            se_draw_text("CUBES " + string(world.count()) + "/" + string(world.capacity) + " | SLOT " + string(slot + 1), 24, 54, 18, vraylib.WHITE);
+            se_draw_text("WASD move | Shift/Ctrl up/down | 1-8 texture", 24, 84, 16, vraylib.GRAY);
+            se_draw_text("Space/left click place | Backspace/right click remove", 24, 108, 16, vraylib.GRAY);
+            se_draw_text("J save | K export | Tab mouse | F11 fullscreen | Esc exit", 24, 132, 16, vraylib.GRAY);
+            se_draw_text("+", app.width() / 2 - 5, app.height() / 2 - 10, 20, vraylib.WHITE);
             message :: String := "EDITOR READY";
             if status == 1 { message = "OBJECT PLACED"; }
             if status == 2 { message = "CELL ALREADY OCCUPIED"; }
@@ -97,7 +99,7 @@ fn vmge_editor() -> Int64 {
             if status == 5 { message = "OBJ GEOMETRY EXPORTED"; }
             if status == 6 { message = "WRITE FAILED - SEE CONSOLE"; }
             if status == 7 { message = "MAP CAPACITY REACHED - REMOVE CUBES OR RESTART WITH A LARGER CAPACITY"; }
-            vraylib.draw_text(message, 24, app.height() - 42, 20, vraylib.GREEN);
+            se_draw_text(message, 24, app.height() - 42, 20, vraylib.GREEN);
             app.end();
         }
         frames = app.frames();
