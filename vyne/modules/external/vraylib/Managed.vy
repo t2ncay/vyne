@@ -30,6 +30,17 @@ interface Texture {
     draw(position :: vraylib.Vector2, tint :: vraylib.Color) -> Bool {
         return vraylib.managed_draw_texture(self.session, self.token, position, tint);
     }
+    draw_region(source :: vraylib.Rectangle, destination :: vraylib.Rectangle, origin :: vraylib.Vector2, rotation :: Float64, tint :: vraylib.Color) -> Bool {
+        handle :: Int64 := self.native_handle();
+        if !vraylib.managed_state(self.session, "drawing") { throw "Texture drawing requires an active application drawing surface"; }
+        if self.owned { vraylib.draw_texture_pro(handle, source, destination, origin, rotation, tint); }
+        else {
+            # Logical target views use top-left coordinates, like Texture.draw.
+            flipped :: vraylib.Rectangle := vraylib.Rectangle(source.x, float64(self.height()) - source.y - source.height, source.width, -source.height);
+            vraylib.draw_texture_pro(handle, flipped, destination, origin, rotation, tint);
+        }
+        return true;
+    }
     native_handle() -> Int64 { return vraylib.managed_texture(self.session, self.token); }
 }
 
@@ -88,6 +99,12 @@ interface Camera {
     valid() -> Bool { return vraylib.managed_valid(self.session, self.token) && self.token != 0; }
     close() -> Bool { return vraylib.managed_release(self.session, self.token); }
     position() -> vraylib.Vector3 { return vraylib.camera_position(vraylib.require_managed(self.session, self.token)); }
+    view() -> vraylib.Camera3D { return vraylib.camera_view(vraylib.require_managed(self.session, self.token)); }
+    ray(position :: vraylib.Vector2) -> vraylib.Ray {
+        snapshot :: vraylib.Camera3D := self.view();
+        if !vraylib.managed_state(self.session, "window") { throw "Camera picking requires an application window"; }
+        return vraylib.get_screen_to_world_ray(position, snapshot);
+    }
     set_position(position :: vraylib.Vector3) -> Bool { return vraylib.camera_set_position(vraylib.require_managed(self.session, self.token), position); }
     set_height(height :: Float64) -> Bool { return vraylib.camera_set_height(vraylib.require_managed(self.session, self.token), height); }
     move(forward :: Float64, right :: Float64) -> Bool { return vraylib.camera_step(vraylib.require_managed(self.session, self.token), forward, right); }
@@ -196,6 +213,7 @@ interface App {
     height() -> Int64 { return vraylib.managed_state(self.token, "height"); }
     resources() -> Int64 { return vraylib.managed_state(self.token, "resources"); }
     passes() -> Int64 { return vraylib.managed_state(self.token, "passes"); }
+    drawing() -> Bool { return vraylib.managed_state(self.token, "drawing"); }
     uniform_queries() -> Int64 { return vraylib.managed_state(self.token, "uniform_queries"); }
     saturation(drive :: Float64, mode :: Int64) -> Bool { return vraylib.managed_saturation(self.token, drive, mode); }
     saturation_attached() -> Bool { return vraylib.managed_state(self.token, "saturation_attached"); }
@@ -251,6 +269,14 @@ interface App {
             if !vraylib.is_texture_valid(handle) { vraylib.managed_release(self.token, handle); throw "Could not load texture: " + resolved; }
             vraylib.managed_store(self.token, resolved, "Texture", handle);
         }
+        return vraylib.Texture(handle, self.token, true);
+    }
+    texture(image :: vraylib.Image) -> vraylib.Texture {
+        if !self.window_ready() { throw "Textures require an application window"; }
+        if image.session != self.token { throw "Image belongs to another application"; }
+        handle :: Int64 := vraylib.load_texture_from_image(vraylib.require_managed(image.session, image.token));
+        vraylib.managed_adopt(self.token, handle);
+        if !vraylib.is_texture_valid(handle) { vraylib.managed_release(self.token, handle); throw "Could not create texture from image"; }
         return vraylib.Texture(handle, self.token, true);
     }
     load_model(path :: String) -> vraylib.Model {

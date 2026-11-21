@@ -82,6 +82,7 @@ accepted. Relative roots are relative to the process working directory.
 | App factory | Result / purpose |
 | --- | --- |
 | `load_texture(path)` | Checked GPU texture; `width`, `height`, `draw`, `close` |
+| `texture(image)` | Upload a checked same-session Image; the GPU Texture survives source image closure |
 | `load_image(path)`, `image(w,h,color)` | CPU image; `resize`, `save`, `close` |
 | `load_model(path)`, `cube(texture)`, `plane(texture,w,length)` | Model; material count, shader/texture assignment and drawing |
 | `load_font(path)` | Font; `draw(text,position,size,tint)` |
@@ -95,6 +96,25 @@ Model/camera/target drawing requires an open App window. Image sessions need no
 graphics or audio device. Music has `valid`, `play`, `pause`, `volume` and `close`;
 if no audio device can open, it returns an unavailable Music token (`valid=false`).
 Missing files and failed resource/shader loads produce descriptive exceptions.
+
+### Texture regions and procedural assets
+
+```vyne
+image :: vraylib.Image := app.image(64, 64, vraylib.BLUE);
+texture :: vraylib.Texture := app.texture(image);
+image.close();
+# Inside app.begin/end or target.begin/end:
+texture.draw_region(vraylib.Rectangle(0.0, 0.0, 64.0, 64.0),
+    vraylib.Rectangle(20.0, 20.0, 160.0, 160.0),
+    vraylib.vec2(0.0, 0.0), 0.0, vraylib.WHITE);
+```
+
+`draw_region(source,destination,origin,rotation,tint)` exposes scaled/cropped/
+rotated drawing without manually extracting a resource token. It validates the
+texture and requires an active managed drawing surface. `app.drawing()` reports
+that state. Borrowed `target.texture()` views use logical top-left source
+coordinates, like `Texture.draw`, and follow target storage replacement. Keep
+the logical wrapper rather than caching its raw attachment handle.
 
 ### Fixed native saturation
 
@@ -161,7 +181,10 @@ must be detached before replacing storage; `native_handle()` is an explicit
 escape hatch whose returned attachment handle is invalidated by resize.
 
 Camera methods include `position`, `set_position`, `set_height`, `move`, `look`,
-`update`, `begin/end` and `with_draw`. First-person update normalizes diagonal
+`view`, `ray`, `update`, `begin/end` and `with_draw`. `view()` returns a checked
+Camera3D snapshot; `ray(screen_position)` produces a picking Ray and requires
+a live application window. Both returned records are frame-local snapshots,
+not persistent mutable camera state. First-person update normalizes diagonal
 WASD input and uses App.dt; orbit uses raylib's orbital controller. Speed and
 sensitivity are wrapper value fields that can be configured before updating.
 Collision, crouching, jumping and scene-specific physics remain application
@@ -189,14 +212,18 @@ Frame scopes bound allocation lifetimes, not a guarantee of zero allocations.
 
 ## Diagnostics and examples
 
-App exposes `frames`, `dt`, `elapsed`, `width`, `height`, `resources`, `passes`,
+App exposes `frames`, `dt`, `elapsed`, `width`, `height`, `resources`, `passes`, `drawing`,
 `uniform_queries`, `valid`, `limit`, `fps` and `stop`. The full bodycam example
 now uses typed assets, managed frames/music, named uniforms and resizing targets.
 The small desktop showcase demonstrates a managed orbit camera.
+VMGE in `examples/projects/vmge/` demonstrates a persistent editable cube map,
+procedural/original assets, camera-ray picking, texture regions and a playable
+fog/VHS/scanline pipeline. Its README covers controls, paths and acceptance.
 
 ```sh
 python examples/projects/raylib-showcase/tests/run.py --graphics
 python examples/projects/raylib-showcase/tests/run.py --graphics --camera --audio
+python examples/projects/vmge/tests/run.py --graphics
 ```
 
 The original low-level facade and the pinned API coverage/capability limits remain
