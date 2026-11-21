@@ -18,7 +18,7 @@
  * Naming convention: vfs_<name>
  *
  *   Read      : read, read_lines, read_bytes
- *   Write     : write, write_lines, write_bytes, append
+ *   Write     : write, write_atomic, write_lines, write_bytes, append
  *   Metadata  : exists, is_file, is_dir, size, mtime, atime
  *   Directory : list_dir, walk, glob, mkdir, mkdir_p,
  *               remove, remove_dir
@@ -40,6 +40,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
+#include <errno.h>
+#include <fcntl.h>
 
 /* ---------- platform shims ---------------------------------------- */
 #ifdef _WIN32
@@ -218,8 +220,65 @@ static inline VyneValue vfs_write(VyneValue path_val, VyneValue content_val) {
     FILE* f = fopen(path_val.as.str, "wb");
     if (!f) return vyne_bool(false);
     size_t wrote = fwrite(content, 1, len, f);
-    fclose(f);
-    return vyne_bool(wrote == len);
+    int closed = fclose(f);
+    return vyne_bool(wrote == len && closed == 0);
+}
+
+/* Write a private sibling first, then atomically replace the destination.
+ * A write/close/replace failure never opens or truncates the destination. */
+static inline VyneValue vfs_write_atomic(VyneValue path_val, VyneValue content_val) {
+    if (path_val.type != V_STRING || !path_val.as.str) {
+        fprintf(stderr, "Runtime error: vfs.write_atomic() expects a String path.\n");
+        exit(1);
+    }
+    const char* content = content_val.type == V_STRING && content_val.as.str ? content_val.as.str : "";
+    size_t len = strlen(content), path_len = strlen(path_val.as.str);
+    if (path_len > SIZE_MAX - 80) return vyne_bool(false);
+    char* temporary = (char*)malloc(path_len + 80);
+    if (!temporary) return vyne_bool(false);
+    int fd = -1;
+#ifdef _WIN32
+    static volatile LONG sequence;
+    for (int attempt = 0; attempt < 64; ++attempt) {
+        unsigned long serial = (unsigned long)InterlockedIncrement(&sequence);
+        snprintf(temporary, path_len + 80, "%s.vyne-tmp-%lu-%lu", path_val.as.str,
+                 (unsigned long)GetCurrentProcessId(), serial);
+        fd = _open(temporary, _O_WRONLY | _O_CREAT | _O_EXCL | _O_BINARY, _S_IREAD | _S_IWRITE);
+        if (fd >= 0 || errno != EEXIST) break;
+    }
+#else
+    memcpy(temporary, path_val.as.str, path_len);
+    memcpy(temporary + path_len, ".vyne-tmp-XXXXXX", sizeof(".vyne-tmp-XXXXXX"));
+    fd = mkstemp(temporary);
+#endif
+    if (fd < 0) { free(temporary); return vyne_bool(false); }
+#ifdef _WIN32
+    FILE* f = _fdopen(fd, "wb");
+#else
+    FILE* f = fdopen(fd, "wb");
+#endif
+    if (!f) {
+#ifdef _WIN32
+        _close(fd);
+#else
+        close(fd);
+#endif
+        VFS_UNLINK(temporary); free(temporary); return vyne_bool(false);
+    }
+    size_t wrote = fwrite(content, 1, len, f);
+    int failed = wrote != len || ferror(f);
+    int closed = fclose(f);
+    if (failed || closed != 0) {
+        VFS_UNLINK(temporary); free(temporary); return vyne_bool(false);
+    }
+#ifdef _WIN32
+    int replaced = MoveFileExA(temporary, path_val.as.str, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+    int replaced = rename(temporary, path_val.as.str) == 0;
+#endif
+    if (!replaced) VFS_UNLINK(temporary);
+    free(temporary);
+    return vyne_bool(replaced);
 }
 
 static inline VyneValue vfs_append(VyneValue path_val, VyneValue content_val) {

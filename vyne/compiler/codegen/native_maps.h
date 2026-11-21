@@ -185,6 +185,7 @@ static const NativeMapEntry VFS_MAP[] = {
     {"read_bytes", "vfs_read_bytes", false},
     // Write
     {"write", "vfs_write", false},
+    {"write_atomic", "vfs_write_atomic", false},
     {"append", "vfs_append", false},
     {"write_lines", "vfs_write_lines", false},
     {"write_bytes", "vfs_write_bytes", false},

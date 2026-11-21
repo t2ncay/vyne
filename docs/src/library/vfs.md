@@ -31,7 +31,8 @@ bytes := vfs.read_bytes("data/model.bin");
 
 | Function | Result | Notes |
 | :--- | :--- | :--- |
-| `vfs.write(path, text)` | `Bool` | Truncate and write a string. |
+| `vfs.write(path, text)` | `Bool` | Truncate and write a string; checks write and close results. |
+| `vfs.write_atomic(path, text)` | `Bool` | Write a private sibling, then replace/create the destination atomically. |
 | `vfs.append(path, text)` | `Bool` | Append a string. |
 | `vfs.write_lines(path, lines)` | `Bool` | Write each line followed by `\n`. |
 | `vfs.write_bytes(path, bytes)` | `Bool` | Write `Int64` bytes masked to `0..255`. |
@@ -40,7 +41,16 @@ bytes := vfs.read_bytes("data/model.bin");
 vfs.write("out.txt", "hello\n");
 vfs.append("out.txt", "world\n");
 vfs.write_lines("out.txt", ["a", "b", "c"]);
+if !vfs.write_atomic("scene.vscene", "VMGE_SCENE|1\n") { throw "Scene save failed"; }
 ```
+
+`write_atomic` checks the complete write and `fclose` before replacing the
+destination. A temporary-open, write, close, or replacement failure returns
+`false` without truncating the destination, and removes its temporary file.
+POSIX uses `mkstemp` and `rename`; Windows uses exclusive sibling creation and
+`MoveFileExA` with replacement enabled. Like existing Windows vfs functions, it
+uses narrow/ANSI paths; file contents remain UTF-8 bytes. Ordinary `write` can
+already have changed the destination when it reports a close failure.
 
 ## Metadata
 

@@ -17,6 +17,7 @@ typedef struct {
     VRModelTexture *models;
     VRPass passes[32];
     int depth, frame, opened, audio, stopped;
+    int defer_close, close_requested;
     int64_t frames, limit, uniform_queries;
     double dt, elapsed;
     clock_t last_tick;
@@ -184,9 +185,100 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
     if(id==-32) { vr_resize_target(session,vr_integer(a[1]),vr_i32(a[2]),vr_i32(a[3])); return vr_bool(1); }
     if(id==-27) {
         const char *key=vr_required_string(a[1]);
-        if(!strcmp(key,"assets")) { char *root=vr_string_copy(vr_required_string(a[2])); free(s->root); s->root=root; }
+        if(!strcmp(key,"font.load_size")) {
+            VR value=a[2];
+            if(value.kind!=VR_LIST || value.count!=2) vr_fail("font loading requires path and size");
+            if(!s->opened || !IsWindowReady()) vr_fail("fonts require an application window");
+            const char *path=vr_required_string(value.items[0]);
+            int size=vr_i32(value.items[1]);
+            if(size<1 || size>512) vr_fail("font size must be 1..512");
+            if(!FileExists(path)) vr_fail("font file not found");
+            size_t length=strlen(path)+32; char *cache=vr_temp(length);
+            snprintf(cache,length,"size:%d:%s",size,path);
+            for(VRAsset *p=s->assets;p;p=p->next)
+                if(!strcmp(p->kind,"Font") && !strcmp(p->key,cache)) return vr_int(p->handle);
+            // Allocate metadata and register ownership before loading GPU data.
+            // Until ownership transfers, bridge temporaries clean every failed
+            // allocation (including registry growth) on the longjmp path.
+            Font *copy=vr_temp(sizeof(*copy));
+            VRAsset *p=vr_temp(sizeof(*p)); p->key=vr_temp(strlen(cache)+1);
+            strcpy(p->key,cache); p->kind="Font";
+            VR out=vr_handle(copy,"Font",1,sizeof(*copy),vr_drop_UnloadFont,1,0);
+            vr_temp_keep(copy);
+            vr_adopt(session,out.integer);
+            // Printable ASCII, Latin-1, Extended-A/B (including Azerbaijani
+            // U+018F/U+0259 and Turkish dotted/dotless I), and combining marks.
+            int codepoints[640], n=0;
+            for(int cp=0x20;cp<=0x7e;++cp) codepoints[n++]=cp;
+            for(int cp=0xa0;cp<=0x24f;++cp) codepoints[n++]=cp;
+            codepoints[n++]=0x259;
+            for(int cp=0x300;cp<=0x36f;++cp) codepoints[n++]=cp;
+            Font font=LoadFontEx(path,size,codepoints,n);
+            unsigned int default_texture=GetFontDefault().texture.id;
+            if(!IsFontValid(font) || !IsTextureValid(font.texture) || font.texture.id==default_texture) {
+                if(font.texture.id!=default_texture) UnloadFont(font);
+                vr_release(out.integer,NULL);
+                vr_fail("custom font loading failed");
+            }
+            *copy=font;
+            SetTextureFilter(font.texture,TEXTURE_FILTER_BILINEAR);
+            vr_temp_keep(p); vr_temp_keep(p->key);
+            p->handle=out.integer; p->next=s->assets; s->assets=p;
+            return out;
+        }
+        if(!strcmp(key,"model.draw_matrix") || !strcmp(key,"model.pick") || !strcmp(key,"model.bounds")) {
+            VR value=a[2];
+            if(value.kind!=VR_LIST || value.count!=3) vr_fail("model operation requires three arguments");
+            int64_t token=vr_integer(value.items[0]);
+            (void)vr_managed_resource(session,token);
+            Model *model=vr_checked(vr_int(token),"Model",1);
+            if(!strcmp(key,"model.draw_matrix")) {
+                if(!s->frame || !s->opened || !s->depth) vr_fail("model drawing requires an active surface and camera");
+                int camera=0; for(int i=0;i<s->depth;++i) if(s->passes[i].kind==2) camera=1;
+                if(!camera) vr_fail("model drawing requires an active camera");
+                Matrix world=vr_unpack_Matrix(value.items[1]);
+                Color tint=vr_unpack_Color(value.items[2]);
+                Matrix original=model->transform;
+                model->transform=MatrixMultiply(original,world);
+                DrawModel(*model,(Vector3){0},1.0f,tint);
+                model->transform=original;
+                return vr_bool(1);
+            }
+            if(!strcmp(key,"model.bounds")) {
+                Matrix world=MatrixMultiply(model->transform,vr_unpack_Matrix(value.items[1]));
+                BoundingBox result={(Vector3){FLT_MAX,FLT_MAX,FLT_MAX},(Vector3){-FLT_MAX,-FLT_MAX,-FLT_MAX}};
+                for(int mesh=0;mesh<model->meshCount;++mesh) {
+                    BoundingBox local=GetMeshBoundingBox(model->meshes[mesh]);
+                    for(int corner=0;corner<8;++corner) {
+                        Vector3 p=Vector3Transform((Vector3){(corner&1)?local.max.x:local.min.x,(corner&2)?local.max.y:local.min.y,(corner&4)?local.max.z:local.min.z},world);
+                        result.min=Vector3Min(result.min,p); result.max=Vector3Max(result.max,p);
+                    }
+                }
+                if(!model->meshCount) result.min=result.max=Vector3Transform((Vector3){0},world);
+                return vr_pack_BoundingBox(result,0);
+            }
+            Ray ray=vr_unpack_Ray(value.items[1]);
+            Matrix world=MatrixMultiply(model->transform,vr_unpack_Matrix(value.items[2]));
+            RayCollision nearest={0}; nearest.distance=FLT_MAX;
+            for(int i=0;i<model->meshCount;++i) {
+                RayCollision hit=GetRayCollisionMesh(ray,model->meshes[i],world);
+                if(hit.hit && hit.distance<nearest.distance) nearest=hit;
+            }
+            if(!nearest.hit) nearest.distance=0.0f;
+            return vr_pack_RayCollision(nearest,0);
+        }
+        if(!strcmp(key,"transient_errors")) {
+            if((a[2].kind!=VR_BOOL && a[2].kind!=VR_INT) || (a[2].integer!=0 && a[2].integer!=1)) vr_fail("transient errors require a boolean");
+            if(a[2].integer && !s->frame) vr_fail("transient errors require an active application frame");
+        }
+        else if(!strcmp(key,"assets")) { char *root=vr_string_copy(vr_required_string(a[2])); free(s->root); s->root=root; }
         else if(!strcmp(key,"limit")) { s->limit=vr_integer(a[2]); if(s->limit<0) vr_fail("negative frame limit"); }
         else if(!strcmp(key,"stop")) s->stopped=vr_integer(a[2])!=0;
+        else if(!strcmp(key,"defer_close")) {
+            if((a[2].kind!=VR_BOOL && a[2].kind!=VR_INT) || (a[2].integer!=0 && a[2].integer!=1)) vr_fail("deferred close requires a boolean");
+            s->defer_close=a[2].integer!=0;
+            if(!s->defer_close) s->close_requested=0;
+        }
         else if(!strcmp(key,"fps")) { int fps=vr_i32(a[2]); if(fps<0) vr_fail("negative FPS"); SetTargetFPS(fps); }
         else vr_fail("unknown application setting"); return vr_bool(1);
     }
@@ -198,6 +290,10 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         if(!strcmp(key,"width")) return vr_int(s->opened ? GetScreenWidth() : 0);
         if(!strcmp(key,"height")) return vr_int(s->opened ? GetScreenHeight() : 0);
         if(!strcmp(key,"window")) return vr_bool(s->opened && IsWindowReady());
+        if(!strcmp(key,"close_requested")) {
+            int pending=s->close_requested; s->close_requested=0;
+            return vr_bool(pending);
+        }
         if(!strcmp(key,"audio")) return vr_bool(IsAudioDeviceReady());
         if(!strcmp(key,"passes")) return vr_int(s->depth);
         if(!strcmp(key,"drawing")) return vr_bool(s->frame && s->opened && s->depth && (s->passes[0].kind==0 || s->passes[0].kind==1));
@@ -209,7 +305,15 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
     }
     if(id==-30) {
         vr_finish(s,1);
-        if(s->stopped || (s->limit && s->frames>=s->limit) || (s->opened && (!IsWindowReady() || WindowShouldClose()))) return vr_bool(0);
+        if(s->stopped || (s->limit && s->frames>=s->limit)) return vr_bool(0);
+        if(s->opened) {
+            if(!IsWindowReady()) return vr_bool(0);
+            // Sample once and retain the event until the application consumes
+            // it. Native event polling resets the backend's close flag.
+            int closing=WindowShouldClose();
+            if(closing && !s->defer_close) return vr_bool(0);
+            if(closing) s->close_requested=1;
+        }
         if(s->opened) {
             for(size_t i=0;i<vr_capacity;++i) if(vr_slots[i].data && vr_slots[i].session==session && !strcmp(vr_slots[i].type,"Target")) {
                 VRTarget *t=vr_slots[i].data; if(t->follow) vr_resize_target(session,vr_id(i),GetScreenWidth(),GetScreenHeight());

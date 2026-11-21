@@ -34,6 +34,43 @@ It returns false on window exit, `stop()`, or the configured frame limit.
 and releases the application's resources and contexts. Both close operations on
 already-released resource tokens and App.close are idempotent.
 
+### Deferring a native window close
+
+`app.defer_close(true)` lets the application confirm a titlebar/exit-key close
+before ending its loop. It is off by default. While enabled, a native close
+request keeps `frame()` running and queues a pending event. After `frame()`, call
+`app.close_requested()` to consume that event: it returns true once, then false
+until a new native close event arrives. An unread event survives subsequent frames;
+multiple requests coalesce into one pending flag. Continue the normal drawing/end
+cycle on Cancel so raylib polls events and resets the backend's native close flag.
+
+On accepted Save/Discard, use `app.stop()` or `app.close()`; on Cancel, continue
+the loop. Disabling deferred close clears its pending event and restores normal
+native-close termination. Repeatedly enabling it does not clear a pending event.
+`stop()`, the frame limit, and loss of the live window always terminate `frame()`,
+even with deferred close enabled. `close_requested()` only consumes session state;
+it does not call `WindowShouldClose()` again. Headless sessions have no native
+close event.
+
+### Recovering short errors in a frame
+
+`app.transient_errors(true)` enters a nested, opt-in recovery scope; balance each
+entry with `app.transient_errors(false)`, usually in `finally`. Enabling requires
+an active managed frame. Only successful configuration calls change nesting.
+Frame completion, rollover, application closure and shutdown reset that nesting.
+
+While enabled, thrown strings shorter than 1024 bytes are copied into a static
+rotating 64-slot store, independent of frame rewinds. Each promotion (including a
+rethrow) consumes a slot; the latest 64 promotions remain readable, including
+after application closure. Do not retain these strings for long-lived history:
+later promotions overwrite their slots. Longer strings and structured exceptions
+retain the normal persistent-copy behavior.
+
+Catch entry restores abandoned nested-region checkpoints, persistent-region
+depths and `@zeroed`/`@deterministic` zero-mode depth before catch/finally runs,
+preserving scopes that enclose the handler. Exception payload allocations remain live until
+an enclosing arena rewind; this is not a general eager region-memory unwinder.
+
 ### Let App own the loop
 
 ```vyne
@@ -85,7 +122,7 @@ accepted. Relative roots are relative to the process working directory.
 | `texture(image)` | Upload a checked same-session Image; the GPU Texture survives source image closure |
 | `load_image(path)`, `image(w,h,color)` | CPU image; `resize`, `save`, `close` |
 | `load_model(path)`, `cube(texture)`, `plane(texture,w,length)` | Model; material count, shader/texture assignment and drawing |
-| `load_font(path)` | Font; `draw(text,position,size,tint)` |
+| `load_font(path)`, `load_font_size(path,size)` | Font; `draw(text,position,size,tint)`, `measure(text,size)` |
 | `load_shader(vertex_or_null,fragment)` | Custom shader; rejects default fallback on compilation failure |
 | `camera(position,target,fovy)`, `first_person()`, `orbit(position,target)` | Persistent mutable camera |
 | `music(path,volume)` | Looping streamed audio; automatically updated every frame |
@@ -96,6 +133,16 @@ Model/camera/target drawing requires an open App window. Image sessions need no
 graphics or audio device. Music has `valid`, `play`, `pause`, `volume` and `close`;
 if no audio device can open, it returns an unavailable Music token (`valid=false`).
 Missing files and failed resource/shader loads produce descriptive exceptions.
+
+`load_font_size(path,size)` accepts raster sizes 1..512 and caches by resolved
+path **and size**, separately from `load_font(path)`. It requests printable ASCII,
+Latin-1, Latin Extended-A/B, Azerbaijani schwa (`Əə`) and combining diacritics,
+then applies bilinear atlas filtering. Actual coverage depends on the font file;
+missing glyphs use raylib's fallback. `font.measure(text,size)` returns `Vector2`
+dimensions using the same 1.0 spacing as `font.draw`, including multiline text.
+
+`camera.set_orthographic(size)` preserves position, target and up, switches projection
+to `CAMERA_ORTHOGRAPHIC`, and sets the positive vertical view size in `fovy`.
 
 ### Texture regions and procedural assets
 

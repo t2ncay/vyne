@@ -42,6 +42,15 @@ std::string FinallyNode::getCExpr(C_Emitter& e) const {
 }
 
 void TryCatchNode::compile(C_Emitter& e) const {
+    e.protectTryLocals();
+    // Throws can bypass lexical region exits, including in called functions.
+    // Keep arena allocations alive for the exception, but restore stack state
+    // before catch/finally so repeated recovery cannot exhaust checkpoints.
+    e.addInclude((std::filesystem::path(FileUtils::getExeDir()) /
+                  "vyne" / "runtime" / "modules" / "vmem.h").string());
+    std::string regionTop   = e.newTemp("try_region_top");
+    std::string persistent = e.newTemp("try_persistent_depth");
+    std::string zeroMode   = e.newTemp("try_zero_mode");
     std::string mark        = e.newTemp("try_mark");
     std::string cmark       = e.newTemp("catch_mark");
     std::string frameLive   = e.newTemp("frame_live");
@@ -50,11 +59,19 @@ void TryCatchNode::compile(C_Emitter& e) const {
     std::string errVar      = e.newTemp("try_err");
     std::string cleanup     = e.newTemp("try_cleanup");
 
-    e.emit("VyneValue " + errVar + " = vyne_null();");
-    e.emit("int " + caught + " = 0;");
-    e.emit("int " + frameLive + " = 1;");
-    e.emit("int " + cframeLive + " = 0;");
+    e.emit("VyneValue volatile " + errVar + " = vyne_null();");
+    e.emit("int volatile " + caught + " = 0;");
+    e.emit("int volatile " + frameLive + " = 1;");
+    e.emit("int volatile " + cframeLive + " = 0;");
     e.emit("int " + mark + " = vyne_try_push();");
+    e.emit("int " + regionTop + " = g_vmem_top;");
+    e.emit("int " + persistent + " = g_persistent_depth;");
+    e.emit("int " + zeroMode + " = g_arena_zero_mode;");
+    auto restoreRegions = [&]() {
+        e.emit("if (g_arena_zero_mode > " + zeroMode + ") g_arena_zero_mode = " + zeroMode + ";");
+        e.emit("while (g_persistent_depth > " + persistent + ") vyne_persistent_leave();");
+        e.emit("if (g_vmem_top > " + regionTop + ") vmem_runtime_pop_checkpoints(g_vmem_top - " + regionTop + ");");
+    };
 
     // ---- try body ----
     e.emitBlockOpen("if (vyne_setjmp(g_exc_stack[" + mark + "].buf) == 0) {");
@@ -69,6 +86,7 @@ void TryCatchNode::compile(C_Emitter& e) const {
     e.emit(frameLive + " = 0;");
     e.emit(caught + " = 1;");
     e.emit(errVar + " = g_exc_value;");
+    restoreRegions();
 
     // ---- catch body in its own frame ----
     if (catchBody) {
@@ -97,6 +115,7 @@ void TryCatchNode::compile(C_Emitter& e) const {
         // vyne_throw already popped the catch frame.
         e.emit(cframeLive + " = 0;");
         e.emit(errVar + " = g_exc_value;");
+        restoreRegions();
     }
 
     // ---- cleanup label: run finally, decide what to do next ----
