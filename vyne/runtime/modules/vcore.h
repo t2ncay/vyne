@@ -39,6 +39,7 @@
 #else
 #include <sys/types.h>
 #include <unistd.h>
+#define vyne_getpid getpid
 #endif
 
 /* ---------- now() — same format as interpreter ---------------------- */
