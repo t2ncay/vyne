@@ -200,6 +200,7 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         if(!strcmp(key,"window")) return vr_bool(s->opened && IsWindowReady());
         if(!strcmp(key,"audio")) return vr_bool(IsAudioDeviceReady());
         if(!strcmp(key,"passes")) return vr_int(s->depth);
+        if(!strcmp(key,"drawing")) return vr_bool(s->frame && s->opened && s->depth && (s->passes[0].kind==0 || s->passes[0].kind==1));
         if(!strcmp(key,"uniform_queries")) return vr_int(s->uniform_queries);
         if(!strcmp(key,"saturation_attached")) return vr_bool(vr_saturation_owner==session);
         if(!strcmp(key,"saturation_blocks")) return vr_int(atomic_load_explicit(&vr_saturation.blocks,memory_order_relaxed));
