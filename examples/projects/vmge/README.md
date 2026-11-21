@@ -1,13 +1,17 @@
 # VMGE — Vyne Mini Game Engine
 
-A compiled desktop map editor and playable-map runtime built on managed
-`vraylib`. VMGE restores the original `map_builder.vy` → `tau_map.dat` →
-`map_load_test.vy` workflow and extracts reusable map, rendering, collision,
-asset, input and OBJ-export utilities into one project.
+A compiled desktop **3D scene and hybrid-world editor** built on Vyne and managed
+`vraylib`: node hierarchy, inspector, gizmos, map brushes, seeded terrain,
+project assets and isolated Play/Stop. Inter replaces raylib's default font
+throughout the studio and historical map editor/player HUDs.
 
-The project works with the existing compiler. The small library additions are
-ordinary facade methods and one state query in the existing managed runtime;
-they require no compiler/codegen changes or new native function registrations.
+The original `map_builder.vy` → `tau_map.dat` → `map_load_test.vy` workflow remains
+available. The studio adds a scene-owned resource with **4,096 map cells and
+64×64 terrain quads**, independent of its 128-node scene hierarchy.
+
+Build the compiler from this branch before using the studio: it includes focused
+exception-lifetime fixes, atomic VFS saves and managed graphics/font helpers.
+No new raylib function registrations or regenerated bindings are required.
 
 ## Quick start
 
@@ -19,10 +23,12 @@ first compilation builds its cached native libraries.
 From the **repository root**, launch the editor:
 
 ```shell
+xmake build vynec
 vynec --run examples/projects/vmge/src/main.vy
 ```
 
-The project subcommands discover `project.toml` from the working directory.
+This launches **scene mode** by default. The project subcommands discover
+`project.toml` from the working directory.
 Inside **`examples/projects/vmge/`**, with `vynec` on PATH:
 
 ```shell
@@ -47,7 +53,7 @@ VYNE_VMGE_MODE=play VYNE_VMGE_ASSETS=procedural \
   vynec --run examples/projects/vmge/src/main.vy
 ```
 
-Unset `VYNE_VMGE_MODE` or set it to `editor` to edit. Use a new writable map path
+Set `VYNE_VMGE_MODE=editor` for the historical cube editor. Use a new writable map path
 to start an empty map, then press **J** to save. Launch play mode with the same
 path to explore it. Player spawn/reset is `(0, 1.8, 0)`, facing positive Z.
 Leave that cell clear when designing a playable map.
@@ -59,7 +65,60 @@ vynec --run examples/graphics/map_builder.vy
 vynec --run examples/graphics/map_load_test.vy
 ```
 
-## Controls
+## Studio: build a world
+
+From the repository root, open the bundled island in PowerShell:
+
+```powershell
+$env:VYNE_VMGE_MODE = "scene"
+$env:VYNE_VMGE_ASSETS = "procedural"
+$env:VYNE_VMGE_SCENE = "$PWD/examples/projects/vmge/scenes/world-island.vscene"
+.\vynec.exe --run examples/projects/vmge/src/main.vy
+```
+
+Use **Save As** before changing the bundled example. For a new proposed Save path,
+set `VYNE_VMGE_SCENE` to an absent `.vscene` file. An absent path starts the demo;
+an existing malformed scene produces a diagnostic.
+
+1. **Shape terrain:** choose Hills/Island/Plateau/Flat, open Settings, enter seed,
+   size, spacing, amplitude, frequency, octaves and persistence. Preview, then
+   Apply or Cancel. A spawn-pad radius creates a central flat area. Raise, Lower,
+   Flatten and Smooth sculpt the applied heightfield.
+2. **Build maps:** choose Paint, Erase, Rectangle or Eyedropper. Use Surface
+   placement or an XZ/XY/YZ construction plane, grid and elevation. Drag a stroke;
+   release records one undo step. Escape restores its before-image.
+3. **Add assets:** browse/search the cached Assets panel. Import self-contained
+   GLB/images into project-owned storage, then Assign to mesh or New mesh node.
+   Images have bounded thumbnail previews. External dependency-based models can
+   be referenced explicitly; copy their complete dependency tree for portability.
+4. **Play:** F6/Play copies authored nodes and world data into separate runtime
+   owners. Click the viewport to capture the mouse; Escape releases it. Stop
+   returns to authoring without keeping runtime edits.
+5. **Save:** Ctrl+S saves the current document; Ctrl+Shift+S chooses another path.
+   New/Open/Exit and titlebar close offer Save/Discard/Cancel when dirty. Failed
+   saves leave the document and pending action available. Scene writes atomically
+   replace the destination after the sibling file has successfully closed.
+
+| Studio input | Action |
+|---|---|
+| Right drag / middle drag / wheel | Orbit / pan / zoom |
+| Perspective, Top, Front, Side / numpad 5, 7, 1, 3 | View presets |
+| T/R/S toolbar, Snap, F | Transform mode, snapping, focus node |
+| Ctrl+Z / Ctrl+Y | Undo / redo; includes world strokes and terrain |
+| Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S | New / Open / Save / Save As |
+| Ctrl+D / Delete | Duplicate / delete selected subtree |
+| Ctrl+I | Import DAT into map resource, preserving nodes and terrain |
+| Ctrl+E / Ctrl+Shift+E | Export resource map cells as OBJ / DAT |
+| B / P / N | Cycle brush / construction plane / plane–surface placement |
+| + / − / Page Up / Page Down | Grid spacing / construction elevation |
+| F6 | Play / Stop |
+
+Fields support UTF-8 caret/selection, clipboard shortcuts, Home/End and Tab.
+Hierarchy branches collapse and search; the inspector groups type-specific
+properties. See [studio/document workflows](STUDIO.md), [UI and asset storage](UI.md),
+[world resources](WORLD.md) and [terrain settings/exports](WORLD_OPTIONS.md).
+
+## Historical map editor/player controls
 
 | Input | Editor | Play mode |
 | --- | --- | --- |
@@ -134,10 +193,13 @@ without UVs, MTL files or copied textures. The default output is
 
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
-| `VYNE_VMGE_MODE` | `editor` | `editor` or `play`; launchers select their own mode |
+| `VYNE_VMGE_MODE` | `scene` | `scene`, historical `editor`, or historical `play` |
+| `VYNE_VMGE_SCENE` | `<project>/scene.vscene` | Studio document/proposed Save path |
+| `VYNE_VMGE_WORLD_DEMO` | `0` | `1` generates a 1,024-cell island demo when no scene is loaded |
+| `VYNE_VMGE_SPAWN_PAD` | `0` | `1` opts into generated-pad Play spawn; otherwise uses authored camera |
 | `VYNE_VMGE_MAP` | `tau_map.dat` | Input/editor-save path, relative to process cwd or absolute |
 | `VYNE_VMGE_EXPORT` | `exported_map.obj` | Editor OBJ output path |
-| `VYNE_VMGE_ROOT` | Discovered | Project directory containing shaders and `project.toml` |
+| `VYNE_VMGE_ROOT` | Discovered | Project directory containing shaders, fonts and `project.toml` |
 | `VYNE_VMGE_ASSETS` | `auto` | `auto`, `procedural`, or original media directory |
 | `VYNE_VMGE_WIDTH`, `VYNE_VMGE_HEIGHT` | `1280`, `720` | Initial window dimensions |
 | `VYNE_VMGE_WINDOWED` | `1` | Set to `0` for fullscreen |
@@ -161,6 +223,16 @@ follow the process working directory; use absolute paths when relocating.
 
 ```text
 src/main.vy                 editor/play selection and error reporting
+src/editor/scene_editor.vy studio orchestration, input capture and acceptance
+src/editor/document.vy     Save/Discard/Cancel and document identity
+src/editor/workspace.vy    tree, grouped inspector and cached asset browser
+src/editor/viewport.vy     gizmos, orbit and orthographic view presets
+src/editor/world_tools.vy  brush strokes, preview staging and terrain tools
+src/editor/world_settings.vy direct numeric settings and pickers
+src/ui/                   Inter theme, UTF-8 editing and project asset storage
+src/scene/                handles, transforms, IO, history, rendering and Play
+src/engine/world*.vy       resource storage, exact IO/export and motion queries
+src/engine/terrain*.vy     height sampling, sculpting and deterministic fBm
 src/engine/assets.vy       paths, options, original/procedural palette
 src/engine/map.vy          fixed-capacity map store, validation and persistence
 src/engine/render.vy       reusable models, map drawing, ray/grid cursor
@@ -204,6 +276,13 @@ map scans, rather than a general rigid-body physics system.
 
 ### Managed vraylib additions
 
+- Sized managed fonts, Unicode-aware measurement and bilinear atlas filtering.
+- Matrix model drawing/picking/bounds, viewport rays and managed panel clips.
+- Opt-in transient string errors: copy diagnostics into owned log bytes promptly;
+  the static error ring retains only the latest 64 promotions, including rethrows.
+- Deferred close requests let the studio finish Save/Discard/Cancel; default App
+  close behavior and explicit stop/frame limits remain unchanged.
+
 - `App.texture(image)` uploads a checked same-session CPU image into an owned
   GPU texture. The source image can immediately close.
 - `Camera.view()` returns a checked frame-local camera snapshot.
@@ -225,6 +304,10 @@ From any directory, invoke the runner by its path:
 python examples/projects/vmge/tests/run.py
 # Portable hidden-window GPU readback and editor → save/export → viewer flow.
 python examples/projects/vmge/tests/run.py --graphics
+# Also poison reclaimed arenas during the complete studio/legacy acceptance.
+python examples/projects/vmge/tests/run.py --graphics --poison
+# Focused exception/cleanup/atomic-save/font/close regression suite.
+python vyne/runtime/tests/run_vraylib_blockers.py --font examples/projects/vmge/assets/fonts/Inter-Regular.ttf
 # Original textures/dirt/audio and unchanged camera_test regression.
 python examples/projects/vmge/tests/run.py --graphics --assets
 # Also render a local historical map in both launchers, without modifying it.
@@ -247,6 +330,38 @@ errors, camera rays, scaled pixels, borrowed-target orientation/resizing,
 fog/VHS/scanline pixels, uniform caching, project build/run, relocated execution,
 partial-load and nested-pass failures, and zero live native handles.
 
-Normal runs print `VMGE_EDITOR_COMPLETE` or `VMGE_VIEWER_COMPLETE` with frame
+Acceptance additionally covers deterministic terrain, exact triangle height/pick
+agreement, 50° walkable slopes, spawn-pad policy, maximum resource persistence,
+Float64 roundtrips, generation-safe copy/reuse, atomic subtree duplication,
+world before-image rollback, Inter metrics and Unicode edits, owned binary imports,
+thumbnail eviction, orthographic views, document recovery and extended studio flow.
+
+### Memory policy contract
+
+Session owners and boxed buffer headers are created before managed frames. Map,
+terrain and history data use fixed numeric buffers; names/paths use reusable UTF-8
+storage. Pool buffers are explicitly initialized. Rings are preacquired banks:
+there are no later allocations that silently overwrite retained slots. No frame
+string, resized array backing or transient descriptor is published into an owner.
+
+Imports and generation validate separate staging stores, then copy payloads into
+existing owners. `@speculative` does not roll back mutations to old buffers, and
+aggregate `commit()` is not assumed to repair nested ownership. `@bounded` is an
+exit accounting check, not a peak/admission limit; explicit sizes and input limits
+are enforced separately. Tests track main/commit arenas and native handles.
+Exception recovery restores checkpoint/persistent/zero-mode depths and protects
+mutable cleanup owners across `longjmp`; remaining policy limitations are recorded
+in `vyne/runtime/tests/REGION_THROW_AUDIT.md`.
+
+### Current scale
+
+This is a compact-world editor. Terrain rendering/picking is bounded linear work:
+up to 8,192 triangle draws plus 4,096 cube draws, without chunk meshes, LOD or
+streaming. Resource cells use solid palette colors; node meshes retain textures.
+OBJ/DAT export includes map-resource cells only. Asset import supports self-contained
+GLB/images up to 8 MiB; dependency rewriting, animation authoring and full rigid-body
+physics are not implemented. See the linked guides for precise limits.
+
+Normal runs print `VMGE_SCENE_EDITOR_COMPLETE`, `VMGE_EDITOR_COMPLETE` or `VMGE_VIEWER_COMPLETE` with frame
 count and `live_handles=0`. Entry-point errors exit nonzero and print
 `VMGE_ERROR live_handles=0` after application cleanup.

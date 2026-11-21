@@ -4,6 +4,7 @@ import argparse
 import os
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -61,6 +62,7 @@ def main():
     parser.add_argument("--graphics", action="store_true", help="hidden-window rendering, persistence, editor/viewer and resize checks")
     parser.add_argument("--assets", action="store_true", help="also load original ignored examples/assets textures and ambient audio")
     parser.add_argument("--map", type=Path, help="also smoke-test a local legacy map without modifying it (requires --graphics)")
+    parser.add_argument("--poison", action="store_true", help="poison rewound arenas to detect retained transient pointers")
     args = parser.parse_args()
     if (args.assets or args.map) and not args.graphics:
         parser.error("--assets and --map require --graphics")
@@ -71,11 +73,32 @@ def main():
     env.update(VYNE_VMGE_ROOT=str(PROJECT), VYNE_VMGE_ASSETS="procedural", VYNE_VMGE_AUDIO="0",
                VYNE_VMGE_WIDTH="640", VYNE_VMGE_HEIGHT="360", VYNE_VMGE_WINDOWED="1",
                VYNE_VMGE_HIDDEN="1", VYNE_VMGE_CAPACITY="64", VYNE_VMGE_AUTOTEST="1")
-    for name in ("map", "collision") + (("render",) if args.graphics else ()):
+    if args.poison:
+        env["VYNE_POISON_ARENA"] = "1"
+    env.update(VYNE_VMGE_WORLD_TEST_SCENE=str(BUILD / "world-roundtrip.vscene"),
+               VYNE_VMGE_WORLD_OPTIONS_SCENE=str(BUILD / "world-options.vscene"),
+               VYNE_VMGE_WORLD_EXPORT_PREFIX=str(BUILD / "world-exports"),
+               VYNE_VMGE_WORLD_CONTROLS_PREFIX=str(BUILD / "world-controls"),
+               VYNE_VMGE_STUDIO_PREFIX=str(BUILD / "studio"),
+               VYNE_VMGE_WORLD_REVIEW_PREFIX=str(BUILD / "integrity"),
+               VYNE_UI_TEST_ROOT=str(BUILD / "ui-imports"))
+    cpu_tests = ("map", "collision", "scene", "world", "world_scene", "world_options", "world_exports", "world_integrity", "studio")
+    gpu_tests = ("render", "scene_render", "ui", "ui_assets", "world_render", "world_settings_render")
+    for name in cpu_tests + (gpu_tests if args.graphics else ()):
         binary = BUILD / name
         run([compiler, "--compile", "-o", binary, PROJECT / "tests" / (name + ".vy")], env=env)
-        run([str(binary) + SUFFIX], marker="VMGE_" + name.upper() + "_OK", env=env)
+        if name == "ui_assets":
+            # Import collision tests need a fresh project: preserving prior imports
+            # is correct production behavior, not a deterministic test fixture.
+            with tempfile.TemporaryDirectory(prefix="ui-imports-", dir=BUILD) as directory:
+                import_env = dict(env, VYNE_UI_TEST_ROOT=directory)
+                run([str(binary) + SUFFIX], marker="VMGE_UI_ASSETS_OK", env=import_env)
+        else:
+            run([str(binary) + SUFFIX], marker="VMGE_" + name.upper() + "_OK", env=env)
         print("PASS:", name)
+    pad_env = dict(env, VYNE_VMGE_SPAWN_PAD="1")
+    run([str(BUILD / "studio") + SUFFIX], marker="VMGE_STUDIO_OK", env=pad_env)
+    print("PASS: authored-camera and generated-pad Play policies")
     vertices = check_obj(BUILD / "roundtrip.obj", 2)
     assert vertices[0] == (8.0, 1.0, -8.0), vertices[0]
     assert vertices[8] == (1.0, 0.0, -5.0), vertices[8]
@@ -87,7 +110,7 @@ def main():
         run([compiler, "--compile", "-o", BUILD / name, ROOT / f"examples/graphics/{name}.vy"], env=env)
     print("PASS: VMGE entry point, project build, historical launchers and existing camera compile")
     env["VYNE_VMGE_MODE"] = "invalid"
-    run([str(binary) + SUFFIX], failure="VYNE_VMGE_MODE must be editor or play", env=env)
+    run([str(binary) + SUFFIX], failure="VYNE_VMGE_MODE must be scene, editor, or play", env=env)
     env["VYNE_VMGE_MODE"] = "play"
     env["VYNE_VMGE_MAP"] = str(BUILD / "missing.dat")
     run([str(binary) + SUFFIX], failure="Map file not found", env=env)
@@ -119,6 +142,26 @@ def main():
         output = run([str(binary) + SUFFIX], failure="Could not load texture", env=failure_env)
         assert re.search(r"VMGE_ERROR live_handles=\s*0", output), output
         print("PASS: partial asset load failure closes already-loaded resources")
+        studio_env = dict(env, VYNE_VMGE_MODE="scene", VYNE_VMGE_SCENE=str(BUILD / "editor-scene.vscene"),
+                          VYNE_VMGE_FRAMES="16", VYNE_VMGE_SCREENSHOT=str(BUILD / "scene-editor.png"))
+        output = run([str(binary) + SUFFIX], marker="VMGE_SCENE_EDITOR_COMPLETE", env=studio_env)
+        complete(output, "SCENE_EDITOR", 16)
+        assert re.search(r"nodes=\s*5\s+play_cycles=\s*1\s+errors=\s*0", output), output
+        assert re.search(r"commit_drift=\s*0", output), output
+        assert (BUILD / "editor-scene.vscene").read_text().startswith("VMGE_SCENE|1\n")
+        print("PASS: 3D workspace edits, hierarchy, undo/redo, save, isolated Play/Stop, resize and zero handles")
+        extended_env = dict(studio_env, VYNE_VMGE_STUDIO_AUTOTEST="1",
+                            VYNE_VMGE_SCENE=str(BUILD / "studio-flow.vscene"),
+                            VYNE_VMGE_STUDIO_PREFIX=str(BUILD / "studio-flow"),
+                            VYNE_VMGE_SCREENSHOT=str(BUILD / "studio-flow.png"))
+        output = run([str(binary) + SUFFIX], marker="VMGE_STUDIO_AUTOTEST_OK", env=extended_env)
+        complete(output, "SCENE_EDITOR", 16)
+        assert re.search(r"nodes=\s*5\s+play_cycles=\s*1\s+errors=\s*0", output), output
+        assert re.search(r"commit_drift=\s*0", output), output
+        saved = (BUILD / "studio-flow.vscene").read_text()
+        assert saved.startswith("VMGE_SCENE|2\n") and re.search(r"^G\|1(?:\.0)?\|", saved, re.MULTILINE), saved
+        check_obj(BUILD / "studio-flow.obj", 2)
+        print("PASS: terrain preview/strokes, modal capture, dirty document recovery, G metadata and resource-only exports")
         if args.assets:
             env.update(VYNE_VMGE_ASSETS=str(ROOT / "examples/assets"), VYNE_VMGE_AUDIO="1")
             output = run([str(binary) + SUFFIX], marker="VMGE_VIEWER_COMPLETE", env=env)

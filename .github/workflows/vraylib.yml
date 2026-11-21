@@ -26,10 +26,14 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
           ASAN_OPTIONS: detect_leaks=1
         run: xvfb-run -a python3 examples/projects/raylib-showcase/tests/run.py --graphics --sanitize
-      - name: VMGE portable editor, viewer, physics and GPU acceptance
+      - name: VMGE hybrid studio, portable viewer and poisoned GPU acceptance
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
-        run: xvfb-run -a python3 examples/projects/vmge/tests/run.py --graphics
+        run: xvfb-run -a python3 examples/projects/vmge/tests/run.py --graphics --poison
+      - name: Exception ownership, atomic saves, fonts and deferred close
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python3 vyne/runtime/tests/run_vraylib_blockers.py --font examples/projects/vmge/assets/fonts/Inter-Regular.ttf
 
   windows:
     runs-on: windows-latest
@@ -55,7 +59,9 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python examples/projects/raylib-showcase/tests/run.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python examples/projects/vmge/tests/run.py
+          python examples/projects/vmge/tests/run.py --poison
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python vyne/runtime/tests/run_vraylib_blockers.py
           exit $LASTEXITCODE
 
   macos:
@@ -70,5 +76,7 @@ jobs:
           "$cxx" -std=c++23 -O2 -I. -Ivendor main.cpp cli/*.cpp $(find vyne -name '*.cpp') -o vynec -lm -lpthread -ldl
       - name: Core API and native runtime acceptance
         run: python3 examples/projects/raylib-showcase/tests/run.py
-      - name: VMGE map, physics, frame lifetime and entry-point acceptance
-        run: python3 examples/projects/vmge/tests/run.py
+      - name: VMGE world, physics, frame lifetime and entry-point acceptance
+        run: python3 examples/projects/vmge/tests/run.py --poison
+      - name: Exception ownership and atomic-save regression checks
+        run: python3 vyne/runtime/tests/run_vraylib_blockers.py
