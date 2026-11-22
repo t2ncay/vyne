@@ -22,6 +22,7 @@
 // ============================================================================
 
 #include "../vyne_runtime.h"   // same base as vmem.h: types, arrays, arena
+#include <stddef.h>
 
 // --- Float64 ---------------------------------------------------------------
 typedef struct {

@@ -65,6 +65,79 @@ vynec --run examples/graphics/camera_test.vy
 
 Unset the variables or set `VYNE_CAMERA_FRAMES=0` to return to interactive mode.
 
+## VMGE / Vyne Mini Game Engine
+
+The historical map builder and loader now launch the project under
+`examples/projects/vmge/`. From the repository root:
+
+```shell
+vynec --run examples/projects/vmge/src/main.vy
+vynec --run examples/graphics/map_builder.vy
+vynec --run examples/graphics/map_load_test.vy
+```
+
+Inside the VMGE project directory, use `vynec build` and `vynec run`.
+The default `VYNE_VMGE_MODE=scene` opens the Inter-based 3D studio: hierarchy,
+grouped inspector, transform gizmos, cached asset browsing/imports, orthographic
+views, resource map brushes, seeded terrain/sculpting and isolated Play/Stop.
+New/Open/Exit/native close support Save/Discard/Cancel; scene saves use atomic
+replacement. Build the compiler from this revision for its exception-lifetime
+and VFS fixes. `editor` edits historical maps; `play` explores them. The map path
+defaults to `tau_map.dat`; an explicitly requested missing viewer map is an
+error. Without an explicit map, the viewer can fall back to the committed demo.
+
+For the portable demo in PowerShell:
+
+```powershell
+$env:VYNE_VMGE_MODE = "play"
+$env:VYNE_VMGE_ASSETS = "procedural"
+$env:VYNE_VMGE_MAP = "examples/projects/vmge/maps/demo.dat"
+vynec --run examples/projects/vmge/src/main.vy
+```
+
+The editor supports WASD flight, Shift/Ctrl height, 1–8 texture selection,
+Space/left-click placement, Backspace/right-click removal, J save, and K OBJ
+geometry export. Play mode provides sprint, crouch/headroom, jump, wall sliding,
+cube-top landing, fog, VHS, scanlines and optional streamed ambient audio.
+Both use Tab cursor capture, F11 fullscreen, Escape exit and delta-time motion.
+
+For the hybrid-world studio, use `VYNE_VMGE_MODE=scene`, procedural assets, and
+`VYNE_VMGE_SCENE=examples/projects/vmge/scenes/world-island.vscene`. Choose Save As
+to preserve the bundled scene. Settings exposes seed/size/spacing/amplitude,
+frequency/octaves/persistence and spawn-pad radius. Preview before Apply; Paint,
+Erase and Rectangle build cells alongside terrain; Raise/Lower/Flatten/Smooth
+sculpt it. Undo records one action per stroke. F6 starts/stops Play.
+
+One scene-owned resource holds up to 4,096 cells and 64×64 terrain quads without
+consuming node slots. Exact triangle sampling drives drawing, picking and terrain
+support, with a 50° walking limit. Rendering is currently bounded immediate-mode
+drawing rather than chunk/LOD streaming. OBJ/DAT studio exports contain resource
+map cells only. Portable imports support self-contained GLB/images; dependency
+trees for other model formats must be copied or referenced explicitly.
+
+App-owned resources, reusable cube models and preallocated map storage preserve
+edits across managed frame cleanup. Shader targets follow window resizing.
+Procedural textures and the committed demo need no ignored historical media;
+the original eight-slot palette and map format are also supported.
+
+```shell
+python examples/projects/vmge/tests/run.py
+python examples/projects/vmge/tests/run.py --graphics
+python examples/projects/vmge/tests/run.py --graphics --poison
+python examples/projects/vmge/tests/run.py --graphics --assets --map tau_map.dat
+```
+
+The runner checks map/OBJ round trips, physics and frame lifetimes, scaled
+texture/picking APIs, rendered pixels, orientation, resizing, failure cleanup,
+the editor-to-viewer workflow, deterministic terrain, resource history/persistence,
+Unicode font/editing, owned imports/thumbnails, document recovery and both studio
+flows with zero remaining handles. `--assets`
+opts into the original local textures/audio and the existing camera regression;
+`--map` renders a local historical map without editing it.
+
+See the [VMGE guide](https://github.com/t2ncay/vyne/blob/master/examples/projects/vmge/README.md)
+for environment settings, asset paths, engine APIs and bounded runs.
+
 ## Sector Shift / Sector 4 Incident
 
 ```shell

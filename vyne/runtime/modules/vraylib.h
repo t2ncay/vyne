@@ -4,10 +4,16 @@
 #include "../vyne_runtime.h"
 #include "../vraylib/bridge.h"
 #include "vmem.h"
+#include <limits.h>
 
 static ArenaCheckpoint vraylib_frame_checkpoint;
 static int vraylib_frame_active, vraylib_frame_vmem_top;
 static int64_t vraylib_frame_session;
+// Opt-in recoverable string errors use bounded storage independent of main
+// arena rewinds. Default exceptions retain the existing commit-arena contract.
+static unsigned int vraylib_transient_error_depth;
+static unsigned int vraylib_transient_error_next;
+static char vraylib_transient_error_text[64][1024];
 static VyneValue (*vraylib_previous_promoter)(VyneValue);
 
 typedef struct VRExceptionCopy {
@@ -58,6 +64,15 @@ static VyneValue vraylib_escape_clone(VyneValue v) {
     return vraylib_escape_clone_impl(v,&memo);
 }
 static VyneValue vraylib_promote_exception(VyneValue v) {
+    if(vraylib_transient_error_depth && v.type==V_STRING && v.as.str) {
+        size_t length=strlen(v.as.str);
+        if(length<sizeof(vraylib_transient_error_text[0])) {
+            char *text=vraylib_transient_error_text[(vraylib_transient_error_next++)%64];
+            // A rethrow can select the same slot after the ring wraps.
+            memmove(text,v.as.str,length+1);
+            return vyne_string_static(text);
+        }
+    }
     if(g_persistent_depth>0) return vraylib_escape_clone(v);
     vyne_persistent_enter();
     VyneValue copy=vraylib_escape_clone(v);
@@ -65,6 +80,7 @@ static VyneValue vraylib_promote_exception(VyneValue v) {
     return copy;
 }
 static void vraylib_finish_arena(void) {
+    vraylib_transient_error_depth=0;
     if(!vraylib_frame_active) return;
     while(g_persistent_depth>0) vyne_persistent_leave();
     if(g_arena.head) arena_rewind(vraylib_frame_checkpoint);
@@ -146,8 +162,20 @@ static inline VyneValue vraylib_invoke(int id, size_t n, const VyneValue *args) 
     VyneRayValue *wire = (VyneRayValue *)arena_alloc(sizeof(VyneRayValue) * (n ? n : 1));
     for (size_t i = 0; i < n; ++i) wire[i] = vraylib_wire(args[i]);
     VyneRayResult result = vyne_ray_call(id, wire, n);
+    int transient_update=!result.error && id==-27 && n==3 && wire[1].kind==VR_TEXT &&
+        !strcmp(wire[1].text,"transient_errors");
+    int transient_enabled=transient_update && wire[2].integer!=0;
     arena_rewind(checkpoint);
     if (result.error) { vyne_throw(vyne_string(result.error)); return vyne_null(); }
+    if(transient_update) {
+        if(transient_enabled && vraylib_transient_error_depth==UINT_MAX) {
+            vyne_ray_dispose(result.value);
+            vyne_throw(vyne_string("Transient error nesting is too deep"));
+            return vyne_null();
+        }
+        if(transient_enabled) ++vraylib_transient_error_depth;
+        else if(vraylib_transient_error_depth) --vraylib_transient_error_depth;
+    }
     if(id==-30 || id==-31 || (id==-18 && session_arg==vraylib_frame_session) || id==VR_SHUTDOWN) vraylib_finish_arena();
     VyneValue value = vraylib_box(result.value);
     vyne_ray_dispose(result.value);

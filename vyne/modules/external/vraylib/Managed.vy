@@ -30,6 +30,17 @@ interface Texture {
     draw(position :: vraylib.Vector2, tint :: vraylib.Color) -> Bool {
         return vraylib.managed_draw_texture(self.session, self.token, position, tint);
     }
+    draw_region(source :: vraylib.Rectangle, destination :: vraylib.Rectangle, origin :: vraylib.Vector2, rotation :: Float64, tint :: vraylib.Color) -> Bool {
+        handle :: Int64 := self.native_handle();
+        if !vraylib.managed_state(self.session, "drawing") { throw "Texture drawing requires an active application drawing surface"; }
+        if self.owned { vraylib.draw_texture_pro(handle, source, destination, origin, rotation, tint); }
+        else {
+            # Logical target views use top-left coordinates, like Texture.draw.
+            flipped :: vraylib.Rectangle := vraylib.Rectangle(source.x, float64(self.height()) - source.y - source.height, source.width, -source.height);
+            vraylib.draw_texture_pro(handle, flipped, destination, origin, rotation, tint);
+        }
+        return true;
+    }
     native_handle() -> Int64 { return vraylib.managed_texture(self.session, self.token); }
 }
 
@@ -53,6 +64,9 @@ interface Font {
     session :: Int64,
     valid() -> Bool { return vraylib.managed_valid(self.session, self.token) && self.token != 0; }
     close() -> Bool { return vraylib.managed_release(self.session, self.token); }
+    measure(text :: String, size :: Float64) -> vraylib.Vector2 {
+        return vraylib.measure_text_ex(vraylib.require_managed(self.session, self.token), text, size, 1.0);
+    }
     draw(text :: String, position :: vraylib.Vector2, size :: Float64, tint :: vraylib.Color) -> Bool {
         vraylib.draw_text_ex(vraylib.require_managed(self.session, self.token), text, position, size, 1.0, tint);
         return true;
@@ -88,6 +102,30 @@ interface Camera {
     valid() -> Bool { return vraylib.managed_valid(self.session, self.token) && self.token != 0; }
     close() -> Bool { return vraylib.managed_release(self.session, self.token); }
     position() -> vraylib.Vector3 { return vraylib.camera_position(vraylib.require_managed(self.session, self.token)); }
+    view() -> vraylib.Camera3D { return vraylib.camera_view(vraylib.require_managed(self.session, self.token)); }
+    ray(position :: vraylib.Vector2) -> vraylib.Ray {
+        snapshot :: vraylib.Camera3D := self.view();
+        if !vraylib.managed_state(self.session, "window") { throw "Camera picking requires an application window"; }
+        return vraylib.get_screen_to_world_ray(position, snapshot);
+    }
+    ray_viewport(position :: vraylib.Vector2, width :: Int64, height :: Int64) -> vraylib.Ray {
+        snapshot :: vraylib.Camera3D := self.view();
+        if !vraylib.managed_state(self.session, "window") || width < 1 || height < 1 { throw "Picking requires a live window and positive viewport dimensions"; }
+        return vraylib.get_screen_to_world_ray_ex(position, snapshot, width, height);
+    }
+    set_view(position :: vraylib.Vector3, target :: vraylib.Vector3) -> Bool {
+        handle :: Int64 := vraylib.require_managed(self.session, self.token);
+        snapshot :: vraylib.Camera3D := self.view();
+        vraylib.buffer_write(handle, 0, vraylib.Camera3D(position, target, snapshot.up, snapshot.fovy, snapshot.projection));
+        return true;
+    }
+    set_orthographic(size :: Float64) -> Bool {
+        if size <= 0.0 { throw "Orthographic camera size must be positive"; }
+        handle :: Int64 := vraylib.require_managed(self.session, self.token);
+        snapshot :: vraylib.Camera3D := self.view();
+        vraylib.buffer_write(handle, 0, vraylib.Camera3D(snapshot.position, snapshot.target, snapshot.up, size, vraylib.CAMERA_ORTHOGRAPHIC));
+        return true;
+    }
     set_position(position :: vraylib.Vector3) -> Bool { return vraylib.camera_set_position(vraylib.require_managed(self.session, self.token), position); }
     set_height(height :: Float64) -> Bool { return vraylib.camera_set_height(vraylib.require_managed(self.session, self.token), height); }
     move(forward :: Float64, right :: Float64) -> Bool { return vraylib.camera_step(vraylib.require_managed(self.session, self.token), forward, right); }
@@ -138,6 +176,25 @@ interface Model {
     draw_scaled(position :: vraylib.Vector3, scale :: vraylib.Vector3, tint :: vraylib.Color) -> Bool {
         return vraylib.model_at(vraylib.require_managed(self.session, self.token), position, scale, tint);
     }
+    draw_matrix(transform :: vraylib.Matrix, tint :: vraylib.Color) -> Bool {
+        vraylib.require_managed(self.session, self.token);
+        return vraylib.managed_config(self.session, "model.draw_matrix", [self.token, transform, tint]);
+    }
+    pick(ray :: vraylib.Ray, transform :: vraylib.Matrix) -> vraylib.RayCollision {
+        vraylib.require_managed(self.session, self.token);
+        return vraylib.managed_config(self.session, "model.pick", [self.token, ray, transform]);
+    }
+    bounds(transform :: vraylib.Matrix) -> vraylib.BoundingBox {
+        vraylib.require_managed(self.session, self.token);
+        return vraylib.managed_config(self.session, "model.bounds", [self.token, transform, null]);
+    }
+}
+
+interface Clip {
+    session :: Int64,
+    rectangle :: vraylib.Rectangle,
+    begin() -> Bool { return vraylib.managed_pass(self.session, 4, self.rectangle, true); }
+    end() -> Bool { return vraylib.managed_pass(self.session, 4, self.rectangle, false); }
 }
 
 interface Sound {
@@ -188,6 +245,8 @@ interface App {
     asset(path :: String) -> String { return vraylib.managed_path(self.token, path); }
     limit(frames :: Int64) -> Bool { return vraylib.managed_config(self.token, "limit", frames); }
     stop() -> Bool { return vraylib.managed_config(self.token, "stop", true); }
+    defer_close(enabled :: Bool) -> Bool { return vraylib.managed_config(self.token, "defer_close", enabled); }
+    close_requested() -> Bool { return vraylib.managed_state(self.token, "close_requested"); }
     fps(value :: Int64) -> Bool { return vraylib.managed_config(self.token, "fps", value); }
     dt() -> Float64 { return vraylib.managed_state(self.token, "dt"); }
     elapsed() -> Float64 { return vraylib.managed_state(self.token, "elapsed"); }
@@ -196,6 +255,8 @@ interface App {
     height() -> Int64 { return vraylib.managed_state(self.token, "height"); }
     resources() -> Int64 { return vraylib.managed_state(self.token, "resources"); }
     passes() -> Int64 { return vraylib.managed_state(self.token, "passes"); }
+    drawing() -> Bool { return vraylib.managed_state(self.token, "drawing"); }
+    transient_errors(enabled :: Bool) -> Bool { return vraylib.managed_config(self.token, "transient_errors", enabled); }
     uniform_queries() -> Int64 { return vraylib.managed_state(self.token, "uniform_queries"); }
     saturation(drive :: Float64, mode :: Int64) -> Bool { return vraylib.managed_saturation(self.token, drive, mode); }
     saturation_attached() -> Bool { return vraylib.managed_state(self.token, "saturation_attached"); }
@@ -207,6 +268,7 @@ interface App {
     end() -> Bool { return vraylib.managed_pass(self.token, 0, 0, false); }
     clear(color :: vraylib.Color) -> Bool { vraylib.clear_background(color); return true; }
     capture_mouse(capture :: Bool) -> Bool { if capture { vraylib.disable_cursor(); } else { vraylib.enable_cursor(); } return true; }
+    clip(rectangle :: vraylib.Rectangle) -> vraylib.Clip { return vraylib.Clip(self.token, rectangle); }
     camera(position :: vraylib.Vector3, target :: vraylib.Vector3, fovy :: Float64) -> vraylib.Camera {
         handle :: Int64 := vraylib.camera_create(position, target, fovy);
         vraylib.managed_adopt(self.token, handle);
@@ -253,6 +315,14 @@ interface App {
         }
         return vraylib.Texture(handle, self.token, true);
     }
+    texture(image :: vraylib.Image) -> vraylib.Texture {
+        if !self.window_ready() { throw "Textures require an application window"; }
+        if image.session != self.token { throw "Image belongs to another application"; }
+        handle :: Int64 := vraylib.load_texture_from_image(vraylib.require_managed(image.session, image.token));
+        vraylib.managed_adopt(self.token, handle);
+        if !vraylib.is_texture_valid(handle) { vraylib.managed_release(self.token, handle); throw "Could not create texture from image"; }
+        return vraylib.Texture(handle, self.token, true);
+    }
     load_model(path :: String) -> vraylib.Model {
         if !self.window_ready() { throw "Models require an application window"; }
         resolved :: String := self.asset(path);
@@ -277,6 +347,10 @@ interface App {
             if !vraylib.is_font_valid(handle) { vraylib.managed_release(self.token, handle); throw "Could not load font: " + resolved; }
             vraylib.managed_store(self.token, resolved, "Font", handle);
         }
+        return vraylib.Font(handle, self.token);
+    }
+    load_font_size(path :: String, size :: Int64) -> vraylib.Font {
+        handle :: Int64 := vraylib.managed_config(self.token, "font.load_size", [self.asset(path), size]);
         return vraylib.Font(handle, self.token);
     }
     load_shader(vertex :: String, fragment :: String) -> vraylib.Shader {

@@ -1073,6 +1073,60 @@ class C_Emitter {
         currentStream().append(code);
         currentStream().push_back('\n');
     }
+
+    // setjmp preserves only volatile automatic objects modified before a
+    // longjmp. Qualify declarations already emitted for the handler's visible
+    // bindings, including boxed values and native POD wrappers. Placing the
+    // qualifier after the type also qualifies a pointer itself, not its pointee.
+    void protectTryLocals() {
+        auto qualify = [&](const std::string& name, const CType* ct) {
+            std::vector<std::string> types = {"VyneValue"};
+            if (ct) {
+                types.push_back(ct->cTypeName());
+                if (ct->kind == CType::Kind::Struct && ct->nativeCStruct) {
+                    if (const auto* ns = getNativeCStruct(ct->mangledName))
+                        types.push_back(ns->tag);
+                }
+            }
+            if (name == currentReturningVar) types.push_back("int");
+            std::string& stream = currentStream();
+            for (const auto& type : types) {
+                const std::string declaration = type + " " + name;
+                size_t pos = stream.rfind(declaration);
+                while (pos != std::string::npos) {
+                    size_t end = pos + declaration.size();
+                    bool boundary = end == stream.size() ||
+                        (!std::isalnum(static_cast<unsigned char>(stream[end])) && stream[end] != '_');
+                    size_t start = stream.rfind('\n', pos);
+                    start = start == std::string::npos ? 0 : start + 1;
+                    std::string prefix = stream.substr(start, pos - start);
+                    bool local = prefix.find_first_not_of(" \t") == std::string::npos;
+                    size_t first = prefix.find_first_not_of(" \t");
+                    bool loop = first != std::string::npos &&
+                        (prefix.substr(first) == "for (" || prefix.substr(first) == "for(");
+                    // Native ABI scalar parameters are automatic objects too.
+                    bool parameter = prefix.find("fn_") != std::string::npos &&
+                        prefix.find('=') == std::string::npos && prefix.find('{') == std::string::npos;
+                    if (boundary && (local || parameter || loop)) {
+                        stream.insert(pos + type.size(), " volatile");
+                        return;
+                    }
+                    if (pos == 0) break;
+                    pos = stream.rfind(declaration, pos - 1);
+                }
+            }
+        };
+        for (const auto& scope : localScopes)
+            for (const auto& name : scope.names) qualify(name, lookupLocalType(name));
+        // Some main-body bindings are tracked as globals but emitted locally.
+        // Actual globals live in globalsStream and are not changed here.
+        if (contextStack.empty() || contextStack.back() == EmitContext::MAIN)
+            for (const auto& name : globalVars) qualify(name, lookupGlobalType(name));
+        if (hasReturnVars()) {
+            qualify(currentReturnVar, nullptr);
+            qualify(currentReturningVar, nullptr);
+        }
+    }
     void emitGlobalDecl(const std::string& code) {
         globalsStream.append(code);
         globalsStream.push_back('\n');

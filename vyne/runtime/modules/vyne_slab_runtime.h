@@ -31,6 +31,7 @@
 // ============================================================================
 
 #include "../vyne_runtime.h"  // same base as vmem.h: types, arrays, arena
+#include <stddef.h>
 
 // Number of power-of-two classes from 8 elements to 8 << 23 elements. The
 // codegen front end enforces the same ceiling so an over-large `MAX` is a

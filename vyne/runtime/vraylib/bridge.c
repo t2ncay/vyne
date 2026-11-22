@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Tuncay Gafarli
 #include "bridge.h"
 #include <limits.h>
+#include <float.h>
 #include <math.h>
 #include <setjmp.h>
 #include <stdio.h>
@@ -52,8 +53,18 @@ static void *vr_alloc(size_t n) {
 }
 static void *vr_temp(size_t n) {
     VRTemp *t = vr_alloc(sizeof(*t));
-    t->data = vr_alloc(n); t->next = vr_temps; vr_temps = t;
+    // Link the zero-initialized node before allocating its data so a failed
+    // allocation still releases the node on the bridge's error path.
+    t->next = vr_temps; vr_temps = t; t->data = vr_alloc(n);
     return t->data;
+}
+static void vr_temp_keep(void *data) {
+    VRTemp **next=&vr_temps;
+    while(*next) {
+        VRTemp *t=*next;
+        if(t->data==data) { *next=t->next; free(t); return; }
+        next=&t->next;
+    }
 }
 static void vr_clear_temps(void) {
     while (vr_temps) {

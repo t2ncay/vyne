@@ -34,6 +34,43 @@ It returns false on window exit, `stop()`, or the configured frame limit.
 and releases the application's resources and contexts. Both close operations on
 already-released resource tokens and App.close are idempotent.
 
+### Deferring a native window close
+
+`app.defer_close(true)` lets the application confirm a titlebar/exit-key close
+before ending its loop. It is off by default. While enabled, a native close
+request keeps `frame()` running and queues a pending event. After `frame()`, call
+`app.close_requested()` to consume that event: it returns true once, then false
+until a new native close event arrives. An unread event survives subsequent frames;
+multiple requests coalesce into one pending flag. Continue the normal drawing/end
+cycle on Cancel so raylib polls events and resets the backend's native close flag.
+
+On accepted Save/Discard, use `app.stop()` or `app.close()`; on Cancel, continue
+the loop. Disabling deferred close clears its pending event and restores normal
+native-close termination. Repeatedly enabling it does not clear a pending event.
+`stop()`, the frame limit, and loss of the live window always terminate `frame()`,
+even with deferred close enabled. `close_requested()` only consumes session state;
+it does not call `WindowShouldClose()` again. Headless sessions have no native
+close event.
+
+### Recovering short errors in a frame
+
+`app.transient_errors(true)` enters a nested, opt-in recovery scope; balance each
+entry with `app.transient_errors(false)`, usually in `finally`. Enabling requires
+an active managed frame. Only successful configuration calls change nesting.
+Frame completion, rollover, application closure and shutdown reset that nesting.
+
+While enabled, thrown strings shorter than 1024 bytes are copied into a static
+rotating 64-slot store, independent of frame rewinds. Each promotion (including a
+rethrow) consumes a slot; the latest 64 promotions remain readable, including
+after application closure. Do not retain these strings for long-lived history:
+later promotions overwrite their slots. Longer strings and structured exceptions
+retain the normal persistent-copy behavior.
+
+Catch entry restores abandoned nested-region checkpoints, persistent-region
+depths and `@zeroed`/`@deterministic` zero-mode depth before catch/finally runs,
+preserving scopes that enclose the handler. Exception payload allocations remain live until
+an enclosing arena rewind; this is not a general eager region-memory unwinder.
+
 ### Let App own the loop
 
 ```vyne
@@ -82,9 +119,10 @@ accepted. Relative roots are relative to the process working directory.
 | App factory | Result / purpose |
 | --- | --- |
 | `load_texture(path)` | Checked GPU texture; `width`, `height`, `draw`, `close` |
+| `texture(image)` | Upload a checked same-session Image; the GPU Texture survives source image closure |
 | `load_image(path)`, `image(w,h,color)` | CPU image; `resize`, `save`, `close` |
 | `load_model(path)`, `cube(texture)`, `plane(texture,w,length)` | Model; material count, shader/texture assignment and drawing |
-| `load_font(path)` | Font; `draw(text,position,size,tint)` |
+| `load_font(path)`, `load_font_size(path,size)` | Font; `draw(text,position,size,tint)`, `measure(text,size)` |
 | `load_shader(vertex_or_null,fragment)` | Custom shader; rejects default fallback on compilation failure |
 | `camera(position,target,fovy)`, `first_person()`, `orbit(position,target)` | Persistent mutable camera |
 | `music(path,volume)` | Looping streamed audio; automatically updated every frame |
@@ -95,6 +133,35 @@ Model/camera/target drawing requires an open App window. Image sessions need no
 graphics or audio device. Music has `valid`, `play`, `pause`, `volume` and `close`;
 if no audio device can open, it returns an unavailable Music token (`valid=false`).
 Missing files and failed resource/shader loads produce descriptive exceptions.
+
+`load_font_size(path,size)` accepts raster sizes 1..512 and caches by resolved
+path **and size**, separately from `load_font(path)`. It requests printable ASCII,
+Latin-1, Latin Extended-A/B, Azerbaijani schwa (`Əə`) and combining diacritics,
+then applies bilinear atlas filtering. Actual coverage depends on the font file;
+missing glyphs use raylib's fallback. `font.measure(text,size)` returns `Vector2`
+dimensions using the same 1.0 spacing as `font.draw`, including multiline text.
+
+`camera.set_orthographic(size)` preserves position, target and up, switches projection
+to `CAMERA_ORTHOGRAPHIC`, and sets the positive vertical view size in `fovy`.
+
+### Texture regions and procedural assets
+
+```vyne
+image :: vraylib.Image := app.image(64, 64, vraylib.BLUE);
+texture :: vraylib.Texture := app.texture(image);
+image.close();
+# Inside app.begin/end or target.begin/end:
+texture.draw_region(vraylib.Rectangle(0.0, 0.0, 64.0, 64.0),
+    vraylib.Rectangle(20.0, 20.0, 160.0, 160.0),
+    vraylib.vec2(0.0, 0.0), 0.0, vraylib.WHITE);
+```
+
+`draw_region(source,destination,origin,rotation,tint)` exposes scaled/cropped/
+rotated drawing without manually extracting a resource token. It validates the
+texture and requires an active managed drawing surface. `app.drawing()` reports
+that state. Borrowed `target.texture()` views use logical top-left source
+coordinates, like `Texture.draw`, and follow target storage replacement. Keep
+the logical wrapper rather than caching its raw attachment handle.
 
 ### Fixed native saturation
 
@@ -161,7 +228,10 @@ must be detached before replacing storage; `native_handle()` is an explicit
 escape hatch whose returned attachment handle is invalidated by resize.
 
 Camera methods include `position`, `set_position`, `set_height`, `move`, `look`,
-`update`, `begin/end` and `with_draw`. First-person update normalizes diagonal
+`view`, `ray`, `update`, `begin/end` and `with_draw`. `view()` returns a checked
+Camera3D snapshot; `ray(screen_position)` produces a picking Ray and requires
+a live application window. Both returned records are frame-local snapshots,
+not persistent mutable camera state. First-person update normalizes diagonal
 WASD input and uses App.dt; orbit uses raylib's orbital controller. Speed and
 sensitivity are wrapper value fields that can be configured before updating.
 Collision, crouching, jumping and scene-specific physics remain application
@@ -189,14 +259,18 @@ Frame scopes bound allocation lifetimes, not a guarantee of zero allocations.
 
 ## Diagnostics and examples
 
-App exposes `frames`, `dt`, `elapsed`, `width`, `height`, `resources`, `passes`,
+App exposes `frames`, `dt`, `elapsed`, `width`, `height`, `resources`, `passes`, `drawing`,
 `uniform_queries`, `valid`, `limit`, `fps` and `stop`. The full bodycam example
 now uses typed assets, managed frames/music, named uniforms and resizing targets.
 The small desktop showcase demonstrates a managed orbit camera.
+VMGE in `examples/projects/vmge/` demonstrates a persistent editable cube map,
+procedural/original assets, camera-ray picking, texture regions and a playable
+fog/VHS/scanline pipeline. Its README covers controls, paths and acceptance.
 
 ```sh
 python examples/projects/raylib-showcase/tests/run.py --graphics
 python examples/projects/raylib-showcase/tests/run.py --graphics --camera --audio
+python examples/projects/vmge/tests/run.py --graphics
 ```
 
 The original low-level facade and the pinned API coverage/capability limits remain
