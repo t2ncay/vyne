@@ -10,11 +10,16 @@ interface SEAssets {
     state :: Array<Int64>,
     app :: vraylib.App,
     root :: String,
+    programs :: SEPrograms,
+    texture_tokens :: Array<Int64>,
+    texture_paths :: Array,
+    view :: Array<Float64>,
 }
 fn se_assets(app :: vraylib.App, paths :: Array, root :: String) -> SEAssets {
     tokens :: Array<Int64> := []; tokens.reserve(64); tokens.resize(64,0);
-    state :: Array<Int64> := [0,0];
-    return SEAssets(tokens,paths,state,app,root);
+    state :: Array<Int64> := ss_ints(3);
+    texture_paths :: Array := []; texture_paths.reserve(64); i :: Int64 := 0; while i < 64 { texture_paths.push(ss_text(255)); i = i+1; }
+    return SEAssets(tokens,paths,state,app,root,se_programs(),ss_ints(64),texture_paths,ss_floats(3));
 }
 fn se_asset_relative(bank :: SEAssets,full :: String) -> String {
     if full.size() <= bank.root.size() { return full; }
@@ -93,7 +98,20 @@ fn se_draw_scene_resource(scene :: SEScene, cache :: SETransforms, bank :: SEAss
                     try {
                         model :: vraylib.Model := se_node_model(scene,slot,bank,cubes);
                         tint :: vraylib.Color := vraylib.rgba(int64(scene.values[slot*16+9]),int64(scene.values[slot*16+10]),int64(scene.values[slot*16+11]),int64(scene.values[slot*16+12]));
-                        model.draw_matrix(se_matrix_read(cache.matrices,slot*16),tint);
+                        resource :: String := se_text_read(scene.materials.paths[slot]);
+                        if resource == "" { model.draw_matrix(se_matrix_read(cache.matrices,slot*16),tint); }
+                        else {
+                            if !vraylib.is_path_absolute(resource) { resource = vfs.join(bank.root,resource); }
+                            program :: Int64 := se_program_resolve(bank.programs,bank.app,resource);
+                            se_material_resolve_textures(scene.materials,scene.materials.instances[slot],bank);
+                            d :: SSDocument := bank.programs.documents[program]; ss_material_apply(d,scene.materials.instances[slot]);
+                            parameter :: Int64 := 0; while parameter < d.published.state[0] {
+                                if d.published.meta[parameter*8+1] == 35665 && d.published.meta[parameter*8+2] == 1 && d.published.meta[parameter*8+6] == 1 {
+                                    if se_text_read(d.published.names[parameter]) == "cameraPosition" { ss_program(d).set("cameraPosition",vraylib.vec3(bank.view[0],bank.view[1],bank.view[2])); }
+                                } parameter = parameter+1;
+                            }
+                            model.draw_material(se_matrix_read(cache.matrices,slot*16),ss_program(d),0,tint);
+                        }
                     } catch (error) { vraylib.draw_bounding_box(se_box(cache,slot),vraylib.MAGENTA); }
                 }
                 if editor {
@@ -131,4 +149,23 @@ fn se_pick(scene :: SEScene, cache :: SETransforms, bank :: SEAssets, cubes :: A
         slot = slot + 1;
     }
     return selected;
+}
+fn se_material_texture(bank :: SEAssets,path :: String) -> vraylib.Texture {
+    i :: Int64 := 0; while i < 64 { if bank.texture_tokens[i] != 0 && se_text_read(bank.texture_paths[i]) == path { return vraylib.Texture(bank.texture_tokens[i],bank.app.token,false); } i = i+1; }
+    i = 0; while i < 64 && bank.texture_tokens[i] != 0 { i = i+1; } if i == 64 { throw "Host texture cache capacity: 64"; }
+    full :: String := path; if !vraylib.is_path_absolute(full) { full = vfs.join(bank.root,full); }
+    if path.size() > 255 { throw "Texture reference exceeds 255 bytes"; }
+    t :: vraylib.Texture := bank.app.load_texture(full); bytes :: Int64 := t.width()*t.height()*4;
+    if t.width() > 4096 || t.height() > 4096 || bytes+bank.state[2] > 134217728 {
+        t.close(); throw "Host texture budget: 4096 per axis / 128 MiB RGBA8 total";
+    }
+    se_text_write(bank.texture_paths[i],path); bank.texture_tokens[i] = t.token; bank.state[2] = bank.state[2]+bytes; return t;
+}
+fn se_material_resolve_textures(resources :: SEMaterials,m :: MaterialInstance,bank :: SEAssets) -> Bool {
+    i :: Int64 := 0; while i < m.binding_state[0] {
+        id :: Int64 := m.bindings[i*4+1]-100;
+        if id < 0 || id >= resources.resource_state[0] { throw "Missing scene texture resource reference"; }
+        t :: vraylib.Texture := se_material_texture(bank,se_text_read(resources.resources[id]));
+        ss_material_bind_texture(m,m.bindings[i*4],id+100,t); i = i+1;
+    } return true;
 }

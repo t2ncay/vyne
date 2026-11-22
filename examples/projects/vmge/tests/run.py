@@ -14,8 +14,9 @@ SUFFIX = ".exe" if os.name == "nt" else ""
 
 
 def run(command, marker=None, failure=None, env=None, cwd=ROOT):
+    timeout = 600 if "--compile" in command or "build" in command else 240
     result = subprocess.run([str(c) for c in command], cwd=cwd, env=env,
-                            capture_output=True, text=True, errors="replace", timeout=240)
+                            capture_output=True, text=True, errors="replace", timeout=timeout)
     output = result.stdout + result.stderr
     if failure:
         if result.returncode == 0 or failure not in output:
@@ -68,6 +69,10 @@ def main():
         parser.error("--assets and --map require --graphics")
     BUILD.mkdir(parents=True, exist_ok=True)
     (BUILD / "partial_assets/Brick").mkdir(parents=True, exist_ok=True)
+    (ROOT / "build/shader-model-dev").mkdir(parents=True, exist_ok=True)
+    # Start studio tests from a clean document/layout without touching user assets.
+    shader_session = tempfile.TemporaryDirectory(prefix="shader-session-", dir=BUILD)
+    session_root = Path(shader_session.name)
     compiler = Path(os.environ.get("VYNEC", str(ROOT / ("vynec" + SUFFIX)))).resolve()
     env = {k: v for k, v in os.environ.items() if not k.startswith("VYNE_VMGE_")}
     env.update(VYNE_VMGE_ROOT=str(PROJECT), VYNE_VMGE_ASSETS="procedural", VYNE_VMGE_AUDIO="0",
@@ -81,9 +86,17 @@ def main():
                VYNE_VMGE_WORLD_CONTROLS_PREFIX=str(BUILD / "world-controls"),
                VYNE_VMGE_STUDIO_PREFIX=str(BUILD / "studio"),
                VYNE_VMGE_WORLD_REVIEW_PREFIX=str(BUILD / "integrity"),
+               VYNE_VMGE_SHADER_DOCUMENT=str(session_root / "new.vshader"),
+               VYNE_VMGE_SHADER_GRAPH=str(session_root / "new.vgraph"),
+               VYNE_VMGE_SHADER_PIPELINE=str(session_root / "new.vpipeline"),
+               VYNE_VMGE_LAYOUT=str(session_root / "new.layout"),
                VYNE_UI_TEST_ROOT=str(BUILD / "ui-imports"))
-    cpu_tests = ("map", "collision", "scene", "world", "world_scene", "world_options", "world_exports", "world_integrity", "studio")
-    gpu_tests = ("render", "scene_render", "ui", "ui_assets", "world_render", "world_settings_render")
+    env["VYNE_SHADER_GPU"] = "1" if args.graphics else "0"
+    env["VYNE_SHADER_GALLERY_AUTHOR"] = "0"
+    cpu_tests = ("map", "collision", "scene", "world", "world_scene", "world_options", "world_exports", "world_integrity", "studio",
+                 "layout", "material_scene", "shader_model", "shader_pipeline", "shader_graph", "shader_evaluation", "shader_gallery")
+    gpu_tests = ("render", "scene_render", "ui", "ui_assets", "world_render", "world_settings_render",
+                 "shader_ui", "shader_ui_workspace", "shader_ui_schema")
     for name in cpu_tests + (gpu_tests if args.graphics else ()):
         binary = BUILD / name
         run([compiler, "--compile", "-o", binary, PROJECT / "tests" / (name + ".vy")], env=env)
@@ -110,7 +123,7 @@ def main():
         run([compiler, "--compile", "-o", BUILD / name, ROOT / f"examples/graphics/{name}.vy"], env=env)
     print("PASS: VMGE entry point, project build, historical launchers and existing camera compile")
     env["VYNE_VMGE_MODE"] = "invalid"
-    run([str(binary) + SUFFIX], failure="VYNE_VMGE_MODE must be scene, editor, or play", env=env)
+    run([str(binary) + SUFFIX], failure="VYNE_VMGE_MODE must be scene, world, shader, rendering, editor, or play", env=env)
     env["VYNE_VMGE_MODE"] = "play"
     env["VYNE_VMGE_MAP"] = str(BUILD / "missing.dat")
     run([str(binary) + SUFFIX], failure="Map file not found", env=env)
@@ -162,6 +175,21 @@ def main():
         assert saved.startswith("VMGE_SCENE|2\n") and re.search(r"^G\|1(?:\.0)?\|", saved, re.MULTILINE), saved
         check_obj(BUILD / "studio-flow.obj", 2)
         print("PASS: terrain preview/strokes, modal capture, dirty document recovery, G metadata and resource-only exports")
+        for suffix, authoring in (("host", "0"), ("authoring", "1")):
+            shader_env = dict(env, VYNE_VMGE_MODE="shader", VYNE_VMGE_AUTOTEST="0",
+                              VYNE_VMGE_STUDIO_AUTOTEST="0", VYNE_VMGE_SHADER_AUTOTEST="1",
+                              VYNE_VMGE_SHADER_AUTHORING_AUTOTEST=authoring,
+                              VYNE_VMGE_SHADER_PREFIX=str(BUILD / ("shader-" + suffix)),
+                              VYNE_VMGE_SCENE=str(session_root / (suffix + "-absent.vscene")))
+            marker = "VMGE_SHADER_HOST_AUTHORING_AUTOTEST_OK" if authoring == "1" else "VMGE_SHADER_HOST_AUTOTEST_OK"
+            output = run([str(binary) + SUFFIX], marker=marker, env=shader_env)
+            complete(output, "SCENE_EDITOR", 32)
+            assert "VMGE_SHADER_HOST_MEMORY_OK" in output, output
+            assert re.search(r"errors=\s*0\s+transient_headers=", output), output
+            assert re.search(r"commit_drift=\s*0", output), output
+            assert re.search(r"source_owner_bytes=\s*(\d+)", output) and int(re.search(r"source_owner_bytes=\s*(\d+)", output)[1]) <= 4096, output
+            assert int(re.search(r"VMGE_SHADER_HOST_PREFRAME_BYTES\s+(\d+)", output)[1]) <= 128 * 1024 * 1024, output
+            print("PASS: shader " + suffix + " flow, 32 frames, typed materials/pipeline, zero drift and handles")
         if args.assets:
             env.update(VYNE_VMGE_ASSETS=str(ROOT / "examples/assets"), VYNE_VMGE_AUDIO="1")
             output = run([str(binary) + SUFFIX], marker="VMGE_VIEWER_COMPLETE", env=env)
@@ -177,6 +205,7 @@ def main():
                 output = run([str(BUILD / name) + SUFFIX], marker=f"VMGE_{mode}_COMPLETE", env=local_env)
                 complete(output, mode, 8)
             print("PASS: local legacy map renders in both historical launchers, zero handles")
+    shader_session.cleanup()
     print("All requested VMGE checks passed.")
 
 

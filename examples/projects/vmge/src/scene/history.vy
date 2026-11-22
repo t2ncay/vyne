@@ -7,6 +7,7 @@ interface SEHistory {
     texts :: Array,
     state :: Array<Int64>,
     worlds :: Array,
+    materials :: Array,
     dirty() -> Bool {
         bytes :: Array<Int64> := self.texts[self.state[1] % 17];
         return bytes[41985] != self.state[4];
@@ -19,7 +20,9 @@ fn se_history(numbers :: Array, texts :: Array) -> SEHistory {
     state :: Array<Int64> := [0, 0, 0, 0, -1];
     worlds :: Array := []; worlds.reserve(17);
     i :: Int64 := 0; while i < 17 { data :: Array<Float64> := se_world_buffer(); worlds.push(data); i = i+1; }
-    return SEHistory(numbers, texts, state,worlds);
+    materials :: Array := []; materials.reserve(17); i = 0;
+    while i < 17 { materials.push(se_material_snapshot()); i = i+1; }
+    return SEHistory(numbers, texts, state,worlds,materials);
 }
 fn se_numeric_owner_copy(destination :: Array<Float64>,source :: Array<Float64>) -> Bool {
     i :: Int64 := 0;
@@ -43,6 +46,7 @@ fn se_snapshot(history :: SEHistory, scene :: SEScene, slot :: Int64, revision :
     }
     bytes[41984] = scene.count(); bytes[41985] = revision;
     se_world_copy_data(history.worlds[slot],scene.world.data);
+    se_material_capture(history.materials[slot],scene.materials,false);
     return true;
 }
 fn se_history_reset(history :: SEHistory, scene :: SEScene, saved :: Bool) -> Bool {
@@ -78,6 +82,7 @@ fn se_restore(history :: SEHistory, scene :: SEScene) -> Bool {
     }
     scene.state[0] = bytes[41984];
     se_world_copy_data(scene.world.data,history.worlds[slot]);
+    se_material_capture(history.materials[slot],scene.materials,true);
     return true;
 }
 fn se_undo(history :: SEHistory, scene :: SEScene) -> Bool {

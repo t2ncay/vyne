@@ -4,6 +4,36 @@ use native vfs;
 # Only resource IDs survive frames. Thin Font wrappers are reconstructed locally.
 se_theme_tokens :: Array<Int64> := [0,0,0,0,0,1,0,0];
 se_theme_metrics :: Array<Float64> := [0.0,0.0,0.0,0.0,0.0,0.0];
+# Workspace tokens are separate; the scene's six legacy metrics keep their ABI.
+ss_theme_resources :: Array<Int64> := [0,0];
+ss_theme_scale :: Array<Float64> := [1.0];
+ss_theme_input :: Array<Int64> := [1];
+fn ss_scale(value :: Float64) -> Float64 { return value*ss_theme_scale[0]; }
+fn ss_theme_dpi(scale :: Float64) -> Bool { ss_theme_scale[0] = vraylib.math_clamp(scale,0.75,3.0); return true; }
+fn ss_font_size() -> Int64 { return int64(ss_scale(14.0)); }
+fn ss_line_height() -> Float64 { return ss_scale(22.0); }
+fn ss_cell_width() -> Float64 {
+    if ss_theme_resources[0] == 0 { return ss_scale(8.4); }
+    font :: vraylib.Font := vraylib.Font(ss_theme_resources[0],ss_theme_resources[1]);
+    return font.measure("M",float64(ss_font_size())).x;
+}
+fn ss_mono(text :: String,x :: Float64,y :: Float64,tint :: vraylib.Color) -> Bool {
+    if ss_theme_resources[0] == 0 { return vraylib.draw_text(text,int64(x),int64(y),ss_font_size(),tint); }
+    font :: vraylib.Font := vraylib.Font(ss_theme_resources[0],ss_theme_resources[1]);
+    return font.draw(text,vraylib.vec2(x,y),float64(ss_font_size()),tint);
+}
+# Semantic palette: ink, surface, raised, border, text, muted, accent, error, success.
+fn ss_color(role :: Int64) -> vraylib.Color {
+    if role == 0 { return vraylib.rgba(17,20,26,255); }
+    if role == 1 { return vraylib.rgba(23,27,34,255); }
+    if role == 2 { return vraylib.rgba(32,38,47,255); }
+    if role == 3 { return vraylib.rgba(48,57,69,255); }
+    if role == 4 { return vraylib.rgba(222,228,237,255); }
+    if role == 5 { return vraylib.rgba(131,146,165,255); }
+    if role == 6 { return vraylib.rgba(112,177,233,255); }
+    if role == 7 { return vraylib.rgba(244,128,124,255); }
+    return vraylib.rgba(133,199,163,255);
+}
 
 fn se_clip_start(clip :: vraylib.Clip,rectangle :: vraylib.Rectangle) -> Bool {
     clip.begin(); se_theme_tokens[3] = 1;
@@ -16,6 +46,8 @@ fn se_theme_load(app :: vraylib.App,project :: String) -> Bool {
     regular :: vraylib.Font := app.load_font_size(vfs.join(project,"assets/fonts/Inter-Regular.ttf"),32);
     bold :: vraylib.Font := app.load_font_size(vfs.join(project,"assets/fonts/Inter-SemiBold.ttf"),32);
     se_theme_tokens[0] = regular.token; se_theme_tokens[1] = bold.token; se_theme_tokens[2] = app.token;
+    mono :: vraylib.Font := app.load_font_size(vfs.join(project,"assets/fonts/JetBrainsMono-Regular.ttf"),32);
+    ss_theme_resources[0] = mono.token; ss_theme_resources[1] = app.token;
     return true;
 }
 fn se_draw_text(text :: String,x :: Int64,y :: Int64,size :: Int64,tint :: vraylib.Color) -> Bool {

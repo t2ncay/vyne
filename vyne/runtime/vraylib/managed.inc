@@ -22,7 +22,10 @@ typedef struct {
     double dt, elapsed;
     clock_t last_tick;
 } VRSession;
-typedef struct { int64_t texture; int follow; } VRTarget;
+typedef struct { int64_t texture; int follow, format; } VRTarget;
+static void vr_feedback(int64_t session, Texture texture);
+static RenderTexture vr_studio_target(int width,int height,int format);
+static void vr_sampler_validate(int64_t session,int64_t shader);
 
 static char *vr_string_copy(const char *s) {
     size_t n=strlen(s)+1; char *p=vr_alloc(n); memcpy(p,s,n); return p;
@@ -83,38 +86,28 @@ static Texture vr_managed_texture(int64_t session,int64_t h) {
     vr_fail("expected a texture or managed render target"); return (Texture){0};
 }
 static int64_t vr_target_texture(int64_t session,int64_t h) {
+    vr_feedback(session,vr_managed_texture(session,h));
     VRSlot *r=vr_managed_resource(session,h);
     if(!strcmp(r->type,"Texture")) return h;
     VRTarget *t=vr_checked(vr_int(h),"Target",1);
     RenderTexture *rt=vr_checked(vr_int(t->texture),"RenderTexture",1);
     return vr_handle(&rt->texture,"Texture",1,sizeof(Texture),NULL,0,t->texture).integer;
 }
-static void vr_resize_target(int64_t session,int64_t h,int width,int height) {
-    VRSession *s=vr_session(session); (void)vr_managed_resource(session,h);
-    for(int i=0;i<s->depth;++i) if(s->passes[i].handle==h) vr_fail("cannot resize an active render target");
-    if(width<1 || height<1 || width>16384 || height>16384) vr_fail("render target dimensions must be 1..16384");
-    VRTarget *t=vr_checked(vr_int(h),"Target",1);
-    if(t->texture) { RenderTexture *old=vr_checked(vr_int(t->texture),"RenderTexture",1); if(old->texture.width==width && old->texture.height==height) return; }
-    RenderTexture value=LoadRenderTexture(width,height);
-    if(!IsRenderTextureValid(value)) { UnloadRenderTexture(value); vr_fail("render target allocation failed"); }
-    // Validate old borrowed dependencies before replacing it. Failure leaves the
-    // old target intact and releases the newly allocated GPU storage.
-    for(VRDependency *d=vr_dependencies;d;d=d->next)
-        if(t->texture && vr_descendant(d->to,t->texture) && !vr_descendant(d->from,t->texture)) { UnloadRenderTexture(value); vr_fail("raw render attachment is still referenced; use the managed texture view"); }
-    RenderTexture *copy=vr_alloc(sizeof(value)); *copy=value;
-    int64_t next=vr_handle(copy,"RenderTexture",1,sizeof(value),vr_drop_UnloadRenderTexture,1,h).integer;
-    if(t->texture) vr_release(t->texture,NULL);
-    t->texture=next;
-    for(VRModelTexture *b=s->models;b;b=b->next) if(b->texture==h) {
-        Model *m=vr_checked(vr_int(b->model),"Model",1);
-        SetMaterialTexture(&m->materials[b->material],MATERIAL_MAP_DIFFUSE,copy->texture);
-    }
-}
+static void vr_resize_target(int64_t session,int64_t h,int width,int height);
 static void vr_sampler_refresh(int64_t session,int64_t shader) {
     VRSession *s=vr_session(session); Shader *value=vr_checked(vr_int(shader),"Shader",1);
     for(VRUniform *u=s->uniforms;u;u=u->next)
+        if(u->shader==shader && u->sampler && u->location>=0) vr_feedback(session,vr_managed_texture(session,u->sampler));
+    for(VRUniform *u=s->uniforms;u;u=u->next)
         if(u->shader==shader && u->sampler && u->location>=0) SetShaderValueTexture(*value,u->location,vr_managed_texture(session,u->sampler));
 }
+static void vr_sampler_validate(int64_t session,int64_t shader) {
+    VRSession *s=vr_session(session);
+    for(VRUniform *u=s->uniforms;u;u=u->next)
+        if(u->shader==shader && u->sampler) vr_feedback(session,vr_managed_texture(session,u->sampler));
+}
+// Studio uses the existing managed_config bridge; no generated ABI changes.
+#include "shader_studio.inc"
 static void vr_session_drop(void *data,size_t count) {
     (void)count; VRSession *s=data; int64_t session=vr_managed_session;
     vr_saturation_detach(session);
@@ -178,13 +171,18 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
     }
     if(id==-24) {
         if(!s->opened) vr_fail("render targets require an application window");
-        VRTarget *t=vr_alloc(sizeof(*t)); t->follow=vr_integer(a[3])!=0;
+        int width=vr_i32(a[1]),height=vr_i32(a[2]);
+        if(width<1 || height<1 || width>16384 || height>16384) vr_fail("render target dimensions must be 1..16384");
+        VRTarget *t=vr_temp(sizeof(*t)); t->follow=vr_integer(a[3])!=0;
+        VRTemp *guard=vr_temp_guard();
         VR h=vr_handle(t,"Target",1,sizeof(*t),NULL,1,0); vr_adopt(session,h.integer);
-        vr_resize_target(session,h.integer,vr_i32(a[1]),vr_i32(a[2])); return h;
+        vr_temp_keep(t); guard->rollback=h.integer;
+        vr_resize_target(session,h.integer,width,height); guard->rollback=0; return h;
     }
     if(id==-32) { vr_resize_target(session,vr_integer(a[1]),vr_i32(a[2]),vr_i32(a[3])); return vr_bool(1); }
     if(id==-27) {
         const char *key=vr_required_string(a[1]);
+        if(!strncmp(key,"studio.",7)) return vr_studio_config(session,key,a[2]);
         if(!strcmp(key,"font.load_size")) {
             VR value=a[2];
             if(value.kind!=VR_LIST || value.count!=2) vr_fail("font loading requires path and size");
@@ -342,18 +340,20 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         case 0: BeginDrawing(); break;
         case 1: { VRTarget *t=vr_checked(vr_int(h),"Target",1); BeginTextureMode(*(RenderTexture *)vr_checked(vr_int(t->texture),"RenderTexture",1)); break; }
         case 2: BeginMode3D(*(Camera3D *)vr_checked(vr_int(h),"Camera3D",1)); break;
-        case 3: BeginShaderMode(*(Shader *)vr_checked(vr_int(h),"Shader",1)); vr_sampler_refresh(session,h); break;
+        case 3: vr_sampler_validate(session,h); BeginShaderMode(*(Shader *)vr_checked(vr_int(h),"Shader",1)); vr_sampler_refresh(session,h); break;
         case 4: { Rectangle r=vr_unpack_Rectangle(a[2]); BeginScissorMode((int)r.x,(int)r.y,(int)r.width,(int)r.height); break; }
         }
         s->passes[s->depth++]=(VRPass){kind,h}; return vr_bool(1);
     }
     if(id==-33) {
         Texture t=vr_managed_texture(session,vr_integer(a[1]));
+        vr_feedback(session,t);
         DrawTexturePro(t,(Rectangle){0,0,(float)t.width,-(float)t.height},(Rectangle){0,0,(float)vr_number(a[2]),(float)vr_number(a[3])},(Vector2){0,0},0,WHITE); return vr_bool(1);
     }
     if(id==-34) return vr_int(vr_target_texture(session,vr_integer(a[1])));
     if(id==-35) {
         int64_t h=vr_integer(a[1]); Texture t=vr_managed_texture(session,h);
+        vr_feedback(session,t);
         if(!strcmp(vr_slot(h)->type,"Target")) DrawTextureRec(t,(Rectangle){0,0,(float)t.width,-(float)t.height},vr_unpack_Vector2(a[2]),vr_unpack_Color(a[3]));
         else DrawTextureV(t,vr_unpack_Vector2(a[2]),vr_unpack_Color(a[3]));
         return vr_bool(1);
@@ -380,9 +380,21 @@ static VR vr_managed_helper(int id,const VR *a,size_t count) {
         Shader *value=vr_checked(vr_int(shader),"Shader",1); const char *name=vr_required_string(a[2]); int mode=vr_i32(a[4]);
         VRUniform *u=s->uniforms;
         while(u && (u->shader!=shader || strcmp(u->name,name))) u=u->next;
-        if(!u) { u=vr_alloc(sizeof(*u)); u->shader=shader; u->name=vr_string_copy(name); u->location=GetShaderLocation(*value,name); ++s->uniform_queries; u->next=s->uniforms; s->uniforms=u; }
+        if(!u) {
+            u=vr_temp(sizeof(*u)); u->name=vr_temp(strlen(name)+1); strcpy(u->name,name);
+            u->shader=shader; u->location=GetShaderLocation(*value,name); ++s->uniform_queries;
+            vr_temp_keep(u->name); vr_temp_keep(u); u->next=s->uniforms; s->uniforms=u;
+        }
         if(u->location<0) vr_fail("shader uniform was not found");
-        if(mode==2) { int64_t texture=vr_integer(a[3]); Texture t=vr_managed_texture(session,texture); vr_depend(shader,texture,1000+u->location); SetShaderValueTexture(*value,u->location,t); u->sampler=texture; return vr_bool(1); }
+        if(mode==2) {
+            if(!vr_integer(a[3])) { rlDrawRenderBatchActive(); vr_studio_unbind(s,shader,u); return vr_bool(1); }
+            int64_t texture=vr_integer(a[3]); Texture t=vr_managed_texture(session,texture);
+            vr_studio_sampler(*value,name); vr_feedback(session,t);
+            int samplers=0; for(VRUniform *p=s->uniforms;p;p=p->next) if(p->shader==shader && p!=u && p->sampler) ++samplers;
+            if(samplers>=4) vr_fail("managed shader supports at most four bound sampler uniforms");
+            vr_depend(shader,texture,1000+u->location); rlDrawRenderBatchActive(); u->sampler=texture;
+            vr_sampler_refresh(session,shader); return vr_bool(1);
+        }
         u->sampler=0;
         VRDependency **edge=&vr_dependencies;
         while(*edge) { VRDependency *d=*edge; if(d->from==shader && d->key==1000+u->location) { *edge=d->next; free(d); } else edge=&d->next; }

@@ -136,7 +136,7 @@ fn se_world_tools_input(tools :: SEWorldTools,ui :: SEUI,scene :: SEScene,histor
     }
     if tools.state[0] == 0 || tools.state[5] != 0 { return false; }
     mouse :: vraylib.Vector2 := vraylib.get_mouse_position();
-    if se_hover(viewport) && mouse.y > viewport.y+114.0 {
+    if se_hover(viewport) && (ui.state[46] != 0 || mouse.y > viewport.y+114.0) {
         ray :: vraylib.Ray := camera.ray_viewport(vraylib.vec2(mouse.x-viewport.x,mouse.y-viewport.y),int64(viewport.width),int64(viewport.height));
         se_world_tool_hit(tools,scene.world,ray);
         if vraylib.is_mouse_button_pressed(vraylib.MOUSE_BUTTON_LEFT) && tools.numbers[17] != 0.0 && !se_view_controls_hit(ui,viewport) {

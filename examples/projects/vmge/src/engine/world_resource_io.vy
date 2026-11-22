@@ -7,7 +7,7 @@ fn se_world_scene_text(scene :: SEScene) -> String {
     # Ordinary scenes retain the v1 field layout; se_scene_text also formats
     # every node number exactly, rather than the runtime's six-digit %g default.
     if scene.world.side() == 0 && scene.world.count() == 0 { return se_scene_text(scene); }
-    builder :: Int64 := vcore.sb_create(); vcore.sb_append(builder,"VMGE_SCENE|2\n"); world :: SEWorld := scene.world; slot :: Int64 := 0;
+    builder :: Int64 := vcore.sb_create(); if se_scene_has_materials(scene) { vcore.sb_append(builder,"VMGE_SCENE|3\n"); } else { vcore.sb_append(builder,"VMGE_SCENE|2\n"); } world :: SEWorld := scene.world; slot :: Int64 := 0;
     while slot < 128 {
         if scene.meta[slot*8] != 0 {
             parent :: Int64 := scene.meta[slot*8+2]; if parent != -1 { parent = parent%128; }
@@ -17,12 +17,13 @@ fn se_world_scene_text(scene :: SEScene) -> String {
         } slot = slot+1;
     }
     vcore.sb_append(builder,"W"); field :: Int64 := 1; while field < 9 { vcore.sb_append(builder,"|"+se_world_decimal(world,world.data[field])); field = field+1; } vcore.sb_append(builder,"\n");
+    vcore.sb_append(builder,se_scene_material_text(scene));
     if world.side() > 0 && world.data[9] != 0.0 { vcore.sb_append(builder,se_generator_record(world)+"\n"); }
     i :: Int64 := 0; count :: Int64 := int64(world.data[0]); while i < count { vcore.sb_append(builder,"C"); field = 0; while field < 5 { vcore.sb_append(builder,"|"+se_world_decimal(world,world.data[16+i*5+field])); field = field+1; } vcore.sb_append(builder,"\n"); i = i+1; }
     side :: Int64 := int64(world.data[1]); if side > 0 { z :: Int64 := 0; while z <= side { x :: Int64 := 0; while x <= side { vcore.sb_append(builder,"H|"+string(x)+"|"+string(z)+"|"+se_world_decimal(world,world.data[20496+z*65+x])+"\n"); x = x+1; } z = z+1; } } return vcore.sb_build(builder);
 }
 fn se_world_parse_scene(staging :: SEScene,text :: String) -> Bool {
-    if text.size() > 1048576 { throw "Scene text exceeds 1 MiB"; }
+    if text.size() > 16777216 { throw "Scene text exceeds 16 MiB"; }
     column :: Int64 := 0; character :: Int64 := 0;
     while character < text.size() { if text[character] == "\n" { column = 0; } else { column = column+1; if column > 2048 { throw "Scene record exceeds 2048 characters"; } } character = character+1; }
     rows :: Array := vmge_split(text,"\n"); builder :: Int64 := vcore.sb_create(); record :: String := ""; i :: Int64 := 0;
@@ -33,7 +34,7 @@ fn se_world_parse_scene(staging :: SEScene,text :: String) -> Bool {
     }
     se_parse(staging,vcore.sb_build(builder));
     if record != "" {
-        if vmge_trim(rows[0]) != "VMGE_SCENE|2" || staging.world.side() == 0 { throw "Generator record requires a v2 terrain resource"; }
+        if (vmge_trim(rows[0]) != "VMGE_SCENE|2" && vmge_trim(rows[0]) != "VMGE_SCENE|3") || staging.world.side() == 0 { throw "Generator record requires a v2/v3 terrain resource"; }
         se_generator_parse_record(staging.world,record);
     } return true;
 }

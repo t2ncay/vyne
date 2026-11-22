@@ -34,6 +34,20 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
         run: xvfb-run -a python3 vyne/runtime/tests/run_vraylib_blockers.py --font examples/projects/vmge/assets/fonts/Inter-Regular.ttf
+      - name: Shader reflection, material isolation, HDR targets and GL-state faults
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: xvfb-run -a python3 vyne/runtime/tests/shader_run.py
+      - name: Upload shader studio preview artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vmge-shader-previews-linux
+          if-no-files-found: ignore
+          path: |
+            build/vmge-tests/*shader*.png
+            build/vmge-tests/studio-flow.png
+            build/shader-ui-dev-*.png
 
   windows:
     runs-on: windows-latest

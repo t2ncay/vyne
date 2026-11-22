@@ -119,6 +119,12 @@ fn se_inspector(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHist
     if scene.kind(id) == 1 {
         if se_field("Asset",path,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,24.0),ui.state[1] == 15,editable) { se_edit_begin(ui,15,id,scene.path(id)); }
         next = next+27.0;
+        material_path :: String := se_text_read(scene.materials.paths[slot]);
+        material_label :: String := "Shader: Open Studio";
+        if material_path != "" { material_label = "Shader: "+vfs.basename(material_path); }
+        if se_button(se_fit(material_label,rectangle.width-82.0,13),se_rect(rectangle.x+6.0,next,rectangle.width-70.0,25.0),editable && ui.state[1] == -1) { ui.state[45] = 1; }
+        if se_button("Clear",se_rect(rectangle.x+rectangle.width-58.0,next,52.0,25.0),editable && material_path != "") { bytes :: Array<Int64> := scene.materials.paths[slot]; bytes[0] = 0; se_record(history,scene); }
+        next = next+29.0;
     }
     visible_label :: String := "Hidden"; if scene.meta[slot*8+4] != 0 { visible_label = "Visible"; }
     if se_tool_button(visible_label,se_rect(rectangle.x+6.0,next,rectangle.width*0.5-8.0,25.0),editable,scene.meta[slot*8+4] != 0,"Toggle node visibility") { scene.meta[slot*8+4] = 1-scene.meta[slot*8+4]; se_record(history,scene); }
@@ -253,11 +259,17 @@ fn se_asset_panel(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHi
             if se_button(create_label,se_rect(x,y,width,20.0),editable) { se_asset_use(ui,scene,history,bank,full,true); }
             if sidebar == 0.0 { x = x+width+6.0; } else { y = y+23.0; }
             if se_button("Import into project",se_rect(x,y,width,20.0),editable) { se_asset_import_ui(ui,app,bank.root,full,directory); }
+            if vfs.extension(full) == ".png" || vfs.extension(full) == ".jpg" || vfs.extension(full) == ".jpeg" || vfs.extension(full) == ".bmp" {
+                if sidebar > 0.0 { y = y+23.0; }
+                if sidebar > 0.0 && se_button("Bind studio sampler",se_rect(x,y,width,20.0),editable) { se_text_write(ui.external_path,full); ui.state[45] = 3; }
+            }
         } else {
             ext :: String := vraylib.text_to_lower(vfs.extension(full));
             if ext == ".vscene" || ext == ".dat" { label :: String := "Open scene"; if ext == ".dat" { label = "Import legacy map"; }
                 if se_button(label,se_rect(x,y,width,24.0),editable) { se_edit_begin(ui,16,-1,full); ui.state[13] = 1; if ext == ".dat" { ui.state[13] = 3; } }
-            } else { se_draw_text("No loader for this file",int64(x),int64(y),12,vraylib.GRAY); }
+            } else { if ext == ".vshader" || ext == ".vmaterial" {
+                if se_button("Open in Shader Studio",se_rect(x,y,width,24.0),editable) { se_text_write(ui.external_path,full); ui.state[45] = 2; }
+            } else { se_draw_text("No loader for this file",int64(x),int64(y),12,vraylib.GRAY); } }
         }
     } else { if sidebar > 0.0 { se_draw_text("Select an asset",int64(rectangle.x+rectangle.width-sidebar+4.0),int64(rectangle.y+95.0),13,vraylib.GRAY); } }
     footer :: String := string(rows)+" matches  /  "+string(ui.state[29])+" cached";

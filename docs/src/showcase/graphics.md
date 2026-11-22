@@ -120,11 +120,36 @@ edits across managed frame cleanup. Shader targets follow window resizing.
 Procedural textures and the committed demo need no ignored historical media;
 the original eight-slot palette and map format are also supported.
 
+### Code-first Shader Studio
+
+Set `VYNE_VMGE_MODE=shader` to open the shared Shaders workspace, or `rendering`
+for its ordered pass editor. Inter/JetBrains Mono typography, saved DPI-aware
+splits, multiline source editing, typed controls and graph generation are hosted
+in the same App as Scene and World.
+
+Compile GLSL against the real driver, retain the last-good program on failure,
+and expose used uniforms through Parameters → Expose / Schema. Preview on plane,
+cube, sphere or selected geometry, inspect diagnostics and linear float pixels,
+then Apply independent material instances to scene meshes. Save As/Reload and
+dirty Close/Open preserve source, material values and sampler references. Applied
+publications are immutable; scene v3 records retain instance data without GPU IDs.
+
+Rendering supports pass shaders/inputs, bypass, RGBA8/RGBA32F targets, safe reorder,
+intermediate captures and an actual five-pass bloom gallery. Gallery shaders also
+include stylized lighting, plasma/grid and exposure/tonemap. Shader work runs on
+desktop GL 3.3; compute shaders and arbitrary GLSL differentiation are not implied.
+Frozen float capture/evaluation and explicit finite-difference `voptim` fitting
+provide a generic research bridge.
+
+See the [Shader Studio guide](https://github.com/t2ncay/vyne/blob/master/examples/projects/vmge/SHADER_STUDIO.md)
+for source-to-material and multipass workflows, persistence and exact limits.
+
 ```shell
 python examples/projects/vmge/tests/run.py
 python examples/projects/vmge/tests/run.py --graphics
 python examples/projects/vmge/tests/run.py --graphics --poison
 python examples/projects/vmge/tests/run.py --graphics --assets --map tau_map.dat
+python vyne/runtime/tests/shader_run.py
 ```
 
 The runner checks map/OBJ round trips, physics and frame lifetimes, scaled

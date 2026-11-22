@@ -40,8 +40,9 @@ static void vr_managed_invalidate(int64_t id);
 
 // All entry points are main-thread only, matching raylib's graphics context.
 // Temporary pointer conversions are freed on both normal and error paths.
-typedef struct VRTemp { void *data; struct VRTemp *next; } VRTemp;
+typedef struct VRTemp { void *data; int64_t rollback; struct VRTemp *next; } VRTemp;
 static VRTemp *vr_temps;
+static void vr_release(int64_t id, VRDrop expected);
 static void vr_fail(const char *message) {
     snprintf(vr_error, sizeof(vr_error), "vraylib.%s: %s", vr_function, message);
     longjmp(vr_jump, 1);
@@ -66,9 +67,13 @@ static void vr_temp_keep(void *data) {
         next=&t->next;
     }
 }
+static VRTemp *vr_temp_guard(void) {
+    VRTemp *t=vr_alloc(sizeof(*t)); t->next=vr_temps; vr_temps=t; return t;
+}
 static void vr_clear_temps(void) {
     while (vr_temps) {
         VRTemp *t = vr_temps; vr_temps = t->next;
+        if(t->rollback) vr_release(t->rollback,NULL);
         free(t->data); free(t);
     }
 }
