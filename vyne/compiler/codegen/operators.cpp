@@ -27,6 +27,10 @@
 // ============================================================
 
 std::string BinOpNode::getCExpr(C_Emitter& e) const {
+    // Logical operands may emit calls, allocations or bounds checks. Emit the
+    // RHS inside its runtime branch rather than hoisting it before C's &&/||.
+    if (op == VTokenType::And || op == VTokenType::Or)
+        return emitNativeCondition(e, this);
     // Materialize both operands first — their getCExpr() may emit statements.
     std::string l = leftNode->getCExpr(e);
     std::string r = rightNode->getCExpr(e);

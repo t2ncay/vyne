@@ -3,7 +3,7 @@ version = 1
 # Patterns define the automated inventory; every discovered source needs a contract.
 # Interactive applications are not automatically executed as regression tests.
 [suites.compiler]
-patterns = ["examples/test/codegen_peepholes.vy", "examples/transpiler/native_zero_side_effects.vy", "examples/optimization/profile_safe.vy"]
+patterns = ["examples/test/codegen_peepholes.vy", "examples/transpiler/native_zero_side_effects.vy", "examples/transpiler/logical_short_circuit.vy", "examples/optimization/profile_safe.vy"]
 [suites.safety]
 patterns = ["examples/safety/*.vy"]
 [suites.codegen]
@@ -38,6 +38,13 @@ suite = "compiler"
 source = "examples/optimization/profile_safe.vy"
 kind = "native"
 required = ['(?m)^V02 checksum: 10$']
+
+[[cases]]
+id = "logical_short_circuit_native"
+suite = "compiler"
+source = "examples/transpiler/logical_short_circuit.vy"
+kind = "native"
+required = ['logical short circuit: PASS']
 
 [[cases]]
 id = "correct_index"
