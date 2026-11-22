@@ -4,6 +4,16 @@ fn ss_check(ok :: Bool,message :: String) -> Bool { if !ok { throw message; } re
     d :: SSDocument := ss_document(); reopened :: SSDocument := ss_document();
     sample :: SSDocument := ss_document(); ss_document_load(sample,"examples/projects/vmge/shaders/studio/gain.vshader"); ss_check(ss_parameter_get(sample,1,0) == 0.5 && sample.source[0] > 0,"shipped shader document loads");
     ss_check(d.source.size() == 65537 && ss_document_dirty(d),"retained source capacity and dirty");
+    compact :: SSDocument := ss_document_with_limits(8191,511,16); full :: SSDocument := ss_document();
+    ss_check(compact.source.size() == 8192 && compact.parameters.names.size() == 16 && compact.log.size() == 4096,"compact camera document has explicit retained capacities");
+    ss_parameter_set(compact,1,0,0.33); ss_parameters_copy(full.parameters,compact.parameters); ss_parameters_copy(compact.parameters,full.parameters);
+    ss_check(ss_parameter_get(compact,1,0) == 0.33 && full.parameters.state[0] == 1,"sized/full parameter banks copy live rows both ways");
+    row_id :: Int64 := 2; while row_id <= 17 { ss_parameter_define(full,row_id,"p"+string(row_id),5126,1,0.5,0.0,1.0,"","",true,false); row_id = row_id+1; }
+    capacity_failed :: Bool := false; try { ss_parameters_copy(compact.parameters,full.parameters); } catch (error) { capacity_failed = true; }
+    ss_check(capacity_failed && compact.parameters.state[0] == 1 && ss_parameter_get(compact,1,0) == 0.33,"oversized schema copy rejected before retained bank mutation");
+    compact_hash :: Int64 := ss_hash(compact.source); se_text_write(full.source,"#version 330\n// candidate must not publish\nvoid main()\{}\n"); ss_document_save(full,"build/shader-model-dev/oversized-camera.vshader");
+    capacity_failed = false; try { ss_document_load(compact,"build/shader-model-dev/oversized-camera.vshader"); } catch (error) { capacity_failed = true; }
+    ss_check(capacity_failed && ss_hash(compact.source) == compact_hash && compact.parameters.state[0] == 1 && ss_parameter_get(compact,1,0) == 0.33,"oversized document load cannot partially publish source or parameter state");
     invalid_utf8 :: Array<Int64> := ss_text(8); invalid :: Bool := false; try { ss_unhex(invalid_utf8,"c080"); } catch (error) { invalid = true; } ss_check(invalid,"overlong UTF8 resource text rejected");
     se_text_write(d.source,"#version 330\n// café\nvoid main()\{}\n"); ss_document_source_change(d);
     ss_parameter_set(d,1,0,0.75); ss_document_save(d,"build/shader-model-dev/roundtrip.vshader"); ss_check(!ss_document_dirty(d),"disk revision");

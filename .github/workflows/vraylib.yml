@@ -47,6 +47,7 @@ jobs:
           path: |
             build/vmge-tests/*shader*.png
             build/vmge-tests/studio-flow.png
+            build/vmge-tests/environment-flow.png
             build/shader-ui-dev-*.png
 
   windows:
