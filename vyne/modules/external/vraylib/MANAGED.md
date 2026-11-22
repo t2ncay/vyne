@@ -239,6 +239,41 @@ logic, as demonstrated by the full bodycam example.
 `camera.billboard(texture,position,size,tint)` draws a checked managed texture
 in the active 3D pass. Sector Shift demonstrates this with sector-specific fog.
 
+## Shader authoring and floating-point pipelines
+
+`App.compile_shader(vertex_source, fragment_source)` builds an **uncached** GLSL
+candidate and returns `ShaderBuild { shader, success, log }`. A syntax/link failure
+returns a zero shader token and owned bounded driver diagnostics, preserving the
+caller's last-good program. Invalid arguments/context and allocation failures
+throw. Null vertex source uses the standard GLSL 330 vertex stage.
+
+`Shader.uniforms()` reports active rows `[name, GL_type, array_length, location]`.
+`set_typed(name, GL_type, values)` validates reflected scalar/vector/array/mat4
+uploads, including exact Int32/bool values. Optimized-out uniforms are absent;
+uniform-block members and unsupported types are explicitly diagnosed. Samplers
+use `set_texture`; passing null clears a managed sampler binding.
+
+`Model.draw_material(transform, shader, material_slot, tint)` temporarily overrides
+the selected material slot without changing shared geometry/material storage.
+Set every instance's uniforms before its draw: program uniforms are shared state,
+not model-owned parameter instances.
+
+`App.float_target(w,h)` owns an RGBA32F target. `format`, `read_pixels` and
+`read_pixel` preserve unquantized negative/HDR values with top-left coordinates.
+`copy_from(source)` performs an exact replacement blit; `draw_from(source,shader)`
+runs a replacement fullscreen pass without inherited alpha blending. Resize and
+these operations restore relevant GL framebuffer/texture/pixel-transfer state.
+Same-target sampling/writing is rejected. `App.can_release(tokens)` and
+`release_bank(tokens)` preflight entire owned banks before destructive release.
+
+Readback/reflection/log returns follow the caller's arena lifetime. Copy retained
+data into document/evaluation owners. The APIs use desktop GL 3.3 and the graphics
+thread; they do not provide compute shaders or automatic GLSL differentiation.
+See [SHADER_STUDIO.md](SHADER_STUDIO.md) for supported GL enums, formats, budgets,
+sampler restrictions, ownership and fault tests. VMGE's Shader Studio demonstrates
+code/graph authoring, typed parameter exposure, immutable scene materials, editable
+pipeline passes, float/reference capture and an explicit fitting extension API.
+
 ## Region and exception rules
 
 The managed frame **is** a transient arena scope. Avoid keeping new strings,
@@ -271,6 +306,7 @@ fog/VHS/scanline pipeline. Its README covers controls, paths and acceptance.
 python examples/projects/raylib-showcase/tests/run.py --graphics
 python examples/projects/raylib-showcase/tests/run.py --graphics --camera --audio
 python examples/projects/vmge/tests/run.py --graphics
+python vyne/runtime/tests/shader_run.py
 ```
 
 The original low-level facade and the pinned API coverage/capability limits remain

@@ -78,9 +78,14 @@ interface Shader {
     session :: Int64,
     valid() -> Bool { return vraylib.managed_valid(self.session, self.token) && self.token != 0; }
     close() -> Bool { return vraylib.managed_release(self.session, self.token); }
+    uniforms() -> Array { return vraylib.managed_config(self.session, "studio.uniforms", [self.token]); }
+    set_typed(name :: String, gl_type :: Int64, values :: Array<Float64>) -> Bool {
+        return vraylib.managed_config(self.session, "studio.typed", [self.token, name, gl_type, values]);
+    }
     set(name :: String, value) -> Bool { return vraylib.managed_uniform(self.session, self.token, name, value, 0); }
     set_ints(name :: String, values :: Array<Int64>) -> Bool { return vraylib.managed_uniform(self.session, self.token, name, values, 1); }
     set_texture(name :: String, texture :: vraylib.Texture) -> Bool {
+        if texture == null { return vraylib.managed_uniform(self.session, self.token, name, 0, 2); }
         if texture.session != self.session { throw "Sampler texture belongs to another application"; }
         return vraylib.managed_uniform(self.session, self.token, name, texture.token, 2);
     }
@@ -91,6 +96,12 @@ interface Shader {
         try { draw(); } finally { self.end(); }
         return true;
     }
+}
+
+interface ShaderBuild {
+    shader :: vraylib.Shader,
+    success :: Bool,
+    log :: String
 }
 
 interface Camera {
@@ -180,6 +191,10 @@ interface Model {
         vraylib.require_managed(self.session, self.token);
         return vraylib.managed_config(self.session, "model.draw_matrix", [self.token, transform, tint]);
     }
+    draw_material(transform :: vraylib.Matrix, shader :: vraylib.Shader, material_slot :: Int64, tint :: vraylib.Color) -> Bool {
+        if shader.session != self.session { throw "Shader belongs to another application"; }
+        return vraylib.managed_config(self.session, "studio.draw_material", [self.token, transform, shader.token, material_slot, tint]);
+    }
     pick(ray :: vraylib.Ray, transform :: vraylib.Matrix) -> vraylib.RayCollision {
         vraylib.require_managed(self.session, self.token);
         return vraylib.managed_config(self.session, "model.pick", [self.token, ray, transform]);
@@ -229,6 +244,17 @@ interface RenderTarget {
     close() -> Bool { return vraylib.managed_release(self.session, self.token); }
     width() -> Int64 { return vraylib.managed_texture_size(self.session, self.token, 0); }
     height() -> Int64 { return vraylib.managed_texture_size(self.session, self.token, 1); }
+    format() -> Int64 { return vraylib.managed_config(self.session, "studio.format", [self.token]); }
+    read_pixels() -> Array<Float64> { return vraylib.managed_config(self.session, "studio.read_pixels", [self.token]); }
+    read_pixel(x :: Int64, y :: Int64) -> Array<Float64> { return vraylib.managed_config(self.session, "studio.read_pixel", [self.token, x, y]); }
+    copy_from(source :: vraylib.RenderTarget) -> Bool {
+        if source.session != self.session { throw "Source target belongs to another application"; }
+        return vraylib.managed_config(self.session, "studio.copy_from", [self.token, source.token]);
+    }
+    draw_from(source :: vraylib.RenderTarget, shader :: vraylib.Shader) -> Bool {
+        if source.session != self.session || shader.session != self.session { throw "Fullscreen resources belong to another application"; }
+        return vraylib.managed_config(self.session, "studio.draw_from", [self.token, source.token, shader.token]);
+    }
     texture() -> vraylib.Texture { return vraylib.Texture(self.token, self.session, false); }
     resize(width :: Int64, height :: Int64) -> Bool { return vraylib.managed_resize(self.session, self.token, width, height); }
     begin() -> Bool { return vraylib.managed_pass(self.session, 1, self.token, true); }
@@ -241,6 +267,9 @@ interface App {
     token :: Int64,
     valid() -> Bool { return vraylib.managed_valid(self.token, 0); }
     close() -> Bool { return vraylib.managed_close(self.token); }
+    can_release(tokens :: Array<Int64>) -> Bool { return vraylib.managed_config(self.token, "studio.can_release", tokens); }
+    can_release_tokens(tokens :: Array<Int64>) -> Bool { return vraylib.managed_config(self.token, "studio.can_release", tokens); }
+    release_bank(tokens :: Array<Int64>) -> Bool { return vraylib.managed_config(self.token, "studio.release_bank", tokens); }
     assets(root :: String) -> Bool { return vraylib.managed_config(self.token, "assets", root); }
     asset(path :: String) -> String { return vraylib.managed_path(self.token, path); }
     limit(frames :: Int64) -> Bool { return vraylib.managed_config(self.token, "limit", frames); }
@@ -285,6 +314,13 @@ interface App {
     }
     target(width :: Int64, height :: Int64) -> vraylib.RenderTarget {
         return vraylib.RenderTarget(vraylib.managed_target(self.token, width, height, false), self.token);
+    }
+    float_target(width :: Int64, height :: Int64) -> vraylib.RenderTarget {
+        return vraylib.RenderTarget(vraylib.managed_config(self.token, "studio.float_target", [width, height]), self.token);
+    }
+    compile_shader(vertex :: String, fragment :: String) -> vraylib.ShaderBuild {
+        result :: Array := vraylib.managed_config(self.token, "studio.compile", [vertex, fragment]);
+        return vraylib.ShaderBuild(vraylib.Shader(result[0], self.token), result[1], result[2]);
     }
     screen_target() -> vraylib.RenderTarget {
         return vraylib.RenderTarget(vraylib.managed_target(self.token, self.width(), self.height(), true), self.token);
