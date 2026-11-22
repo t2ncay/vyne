@@ -88,7 +88,13 @@ try {
         se_asset_panel(app,ui,scene,history,bank,directory,file_path,se_rect(215.0,0.0,105.0,160.0));
         expected :: Int64 := 3; if app.frames() == 0 { expected = 1; } if app.frames() == 1 { expected = 2; }
         ui_check(ui.state[33] == expected,"listing scans only on navigation/refresh");
-        if app.frames() >= 1 { ui_check(se_contains(se_asset_name(ui,0),"Inter") || se_contains(se_asset_name(ui,1),"Inter"),"cached filenames survive poisoned frames"); }
+        if app.frames() >= 1 {
+            # Directory enumeration order varies by filesystem/platform.
+            # Verify the owned cached name rather than assuming its row index.
+            retained_font :: Bool := false; index = 0;
+            while index < ui.state[29] { if se_asset_name(ui,index) == "Inter-Regular.ttf" { retained_font = true; } index = index+1; }
+            ui_check(retained_font,"cached filenames survive poisoned frames");
+        }
         target.end();
         inside :: vraylib.Color := ui_pixel(target,20,88); outside :: vraylib.Color := ui_pixel(target,212,88);
         ui_check(inside.r == 230 && outside.r == 0,"field clipping restores panel scissor");
