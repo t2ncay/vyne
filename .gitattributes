@@ -1,4 +1,10 @@
 *.vy linguist-language=C++
 
+# Serialized resources use LF delimiters on every platform, including Windows CI.
+*.vshader text eol=lf
+*.vgraph text eol=lf
+*.vpipeline text eol=lf
+*.vmaterial text eol=lf
+
 # Keep the pinned upstream snapshot byte-for-byte, including upstream line endings.
 vendor/raylib/** -text
