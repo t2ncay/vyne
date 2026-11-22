@@ -76,6 +76,7 @@ fn se_editor_input(ui :: SEUI,tools :: SEWorldTools,document :: SEDocument) -> B
     # Cache ownership before dispatch. Closing a modal never releases this frame.
     ui.state[39] = 0;
     ui.state[42] = 0; ui.state[43] = 0;
+    if ui.state[47] != 0 { ui.state[39] = 1; se_node_picker_input(ui); return false; }
     if se_world_tools_busy(tools) { ui.state[43] = 1; }
     if se_world_tools_modal_open(tools) {
         ui.state[39] = 1; ui.state[42] = 1; ui.state[40] = ui.state[40]+1;

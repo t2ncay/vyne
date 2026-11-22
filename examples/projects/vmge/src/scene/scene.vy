@@ -2,10 +2,12 @@ use "text.vy";
 use "../engine/map.vy";
 use "../engine/terrain.vy";
 use "materials.vy";
+use "catalog.vy";
 
 # 128 slots. Metadata: alive,generation,parent handle,type,visible,texture,asset,flags.
 # Numeric properties: position[3], Euler degrees[3], scale[3], RGBA[4], FOV.
-# Node types: 0 Node3D, 1 MeshInstance3D, 2 Camera3D, 3 CollisionShape3D, 4 CharacterBody3D.
+# Node types: 0 Node, 1 Mesh, 2 Camera, 3 Collision, 4 Character, 5 Sky,
+# 6 Directional Light, 7 Point Light. Names/defaults are shared with the catalog.
 interface SEScene {
     meta :: Array<Int64>,
     values :: Array<Float64>,
@@ -16,6 +18,8 @@ interface SEScene {
     state :: Array<Int64>,
     world :: SEWorld,
     materials :: SEMaterials,
+    extra :: Array<Float64>,
+    settings :: Array<Int64>,
     count() -> Int64 { return self.state[0]; }
     valid(id :: Int64) -> Bool {
         if id < 128 { return false; }
@@ -43,7 +47,7 @@ interface SEScene {
         return true;
     }
     spawn(kind :: Int64, title :: String, parent :: Int64) -> Int64 {
-        if kind < 0 || kind > 4 { throw "Unknown node type"; }
+        if !se_node_kind_valid(kind) { throw "Unknown node type"; }
         if parent != -1 { self.require(parent); }
         slot :: Int64 := 0;
         while slot < 127 && self.meta[slot * 8] != 0 { slot = slot + 1; }
@@ -66,6 +70,8 @@ interface SEScene {
         self.values[slot * 16 + 6] = 1.0; self.values[slot * 16 + 7] = 1.0; self.values[slot * 16 + 8] = 1.0;
         self.values[slot * 16 + 9] = 255.0; self.values[slot * 16 + 10] = 255.0; self.values[slot * 16 + 11] = 255.0; self.values[slot * 16 + 12] = 255.0;
         self.values[slot * 16 + 13] = 70.0;
+        se_node_extra_reset(self,slot);
+        if kind == 5 && self.settings[1] == -1 { self.settings[1] = slot; }
         path_bytes :: Array<Int64> := self.paths[self.offset + slot]; path_bytes[0] = 0;
         material_path :: Array<Int64> := self.materials.paths[slot]; material_path[0] = 0;
         self.state[0] = self.state[0] + 1;
@@ -98,7 +104,48 @@ fn se_scene(names :: Array, paths :: Array, offset :: Int64) -> SEScene {
     values :: Array<Float64> := []; values.reserve(2048); values.resize(2048, 0.0);
     clocks :: Array<Int64> := []; clocks.reserve(128); clocks.resize(128, 0);
     state :: Array<Int64> := [0];
-    return SEScene(meta, values, clocks, names, paths, offset, state,se_world_create(),se_materials());
+    return SEScene(meta, values, clocks, names, paths, offset, state,se_world_create(),se_materials(),ss_floats(2048),[-1,-1]);
+}
+# Extension stride 16. Camera: enabled. Light: intensity, radius, ambient.
+# Sky: zenith RGB, horizon RGB (0..1), brightness, sun size degrees,
+# sun brightness, linked directional slot (-1 auto), ambient.
+# Active camera/sky are slot references: generation changes cannot corrupt them.
+fn se_node_extra_reset(scene :: SEScene,slot :: Int64) -> Bool {
+    b :: Int64 := slot*16; i :: Int64 := 0; while i < 16 { scene.extra[b+i] = 0.0; i = i+1; }
+    kind :: Int64 := scene.meta[slot*8+3]; scene.extra[b] = 1.0;
+    if kind == 6 || kind == 7 { scene.extra[b+1] = 10.0; scene.extra[b+2] = 0.15; }
+    if kind == 5 {
+        scene.extra[b] = 0.12; scene.extra[b+1] = 0.32; scene.extra[b+2] = 0.65;
+        scene.extra[b+3] = 0.65; scene.extra[b+4] = 0.78; scene.extra[b+5] = 0.95;
+        scene.extra[b+6] = 1.0; scene.extra[b+7] = 1.5; scene.extra[b+8] = 2.0;
+        scene.extra[b+9] = -1.0; scene.extra[b+10] = 0.15;
+    } return true;
+}
+fn se_extra_set(scene :: SEScene,id :: Int64,field :: Int64,value :: Float64) -> Bool {
+    slot :: Int64 := scene.require(id); kind :: Int64 := scene.kind(id);
+    if field < 0 || field >= 16 || !(vmath.abs(value) <= 1000000.0) { throw "Invalid extension property"; }
+    if kind == 2 { if field != 0 || (value != 0.0 && value != 1.0) { throw "Camera effect enabled must be boolean"; } }
+    else { if kind == 5 {
+        if field > 10 { throw "Unknown sky property"; }
+        if field <= 5 && (value < 0.0 || value > 1.0) { throw "Sky colors must be 0 through 1"; }
+        if (field == 6 || field == 8) && (value < 0.0 || value > 32.0) { throw "Sky brightness must be 0 through 32"; }
+        if field == 7 && (value < 0.1 || value > 30.0) { throw "Sun size must be 0.1 through 30 degrees"; }
+        if field == 9 && (value != vmath.floor(value) || value < -1.0 || value >= 128.0) { throw "Invalid linked sun slot"; }
+        if field == 9 && value >= 0.0 { linked :: Int64 := int64(value); if scene.meta[linked*8] == 0 || scene.meta[linked*8+3] != 6 { throw "Sky sun must reference a live directional light"; } }
+        if field == 10 && (value < 0.0 || value > 1.0) { throw "Ambient must be 0 through 1"; }
+    } else { if kind != 6 && kind != 7 { throw "Node has no environment properties"; }
+        if field > 2 || value < 0.0 || (field == 0 && value > 32.0) || (field == 1 && (value < 0.1 || value > 10000.0)) || (field == 2 && value > 1.0) { throw "Invalid light intensity/range/ambient"; }
+    } } scene.extra[slot*16+field] = value; return true;
+}
+fn se_active_node(scene :: SEScene,kind :: Int64) -> Int64 {
+    index :: Int64 := 0; if kind == 5 { index = 1; }
+    slot :: Int64 := scene.settings[index];
+    if slot >= 0 && slot < 128 { if scene.meta[slot*8] != 0 && scene.meta[slot*8+3] == kind { return scene.handle(slot); } }
+    slot = 0; while slot < 128 { if scene.meta[slot*8] != 0 && scene.meta[slot*8+3] == kind { return scene.handle(slot); } slot = slot+1; } return -1;
+}
+fn se_make_active(scene :: SEScene,id :: Int64) -> Bool {
+    slot :: Int64 := scene.require(id); kind :: Int64 := scene.kind(id);
+    if kind == 2 { scene.settings[0] = slot; } else { if kind != 5 { throw "Only camera or sky can be active"; } scene.settings[1] = slot; } return true;
 }
 fn se_clear(scene :: SEScene) -> Bool {
     i :: Int64 := 0;
@@ -107,6 +154,7 @@ fn se_clear(scene :: SEScene) -> Bool {
         scene.meta[i * 8] = 0; material_path :: Array<Int64> := scene.materials.paths[i]; material_path[0] = 0; i = i + 1;
     }
     scene.state[0] = 0;
+    scene.settings[0] = -1; scene.settings[1] = -1;
     scene.materials.resource_state[0] = 0;
     se_world_clear(scene.world);
     return true;
@@ -117,6 +165,8 @@ fn se_delete(scene :: SEScene, id :: Int64, work :: Array<Int64>) -> Bool {
     while i < 128 { work[i] = 0; if scene.meta[i * 8] != 0 { if scene.descendant(scene.handle(i), id) { work[i] = 1; } } i = i + 1; }
     i = 0;
     while i < 128 { if work[i] != 0 { scene.meta[i * 8] = 0; scene.state[0] = scene.state[0] - 1; } i = i + 1; }
+    i = 0; while i < 2 { if scene.settings[i] >= 0 { if work[scene.settings[i]] != 0 { scene.settings[i] = -1; } } i = i+1; }
+    i = 0; while i < 128 { if scene.meta[i*8] != 0 && scene.meta[i*8+3] == 5 { linked :: Int64 := int64(scene.extra[i*16+9]); if linked >= 0 { if work[linked] != 0 { scene.extra[i*16+9] = -1.0; } } } i = i+1; }
     return true;
 }
 fn se_copy(destination :: SEScene, source :: SEScene) -> Bool {
@@ -129,6 +179,8 @@ fn se_copy(destination :: SEScene, source :: SEScene) -> Bool {
         i = i + 1;
     }
     i = 0; while i < 2048 { destination.values[i] = source.values[i]; i = i + 1; }
+    i = 0; while i < 2048 { destination.extra[i] = source.extra[i]; i = i+1; }
+    destination.settings[0] = source.settings[0]; destination.settings[1] = source.settings[1];
     i = 0;
     while i < 128 {
         se_text_copy(destination.names[destination.offset + i], source.names[source.offset + i]);
@@ -209,7 +261,7 @@ fn se_duplicate(scene :: SEScene, id :: Int64, work :: Array<Int64>) -> Int64 {
     while i < 128 {
         if work[i] >= 128 {
             kind :: Int64 := scene.meta[i * 8 + 3];
-            if kind < 0 || kind > 4 { throw "Invalid duplicate node type"; }
+            if !se_node_kind_valid(kind) { throw "Invalid duplicate node type"; }
             current :: Int64 := scene.meta[i * 8 + 2]; hops :: Int64 := 0;
             while current != -1 {
                 if !scene.valid(current) || current % 128 == i || hops >= 128 { throw "Invalid duplicate hierarchy"; }
@@ -234,6 +286,8 @@ fn se_duplicate(scene :: SEScene, id :: Int64, work :: Array<Int64>) -> Int64 {
             field :: Int64 := 0; while field < 8 { scene.meta[slot * 8 + field] = scene.meta[i * 8 + field]; field = field + 1; }
             scene.clocks[slot] = work[i] / 128; scene.meta[slot * 8 + 1] = scene.clocks[slot]; scene.meta[slot * 8 + 2] = parent;
             field = 0; while field < 16 { scene.values[slot * 16 + field] = scene.values[i * 16 + field]; field = field + 1; }
+            field = 0; while field < 16 { scene.extra[slot*16+field] = scene.extra[i*16+field]; field = field+1; }
+            if scene.meta[slot*8+3] == 5 { linked :: Int64 := int64(scene.extra[slot*16+9]); if linked >= 0 { if work[linked] >= 128 { scene.extra[slot*16+9] = float64(work[linked]%128); } } }
             source_name :: Array<Int64> := scene.names[scene.offset+i]; destination_name :: Array<Int64> := scene.names[scene.offset+slot];
             field = 0; while field <= source_name[0] { destination_name[field] = source_name[field]; field = field + 1; }
             source_path :: Array<Int64> := scene.paths[scene.offset+i]; destination_path :: Array<Int64> := scene.paths[scene.offset+slot];

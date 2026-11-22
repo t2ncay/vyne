@@ -11,12 +11,12 @@ fn se_parse(scene :: SEScene, text :: String) -> Bool {
     column :: Int64 := 0; character :: Int64 := 0;
     while character < text.size() { if text[character] == "\n" { column = 0; } else { column = column+1; if column > 2048 { throw "Scene record exceeds 2048 characters"; } } character = character+1; }
     lines :: Array := vmge_split(text, "\n");
-    if lines.size() < 1 || (vmge_trim(lines[0]) != "VMGE_SCENE|1" && vmge_trim(lines[0]) != "VMGE_SCENE|2" && vmge_trim(lines[0]) != "VMGE_SCENE|3") { throw "Unsupported scene header/version"; }
+    if lines.size() < 1 || (vmge_trim(lines[0]) != "VMGE_SCENE|1" && vmge_trim(lines[0]) != "VMGE_SCENE|2" && vmge_trim(lines[0]) != "VMGE_SCENE|3" && vmge_trim(lines[0]) != "VMGE_SCENE|4") { throw "Unsupported scene header/version"; }
     se_clear(scene);
     row :: Int64 := 1;
     while row < lines.size() {
         line :: String := vmge_trim(lines[row]);
-        if line != "" && line[0] != "W" && line[0] != "C" && line[0] != "H" && line[0] != "M" && line[0] != "P" && line[0] != "R" {
+        if line != "" && line[0] != "W" && line[0] != "C" && line[0] != "H" && line[0] != "M" && line[0] != "P" && line[0] != "R" && line[0] != "E" && line[0] != "A" {
             try {
                 fields :: Array := vmge_split(line, "|");
                 if fields.size() != 21 { throw "Expected 21 scene fields"; }
@@ -26,11 +26,13 @@ fn se_parse(scene :: SEScene, text :: String) -> Bool {
                 visible :: Int64 := se_integer(fields[3]);
                 texture :: Int64 := se_integer(fields[4]);
                 if slot < 0 || slot >= 128 || scene.meta[slot * 8] != 0 { throw "Duplicate or invalid node slot"; }
-                if parent < -1 || parent >= 128 || kind < 0 || kind > 4 || visible < 0 || visible > 1 || texture < 0 || texture > 7 { throw "Invalid scene metadata"; }
+                if parent < -1 || parent >= 128 || !se_node_kind_valid(kind) || visible < 0 || visible > 1 || texture < 0 || texture > 7 { throw "Invalid scene metadata"; }
+                if kind >= 5 && vmge_trim(lines[0]) != "VMGE_SCENE|4" { throw "Environment nodes require scene v4"; }
                 scene.meta[slot * 8] = 1; scene.meta[slot * 8 + 1] = 1;
                 scene.meta[slot * 8 + 2] = -1; if parent != -1 { scene.meta[slot * 8 + 2] = 128 + parent; }
                 scene.meta[slot * 8 + 3] = kind; scene.meta[slot * 8 + 4] = visible; scene.meta[slot * 8 + 5] = texture; scene.meta[slot * 8 + 6] = -1; scene.meta[slot * 8 + 7] = 0;
                 if scene.clocks[slot] < 1 { scene.clocks[slot] = 1; } scene.state[0] = scene.state[0] + 1;
+                se_node_extra_reset(scene,slot);
                 field :: Int64 := 0;
                 while field < 14 { scene.property(scene.handle(slot), field, vmge_number(fields[field + 5])); field = field + 1; }
                 se_text_unhex(scene.names[scene.offset + slot], fields[19]);
@@ -45,6 +47,7 @@ fn se_parse(scene :: SEScene, text :: String) -> Bool {
         slot = slot + 1;
     }
     se_parse_materials(scene,lines);
+    se_parse_extensions(scene,lines);
     se_parse_world(scene.world,lines,vmge_trim(lines[0]) != "VMGE_SCENE|1");
     return true;
 }
@@ -89,9 +92,11 @@ fn se_parse_world(world :: SEWorld,lines :: Array,version2 :: Bool) -> Bool {
 }
 fn se_scene_text(scene :: SEScene) -> String {
     builder :: Int64 := vcore.sb_create();
-    if se_scene_has_materials(scene) { vcore.sb_append(builder,"VMGE_SCENE|3\n"); }
+    if se_scene_has_extensions(scene) { vcore.sb_append(builder,"VMGE_SCENE|4\n"); }
+    else { if se_scene_has_materials(scene) { vcore.sb_append(builder,"VMGE_SCENE|3\n"); }
     else { if scene.world.count() == 0 && scene.world.side() == 0 { vcore.sb_append(builder,"VMGE_SCENE|1\n"); }
     else { vcore.sb_append(builder,"VMGE_SCENE|2\n"); }
+    }
     }
     slot :: Int64 := 0;
     while slot < 128 {
@@ -105,7 +110,8 @@ fn se_scene_text(scene :: SEScene) -> String {
         slot = slot + 1;
     }
     vcore.sb_append(builder,se_scene_material_text(scene));
-    if scene.world.count() > 0 || scene.world.side() > 0 || se_scene_has_materials(scene) {
+    vcore.sb_append(builder,se_scene_extension_text(scene));
+    if scene.world.count() > 0 || scene.world.side() > 0 || se_scene_has_materials(scene) || se_scene_has_extensions(scene) {
         world :: SEWorld := scene.world;
         vcore.sb_append(builder,"W"); field :: Int64 := 1; while field < 9 { vcore.sb_append(builder,"|"+string(world.data[field])); field = field+1; } vcore.sb_append(builder,"\n");
         i :: Int64 := 0; while i < world.count() { vcore.sb_append(builder,"C"); field = 0; while field < 5 { vcore.sb_append(builder,"|"+string(world.data[16+i*5+field])); field = field+1; } vcore.sb_append(builder,"\n"); i = i+1; }
@@ -140,7 +146,7 @@ fn se_parse_materials(scene :: SEScene,lines :: Array) -> Bool {
     while row < lines.size() {
             line :: String := vmge_trim(lines[row]);
             if line != "" && (line[0] == "M" || line[0] == "P" || line[0] == "R") {
-                if vmge_trim(lines[0]) != "VMGE_SCENE|3" { throw "Material records require scene v3"; }
+                if vmge_trim(lines[0]) != "VMGE_SCENE|3" && vmge_trim(lines[0]) != "VMGE_SCENE|4" { throw "Material records require scene v3/v4"; }
                 f :: Array := ss_split(line,"|"); if f.size() < 3 { throw "Invalid scene material record"; }
                 if f[0] == "R" {
                     if f.size() != 3 || ss_integer(f[1]) != scene.materials.resource_state[0]+100 || scene.materials.resource_state[0] == 64 { throw "Invalid texture resource table"; }
@@ -173,6 +179,51 @@ fn se_load(destination :: SEScene, staging :: SEScene, path :: String) -> Bool {
     };
     se_replace(destination, staging);
     return true;
+}
+fn se_scene_has_extensions(scene :: SEScene) -> Bool {
+    if scene.settings[0] >= 0 || scene.settings[1] >= 0 { return true; }
+    i :: Int64 := 0; while i < 128 { if scene.meta[i*8] != 0 {
+        kind :: Int64 := scene.meta[i*8+3]; path :: Array<Int64> := scene.paths[scene.offset+i];
+        if kind >= 5 || (kind == 2 && (path[0] != 0 || scene.extra[i*16] != 1.0)) { return true; }
+    } i = i+1; } return false;
+}
+fn se_scene_extension_text(scene :: SEScene) -> String {
+    if !se_scene_has_extensions(scene) { return ""; }
+    b :: Int64 := vcore.sb_create(); vcore.sb_append(b,"A|"+string(scene.settings[0])+"|"+string(scene.settings[1])+"\n");
+    slot :: Int64 := 0; while slot < 128 { if scene.meta[slot*8] != 0 && (scene.meta[slot*8+3] == 2 || scene.meta[slot*8+3] >= 5) {
+        vcore.sb_append(b,"E|"+string(slot)); f :: Int64 := 0;
+        while f < 16 { vcore.sb_append(b,"|"+se_world_decimal(scene.world,scene.extra[slot*16+f])); f = f+1; } vcore.sb_append(b,"\n");
+    } slot = slot+1; } return vcore.sb_build(b);
+}
+fn se_parse_extensions(scene :: SEScene,lines :: Array) -> Bool {
+    seen :: Array<Int64> := ss_ints(128); active_seen :: Bool := false; row :: Int64 := 1;
+    v4 :: Bool := vmge_trim(lines[0]) == "VMGE_SCENE|4";
+    while row < lines.size() { line :: String := vmge_trim(lines[row]);
+        if line != "" && (line[0] == "E" || line[0] == "A") {
+            if !v4 { throw "Scene extensions require v4"; } f :: Array := vmge_split(line,"|");
+            if f[0] == "A" {
+                if active_seen || f.size() != 3 { throw "Duplicate/invalid active node record"; }
+                i :: Int64 := 0; while i < 2 { slot :: Int64 := se_integer(f[i+1]); kind :: Int64 := 2; if i == 1 { kind = 5; }
+                    if slot < -1 || slot >= 128 { throw "Invalid active node slot"; }
+                    if slot >= 0 { if scene.meta[slot*8] == 0 || scene.meta[slot*8+3] != kind { throw "Active node type mismatch"; } }
+                    scene.settings[i] = slot; i = i+1;
+                } active_seen = true;
+            } else {
+                if f[0] != "E" || f.size() != 18 { throw "Invalid node extension record"; }
+                slot :: Int64 := se_integer(f[1]); if slot < 0 || slot >= 128 { throw "Invalid extension owner"; }
+                kind :: Int64 := scene.meta[slot*8+3]; if scene.meta[slot*8] == 0 || seen[slot] != 0 || (kind != 2 && kind < 5) { throw "Duplicate/invalid extension owner"; }
+                count :: Int64 := 3; if kind == 2 { count = 1; } if kind == 5 { count = 11; }
+                i :: Int64 := 0; while i < 16 { value :: Float64 := vmge_number(f[i+2]);
+                    if i < count { se_extra_set(scene,scene.handle(slot),i,value); } else { if value != 0.0 { throw "Nonzero reserved extension field"; } }
+                    i = i+1;
+                } seen[slot] = 1;
+            }
+        } row = row+1;
+    }
+    slot :: Int64 := 0; while slot < 128 { if scene.meta[slot*8] != 0 {
+        kind :: Int64 := scene.meta[slot*8+3]; if v4 && (kind == 2 || kind >= 5) && seen[slot] == 0 { throw "Missing node extension record"; }
+        if kind == 5 { linked :: Int64 := int64(scene.extra[slot*16+9]); if linked >= 0 { if scene.meta[linked*8] == 0 || scene.meta[linked*8+3] != 6 { throw "Sky sun must reference a directional light"; } } }
+    } slot = slot+1; } if v4 && !active_seen { throw "Missing active node record"; } return true;
 }
 fn se_save(scene :: SEScene, path :: String) -> Bool {
     @bounded<67108864> region save_scene {

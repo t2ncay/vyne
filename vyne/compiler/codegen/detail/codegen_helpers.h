@@ -456,8 +456,8 @@ static VType resolveRHSKind(C_Emitter& e, const ASTNode* rhs) {
 // falls back to box + truthiness (identical to the current code).
 //
 // Contract: on every path the operand getCExpr() calls happen exactly
-// once, in source order (left, then right). Mirrors the ordering in
-// BinOpNode::getCExpr and never reorders statements.
+// once, in source order. Logical RHS prerequisites execute only when needed,
+// matching the interpreter, including calls, allocations and bounds checks.
 static std::string emitNativeCondition(C_Emitter& e, const ASTNode* node) {
     if (!node)
         return "false";
@@ -488,16 +488,25 @@ static std::string emitNativeCondition(C_Emitter& e, const ASTNode* node) {
     if (node->type() == NodeType::BINARY_OP) {
         auto* bop = static_cast<const BinOpNode*>(node);
 
-        // Logical AND / OR — recurse. Both operands' statements are
-        // emitted before the returned C expression is used, so C's
-        // short-circuit does not skip any runtime effect (getCExpr
-        // hoists calls and side effects to statements). Matches the
-        // current vyne_binop behavior for VBOP_AND / VBOP_OR.
+        // Keep all RHS prerequisite statements inside the short-circuit
+        // branch. Clear field caches at the boundary so branch-local cached
+        // expressions cannot escape, and conditional mutations are re-read.
         if (bop->op == VTokenType::And || bop->op == VTokenType::Or) {
             std::string l = emitNativeCondition(e, bop->leftNode.get());
+            std::string result = e.newTemp("logical");
+            e.emit("bool " + result + " = (" + l + ");");
+            e.declareNativeTemp(result, CType::fromVType(VType::Bool));
+            const std::string guard = bop->op == VTokenType::And
+                                          ? result : "!" + result;
+            e.emit("if (" + guard + ") {");
+            e.indent();
+            e.clearFieldCache();
             std::string r = emitNativeCondition(e, bop->rightNode.get());
-            const char* opStr = (bop->op == VTokenType::And) ? "&&" : "||";
-            return "((" + l + ") " + opStr + " (" + r + "))";
+            e.emit(result + " = (" + r + ");");
+            e.clearFieldCache();
+            e.dedent();
+            e.emit("}");
+            return result;
         }
 
         // Comparison of two native scalars.
@@ -508,6 +517,13 @@ static std::string emitNativeCondition(C_Emitter& e, const ASTNode* node) {
         case VTokenType::Smaller:
         case VTokenType::Greater_Or_Equal:
         case VTokenType::Smaller_Or_Equal: {
+            // Receiver methods can share a name but return different numeric
+            // types (Texture.height -> Int64, Player.height -> Float64). The
+            // generic RHS resolver is not receiver-qualified; retain tagged
+            // comparisons rather than selecting an unsafe union member.
+            if (bop->leftNode->type() == NodeType::METHOD_CALL ||
+                bop->rightNode->type() == NodeType::METHOD_CALL)
+                break;
             VType lt = resolveRHSKind(e, bop->leftNode.get());
             VType rt = resolveRHSKind(e, bop->rightNode.get());
             bool lNum = (lt == VType::Int64 || lt == VType::Float64);

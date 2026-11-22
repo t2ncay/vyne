@@ -8,12 +8,11 @@ fn se_play_start(authored :: SEScene, runtime :: SEScene, cache :: SETransforms,
     se_copy(runtime,authored); se_update_transforms(runtime,cache);
     player.reset();
     character :: Int64 := -1;
-    camera :: Int64 := -1;
+    camera :: Int64 := se_active_node(runtime,2);
     slot :: Int64 := 0;
     while slot < 128 {
         if runtime.meta[slot*8] != 0 {
             if runtime.meta[slot*8+3] == 4 && character == -1 { character = runtime.handle(slot); }
-            if runtime.meta[slot*8+3] == 2 && camera == -1 { camera = runtime.handle(slot); }
         }
         slot = slot + 1;
     }

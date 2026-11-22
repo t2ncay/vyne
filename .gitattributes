@@ -4,7 +4,13 @@
 *.vshader text eol=lf
 *.vgraph text eol=lf
 *.vpipeline text eol=lf
+*.vpipeline.host text eol=lf
 *.vmaterial text eol=lf
+
+# GLSL companions must match serialized source bytes and dependency hashes.
+*.glsl text eol=lf
+*.fs text eol=lf
+*.vs text eol=lf
 
 # Keep the pinned upstream snapshot byte-for-byte, including upstream line endings.
 vendor/raylib/** -text

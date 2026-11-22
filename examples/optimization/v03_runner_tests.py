@@ -178,7 +178,7 @@ class RunnerRegressions(unittest.TestCase):
 
     def test_real_registered_inventory(self):
         cases = runner.load_cases(runner.MANIFEST, ROOT, ["compiler", "safety", "codegen", "ast"])
-        self.assertEqual(len(cases), 16)
+        self.assertEqual(len(cases), 17)
         self.assertEqual(sum(case["suite"] == "safety" for case in cases), 10)
 
     def test_cli_lists_registered_source_without_compiler(self):

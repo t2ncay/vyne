@@ -7,6 +7,12 @@ Rendering** workspace adds code-first GLSL authoring, typed controls, graph
 generation and editable multipass effects. Inter provides interface typography;
 JetBrains Mono provides source, gutter and diagnostic typography.
 
+**Environment and camera looks:** a searchable Add Node picker creates Sky,
+Directional Light and Point Light nodes. Active player cameras accept custom
+post-processing pipelines, including the bundled editable VHS + tonemap example.
+See [Sky, lighting and camera effects](ENVIRONMENT.md) for editor steps, shader
+inputs, gameplay APIs, region policies, budgets and acceptance commands.
+
 The original `map_builder.vy` → `tau_map.dat` → `map_load_test.vy` workflow remains
 available. The studio adds a scene-owned resource with **4,096 map cells and
 64×64 terrain quads**, independent of its 128-node scene hierarchy.

@@ -3,6 +3,8 @@ use "world_tools.vy";
 use "document.vy";
 use "workspace_host.vy";
 use "../engine/input.vy";
+use "../scene/camera_effects.vy";
+use "environment_acceptance.vy";
 
 fn se_editor_close_request(app :: vraylib.App,ui :: SEUI,tools :: SEWorldTools,scene :: SEScene,history :: SEHistory,path :: Array<Int64>,document :: SEDocument) -> Bool {
     se_editor_close_prepare(app,ui,tools,scene,history,document);
@@ -91,6 +93,7 @@ fn se_shortcuts(app :: vraylib.App,ui :: SEUI,authored :: SEScene,runtime :: SES
     if ui.state[4] != 0 { return true; }
     control :: Bool := vraylib.is_key_down(vraylib.KEY_LEFT_CONTROL) || vraylib.is_key_down(vraylib.KEY_RIGHT_CONTROL);
     shift :: Bool := vraylib.is_key_down(vraylib.KEY_LEFT_SHIFT) || vraylib.is_key_down(vraylib.KEY_RIGHT_SHIFT);
+    if shift && vraylib.is_key_pressed(vraylib.KEY_A) { se_node_picker_open(ui); ui.state[39] = 1; return true; }
     if control {
         if vraylib.is_key_pressed(vraylib.KEY_Z) { se_undo(history,authored); }
         if vraylib.is_key_pressed(vraylib.KEY_Y) { se_redo(history,authored); }
@@ -272,7 +275,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                 textures :: Array := vmge_palette(app,vmge_asset_root(project));
                                 cubes :: Array := vmge_models(app,textures);
                                  app.assets(project);
-                                 shader_test :: Bool := vmge_setting("VYNE_VMGE_SHADER_AUTOTEST",0) == 1;
+                                  shader_test :: Bool := vmge_setting("VYNE_VMGE_SHADER_AUTOTEST",0) == 1;
+                                  environment_test :: Bool := vmge_setting("VYNE_VMGE_ENVIRONMENT_AUTOTEST",0) == 1;
                                   bank :: SEAssets := se_assets(app,asset_paths,project);
                                   host :: SEWorkspaceHost := se_workspace_host(app,project);
                                   se_host_bind_registry(host,bank);
@@ -282,7 +286,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                   host.workspace.layout.state[0] = initial_workspace;
                                   host.workspace.state[55] = 0; host.workspace.panel.state[14] = 0;
                                   if shader_test { app.limit(32); }
-                                 legacy :: Bool := vmge_setting("VYNE_VMGE_AUTOTEST",0) != 0 && !shader_test;
+                                 legacy :: Bool := vmge_setting("VYNE_VMGE_AUTOTEST",0) != 0 && !shader_test && !environment_test;
+                                 if environment_test { app.limit(24); }
                                  if shader_test {
                                      prefix :: String := vmge_option("VYNE_VMGE_SHADER_PREFIX","build/shader-host-dev-flow");
                                      publications :: String := prefix+"-published"; if !vraylib.is_path_absolute(publications) { publications = vfs.join(vraylib.get_working_directory(),publications); }
@@ -294,12 +299,16 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                 camera :: vraylib.Camera := app.camera(vraylib.vec3(8.0,6.0,12.0),vraylib.vec3(0.0,1.0,2.0),70.0);
                                 player :: VMGEPlayer := vmge_player(app);
                                 target :: vraylib.RenderTarget := app.target(640,360);
-                                automated :: Bool := vmge_setting("VYNE_VMGE_AUTOTEST",0) != 0;
+                                camera_preview :: vraylib.Camera := app.camera(vraylib.vec3(0.0,1.8,0.0),vraylib.vec3(0.0,1.8,1.0),70.0);
+                                camera_effects :: SECameraEffects := se_camera_effects();
+                                rendering_input :: vraylib.RenderTarget := app.float_target(512,288);
+                                 automated :: Bool := vmge_setting("VYNE_VMGE_AUTOTEST",0) != 0;
+                                 if environment_test { automated = false; }
                                 se_message(logs,log_state,"Scene editor ready. F6 Play/Stop; Ctrl+S Save; right-drag orbit.");
                                 warm :: Int64 := vmem.total_allocated();
                                  commit_warm :: Int64 := vmem.commit_total_allocated();
                                  owner_bytes :: Int64 := warm-owner_start;
-                                  if owner_bytes > 134217728 { throw "Scene/studio preframe owner budget exceeds 128 MiB"; }
+                                   if owner_bytes > 134217728 { out("VMGE_PREFRAME_BUDGET_BYTES ",owner_bytes); throw "Scene/studio preframe owner budget exceeds 128 MiB"; }
                                  if shader_test { out("VMGE_SHADER_HOST_PREFRAME_BYTES ",owner_bytes); }
                                  try { while app.frame() {
                                     app.transient_errors(true);
@@ -330,7 +339,11 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                              se_editor_commit(ui,authored,staging,history,bank,directory_bytes,file_bytes,document);
                                              se_message(logs,log_state,"Edit applied");
                                           } }
-                                          if !scene_input { ui.state[39] = 1; ui.state[42] = 0; ui.state[43] = 0; }
+                                           if !scene_input { ui.state[39] = 1; ui.state[42] = 0; ui.state[43] = 0; }
+                                           if ui.state[50] != 0 && ui.state[4] == 0 {
+                                               ui.state[50] = 0; ui.state[0] = se_create_catalog_node(authored,ui,camera,author_cache); se_record(history,authored);
+                                               ui.state[47] = 0; ui.state[1] = -1; ui.state[24] = 0; ui.state[39] = 1;
+                                           }
                                          se_editor_reload(ui,world_tools,authored.world);
                                         se_update_transforms(authored,author_cache);
                                          se_update_asset_bounds(authored,author_cache,bank,cubes);
@@ -338,7 +351,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                                if vmge_setting("VYNE_VMGE_SHADER_AUTHORING_AUTOTEST",0) == 1 { se_shader_host_authoring_autotest(app,host,ui,authored,runtime,history,bank,cubes,file_bytes,play_cache,player,document); }
                                                else { se_shader_host_autotest(app,host,ui,authored,runtime,staging,history,bank,cubes,file_bytes,play_cache,player,document); }
                                            }
-                                         if ui.state[39] == 0 && ui.state[43] == 0 && !se_world_tools_busy(world_tools) && ui.state[2] == -1 { se_shortcuts(app,ui,authored,runtime,play_cache,player,history,work,file_bytes,document); }
+                                          if ui.state[39] == 0 && ui.state[43] == 0 && !se_world_tools_busy(world_tools) && ui.state[2] == -1 { se_shortcuts(app,ui,authored,runtime,play_cache,player,history,work,file_bytes,document); }
+                                          if environment_test { se_environment_host_autotest(app,host,ui,authored,runtime,staging,play_cache,player,camera,camera_effects,history,bank,file_bytes); }
                                          if automated {
                                              if vmge_setting("VYNE_VMGE_STUDIO_AUTOTEST",0) == 1 { se_studio_autotest(app,ui,world_tools,authored,runtime,staging,play_cache,player,history,bank,directory_bytes,file_bytes,document); }
                                              else { se_autotest(app,ui,authored,runtime,play_cache,player,history,bank,work,directory_bytes,file_bytes,document); }
@@ -365,8 +379,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                         if ui.state[4] == 0 {
                                             se_update_transforms(authored,author_cache);
                                             se_update_asset_bounds(authored,author_cache,bank,cubes);
-                                             background_input :: Bool := ui.state[39] == 0 && ui.state[43] == 0 && ui.state[35] == 0 && ui.state[13] == 0 && !se_world_tools_busy(world_tools);
-                                             if background_input { se_orbit(ui,camera,viewport); }
+                                              background_input :: Bool := ui.state[39] == 0 && ui.state[43] == 0 && ui.state[35] == 0 && ui.state[13] == 0 && ui.state[53] == 0 && !se_world_tools_busy(world_tools);
+                                              if background_input && ui.state[53] == 0 { se_orbit(ui,camera,viewport); }
                                              if ui.state[2] != -1 && ui.state[39] == 0 {
                                                 if vraylib.is_mouse_button_down(vraylib.MOUSE_BUTTON_LEFT) { se_gizmo_move(ui,authored,vraylib.get_mouse_position()); }
                                                 else { if ui.numbers[17] != 0.0 { se_record(history,authored); } ui.state[2] = -1; }
@@ -397,9 +411,18 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                          } }
                                     } catch (error) {
                                         ui.state[21] = ui.state[21]+1; se_message(logs,log_state,string(error));
-                                         if automated || shader_test { throw error; }
+                                         if automated || shader_test || environment_test { throw error; }
                                     }
                                     viewport = se_host_viewport(host,ui,app.width(),app.height(),legacy);
+                                    host.workspace.state[56] = 0;
+                                    if active_tab == 3 && ui.state[53] != 0 {
+                                        se_camera_authored_view(authored,author_cache,camera_preview);
+                                        scale :: Float64 := vmath.min(1.0,512.0/vmath.max(viewport.width,viewport.height));
+                                        iw :: Int64 := int64(vmath.max(1.0,vmath.floor(viewport.width*scale))); ih :: Int64 := int64(vmath.max(1.0,vmath.floor(viewport.height*scale)));
+                                        if rendering_input.width() != iw || rendering_input.height() != ih { rendering_input.resize(iw,ih); }
+                                        se_host_scene_resources(authored,bank); se_scene_capture(app,authored,author_cache,bank,cubes,camera_preview,rendering_input);
+                                        host.workspace.state[56] = rendering_input.token;
+                                    }
                                     if active_tab >= 2 && host.state[0] == 0 && ui.state[35] == 0 && ui.state[13] == 0 && !se_world_tools_busy(world_tools) {
                                         if host.state[13] != 0 { se_host_resolve_editable(host,bank); }
                                         host.workspace.state[8] = 0;
@@ -409,14 +432,33 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                         catch (error) { se_message(logs,log_state,string(error)); if shader_test { throw error; } }
                                     }
                                     vw :: Int64 := int64(viewport.width); vh :: Int64 := int64(viewport.height);
-                                    if target.width() != vw || target.height() != vh { target.resize(vw,vh); }
-                                    if active_tab < 2 || legacy {
-                                    if ui.state[4] == 0 { se_host_scene_resources(authored,bank); } else { se_host_scene_resources(runtime,bank); }
-                                    target.begin();
+                                     if target.width() != vw || target.height() != vh { target.resize(vw,vh); }
+                                    displayed :: Int64 := target.token;
+                                    if ui.state[55] != 0 { ui.state[55] = 0; se_camera_effects_reload(camera_effects); }
+                                     if active_tab < 2 || legacy {
+                                     if ui.state[4] == 0 { se_host_scene_resources(authored,bank); } else { se_host_scene_resources(runtime,bank); }
+                                     if ui.state[4] == 0 { se_environment_prepare(authored,author_cache,bank); } else { se_environment_prepare(runtime,play_cache,bank); }
+                                    camera_view :: Bool := ui.state[4] != 0 || ui.state[53] != 0;
+                                    if camera_view {
+                                        render_scene :: SEScene := runtime; render_cache :: SETransforms := play_cache; render_camera :: vraylib.Camera := player.camera;
+                                        if ui.state[4] == 0 { render_scene = authored; render_cache = author_cache; render_camera = camera_preview; se_camera_authored_view(authored,author_cache,camera_preview); }
+                                        camera_id :: Int64 := se_active_node(render_scene,2); effects_enabled :: Bool := false; pipeline_path :: String := "";
+                                        if camera_id != -1 { pipeline_path = render_scene.path(camera_id); effects_enabled = pipeline_path != "" && render_scene.extra[(camera_id%128)*16] != 0.0; }
+                                        capture :: vraylib.RenderTarget := target;
+                                        if effects_enabled {
+                                            scale :: Float64 := vmath.min(1.0,1024.0/vmath.max(float64(vw),float64(vh)));
+                                            if se_camera_effects_prepare(app,camera_effects,project,pipeline_path,int64(vmath.max(1.0,float64(vw)*scale)),int64(vmath.max(1.0,float64(vh)*scale))) { capture = vraylib.RenderTarget(camera_effects.state[1],app.token); }
+                                            diagnostic :: Int64 := ss_hash(camera_effects.log); if camera_effects.log[0] != 0 && camera_effects.state[7] != diagnostic { se_message(logs,log_state,se_text_read(camera_effects.log)); } camera_effects.state[7] = diagnostic;
+                                        }
+                                        se_scene_capture(app,render_scene,render_cache,bank,cubes,render_camera,capture); displayed = capture.token;
+                                        if effects_enabled && camera_effects.state[1] != 0 { try { output :: vraylib.RenderTarget := se_camera_effects_run(app,camera_effects); displayed = output.token; } catch (error) { se_message(logs,log_state,string(error)); } }
+                                    } else {
+                                     target.begin();
                                     try {
                                         app.clear(vraylib.rgba(43,48,58,255));
                                         active_camera :: vraylib.Camera := camera; if ui.state[4] != 0 { active_camera = player.camera; }
-                                        eye :: vraylib.Vector3 := active_camera.position(); bank.view[0] = eye.x; bank.view[1] = eye.y; bank.view[2] = eye.z;
+                                         eye :: vraylib.Vector3 := active_camera.position(); bank.view[0] = eye.x; bank.view[1] = eye.y; bank.view[2] = eye.z;
+                                         if bank.environment_tokens[1] != 0 { sky_scene :: SEScene := authored; if ui.state[4] != 0 { sky_scene = runtime; } se_sky_draw(app,sky_scene,active_camera,vraylib.Shader(bank.environment_tokens[1],app.token),bank.lights,vw,vh); }
                                         active_camera.begin();
                                         try {
                                             if legacy { vraylib.draw_grid(40,1.0); } else { se_host_grid(ui); }
@@ -428,16 +470,18 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                             }
                                             else { se_draw_scene(runtime,play_cache,bank,cubes,false,-1); }
                                         } finally { active_camera.end(); }
-                                     } finally { target.end(); }
+                                      } finally { target.end(); }
                                     }
+                                     }
                                     app.begin();
                                           try {
                                         app.clear(vraylib.rgba(19,23,29,255));
-                                        target.texture().draw_region(se_rect(0.0,0.0,float64(vw),float64(vh)),viewport,vraylib.vec2(0.0,0.0),0.0,vraylib.WHITE);
+                                        display_target :: vraylib.RenderTarget := vraylib.RenderTarget(displayed,app.token);
+                                        display_target.texture().draw_region(se_rect(0.0,0.0,float64(display_target.width()),float64(display_target.height())),viewport,vraylib.vec2(0.0,0.0),0.0,vraylib.WHITE);
                                         try {
                                              if active_tab < 2 || legacy {
                                              panels :: SEUI := ui;
-                                             if ui.state[39] != 0 || ui.state[43] != 0 || ui.state[35] != 0 || ui.state[13] != 0 || ui.state[2] != -1 || se_world_tools_busy(world_tools) {
+                                              if ui.state[39] != 0 || ui.state[43] != 0 || ui.state[35] != 0 || ui.state[13] != 0 || ui.state[47] != 0 || ui.state[2] != -1 || se_world_tools_busy(world_tools) {
                                                  se_editor_freeze(ui,passive); panels = passive;
                                              }
                                              if legacy { se_toolbar(app,panels,authored,runtime,play_cache,player,history,file_bytes,app.width(),document); }
@@ -448,7 +492,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                              else { if active_tab == 1 && host.workspace.layout.state[4] == 0 { se_world_tools_panel(app,world_tools,world_panel,authored,history,se_rect(4.0,viewport.y+4.0,vmath.max(1.0,viewport.x-8.0),120.0)); } }
                                              # A toolbar/world button may have opened a dialog this frame.
                                              if ui.state[35] != 0 || ui.state[13] != 0 || se_world_tools_busy(world_tools) { se_editor_freeze(ui,passive); panels = passive; }
-                                             se_view_controls(panels,camera,viewport);
+                                              if ui.state[53] == 0 { se_view_controls(panels,camera,viewport); }
+                                              else { if ui.state[4] == 0 && se_button("Return to editor view",se_rect(viewport.x+8.0,viewport.y+8.0,170.0,26.0),panels.state[13] == 0 && panels.state[1] == -1) { ui.state[53] = 0; } }
                                              if legacy || host.workspace.layout.state[4] == 0 {
                                              tree_y :: Float64 := viewport.y-4.0; if !legacy && active_tab == 1 { tree_y = tree_y+124.0; }
                                              se_tree(app,panels,authored,history,work,se_rect(0.0,tree_y,viewport.x-4.0,vmath.max(1.0,viewport.y+viewport.height-tree_y+4.0)));
@@ -464,9 +509,12 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                               se_ui_overlays(panels);
                                              } else {
                                                   if host.state[0] == 0 && ui.state[35] == 0 && ui.state[13] == 0 && !se_world_tools_busy(world_tools) {
-                                                      if active_tab == 3 { se_host_rendering_draw(app,host,bank,bounds); }
+                                                       if active_tab == 3 { se_host_rendering_draw(app,host,bank,bounds); }
                                                       else { ss_workspace_draw(app,host.workspace,bounds); }
-                                                      se_host_sampler_button(host,bounds,ui.state[4] == 0);
+                                                       se_host_sampler_button(host,bounds,ui.state[4] == 0);
+                                                       if active_tab == 3 { bar :: vraylib.Rectangle := ss_layout_region(host.workspace.layout,bounds,1); label :: String := "Input: material"; if ui.state[53] != 0 { label = "Input: player camera"; }
+                                                           if se_button(label,se_rect(bar.x+vmath.max(0.0,bar.width-190.0),bar.y+5.0,180.0,28.0),!ss_workspace_input_captured(host.workspace)) { ui.state[53] = 1-ui.state[53]; }
+                                                       }
                                                   }
                                              }
                                              if ui.state[13] > 0 && ui.state[42] == 0 && !se_world_tools_modal_open(world_tools) {
@@ -474,7 +522,8 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                                  if se_file_dialog(ui,se_rect(vmath.max(10.0,float64(app.width())*0.1),float64(app.height())*0.3,float64(app.width())*0.8,120.0)) { se_editor_commit(ui,authored,staging,history,bank,directory_bytes,file_bytes,document); }
                                              }
                                              if ui.state[42] == 0 { se_document_dialog(app,ui,authored,history,file_bytes,document); }
-                                             se_world_tools_modal_draw(app,world_tools);
+                                              se_world_tools_modal_draw(app,world_tools);
+                                              se_node_picker_draw(ui,authored,bounds);
                                               se_editor_reload(ui,world_tools,authored.world);
                                               if !legacy {
                                                   previous :: Int64 := host.workspace.layout.state[0];
@@ -493,7 +542,13 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                          } catch (error) { ui.state[21] = ui.state[21]+1; se_message(logs,log_state,string(error)); if automated || shader_test { throw error; } }
                                       } finally { app.end(); }
                                        se_host_actions(app,host,bank);
-                                       se_host_pipeline_actions(app,host,bank);
+                                        se_host_pipeline_actions(app,host,bank);
+                                        if ui.state[52] != 0 {
+                                            ui.state[52] = 0; id :: Int64 := se_active_node(authored,2);
+                                            if id != -1 { resource :: String := authored.path(id); if !vraylib.is_path_absolute(resource) { resource = vfs.join(project,resource); }
+                                                if se_host_pipeline_load(app,host,bank,resource) { se_text_write(host.pipeline_path,resource); host.workspace.layout.state[0] = 3; ui.state[53] = 1; }
+                                            }
+                                        }
                                        try { if ui.state[45] != 0 {
                                           action :: Int64 := ui.state[45];
                                           resource :: String := "";
@@ -509,6 +564,7 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                       } } catch (error) { se_message(logs,log_state,string(error)); if shader_test { throw error; } }
                                     screenshot :: String := vmge_option("VYNE_VMGE_SCREENSHOT","");
                                      if automated && app.frames() == 14 && screenshot != "" { vraylib.take_screenshot(screenshot); }
+                                     if environment_test && app.frames() == 23 { vraylib.take_screenshot(vmge_option("VYNE_VMGE_ENVIRONMENT_PREFIX","build/vmge-tests/environment-flow")+".png"); }
                                      if shader_test {
                                          prefix :: String := vmge_option("VYNE_VMGE_SHADER_PREFIX","build/shader-host-dev-flow");
                                          if app.frames() == 8 { vraylib.take_screenshot(prefix+"-rendering.png"); }
@@ -517,12 +573,13 @@ fn se_scene_editor_workspace(initial_workspace :: Int64) -> Int64 {
                                      }
                                     if bank.state[1] != ui.state[25] { ui.state[25] = bank.state[1]; se_message(logs,log_state,"Missing asset: magenta bounds shown; edit its path to recover"); }
                                     } finally { app.transient_errors(false); }
-                                } } finally { se_host_close(host,bank); }
+                                } } finally { se_camera_effects_close(camera_effects); se_host_close(host,bank); }
                                 frames = app.frames(); node_count = authored.count(); cycles = ui.state[20];
                                 drift = vmem.total_allocated()-warm; commit_drift = vmem.commit_total_allocated()-commit_warm;
                                  out("VMGE_SCENE_EDITOR_STATE nodes=",node_count," play_cycles=",cycles," errors=",ui.state[21]," transient_headers=",drift," commit_drift=",commit_drift);
                                  if shader_test && (commit_drift != 0 || ui.state[21] != 0 || drift > 4096) { throw "Shader host allocation/error check failed"; }
-                                 if shader_test { out("VMGE_SHADER_HOST_MEMORY_OK commit_drift=",commit_drift," source_owner_bytes=",drift); }
+                                  if shader_test { out("VMGE_SHADER_HOST_MEMORY_OK commit_drift=",commit_drift," source_owner_bytes=",drift); }
+                                  if environment_test { if commit_drift != 0 || ui.state[21] != 0 || drift > 4096 { throw "Environment host memory/error acceptance failed"; } out("VMGE_ENVIRONMENT_HOST_MEMORY_OK commit_drift=",commit_drift," retained_headers=",drift); }
                                 if automated {
                                     if node_count != 5 || authored.name(authored.handle(2)) != "Edited Crate" || authored.number(authored.handle(2),0) != 3.0 || cycles != 1 || commit_drift != 0 { throw "Scene editor acceptance state mismatch"; }
                                 }

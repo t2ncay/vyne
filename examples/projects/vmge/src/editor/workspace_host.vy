@@ -351,7 +351,8 @@ fn se_host_pipeline_close(p :: SSPipeline) -> Bool {
 fn se_host_pipeline_prepare(app :: vraylib.App,host :: SEWorkspaceHost) -> Bool {
     w :: SSWorkspace := host.workspace; p :: SSPipeline := w.pipeline; size :: Int64 := w.state[15];
     if w.state[24] == 0 { return false; }
-    if p.state[2] == p.state[1] && p.state[3] == app.token && p.state[4] == size*8192+size { return false; }
+    base_width :: Int64 := se_host_pipeline_base_extent(host,0); base_height :: Int64 := se_host_pipeline_base_extent(host,1);
+    if p.state[2] == p.state[1] && p.state[3] == app.token && p.state[4] == base_width*8192+base_height { return false; }
     se_host_pipeline_budget(host); ss_pipeline_validate(p);
     @bounded<16777216> region host_pipeline_prepare {
         old :: Array<Int64> := se_host_live_bank(p.tokens);
@@ -360,15 +361,15 @@ fn se_host_pipeline_prepare(app :: vraylib.App,host :: SEWorkspaceHost) -> Bool 
         try {
             i :: Int64 := 0; while i < p.state[0] {
                 width :: Int64 := p.meta[i*10+5]; height :: Int64 := p.meta[i*10+6];
-                if width == 0 { width = int64(vmath.max(1.0,float64(size/p.meta[i*10+7]))); }
-                if height == 0 { height = int64(vmath.max(1.0,float64(size/p.meta[i*10+7]))); }
+                if width == 0 { width = int64(vmath.max(1.0,float64(base_width/p.meta[i*10+7]))); }
+                if height == 0 { height = int64(vmath.max(1.0,float64(base_height/p.meta[i*10+7]))); }
                 target :: vraylib.RenderTarget := vraylib.RenderTarget(0,app.token);
                 if p.meta[i*10+8] == 1 { target = app.float_target(width,height); } else { target = app.target(width,height); }
                 candidates[i] = target.token; i = i+1;
             }
             se_host_pipeline_close(p);
             i = 0; while i < 16 { p.tokens[i] = candidates[i]; candidates[i] = 0; i = i+1; }
-            p.state[2] = p.state[1]; p.state[3] = app.token; p.state[4] = size*8192+size;
+            p.state[2] = p.state[1]; p.state[3] = app.token; p.state[4] = base_width*8192+base_height;
         } finally { live :: Array<Int64> := se_host_live_bank(candidates); if live.size() != 0 { app.release_bank(live); } }
     }; return true;
 }
@@ -471,8 +472,8 @@ fn se_host_pipeline_budget_for(host :: SEWorkspaceHost,p :: SSPipeline) -> Bool 
     total :: Int64 := 0; i :: Int64 := 0; while i < p.state[0] {
         divisor :: Int64 := p.meta[i*10+7]; if divisor < 1 { throw "Invalid pipeline resolution divisor"; }
         width :: Int64 := p.meta[i*10+5]; height :: Int64 := p.meta[i*10+6];
-        if width == 0 { width = int64(vmath.max(1.0,float64(w.state[15]/divisor))); }
-        if height == 0 { height = int64(vmath.max(1.0,float64(w.state[15]/divisor))); }
+        if width == 0 { width = int64(vmath.max(1.0,float64(se_host_pipeline_base_extent(host,0)/divisor))); }
+        if height == 0 { height = int64(vmath.max(1.0,float64(se_host_pipeline_base_extent(host,1)/divisor))); }
         if width > 512 || height > 512 { throw "Host pipeline targets are bounded to 512 per axis"; }
         bytes :: Int64 := 8; if p.meta[i*10+8] == 1 { bytes = 20; }
         total = total+width*height*bytes; i = i+1;
@@ -481,7 +482,7 @@ fn se_host_pipeline_budget_for(host :: SEWorkspaceHost,p :: SSPipeline) -> Bool 
     return true;
 }
 fn se_host_pipeline_candidate(p :: SSPipeline) -> SSPipeline {
-    c :: SSPipeline := SSPipeline(ss_ints(160),ss_ints(5),ss_ints(16),ss_ints(16),ss_ints(32),p.defaults);
+    c :: SSPipeline := SSPipeline(ss_ints(160),ss_ints(5),ss_ints(16),ss_ints(16),ss_ints(32),p.defaults,ss_floats(3));
     i :: Int64 := 0; while i < 160 { c.meta[i] = p.meta[i]; i = i+1; } c.state[0] = p.state[0]; return c;
 }
 fn se_host_render_document(host :: SEWorkspaceHost,id :: Int64) -> SSDocument {
@@ -567,12 +568,17 @@ fn se_host_scene_resources(scene :: SEScene,bank :: SEAssets) -> Bool {
     } i = i+1; } return true;
 }
 fn se_host_pipeline_input_extent(host :: SEWorkspaceHost,p :: SSPipeline,id :: Int64,axis :: Int64) -> Int64 {
-    current :: Int64 := id; depth :: Int64 := 0; while depth < 16 { if current == -1 { return host.workspace.state[15]; }
+    current :: Int64 := id; depth :: Int64 := 0; while depth < 16 { if current == -1 { return se_host_pipeline_base_extent(host,axis); }
         slot :: Int64 := ss_pipeline_slot(p,current); if slot < 0 { throw "Unknown pipeline extent input"; }
         if p.meta[slot*10+4] == 0 { current = p.meta[slot*10+2]; }
-        else { extent :: Int64 := p.meta[slot*10+5+axis]; if extent > 0 { return extent; } return int64(vmath.max(1.0,float64(host.workspace.state[15]/p.meta[slot*10+7]))); }
+        else { extent :: Int64 := p.meta[slot*10+5+axis]; if extent > 0 { return extent; } return int64(vmath.max(1.0,float64(se_host_pipeline_base_extent(host,axis)/p.meta[slot*10+7]))); }
         depth = depth+1;
     } throw "Pipeline extent dependency depth";
+}
+fn se_host_pipeline_base_extent(host :: SEWorkspaceHost,axis :: Int64) -> Int64 {
+    if host.workspace.state[56] == 0 { return host.workspace.state[15]; }
+    target :: vraylib.RenderTarget := vraylib.RenderTarget(host.workspace.state[56],host.workspace.state[0]);
+    if axis == 0 { return target.width(); } return target.height();
 }
 fn se_host_pipeline_context(host :: SEWorkspaceHost) -> Bool {
     p :: SSPipeline := host.workspace.pipeline; i :: Int64 := 0;

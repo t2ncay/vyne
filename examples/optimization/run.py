@@ -224,9 +224,9 @@ def check_v03(compiler, work, *, baseline):
     result = run([sys.executable, ROOT / "scripts/run_tests.py", "--suite", "compiler",
                   "--suite", "safety", "--suite", "codegen", "--suite", "ast",
                   "--compiler", compiler], cwd=ROOT, expected=0,
-                 required=("Registered tests: 16 executed, 16 passed, 0 failed",))
+                 required=("Registered tests: 17 executed, 17 passed, 0 failed",))
     print(ANSI.sub("", result.stdout).strip())
-    print("PASS V03: 30 adversarial runner regressions and 16 registered core cases")
+    print("PASS V03: 30 adversarial runner regressions and 17 registered core cases")
 
 
 def main():

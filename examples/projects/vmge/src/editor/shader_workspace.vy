@@ -50,7 +50,7 @@ fn ss_workspace_create(app :: vraylib.App,project :: String) -> SSWorkspace {
     if vfs.exists(graph_path) { ss_graph_load(graph,graph_path); }
     if vfs.exists(pipeline_path) { ss_pipeline_load(pipeline,pipeline_path); }
     layout :: SSLayout := ss_layout(); if !ss_layout_load(layout,layout_path) { layout.values[3] = vraylib.math_clamp(vraylib.get_window_scale_dpi().x,0.75,3.0); }
-    state :: Array<Int64> := ss_ints(56); state[0] = app.token; state[15] = 256; state[19] = -1; state[21] = -1; state[23] = -1; state[31] = 3;
+    state :: Array<Int64> := ss_ints(64); state[0] = app.token; state[15] = 256; state[19] = -1; state[21] = -1; state[23] = -1; state[31] = 3;
     values :: Array<Float64> := ss_floats(32); values[18] = 0.7; values[19] = 0.45; values[20] = 4.0;
     target :: vraylib.RenderTarget := app.float_target(256,256); reference :: vraylib.RenderTarget := app.float_target(256,256); difference :: vraylib.RenderTarget := app.target(256,256);
     camera :: vraylib.Camera := app.camera(vraylib.vec3(3.0,2.0,3.0),vraylib.vec3(0.0,0.0,0.0),45.0);
@@ -269,6 +269,7 @@ fn ss_workspace_preview(app :: vraylib.App,workspace :: SSWorkspace) -> Bool {
     reference :: vraylib.RenderTarget := vraylib.RenderTarget(workspace.state[2],app.token); difference :: vraylib.RenderTarget := vraylib.RenderTarget(workspace.state[3],app.token);
     if target.width() != size { target.resize(size,size); reference.resize(size,size); difference.resize(size,size); workspace.state[26] = 0; }
     shader :: vraylib.Shader := ss_program(workspace.document);
+    if workspace.state[56] == 0 {
     if shader.valid() {
         applied :: Int64 := workspace.document.state[3]; applied_values :: Int64 := workspace.document.state[9];
         try { ss_material_apply(workspace.document,workspace.material); } finally { workspace.document.state[3] = applied; workspace.document.state[9] = applied_values; }
@@ -284,8 +285,10 @@ fn ss_workspace_preview(app :: vraylib.App,workspace :: SSWorkspace) -> Bool {
             if token != 0 && model.valid() { if shader.valid() { model.draw_material(vraylib.math_matrix_identity(),shader,0,vraylib.WHITE); } else { model.draw(vraylib.vec3(0.0,0.0,0.0),1.0,vraylib.WHITE); } }
         } finally { camera.end(); }
     } finally { target.end(); }
+    } else { target = vraylib.RenderTarget(workspace.state[56],app.token); }
     workspace.state[25] = target.token;
-    if workspace.state[24] != 0 { @bounded<16777216> region shader_ui_pipeline { ss_pipeline_prepare(app,workspace.pipeline,size,size); rendered :: vraylib.RenderTarget := ss_pipeline_run(app,workspace.pipeline,workspace.documents,workspace.document_ids,target); workspace.state[25] = int64(rendered.token); }; }
+    workspace.pipeline.context[0] = workspace.values[0]; workspace.pipeline.context[1] = app.dt(); workspace.pipeline.context[2] = 1.0;
+    if workspace.state[24] != 0 { @bounded<16777216> region shader_ui_pipeline { ss_pipeline_prepare(app,workspace.pipeline,target.width(),target.height()); rendered :: vraylib.RenderTarget := ss_pipeline_run(app,workspace.pipeline,workspace.documents,workspace.document_ids,target); workspace.state[25] = int64(rendered.token); }; }
     output :: vraylib.RenderTarget := vraylib.RenderTarget(workspace.state[25],app.token);
     workspace.state[25] = output.token;
     dimensions :: Int64 := output.width()*8192+output.height();

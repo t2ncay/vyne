@@ -94,9 +94,9 @@ def main():
     env["VYNE_SHADER_GPU"] = "1" if args.graphics else "0"
     env["VYNE_SHADER_GALLERY_AUTHOR"] = "0"
     cpu_tests = ("map", "collision", "scene", "world", "world_scene", "world_options", "world_exports", "world_integrity", "studio",
-                 "layout", "material_scene", "shader_model", "shader_pipeline", "shader_graph", "shader_evaluation", "shader_gallery")
+                 "layout", "material_scene", "environment", "shader_model", "shader_pipeline", "shader_graph", "shader_evaluation", "shader_gallery")
     gpu_tests = ("render", "scene_render", "ui", "ui_assets", "world_render", "world_settings_render",
-                 "shader_ui", "shader_ui_workspace", "shader_ui_schema")
+                 "shader_ui", "shader_ui_workspace", "shader_ui_schema", "camera_effects")
     for name in cpu_tests + (gpu_tests if args.graphics else ()):
         binary = BUILD / name
         run([compiler, "--compile", "-o", binary, PROJECT / "tests" / (name + ".vy")], env=env)
@@ -175,6 +175,16 @@ def main():
         assert saved.startswith("VMGE_SCENE|2\n") and re.search(r"^G\|1(?:\.0)?\|", saved, re.MULTILINE), saved
         check_obj(BUILD / "studio-flow.obj", 2)
         print("PASS: terrain preview/strokes, modal capture, dirty document recovery, G metadata and resource-only exports")
+        environment_env = dict(env, VYNE_VMGE_MODE="scene", VYNE_VMGE_AUTOTEST="0",
+                               VYNE_VMGE_STUDIO_AUTOTEST="0", VYNE_VMGE_ENVIRONMENT_AUTOTEST="1",
+                               VYNE_VMGE_ENVIRONMENT_PREFIX=str(BUILD / "environment-flow"),
+                               VYNE_VMGE_SCENE=str(session_root / "environment-absent.vscene"))
+        output = run([str(binary) + SUFFIX], marker="VMGE_ENVIRONMENT_HOST_OK", env=environment_env)
+        complete(output, "SCENE_EDITOR", 24)
+        assert "VMGE_ENVIRONMENT_HOST_MEMORY_OK" in output and re.search(r"commit_drift=\s*0", output), output
+        assert re.search(r"nodes=\s*8\s+play_cycles=\s*1\s+errors=\s*0", output), output
+        assert (BUILD / "environment-flow.vscene").read_text().startswith("VMGE_SCENE|4\n")
+        print("PASS: Daylight picker, camera Preview/Play/bypass, Rendering input, resize and v4 save/reopen, zero drift/handles")
         for suffix, authoring in (("host", "0"), ("authoring", "1")):
             shader_env = dict(env, VYNE_VMGE_MODE="shader", VYNE_VMGE_AUTOTEST="0",
                               VYNE_VMGE_STUDIO_AUTOTEST="0", VYNE_VMGE_SHADER_AUTOTEST="1",
