@@ -7,16 +7,16 @@ fn se_integer(text :: String) -> Int64 {
     return int64(value);
 }
 fn se_parse(scene :: SEScene, text :: String) -> Bool {
-    if text.size() > 1048576 { throw "Scene text exceeds 1 MiB"; }
+    if text.size() > 16777216 { throw "Scene text exceeds 16 MiB"; }
     column :: Int64 := 0; character :: Int64 := 0;
     while character < text.size() { if text[character] == "\n" { column = 0; } else { column = column+1; if column > 2048 { throw "Scene record exceeds 2048 characters"; } } character = character+1; }
     lines :: Array := vmge_split(text, "\n");
-    if lines.size() < 1 || (vmge_trim(lines[0]) != "VMGE_SCENE|1" && vmge_trim(lines[0]) != "VMGE_SCENE|2") { throw "Unsupported scene header/version"; }
+    if lines.size() < 1 || (vmge_trim(lines[0]) != "VMGE_SCENE|1" && vmge_trim(lines[0]) != "VMGE_SCENE|2" && vmge_trim(lines[0]) != "VMGE_SCENE|3") { throw "Unsupported scene header/version"; }
     se_clear(scene);
     row :: Int64 := 1;
     while row < lines.size() {
         line :: String := vmge_trim(lines[row]);
-        if line != "" && line[0] != "W" && line[0] != "C" && line[0] != "H" {
+        if line != "" && line[0] != "W" && line[0] != "C" && line[0] != "H" && line[0] != "M" && line[0] != "P" && line[0] != "R" {
             try {
                 fields :: Array := vmge_split(line, "|");
                 if fields.size() != 21 { throw "Expected 21 scene fields"; }
@@ -44,7 +44,8 @@ fn se_parse(scene :: SEScene, text :: String) -> Bool {
         if scene.meta[slot * 8] != 0 { scene.reparent(scene.handle(slot), scene.meta[slot * 8 + 2]); }
         slot = slot + 1;
     }
-    se_parse_world(scene.world,lines,vmge_trim(lines[0]) == "VMGE_SCENE|2");
+    se_parse_materials(scene,lines);
+    se_parse_world(scene.world,lines,vmge_trim(lines[0]) != "VMGE_SCENE|1");
     return true;
 }
 fn se_parse_world(world :: SEWorld,lines :: Array,version2 :: Bool) -> Bool {
@@ -88,8 +89,10 @@ fn se_parse_world(world :: SEWorld,lines :: Array,version2 :: Bool) -> Bool {
 }
 fn se_scene_text(scene :: SEScene) -> String {
     builder :: Int64 := vcore.sb_create();
-    if scene.world.count() == 0 && scene.world.side() == 0 { vcore.sb_append(builder,"VMGE_SCENE|1\n"); }
+    if se_scene_has_materials(scene) { vcore.sb_append(builder,"VMGE_SCENE|3\n"); }
+    else { if scene.world.count() == 0 && scene.world.side() == 0 { vcore.sb_append(builder,"VMGE_SCENE|1\n"); }
     else { vcore.sb_append(builder,"VMGE_SCENE|2\n"); }
+    }
     slot :: Int64 := 0;
     while slot < 128 {
         if scene.meta[slot * 8] != 0 {
@@ -101,7 +104,8 @@ fn se_scene_text(scene :: SEScene) -> String {
         }
         slot = slot + 1;
     }
-    if scene.world.count() > 0 || scene.world.side() > 0 {
+    vcore.sb_append(builder,se_scene_material_text(scene));
+    if scene.world.count() > 0 || scene.world.side() > 0 || se_scene_has_materials(scene) {
         world :: SEWorld := scene.world;
         vcore.sb_append(builder,"W"); field :: Int64 := 1; while field < 9 { vcore.sb_append(builder,"|"+string(world.data[field])); field = field+1; } vcore.sb_append(builder,"\n");
         i :: Int64 := 0; while i < world.count() { vcore.sb_append(builder,"C"); field = 0; while field < 5 { vcore.sb_append(builder,"|"+string(world.data[16+i*5+field])); field = field+1; } vcore.sb_append(builder,"\n"); i = i+1; }
@@ -111,6 +115,55 @@ fn se_scene_text(scene :: SEScene) -> String {
 }
 fn se_import_text(destination :: SEScene,staging :: SEScene,text :: String) -> Bool {
     se_parse(staging,text); se_replace(destination,staging); return true;
+}
+fn se_scene_has_materials(scene :: SEScene) -> Bool {
+    if scene.materials.resource_state[0] != 0 { return true; }
+    i :: Int64 := 0; while i < 128 { p :: Array<Int64> := scene.materials.paths[i]; if scene.meta[i*8] != 0 && p[0] != 0 { return true; } i = i+1; } return false;
+}
+fn se_scene_material_text(scene :: SEScene) -> String {
+    resources :: Int64 := 0;
+    b :: Int64 := vcore.sb_create(); slot :: Int64 := 0; while slot < 128 {
+        path :: Array<Int64> := scene.materials.paths[slot];
+        if scene.meta[slot*8] != 0 && path[0] != 0 {
+            if scene.meta[slot*8+3] != 1 { throw "Shader references require mesh nodes"; }
+            m :: MaterialInstance := scene.materials.instances[slot]; se_material_limit(m);
+            vcore.sb_append(b,"M|"+string(slot)+"|"+string(m.state[0])+"|"+string(m.state[1])+"|"+se_text_hex(path)+"\n");
+            rows :: Array := ss_split(ss_material_text(m),"\n"); i :: Int64 := 1;
+            while i < rows.size() { if rows[i] != "" { vcore.sb_append(b,"P|"+string(slot)+"|"+rows[i]+"\n"); } i = i+1; }
+        } slot = slot+1;
+    }
+    while resources < scene.materials.resource_state[0] { vcore.sb_append(b,"R|"+string(resources+100)+"|"+se_text_hex(scene.materials.resources[resources])+"\n"); resources = resources+1; }
+    return vcore.sb_build(b);
+}
+fn se_parse_materials(scene :: SEScene,lines :: Array) -> Bool {
+    builders :: Array<Int64> := ss_ints(128); seen :: Array<Int64> := ss_ints(128); row :: Int64 := 1;
+    while row < lines.size() {
+            line :: String := vmge_trim(lines[row]);
+            if line != "" && (line[0] == "M" || line[0] == "P" || line[0] == "R") {
+                if vmge_trim(lines[0]) != "VMGE_SCENE|3" { throw "Material records require scene v3"; }
+                f :: Array := ss_split(line,"|"); if f.size() < 3 { throw "Invalid scene material record"; }
+                if f[0] == "R" {
+                    if f.size() != 3 || ss_integer(f[1]) != scene.materials.resource_state[0]+100 || scene.materials.resource_state[0] == 64 { throw "Invalid texture resource table"; }
+                    se_text_unhex(scene.materials.resources[scene.materials.resource_state[0]],f[2]); scene.materials.resource_state[0] = scene.materials.resource_state[0]+1;
+                } else {
+                owner :: Int64 := ss_integer(f[1]); if owner < 0 || owner >= 128 || scene.meta[owner*8] == 0 || scene.meta[owner*8+3] != 1 { throw "Material requires a live mesh node"; }
+                    if f[0] == "M" {
+                        if seen[owner] != 0 || f.size() != 5 { throw "Duplicate/invalid material reference"; }
+                        se_text_unhex(scene.materials.paths[owner],f[4]); path :: Array<Int64> := scene.materials.paths[owner]; if path[0] == 0 { throw "Empty shader resource reference"; }
+                        builders[owner] = vcore.sb_create(); vcore.sb_append(builders[owner],"VMGE_MATERIAL|1|"+f[2]+"|"+f[3]+"\n"); seen[owner] = 1;
+                    } else {
+                        if !seen[owner] { throw "Material value before reference"; }
+                        i :: Int64 := 2; while i < f.size() { if i != 2 { vcore.sb_append(builders[owner],"|"); } vcore.sb_append(builders[owner],f[i]); i = i+1; } vcore.sb_append(builders[owner],"\n");
+                    }
+                }
+            } row = row+1;
+    }
+    slot :: Int64 := 0; while slot < 128 {
+        if seen[slot] != 0 { m :: MaterialInstance := scene.materials.instances[slot]; ss_material_parse(m,vcore.sb_build(builders[slot])); se_material_limit(m); if m.state[1] != slot+1 { throw "Material instance must match node slot"; }
+            i :: Int64 := 0; while i < m.binding_state[0] { id :: Int64 := m.bindings[i*4+1]-100; if id < 0 || id >= scene.materials.resource_state[0] { throw "Material references missing texture resource"; } i = i+1; }
+        }
+        slot = slot+1;
+    } return true;
 }
 fn se_load(destination :: SEScene, staging :: SEScene, path :: String) -> Bool {
     @bounded<67108864> region import_scene {

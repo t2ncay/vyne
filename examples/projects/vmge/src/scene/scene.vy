@@ -1,6 +1,7 @@
 use "text.vy";
 use "../engine/map.vy";
 use "../engine/terrain.vy";
+use "materials.vy";
 
 # 128 slots. Metadata: alive,generation,parent handle,type,visible,texture,asset,flags.
 # Numeric properties: position[3], Euler degrees[3], scale[3], RGBA[4], FOV.
@@ -14,6 +15,7 @@ interface SEScene {
     offset :: Int64,
     state :: Array<Int64>,
     world :: SEWorld,
+    materials :: SEMaterials,
     count() -> Int64 { return self.state[0]; }
     valid(id :: Int64) -> Bool {
         if id < 128 { return false; }
@@ -65,6 +67,7 @@ interface SEScene {
         self.values[slot * 16 + 9] = 255.0; self.values[slot * 16 + 10] = 255.0; self.values[slot * 16 + 11] = 255.0; self.values[slot * 16 + 12] = 255.0;
         self.values[slot * 16 + 13] = 70.0;
         path_bytes :: Array<Int64> := self.paths[self.offset + slot]; path_bytes[0] = 0;
+        material_path :: Array<Int64> := self.materials.paths[slot]; material_path[0] = 0;
         self.state[0] = self.state[0] + 1;
         return self.handle(slot);
     }
@@ -95,15 +98,16 @@ fn se_scene(names :: Array, paths :: Array, offset :: Int64) -> SEScene {
     values :: Array<Float64> := []; values.reserve(2048); values.resize(2048, 0.0);
     clocks :: Array<Int64> := []; clocks.reserve(128); clocks.resize(128, 0);
     state :: Array<Int64> := [0];
-    return SEScene(meta, values, clocks, names, paths, offset, state,se_world_create());
+    return SEScene(meta, values, clocks, names, paths, offset, state,se_world_create(),se_materials());
 }
 fn se_clear(scene :: SEScene) -> Bool {
     i :: Int64 := 0;
     while i < 128 {
         if scene.meta[i * 8 + 1] > scene.clocks[i] { scene.clocks[i] = scene.meta[i * 8 + 1]; }
-        scene.meta[i * 8] = 0; i = i + 1;
+        scene.meta[i * 8] = 0; material_path :: Array<Int64> := scene.materials.paths[i]; material_path[0] = 0; i = i + 1;
     }
     scene.state[0] = 0;
+    scene.materials.resource_state[0] = 0;
     se_world_clear(scene.world);
     return true;
 }
@@ -129,9 +133,12 @@ fn se_copy(destination :: SEScene, source :: SEScene) -> Bool {
     while i < 128 {
         se_text_copy(destination.names[destination.offset + i], source.names[source.offset + i]);
         se_text_copy(destination.paths[destination.offset + i], source.paths[source.offset + i]);
+        se_material_node_copy(destination.materials,i,source.materials,i);
         i = i + 1;
     }
     destination.state[0] = source.state[0];
+    destination.materials.resource_state[0] = source.materials.resource_state[0];
+    i = 0; while i < 64 { se_text_copy(destination.materials.resources[i],source.materials.resources[i]); i = i+1; }
     se_world_copy(destination.world,source.world);
     return true;
 }
@@ -211,6 +218,8 @@ fn se_duplicate(scene :: SEScene, id :: Int64, work :: Array<Int64>) -> Int64 {
             source_name :: Array<Int64> := scene.names[scene.offset+i]; source_path :: Array<Int64> := scene.paths[scene.offset+i];
             destination_name :: Array<Int64> := scene.names[scene.offset+work[i]%128]; destination_path :: Array<Int64> := scene.paths[scene.offset+work[i]%128];
             se_scene_validate_utf8(source_name); se_scene_validate_utf8(source_path);
+            se_material_limit(scene.materials.instances[i]);
+            material_path :: Array<Int64> := scene.materials.paths[i]; se_scene_validate_utf8(material_path);
             if source_name[0] >= destination_name.size() || source_path[0] >= destination_path.size() { throw "Duplicate text capacity exceeded"; }
         }
         i = i + 1;
@@ -229,6 +238,7 @@ fn se_duplicate(scene :: SEScene, id :: Int64, work :: Array<Int64>) -> Int64 {
             field = 0; while field <= source_name[0] { destination_name[field] = source_name[field]; field = field + 1; }
             source_path :: Array<Int64> := scene.paths[scene.offset+i]; destination_path :: Array<Int64> := scene.paths[scene.offset+slot];
             field = 0; while field <= source_path[0] { destination_path[field] = source_path[field]; field = field + 1; }
+            se_material_node_copy(scene.materials,slot,scene.materials,i);
         } i = i + 1;
     }
     scene.state[0] = scene.state[0] + total;
