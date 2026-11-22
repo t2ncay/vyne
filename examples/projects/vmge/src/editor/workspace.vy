@@ -5,9 +5,6 @@ use "../scene/io.vy";
 use "../scene/play.vy";
 use native vmem;
 
-fn se_type_name(kind :: Int64) -> String {
-    if kind == 0 { return "Node3D"; } if kind == 1 { return "MeshInstance3D"; } if kind == 2 { return "Camera3D"; } if kind == 3 { return "CollisionShape3D"; } return "CharacterBody3D";
-}
 fn se_schema() -> Array {
     labels :: Array := [];
     @persistent region immutable_schema {
@@ -63,18 +60,11 @@ fn se_tree_rows(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHist
 }
 fn se_tree(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHistory,work :: Array<Int64>,rectangle :: vraylib.Rectangle) -> Bool {
     se_panel(rectangle,"Scene");
-    editable :: Bool := ui.state[4] == 0 && ui.state[13] == 0;
+    editable :: Bool := ui.state[4] == 0 && ui.state[13] == 0 && ui.state[47] == 0;
     clip :: vraylib.Clip := app.clip(rectangle); se_clip_start(clip,rectangle);
     try {
-    labels := ["Node","Mesh","Cam","Box","Body"];
-    kind :: Int64 := 0;
-    while kind < 5 {
-        if se_button(labels[kind],se_rect(rectangle.x+5.0+float64(kind)*(rectangle.width-10.0)/5.0,rectangle.y+30.0,(rectangle.width-15.0)/5.0,27.0),editable) {
-            parent :: Int64 := -1; if scene.valid(ui.state[0]) { parent = ui.state[0]; }
-            ui.state[0] = scene.spawn(kind,se_type_name(kind),parent); se_record(history,scene);
-        }
-        kind = kind + 1;
-    }
+    if se_button("+ Add Node...",se_rect(rectangle.x+5.0,rectangle.y+30.0,rectangle.width-10.0,27.0),editable && ui.state[1] == -1) { se_node_picker_open(ui); }
+    if editable && ui.state[1] == -1 && se_hover(rectangle) && vraylib.is_mouse_button_pressed(vraylib.MOUSE_BUTTON_RIGHT) { se_node_picker_open(ui); }
     selected :: Bool := scene.valid(ui.state[0]);
     if se_button("Duplicate",se_rect(rectangle.x+5.0,rectangle.y+62.0,(rectangle.width-15.0)*0.5,27.0),editable && selected) { ui.state[0] = se_duplicate(scene,ui.state[0],work); se_record(history,scene); }
     if se_button("Delete",se_rect(rectangle.x+10.0+(rectangle.width-15.0)*0.5,rectangle.y+62.0,(rectangle.width-15.0)*0.5,27.0),editable && selected) { se_delete(scene,ui.state[0],work); ui.state[0] = -1; se_record(history,scene); }
@@ -105,7 +95,7 @@ fn se_inspector(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHist
     se_panel(rectangle,"Inspector");
     if ui.state[0] == -2 { return se_world_inspector(app,ui,scene,rectangle); }
     if !scene.valid(ui.state[0]) { se_draw_text("Select a node to inspect",int64(rectangle.x+8.0),int64(rectangle.y+40.0),14,vraylib.GRAY); return true; }
-    editable :: Bool := ui.state[4] == 0 && ui.state[13] == 0;
+    editable :: Bool := ui.state[4] == 0 && ui.state[13] == 0 && ui.state[47] == 0;
     id :: Int64 := ui.state[0]; slot :: Int64 := id%128;
     body :: vraylib.Rectangle := se_rect(rectangle.x+1.0,rectangle.y+27.0,rectangle.width-2.0,rectangle.height-28.0);
     clip :: vraylib.Clip := app.clip(body); se_clip_start(clip,body);
@@ -126,6 +116,27 @@ fn se_inspector(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHist
         if se_button("Clear",se_rect(rectangle.x+rectangle.width-58.0,next,52.0,25.0),editable && material_path != "") { bytes :: Array<Int64> := scene.materials.paths[slot]; bytes[0] = 0; se_record(history,scene); }
         next = next+29.0;
     }
+    if scene.kind(id) == 2 {
+        if se_field("Pipeline",path,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,24.0),ui.state[1] == 15,editable) { se_edit_begin(ui,15,id,scene.path(id)); }
+        next = next+28.0;
+        if se_button("Use VHS preset",se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable && ui.state[1] == -1) { se_text_write(scene.paths[scene.offset+slot],"shaders/camera/vhs.vpipeline"); se_record(history,scene); }
+        next = next+29.0;
+        effect_label :: String := "Effects: enabled"; if scene.extra[slot*16] == 0.0 { effect_label = "Effects: bypass"; }
+        if se_button(effect_label,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable) { se_extra_set(scene,id,0,1.0-scene.extra[slot*16]); se_record(history,scene); }
+        next = next+29.0;
+        preview_label :: String := "Preview camera"; if ui.state[53] != 0 { preview_label = "Back to editor view"; }
+        if se_button(preview_label,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable) { se_make_active(scene,id); ui.state[53] = 1-ui.state[53]; se_record(history,scene); }
+        next = next+29.0;
+        if se_button("Edit pipeline / camera input",se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable && path != "") { se_make_active(scene,id); ui.state[52] = 1; se_record(history,scene); }
+        next = next+29.0;
+        if se_button("Reload camera effects",se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable && path != "") { ui.state[55] = 1; }
+        next = next+29.0;
+    }
+    if scene.kind(id) == 2 || scene.kind(id) == 5 {
+        active_label :: String := "Make active"; if se_active_node(scene,scene.kind(id)) == id { active_label = "Active"; }
+        if se_button(active_label,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,25.0),editable) { se_make_active(scene,id); se_record(history,scene); }
+        next = next+29.0;
+    }
     visible_label :: String := "Hidden"; if scene.meta[slot*8+4] != 0 { visible_label = "Visible"; }
     if se_tool_button(visible_label,se_rect(rectangle.x+6.0,next,rectangle.width*0.5-8.0,25.0),editable,scene.meta[slot*8+4] != 0,"Toggle node visibility") { scene.meta[slot*8+4] = 1-scene.meta[slot*8+4]; se_record(history,scene); }
     if scene.kind(id) == 1 { if se_button("Material " + string(scene.meta[slot*8+5]+1),se_rect(rectangle.x+rectangle.width*0.5,next,rectangle.width*0.5-6.0,25.0),editable) { scene.meta[slot*8+5] = (scene.meta[slot*8+5]+1)%8; se_record(history,scene); } }
@@ -135,6 +146,16 @@ fn se_inspector(app :: vraylib.App,ui :: SEUI,scene :: SEScene,history :: SEHist
     se_inspector_group(ui,scene,schema,id,"Scale",6,3,next,rectangle,editable); next = next+105.0;
     if scene.kind(id) == 1 { se_inspector_group(ui,scene,schema,id,"Appearance / RGBA",9,4,next,rectangle,editable); next = next+132.0; }
     if scene.kind(id) == 2 { se_inspector_group(ui,scene,schema,id,"Camera / perspective",13,1,next,rectangle,editable); next = next+51.0; }
+    if scene.kind(id) == 6 || scene.kind(id) == 7 { se_inspector_group(ui,scene,schema,id,"Light color / RGBA",9,4,next,rectangle,editable); next = next+132.0; }
+    if scene.kind(id) >= 5 {
+        count :: Int64 := 3; if scene.kind(id) == 5 { count = 11; }
+        se_draw_heading("Environment",int64(rectangle.x+8.0),int64(next),13,vraylib.SKYBLUE); next = next+22.0;
+        f :: Int64 := 0; while f < count {
+            value :: String := string(scene.extra[slot*16+f]); if ui.state[1] == 64+f { value = se_text_read(ui.text); }
+            if se_field(se_extra_label(scene.kind(id),f),value,se_rect(rectangle.x+6.0,next,rectangle.width-12.0,24.0),ui.state[1] == 64+f,editable) { se_edit_begin(ui,64+f,id,string(scene.extra[slot*16+f])); }
+            next = next+27.0; f = f+1;
+        }
+    }
     content :: Float64 := next-top+12.0;
     if se_hover(rectangle) { ui.state[24] = int64(vmath.clamp(float64(ui.state[24])-vraylib.get_mouse_wheel_move()*3.0,0.0,vmath.max(0.0,vmath.ceil((content-body.height)/27.0)))); }
     } finally { se_clip_finish(clip); }
@@ -424,8 +445,9 @@ fn se_commit_edit(ui :: SEUI,scene :: SEScene,staging :: SEScene,history :: SEHi
         else {
             id :: Int64 := ui.state[14]; slot :: Int64 := scene.require(id);
             if field == 14 { se_text_copy(scene.names[scene.offset+slot],ui.text); }
-            if field == 15 { if text != "" { se_asset(bank,text); } se_text_copy(scene.paths[scene.offset+slot],ui.text); }
+            if field == 15 { if scene.kind(id) == 1 && text != "" { se_asset(bank,text); } se_text_copy(scene.paths[scene.offset+slot],ui.text); }
             if field < 14 { scene.property(id,field,vmge_number(text)); }
+            if field >= 64 && field < 80 { se_extra_set(scene,id,field-64,vmge_number(text)); }
             se_record(history,scene);
         }
     }
@@ -441,7 +463,7 @@ fn se_inspector_tab(ui :: SEUI,scene :: SEScene,field :: Int64,direction :: Int6
     next :: Int64 := field; tries :: Int64 := 0;
     while tries < 16 {
         next = (next+direction+16)%16;
-        if next < 9 || next == 14 || (next >= 9 && next <= 12 && kind == 1) || (next == 13 && kind == 2) || (next == 15 && kind == 1) {
+        if next < 9 || next == 14 || (next >= 9 && next <= 12 && (kind == 1 || kind == 6 || kind == 7)) || (next == 13 && kind == 2) || (next == 15 && (kind == 1 || kind == 2)) {
             value :: String := ""; if next == 14 { value = scene.name(id); } else { if next == 15 { value = scene.path(id); } else { value = string(scene.number(id,next)); } }
             se_edit_begin(ui,next,id,value);
             # Bring the newly focused numeric group into view on short windows.
@@ -463,4 +485,100 @@ fn se_file_dialog(ui :: SEUI,rectangle :: vraylib.Rectangle) -> Bool {
     se_panel(rectangle,"Scene file path - Enter applies, Escape cancels");
     se_field("Path",se_text_read(ui.text),se_rect(rectangle.x+8.0,rectangle.y+35.0,rectangle.width-16.0,28.0),true,true);
     return se_button("Apply",se_rect(rectangle.x+8.0,rectangle.y+75.0,80.0,28.0),true);
+}
+fn se_extra_label(kind :: Int64,field :: Int64) -> String {
+    if kind != 5 { if field == 0 { return "Intensity"; } if field == 1 { return "Radius"; } return "Ambient"; }
+    if field == 0 { return "Zenith R"; } if field == 1 { return "Zenith G"; } if field == 2 { return "Zenith B"; }
+    if field == 3 { return "Horizon R"; } if field == 4 { return "Horizon G"; } if field == 5 { return "Horizon B"; }
+    if field == 6 { return "Brightness"; } if field == 7 { return "Sun degrees"; } if field == 8 { return "Sun energy"; }
+    if field == 9 { return "Sun slot/-1"; } return "Ambient";
+}
+fn se_node_picker_open(ui :: SEUI) -> Bool {
+    ui.state[47] = 1; ui.state[48] = 0; ui.state[49] = 0; ui.state[50] = 0; ui.state[51] = ui.state[0];
+    se_edit_begin(ui,20,-1,""); return true;
+}
+fn se_picker_match(kind :: Int64,query :: String) -> Bool {
+    if kind < 0 || kind >= 9 { return false; }
+    if kind == 8 { return query == "" || se_contains("Daylight Scene preset sky sun environment",query); } return se_node_matches(kind,query);
+}
+fn se_node_picker_input(ui :: SEUI) -> Bool {
+    if ui.state[47] == 0 { return false; }
+    se_edit_input(ui);
+    if vraylib.is_key_pressed(vraylib.KEY_ESCAPE) { ui.state[47] = 0; ui.state[1] = -1; return true; }
+    query :: String := se_text_read(ui.text); kind :: Int64 := ui.state[48];
+    if !se_picker_match(kind,query) { kind = 0; while kind < 9 && !se_picker_match(kind,query) { kind = kind+1; } }
+    direction :: Int64 := 0; if se_key(vraylib.KEY_DOWN) { direction = 1; } if se_key(vraylib.KEY_UP) { direction = -1; }
+    if direction != 0 { candidate :: Int64 := kind+direction; while candidate >= 0 && candidate < 9 { if se_picker_match(candidate,query) { kind = candidate; break; } candidate = candidate+direction; } }
+    ui.state[48] = kind;
+    if vraylib.is_key_pressed(vraylib.KEY_ENTER) && kind < 9 { ui.state[50] = 1; }
+    ui.state[30] = 0; return true;
+}
+fn se_create_catalog_node(scene :: SEScene,ui :: SEUI,camera :: vraylib.Camera,cache :: SETransforms) -> Int64 {
+    kind :: Int64 := ui.state[48]; parent :: Int64 := -1;
+    if ui.state[49] == 0 && scene.valid(ui.state[51]) { parent = ui.state[51]; }
+    if kind == 8 {
+        se_catalog_room(scene,2);
+        sky :: Int64 := scene.spawn(5,"Sky",parent); sun :: Int64 := scene.spawn(6,"Sun",parent);
+        scene.property(sun,3,55.0); scene.property(sun,4,-35.0); se_extra_set(scene,sky,9,float64(sun%128)); se_make_active(scene,sky); return sky;
+    }
+    se_catalog_room(scene,1);
+    position :: vraylib.Vector3 := vraylib.vec3(ui.numbers[6],vmath.max(0.5,ui.numbers[7]),ui.numbers[8]);
+    pitch :: Float64 := 0.0; yaw :: Float64 := 0.0; fov :: Float64 := 70.0;
+    if kind == 1 || kind == 7 {
+        if parent != -1 { position = vraylib.math_vector3_transform(position,vraylib.math_matrix_invert(se_world(scene,cache,parent))); }
+    }
+    if kind == 2 {
+        view :: vraylib.Camera3D := camera.view(); eye :: vraylib.Vector3 := view.position; target :: vraylib.Vector3 := view.target;
+        if parent != -1 { inverse :: vraylib.Matrix := vraylib.math_matrix_invert(se_world(scene,cache,parent)); eye = vraylib.math_vector3_transform(eye,inverse); target = vraylib.math_vector3_transform(target,inverse); }
+        forward :: vraylib.Vector3 := vraylib.direction(eye,target);
+        position = eye; pitch = -vmath.asin(vmath.clamp(forward.y,-1.0,1.0))*57.295779513; yaw = vmath.atan2(forward.x,forward.z)*57.295779513;
+        fov = view.fovy; if view.projection != vraylib.CAMERA_PERSPECTIVE { fov = ui.view_values[0]; } fov = vmath.clamp(fov,1.0,179.0);
+        if !(vmath.abs(pitch) <= 360.0 && vmath.abs(yaw) <= 360.0 && fov >= 1.0 && fov <= 179.0) { throw "Invalid camera creation view"; }
+    }
+    if kind == 1 || kind == 2 || kind == 7 { if !(vmath.abs(position.x) <= 1000000.0 && vmath.abs(position.y) <= 1000000.0 && vmath.abs(position.z) <= 1000000.0) { throw "Node creation position exceeds scene bounds"; } }
+    # All fallible placement validation precedes reserving a scene slot.
+    id :: Int64 := scene.spawn(kind,se_type_name(kind),parent);
+    if kind == 1 || kind == 2 || kind == 7 { scene.property(id,0,position.x); scene.property(id,1,position.y); scene.property(id,2,position.z); }
+    if kind == 6 { scene.property(id,3,55.0); scene.property(id,4,-35.0); }
+    if kind == 2 { scene.property(id,3,pitch); scene.property(id,4,yaw); scene.property(id,13,fov); }
+    return id;
+}
+fn se_node_picker_draw(ui :: SEUI,scene :: SEScene,bounds :: vraylib.Rectangle) -> Bool {
+    if ui.state[47] == 0 { return false; }
+    vraylib.draw_rectangle_rec(bounds,vraylib.rgba(0,0,0,170));
+    width :: Float64 := vmath.min(560.0,bounds.width-24.0); height :: Float64 := vmath.min(570.0,bounds.height-24.0);
+    box :: vraylib.Rectangle := se_rect((bounds.width-width)*0.5,(bounds.height-height)*0.5,width,height);
+    se_panel(box,"Add Node / arrows select, Enter creates, Escape cancels");
+    se_field("Search",se_text_read(ui.text),se_rect(box.x+10.0,box.y+34.0,width-20.0,28.0),true,true);
+    visible_rows :: Int64 := int64(vmath.max(1.0,vmath.floor((height-152.0)/40.0))); selected_row :: Int64 := 0; matches :: Int64 := 0; kind :: Int64 := 0;
+    while kind < 9 { if se_picker_match(kind,se_text_read(ui.text)) { if kind == ui.state[48] { selected_row = matches; } matches = matches+1; } kind = kind+1; }
+    first :: Int64 := int64(vmath.max(0.0,float64(selected_row-visible_rows+1))); row :: Int64 := 0; kind = 0;
+    while kind < 9 {
+        if se_picker_match(kind,se_text_read(ui.text)) {
+            item :: vraylib.Rectangle := se_rect(box.x+10.0,box.y+70.0+float64(row-first)*40.0,width-20.0,37.0);
+            if row >= first && row < first+visible_rows {
+                title :: String := "Daylight Scene"; description :: String := "Preset / add linked Sky and Sun in one undo step";
+                if kind < 8 { title = se_type_name(kind); description = se_node_category(kind)+" / "+se_node_description(kind); }
+                if ui.state[48] == kind { vraylib.draw_rectangle_rec(item,vraylib.rgba(47,76,110,255)); }
+                se_draw_heading(title,int64(item.x+8.0),int64(item.y+3.0),14,vraylib.SKYBLUE);
+                se_draw_text(se_fit(description,width-40.0,12),int64(item.x+8.0),int64(item.y+21.0),12,vraylib.LIGHTGRAY);
+                if se_hover(item) && vraylib.is_mouse_button_pressed(vraylib.MOUSE_BUTTON_LEFT) { ui.state[48] = kind; }
+            } row = row+1;
+        } kind = kind+1;
+    }
+    parent :: String := "Parent: root"; if ui.state[49] == 0 && scene.valid(ui.state[51]) { parent = "Parent: "+scene.name(ui.state[51]); }
+    if se_button(parent,se_rect(box.x+10.0,box.y+height-71.0,width-20.0,25.0),true) { ui.state[49] = 1-ui.state[49]; }
+    if se_button("Cancel",se_rect(box.x+10.0,box.y+height-38.0,90.0,28.0),true) { ui.state[47] = 0; ui.state[1] = -1; ui.state[39] = 1; }
+    needed :: Int64 := 1; if ui.state[48] == 8 { needed = 2; }
+    se_draw_text(string(scene.count())+" / 128 nodes",int64(box.x+110.0),int64(box.y+height-30.0),13,vraylib.GRAY);
+    if se_button("Create",se_rect(box.x+width-100.0,box.y+height-38.0,90.0,28.0),ui.state[48] < 9 && scene.count()+needed <= 128) { ui.state[50] = 1; }
+    return true;
+}
+fn se_catalog_room(scene :: SEScene,needed :: Int64) -> Bool {
+    found :: Int64 := 0; slot :: Int64 := 0; while slot < 128 && found < needed {
+        if scene.meta[slot*8] == 0 {
+            if scene.clocks[slot] >= 72057594037927935 || scene.meta[slot*8+1] >= 72057594037927935 { throw "Scene generation exhausted"; }
+            found = found+1;
+        } slot = slot+1;
+    } if found < needed { throw "Node creation capacity reached (128 slots)"; } return true;
 }

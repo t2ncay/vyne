@@ -3,8 +3,8 @@ use "material.vy";
 # Ordered pass stride 10: pass ID, document ID, input0 ID (-1 external), input1 ID
 # (-2 absent), enabled, width (0 relative), height (0 relative), divisor, format
 # (0 RGBA8, 1 RGBA32F), capture. Output resource ID is the pass ID.
-interface SSPipeline { meta :: Array<Int64>, state :: Array<Int64>, tokens :: Array<Int64>, outputs :: Array<Int64>, work :: Array<Int64>, defaults :: MaterialInstance }
-fn ss_pipeline() -> SSPipeline { return SSPipeline(ss_ints(160),ss_ints(5),ss_ints(16),ss_ints(16),ss_ints(32),ss_material(1,1)); }
+interface SSPipeline { meta :: Array<Int64>, state :: Array<Int64>, tokens :: Array<Int64>, outputs :: Array<Int64>, work :: Array<Int64>, defaults :: MaterialInstance, context :: Array<Float64> }
+fn ss_pipeline() -> SSPipeline { return SSPipeline(ss_ints(160),ss_ints(5),ss_ints(16),ss_ints(16),ss_ints(32),ss_material(1,1),ss_floats(3)); }
 fn ss_pipeline_slot(p :: SSPipeline,id :: Int64) -> Int64 { i :: Int64 := 0; while i < p.state[0] { if p.meta[i*10] == id { return i; } i = i+1; } return -1; }
 fn ss_pipeline_add(p :: SSPipeline,id :: Int64,document_id :: Int64,input0 :: Int64,input1 :: Int64,width :: Int64,height :: Int64,divisor :: Int64,format :: Int64) -> Int64 {
     s :: Int64 := p.state[0]; if s >= 16 || id < 1 || document_id < 1 || ss_pipeline_slot(p,id) != -1 || width < 0 || height < 0 || width > 4096 || height > 4096 || divisor < 1 || divisor > 16 || format < 0 || format > 1 { throw "Invalid pipeline pass/target"; }
@@ -86,13 +86,15 @@ fn ss_pipeline_run(app :: vraylib.App,p :: SSPipeline,documents :: Array,documen
                     j :: Int64 := 0; while j < document_ids.size() { if document_ids[j] == p.meta[i*10+1] { if p.work[16+i] != -1 { throw "Duplicate pipeline document ID"; } p.work[16+i] = j; } j = j+1; } if p.work[16+i] == -1 { throw "Missing pipeline document"; }
                     d :: SSDocument := documents[p.work[16+i]]; shader :: vraylib.Shader := ss_program(d); if !shader.valid() || shader.session != app.token { throw "Pipeline program unavailable"; }
                     flags[i] = ss_pipeline_sampler_flags(shader); if flags[i]%2 != 1 || (p.meta[i*10+3] == -2 && flags[i]/2 != 0) || (p.meta[i*10+3] != -2 && flags[i]/2 != 1) { throw "Pipeline controlled sampler descriptor missing/inactive"; }
-                    ss_material_validate_for(d,p.defaults,true); target :: vraylib.RenderTarget := vraylib.RenderTarget(p.tokens[i],app.token); if !target.valid() || a == target.token { throw "Pipeline target unavailable/write feedback"; }
+                     ss_material_validate_for(d,p.defaults,true); target :: vraylib.RenderTarget := vraylib.RenderTarget(p.tokens[i],app.token); if !target.valid() || a == target.token { throw "Pipeline target unavailable/write feedback"; }
+                     ss_pipeline_engine_inputs(app,p,shader,vraylib.RenderTarget(a,app.token),target,false);
                     if p.meta[i*10+3] != -2 { b :: Int64 := ss_pipeline_planned_input(p,planned,p.meta[i*10+3],input_target); if b == target.token { throw "Pipeline second-input write feedback"; } } planned[i] = target.token;
                 } i = i+1;
             }
             i = 0; while i < p.state[0] { if p.meta[i*10+4] == 1 {
                 input :: vraylib.RenderTarget := vraylib.RenderTarget(ss_pipeline_planned_input(p,planned,p.meta[i*10+2],input_target),app.token); target :: vraylib.RenderTarget := vraylib.RenderTarget(planned[i],app.token); d :: SSDocument := documents[p.work[16+i]]; shader :: vraylib.Shader := ss_program(d);
-                ss_pipeline_clear_controlled(shader); ss_material_apply_mode(d,p.defaults,true); shader.set_texture("inputTexture",input.texture());
+                 ss_pipeline_clear_controlled(shader); ss_material_apply_mode(d,p.defaults,true); shader.set_texture("inputTexture",input.texture());
+                 ss_pipeline_engine_inputs(app,p,shader,input,target,true);
                 if p.meta[i*10+3] != -2 { second :: vraylib.RenderTarget := vraylib.RenderTarget(ss_pipeline_planned_input(p,planned,p.meta[i*10+3],input_target),app.token); shader.set_texture("inputTexture1",second.texture()); }
                 target.draw_from(input,shader); ss_pipeline_clear_controlled(shader);
             } i = i+1; }
@@ -109,3 +111,19 @@ fn ss_pipeline_parse(p :: SSPipeline,text :: String) -> Bool {
 }
 fn ss_pipeline_save(p :: SSPipeline,path :: String) -> Bool { @bounded<16777216> region pipeline_save { ss_pipeline_validate(p); if !vfs.write_atomic(path,ss_pipeline_text(p)) { throw "Cannot save pipeline"; } }; return true; }
 fn ss_pipeline_load(p :: SSPipeline,path :: String) -> Bool { @bounded<16777216> region pipeline_load { raw := vfs.read(path); if raw == null { throw "Cannot load pipeline"; } ss_pipeline_parse(p,raw); }; return true; }
+fn ss_pipeline_engine_inputs(app :: vraylib.App,p :: SSPipeline,shader :: vraylib.Shader,input :: vraylib.RenderTarget,target :: vraylib.RenderTarget,upload :: Bool) -> Bool {
+    rows :: Array := shader.uniforms(); i :: Int64 := 0; while i < rows.size() {
+        row :: Array := rows[i]; name :: String := row[0]; expected :: Int64 := 0;
+        if name == "seTime" || name == "seDeltaTime" { expected = 5126; }
+        if name == "seInputResolution" || name == "seOutputResolution" { expected = 35664; }
+        if expected != 0 {
+            if int64(row[1]) != expected || int64(row[2]) != 1 || int64(row[3]) < 0 { throw "Incompatible camera engine uniform: "+name; }
+            if upload {
+                if name == "seTime" { time :: Float64 := vraylib.get_time(); if p.context[2] != 0.0 { time = p.context[0]; } shader.set(name,time); }
+                if name == "seDeltaTime" { delta :: Float64 := app.dt(); if p.context[2] != 0.0 { delta = p.context[1]; } shader.set(name,delta); }
+                if name == "seInputResolution" { shader.set(name,vraylib.vec2(float64(input.width()),float64(input.height()))); }
+                if name == "seOutputResolution" { shader.set(name,vraylib.vec2(float64(target.width()),float64(target.height()))); }
+            }
+        } i = i+1;
+    } return true;
+}

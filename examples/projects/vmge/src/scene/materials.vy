@@ -6,7 +6,11 @@ interface SEMaterials { instances :: Array, paths :: Array, resources :: Array, 
 interface SEMaterialSnapshot { integers :: Array<Int64>, numbers :: Array<Float64>, paths :: Array<Int64>, resources :: Array<Int64>, state :: Array<Int64>, }
 interface SEPrograms { documents :: Array, paths :: Array, state :: Array<Int64>, }
 fn se_programs() -> SEPrograms {
-    docs :: Array := [ss_document(),ss_document(),ss_document(),ss_document(),ss_document(),ss_document(),ss_document(),ss_document(),null,null];
+    # One length prefix + 65,535 source bytes fits a 65,536-element buffer.
+    # Avoid doubling retained program sources to 131,072 elements; the
+    # editable studio document keeps its existing full 64 KiB source limit.
+    docs :: Array := []; docs.reserve(10); i :: Int64 := 0;
+    while i < 8 { docs.push(ss_document_with_limits(65535,2048,64)); i = i+1; } docs.push(null); docs.push(null);
     paths :: Array := [ss_text(2048),ss_text(2048),ss_text(2048),ss_text(2048),ss_text(2048),ss_text(2048),ss_text(2048),ss_text(2048)];
     return SEPrograms(docs,paths,ss_ints(1));
 }

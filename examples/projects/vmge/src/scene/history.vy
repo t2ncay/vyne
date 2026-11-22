@@ -8,6 +8,7 @@ interface SEHistory {
     state :: Array<Int64>,
     worlds :: Array,
     materials :: Array,
+    extensions :: Array,
     dirty() -> Bool {
         bytes :: Array<Int64> := self.texts[self.state[1] % 17];
         return bytes[41985] != self.state[4];
@@ -22,7 +23,8 @@ fn se_history(numbers :: Array, texts :: Array) -> SEHistory {
     i :: Int64 := 0; while i < 17 { data :: Array<Float64> := se_world_buffer(); worlds.push(data); i = i+1; }
     materials :: Array := []; materials.reserve(17); i = 0;
     while i < 17 { materials.push(se_material_snapshot()); i = i+1; }
-    return SEHistory(numbers, texts, state,worlds,materials);
+    extensions :: Array := []; i = 0; while i < 17 { extensions.push(ss_floats(2050)); i = i+1; }
+    return SEHistory(numbers, texts, state,worlds,materials,extensions);
 }
 fn se_numeric_owner_copy(destination :: Array<Float64>,source :: Array<Float64>) -> Bool {
     i :: Int64 := 0;
@@ -47,6 +49,7 @@ fn se_snapshot(history :: SEHistory, scene :: SEScene, slot :: Int64, revision :
     bytes[41984] = scene.count(); bytes[41985] = revision;
     se_world_copy_data(history.worlds[slot],scene.world.data);
     se_material_capture(history.materials[slot],scene.materials,false);
+    se_extension_snapshot(history.extensions[slot],scene,false);
     return true;
 }
 fn se_history_reset(history :: SEHistory, scene :: SEScene, saved :: Bool) -> Bool {
@@ -83,11 +86,16 @@ fn se_restore(history :: SEHistory, scene :: SEScene) -> Bool {
     scene.state[0] = bytes[41984];
     se_world_copy_data(scene.world.data,history.worlds[slot]);
     se_material_capture(history.materials[slot],scene.materials,true);
+    se_extension_snapshot(history.extensions[slot],scene,true);
     return true;
 }
 fn se_undo(history :: SEHistory, scene :: SEScene) -> Bool {
     if history.state[1] <= history.state[0] { return false; }
     history.state[1] = history.state[1] - 1; return se_restore(history, scene);
+}
+fn se_extension_snapshot(data :: Array<Float64>,scene :: SEScene,restore :: Bool) -> Bool {
+    i :: Int64 := 0; while i < 2048 { if restore { scene.extra[i] = data[i]; } else { data[i] = scene.extra[i]; } i = i+1; }
+    i = 0; while i < 2 { if restore { scene.settings[i] = int64(data[2048+i]); } else { data[2048+i] = float64(scene.settings[i]); } i = i+1; } return true;
 }
 fn se_redo(history :: SEHistory, scene :: SEScene) -> Bool {
     if history.state[1] >= history.state[2] { return false; }

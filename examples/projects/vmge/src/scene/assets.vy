@@ -1,6 +1,7 @@
 use "transforms.vy";
 use "../engine/assets.vy";
 use "../engine/world_render.vy";
+use "environment.vy";
 
 # Persist only numeric resource tokens. Reconstruct thin wrappers in the frame.
 # Path slots and their boxed headers are preacquired from the owner slab.
@@ -14,12 +15,20 @@ interface SEAssets {
     texture_tokens :: Array<Int64>,
     texture_paths :: Array,
     view :: Array<Float64>,
+    lights :: Array<Float64>,
+    environment_tokens :: Array<Int64>,
 }
 fn se_assets(app :: vraylib.App, paths :: Array, root :: String) -> SEAssets {
     tokens :: Array<Int64> := []; tokens.reserve(64); tokens.resize(64,0);
     state :: Array<Int64> := ss_ints(3);
     texture_paths :: Array := []; texture_paths.reserve(64); i :: Int64 := 0; while i < 64 { texture_paths.push(ss_text(255)); i = i+1; }
-    return SEAssets(tokens,paths,state,app,root,se_programs(),ss_ints(64),texture_paths,ss_floats(3));
+    return SEAssets(tokens,paths,state,app,root,se_programs(),ss_ints(64),texture_paths,ss_floats(3),ss_floats(48),ss_ints(2));
+}
+fn se_environment_prepare(scene :: SEScene,cache :: SETransforms,bank :: SEAssets) -> Bool {
+    se_light_collect(scene,cache,bank.lights);
+    if bank.lights[0] != 0.0 && bank.environment_tokens[0] == 0 { shader :: vraylib.Shader := bank.app.load_shader(vfs.join(bank.root,"shaders/environment/lit.vs"),vfs.join(bank.root,"shaders/environment/lit.fs")); bank.environment_tokens[0] = shader.token; }
+    if se_active_node(scene,5) != -1 && bank.environment_tokens[1] == 0 { shader :: vraylib.Shader := bank.app.load_shader(null,vfs.join(bank.root,"shaders/environment/sky.fs")); bank.environment_tokens[1] = shader.token; }
+    return true;
 }
 fn se_asset_relative(bank :: SEAssets,full :: String) -> String {
     if full.size() <= bank.root.size() { return full; }
@@ -87,7 +96,12 @@ fn se_draw_scene(scene :: SEScene, cache :: SETransforms, bank :: SEAssets, cube
     return se_draw_scene_resource(scene,cache,bank,cubes,editor,selected,scene.world);
 }
 fn se_draw_scene_resource(scene :: SEScene, cache :: SETransforms, bank :: SEAssets, cubes :: Array, editor :: Bool, selected :: Int64,world :: SEWorld) -> Bool {
-    se_world_draw(world);
+    bank.lights[9] = bank.view[0]; bank.lights[10] = bank.view[1]; bank.lights[11] = bank.view[2];
+    if bank.lights[0] != 0.0 && bank.environment_tokens[0] != 0 {
+        shader :: vraylib.Shader := vraylib.Shader(bank.environment_tokens[0],bank.app.token);
+        se_light_upload(shader,bank.lights,true); shader.set("colDiffuse",vraylib.Vector4(1.0,1.0,1.0,1.0));
+        shader.begin(); try { se_world_draw(world); } finally { shader.end(); }
+    } else { se_world_draw(world); }
     slot :: Int64 := 0;
     while slot < 128 {
         if scene.meta[slot*8] != 0 {
@@ -99,12 +113,16 @@ fn se_draw_scene_resource(scene :: SEScene, cache :: SETransforms, bank :: SEAss
                         model :: vraylib.Model := se_node_model(scene,slot,bank,cubes);
                         tint :: vraylib.Color := vraylib.rgba(int64(scene.values[slot*16+9]),int64(scene.values[slot*16+10]),int64(scene.values[slot*16+11]),int64(scene.values[slot*16+12]));
                         resource :: String := se_text_read(scene.materials.paths[slot]);
-                        if resource == "" { model.draw_matrix(se_matrix_read(cache.matrices,slot*16),tint); }
+                        if resource == "" {
+                            if bank.lights[0] != 0.0 && bank.environment_tokens[0] != 0 { shader :: vraylib.Shader := vraylib.Shader(bank.environment_tokens[0],bank.app.token); se_light_upload(shader,bank.lights,false); model.draw_material(se_matrix_read(cache.matrices,slot*16),shader,0,tint); }
+                            else { model.draw_matrix(se_matrix_read(cache.matrices,slot*16),tint); }
+                        }
                         else {
                             if !vraylib.is_path_absolute(resource) { resource = vfs.join(bank.root,resource); }
                             program :: Int64 := se_program_resolve(bank.programs,bank.app,resource);
                             se_material_resolve_textures(scene.materials,scene.materials.instances[slot],bank);
-                            d :: SSDocument := bank.programs.documents[program]; ss_material_apply(d,scene.materials.instances[slot]);
+                             d :: SSDocument := bank.programs.documents[program]; ss_material_apply(d,scene.materials.instances[slot]);
+                             se_light_custom(ss_program(d),bank.lights);
                             parameter :: Int64 := 0; while parameter < d.published.state[0] {
                                 if d.published.meta[parameter*8+1] == 35665 && d.published.meta[parameter*8+2] == 1 && d.published.meta[parameter*8+6] == 1 {
                                     if se_text_read(d.published.names[parameter]) == "cameraPosition" { ss_program(d).set("cameraPosition",vraylib.vec3(bank.view[0],bank.view[1],bank.view[2])); }
@@ -117,7 +135,9 @@ fn se_draw_scene_resource(scene :: SEScene, cache :: SETransforms, bank :: SEAss
                 if editor {
                     position :: vraylib.Vector3 := se_position(cache,slot);
                     if kind == 2 { vraylib.draw_cube_wires(position,0.6,0.4,0.8,vraylib.SKYBLUE); }
-                    if kind == 4 { vraylib.draw_cube_wires(vraylib.vec3(position.x,position.y+0.9,position.z),0.8,1.8,0.8,vraylib.ORANGE); }
+                     if kind == 4 { vraylib.draw_cube_wires(vraylib.vec3(position.x,position.y+0.9,position.z),0.8,1.8,0.8,vraylib.ORANGE); }
+                     if kind == 6 { direction :: vraylib.Vector3 := vraylib.vec3(cache.matrices[slot*16+2],cache.matrices[slot*16+6],cache.matrices[slot*16+10]); vraylib.draw_line_3d(position,vraylib.vec3(position.x+direction.x*2.0,position.y+direction.y*2.0,position.z+direction.z*2.0),vraylib.YELLOW); vraylib.draw_sphere_wires(position,0.25,6,8,vraylib.YELLOW); }
+                     if kind == 7 { radius :: Float64 := 0.3; if selected == id { radius = scene.extra[slot*16+1]; } vraylib.draw_sphere_wires(position,radius,8,12,vraylib.ORANGE); }
                     if kind == 3 || selected == id {
                         box :: vraylib.BoundingBox := se_box(cache,slot);
                         vraylib.draw_bounding_box(box,vraylib.YELLOW);

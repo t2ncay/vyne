@@ -4,6 +4,7 @@
 *.vshader text eol=lf
 *.vgraph text eol=lf
 *.vpipeline text eol=lf
+*.vpipeline.host text eol=lf
 *.vmaterial text eol=lf
 
 # Keep the pinned upstream snapshot byte-for-byte, including upstream line endings.
