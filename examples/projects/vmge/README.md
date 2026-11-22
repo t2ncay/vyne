@@ -2,8 +2,10 @@
 
 A compiled desktop **3D scene and hybrid-world editor** built on Vyne and managed
 `vraylib`: node hierarchy, inspector, gizmos, map brushes, seeded terrain,
-project assets and isolated Play/Stop. Inter replaces raylib's default font
-throughout the studio and historical map editor/player HUDs.
+project assets and isolated Play/Stop. The shared **Scene / World / Shaders /
+Rendering** workspace adds code-first GLSL authoring, typed controls, graph
+generation and editable multipass effects. Inter provides interface typography;
+JetBrains Mono provides source, gutter and diagnostic typography.
 
 The original `map_builder.vy` → `tau_map.dat` → `map_load_test.vy` workflow remains
 available. The studio adds a scene-owned resource with **4,096 map cells and
@@ -118,6 +120,46 @@ Hierarchy branches collapse and search; the inspector groups type-specific
 properties. See [studio/document workflows](STUDIO.md), [UI and asset storage](UI.md),
 [world resources](WORLD.md) and [terrain settings/exports](WORLD_OPTIONS.md).
 
+## Shader Studio: write, inspect, and apply
+
+From the repository root:
+
+```powershell
+$env:VYNE_VMGE_MODE = "shader"
+$env:VYNE_VMGE_ASSETS = "procedural"
+.\vynec.exe --run examples/projects/vmge/src/main.vy
+```
+
+1. Edit Fragment/Vertex source, then **Compile / Ctrl+Enter**. Syntax/link errors
+   retain the last successful program. Root diagnostics navigate source; include
+   diagnostics show cached file context; graph diagnostics select the node.
+2. Declare a used uniform, Compile, then **Parameters → Expose / Schema → Expose
+   uniform**. Define its default/range/group/units and Apply schema. Drag Values or
+   right-click for precise entry; scalar/vector/matrix controls validate the real
+   reflected type. Numeric edits do not require recompiling source.
+3. Choose plane/cube/sphere/selected-model previews; freeze time, step, change
+   resolution, capture a reference and inspect linear float pixels/differences.
+4. Select a mesh in Scene, return to Shaders and **Apply**. Each node retains its
+   own material values even when geometry/programs are shared. Undo, duplication,
+   scene reopen and Play preserve those overrides.
+5. **Save / Save As / Reload** preserve source and the authoritative material
+   checkpoint, including sampler paths. Assigned scene publications are immutable;
+   opening one creates an editable copy. Close/Open support Save/Discard/Cancel.
+6. In Rendering, **Load bloom gallery**, choose pass shaders and predecessor
+   inputs, bypass, inspect, change target format/size and reorder safely. The input
+   is the Studio material preview. Save includes a shader-path ledger for reopen.
+
+The gallery includes lit procedural material, HDR plasma/grid, exposure/tonemap,
+bright extraction, separable blur and bloom composition. The typed graph generates
+deterministic GLSL through the same document/compiler path. See the
+[complete Shader Studio guide](SHADER_STUDIO.md), [UI/editor contract](SHADER_UI.md),
+[scene/material integration](SHADER_HOST.md), [resource/evaluation APIs](SHADER_MODEL.md)
+and [starter gallery](shaders/studio/GALLERY.md).
+
+Float captures and a frozen evaluation API provide a future research bridge.
+Current fitting uses explicit finite differences and `voptim` SGD for small scalar
+parameter sets; it is not arbitrary GLSL autodiff and is not a GUI optimizer.
+
 ## Historical map editor/player controls
 
 | Input | Editor | Play mode |
@@ -193,7 +235,11 @@ without UVs, MTL files or copied textures. The default output is
 
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
-| `VYNE_VMGE_MODE` | `scene` | `scene`, historical `editor`, or historical `play` |
+| `VYNE_VMGE_MODE` | `scene` | Shared `scene`, `world`, `shader`, `rendering`; historical `editor`, `play` |
+| `VYNE_VMGE_SHADER_DOCUMENT` | `<project>/shaders/studio.vshader` | Editable shader and paired material checkpoint |
+| `VYNE_VMGE_SHADER_GRAPH` | `<project>/shaders/studio.vgraph` | Typed graph document |
+| `VYNE_VMGE_SHADER_PIPELINE` | `<project>/shaders/studio.vpipeline` | Pipeline and host shader-path ledger |
+| `VYNE_VMGE_LAYOUT` | `<project>/shaders/studio.layout` | Saved tabs, splits, DPI and maximization |
 | `VYNE_VMGE_SCENE` | `<project>/scene.vscene` | Studio document/proposed Save path |
 | `VYNE_VMGE_WORLD_DEMO` | `0` | `1` generates a 1,024-cell island demo when no scene is loaded |
 | `VYNE_VMGE_SPAWN_PAD` | `0` | `1` opts into generated-pad Play spawn; otherwise uses authored camera |
@@ -230,6 +276,9 @@ src/editor/viewport.vy     gizmos, orbit and orthographic view presets
 src/editor/world_tools.vy  brush strokes, preview staging and terrain tools
 src/editor/world_settings.vy direct numeric settings and pickers
 src/ui/                   Inter theme, UTF-8 editing and project asset storage
+src/editor/shader_workspace.vy source/graph/parameter/preview UI
+src/editor/workspace_host.vy shared navigation, material publication and Rendering
+src/shader/               documents, schemas, materials, graph, pipeline, evaluation
 src/scene/                handles, transforms, IO, history, rendering and Play
 src/engine/world*.vy       resource storage, exact IO/export and motion queries
 src/engine/terrain*.vy     height sampling, sculpting and deterministic fBm
@@ -282,6 +331,10 @@ map scans, rather than a general rigid-body physics system.
   the static error ring retains only the latest 64 promotions, including rethrows.
 - Deferred close requests let the studio finish Save/Discard/Cancel; default App
   close behavior and explicit stop/frame limits remain unchanged.
+- Uncached compiler candidates return bounded driver diagnostics; reflection and
+  typed uploads validate active uniforms. Per-slot material draws preserve shared
+  model state. RGBA32F targets, exact replacement copies, readback and release-bank
+  preflight support failure-safe pipelines without generated-binding changes.
 
 - `App.texture(image)` uploads a checked same-session CPU image into an owned
   GPU texture. The source image can immediately close.
@@ -308,6 +361,8 @@ python examples/projects/vmge/tests/run.py --graphics
 python examples/projects/vmge/tests/run.py --graphics --poison
 # Focused exception/cleanup/atomic-save/font/close regression suite.
 python vyne/runtime/tests/run_vraylib_blockers.py --font examples/projects/vmge/assets/fonts/Inter-Regular.ttf
+# Native shader compile/reflection/material/float/GL-state/fault acceptance.
+python vyne/runtime/tests/shader_run.py
 # Original textures/dirt/audio and unchanged camera_test regression.
 python examples/projects/vmge/tests/run.py --graphics --assets
 # Also render a local historical map in both launchers, without modifying it.
@@ -329,6 +384,14 @@ frames of edit/serialization churn, procedural texture upload, closed-resource
 errors, camera rays, scaled pixels, borrowed-target orientation/resizing,
 fog/VHS/scanline pixels, uniform caching, project build/run, relocated execution,
 partial-load and nested-pass failures, and zero live native handles.
+
+The maintained runner includes **16 CPU fixtures and 9 graphics fixtures**, plus
+five shader-core GPU sections and both 32-frame shader-host flows. Shader checks
+cover real compilation/reflection, independent material pixels, parameter exposure,
+immutable publications, typed graph and pipeline persistence, fractional-alpha/HDR
+copies, include diagnostics, fitting rollback/checkpoint resume, Save As/Reload,
+gallery reference pixels and native handle cleanup. Test documents/layouts are
+isolated from project-owned user files.
 
 Acceptance additionally covers deterministic terrain, exact triangle height/pick
 agreement, 50° walkable slopes, spawn-pad policy, maximum resource persistence,
@@ -360,7 +423,12 @@ up to 8,192 triangle draws plus 4,096 cube draws, without chunk meshes, LOD or
 streaming. Resource cells use solid palette colors; node meshes retain textures.
 OBJ/DAT export includes map-resource cells only. Asset import supports self-contained
 GLB/images up to 8 MiB; dependency rewriting, animation authoring and full rigid-body
-physics are not implemented. See the linked guides for precise limits.
+physics are not implemented. Shader Studio targets desktop OpenGL 3.3. The shared
+scene/pass program bank has 8 slots, node instances retain 16 parameter/orphan rows
+and 16 sampler references, and the native shader supports 4 managed sampler bindings.
+Hosted owner storage is bounded to 128 MiB; explicit target/asset budgets are
+separate. Full docking, world streaming, compute shaders and arbitrary shader AD
+remain future work. See the linked guides for precise limits.
 
 Normal runs print `VMGE_SCENE_EDITOR_COMPLETE`, `VMGE_EDITOR_COMPLETE` or `VMGE_VIEWER_COMPLETE` with frame
 count and `live_handles=0`. Entry-point errors exit nonzero and print
